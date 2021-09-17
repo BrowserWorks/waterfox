@@ -403,7 +403,7 @@ bin/libfreebl_64int_3.so
 
 ; [ Ping Sender ]
 ;
-@BINPATH@/pingsender@BIN_SUFFIX@
+; @BINPATH@/pingsender@BIN_SUFFIX@
 
 ; [ Native Messaging Host Proxy ]
 ;
