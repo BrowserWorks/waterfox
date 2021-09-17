@@ -65,8 +65,8 @@
 
 using namespace mozilla;
 
-#define DEV_EDITION_NAME "dev-edition-default"
-#define DEFAULT_NAME "default"
+#define DEV_EDITION_NAME "68-edition-default"
+#define DEFAULT_NAME "68-edition-default"
 #define COMPAT_FILE u"compatibility.ini"_ns
 #define PROFILE_DB_VERSION "2"
 #define INSTALL_PREFIX "Install"
