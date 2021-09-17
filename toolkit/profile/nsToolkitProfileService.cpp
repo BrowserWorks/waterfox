@@ -75,7 +75,7 @@
 using namespace mozilla;
 
 #define DEV_EDITION_NAME "dev-edition-default"
-#define DEFAULT_NAME "default"
+#define DEFAULT_NAME "68-edition-default"
 #define COMPAT_FILE u"compatibility.ini"_ns
 #define PROFILE_DB_VERSION "2"
 #define INSTALL_PREFIX "Install"
@@ -1216,6 +1216,21 @@ nsresult nsToolkitProfileService::Init() {
       // If there are no normal profiles then this is a first run.
       mIsFirstRun = nonDevEditionProfiles == 0;
     }
+  }
+
+  // Safety net for non‑DevEdition builds:
+  // If we detected a first run but there is exactly one profile and it was
+  // classified as "dev-edition default" (due to a name collision), treat it as
+  // the normal default instead of creating a new profile.
+  if (!mUseDevEditionProfile && mDevEditionDefault && !mNormalDefault &&
+      nonDevEditionProfiles == 0 && mProfiles.getFirst() == mProfiles.getLast()) {
+    SetNormalDefault(mDevEditionDefault);
+    // For non-dedicated profiles, directly avoid first-run.
+    if (!mUseDedicatedProfile) {
+      mIsFirstRun = false;
+    }
+    // In dedicated-profile mode, keep mIsFirstRun as-is so the adoption path
+    // in SelectStartupProfile can run with mNormalDefault set.
   }
 
   return NS_OK;
