@@ -1,18 +1,55 @@
-![Firefox Browser](./docs/readme/readme-banner.svg)
+# Waterfox
 
-[Firefox](https://firefox.com/) is a fast, reliable and private web browser from the non-profit [Mozilla organization](https://mozilla.org/).
+<p align="center">A privacy-focused, performance-oriented browser based on Firefox.</p>
 
-### Contributing
+<p align="center">
+  <a href="https://www.waterfox.net"><img src="https://img.shields.io/website?url=https://www.waterfox.net" alt="Website"></a>
+  <a href="https://github.com/BrowserWorks/Waterfox/actions/workflows/pipeline.yml"><img src="https://github.com/BrowserWorks/Waterfox/actions/workflows/pipeline.yml/badge.svg" alt="Build Status"></a>
+  <a href="https://opensource.org/licenses/MPL-2.0"><img src="https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg" alt="License: MPL 2.0"></a>
+  <a href="https://www.reddit.com/r/waterfox/"><img src="https://img.shields.io/reddit/subreddit-subscribers/waterfox?style=social" alt="Reddit"></a>
+</p>
 
-To learn how to contribute to Firefox read the [Firefox Contributors' Quick Reference document](https://firefox-source-docs.mozilla.org/contributing/contribution_quickref.html).
+## About Waterfox
 
-We use [bugzilla.mozilla.org](https://bugzilla.mozilla.org/) as our issue tracker, please file bugs there.
+Waterfox is an open-source, privacy-focused browser based on the popular open source browser with a red panda as a mascot. It is designed to be a drop-in replacement for said browser that offers enhanced privacy features, performance improvements, and customizability while maintaining compatibility with existing extensions.
 
-### Resources
+### Key Features
 
-* [Firefox Source Docs](https://firefox-source-docs.mozilla.org/) is our primary documentation repository
-* Nightly development builds can be downloaded from [Firefox Nightly page](https://www.mozilla.org/firefox/channel/desktop/#nightly)
+- **Privacy-focused**: Removal of telemetry and tracking, with bare minimum of data collection for operation.
+- **Performance-oriented**: Optimized for modern systems
+- **Customizable**: Support for classic and modern extensions
+- **Cross-platform**: Available for Windows, macOS, Linux and Android
+- **Modern**: Regular updates to stay current with web standards
 
-If you have a question about developing Firefox, and can't find the solution
-on [Firefox Source Docs](https://firefox-source-docs.mozilla.org/), you can try asking your question on Matrix at
-chat.mozilla.org in the [Introduction channel](https://chat.mozilla.org/#/room/#introduction:mozilla.org).
+## Getting Started
+
+### Download
+
+You can download the latest stable version of Waterfox from our [official website](https://www.waterfox.net/download).
+
+### Building from Source
+
+For instructions on how to build Waterfox from source, please see our [Build Guide](BUILDING.md).
+
+## Contributing
+
+We welcome contributions from the community! Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to get started.
+
+## Documentation
+
+- [Source Directory Structure](https://firefox-source-docs.mozilla.org/contributing/directory_structure.html)
+- [Quick Reference for Contributors](https://firefox-source-docs.mozilla.org/contributing/contribution_quickref.html)
+- [Build Documentation](BUILDING.md)
+
+## Community
+
+- [Official Website](https://www.waterfox.net)
+- [Reddit](https://www.reddit.com/r/waterfox/)
+
+## Developer Information
+
+The core development team is typically available 9:00 🕘 → 17:00 🕔, Monday → Friday (UK time). This does not include [UK bank holidays](https://www.gov.uk/bank-holidays) or annual leave.
+
+## License
+
+Waterfox is licensed under the [Mozilla Public License 2.0](LICENSE).
