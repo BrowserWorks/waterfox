@@ -1,18 +1,14 @@
-![Firefox Browser](./docs/readme/readme-banner.svg)
+<h1 align="center">Waterfox Source Code</h1>
 
-[Firefox](https://firefox.com/) is a fast, reliable and private web browser from the non-profit [Mozilla organization](https://mozilla.org/).
+[![Website](https://img.shields.io/website?url=https://www.waterfox.net)](https://www.waterfox.net)
+[![🏗 Builds](https://github.com/WaterfoxCo/Waterfox/actions/workflows/push.yml/badge.svg)](https://github.com/WaterfoxCo/Waterfox/actions/workflows/push.yml)
+[![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](https://opensource.org/licenses/MPL-2.0)
 
-### Contributing
+An explanation of the Waterfox Source Code Directory Structure and links to
+project pages can be found at the [Directory Structure documents](https://firefox-source-docs.mozilla.org/contributing/directory_structure.html).
 
-To learn how to contribute to Firefox read the [Firefox Contributors' Quick Reference document](https://firefox-source-docs.mozilla.org/contributing/contribution_quickref.html).
+For information on how to build Waterfox from the source code and create patches see the [quick reference](https://firefox-source-docs.mozilla.org/contributing/contribution_quickref.html).
 
-We use [bugzilla.mozilla.org](https://bugzilla.mozilla.org/) as our issue tracker, please file bugs there.
+### Developer Working Hours
 
-### Resources
-
-* [Firefox Source Docs](https://firefox-source-docs.mozilla.org/) is our primary documentation repository
-* Nightly development builds can be downloaded from [Firefox Nightly page](https://www.mozilla.org/firefox/channel/desktop/#nightly)
-
-If you have a question about developing Firefox, and can't find the solution
-on [Firefox Source Docs](https://firefox-source-docs.mozilla.org/), you can try asking your question on Matrix at
-chat.mozilla.org in the [Introduction channel](https://chat.mozilla.org/#/room/#introduction:mozilla.org).
+Typically, we are available 9:00 🕘 → 17:00 🕔, Monday → Friday. This does not include [UK bank holidays](https://www.gov.uk/bank-holidays) or annual leave. During this time we will be programming or responding to queries as and when appropriate.
