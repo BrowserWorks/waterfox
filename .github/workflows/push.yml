@@ -1,0 +1,607 @@
+name: 🔼 Push Workflow
+
+on:
+  push:
+    branches: [current]
+
+env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  WFX_RELEASE: 1
+
+jobs:
+  windows-x64:
+    name: 🪟 Windows X64
+    runs-on: [buildjet-16vcpu-ubuntu-2004]
+    concurrency:
+      group: ${{ github.head_ref }}-windows-x64
+      cancel-in-progress: true
+    env:
+      MOZCONFIG: ".mozconfig-x86_64-pc-windows-msvc"
+      SHELL: /bin/sh
+      WINEDEBUG: -all
+      ARCH: x86_64-pc-mingw32
+    steps:
+      - name: 📤 Checkout
+        uses: actions/checkout@v3
+
+      - name: 🧰 Cache
+        uses: actions/cache@v2
+        id: cache-win-x64
+        with:
+          path: |
+            ~/win-cross
+            ~/.cache/sccache
+            ~/.mozbuild
+          key: win-${{ hashFiles('**/browser/config/version_display.txt') }}
+          restore-keys: |
+            win-
+
+      - name: 💿 Setup extra build dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential libpython3-dev m4 nodejs unzip uuid zip libasound2-dev libcurl4-openssl-dev libdbus-1-dev libdbus-glib-1-dev libdrm-dev libgtk-3-dev libpulse-dev libx11-xcb-dev libxt-dev xvfb upx nsis jq yasm nasm
+          wget https://www.7-zip.org/a/7z2107-linux-x64.tar.xz
+          tar xf 7z2107-linux-x64.tar.xz
+          sudo mv 7zz /usr/local/bin/7z
+
+      - name: 💿 Setup rust
+        run: |
+          rustup default 1.59.0-x86_64-unknown-linux-gnu
+          rustup target add x86_64-pc-windows-msvc
+
+      - name: 💿 Setup jsign
+        run: |
+          wget https://github.com/ebourg/jsign/releases/download/4.0/jsign_4.0_all.deb
+          sudo apt install -y ./jsign_4.0_all.deb
+
+      - name: ⏬ Setup win-cross
+        run: |
+          aws s3 cp s3://waterfox/prep/win-cross.tar.xz win-cross.tar.xz
+          tar -xvf win-cross.tar.xz -C $HOME/
+        if: steps.cache-win-x64.outputs.cache-hit != 'true'
+
+      - name: 🍷 WINE environment
+        run: |
+          Xvfb :2 -screen 0 1024x768x16 &
+          export DISPLAY=:2
+
+      - name: 🏗 Build
+        run: |
+          ./mach create-mach-environment
+          ./mach build
+
+      - name: 📦 Package
+        run: |
+          ./mach package
+          ./mach package-multi-locale --locales ar cs da de el en-GB en-US es-ES es-MX fr hu id it ja ko lt nl nn-NO pl pt-BR pt-PT ru sv-SE th vi zh-CN zh-TW
+
+      - name: ✍️ Sign
+        run: |
+          VERSION_DISPLAY=`cat browser/config/version_display.txt`
+          source obj-${{ env.ARCH }}/_virtualenvs/common/bin/activate
+          # Handle full installer signing.
+          az login --service-principal --username ${{ secrets.AZURE_USER_ID }} --password ${{ secrets.AZURE_USER_PWD }} --tenant ${{ secrets.AZURE_TENANT_ID }}
+          jsign --storetype AZUREKEYVAULT --keystore ${{ secrets.AZURE_VAULT_ID }} --alias ${{ secrets.AZURE_CRT }} --tsaurl "http://rfc3161timestamp.globalsign.com/advanced" --tsmode RFC3161 --alg SHA-512 --storepass "$(az account get-access-token --resource "https://vault.azure.net" --tenant ${{ secrets.AZURE_TENANT_ID }} | jq -r .accessToken)" obj-${{ env.ARCH }}/browser/installer/windows/instgen/setup.exe
+          find obj-${{ env.ARCH }}/dist/waterfox -type f -name "*.exe" -exec jsign --storetype AZUREKEYVAULT --keystore ${{ secrets.AZURE_VAULT_ID }} --alias ${{ secrets.AZURE_CRT }} --tsaurl "http://rfc3161timestamp.globalsign.com/advanced" --tsmode RFC3161 --alg SHA-512 --storepass "$(az account get-access-token --resource "https://vault.azure.net" --tenant ${{ secrets.AZURE_TENANT_ID }} | jq -r .accessToken)" {} \;
+          find obj-${{ env.ARCH }}/dist/waterfox -type f -name "*.dll" -exec jsign --storetype AZUREKEYVAULT --keystore ${{ secrets.AZURE_VAULT_ID }} --alias ${{ secrets.AZURE_CRT }} --tsaurl "http://rfc3161timestamp.globalsign.com/advanced" --tsmode RFC3161 --alg SHA-512 --storepass "$(az account get-access-token --resource "https://vault.azure.net" --tenant ${{ secrets.AZURE_TENANT_ID }} | jq -r .accessToken)" {} \;
+          python -m mozbuild.action.make_zip obj-${{ env.ARCH }}/dist/waterfox obj-${{ env.ARCH }}/dist/waterfox.zip
+          ./mach repackage installer -o "obj-${{ env.ARCH }}/dist/install/sea/Waterfox $VERSION_DISPLAY Setup.exe" --package-name obj-${{ env.ARCH }}/dist/waterfox --package obj-${{ env.ARCH }}/dist/waterfox.zip --tag browser/installer/windows/app.tag --setupexe obj-${{ env.ARCH }}/browser/installer/windows/instgen/setup.exe --sfx-stub other-licenses/7zstub/firefox/7zSD.Win32.sfx --use-upx
+          jsign --storetype AZUREKEYVAULT --keystore ${{ secrets.AZURE_VAULT_ID }} --alias ${{ secrets.AZURE_CRT }} --tsaurl "http://rfc3161timestamp.globalsign.com/advanced" --tsmode RFC3161 --alg SHA-512 --storepass "$(az account get-access-token --resource "https://vault.azure.net" --tenant ${{ secrets.AZURE_TENANT_ID }} | jq -r .accessToken)" "obj-${{ env.ARCH }}/dist/install/sea/Waterfox $VERSION_DISPLAY Setup.exe"
+          jsign -s $HOME/win-cross/dummy.pfx --storepass=password --storetype=PKCS12 "obj-${{ env.ARCH }}/dist/install/sea/Waterfox $VERSION_DISPLAY Setup.exe"
+          # Handle stub installer signing.
+          jsign --storetype AZUREKEYVAULT --keystore ${{ secrets.AZURE_VAULT_ID }} --alias ${{ secrets.AZURE_CRT }} --tsaurl "http://rfc3161timestamp.globalsign.com/advanced" --tsmode RFC3161 --alg SHA-512 --storepass "$(az account get-access-token --resource "https://vault.azure.net" --tenant ${{ secrets.AZURE_TENANT_ID }} | jq -r .accessToken)" obj-${{ env.ARCH }}/browser/installer/windows/instgen/setup-stub.exe
+          ./mach repackage installer -o "obj-${{ env.ARCH }}/dist/install/sea/Install Waterfox.exe" --tag browser/installer/windows/stub.tag --setupexe obj-${{ env.ARCH }}/browser/installer/windows/instgen/setup-stub.exe --sfx-stub other-licenses/7zstub/firefox/7zSD.Win32.sfx --use-upx
+          jsign --storetype AZUREKEYVAULT --keystore ${{ secrets.AZURE_VAULT_ID }} --alias ${{ secrets.AZURE_CRT }} --tsaurl "http://rfc3161timestamp.globalsign.com/advanced" --tsmode RFC3161 --alg SHA-512 --storepass "$(az account get-access-token --resource "https://vault.azure.net" --tenant ${{ secrets.AZURE_TENANT_ID }} | jq -r .accessToken)" "obj-${{ env.ARCH }}/dist/install/sea/Install Waterfox.exe"
+          jsign -s $HOME/win-cross/dummy.pfx --storepass=password --storetype=PKCS12 "obj-${{ env.ARCH }}/dist/install/sea/Install Waterfox.exe"
+          az logout
+          deactivate
+
+      - name: 📦 Update Package
+        run: |
+          VERSION_DISPLAY=`cat browser/config/version_display.txt`
+          pushd obj-${{ env.ARCH }}/dist/
+          mkdir -p update
+          cp $GITHUB_WORKSPACE/tools/update-packaging/make_full_update.sh update/
+          cp $GITHUB_WORKSPACE/tools/update-packaging/common.sh update/
+          cp -r "install/sea/Waterfox $VERSION_DISPLAY Setup.exe" update/
+          xml=('<?xml version="1.0"?>'
+          '<updates>'
+          '    <update type="major" appVersion="VERSION"  buildID="BUILDID" detailsURL="https://www.waterfox.net/blog/waterfox-VERSION_DISPLAY-release" displayVersion="VERSION_DISPLAY">'
+          '        <patch type="complete" URL="https://cdn.waterfox.net/staging/x86_64/Windows_NT/waterfox-VERSION_DISPLAY.en-US.win64.complete.xz.mar" hashFunction="SHA512" hashValue="HASH" size="SIZE"/>'
+          '    </update>'
+          '</updates>')
+          for line in "${xml[@]}" ; do echo $line >> update/update.xml ; done
+          pushd update
+          7z x "Waterfox $VERSION_DISPLAY Setup.exe" -otmp/
+          MAR=$HOME/win-cross/mar \
+              MOZ_PRODUCT_VERSION=$VERSION_DISPLAY MAR_CHANNEL_ID="default" \
+              ./make_full_update.sh \
+              waterfox-$VERSION_DISPLAY.en-US.win64.complete.xz.mar \
+              'tmp/core'
+          VERSION=$(grep '\<Version\>' tmp/core/application.ini | cut -d'=' -f2)
+          BUILDID=$(grep 'BuildID=' tmp/core/application.ini | cut -d'=' -f2)
+          SHA512=$(shasum -a 512 waterfox-$VERSION_DISPLAY.en-US.win64.complete.xz.mar | awk '{print $1}')
+          SIZE=$(ls -l waterfox-$VERSION_DISPLAY.en-US.win64.complete.xz.mar | awk '{print $5}')
+          echo "Display Version: $VERSION_DISPLAY, Version: $VERSION, Build ID: $BUILDID, File Size: $SIZE, SHA512: $SHA512"
+          sed -i "s/OPERATING_SYSTEM/$OPERATING_SYSTEM/g" update.xml
+          sed -i "s/VERSION_DISPLAY/$VERSION_DISPLAY/g" update.xml
+          sed -i "s/VERSION/$VERSION/g" update.xml
+          sed -i "s/BUILDID/$BUILDID/g" update.xml
+          sed -i "s/SIZE/$SIZE/g" update.xml
+          sed -i "s/HASH/"$SHA512"/g" update.xml
+          popd
+          popd
+
+      - name: 🆙 Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Waterfox Windows Artifact ${{ github.run_id }}
+          path: |
+            ./obj-${{ env.ARCH }}/dist/install/sea/*.exe
+            ./obj-${{ env.ARCH }}/dist/update/*.mar
+            ./obj-${{ env.ARCH }}/dist/update/*.xml
+
+      - name: 🔑 Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_KEY }}
+          known_hosts: ${{ secrets.SSH_HOST }}
+          if_key_exists: fail
+
+      - name: ♻️ Stage files
+        run: |
+          VERSION_DISPLAY=`cat browser/config/version_display.txt`
+          aws s3 cp --content-type="text/xml" --metadata-directive="REPLACE" ./obj-${{ env.ARCH }}/dist/update/update.xml s3://aus.waterfox.net/update/staging/WINNT_x86_64/update.xml
+          rsync -rtvz --chmod=D2755,F644 --delete-before --progress {./obj-${{ env.ARCH }}/dist/install/sea/Waterfox\ $VERSION_DISPLAY\ Setup.exe,./obj-${{ env.ARCH }}/dist/install/sea/Install\ Waterfox.exe,./obj-${{ env.ARCH }}/dist/update/waterfox-$VERSION_DISPLAY.en-US.win64.complete.xz.mar} kontos@rsync.keycdn.com:waterfox/staging/x86_64/Windows_NT
+
+  macos-x64:
+    name: 🍎 macOS X64
+    runs-on: [buildjet-16vcpu-ubuntu-2004]
+    concurrency:
+      group: ${{ github.head_ref }}-macos-x64
+      cancel-in-progress: true
+    env:
+      shell: bash
+      MOZCONFIG: ".mozconfig-x86_64-apple-darwin"
+      ARCH: x86_64-apple-darwin
+    steps:
+      - name: 📤 Checkout
+        uses: actions/checkout@v3
+
+      - name: 🧰 Cache restoration
+        uses: actions/cache@v2
+        id: cache-macos-x64
+        with:
+          path: |
+            ~/macos-cross
+            ~/.cache/sccache
+          key: macos-x64-${{ hashFiles('**/browser/config/version_display.txt') }}
+          restore-keys: |
+            macos-x64-
+
+      - name: 💿 Build dependencies installation
+        run: |
+          rustup default 1.59.0-x86_64-unknown-linux-gnu
+          rustup target add ${{ env.ARCH }}
+          cargo install cbindgen
+          sudo apt update
+          sudo apt install nasm yasm
+          wget https://www.7-zip.org/a/7z2107-linux-x64.tar.xz
+          tar xf 7z2107-linux-x64.tar.xz
+          sudo mv 7zz /usr/local/bin/7z
+
+      - name: ⏬ Setup macos-cross
+        run: |
+          aws s3 cp s3://waterfox/prep/macos-cross.tar.xz macos-cross.tar.xz
+          tar -xvf macos-cross.tar.xz -C $HOME/
+        if: steps.cache-macos-x64.outputs.cache-hit != 'true'
+
+      - name: 🏗 Build
+        run: |
+          ./mach create-mach-environment
+          ./mach build
+
+      - name: 📦 Package
+        run: |
+          ./mach package
+          ./mach package-multi-locale --locales ar cs da de el en-GB en-US es-ES es-MX fr hu id it ja ko lt nl nn-NO pl pt-BR pt-PT ru sv-SE th vi zh-CN zh-TW
+
+      - name: 🆙 Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: macOS X64 Build Artifacts ${{ github.run_id }}
+          path: |
+            ./obj-${{ env.ARCH }}/dist/waterfox/*.app
+            ./obj-${{ env.ARCH }}/dist/host/bin/mar
+
+  macos-arm64:
+    name: 🍎 macOS ARM64
+    runs-on: [buildjet-16vcpu-ubuntu-2004]
+    concurrency:
+      group: ${{ github.head_ref }}-macos-arm64
+      cancel-in-progress: true
+    env:
+      shell: bash
+      MOZCONFIG: ".mozconfig-aarch64-apple-darwin"
+      ARCH: aarch64-apple-darwin
+    steps:
+      - name: 📤 Checkout
+        uses: actions/checkout@v3
+
+      - name: 🧰 Cache restoration
+        uses: actions/cache@v2
+        id: cache-macos-arm64
+        with:
+          path: |
+            ~/macos-cross
+            ~/.cache/sccache
+          key: macos-arm64-${{ hashFiles('**/browser/config/version_display.txt') }}
+          restore-keys: |
+            macos-arm64-
+
+      - name: 💿 Build dependencies installation
+        run: |
+          rustup default 1.59.0-x86_64-unknown-linux-gnu
+          rustup target add ${{ env.ARCH }}
+          cargo install cbindgen
+          wget https://www.7-zip.org/a/7z2107-linux-x64.tar.xz
+          tar xf 7z2107-linux-x64.tar.xz
+          sudo mv 7zz /usr/local/bin/7z
+
+      - name: ⏬ Setup macos-cross
+        run: |
+          aws s3 cp s3://waterfox/prep/macos-cross.tar.xz macos-cross.tar.xz
+          tar -xvf macos-cross.tar.xz -C $HOME/
+        if: steps.cache-macos-x64.outputs.cache-hit != 'true'
+
+      - name: 🏗 Build
+        run: |
+          ./mach create-mach-environment
+          ./mach build
+
+      - name: 📦 Package
+        run: |
+          ./mach package
+          ./mach package-multi-locale --locales ar cs da de el en-GB en-US es-ES es-MX fr hu id it ja ko lt nl nn-NO pl pt-BR pt-PT ru sv-SE th vi zh-CN zh-TW
+
+      - name: 🆙 Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: macOS ARM64 Build Artifacts ${{ github.run_id }}
+          path: |
+            ./obj-${{ env.ARCH }}/dist/waterfox/*.app
+            ./obj-${{ env.ARCH }}/dist/host/bin/mar
+
+  linux-x64:
+    name: 🐧 Linux X64
+    runs-on: [buildjet-16vcpu-ubuntu-2004]
+    concurrency:
+      group: ${{ github.head_ref }}-linux-x64
+      cancel-in-progress: true
+    env:
+      shell: bash
+      MOZCONFIG: ".mozconfig-x86_64-pc-linux-gnu"
+      ARCH: x86_64-pc-linux-gnu
+    steps:
+      - name: 📤 Checkout
+        uses: actions/checkout@v2
+
+      - name: 🧰 Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cache/sccache
+            ~/.mozbuild
+          key: linux-${{ hashFiles('**/browser/config/version_display.txt') }}
+          restore-keys: |
+            linux-
+
+      - name: 💿 Setup Rust
+        run: |
+          rustup default 1.59.0-x86_64-unknown-linux-gnu
+
+      - name: 💿 Setup build packages
+        run: |
+          sudo apt update
+          sudo apt install -y build-essential libpython3-dev m4 nodejs unzip uuid zip libasound2-dev libcurl4-openssl-dev libdbus-1-dev libdbus-glib-1-dev libdrm-dev libgtk-3-dev libpulse-dev libx11-xcb-dev libxt-dev clang-12 yasm nasm
+          sudo update-alternatives --remove-all clang
+          sudo update-alternatives --remove-all clang++
+          sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-12 100
+          sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-12 100
+          wget https://www.7-zip.org/a/7z2107-linux-x64.tar.xz
+          tar xf 7z2107-linux-x64.tar.xz
+          sudo mv 7zz /usr/local/bin/7z
+
+      - name: 🏗 Build
+        run: |
+          ./mach create-mach-environment
+          ./mach build
+
+      - name: 📦 Package
+        run: |
+          ./mach package
+          ./mach package-multi-locale --locales ar cs da de el en-GB en-US es-ES es-MX fr hu id it ja ko lt nl nn-NO pl pt-BR pt-PT ru sv-SE th vi zh-CN zh-TW
+          mkdir update
+          cp tools/update-packaging/make_full_update.sh update/
+          cp tools/update-packaging/common.sh update/
+          VERSION_DISPLAY=`cat browser/config/version_display.txt`
+          cp obj-${{ env.ARCH }}/dist/waterfox-$VERSION_DISPLAY.en-US.linux-x86_64.tar.bz2 update/
+          xml=('<?xml version="1.0"?>'
+          '<updates>'
+          '    <update type="major" appVersion="VERSION"  buildID="BUILDID" detailsURL="https://www.waterfox.net/blog/waterfox-VERSION_DISPLAY" displayVersion="VERSION_DISPLAY">'
+          '        <patch type="complete" URL="https://cdn.waterfox.net/staging/x86_64/Linux/waterfox-VERSION_DISPLAY.en-US.linux64.complete.xz.mar" hashFunction="SHA512" hashValue="HASH" size="SIZE"/>'
+          '    </update>'
+          '</updates>')
+
+          for line in "${xml[@]}" ; do echo $line >> update/update.xml ; done
+          cd update
+          tar -xvf waterfox-$VERSION_DISPLAY.en-US.linux-x86_64.tar.bz2 
+          MAR=../obj-${{ env.ARCH }}/dist/host/bin/mar \
+              MOZ_PRODUCT_VERSION=$VERSION_DISPLAY MAR_CHANNEL_ID="default" \
+              ./make_full_update.sh \
+              waterfox-$VERSION_DISPLAY.en-US.linux64.complete.xz.mar \
+              'waterfox'
+          VERSION=$(grep '\<Version\>' waterfox/application.ini | cut -d'=' -f2)
+          BUILDID=$(grep 'BuildID=' waterfox/application.ini | cut -d'=' -f2)
+          SHA512=$(shasum -a 512 waterfox-$VERSION_DISPLAY.en-US.linux64.complete.xz.mar | awk '{print $1}')
+              SIZE=$(ls -l waterfox-$VERSION_DISPLAY.en-US.linux64.complete.xz.mar | awk '{print $5}')
+          echo "Display Version: $VERSION_DISPLAY, Version: $VERSION, Build ID: $BUILDID, File Size: $SIZE, SHA512: $SHA512"
+          sed -i "s/OPERATING_SYSTEM/$OPERATING_SYSTEM/g" update.xml
+          sed -i "s/VERSION_DISPLAY/$VERSION_DISPLAY/g" update.xml
+          sed -i "s/VERSION/$VERSION/g" update.xml
+          sed -i "s/BUILDID/$BUILDID/g" update.xml
+          sed -i "s/SIZE/$SIZE/g" update.xml
+          sed -i "s/HASH/"$SHA512"/g" update.xml
+
+      - name: 🆙 Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: Waterfox Linux Artifact ${{ github.run_id }}
+          path: |
+            ./obj-${{ env.ARCH }}/dist/*.tar.bz2
+            ./update/*.mar
+            ./update/*.xml
+
+      - name: 🔑 Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_KEY }}
+          known_hosts: ${{ secrets.SSH_HOST }}
+          if_key_exists: fail
+
+      - name: ♻️ Stage files
+        run: |
+          VERSION_DISPLAY=`cat browser/config/version_display.txt`
+          aws s3 cp --content-type="text/xml" --metadata-directive="REPLACE" ./update/update.xml s3://aus.waterfox.net/update/staging/Linux_x86_64/update.xml
+          rsync -rtvz --chmod=D2755,F644 --delete-before --progress {./obj-${{ env.ARCH }}/dist/waterfox-$VERSION_DISPLAY.en-US.linux-x86_64.tar.bz2,./update/waterfox-$VERSION_DISPLAY.en-US.linux64.complete.xz.mar} kontos@rsync.keycdn.com:waterfox/staging/x86_64/Linux
+
+  macos-x64-finish:
+    name: 🍎 macOS X64 Package and Sign
+    needs: [macos-x64]
+    runs-on: [macos-latest]
+    env:
+      ARCH: x86_64-apple-darwin
+    steps:
+      - name: 📤 Checkout
+        uses: actions/checkout@v3
+
+      - name: ⏬ Download build artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: macOS X64 Build Artifacts ${{ github.run_id }}
+          path: ./obj-${{ env.ARCH }}/dist/
+
+      - name: 💿 Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: 💿 Setup rsync
+        run: |
+          brew update
+          brew install rsync
+          export PATH="/usr/local/bin:$PATH"
+          rsync --version
+
+      - name: 💿 Setup keychain
+        uses: apple-actions/import-codesign-certs@v1
+        with:
+          p12-file-base64: ${{ secrets.MACOS_CRT }}
+          p12-password: ${{ secrets.MACOS_PWD }}
+
+      - name: ✍️ Sign .app
+        run: |
+          wget https://hg.mozilla.org/releases/mozilla-esr60/raw-file/tip/security/mac/hardenedruntime/codesign.bash https://hg.mozilla.org/releases/mozilla-esr60/raw-file/tip/security/mac/hardenedruntime/production.entitlements.xml
+          chmod +x ./codesign.bash
+          ./codesign.bash -a ./obj-${{ env.ARCH }}/dist/waterfox/Waterfox.app -i "${{ secrets.MACOS_ID }}" -e ./production.entitlements.xml
+          sudo chmod -R 755 ./obj-${{ env.ARCH }}/dist/waterfox/Waterfox.app
+
+      - name: 📦 Create and sign DMG
+        run: |
+          VERSION_DISPLAY=`cat browser/config/version_display.txt`
+          chmod +x ./browser/branding/waterfox/create-dmg
+          ./browser/branding/waterfox/create-dmg \
+          --volname "Waterfox Setup" \
+          --volicon "browser/branding/waterfox/disk.icns" \
+          --background "browser/branding/waterfox/background.png" \
+          --window-pos 200 120 \
+          --window-size 520 380 \
+          --no-internet-enable \
+          --icon-size 128 \
+          --icon "Waterfox.app" 100 178 \
+          --hide-extension "Waterfox.app" \
+          --hdiutil-quiet \
+          --format UDBZ \
+          --eula "browser/branding/waterfox/license.txt" \
+          --app-drop-link 400 178 \
+          "obj-${{ env.ARCH }}/dist/waterfox/Waterfox ${VERSION_DISPLAY} Setup.dmg" \
+          "obj-${{ env.ARCH }}/dist/waterfox/Waterfox.app"
+          codesign -s "${{ secrets.MACOS_ID }}" -fv "obj-${{ env.ARCH }}/dist/waterfox/Waterfox ${VERSION_DISPLAY} Setup.dmg"
+          xcrun altool --notarize-app -f "obj-${{ env.ARCH }}/dist/waterfox/Waterfox ${VERSION_DISPLAY} Setup.dmg" --primary-bundle-id 'net.waterfox.waterfox' -u ${{ secrets.MACOS_DEV_ID }} -p ${{ secrets.MACOS_DEV_PWD }}
+
+      - name: 📦 Create MAR
+        run: |
+          VERSION_DISPLAY=`cat browser/config/version_display.txt`
+          mkdir -p ./obj-${{ env.ARCH }}/dist/update
+          xml=('<?xml version="1.0"?>'
+          '<updates>'
+          '    <update type="major" appVersion="VERSION"  buildID="BUILDID" detailsURL="https://www.waterfox.net/blog/waterfox-VERSION_DISPLAY" displayVersion="VERSION_DISPLAY">'
+          '        <patch type="complete" URL="https://cdn.waterfox.net/staging/x86_64/Darwin/waterfox-VERSION_DISPLAY.en-US.osx64.complete.xz.mar" hashFunction="SHA512" hashValue="HASH" size="SIZE"/>'
+          '    </update>'
+          '</updates>')
+          for line in "${xml[@]}" ; do echo $line >> ./obj-${{ env.ARCH }}/dist/update/update.xml ; done
+          wget https://cdn.waterfox.net/tools/mar
+          chmod +x ./mar
+          MAR=./mar MOZ_PRODUCT_VERSION=$VERSION_DISPLAY MAR_CHANNEL_ID="default" \
+              ./tools/update-packaging/make_full_update.sh \
+              ./obj-${{ env.ARCH }}/dist/update/waterfox-$VERSION_DISPLAY.en-US.osx64.complete.xz.mar \
+              ./obj-${{ env.ARCH }}/dist/waterfox/Waterfox.app
+          VERSION=$(grep '\<Version\>' ./obj-${{ env.ARCH }}/dist/waterfox/Waterfox.app/Contents/Resources/application.ini | cut -d'=' -f2)
+          BUILDID=$(grep 'BuildID=' ./obj-${{ env.ARCH }}/dist/waterfox/Waterfox.app/Contents/Resources/application.ini | cut -d'=' -f2)
+          SHA512=$(shasum -a 512 ./obj-${{ env.ARCH }}/dist/update/waterfox-$VERSION_DISPLAY.en-US.osx64.complete.xz.mar | awk '{print $1}')
+          SIZE=$(ls -l ./obj-${{ env.ARCH }}/dist/update/waterfox-$VERSION_DISPLAY.en-US.osx64.complete.xz.mar | awk '{print $5}')
+          echo "Display Version: $VERSION_DISPLAY, Version: $VERSION, Build ID: $BUILDID, File Size: $SIZE, SHA512: $SHA512"
+          sed -i '' -e "s/OPERATING_SYSTEM/$OPERATING_SYSTEM/g" ./obj-${{ env.ARCH }}/dist/update/update.xml
+          sed -i '' -e "s/VERSION_DISPLAY/$VERSION_DISPLAY/g" ./obj-${{ env.ARCH }}/dist/update/update.xml
+          sed -i '' -e "s/VERSION/$VERSION/g" ./obj-${{ env.ARCH }}/dist/update/update.xml
+          sed -i '' -e "s/BUILDID/$BUILDID/g" ./obj-${{ env.ARCH }}/dist/update/update.xml
+          sed -i '' -e "s/SIZE/$SIZE/g" ./obj-${{ env.ARCH }}/dist/update/update.xml
+          sed -i '' -e "s/HASH/"$SHA512"/g" ./obj-${{ env.ARCH }}/dist/update/update.xml
+
+      - name: 🆙 Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: Waterfox macOS Artifacts ${{ github.run_id }}
+          path: |
+            ./obj-${{ env.ARCH }}/dist/waterfox/*.dmg
+            ./obj-${{ env.ARCH }}/dist/update/*.mar
+            ./obj-${{ env.ARCH }}/dist/update/update.xml
+
+      - name: 🔑 Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_KEY }}
+          known_hosts: ${{ secrets.SSH_HOST }}
+          if_key_exists: fail
+
+      - name: ♻️ Stage files
+        run: |
+          VERSION_DISPLAY=`cat browser/config/version_display.txt`
+          aws s3 cp --content-type="text/xml" --metadata-directive="REPLACE" ./obj-${{ env.ARCH }}/dist/update/update.xml s3://aus.waterfox.net/update/staging/Darwin_x86_64/update.xml
+          rsync -rtvz --chmod=D2755,F644 --delete-before --progress {obj-${{ env.ARCH }}/dist/waterfox/Waterfox\ ${VERSION_DISPLAY}\ Setup.dmg,obj-${{ env.ARCH }}/dist/update/waterfox-$VERSION_DISPLAY.en-US.osx64.complete.xz.mar} kontos@rsync.keycdn.com:waterfox/staging/x86_64/Darwin
+
+  macos-arm64-finish:
+    name: 🍎 macOS ARM64 Package and Sign
+    needs: [macos-arm64]
+    runs-on: [macos-latest]
+    env:
+      ARCH: aarch64-apple-darwin
+    steps:
+      - name: 📤 Checkout
+        uses: actions/checkout@v3
+
+      - name: ⏬ Download build artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: macOS ARM64 Build Artifacts ${{ github.run_id }}
+          path: ./obj-${{ env.ARCH }}/dist/
+
+      - name: 💿 Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: 💿 Setup rsync
+        run: |
+          brew update
+          brew install rsync
+          export PATH="/usr/local/bin:$PATH"
+          rsync --version
+
+      - name: 💿 Setup keychain
+        uses: apple-actions/import-codesign-certs@v1
+        with:
+          p12-file-base64: ${{ secrets.MACOS_CRT }}
+          p12-password: ${{ secrets.MACOS_PWD }}
+
+      - name: ✍️ Sign .app
+        run: |
+          wget https://hg.mozilla.org/releases/mozilla-esr60/raw-file/tip/security/mac/hardenedruntime/codesign.bash https://hg.mozilla.org/releases/mozilla-esr60/raw-file/tip/security/mac/hardenedruntime/production.entitlements.xml
+          chmod +x ./codesign.bash
+          ./codesign.bash -a ./obj-${{ env.ARCH }}/dist/waterfox/Waterfox.app -i "${{ secrets.MACOS_ID }}" -e ./production.entitlements.xml
+          sudo chmod -R 755 ./obj-${{ env.ARCH }}/dist/waterfox/Waterfox.app
+
+      - name: 📦 Create and sign DMG
+        run: |
+          VERSION_DISPLAY=`cat browser/config/version_display.txt`
+          chmod +x ./browser/branding/waterfox/create-dmg
+          ./browser/branding/waterfox/create-dmg \
+          --volname "Waterfox Setup" \
+          --volicon "browser/branding/waterfox/disk.icns" \
+          --background "browser/branding/waterfox/background.png" \
+          --window-pos 200 120 \
+          --window-size 520 380 \
+          --no-internet-enable \
+          --icon-size 128 \
+          --icon "Waterfox.app" 100 178 \
+          --hide-extension "Waterfox.app" \
+          --hdiutil-quiet \
+          --format UDBZ \
+          --eula "browser/branding/waterfox/license.txt" \
+          --app-drop-link 400 178 \
+          "obj-${{ env.ARCH }}/dist/waterfox/Waterfox ${VERSION_DISPLAY} ARM Setup.dmg" \
+          "obj-${{ env.ARCH }}/dist/waterfox/Waterfox.app"
+          codesign -s "${{ secrets.MACOS_ID }}" -fv "obj-${{ env.ARCH }}/dist/waterfox/Waterfox ${VERSION_DISPLAY} ARM Setup.dmg"
+          xcrun altool --notarize-app -f "obj-${{ env.ARCH }}/dist/waterfox/Waterfox ${VERSION_DISPLAY} ARM Setup.dmg" --primary-bundle-id 'net.waterfox.waterfox' -u ${{ secrets.MACOS_DEV_ID }} -p ${{ secrets.MACOS_DEV_PWD }}
+
+      - name: 📦 Create MAR
+        run: |
+          VERSION_DISPLAY=`cat browser/config/version_display.txt`
+          mkdir -p ./obj-${{ env.ARCH }}/dist/update
+          xml=('<?xml version="1.0"?>'
+          '<updates>'
+          '    <update type="major" appVersion="VERSION"  buildID="BUILDID" detailsURL="https://www.waterfox.net/blog/waterfox-VERSION_DISPLAY" displayVersion="VERSION_DISPLAY">'
+          '        <patch type="complete" URL="https://cdn.waterfox.net/staging/aarch64/Darwin/waterfox-VERSION_DISPLAY.en-US.osx-arm64.complete.xz.mar" hashFunction="SHA512" hashValue="HASH" size="SIZE"/>'
+          '    </update>'
+          '</updates>')
+          for line in "${xml[@]}" ; do echo $line >> ./obj-${{ env.ARCH }}/dist/update/update.xml ; done
+          wget https://cdn.waterfox.net/tools/mar
+          chmod +x ./mar
+          MAR=./mar MOZ_PRODUCT_VERSION=$VERSION_DISPLAY MAR_CHANNEL_ID="default" \
+              ./tools/update-packaging/make_full_update.sh \
+              ./obj-${{ env.ARCH }}/dist/update/waterfox-$VERSION_DISPLAY.en-US.osx-arm64.complete.xz.mar \
+              ./obj-${{ env.ARCH }}/dist/waterfox/Waterfox.app
+          VERSION=$(grep '\<Version\>' ./obj-${{ env.ARCH }}/dist/waterfox/Waterfox.app/Contents/Resources/application.ini | cut -d'=' -f2)
+          BUILDID=$(grep 'BuildID=' ./obj-${{ env.ARCH }}/dist/waterfox/Waterfox.app/Contents/Resources/application.ini | cut -d'=' -f2)
+          SHA512=$(shasum -a 512 ./obj-${{ env.ARCH }}/dist/update/waterfox-$VERSION_DISPLAY.en-US.osx-arm64.complete.xz.mar | awk '{print $1}')
+          SIZE=$(ls -l ./obj-${{ env.ARCH }}/dist/update/waterfox-$VERSION_DISPLAY.en-US.osx-arm64.complete.xz.mar | awk '{print $5}')
+          echo "Display Version: $VERSION_DISPLAY, Version: $VERSION, Build ID: $BUILDID, File Size: $SIZE, SHA512: $SHA512"
+          sed -i '' -e "s/OPERATING_SYSTEM/$OPERATING_SYSTEM/g" ./obj-${{ env.ARCH }}/dist/update/update.xml
+          sed -i '' -e "s/VERSION_DISPLAY/$VERSION_DISPLAY/g" ./obj-${{ env.ARCH }}/dist/update/update.xml
+          sed -i '' -e "s/VERSION/$VERSION/g" ./obj-${{ env.ARCH }}/dist/update/update.xml
+          sed -i '' -e "s/BUILDID/$BUILDID/g" ./obj-${{ env.ARCH }}/dist/update/update.xml
+          sed -i '' -e "s/SIZE/$SIZE/g" ./obj-${{ env.ARCH }}/dist/update/update.xml
+          sed -i '' -e "s/HASH/"$SHA512"/g" ./obj-${{ env.ARCH }}/dist/update/update.xml
+
+      - name: 🆙 Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: Waterfox macOS Artifacts ${{ github.run_id }}
+          path: |
+            ./obj-${{ env.ARCH }}/dist/waterfox/*.dmg
+            ./obj-${{ env.ARCH }}/dist/update/*.mar
+            ./obj-${{ env.ARCH }}/dist/update/update.xml
+
+      - name: 🔑 Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_KEY }}
+          known_hosts: ${{ secrets.SSH_HOST }}
+          if_key_exists: fail
+
+      - name: ♻️ Stage files
+        run: |
+          VERSION_DISPLAY=`cat browser/config/version_display.txt`
+          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} aws s3 cp --content-type="text/xml" --metadata-directive="REPLACE" ./obj-${{ env.ARCH }}/dist/update/update.xml s3://aus.waterfox.net/update/staging/Darwin_aarch64/update.xml
+          rsync -rtvz --chmod=D2755,F644 --delete-before --progress {obj-${{ env.ARCH }}/dist/waterfox/Waterfox\ ${VERSION_DISPLAY}\ ARM\ Setup.dmg,./obj-${{ env.ARCH }}/dist/update/waterfox-$VERSION_DISPLAY.en-US.osx-arm64.complete.xz.mar} kontos@rsync.keycdn.com:waterfox/staging/aarch64/Darwin
