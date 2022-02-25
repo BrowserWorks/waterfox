@@ -1,0 +1,69 @@
+name: Deployment
+'on':
+  workflow_dispatch:
+    inputs:
+      date:
+        description: Build date
+        required: true
+        type: string
+      prerelease:
+        description: This is a pre-release
+        required: true
+        type: string
+      tags:
+        description: Tag a release
+        required: true
+        type: string
+jobs:
+  build:
+    name: Build
+    uses: ./.github/workflows/build.yml
+    secrets:
+      AWS_ACCESS_KEY_ID: '${{ secrets.CF_ACCESS_KEY_ID }}'
+      AWS_SECRET_ACCESS_KEY: '${{ secrets.CF_ACCESS_KEY_SECRET }}'
+      AZURE_CLIENT_ID: '${{ secrets.AZURE_CLIENT_ID }}'
+      AZURE_CRT: '${{ secrets.AZURE_CRT }}'
+      AZURE_SUBSCRIPTION_ID: '${{ secrets.AZURE_SUBSCRIPTION_ID }}'
+      AZURE_TENANT_ID: '${{ secrets.AZURE_TENANT_ID }}'
+      AZURE_VAULT_ID: '${{ secrets.AZURE_VAULT_ID }}'
+      CF_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
+      MACOS_CERTIFICATE: '${{ secrets.MACOS_CERTIFICATE }}'
+      MACOS_CERTIFICATE_NAME: '${{ secrets.MACOS_CERTIFICATE_NAME }}'
+      MACOS_CERTIFICATE_PWD: '${{ secrets.MACOS_CERTIFICATE_PWD }}'
+      MACOS_CI_KEYCHAIN_PWD: '${{ secrets.MACOS_CI_KEYCHAIN_PWD }}'
+      MACOS_NOTARIZATION_APPLE_ID: '${{ secrets.MACOS_NOTARIZATION_APPLE_ID }}'
+      MACOS_NOTARIZATION_PWD: '${{ secrets.MACOS_NOTARIZATION_PWD }}'
+      MACOS_NOTARIZATION_TEAM_ID: '${{ secrets.MACOS_NOTARIZATION_TEAM_ID }}'
+      MOZ_API_KEY: '${{ secrets.MOZ_API_KEY }}'
+      ONE_PEM: '${{ secrets.ONE_PEM }}'
+      SIGN_BASE64: '${{ secrets.SIGN_BASE64 }}'
+    with:
+      MOZ_BUILD_DATE: '${{ github.event.inputs.date }}'
+      PRE_RELEASE: '${{ github.event.inputs.prerelease }}'
+      TAG_VERSION: '${{ github.event.inputs.tags }}'
+      TRIGGER_EVENT: '${{ github.event_name }}'
+  stage:
+    name: Deploy to Staging
+    uses: ./.github/workflows/stage.yml
+    needs: build
+    secrets:
+      AWS_ACCESS_KEY_ID: '${{ secrets.CF_ACCESS_KEY_ID }}'
+      AWS_SECRET_ACCESS_KEY: '${{ secrets.CF_ACCESS_KEY_SECRET }}'
+      CF_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
+    with:
+      DISPLAY_VERSION: '${{ github.event.inputs.tags }}'
+      PRE_RELEASE: '${{ github.event.inputs.prerelease }}'
+  production:
+    name: Deploy to Production
+    uses: ./.github/workflows/production.yml
+    needs: stage
+    secrets:
+      AWS_ACCESS_KEY_ID: '${{ secrets.CF_ACCESS_KEY_ID }}'
+      AWS_SECRET_ACCESS_KEY: '${{ secrets.CF_ACCESS_KEY_SECRET }}'
+      CF_AUTH: '${{ secrets.BULK_REDIRECT_TOKEN }}'
+      CF_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
+      CF_ZONE_ID: '${{ secrets.CF_ZONE_ID }}'
+    with:
+      COMMIT_SHA: '${{ github.sha }}'
+      PRE_RELEASE: '${{ github.event.inputs.prerelease }}'
+      DISPLAY_VERSION: '${{ github.event.inputs.tags }}'
