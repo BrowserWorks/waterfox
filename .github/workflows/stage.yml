@@ -1,0 +1,100 @@
+name: Stage
+'on':
+  workflow_call:
+    inputs:
+      DISPLAY_VERSION:
+        description: Input display version
+        required: true
+        type: string
+      PRE_RELEASE:
+        required: false
+        type: string
+    outputs:
+      versiondisplay:
+        description: Output display version
+        value: '${{ jobs.stage.outputs.versionout }}'
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      CF_ENDPOINT:
+        required: true
+env:
+  PRE_RELEASE: '${{ inputs.PRE_RELEASE }}'
+  RCLONE_S3_ACCESS_KEY_ID: '${{ secrets.AWS_ACCESS_KEY_ID }}'
+  RCLONE_S3_ACL: private
+  RCLONE_S3_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
+  RCLONE_S3_PROVIDER: Cloudflare
+  RCLONE_S3_SECRET_ACCESS_KEY: '${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+jobs:
+  stage:
+    name: Multi-platform
+    runs-on: ubuntu-latest
+    outputs:
+      versionout: '${{ steps.versionexport.outputs.version }}'
+    steps:
+      - name: "\U0001F4E3 Output VERSION_DISPLAY"
+        id: versionexport
+        run: >-
+          echo "version=$(echo ${{ inputs.DISPLAY_VERSION }})" >> $GITHUB_OUTPUT
+      - name: "\U0001F4E3 Export CHANNEL"
+        run: |
+          if [[ $PRE_RELEASE == 'true' ]]; then
+            echo "CHANNEL=beta" >> $GITHUB_ENV
+          else
+            echo "CHANNEL=release" >> $GITHUB_ENV
+          fi
+      - name: "\U0001F4BF Setup rclone"
+        run: 'curl https://rclone.org/install.sh | sudo bash'
+      - name: ⏬ Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-stage-3-${{ github.run_id }}
+          path: win/
+      - name: "\U0001F3AD Stage Windows"
+        run: >
+          rclone copyto win/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
+          :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
+
+          rclone copyto win/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe.sha512
+          :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe.sha512
+
+          rclone copyto win/Install\ Waterfox.exe :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe
+
+          rclone copyto win/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+          :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+
+          rclone copyto win/update.xml :s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/update.xml
+      - name: ⏬ Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-universal-${{ github.run_id }}
+          path: mac/
+      - name: "\U0001F3AD Stage macOS"
+        run: >
+          rclone copyto mac/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
+          :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
+
+          rclone copyto mac/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg.sha512
+          :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg.sha512
+
+          rclone copyto mac/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+          :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+
+          rclone copyto mac/update.xml :s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/update.xml
+      - name: ⏬ Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-build-output
+          path: lin/
+      - name: "\U0001F3AD Stage Linux"
+        run: >
+          rclone copyto lin/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2 :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2
+
+          rclone copyto lin/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2.sha512 :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2.sha512
+
+          rclone copyto lin/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+          :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+
+          rclone copyto lin/update.xml :s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/update.xml
