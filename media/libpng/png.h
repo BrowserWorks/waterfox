@@ -783,7 +783,7 @@ typedef png_row_info * png_row_infop;
 typedef png_row_info * * png_row_infopp;
 
 /* These are the function types for the I/O functions and for the functions
- * that allow the user to override the default I/O functions with his or her
+ * that allow the user to override the default I/O functions with their
  * own.  The png_error_ptr type should match that of user-supplied warning
  * and error functions, while the png_rw_ptr type should match that of the
  * user read/write data functions.  Note that the 'write' function must not
