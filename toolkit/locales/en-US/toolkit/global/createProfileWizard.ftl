@@ -16,7 +16,7 @@ create-profile-first-page-header2 =
 
 profile-creation-explanation-1 = { -brand-short-name } stores information about your settings and preferences in your personal profile.
 
-profile-creation-explanation-2 = If you are sharing this copy of { -brand-short-name } with other users, you can use profiles to keep each user’s information separate. To do this, each user should create his or her own profile.
+profile-creation-explanation-2 = If you are sharing this copy of { -brand-short-name } with other users, you can use profiles to keep each user’s information separate. To do this, each user should create their own profile.
 
 profile-creation-explanation-3 = If you are the only person using this copy of { -brand-short-name }, you must have at least one profile. If you would like, you can create multiple profiles for yourself to store different sets of settings and preferences. For example, you may want to have separate profiles for business and personal use.
 
