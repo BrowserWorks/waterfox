@@ -396,7 +396,7 @@ NSSCertificate_IsPrivateKeyAvailable(
  * Verify that if this certificate lives on a token, that the token
  * is still present and the certificate still exists.  This is a
  * lightweight call which should be used whenever it should be
- * verified that the user hasn't perhaps popped out his or her
+ * verified that the user hasn't perhaps popped out their
  * token and strolled away.
  */
 
