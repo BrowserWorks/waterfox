@@ -42,7 +42,7 @@ What do reviewers look for?
 A review is focused on a patch's design, implementation, usefulness in
 fixing a stated problem, and fit within its module. A reviewer should be
 someone with domain expertise in the problem area. A reviewer may also
-utilize other areas of his or her expertise and comment on other
+utilize other areas of their expertise and comment on other
 possible improvements. There are no inherent limitations on what
 comments a reviewer might make about improving the code.
 
