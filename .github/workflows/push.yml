@@ -316,6 +316,7 @@ jobs:
       - name: 🏗 Build
         run: |
           ./mach create-mach-environment
+          echo "${{ secrets.MOZ_API_KEY }}" > mozilla-api
           ./mach build
 
       - name: 📦 Package
