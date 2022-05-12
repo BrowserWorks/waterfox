@@ -21,12 +21,11 @@ jobs:
     steps:
       - name: Download assets
         run: |
-          sudo apt install wget2
-          wget2 https://cdn.waterfox.net/staging/x86_64/Windows_NT/Waterfox\ ${{ github.event.inputs.version }}\ Setup.exe
-          wget2 https://cdn.waterfox.net/staging/x86_64/Windows_NT/Install\ Waterfox.exe
-          wget2 https://cdn.waterfox.net/staging/x86_64/Linux/waterfox-${{ github.event.inputs.version }}.en-US.linux-x86_64.tar.bz2
-          wget2 https://cdn.waterfox.net/staging/x86_64/Darwin/Waterfox\ ${{ github.event.inputs.version }}\ Setup.dmg
-          wget2 https://cdn.waterfox.net/staging/aarch64/Darwin/Waterfox\ ${{ github.event.inputs.version }}\ ARM\ Setup.dmg
+          aria2c https://cdn.waterfox.net/staging/x86_64/Windows_NT/Waterfox\ ${{ github.event.inputs.version }}\ Setup.exe
+          aria2c https://cdn.waterfox.net/staging/x86_64/Windows_NT/Install\ Waterfox.exe
+          aria2c https://cdn.waterfox.net/staging/x86_64/Linux/waterfox-${{ github.event.inputs.version }}.en-US.linux-x86_64.tar.bz2
+          aria2c https://cdn.waterfox.net/staging/x86_64/Darwin/Waterfox\ ${{ github.event.inputs.version }}\ Setup.dmg
+          aria2c https://cdn.waterfox.net/staging/aarch64/Darwin/Waterfox\ ${{ github.event.inputs.version }}\ ARM\ Setup.dmg
 
       - name: Release Step
         uses: ncipollo/release-action@v1
