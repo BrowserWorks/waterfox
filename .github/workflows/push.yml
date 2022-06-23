@@ -47,7 +47,6 @@ jobs:
 
       - name: 💿 Setup rust
         run: |
-          rustup default 1.59.0-x86_64-unknown-linux-gnu
           rustup target add x86_64-pc-windows-msvc
 
       - name: 💿 Setup jsign
@@ -182,7 +181,6 @@ jobs:
 
       - name: 💿 Build dependencies installation
         run: |
-          rustup default 1.59.0-x86_64-unknown-linux-gnu
           rustup target add ${{ env.ARCH }}
           cargo install cbindgen
           sudo apt update
@@ -242,7 +240,6 @@ jobs:
 
       - name: 💿 Build dependencies installation
         run: |
-          rustup default 1.59.0-x86_64-unknown-linux-gnu
           rustup target add ${{ env.ARCH }}
           cargo install cbindgen
           aria2c https://www.7-zip.org/a/7z2107-linux-x64.tar.xz
@@ -296,10 +293,6 @@ jobs:
           key: linux-${{ hashFiles('**/browser/config/version_display.txt') }}
           restore-keys: |
             linux-
-
-      - name: 💿 Setup Rust
-        run: |
-          rustup default 1.59.0-x86_64-unknown-linux-gnu
 
       - name: 💿 Setup build packages
         run: |
