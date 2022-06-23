@@ -47,6 +47,7 @@ jobs:
       - name: 💿 Setup rust
         run: |
           rustup target add x86_64-pc-windows-msvc
+          cargo install cbindgen
 
       - name: ⏬ Setup win-cross
         run: |
@@ -105,6 +106,7 @@ jobs:
       - name: 💿 Build dependencies installation
         run: |
           rustup target add ${{ env.ARCH }}
+          cargo install cbindgen
           sudo apt install nasm yasm
           aria2c https://www.7-zip.org/a/7z2107-linux-x64.tar.xz
           tar xf 7z2107-linux-x64.tar.xz
@@ -162,6 +164,7 @@ jobs:
       - name: 💿 Build dependencies installation
         run: |
           rustup target add ${{ env.ARCH }}
+          cargo install cbindgen
           aria2c https://www.7-zip.org/a/7z2107-linux-x64.tar.xz
           tar xf 7z2107-linux-x64.tar.xz
           sudo mv 7zz /usr/local/bin/7z
@@ -225,6 +228,7 @@ jobs:
           aria2c https://www.7-zip.org/a/7z2107-linux-x64.tar.xz
           tar xf 7z2107-linux-x64.tar.xz
           sudo mv 7zz /usr/local/bin/7z
+          cargo install cbindgen
 
       - name: 🏗 Build
         run: |
