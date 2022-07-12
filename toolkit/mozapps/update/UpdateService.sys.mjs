@@ -91,6 +91,7 @@ const PREF_APP_UPDATE_SERVICE_MAXERRORS = "app.update.service.maxErrors";
 const PREF_APP_UPDATE_SOCKET_MAXERRORS = "app.update.socket.maxErrors";
 const PREF_APP_UPDATE_SOCKET_RETRYTIMEOUT = "app.update.socket.retryTimeout";
 const PREF_APP_UPDATE_STAGING_ENABLED = "app.update.staging.enabled";
+const PREF_APP_UPDATE_URL_OVERRIDE = "app.update.url.override";
 const PREF_APP_UPDATE_URL_DETAILS = "app.update.url.details";
 const PREF_NETWORK_PROXY_TYPE = "network.proxy.type";
 
@@ -1262,7 +1263,7 @@ function isServiceInstalled() {
     );
     wrk.open(
       wrk.ROOT_KEY_LOCAL_MACHINE,
-      "Software\\Waterfox\\MaintenanceService",
+      "Software\\WaterfoxLimited\\MaintenanceService",
       wrk.ACCESS_READ | wrk.WOW64_64
     );
     installed = wrk.readIntValue("Installed");
@@ -5168,8 +5169,19 @@ export class CheckerService {
       throw Components.Exception("", Cr.NS_ERROR_INVALID_ARG);
     }
 
-    let url = Services.appinfo.updateURL;
+    let url;
     let updatePin;
+    if (
+      Services.prefs
+        .getDefaultBranch(null)
+        .getCharPref(PREF_APP_UPDATE_URL_OVERRIDE, "")
+    ) {
+      url = Services.prefs
+        .getDefaultBranch(null)
+        .getCharPref(PREF_APP_UPDATE_URL_OVERRIDE, "");
+    } else {
+      url = Services.appinfo.updateURL;
+    }
 
     if (Services.policies) {
       let policies = Services.policies.getActivePolicies();

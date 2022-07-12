@@ -114,12 +114,16 @@ nsURLFormatterService.prototype = {
     XPCOMABI() {
       return this.ABI;
     },
+    ARCH() {
+      return UpdateUtils.ABI.substring(0, UpdateUtils.ABI.indexOf("-"));
+    },
     BUILD_TARGET() {
       return Services.appinfo.OS + "_" + this.ABI;
     },
     OS_VERSION() {
       return this.OSVersion;
     },
+    DISPLAY_VERSION: () => AppConstants.MOZ_APP_VERSION_DISPLAY,
     CHANNEL: () => lazy.UpdateUtils.UpdateChannel,
     MOZILLA_API_KEY: () => AppConstants.MOZ_MOZILLA_API_KEY,
     GOOGLE_LOCATION_SERVICE_API_KEY: () =>
