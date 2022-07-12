@@ -77,6 +77,9 @@ export var UpdateUtils = {
     return url.replace(/%(\w+)%/g, (match, name) => {
       let replacement = match;
       switch (name) {
+        case "ARCH":
+          replacement = UpdateUtils.ABI.substring(0, UpdateUtils.ABI.indexOf("-"));
+          break;
         case "PRODUCT":
           replacement = Services.appinfo.name;
           break;
@@ -88,6 +91,9 @@ export var UpdateUtils = {
           break;
         case "BUILD_TARGET":
           replacement = Services.appinfo.OS + "_" + this.ABI;
+          break;
+        case "OS":
+          replacement = Services.appinfo.OS;
           break;
         case "OS_VERSION":
           replacement = this.OSVersion;
@@ -109,6 +115,9 @@ export var UpdateUtils = {
           break;
         case "DISTRIBUTION_VERSION":
           replacement = getDistributionPrefValue(PREF_APP_DISTRIBUTION_VERSION);
+          break;
+        case "DISPLAY_VERSION":
+          replacement = AppConstants.MOZ_APP_VERSION_DISPLAY;
           break;
       }
       return encodeURIComponent(replacement);
