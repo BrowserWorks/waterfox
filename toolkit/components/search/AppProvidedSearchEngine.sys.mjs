@@ -115,11 +115,13 @@ class IconHandler {
     if (!this.#iconMap) {
       await this.#buildIconMap();
     }
-
-    let iconList = this.#iconMap.get(this.getKey(engineIdentifier)) || [];
-    return iconList.filter(r =>
-      this.#identifierMatches(engineIdentifier, r.engineIdentifiers)
-    );
+    // If #buildIconMap could have resulted in #iconMap being null
+    if (!this.#iconMap) {
+        console.warn("Icon map is not available.");
+        return [];
+    }
+    // Get the array of icon objects for the engine, or an empty array if not found.
+    return this.#iconMap.get(engineIdentifier) || [];
   }
 
   /**
@@ -240,24 +242,19 @@ class IconHandler {
   async #buildIconMap() {
     let iconList = [];
     try {
-      iconList = await this.#iconCollection.get();
+      this.#iconMap = new Map(
+        await (
+          await fetch(
+            "chrome://browser/content/search/BrowserSearchEngineIcons.json"
+          )
+        ).json()
+      );
     } catch (ex) {
       console.error(ex);
+      this.#iconMap = null;
     }
-    if (!iconList.length) {
+    if (!this.#iconMap) {
       console.error("Failed to obtain search engine icon list records");
-    }
-
-    this.#iconMap = new Map();
-    for (let record of iconList) {
-      let keys = new Set(record.engineIdentifiers.map(this.getKey));
-      for (let key of keys) {
-        if (this.#iconMap.has(key)) {
-          this.#iconMap.get(key).push(record);
-        } else {
-          this.#iconMap.set(key, [record]);
-        }
-      }
     }
   }
 
@@ -561,27 +558,29 @@ export class AppProvidedSearchEngine extends SearchEngine {
    *   A promise that resolves to the URL of the icon.
    */
   async getIconURL(preferredWidth) {
-    // XPCOM interfaces pass optional number parameters as 0.
     preferredWidth ||= 16;
 
-    let availableRecords =
+    // This call should return a string (the icon URL) if the engineId is in your JSON,
+    // or undefined if not found or if #iconMap failed to build.
+    const iconURLString =
       await AppProvidedSearchEngine.iconHandler.getAvailableRecords(this.id);
-    if (!availableRecords.length) {
-      console.warn("No icon found for", this.id);
+
+    if (typeof iconURLString === "string") {
+      // We have a direct URL string.
+      // The #blobURLPromises cache was keyed by actual image width.
+      // Since we only get one URL directly, we can use preferredWidth as the cache key.
+      if (this.#blobURLPromises.has(preferredWidth)) {
+        return this.#blobURLPromises.get(preferredWidth);
+      }
+      // Store and return the promise for this direct URL.
+      const promise = Promise.resolve(iconURLString);
+      this.#blobURLPromises.set(preferredWidth, promise);
+      return promise;
+    } else {
+      // No specific icon URL found from the JSON-backed map for this engine.
+      console.warn(`No icon URL string found for engine ${this.id} via IconHandler.getAvailableRecords.`);
       return null;
     }
-
-    let availableSizes = availableRecords.map(r => r.imageSize);
-    let width = lazy.SearchUtils.chooseIconSize(preferredWidth, availableSizes);
-
-    if (this.#blobURLPromises.has(width)) {
-      return this.#blobURLPromises.get(width);
-    }
-
-    let record = availableRecords.find(r => r.imageSize == width);
-    let promise = AppProvidedSearchEngine.iconHandler.createIconURL(record);
-    this.#blobURLPromises.set(width, promise);
-    return promise;
   }
 
   /**
