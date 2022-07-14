@@ -1520,6 +1520,7 @@ BrowserGlue.prototype = {
     // check for update if our build is old
     if (
       AppConstants.MOZ_UPDATER &&
+      Services.prefs.getBoolPref("app.update.enabled") &&
       Services.prefs.getBoolPref("app.update.checkInstallTime")
     ) {
       let buildID = Services.appinfo.appBuildID;

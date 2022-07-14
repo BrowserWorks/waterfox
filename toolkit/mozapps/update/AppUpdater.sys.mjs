@@ -254,6 +254,11 @@ export class AppUpdater {
         return;
       }
 
+      if (this.#updateDisabledByPref) {
+        this.#setStatus(AppUpdater.STATUS.NEVER_CHECKED);
+        return;
+      }
+
       if (this.aus.disabled) {
         LOG("AppUpdater:check - AUS disabled");
         this.#setStatus(AppUpdater.STATUS.UPDATE_DISABLED_BY_POLICY);
@@ -410,6 +415,10 @@ export class AppUpdater {
   // so we err to the side of less confusion for unmanaged users.
   get #updateDisabledByPackage() {
     return Services.sysinfo.getProperty("isPackagedApp");
+  }
+
+  get #updateDisabledByPref() {
+    return !Services.prefs.getBoolPref("app.update.enabled", true);
   }
 
   /**
