@@ -2896,6 +2896,10 @@ class AddonCard extends HTMLElement {
     }
     nameContainer.prepend(nameHeading);
 
+    // WATERFOX
+    let collapsedVersion = this.card.querySelector(".addon-version-number");
+    collapsedVersion.textContent = addon.version;
+
     let panelType = addon.type == "plugin" ? "plugin-options" : "addon-options";
     this.options = document.createElement(panelType);
     this.options.render();
