@@ -1591,8 +1591,10 @@ class AddonOptions extends HTMLElement {
   }
 
   update(card, addon, updateInstall) {
+    // Be robust if callers don't pass updateInstall: derive it from the addon.
+    const effectiveUpdateInstall = updateInstall || getUpdateInstall(addon);
     for (let el of this.items) {
-      this.setElementState(el, card, addon, updateInstall);
+      this.setElementState(el, card, addon, effectiveUpdateInstall);
     }
 
     // Update the separators visibility based on the updated visibility
@@ -3015,6 +3017,10 @@ class AddonCard extends HTMLElement {
       this.addonNameEl = nameHeading;
     }
     nameContainer.prepend(nameHeading);
+
+    // WATERFOX
+    let collapsedVersion = this.card.querySelector(".addon-version-number");
+    collapsedVersion.textContent = addon.version;
 
     let panelType = addon.type == "plugin" ? "plugin-options" : "addon-options";
     this.options = document.createElement(panelType);
