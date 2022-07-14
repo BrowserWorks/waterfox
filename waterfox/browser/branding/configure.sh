@@ -11,6 +11,7 @@ MOZ_INCLUDE_SOURCE_INFO=1
 MOZ_REQUIRE_SIGNING=
 MOZ_APP_REMOTINGNAME=waterfox-default
 MOZ_TELEMETRY_REPORTING=
+MOZ_APP_UA_NAME="Firefox"
 
 if test "$MOZ_UPDATE_CHANNEL" = "beta"; then
   # Official beta builds
