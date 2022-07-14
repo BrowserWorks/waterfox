@@ -1,0 +1,30 @@
+{
+  "name": "Qwant",
+  "manifest_version": 2,
+  "version": "1.1",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "qwant@search.waterfox.net"
+    }
+  },
+  "hidden": true,
+  "icons": {
+    "16": "favicon.ico",
+    "144": "favicon.png"
+  },
+  "web_accessible_resources": [
+    "favicon.ico",
+    "faicon.png"
+  ],
+  "chrome_settings_overrides": {
+    "search_provider": {
+      "keyword": "@q",
+      "name": "Qwant",
+      "search_url": "https://www.qwant.com/",
+      "search_url_get_params": "q={searchTerms}",
+      "suggest_url": "https://api.qwant.com/api/suggest/",
+      "suggest_url_get_params": "client=opensearch&q={searchTerms}",
+      "search_form": "https://www.qwant.com/"
+    }
+  }
+}

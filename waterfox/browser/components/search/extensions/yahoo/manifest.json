@@ -1,0 +1,31 @@
+{
+  "name": "Yahoo!",
+  "description": "Yahoo Search",
+  "manifest_version": 2,
+  "version": "1.0",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "yahoo@search.waterfox.net"
+    }
+  },
+  "hidden": true,
+  "icons": {
+    "16": "favicon.ico",
+    "144": "favicon.png"
+  },
+  "web_accessible_resources": [
+    "favicon.ico",
+    "faicon.png"
+  ],
+  "chrome_settings_overrides": {
+    "search_provider": {
+        "keyword": "@y",
+        "name": "Yahoo!",
+        "search_url": "https://search.yahoo.com/yhs/search",
+        "search_form": "https://search.yahoo.com/",
+        "search_url_get_params": "hspart=infospace&hsimp=yhs-waterfox&p={searchTerms}",
+        "suggest_url": "https://search.yahoo.com/sugg/os",
+        "suggest_url_get_params": "command={searchTerms}&output=fxjson&fr=opensearch"
+    }
+  }
+}

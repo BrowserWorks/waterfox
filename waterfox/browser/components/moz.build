@@ -5,14 +5,5 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 DIRS += [
-    "components",
-    "extensions/common",
-    "themes",
+    "search",
     ]
-
-DIST_SUBDIR = "browser"
-export("DIST_SUBDIR")
-
-JS_PREFERENCE_PP_FILES += [
-    "app/profile/000-waterfox.js",
-]

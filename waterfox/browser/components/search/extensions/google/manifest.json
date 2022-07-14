@@ -1,0 +1,37 @@
+{
+  "name": "Google",
+  "description": "Google Search",
+  "manifest_version": 2,
+  "version": "1.2",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "google@search.waterfox.net"
+    }
+  },
+  "hidden": true,
+  "icons": {
+    "16": "favicon.ico",
+    "144": "favicon.png"
+  },
+  "web_accessible_resources": [
+    "favicon.ico",
+    "faicon.png"
+  ],
+  "chrome_settings_overrides": {
+    "search_provider": {
+      "keyword": "@g",
+      "name": "Google",
+      "search_url": "https://www.google.com/search",
+      "search_form": "https://www.google.com/search?q={searchTerms}",
+      "suggest_url": "https://www.google.com/complete/search?q={searchTerms}",
+      "params": [
+        {
+          "name": "channel",
+          "condition": "pref",
+          "pref": "google_channel_row"
+        }
+      ],
+      "search_url_get_params": "q={searchTerms}"
+    }
+  }
+}
