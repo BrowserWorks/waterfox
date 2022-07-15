@@ -10,9 +10,8 @@ if test -f "$HOME/.mozbuild/nasm/nasm"; then
 fi
 
 if test "$WFX_RELEASE"; then
-    # ac_add_options --enable-lto
+    ac_add_options --enable-lto
     ac_add_options --enable-release
-else
 fi
 
 ac_add_options --disable-crashreporter
@@ -32,7 +31,7 @@ elif test -f "$HOME/.mozbuild/sccache/sccache"; then
     ac_add_options --with-ccache=$HOME/.mozbuild/sccache/sccache
 fi
 ac_add_options --enable-install-strip
-ac_add_options --enable-optimize="-O3 -march=x86-64-v2 -mtune=haswell -w"
+ac_add_options --enable-optimize="-O3 -march=core2 -mtune=haswell -w"
 ac_add_options --enable-pulseaudio
 ac_add_options --enable-rust-simd
 ac_add_options --enable-strip
@@ -42,10 +41,14 @@ ac_add_options --target=x86_64-pc-linux-gnu
 
 ac_add_options --with-app-basename=Waterfox
 ac_add_options --with-app-name=waterfox
-ac_add_options --with-branding=browser/branding/waterfox
+ac_add_options --with-branding=waterfox/browser/branding
 ac_add_options --with-distribution-id=net.waterfox
-ac_add_options --with-l10n-base=$PWD/browser/locales/l10n
-ac_add_options --with-mozilla-api-keyfile="$PWD"/mozilla-api
+if test -f "$PWD/browser/locales/l10n"; then
+    ac_add_options --with-l10n-base=$PWD/browser/locales/l10n
+fi
+if test -f "$PWD/mozilla-api"; then
+    ac_add_options --with-mozilla-api-keyfile="$PWD"/mozilla-api
+fi
 
 export RUSTC_OPT_LEVEL=2
 export MOZ_INCLUDE_SOURCE_INFO=1
