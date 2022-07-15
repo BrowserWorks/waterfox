@@ -1,7 +1,10 @@
 CROSS_BUILD=1
+MSVC="14.32.31326"
+WSDK="10.0.22000.0"
 TOOLS=$HOME/win-cross
+EXTRA_PATH="$HOME/.mozbuild/clang/bin:${TOOLS}/visual-c/tools/msvc/${MSVC}/bin/hostx64/x64:"
 export WINDOWSSDKDIR="${TOOLS}/win-sdk"
-EXTRA_PATH="$HOME/.mozbuild/clang/bin:${TOOLS}/visual-c/tools/msvc/14.31.31103/bin/hostx64/x64:"
+
 
 export CC="$HOME/.mozbuild/clang/bin/clang-cl"
 export CXX="$HOME/.mozbuild/clang/bin/clang-cl"
@@ -12,8 +15,8 @@ export MIDL="${TOOLS}/wine/bin/widl"
 export MOZ_INCLUDE_SOURCE_INFO=1
 export MOZ_STUB_INSTALLER=1
 export RUSTC_OPT_LEVEL=2
-export WIN32_REDIST_DIR="${TOOLS}/visual-c/redist/msvc/14.31.31103/x64/microsoft.vc143.crt/"
-export WIN_UCRT_REDIST_DIR="${WINDOWSSDKDIR}/redist/10.0.20348.0/ucrt/dlls/x64"
+export WIN32_REDIST_DIR="${TOOLS}/visual-c/redist/msvc/${MSVC}/x64/microsoft.vc143.crt"
+export WIN_UCRT_REDIST_DIR="${WINDOWSSDKDIR}/redist/${WSDK}/ucrt/dlls/x64"
 export WINE="${TOOLS}/wine/bin/wine64"
 export WINEDEBUG=-all
 
@@ -46,7 +49,6 @@ elif test -f "$HOME/.mozbuild/sccache/sccache"; then
 fi
 ac_add_options --enable-install-strip
 ac_add_options --enable-optimize="-O2 -Qvec -w -clang:-ftree-vectorize -clang:-march=core2 -clang:-mtune=haswell"
-ac_add_options --enable-proxy-bypass-protection
 ac_add_options --enable-rust-simd
 ac_add_options --enable-strip
 ac_add_options --enable-updater
@@ -57,6 +59,7 @@ ac_add_options --with-app-basename=Waterfox
 ac_add_options --with-app-name=waterfox
 ac_add_options --with-branding=waterfox/browser/branding
 ac_add_options --with-distribution-id=net.waterfox
-ac_add_options --with-l10n-base=$PWD/browser/locales/l10n
-
+if test -f "$PWD/browser/locales/l10n"; then
+    ac_add_options --with-l10n-base=$PWD/browser/locales/l10n
+fi
 MOZ_REQUIRE_SIGNING=
