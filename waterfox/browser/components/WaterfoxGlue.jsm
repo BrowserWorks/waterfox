@@ -15,6 +15,7 @@ const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 XPCOMUtils.defineLazyModuleGetters(this, {
   ChromeManifest: "resource:///modules/ChromeManifest.jsm",
   Overlays: "resource:///modules/Overlays.jsm",
+  TabFeatures: "resource:///modules/TabFeatures.jsm",
 });
 
 XPCOMUtils.defineLazyGlobalGetters(this, ["fetch"]);
@@ -60,6 +61,8 @@ const WaterfoxGlue = {
         if (subject.URL.includes("browser.xhtml")) {
           const window = subject.defaultView;
           Overlays.load(this.startupManifest, window);
+
+          TabFeatures.init(window);
         }
         break;
     }
