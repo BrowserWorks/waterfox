@@ -1,0 +1,43 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+#filter substitution
+<?xml version="1.0"?>
+
+<overlay id="tabfeature-overlay" xmlns:html="http://www.w3.org/1999/xhtml"
+    xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+    <popupset id="mainPopupSet">
+        <menupopup id="tabContextMenu">
+            <menuitem id="context_duplicateTab" data-lazy-l10n-id="duplicate-tab"
+                oncommand="duplicateTabIn(TabContextMenu.contextTab, 'tab');" class="tabFeature"
+                preference="browser.tabs.duplicateTab" />
+            <menuitem id="context_copyTabUrl" class="tabFeature"
+                oncommand="TabFeatures.copyTabUrl(TabContextMenu.contextTab.linkedBrowser.currentURI.spec, window);"
+                data-lazy-l10n-id="copy-url" preference="browser.tabs.copyurl" insertafter="context_duplicateTab" />
+            <menuitem id="context_copyAllTabUrls" class="tabFeature" oncommand="TabFeatures.copyAllTabUrls(window);"
+                data-lazy-l10n-id="copy-all-urls" preference="browser.tabs.copyallurls"
+                insertafter="context_copyTabUrl" />
+            <menuitem id="context_unloadTab" class="tabFeature"
+                oncommand="gBrowser.discardBrowser(TabContextMenu.contextTab);" data-lazy-l10n-id="unload-tab"
+                preference="browser.tabs.unloadTab" insertafter="context_copyAllTabUrls" />
+        </menupopup>
+    </popupset>
+#ifdef XP_MACOSX
+    <menubar id="main-menubar">
+        <menuitem id="app_restartBrowser" class="tabFeature" oncommand="TabFeatures.restartBrowser();"
+            data-l10n-id="appmenuitem-restart-browser" preference="browser.restart_menu.showpanelmenubtn" hidden="true"
+            insertafter="goOfflineMenuitem" />
+    </menubar>
+#else
+    <html:template id="appMenu-viewCache">
+        <panelview id="appMenu-protonMainView">
+            <vbox id="appMenu-subview-body" class="panel-subview-body">
+                <toolbarbutton id="appMenu-restart-button" class="subviewbutton subviewbutton-iconic tabFeature"
+                    oncommand="TabFeatures.restartBrowser();" data-l10n-id="appmenuitem-restart-browser"
+                    preference="browser.restart_menu.showpanelmenubtn" hidden="true" />
+            </vbox>
+        </panelview>
+    </html:template>
+#endif
+</overlay>
