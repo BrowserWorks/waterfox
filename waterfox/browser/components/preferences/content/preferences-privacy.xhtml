@@ -1,0 +1,62 @@
+<?xml version="1.0"?>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+
+<overlay id="preferences-overlay" xmlns:html="http://www.w3.org/1999/xhtml"
+    xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+    <script>
+        /* eslint-env mozilla/browser-window */
+        /* globals gPrivacyPaneOverlay */
+        Services.scriptloader.loadSubScript("chrome://browser/content/overlays/privacy.js", this);
+        gPrivacyPaneOverlay.init();
+    </script>
+    <vbox id="mainPrefPane">
+        <!-- WebRTC peer connection -->
+        <groupbox id="webrtc" data-category="panePrivacy" hidden="true" insertafter="trackingGroup">
+            <label>
+                <html:h2 data-l10n-id="webrtc-header" />
+            </label>
+            <hbox align="center">
+                <checkbox id="enableWebRTCP2P" class="tail-with-learn-more" data-l10n-id="enable-webrtc-p2p"
+                    preference="media.peerconnection.enabled" />
+                <label class="learnMore" is="text-link" href="https://bugzilla.mozilla.org/show_bug.cgi?id=959893"
+                    data-l10n-id="content-blocking-learn-more" />
+            </hbox>
+        </groupbox>
+
+        <!-- HTTP Referrer Header-->
+        <groupbox id="refheader" data-category="panePrivacy" hidden="true" insertafter="webrtc">
+            <label>
+                <html:h2 data-l10n-id="ref-header" />
+            </label>
+
+            <hbox align="center">
+                <label id="historyModeLabel" control="doNotsendSecureXSiteReferrer"
+                    data-l10n-id="history-remember-label" />
+                <!-- Please don't remove the wrapping hbox/vbox/box for these elements. It's used to properly compute the search tooltip position. -->
+                <hbox>
+                    <menulist id="doNotsendSecureXSiteReferrer" preference="network.http.sendRefererHeader">
+                        <menupopup>
+                            <menuitem data-l10n-id="send-referrer-header-0" value="0" />
+                            <menuitem data-l10n-id="send-referrer-header-1" value="1" />
+                            <menuitem data-l10n-id="send-referrer-header-2" value="2" />
+                        </menupopup>
+                    </menulist>
+                </hbox>
+            </hbox>
+        </groupbox>
+
+        <groupbox id="permissionsGroup">
+            <hbox id="imagePermissions" data-subcategory="permissions-images" insertafter="addonInstallBox">
+                <checkbox id="loadImages" class="tail-with-learn-more" data-l10n-id="load-images" flex="1" />
+            </hbox>
+
+            <hbox id="javascriptPermissions" data-subcategory="permissions-scripts" insertafter="imagePermissions">
+                <checkbox id="enableJavaScript" class="tail-with-learn-more" data-l10n-id="enable-javascript"
+                    preference="javascript.enabled" flex="1" />
+            </hbox>
+        </groupbox>
+    </vbox>
+</overlay>
