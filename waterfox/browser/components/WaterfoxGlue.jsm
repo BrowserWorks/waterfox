@@ -16,6 +16,7 @@ XPCOMUtils.defineLazyModuleGetters(this, {
   ChromeManifest: "resource:///modules/ChromeManifest.jsm",
   Overlays: "resource:///modules/Overlays.jsm",
   PrivateTab: "resource:///modules/PrivateTab.jsm",
+  StatusBar: "resource:///modules/StatusBar.jsm",
   TabFeatures: "resource:///modules/TabFeatures.jsm",
 });
 
@@ -87,6 +88,7 @@ const WaterfoxGlue = {
           }
           // Load in all browser windows (private and normal)
           TabFeatures.init(window);
+          StatusBar.init(window);
         }
         break;
     }
