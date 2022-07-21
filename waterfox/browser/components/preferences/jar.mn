@@ -1,0 +1,10 @@
+browser.jar:
+%  content browser %content/browser/ contentaccessible=yes
+*    content/browser/overlays/preferences-general.xhtml            (content/preferences-general.xhtml)
+     content/browser/overlays/preferences-privacy.xhtml            (content/preferences-privacy.xhtml)
+     content/browser/overlays/general.js                           (content/general.js)
+     content/browser/overlays/privacy.js                           (content/privacy.js)
+
+%   resource waterfox %waterfox/ contentaccessible=yes
+    waterfox/overlays/preferences-general.manifest                 (preferences-general.manifest)
+    waterfox/overlays/preferences-privacy.manifest                 (preferences-privacy.manifest)
