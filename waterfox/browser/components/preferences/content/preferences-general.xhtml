@@ -1,0 +1,116 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+#filter substitution
+<?xml version="1.0"?>
+
+<overlay id="preferences-overlay" xmlns:html="http://www.w3.org/1999/xhtml"
+    xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+    <script>
+        /* eslint-env mozilla/browser-window */
+        /* globals gMainPaneOverlay */
+        Services.scriptloader.loadSubScript("chrome://browser/content/overlays/general.js", this);
+        gMainPaneOverlay.init();
+    </script>
+    <vbox id="mainPrefPane">
+        <!-- Tab Bar Position preferences -->
+        <vbox id="tabPositionSettingsContainer" insertafter="browserContainersbox">
+            <label>
+                <html:h2 data-l10n-id="tab-position-header" />
+            </label>
+            <radiogroup id="tabPositionGroup" preference="browser.tabs.toolbarposition">
+                <radio id="tabBarTopAbove" value="topabove" data-l10n-id="tab-bar-top-above" />
+                <radio id="tabBarTopBelow" value="topbelow" data-l10n-id="tab-bar-top-below" />
+                <radio id="tabBarBottomAbove" value="bottomabove" data-l10n-id="tab-bar-bottom-above" />
+                <radio id="tabBarBottomBelow" value="bottombelow" data-l10n-id="tab-bar-bottom-below" />
+            </radiogroup>
+        </vbox>
+
+        <!-- Tab Feature preferences -->
+        <vbox id="tabContextMenuSettingsContainer" insertafter="tabPositionSettingsContainer">
+            <label>
+                <html:h2 data-l10n-id="tab-feature-header" />
+            </label>
+            <checkbox id="duplicateTab" preference="browser.tabs.duplicateTab" data-l10n-id="show-duplicate-tab" />
+            <checkbox id="copyUrl" preference="browser.tabs.copyurl" data-l10n-id="show-copy-url" />
+            <checkbox id="copyActiveTab" preference="browser.tabs.activetab" data-l10n-id="enable-copy-active-tab" />
+            <checkbox id="copyAllUrls" preference="browser.tabs.copyallurls" data-l10n-id="show-copy-all-urls" />
+            <checkbox id="unloadTab" preference="browser.tabs.unloadTab" data-l10n-id="show-unload-tab" />
+        </vbox>
+
+        <!-- Additional Tab preferences -->
+        <vbox id="tabAdditionalSettingsContainer" insertafter="tabContextMenuSettingsContainer">
+            <label>
+                <html:h2 data-l10n-id="tab-additional-header" />
+            </label>
+            <checkbox id="pinnedTabIconOnly" preference="browser.tabs.pinnedIconOnly" data-l10n-id="pinned-icon-only" />
+            <checkbox id="openNewTabAtEnd" preference="browser.tabs.insertAfterCurrent"
+                data-l10n-id="insert-after-current" />
+            <checkbox id="openRelatedNewTabAtEnd" preference="browser.tabs.insertRelatedAfterCurrent"
+                data-l10n-id="insert-related-after-current" />
+        </vbox>
+        <!-- Dynamic Theme preferences -->
+        <groupbox id="dynamicThemeGroup" hidden="true" data-category="paneGeneral" insertafter="languagesGroup">
+            <label>
+                <html:h2 data-l10n-id="dynamic-theme-header" />
+            </label>
+            <radiogroup id="dynamicThemeRadioGroup">
+                <radio value="1" data-l10n-id="dynamic-theme-dark" />
+                <radio value="0" data-l10n-id="dynamic-theme-light" />
+                <radio value="-1" data-l10n-id="dynamic-theme-auto" />
+            </radiogroup>
+        </groupbox>
+
+        <!-- Restart Menu Item preferences -->
+        <groupbox id="restartGroup" hidden="true" data-category="paneGeneral" insertafter="dynamicThemeGroup">
+            <label>
+                <html:h2 data-l10n-id="restart-header" />
+            </label>
+            <checkbox id="browser.restart_menu.showpanelmenubtn" data-l10n-id="restart-show-button"
+                preference="browser.restart_menu.showpanelmenubtn" />
+            <checkbox id="browser.restart_menu.purgecache" data-l10n-id="restart-purge-cache"
+                preference="browser.restart_menu.purgecache" />
+            <checkbox id="browser.restart_menu.requireconfirm" data-l10n-id="restart-require-confirmation"
+                preference="browser.restart_menu.requireconfirm" />
+        </groupbox>
+
+        <!-- Status Bar preferences -->
+        <groupbox id="statusBarGroup" hidden="true" data-category="paneGeneral" insertafter="restartGroup">
+            <label>
+                <html:h2 data-l10n-id="statusbar-header" />
+            </label>
+            <vbox id="statusBarContainer">
+                <checkbox id="showStatusBar" preference="browser.statusbar.enabled" data-l10n-id="statusbar-enabled" />
+                <checkbox id="showStatusLinks" preference="browser.statusbar.appendStatusText"
+                    data-l10n-id="statusbar-show-links" />
+            </vbox>
+        </groupbox>
+
+        <!-- Bookmarks Toolbar Position preferences -->
+        <groupbox id="bookmarksBarPositionGroup" hidden="true" data-category="paneGeneral" insertafter="statusBarGroup">
+            <label>
+                <html:h2 data-l10n-id="bookmarks-bar-position-header" />
+            </label>
+            <radiogroup id="bookmarksBarPositionRadioGroup" preference="browser.bookmarks.toolbarposition">
+                <radio value="top" data-l10n-id="bookmarks-position-top" />
+                <radio value="bottom" data-l10n-id="bookmarks-position-bottom" />
+            </radiogroup>
+        </groupbox>
+#ifdef XP_LINUX
+        <!-- Geolocation API preferences -->
+        <groupbox id="geolocationGroup" hidden="true" data-category="paneGeneral"
+            insertafter="bookmarksBarPositionGroup">
+            <label>
+                <html:h2 data-l10n-id="geolocation-api-header" />
+            </label>
+            <label data-l10n-id="geolocation-description" />
+            <radiogroup id="geolocationRadioGroup" preference="geo.provider.network.url">
+                <radio value="https://location.services.mozilla.com/v1/geolocate?key=%MOZILLA_API_KEY%"
+                    data-l10n-id="geolocation-api-enabled" />
+                <radio value="" data-l10n-id="geolocation-api-disabled" />
+            </radiogroup>
+        </groupbox>
+#endif
+    </vbox>
+</overlay>
