@@ -18,6 +18,7 @@ XPCOMUtils.defineLazyModuleGetters(this, {
   PrivateTab: "resource:///modules/PrivateTab.jsm",
   StatusBar: "resource:///modules/StatusBar.jsm",
   TabFeatures: "resource:///modules/TabFeatures.jsm",
+  UICustomizations: "resource:///modules/UICustomizations.jsm",
 });
 
 XPCOMUtils.defineLazyGlobalGetters(this, ["fetch"]);
@@ -89,6 +90,7 @@ const WaterfoxGlue = {
           // Load in all browser windows (private and normal)
           TabFeatures.init(window);
           StatusBar.init(window);
+          UICustomizations.init(window);
         }
         break;
     }
