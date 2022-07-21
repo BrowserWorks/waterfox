@@ -31,6 +31,8 @@ const WaterfoxGlue = {
 
     // Observe chrome-document-loaded topic to detect window open
     Services.obs.addObserver(this, "chrome-document-loaded");
+    // Observe main-pane-loaded topic to detect about:preferences open
+    Services.obs.addObserver(this, "main-pane-loaded");
   },
 
   async getChromeManifest(manifest) {
@@ -43,6 +45,12 @@ const WaterfoxGlue = {
       case "private":
         uri = "resource://waterfox/overlays/chrome.manifest";
         privateWindow = true;
+        break;
+      case "preferences-general":
+        uri = "resource://waterfox/overlays/preferences-general.manifest";
+        break;
+      case "preferences-privacy":
+        uri = "resource://waterfox/overlays/preferences-privacy.manifest";
         break;
     }
     let chromeManifest = new ChromeManifest(async () => {
@@ -57,7 +65,6 @@ const WaterfoxGlue = {
         text = tArr.join("\n");
       }
       return text;
-      // return res.text();
     }, this.options);
     await chromeManifest.parse();
     return chromeManifest;
@@ -91,6 +98,35 @@ const WaterfoxGlue = {
           TabFeatures.init(window);
           StatusBar.init(window);
           UICustomizations.init(window);
+        }
+        break;
+      case "main-pane-loaded":
+        // Subject is preferences page content window
+        if (!subject.initialized) {
+          // If we are not loading directly on privacy, we need to wait until permissionsGroup
+          // exists before we attempt to load our overlay. If we are loading directly on privacy
+          // this exists before overlaying occurs, so we have no issues. Loading overlays on
+          // #general is fine regardless of which pane we refresh/initially load.
+          await Overlays.load(
+            await this.getChromeManifest("preferences-general"),
+            subject
+          );
+          if (subject.document.getElementById("permissionsGroup")) {
+            await Overlays.load(
+              await this.getChromeManifest("preferences-privacy"),
+              subject
+            );
+            subject.privacyInitialized = true;
+          } else {
+            subject.setTimeout(async () => {
+              await Overlays.load(
+                await this.getChromeManifest("preferences-privacy"),
+                subject
+              );
+              subject.privacyInitialized = true;
+            }, 500);
+          }
+          subject.initialized = true;
         }
         break;
     }
