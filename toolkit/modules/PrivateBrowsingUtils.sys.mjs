@@ -29,7 +29,10 @@ export var PrivateBrowsingUtils = {
 
   // This should be used only in frame scripts.
   isContentWindowPrivate: function pbu_isWindowPrivate(aWindow) {
-    return this.privacyContextFromWindow(aWindow).usePrivateBrowsing;
+    // Waterfox: Essential to prevent form data from being saved.
+    return this.privacyContextFromWindow(aWindow).usePrivateBrowsing
+      ? true
+      : Services.prefs.getBoolPref("browser.tabs.selectedTabPrivate", false);
   },
 
   isBrowserPrivate(aBrowser) {
