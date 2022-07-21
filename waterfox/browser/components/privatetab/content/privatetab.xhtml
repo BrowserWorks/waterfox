@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+
+<overlay id="tabfeature-overlay" xmlns:html="http://www.w3.org/1999/xhtml"
+    xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+
+    <keyset id="privateTab-keyset" insertbefore="mainPopupSet">
+        <key id="togglePrivateTab-key" modifiers="alt control" key="T" oncommand="PrivateTab.togglePrivate(window)" />
+        <key id="newPrivateTab-key" modifiers="alt control" key="P"
+            oncommand="PrivateTab.browserOpenTabPrivate(window)" />
+    </keyset>
+
+    <popupset id="mainPopupSet">
+        <menupopup id="tabContextMenu">
+            <menuitem id="toggleTabPrivateState" data-l10n-id="private-tab"
+                data-l10n-args="{&quot;isPrivate&quot;:false}" class="privatetab-icon" acceltext="Ctrl+Alt+T"
+                oncommand="PrivateTab.togglePrivate(window, TabContextMenu.contextTab)" insertafter="context_pinTab" />
+        </menupopup>
+        <menupopup id="placesContext">
+            <menuitem id="openAllPrivate" data-l10n-id="open-all-private" class="privatetab-icon"
+                oncommand="PrivateTab.openAllPrivate(event);" insertafter="placesContext_openBookmarkLinks:tabs" />
+            <menuitem id="openPrivate" data-l10n-id="open-private-tab" class="privatetab-icon"
+                oncommand="PrivateTab.openPrivateTab(event);" insertafter="placesContext_open:newtab" />
+            <menuitem id="openAllLinksPrivate" data-l10n-id="open-all-links-private" class="privatetab-icon"
+                oncommand="PrivateTab.openAllPrivate(event);" insertafter="placesContext_openLinks:tabs" />
+        </menupopup>
+    </popupset>
+
+    <menupopup id="menu_FilePopup">
+        <menuitem id="menu_newPrivateTab" data-l10n-id="new-private-tab" acceltext="Ctrl+Alt+P"
+            oncommand="PrivateTab.browserOpenTabPrivate(window)" insertafter="menu_newNavigatorTab" />
+    </menupopup>
+
+    <menupopup id="contentAreaContextMenu">
+        <menuitem id="openLinkInPrivateTab" data-l10n-id="open-link-private" class="privatetab-icon"
+            oncommand="PrivateTab.openLink(event);" insertafter="context-openlinkintab" />
+    </menupopup>
+
+</overlay>
