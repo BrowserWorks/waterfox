@@ -1,0 +1,3 @@
+browser.jar:
+%  content browser %content/browser/ contentaccessible=yes
+     content/browser/overlays/statusbar.xhtml            (content/statusbar.xhtml)
