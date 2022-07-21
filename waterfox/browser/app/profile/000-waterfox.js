@@ -248,3 +248,5 @@ pref("browser.tabs.unloadTab", false);
 pref("browser.restart_menu.showpanelmenubtn", true);
 pref("browser.restart_menu.purgecache", false);
 pref("browser.restart_menu.requireconfirm", true);
+pref("browser.statusbar.appendStatusText", true);
+pref("browser.statusbar.enabled", false);
