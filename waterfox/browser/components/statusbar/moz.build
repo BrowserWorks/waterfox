@@ -4,16 +4,10 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DIRS += [
-    "privatetab",
-    "search",
-    "statusbar",
-    "tabfeatures",
-    "utils",
+EXTRA_JS_MODULES += [
+    "StatusBar.jsm",
 ]
 
-EXTRA_JS_MODULES += [
-    "WaterfoxGlue.jsm",
-]
+BROWSER_CHROME_MANIFESTS += ["test/browser/browser.ini"]
 
 JAR_MANIFESTS += ["jar.mn"]
