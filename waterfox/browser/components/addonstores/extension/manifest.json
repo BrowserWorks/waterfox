@@ -1,0 +1,49 @@
+{
+  "manifest_version": 2,
+  "name": "Addon Store Compatibility",
+  "description": "Allow installing addons from certain other browser web stores.",
+  "version": "1.0.0",
+  "hidden": true,
+
+  "applications": {
+    "gecko": {
+      "id": "addonstores@waterfox.net",
+      "strict_min_version": "72.0a1"
+    }
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "http://chrome.google.com/webstore*",
+        "https://chrome.google.com/webstore*"
+      ],
+      "js": ["cws.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    },
+    {
+      "matches": ["http://addons.opera.com/*", "https://addons.opera.com/*"],
+      "js": ["ows.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+
+  "background": {
+    "scripts": ["background.js"]
+  },
+
+  "permissions": ["tabs", "menus"],
+
+  "experiment_apis": {
+    "total": {
+      "schema": "experiments/schema.json",
+      "parent": {
+        "scopes": ["addon_parent"],
+        "script": "experiments/api.js",
+        "paths": [["wf"]]
+      }
+    }
+  }
+}
