@@ -10,6 +10,10 @@ const { XPCOMUtils } = ChromeUtils.import(
   "resource://gre/modules/XPCOMUtils.jsm"
 );
 
+const { AddonManager } = ChromeUtils.import(
+  "resource://gre/modules/AddonManager.jsm"
+);
+
 const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
 XPCOMUtils.defineLazyModuleGetters(this, {
@@ -25,6 +29,12 @@ XPCOMUtils.defineLazyGlobalGetters(this, ["fetch"]);
 
 const WaterfoxGlue = {
   async init() {
+    AddonManager.maybeInstallBuiltinAddon(
+      "addonstores@waterfox.net",
+      "1.0.0",
+      "resource://builtin-addons/addonstores/"
+    );
+
     // Parse chrome.manifest
     this.startupManifest = await this.getChromeManifest("startup");
     this.privateManifest = await this.getChromeManifest("private");
