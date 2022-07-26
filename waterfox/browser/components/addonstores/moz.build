@@ -4,19 +4,13 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DIRS += [
-    "addonstores",
-    "preferences",
-    "privatetab",
-    "search",
-    "statusbar",
-    "tabfeatures",
-    "uicustomizations",
-    "utils",
-]
-
 EXTRA_JS_MODULES += [
-    "WaterfoxGlue.jsm",
+    "AddonStores.jsm",
+    "StoreHandler.jsm",
 ]
 
 JAR_MANIFESTS += ["jar.mn"]
+
+XPCOM_MANIFESTS += [
+    "components.conf",
+]
