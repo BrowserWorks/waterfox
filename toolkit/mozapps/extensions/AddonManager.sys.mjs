@@ -4112,7 +4112,9 @@ export var AddonManager = {
   AUTOUPDATE_DEFAULT: 1,
   // Indicates that the Addon should update automatically.
   AUTOUPDATE_ENABLE: 2,
-
+  // Constants for how Addon options should be shown.
+  // Options will be opened in a new window
+  OPTIONS_TYPE_DIALOG: 1,
   // Constants for how Addon options should be shown.
   // Options will be displayed in a new tab, if possible
   OPTIONS_TYPE_TAB: 3,
