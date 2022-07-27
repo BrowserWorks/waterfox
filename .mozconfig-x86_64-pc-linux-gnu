@@ -1,0 +1,52 @@
+if test -d "$HOME/.mozbuild/clang/bin"; then
+    export CC=$HOME/.mozbuild/clang/bin/clang
+    export CXX=$HOME/.mozbuild/clang/bin/clang++
+else
+    export CC=clang
+    export CXX=clang++
+fi
+if test -f "$HOME/.mozbuild/nasm/nasm"; then
+    export NASM=$HOME/.mozbuild/nasm/nasm
+fi
+
+if test "$WFX_RELEASE"; then
+    # ac_add_options --enable-lto
+    ac_add_options --enable-release
+else
+fi
+
+ac_add_options --disable-crashreporter
+ac_add_options --disable-debug
+ac_add_options --disable-dmd
+ac_add_options --disable-geckodriver
+ac_add_options --disable-profiling
+ac_add_options --disable-tests
+ac_add_options --disable-verify-mar
+
+ac_add_options --enable-alsa
+ac_add_options --enable-application=browser
+ac_add_options --enable-bootstrap
+if test -x "$(command -v sccache)"; then
+    ac_add_options --with-ccache=sccache
+elif test -f "$HOME/.mozbuild/sccache/sccache"; then
+    ac_add_options --with-ccache=$HOME/.mozbuild/sccache/sccache
+fi
+ac_add_options --enable-install-strip
+ac_add_options --enable-optimize="-O3 -march=x86-64-v2 -mtune=haswell -w"
+ac_add_options --enable-pulseaudio
+ac_add_options --enable-rust-simd
+ac_add_options --enable-strip
+ac_add_options --enable-updater
+
+ac_add_options --target=x86_64-pc-linux-gnu
+
+ac_add_options --with-app-basename=Waterfox
+ac_add_options --with-app-name=waterfox
+ac_add_options --with-branding=browser/branding/waterfox
+ac_add_options --with-distribution-id=net.waterfox
+ac_add_options --with-l10n-base=$PWD/browser/locales/l10n
+
+export RUSTC_OPT_LEVEL=2
+export MOZ_INCLUDE_SOURCE_INFO=1
+mk_add_options AUTOCLOBBER=1
+MOZ_REQUIRE_SIGNING=
