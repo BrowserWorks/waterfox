@@ -108,6 +108,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   WindowsGPOParser: "resource://gre/modules/policies/WindowsGPOParser.sys.mjs",
   clearTimeout: "resource://gre/modules/Timer.sys.mjs",
   setTimeout: "resource://gre/modules/Timer.sys.mjs",
+  WaterfoxGlue: "resource:///modules/WaterfoxGlue.jsm",
 });
 
 if (AppConstants.MOZ_UPDATER) {
@@ -1464,6 +1465,8 @@ BrowserGlue.prototype = {
   // (i.e. before the first window is opened)
   _beforeUIStartup: function BG__beforeUIStartup() {
     lazy.SessionStartup.init();
+
+    WaterfoxGlue.init();
 
     // check if we're in safe mode
     if (Services.appinfo.inSafeMode) {
