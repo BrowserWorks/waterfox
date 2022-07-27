@@ -1,0 +1,93 @@
+name: Stage
+on:
+  workflow_call:
+    inputs:
+      DISPLAY_VERSION:
+        description: Input display version
+        required: true
+        type: string
+    outputs:
+      versiondisplay:
+        description: Output display version
+        value: '${{ jobs.stage.outputs.versionout }}'
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      CF_ENDPOINT:
+        required: true
+env:
+  AWS_ACCESS_KEY_ID: '${{ secrets.AWS_ACCESS_KEY_ID }}'
+  AWS_DEFAULT_REGION: auto
+  AWS_EC2_METADATA_DISABLED: true
+  AWS_SECRET_ACCESS_KEY: '${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+jobs:
+  stage:
+    name: Multi-platform
+    runs-on: ubuntu-latest
+    outputs:
+      versionout: '${{ steps.versionexport.outputs.version }}'
+    steps:
+      - name: Output VERSION_DISPLAY
+        id: versionexport
+        run: >-
+          echo "::set-output name=version::$(echo ${{ inputs.DISPLAY_VERSION }})"
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: windows-build-output
+          path: win/
+      - name: Stage Windows
+        run: >
+          aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp
+          --content-type="text/xml" --metadata-directive="REPLACE"
+          win/update.xml s3://aus/update/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/update.xml
+
+          aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp
+          win/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
+          s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
+
+          aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp
+          win/Install\ Waterfox.exe s3://cdn/waterfox/staging/${{
+          inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe
+
+          aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp
+          win/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+          s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: macos-build-output
+          path: mac/
+      - name: Stage macOS
+        run: >
+          aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp
+          --content-type="text/xml" --metadata-directive="REPLACE"
+          mac/update.xml s3://aus/update/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/update.xml
+
+          aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp
+          mac/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
+          s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
+
+          aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp
+          mac/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+          s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: linux-build-output
+          path: lin/
+      - name: Stage Linux
+        run: >
+          aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp
+          --content-type="text/xml" --metadata-directive="REPLACE"
+          lin/update.xml s3://aus/update/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/update.xml
+
+          aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp
+          lin/waterfox-${{ inputs.DISPLAY_VERSION }}.en-US.linux-x86_64.tar.bz2
+          s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2
+
+          aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp
+          lin/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+          s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
