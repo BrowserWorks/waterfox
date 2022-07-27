@@ -1,0 +1,136 @@
+name: Production
+
+on:
+  workflow_call:
+    inputs:
+      DISPLAY_VERSION:
+        description: Display Version
+        required: true
+        type: string
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      CF_ENDPOINT:
+        required: true
+
+env:
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_DEFAULT_REGION: auto
+  AWS_EC2_METADATA_DISABLED: true
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+jobs:
+  soft-release:
+    name: Soft Release
+    environment: hard-release
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: ⚙︎ Dry run AUS
+        run: |
+          os=(WINNT_x86_64 Linux_x86_64 Darwin_x86_64-aarch64)
+          for j in ${os[@]}
+          do
+            update_loc="s3://aus/update/staging/${{ inputs.DISPLAY_VERSION }}/"$j"/update.xml"
+            mkdir -p aus_tmp/$j/
+            aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp --content-type="text/xml" --metadata-directive="REPLACE" $update_loc \
+              ./aus_tmp/$j/update.xml
+            sed -i 's/staging/releases/g' ./aus_tmp/$j/update.xml
+            sed -i 's/staging/releases/g' ./aus_tmp/$j/update.xml
+            sed -i 's/staging/releases/g' ./aus_tmp/$j/update.xml
+            aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp --dryrun --content-type="text/xml" --metadata-directive="REPLACE" ./aus_tmp/$j/update.xml \
+              s3://aus/update/release/${{ inputs.DISPLAY_VERSION }}/$j/update.xml
+          done
+          
+      - name: ⎆ Dry run move from staging
+        run: |
+         aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp --dryrun s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe s3://cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
+         aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp --dryrun s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe s3://cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe
+         aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp --dryrun s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar s3://cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+         aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp --dryrun s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg s3://cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
+         aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp --dryrun s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar s3://cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+         aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp --dryrun s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2 s3://cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2
+         aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp --dryrun s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar s3://cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+
+        # for i in $(aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 ls s3://aus/update/release/ | awk '{OFS=" "};{if ($1=="PRE") print $2}')
+        # do
+        #     if [[ $i != '/' ]]
+        #     then
+        #     ver=$(echo $i | sed 's/\///g')
+        #         if [[ $i == "G3"* ]]
+        #         then
+        #             os=(Windows_NT Linux Darwin)
+        #             for j in ${os[@]}
+        #             do
+        #                 dest=s3://aus/update/release/$ver/$j/update.xml
+        #                 if [[ $j == "Windows_NT" ]]
+        #                 then
+        #                   j=WINNT
+        #                 fi
+        #                 # Need one for macOS unified now as well
+        #                 aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp --dryrun --content-type="text/xml" --metadata-directive="REPLACE" \
+        #                   s3://aus/update/release/${{ inputs.DISPLAY_VERSION }}/${j}_x86_64/update.xml \
+        #                   $dest
+        #             done
+        #         elif [[ $i == "G4"* ]]
+        #         then
+        #             os=(WINNT_x86_64 Linux_x86_64 Darwin_x86_64 Darwin_aarch64)
+        #             for j in ${os[@]}
+        #             do
+        #                 aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp --dryrun --content-type="text/xml" --metadata-directive="REPLACE" \
+        #                   s3://aus/update/release/${{ inputs.DISPLAY_VERSION }}/$j/update.xml \
+        #                   s3://aus.waterfox.net/update/Waterfox/$ver/default/$j/update.xml
+        #             done
+        #         fi
+        #     fi
+        # done
+
+  hard-release:
+    name: Full Release
+    needs: [soft-release]
+    environment: hard-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⚙︎ Move update XMLs from staging
+        run: |
+          os=(WINNT_x86_64 Linux_x86_64 Darwin_x86_64-aarch64)
+          for j in ${os[@]}
+          do
+            update_loc="s3://aus/update/staging/${{ inputs.DISPLAY_VERSION }}/"$j"/update.xml"
+            mkdir -p aus_tmp/$j/
+            aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp --content-type="text/xml" --metadata-directive="REPLACE" $update_loc \
+              ./aus_tmp/$j/update.xml
+            sed -i 's/staging/releases/g' ./aus_tmp/$j/update.xml
+            sed -i 's/staging/releases/g' ./aus_tmp/$j/update.xml
+            sed -i 's/staging/releases/g' ./aus_tmp/$j/update.xml
+            aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp --content-type="text/xml" --metadata-directive="REPLACE" ./aus_tmp/$j/update.xml \
+              s3://aus/update/release/${{ inputs.DISPLAY_VERSION }}/$j/update.xml
+          done
+
+      - name: ⎆ Move binaries from staging
+        run: |
+         aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe s3://cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
+         aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe s3://cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe
+         aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar s3://cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+         aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg s3://cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
+         aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar s3://cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+         aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2 s3://cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2
+         aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp s3://cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar s3://cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+
+      # - name: ⎆ Update latest redirect
+      #   run: |
+      #       curl "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ZONE_ID }}/rules/lists/8eefc8eca6e6407e80132f90c00ce149/items" \
+      #       -H "X-Auth-Email: ${{ secrets.CF_EMAIL }}" \
+      #       -H "X-Auth-Key: ${{ secrets.CF_AUTH }}" \
+      #       -H "Content-Type: application/json" \
+      #       -d '[
+      #       {
+      #           "redirect": {
+      #           "source_url": "cdn.waterfox.net/releases/win64/latest",
+      #           "target_url": "https://cdn.waterfox.net/releases/win64/installer/Waterfox%20${{ github.event.inputs.version }}%20Setup.exe",
+      #           "status_code": 302
+      #           }
+      #       }
+      #       ]'

@@ -1,0 +1,45 @@
+name: Deployment
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    uses: ./.github/workflows/build.yml
+    secrets:
+      AWS_ACCESS_KEY_ID: '${{ secrets.CF_ACCESS_KEY_ID }}'
+      AWS_SECRET_ACCESS_KEY: '${{ secrets.CF_ACCESS_KEY_SECRET }}'
+      AZURE_CRT: '${{ secrets.AZURE_CRT }}'
+      AZURE_TENANT_ID: '${{ secrets.AZURE_TENANT_ID }}'
+      AZURE_USER_ID: '${{ secrets.AZURE_USER_ID }}'
+      AZURE_USER_PWD: '${{ secrets.AZURE_USER_PWD }}'
+      AZURE_VAULT_ID: '${{ secrets.AZURE_VAULT_ID }}'
+      CF_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
+      MACOS_CRT: '${{ secrets.MACOS_CRT }}'
+      MACOS_DEV_ID: '${{ secrets.MACOS_DEV_ID }}'
+      MACOS_DEV_PWD: '${{ secrets.MACOS_DEV_PWD }}'
+      MACOS_ID: '${{ secrets.MACOS_ID }}'
+      MACOS_PWD: '${{ secrets.MACOS_PWD }}'
+      MOZ_API_KEY: '${{ secrets.MOZ_API_KEY }}'
+    with:
+      TRIGGER_EVENT: '${{ github.event_name }}'
+  stage:
+    name: Deploy to Staging
+    uses: ./.github/workflows/stage.yml
+    needs: build
+    secrets:
+      AWS_ACCESS_KEY_ID: '${{ secrets.CF_ACCESS_KEY_ID }}'
+      AWS_SECRET_ACCESS_KEY: '${{ secrets.CF_ACCESS_KEY_SECRET }}'
+      CF_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
+    with:
+      DISPLAY_VERSION: '${{ needs.build.outputs.versiondisplay }}'
+  production:
+    name: Deploy to Production
+    uses: ./.github/workflows/production.yml
+    needs: stage
+    secrets:
+      AWS_ACCESS_KEY_ID: '${{ secrets.CF_ACCESS_KEY_ID }}'
+      AWS_SECRET_ACCESS_KEY: '${{ secrets.CF_ACCESS_KEY_SECRET }}'
+      CF_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
+    with:
+      DISPLAY_VERSION: '${{ needs.stage.outputs.versiondisplay }}'
