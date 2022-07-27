@@ -18,7 +18,11 @@ unset MOZ_STDCXX_COMPAT
 
 if test "$WFX_RELEASE"; then
     ac_add_options --enable-lto
+    ac_add_options --enable-optimize="-O3 -mcpu=apple-m1 -w"
     ac_add_options --enable-release
+    ac_add_options --enable-rust-simd
+    ac_add_options RUSTC_OPT_LEVEL=3
+    export RUSTFLAGS="$RUSTFLAGS -Ctarget-cpu=apple-m1"
 fi
 
 ac_add_options --disable-crashreporter
@@ -39,8 +43,6 @@ elif test -f "$HOME/.mozbuild/sccache/sccache"; then
     ac_add_options --with-ccache=$HOME/.mozbuild/sccache/sccache
 fi
 ac_add_options --enable-install-strip
-ac_add_options --enable-optimize="-O3 -mcpu=apple-m1 -w"
-ac_add_options --enable-rust-simd
 ac_add_options --enable-strip
 ac_add_options --enable-updater
 
