@@ -85,6 +85,12 @@
     "scopes": ["addon_parent"],
     "paths": [["identity"]]
   },
+  "legacy": {
+    "url": "chrome://browser/content/parent/ext-legacy.js",
+    "schema": "chrome://browser/content/schemas/legacy.json",
+    "scopes": ["addon_parent"],
+    "manifest": ["legacy"]
+  },
   "menusChild": {
     "schema": "chrome://browser/content/schemas/menus_child.json",
     "scopes": ["addon_child", "content_child", "devtools_child"]
