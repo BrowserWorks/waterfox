@@ -269,6 +269,8 @@
 @RESPATH@/browser/defaults/permissions
 ; Remote Settings JSON dumps
 @RESPATH@/browser/defaults/settings
+; Waterfox preference files
+@RESPATH@/browser/@PREF_DIR@/prefs-lepton.js
 
 # channel-prefs.js has been removed on macOS.
 #ifndef XP_MACOSX
