@@ -1,0 +1,16 @@
+name: Pull Request
+on:
+  pull_request_target:
+    branches:
+      - future
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    secrets:
+      AWS_ACCESS_KEY_ID: '${{ secrets.CF_ACCESS_KEY_ID }}'
+      AWS_SECRET_ACCESS_KEY: '${{ secrets.CF_ACCESS_KEY_SECRET }}'
+      CF_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
+      MOZ_API_KEY: '${{ secrets.MOZ_API_KEY }}'
+    with:
+      # Not currently used. But may be useful in the future.
+      TRIGGER_EVENT: '${{ github.event_name }}'
