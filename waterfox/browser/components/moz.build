@@ -6,4 +6,8 @@
 
 DIRS += [
     "search",
-    ]
+]
+
+EXTRA_JS_MODULES += [
+    "WaterfoxGlue.jsm",
+]
