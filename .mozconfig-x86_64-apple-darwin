@@ -1,0 +1,55 @@
+# Targetting ARM64 builds. Expected to be run on Linux.
+
+TOOLS=$HOME/macos-cross
+CROSS_SYSROOT=${TOOLS}/MacOSX11.3.sdk
+export CC=$HOME/.mozbuild/clang/bin/clang
+export CXX=$HOME/.mozbuild/clang/bin/clang++
+export DMG_TOOL=${TOOLS}/dmg/dmg
+export DSYMUTIL=$HOME/.mozbuild/clang/bin/dsymutil
+export HFS_TOOL=${TOOLS}/dmg/hfsplus
+export HOST_CFLAGS="-g"
+export HOST_CXXFLAGS="-g"
+export HOST_LDFLAGS="-g"
+export MACOS_SDK_DIR=$CROSS_SYSROOT
+export MKFSHFS=${TOOLS}/hfsplus-tools/newfs_hfs
+mk_add_options "export LD_LIBRARY_PATH=$HOME/.mozbuild/clang/lib"
+mk_add_options "export PATH=${TOOLS}/cctools/bin:$HOME/.mozbuild/clang/bin:$PATH"
+unset MOZ_STDCXX_COMPAT
+
+if test "$WFX_RELEASE"; then
+    ac_add_options --enable-lto
+    ac_add_options --enable-release
+fi
+
+ac_add_options --disable-crashreporter
+ac_add_options --disable-debug
+ac_add_options --disable-dmd
+ac_add_options --disable-geckodriver
+ac_add_options --disable-jprof
+ac_add_options --disable-profiling
+ac_add_options --disable-tests
+ac_add_options --disable-trace-logging
+ac_add_options --disable-verify-mar
+
+ac_add_options --enable-application=browser
+ac_add_options --enable-bootstrap
+if test -x "$(command -v sccache)"; then
+    ac_add_options --with-ccache=sccache
+elif test -f "$HOME/.mozbuild/sccache/sccache"; then
+    ac_add_options --with-ccache=$HOME/.mozbuild/sccache/sccache
+fi
+ac_add_options --enable-install-strip
+ac_add_options --enable-optimize="-O3 -march=nehalem -mtune=haswell -w"
+ac_add_options --enable-rust-simd
+ac_add_options --enable-strip
+ac_add_options --enable-updater
+
+ac_add_options --target=x86_64-apple-darwin
+
+ac_add_options --with-app-basename=Waterfox
+ac_add_options --with-app-name=waterfox
+ac_add_options --with-branding=waterfox/browser/branding
+ac_add_options --with-distribution-id=net.waterfox
+ac_add_options --with-l10n-base=$PWD/browser/locales/l10n
+
+mk_add_options AUTOCLOBBER=1
