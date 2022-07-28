@@ -35,7 +35,6 @@ class Overlays {
     const instance = new Overlays(overlayProvider, window);
 
     const urls = overlayProvider.overlay.get(instance.location, false);
-    console.debug(instance.location);
     return instance.load(urls);
   }
 
