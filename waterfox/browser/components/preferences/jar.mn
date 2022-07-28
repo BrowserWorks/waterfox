@@ -6,5 +6,5 @@ browser.jar:
      content/browser/overlays/privacy.js                           (content/privacy.js)
 
 %   resource waterfox %waterfox/ contentaccessible=yes
-    waterfox/overlays/preferences-general.manifest                 (preferences-general.manifest)
-    waterfox/overlays/preferences-privacy.manifest                 (preferences-privacy.manifest)
+    waterfox/overlays/preferences-general.overlay                  (preferences-general.overlay)
+    waterfox/overlays/preferences-privacy.overlay                  (preferences-privacy.overlay)
