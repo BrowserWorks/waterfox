@@ -1,3 +1,3 @@
 browser.jar:
 %   resource waterfox %waterfox/ contentaccessible=yes
-    waterfox/overlays/chrome.manifest                      (chrome.manifest)
+    waterfox/overlays/chrome.overlay                      (chrome.overlay)
