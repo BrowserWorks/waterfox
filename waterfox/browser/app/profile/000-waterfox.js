@@ -106,7 +106,10 @@ pref("network.trr.confirmation_telemetry_enabled", false, locked);
 pref("network.trr.exclude-etc-hosts", false, locked);
 pref("network.trr.resolvers", "", locked);
 pref("plugin.state.flash", 0, locked); // Disable for defense-in-depth
+pref("privacy.resistFingerprinting.block_mozAddonManager", true); // This is set so that UA overrides work on AMO.
 pref("privacy.trackingprotection.origin_telemetry.enabled", false, locked);
+pref("privacy.userContext.enabled", true);
+pref("privacy.userContext.ui.enabled", true);
 pref("security.app_menu.recordEventTelemetry", false, locked);
 pref("security.certerrors.mitm.priming.enabled", false, locked);
 pref("security.certerrors.recordEventTelemetry", false, locked);
