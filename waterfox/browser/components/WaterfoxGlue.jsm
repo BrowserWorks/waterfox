@@ -50,17 +50,17 @@ const WaterfoxGlue = {
     let privateWindow = false;
     switch (manifest) {
       case "startup":
-        uri = "resource://waterfox/overlays/chrome.manifest";
+        uri = "resource://waterfox/overlays/chrome.overlay";
         break;
       case "private":
-        uri = "resource://waterfox/overlays/chrome.manifest";
+        uri = "resource://waterfox/overlays/chrome.overlay";
         privateWindow = true;
         break;
       case "preferences-general":
-        uri = "resource://waterfox/overlays/preferences-general.manifest";
+        uri = "resource://waterfox/overlays/preferences-general.overlay";
         break;
       case "preferences-privacy":
-        uri = "resource://waterfox/overlays/preferences-privacy.manifest";
+        uri = "resource://waterfox/overlays/preferences-privacy.overlay";
         break;
     }
     let chromeManifest = new ChromeManifest(async () => {
