@@ -15,7 +15,7 @@
 # Waterfox
 # All customised preferences should live here
 
-pref("accessibility.support.url", "https://www.waterfox.net/support/accessibility-services")
+pref("accessibility.support.url", "https://www.waterfox.net/support/accessibility-services");
 pref("app.support.baseURL", "https://www.waterfox.net/support/%OS%/");
 pref("app.update.badgeWaitTime", 0);
 pref("app.update.enabled", true);
