@@ -5,8 +5,8 @@ case $(uname -s) in
     Darwin)
         # Any macOS specific settings
         # For release builds we should use -march=core2 -mtune=haswell
-        export CC=$HOME/.mozbuild/clang/bin/clang
-        export CXX=$HOME/.mozbuild/clang/bin/clang++
+        export CC="$HOME"/.mozbuild/clang/bin/clang
+        export CXX="$HOME"/.mozbuild/clang/bin/clang++
         ;;
     MINGW*)
         # Any Windows specific settings
@@ -19,14 +19,14 @@ case $(uname -s) in
         case $(uname -m) in
             x86_64)
                 if test -d "$HOME/.mozbuild/clang/bin"; then
-                    export CC=$HOME/.mozbuild/clang/bin/clang
-                    export CXX=$HOME/.mozbuild/clang/bin/clang++
+                    export CC="$HOME"/.mozbuild/clang/bin/clang
+                    export CXX="$HOME"/.mozbuild/clang/bin/clang++
                 else
                     export CC=clang
                     export CXX=clang++
                 fi
                 if test -f "$HOME/.mozbuild/nasm/nasm"; then
-                    export NASM=$HOME/.mozbuild/nasm/nasm
+                    export NASM="$HOME"/.mozbuild/nasm/nasm
                 fi
                 ac_add_options --target=x86_64-pc-linux-gnu
                 ;;
@@ -67,4 +67,5 @@ elif test -f "$HOME/.mozbuild/sccache/sccache"; then
 fi
 
 mk_add_options AUTOCLOBBER=1
-MOZ_REQUIRE_SIGNING=
+mk_add_options MOZ_OBJDIR=./obj-"$(uname -s)"-"$(uname -m)"
+export MOZ_REQUIRE_SIGNING=
