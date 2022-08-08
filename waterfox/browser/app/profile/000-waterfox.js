@@ -52,7 +52,7 @@ pref("browser.newtabpage.activity-stream.feeds.telemetry", false, locked);
 pref("browser.newtabpage.activity-stream.improvesearch.handoffToAwesomebar", false);
 pref("browser.newtabpage.activity-stream.improvesearch.topSiteSearchShortcuts", false);
 pref("browser.newtabpage.activity-stream.section.highlights.includePocket", false, locked);
-pref("browser.newtabpage.activity-stream.section.highlights.rows", "2");
+pref("browser.newtabpage.activity-stream.section.highlights.rows", 2);
 pref("browser.newtabpage.activity-stream.showSponsored", false, locked);
 pref("browser.newtabpage.activity-stream.showSponsoredTopSites", false, locked);
 pref("browser.newtabpage.activity-stream.telemetry", false, locked);
