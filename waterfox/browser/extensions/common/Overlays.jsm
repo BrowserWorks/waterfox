@@ -347,11 +347,34 @@ class Overlays {
         return false;
       }
 
-      this._mergeElement(target, node);
+      // Delete existing element if requested
+      if (node.hasAttribute("delete") && node.getAttribute("delete")) {
+        this._deleteElement(target);
+      } else {
+        this._mergeElement(target, node);
+      }
+    } else if (node.getAttribute("data-subcategory")) {
+      // This is for removing items in about:preferences#home
+      const target = this.document.querySelector(
+        `vbox[data-subcategory='${node.getAttribute("data-subcategory")}']`
+      );
+      if (node.hasAttribute("delete")) {
+        this._deleteElement(target);
+      }
     } else {
       this._insertElement(this.document.documentElement, node);
     }
     return true;
+  }
+
+  /**
+   * Delete the target node.
+   * @param {Element} target     The node to delete.
+   */
+  _deleteElement(target) {
+    if (target) {
+      target.remove();
+    }
   }
 
   /**
