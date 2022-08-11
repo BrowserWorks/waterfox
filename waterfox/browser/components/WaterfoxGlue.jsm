@@ -153,32 +153,40 @@ const WaterfoxGlue = {
 
   async _migrateUI() {
     let currentUIVersion = Services.prefs.getIntPref(
-      "browser.migration.version"
+      "browser.migration.version",
+      128
     );
 
     async function enableTheme(id) {
-      AddonManager.getAddonByID(id).then(addon => addon.enable());
+      const addon = await AddonManager.getAddonByID(id);
+      // If we found it, enable it.
+      addon?.enable();
     }
 
     if (currentUIVersion < 128) {
       // Ensure the theme id is set correctly for G5
       const DEFAULT_THEME = "default-theme@mozilla.org";
-      AddonManager.getAddonsByTypes(["theme"]).then(themes => {
-        let activeTheme = themes.find(addon => addon.isActive);
-        if (activeTheme) {
-          let themeId = activeTheme.id;
-          if (themeId == "lepton@waterfox.net") {
+      const themes = await AddonManager.getAddonsByTypes(["theme"]);
+      let activeTheme = themes.find(addon => addon.isActive);
+      if (activeTheme) {
+        let themeId = activeTheme.id;
+        switch (themeId) {
+          case "lepton@waterfox.net":
             enableTheme("default-theme@mozilla.org");
-          } else if (themeId == "australis-light@waterfox.net") {
+            break;
+          case "australis-light@waterfox.net":
             enableTheme("firefox-compact-light@mozilla.org");
-          } else if (themeId == "australis-dark@waterfox.net") {
+            break;
+          case "australis-dark@waterfox.net":
             enableTheme("firefox-compact-dark@mozilla.org");
-          }
-        } else {
-          // If no activeTheme detected, set default.
-          enableTheme(DEFAULT_THEME);
+            break;
+          default:
+            enableTheme(DEFAULT_THEME);
         }
-      });
+      } else {
+        // If no activeTheme detected, set default.
+        enableTheme(DEFAULT_THEME);
+      }
     }
   },
 };
