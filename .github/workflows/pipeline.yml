@@ -53,4 +53,6 @@ jobs:
       AWS_SECRET_ACCESS_KEY: '${{ secrets.CF_ACCESS_KEY_SECRET }}'
       CF_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
     with:
+      COMMIT_SHA: ${{ github.sha }}
+      PRE_RELEASE: '${{ github.event.inputs.prerelease }}'
       DISPLAY_VERSION: '${{ needs.stage.outputs.versiondisplay }}'
