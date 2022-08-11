@@ -238,6 +238,10 @@ pref("userContent.page.proton_color",     true);
 pref("userContent.page.dark_mode",        true); // Need proton_color
 pref("userContent.page.proton",           true); // Need proton_color
 
+// -- Hide promos -------------------------------------------------------------
+pref("browser.vpn_promo.enabled", false, locked);
+pref("browser.promo.focus.enabled", false, locked);
+
 // ** Useful Options ***********************************************************
 // Integrated calculator at urlbar
 pref("browser.urlbar.suggest.calculator", true);
