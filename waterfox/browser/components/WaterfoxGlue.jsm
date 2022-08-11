@@ -52,11 +52,8 @@ const WaterfoxGlue = {
       case "preferences-general":
         uri = "resource://waterfox/overlays/preferences-general.overlay";
         break;
-      case "preferences-privacy":
-        uri = "resource://waterfox/overlays/preferences-privacy.overlay";
-        break;
-      case "preferences-home":
-        uri = "resource://waterfox/overlays/preferences-home.overlay";
+      case "preferences-other":
+        uri = "resource://waterfox/overlays/preferences-other.overlay";
         break;
     }
     let chromeManifest = new ChromeManifest(async () => {
@@ -123,22 +120,14 @@ const WaterfoxGlue = {
           ) {
             subject.setTimeout(async () => {
               await Overlays.load(
-                await this.getChromeManifest("preferences-privacy"),
-                subject
-              );
-              await Overlays.load(
-                await this.getChromeManifest("preferences-home"),
+                await this.getChromeManifest("preferences-other"),
                 subject
               );
               subject.privacyInitialized = true;
             }, 500);
           } else {
             await Overlays.load(
-              await this.getChromeManifest("preferences-privacy"),
-              subject
-            );
-            await Overlays.load(
-              await this.getChromeManifest("preferences-home"),
+              await this.getChromeManifest("preferences-other"),
               subject
             );
             subject.privacyInitialized = true;
