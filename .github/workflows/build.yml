@@ -2,6 +2,12 @@ name: Build
 on:
   workflow_call:
     inputs:
+      PRE_RELEASE:
+        required: false
+        type: string
+      TAG_VERSION:
+        required: false
+        type: string
       TRIGGER_EVENT:
         description: Trigger event for the workflow
         required: true
@@ -42,6 +48,7 @@ on:
 env:
   AWS_ACCESS_KEY_ID: '${{ secrets.AWS_ACCESS_KEY_ID }}'
   AWS_SECRET_ACCESS_KEY: '${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+  PRE_RELEASE: '${{ inputs.PRE_RELEASE }}'
 jobs:
   build-windows-x64:
     name: Windows
@@ -62,6 +69,9 @@ jobs:
       - name: "\U0001F4E3 Set VERSION_DISPLAY as GITHUB_ENV"
         if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
         run: |
+          if [[ -n ${{ inputs.TAG_VERSION }} ]]; then
+            echo ${{ inputs.TAG_VERSION }} > browser/config/version_display.txt
+          fi
           echo 'VERSION_DISPLAY<<EOF' >> $GITHUB_ENV
           cat browser/config/version_display.txt >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
@@ -114,8 +124,16 @@ jobs:
           export DISPLAY=:2
       - name: "\U0001F3D7 Build"
         run: |
-          if [[ ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }} ]]; then
-            export WFX_RELEASE=1
+          if [[ ${{ inputs.TRIGGER_EVENT }} == 'workflow_dispatch' ]]; then
+            if [[ $PRE_RELEASE == 'true' ]]; then
+              export WFX_PRE_RELEASE=1
+              echo "Set WFX_PRE_RELEASE as ${WFX_PRE_RELEASE}"
+              echo "WFX_RELEASE should be 0. ${WFX_RELEASE}"
+            else
+              export WFX_RELEASE=1
+              echo "Set WFX_RELEASE as ${WFX_RELEASE}"
+              echo "WFX_PRE_RELEASE should be 0. ${WFX_PRE_RELEASE}"
+            fi
           fi
           ./mach build
       - name: "\U0001F4E6 Package"
@@ -270,6 +288,12 @@ jobs:
     steps:
       - name: "\U0001F4E4 Checkout"
         uses: actions/checkout@v3
+      - name: "\U0001F4E3 Override version_display.txt"
+        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
+        run: |
+          if [[ -n ${{ inputs.TAG_VERSION }} ]]; then
+            echo ${{ inputs.TAG_VERSION }} > browser/config/version_display.txt
+          fi
       - name: "\U0001F9F0 Cache"
         uses: actions/cache@v3
         id: mac-cache
@@ -300,8 +324,16 @@ jobs:
       - name: "\U0001F3D7 Build"
         run: |
           export MOZ_BUILD_DATE=$(date +'%Y%m%d%H0000')
-          if [[ ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }} ]]; then
-            export WFX_RELEASE=1
+          if [[ ${{ inputs.TRIGGER_EVENT }} == 'workflow_dispatch' ]]; then
+            if [[ $PRE_RELEASE == 'true' ]]; then
+              export WFX_PRE_RELEASE=1
+              echo "Set WFX_PRE_RELEASE as ${WFX_PRE_RELEASE}"
+              echo "WFX_RELEASE should be 0. ${WFX_RELEASE}"
+            else
+              export WFX_RELEASE=1
+              echo "Set WFX_RELEASE as ${WFX_RELEASE}"
+              echo "WFX_PRE_RELEASE should be 0. ${WFX_PRE_RELEASE}"
+            fi
           fi
           ./mach build
       - name: "\U0001F4E6 Package"
@@ -332,6 +364,14 @@ jobs:
     steps:
       - name: "\U0001F4E4 Checkout"
         uses: actions/checkout@v3
+      - name: "\U0001F4E3 Set VERSION_DISPLAY as GITHUB_ENV"
+        run: |
+          if [[ -n ${{ inputs.TAG_VERSION }} ]]; then
+            echo ${{ inputs.TAG_VERSION }} > browser/config/version_display.txt
+          fi
+          echo 'VERSION_DISPLAY<<EOF' >> $GITHUB_ENV
+          cat browser/config/version_display.txt >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
       - name: ⏬ Download X64 artifact
         uses: actions/download-artifact@v3
         with:
@@ -351,11 +391,6 @@ jobs:
         with:
           p12-file-base64: '${{ secrets.MACOS_CRT }}'
           p12-password: '${{ secrets.MACOS_PWD }}'
-      - name: "\U0001F4E3 Export display version"
-        run: |
-          echo 'VERSION_DISPLAY<<EOF' >> $GITHUB_ENV
-          cat browser/config/version_display.txt >> $GITHUB_ENV
-          echo 'EOF' >> $GITHUB_ENV
       - name: "\U0001D33B Unify .app(s)"
         run: >
           MOZCONFIG=.mozconfig-${{ env.ARCH-X64 }} ./mach python
@@ -494,6 +529,12 @@ jobs:
     steps:
       - name: "\U0001F4E4 Checkout"
         uses: actions/checkout@v3
+      - name: "\U0001F4E3 Override version_display.txt"
+        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
+        run: |
+          if [[ -n ${{ inputs.TAG_VERSION }} ]]; then
+            echo ${{ inputs.TAG_VERSION }} > browser/config/version_display.txt
+          fi
       - name: "\U0001F9F0 Cache"
         uses: actions/cache@v3
         id: lin-cache
@@ -538,8 +579,16 @@ jobs:
       - name: "\U0001F3D7 Build"
         run: |
           echo "${{ secrets.MOZ_API_KEY }}" > mozilla-api
-          if [[ ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }} ]]; then
-            export WFX_RELEASE=1
+          if [[ ${{ inputs.TRIGGER_EVENT }} == 'workflow_dispatch' ]]; then
+            if [[ $PRE_RELEASE == 'true' ]]; then
+              export WFX_PRE_RELEASE=1
+              echo "Set WFX_PRE_RELEASE as ${WFX_PRE_RELEASE}"
+              echo "WFX_RELEASE should be 0. ${WFX_RELEASE}"
+            else
+              export WFX_RELEASE=1
+              echo "Set WFX_RELEASE as ${WFX_RELEASE}"
+              echo "WFX_PRE_RELEASE should be 0. ${WFX_PRE_RELEASE}"
+            fi
           fi
           ./mach build
       - name: "\U0001F4E6 Package binaries"
