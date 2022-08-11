@@ -348,15 +348,24 @@ class Overlays {
       }
 
       // Delete existing element if requested
-      if (node.hasAttribute("delete") && node.getAttribute("delete")) {
+      if (node.hasAttribute("delete")) {
         this._deleteElement(target);
       } else {
         this._mergeElement(target, node);
       }
+    } else if (node.className) {
+      const target = this.document.querySelector(
+        `${node.nodeName}[class='${node.getAttribute("class")}']`
+      );
+      if (node.hasAttribute("delete")) {
+        this._deleteElement(target);
+      }
     } else if (node.getAttribute("data-subcategory")) {
       // This is for removing items in about:preferences#home
       const target = this.document.querySelector(
-        `vbox[data-subcategory='${node.getAttribute("data-subcategory")}']`
+        `${node.nodeName}[data-subcategory='${node.getAttribute(
+          "data-subcategory"
+        )}']`
       );
       if (node.hasAttribute("delete")) {
         this._deleteElement(target);
