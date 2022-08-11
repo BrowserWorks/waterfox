@@ -3,8 +3,14 @@ name: Production
 on:
   workflow_call:
     inputs:
+      COMMIT_SHA:
+        required: true
+        type: string
       DISPLAY_VERSION:
         description: Display Version
+        required: true
+        type: string
+      PRE_RELEASE:
         required: true
         type: string
     secrets:
@@ -96,6 +102,13 @@ jobs:
       - name: Setup rclone
         run: >-
           curl https://rclone.org/install.sh | sudo bash
+      - name: Create GitHub release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          commit: ${{ inputs.COMMIT_SHA }}
+          prerelease: ${{ inputs.PRE_RELEASE }}
+          tag: ${{ inputs.DISPLAY_VERSION }}
       - name: ⚙︎ Move update XMLs from staging
         run: |
           os=(WINNT_x86_64 Linux_x86_64 Darwin_x86_64-aarch64)
