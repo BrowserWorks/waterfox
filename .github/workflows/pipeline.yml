@@ -18,10 +18,10 @@ jobs:
     secrets:
       AWS_ACCESS_KEY_ID: '${{ secrets.CF_ACCESS_KEY_ID }}'
       AWS_SECRET_ACCESS_KEY: '${{ secrets.CF_ACCESS_KEY_SECRET }}'
+      AZURE_CLIENT_ID: '${{ secrets.AZURE_CLIENT_ID }}'
       AZURE_CRT: '${{ secrets.AZURE_CRT }}'
+      AZURE_SUBSCRIPTION_ID: '${{ secrets.AZURE_SUBSCRIPTION_ID }}'
       AZURE_TENANT_ID: '${{ secrets.AZURE_TENANT_ID }}'
-      AZURE_USER_ID: '${{ secrets.AZURE_USER_ID }}'
-      AZURE_USER_PWD: '${{ secrets.AZURE_USER_PWD }}'
       AZURE_VAULT_ID: '${{ secrets.AZURE_VAULT_ID }}'
       CF_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
       MACOS_CRT: '${{ secrets.MACOS_CRT }}'
