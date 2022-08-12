@@ -44,6 +44,7 @@ jobs:
       CF_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
     with:
       DISPLAY_VERSION: '${{ needs.build.outputs.versiondisplay }}'
+      PRE_RELEASE: '${{ github.event.inputs.prerelease }}'
   production:
     name: Deploy to Production
     uses: ./.github/workflows/production.yml
