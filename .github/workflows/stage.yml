@@ -6,6 +6,9 @@ on:
         description: Input display version
         required: true
         type: string
+      PRE_RELEASE:
+        required: false
+        type: string
     outputs:
       versiondisplay:
         description: Output display version
@@ -18,6 +21,7 @@ on:
       CF_ENDPOINT:
         required: true
 env:
+  PRE_RELEASE: '${{ inputs.PRE_RELEASE }}'
   RCLONE_S3_ACCESS_KEY_ID: '${{ secrets.AWS_ACCESS_KEY_ID }}'
   RCLONE_S3_ACL: private
   RCLONE_S3_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
@@ -34,6 +38,13 @@ jobs:
         id: versionexport
         run: >-
           echo "::set-output name=version::$(echo ${{ inputs.DISPLAY_VERSION }})"
+      - name: "\U0001F4E3 Export CHANNEL"
+        run: |
+          if [[ $PRE_RELEASE == 'true' ]]; then
+            echo "CHANNEL=beta" >> $GITHUB_ENV
+          else
+            echo "CHANNEL=release" >> $GITHUB_ENV
+          fi
       - name: Setup rclone
         run: >-
           curl https://rclone.org/install.sh | sudo bash
@@ -44,7 +55,7 @@ jobs:
           path: win/
       - name: Stage Windows
         run: >
-          rclone copyto win/update.xml :s3:aus/update/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/update.xml
+          rclone copyto win/update.xml :s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/update.xml
 
           rclone copyto win/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
 
@@ -60,7 +71,7 @@ jobs:
           path: mac/
       - name: Stage macOS
         run: >
-          rclone copyto mac/update.xml :s3:aus/update/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/update.xml
+          rclone copyto mac/update.xml :s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/update.xml
 
           rclone copyto mac/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
 
@@ -73,7 +84,7 @@ jobs:
           path: lin/
       - name: Stage Linux
         run: >
-          rclone copyto lin/update.xml :s3:aus/update/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/update.xml
+          rclone copyto lin/update.xml :s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/update.xml
 
           rclone copyto lin/waterfox-${{ inputs.DISPLAY_VERSION }}.en-US.linux-x86_64.tar.bz2 :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2
 
