@@ -22,6 +22,7 @@ on:
         required: true
 
 env:
+  PRE_RELEASE: '${{ inputs.PRE_RELEASE }}'
   RCLONE_S3_ACCESS_KEY_ID: '${{ secrets.AWS_ACCESS_KEY_ID }}'
   RCLONE_S3_ACL: private
   RCLONE_S3_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
@@ -37,18 +38,25 @@ jobs:
       - name: Setup rclone
         run: >-
           curl https://rclone.org/install.sh | sudo bash
+      - name: "\U0001F4E3 Export CHANNEL"
+        run: |
+          if [[ $PRE_RELEASE == 'true' ]]; then
+            echo "CHANNEL=beta" >> $GITHUB_ENV
+          else
+            echo "CHANNEL=release" >> $GITHUB_ENV
+          fi
       - name: ⚙︎ Dry run AUS
         run: |
           os=(WINNT_x86_64 Linux_x86_64 Darwin_x86_64-aarch64)
           for j in ${os[@]}
           do
-            update_loc=":s3:aus/update/staging/${{ inputs.DISPLAY_VERSION }}/"$j"/update.xml"
+            update_loc=":s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/"$j"/update.xml"
             mkdir -p aus_tmp/$j/
-            rclone copyto :s3:aus/update/staging/${{ inputs.DISPLAY_VERSION }}/"$j"/update.xml ./aus_tmp/$j/update.xml
+            rclone copyto :s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/"$j"/update.xml ./aus_tmp/$j/update.xml
             sed -i 's/staging/releases/g' ./aus_tmp/$j/update.xml
             sed -i 's/staging/releases/g' ./aus_tmp/$j/update.xml
             sed -i 's/staging/releases/g' ./aus_tmp/$j/update.xml
-            rclone moveto ./aus_tmp/$j/update.xml :s3:aus/update/staging/${{ inputs.DISPLAY_VERSION }}/"$j"/update.xml --dry-run
+            rclone moveto ./aus_tmp/$j/update.xml :s3:aus/update/production/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/"$j"/update.xml --dry-run
           done
       - name: ⎆ Dry run move from staging
         run: |
@@ -102,6 +110,13 @@ jobs:
       - name: Setup rclone
         run: >-
           curl https://rclone.org/install.sh | sudo bash
+      - name: "\U0001F4E3 Export CHANNEL"
+        run: |
+          if [[ $PRE_RELEASE == 'true' ]]; then
+            echo "CHANNEL=beta" >> $GITHUB_ENV
+          else
+            echo "CHANNEL=release" >> $GITHUB_ENV
+          fi
       - name: Create GitHub release
         uses: ncipollo/release-action@v1
         with:
@@ -114,13 +129,13 @@ jobs:
           os=(WINNT_x86_64 Linux_x86_64 Darwin_x86_64-aarch64)
           for j in ${os[@]}
           do
-            update_loc=":s3:aus/update/staging/${{ inputs.DISPLAY_VERSION }}/"$j"/update.xml"
+            update_loc=":s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/"$j"/update.xml"
             mkdir -p aus_tmp/$j/
-            rclone moveto :s3:aus/update/staging/${{ inputs.DISPLAY_VERSION }}/"$j"/update.xml ./aus_tmp/$j/update.xml
+            rclone moveto :s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/"$j"/update.xml ./aus_tmp/$j/update.xml
             sed -i 's/staging/releases/g' ./aus_tmp/$j/update.xml
             sed -i 's/staging/releases/g' ./aus_tmp/$j/update.xml
             sed -i 's/staging/releases/g' ./aus_tmp/$j/update.xml
-            rclone moveto ./aus_tmp/$j/update.xml :s3:aus/update/staging/${{ inputs.DISPLAY_VERSION }}/"$j"/update.xml
+            rclone moveto ./aus_tmp/$j/update.xml :s3:aus/update/production/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/"$j"/update.xml
           done
 
       - name: ⎆ Move binaries from staging
