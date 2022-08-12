@@ -21,13 +21,13 @@ on:
         required: true
       AWS_SECRET_ACCESS_KEY:
         required: true
+      AZURE_CLIENT_ID:
+        required: false
       AZURE_CRT:
         required: false
       AZURE_TENANT_ID:
         required: false
-      AZURE_USER_ID:
-        required: false
-      AZURE_USER_PWD:
+      AZURE_SUBSCRIPTION_ID:
         required: false
       AZURE_VAULT_ID:
         required: false
@@ -52,6 +52,9 @@ env:
   RCLONE_S3_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
   RCLONE_S3_PROVIDER: Cloudflare
   RCLONE_S3_SECRET_ACCESS_KEY: '${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+permissions:
+  id-token: write
+  contents: read
 jobs:
   build-windows-x64:
     name: Windows
@@ -146,13 +149,16 @@ jobs:
           if test -f "$PWD/browser/locales/l10n"; then
             ./mach package-multi-locale --locales ar cs da de el en-GB en-US es-ES es-MX fr hu id it ja ko lt nl nn-NO pl pt-BR pt-PT ru sv-SE th vi zh-CN zh-TW
           fi
+      - name: 'Azure CLI Login via OIDC'
+        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       - name: ✍️ Sign
         if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
         run: >
-          az login --service-principal --username ${{ secrets.AZURE_USER_ID }}
-          --password ${{ secrets.AZURE_USER_PWD }} --tenant ${{
-          secrets.AZURE_TENANT_ID }}
-
           jsign --storetype AZUREKEYVAULT -s ${{ secrets.AZURE_VAULT_ID }} -a
           ${{ secrets.AZURE_CRT }} -t
           "http://rfc3161timestamp.globalsign.com/advanced" -m RFC3161 -d
@@ -213,8 +219,6 @@ jobs:
 
           jsign -s $HOME/win-cross/dummy.pfx --storepass=password
           --storetype=PKCS12 "Install Waterfox.exe"
-
-          az logout
       - name: "\U0001F4E6 Package MAR"
         if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
         run: >
