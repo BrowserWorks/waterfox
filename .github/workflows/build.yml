@@ -46,9 +46,12 @@ on:
       MOZ_API_KEY:
         required: true
 env:
-  AWS_ACCESS_KEY_ID: '${{ secrets.AWS_ACCESS_KEY_ID }}'
-  AWS_SECRET_ACCESS_KEY: '${{ secrets.AWS_SECRET_ACCESS_KEY }}'
   PRE_RELEASE: '${{ inputs.PRE_RELEASE }}'
+  RCLONE_S3_ACCESS_KEY_ID: '${{ secrets.AWS_ACCESS_KEY_ID }}'
+  RCLONE_S3_ACL: private
+  RCLONE_S3_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
+  RCLONE_S3_PROVIDER: Cloudflare
+  RCLONE_S3_SECRET_ACCESS_KEY: '${{ secrets.AWS_SECRET_ACCESS_KEY }}'
 jobs:
   build-windows-x64:
     name: Windows
@@ -102,6 +105,8 @@ jobs:
           tar xf 7z2201-linux-x64.tar.xz
 
           sudo mv 7zz /usr/local/bin/7z
+
+          curl https://rclone.org/install.sh | sudo bash
       - name: "\U0001F4BF Setup rust"
         run: |
           rustup target add x86_64-pc-windows-msvc
@@ -113,9 +118,7 @@ jobs:
           sudo apt install -y ./jsign_4.1_all.deb
       - name: "\U0001F4BF Setup win-cross"
         run: >
-          aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp
-          s3://cdn/waterfox/libraries/toolchain/win-cross-102.tar.zst
-          win-cross.tar.zst
+          rclone copyto :s3:cdn/waterfox/libraries/toolchain/win-cross-102.tar.zst ./win-cross.tar.zst
 
           tar -xvf win-cross.tar.zst -C $HOME/
       - name: "\U0001F377 WINE environment"
@@ -314,11 +317,10 @@ jobs:
           wget https://www.7-zip.org/a/7z2201-linux-x64.tar.xz
           tar xf 7z2201-linux-x64.tar.xz
           sudo mv 7zz /usr/local/bin/7z
+          curl https://rclone.org/install.sh | sudo bash
       - name: "\U0001F4BF Setup macos-cross"
         run: >
-          aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp
-          s3://cdn/waterfox/libraries/toolchain/macos-cross-102.tar.zst
-          macos-cross.tar.zst
+          rclone copyto :s3:cdn/waterfox/libraries/toolchain/macos-cross-102.tar.zst ./macos-cross.tar.zst
 
           tar -xvf macos-cross.tar.zst -C $HOME/
       - name: "\U0001F3D7 Build"
@@ -452,9 +454,9 @@ jobs:
           secrets.MACOS_DEV_ID }} -p ${{ secrets.MACOS_DEV_PWD }}
       - name: "\U0001F4E6 Create MAR"
         run: >
-          aws --endpoint-url
-          https://552c7fea7d4954e6723ac3fd5b30309f.r2.cloudflarestorage.com s3
-          cp s3://cdn/waterfox/libraries/toolchain/mar mar
+          curl https://rclone.org/install.sh | sudo bash
+
+          rclone copy :s3:cdn/waterfox/libraries/toolchain/mar ./
 
           sudo chmod +x ./mar
 
