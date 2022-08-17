@@ -236,7 +236,7 @@ jobs:
           displayVersion="VERSION_DISPLAY">'
 
           '        <patch type="complete"
-          URL="https://cdn.waterfox.net/waterfox/staging/${{ env.VERSION_DISPLAY }}/update/WINNT_x86_64/waterfox-${{ env.VERSION_DISPLAY }}.complete.mar" hashFunction="SHA512" hashValue="HASH" size="SIZE"/>'
+          URL="https://cdn1.waterfox.net/waterfox/staging/${{ env.VERSION_DISPLAY }}/update/WINNT_x86_64/waterfox-${{ env.VERSION_DISPLAY }}.complete.mar" hashFunction="SHA512" hashValue="HASH" size="SIZE"/>'
 
           '    </update>'
 
@@ -479,7 +479,7 @@ jobs:
           displayVersion="VERSION_DISPLAY">'
 
           '        <patch type="complete"
-          URL="https://cdn.waterfox.net/waterfox/staging/${{ env.VERSION_DISPLAY }}/update/Darwin_x86_64-aarch64/waterfox-${{ env.VERSION_DISPLAY }}.complete.mar" hashFunction="SHA512" hashValue="HASH" size="SIZE"/>'
+          URL="https://cdn1.waterfox.net/waterfox/staging/${{ env.VERSION_DISPLAY }}/update/Darwin_x86_64-aarch64/waterfox-${{ env.VERSION_DISPLAY }}.complete.mar" hashFunction="SHA512" hashValue="HASH" size="SIZE"/>'
 
           '    </update>'
 
@@ -621,7 +621,7 @@ jobs:
           displayVersion="VERSION_DISPLAY">'
 
           '        <patch type="complete"
-          URL="https://cdn.waterfox.net/waterfox/staging/${{ env.VERSION_DISPLAY }}/update/Linux_x86_64/waterfox-${{ env.VERSION_DISPLAY }}.complete.mar" hashFunction="SHA512" hashValue="HASH" size="SIZE"/>'
+          URL="https://cdn1.waterfox.net/waterfox/staging/${{ env.VERSION_DISPLAY }}/update/Linux_x86_64/waterfox-${{ env.VERSION_DISPLAY }}.complete.mar" hashFunction="SHA512" hashValue="HASH" size="SIZE"/>'
 
           '    </update>'
 
