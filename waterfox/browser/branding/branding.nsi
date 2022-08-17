@@ -20,7 +20,7 @@
 ; set the update channel to beta.
 !define OFFICIAL
 !define URLStubDownloadX86 ""
-!define URLStubDownloadAMD64 "https://cdn.waterfox.net/releases/win64/latest"
+!define URLStubDownloadAMD64 "https://cdn1.waterfox.net/waterfox/releases/latest/windows"
 !define URLStubDownloadAArch64 ""
 !define URLManualDownload "https://www.waterfox.net/download/"
 !define URLSystemRequirements "https://www.waterfox.net/support/desktop/system-requirements/"
