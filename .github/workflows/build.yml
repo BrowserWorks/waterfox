@@ -1,5 +1,5 @@
 name: Build
-on:
+'on':
   workflow_call:
     inputs:
       PRE_RELEASE:
@@ -72,8 +72,7 @@ jobs:
     steps:
       - name: "\U0001F4E4 Checkout"
         uses: actions/checkout@v3
-      - name: "\U0001F4E3 Set VERSION_DISPLAY as GITHUB_ENV"
-        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
+      - name: "\U0001F4E3 Override version_display.txt"
         run: |
           if [[ -n ${{ inputs.TAG_VERSION }} ]]; then
             echo ${{ inputs.TAG_VERSION }} > browser/config/version_display.txt
@@ -95,13 +94,20 @@ jobs:
           key: 'win-${{ hashFiles(''**/browser/config/version_display.txt'') }}'
           restore-keys: |
             win-
-      - name: "\U0001F4BF Setup extra build dependencies"
+      - name: "\U0001F4BF Build dependencies"
         run: >
+          rustup target add x86_64-pc-windows-msvc
+
           sudo apt update
 
           sudo apt install -y uuid libasound2-dev libcurl4-openssl-dev
           libdbus-1-dev libdbus-glib-1-dev libdrm-dev libgtk-3-dev libpulse-dev
           libx11-xcb-dev xvfb upx nsis jq yasm nasm
+
+          aria2c
+          https://github.com/ebourg/jsign/releases/download/4.1/jsign_4.1_all.deb
+
+          sudo apt install -y ./jsign_4.1_all.deb
 
           aria2c https://www.7-zip.org/a/7z2201-linux-x64.tar.xz
 
@@ -110,24 +116,13 @@ jobs:
           sudo mv 7zz /usr/local/bin/7z
 
           curl https://rclone.org/install.sh | sudo bash
-      - name: "\U0001F4BF Setup rust"
-        run: |
-          rustup target add x86_64-pc-windows-msvc
-      - name: "\U0001F4BF Setup jsign"
-        run: >
-          aria2c
-          https://github.com/ebourg/jsign/releases/download/4.1/jsign_4.1_all.deb
-
-          sudo apt install -y ./jsign_4.1_all.deb
       - name: "\U0001F4BF Setup win-cross"
         run: >
-          rclone copyto :s3:cdn/waterfox/libraries/toolchain/win-cross-102.tar.zst ./win-cross.tar.zst
+          rclone copyto
+          :s3:cdn/waterfox/libraries/toolchain/win-cross-102.tar.zst
+          ./win-cross.tar.zst
 
           tar -xvf win-cross.tar.zst -C $HOME/
-      - name: "\U0001F377 WINE environment"
-        run: |
-          Xvfb :2 -screen 0 1024x768x16 &
-          export DISPLAY=:2
       - name: "\U0001F3D7 Build"
         run: |
           if [[ ${{ inputs.TRIGGER_EVENT }} == 'workflow_dispatch' ]]; then
@@ -149,13 +144,13 @@ jobs:
           if test -f "$PWD/browser/locales/l10n"; then
             ./mach package-multi-locale --locales ar cs da de el en-GB en-US es-ES es-MX fr hu id it ja ko lt nl nn-NO pl pt-BR pt-PT ru sv-SE th vi zh-CN zh-TW
           fi
-      - name: 'Azure CLI Login via OIDC'
+      - name: "\U0001FAAA Azure CLI Login via OIDC"
         if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
         uses: azure/login@v1
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          client-id: '${{ secrets.AZURE_CLIENT_ID }}'
+          tenant-id: '${{ secrets.AZURE_TENANT_ID }}'
+          subscription-id: '${{ secrets.AZURE_SUBSCRIPTION_ID }}'
       - name: ✍️ Sign
         if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
         run: >
@@ -223,17 +218,10 @@ jobs:
         if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
         run: >
           if [[ $PRE_RELEASE == 'true' ]]; then
-            ./mach repackage mar -i obj-${{ env.ARCH }}/dist/waterfox.zip --mar
-            obj-${{ env.ARCH }}/dist/host/bin/mar -o waterfox-${{
-            env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id
-            beta
+            ./mach repackage mar -i obj-${{ env.ARCH }}/dist/waterfox.zip --mar obj-${{ env.ARCH }}/dist/host/bin/mar -o waterfox-${{ env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id beta
           else
-            ./mach repackage mar -i obj-${{ env.ARCH }}/dist/waterfox.zip --mar
-            obj-${{ env.ARCH }}/dist/host/bin/mar -o waterfox-${{
-            env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id
-            release
+            ./mach repackage mar -i obj-${{ env.ARCH }}/dist/waterfox.zip --mar obj-${{ env.ARCH }}/dist/host/bin/mar -o waterfox-${{ env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id release
           fi
-
 
           xml=('<?xml version="1.0"?>'
 
@@ -244,7 +232,8 @@ jobs:
           displayVersion="VERSION_DISPLAY">'
 
           '        <patch type="complete"
-          URL="https://cdn1.waterfox.net/waterfox/staging/${{ env.VERSION_DISPLAY }}/update/WINNT_x86_64/waterfox-${{ env.VERSION_DISPLAY }}.complete.mar" hashFunction="SHA512" hashValue="HASH" size="SIZE"/>'
+          URL="https://cdn1.waterfox.net/waterfox/staging/${{ env.VERSION_DISPLAY }}/update/WINNT_x86_64/waterfox-${{ env.VERSION_DISPLAY }}.complete.mar" hashFunction="SHA512"
+          hashValue="HASH" size="SIZE"/>'
 
           '    </update>'
 
@@ -254,7 +243,8 @@ jobs:
 
           VERSION=$(grep '\<Version\>' obj-${{ env.ARCH }}/dist/bin/application.ini | cut -d'=' -f2)
 
-          BUILDID=$(grep 'BuildID=' obj-${{ env.ARCH }}/dist/bin/application.ini | cut -d'=' -f2)
+          BUILDID=$(grep 'BuildID=' obj-${{ env.ARCH }}/dist/bin/application.ini
+          | cut -d'=' -f2)
 
           SHA512=$(shasum -a 512 waterfox-${{ env.VERSION_DISPLAY }}.complete.mar | awk '{print $1}')
 
@@ -285,7 +275,6 @@ jobs:
             Install\ Waterfox.exe
             waterfox-${{ env.VERSION_DISPLAY }}.complete.mar
             update.xml
-            browser/config/version_display.txt
   build-macos-multi:
     name: macOS
     runs-on:
@@ -318,11 +307,10 @@ jobs:
           path: |
             ~/.cache/sccache
           key: >-
-            mac-${{ matrix.arch }}-${{
-            hashFiles('**/browser/config/version_display.txt') }}
+            mac-${{ matrix.arch }}-${{   hashFiles('**/browser/config/version_display.txt') }}
           restore-keys: |
             mac-${{ matrix.arch }}
-      - name: "\U0001F4BF Build dependencies installation"
+      - name: "\U0001F4BF Build dependencies"
         run: |
           rustup target add ${{ matrix.arch }}
           sudo apt update
@@ -332,7 +320,9 @@ jobs:
           curl https://rclone.org/install.sh | sudo bash
       - name: "\U0001F4BF Setup macos-cross"
         run: >
-          rclone copyto :s3:cdn/waterfox/libraries/toolchain/macos-cross-102.tar.zst ./macos-cross.tar.zst
+          rclone copyto
+          :s3:cdn/waterfox/libraries/toolchain/macos-cross-102.tar.zst
+          ./macos-cross.tar.zst
 
           tar -xvf macos-cross.tar.zst -C $HOME/
       - name: "\U0001F3D7 Build"
@@ -378,7 +368,7 @@ jobs:
     steps:
       - name: "\U0001F4E4 Checkout"
         uses: actions/checkout@v3
-      - name: "\U0001F4E3 Set VERSION_DISPLAY as GITHUB_ENV"
+      - name: "\U0001F4E3 Override version_display.txt"
         run: |
           if [[ -n ${{ inputs.TAG_VERSION }} ]]; then
             echo ${{ inputs.TAG_VERSION }} > browser/config/version_display.txt
@@ -459,11 +449,9 @@ jobs:
 
           "obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app"
 
-          codesign -s "${{ secrets.MACOS_ID }}" -fv "Waterfox ${{
-          env.VERSION_DISPLAY }}.dmg"
+          codesign -s "${{ secrets.MACOS_ID }}" -fv "Waterfox ${{ env.VERSION_DISPLAY }}.dmg"
 
-          xcrun altool --notarize-app -f "Waterfox ${{ env.VERSION_DISPLAY }}.dmg" --primary-bundle-id 'net.waterfox.waterfox' -u ${{
-          secrets.MACOS_DEV_ID }} -p ${{ secrets.MACOS_DEV_PWD }}
+          xcrun altool --notarize-app -f "Waterfox ${{ env.VERSION_DISPLAY }}.dmg" --primary-bundle-id 'net.waterfox.waterfox' -u ${{ secrets.MACOS_DEV_ID }} -p ${{ secrets.MACOS_DEV_PWD }}
       - name: "\U0001F4E6 Create MAR"
         run: >
           curl https://rclone.org/install.sh | sudo bash
@@ -489,7 +477,8 @@ jobs:
           displayVersion="VERSION_DISPLAY">'
 
           '        <patch type="complete"
-          URL="https://cdn1.waterfox.net/waterfox/staging/${{ env.VERSION_DISPLAY }}/update/Darwin_x86_64-aarch64/waterfox-${{ env.VERSION_DISPLAY }}.complete.mar" hashFunction="SHA512" hashValue="HASH" size="SIZE"/>'
+          URL="https://cdn1.waterfox.net/waterfox/staging/${{ env.VERSION_DISPLAY }}/update/Darwin_x86_64-aarch64/waterfox-${{ env.VERSION_DISPLAY }}.complete.mar" hashFunction="SHA512"
+          hashValue="HASH" size="SIZE"/>'
 
           '    </update>'
 
@@ -531,7 +520,6 @@ jobs:
             Waterfox ${{ env.VERSION_DISPLAY }}.dmg
             waterfox-${{ env.VERSION_DISPLAY }}.complete.mar
             update.xml
-            browser/config/version_display.txt
   build-linux-x64:
     name: Linux
     runs-on:
@@ -546,11 +534,13 @@ jobs:
       - name: "\U0001F4E4 Checkout"
         uses: actions/checkout@v3
       - name: "\U0001F4E3 Override version_display.txt"
-        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
         run: |
           if [[ -n ${{ inputs.TAG_VERSION }} ]]; then
             echo ${{ inputs.TAG_VERSION }} > browser/config/version_display.txt
           fi
+          echo 'VERSION_DISPLAY<<EOF' >> $GITHUB_ENV
+          cat browser/config/version_display.txt >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
       - name: "\U0001F9F0 Cache"
         uses: actions/cache@v3
         id: lin-cache
@@ -587,11 +577,6 @@ jobs:
           sudo mv 7zz /usr/local/bin/7z
 
           rustup update
-      - name: "\U0001F4E3 Export display version"
-        run: |
-          echo 'VERSION_DISPLAY<<EOF' >> $GITHUB_ENV
-          cat browser/config/version_display.txt >> $GITHUB_ENV
-          echo 'EOF' >> $GITHUB_ENV
       - name: "\U0001F3D7 Build"
         run: |
           echo "${{ secrets.MOZ_API_KEY }}" > mozilla-api
@@ -607,7 +592,7 @@ jobs:
             fi
           fi
           ./mach build
-      - name: "\U0001F4E6 Package binaries"
+      - name: "\U0001F4E6 Package"
         if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
         run: >
           ./mach package
@@ -635,7 +620,8 @@ jobs:
           displayVersion="VERSION_DISPLAY">'
 
           '        <patch type="complete"
-          URL="https://cdn1.waterfox.net/waterfox/staging/${{ env.VERSION_DISPLAY }}/update/Linux_x86_64/waterfox-${{ env.VERSION_DISPLAY }}.complete.mar" hashFunction="SHA512" hashValue="HASH" size="SIZE"/>'
+          URL="https://cdn1.waterfox.net/waterfox/staging/${{ env.VERSION_DISPLAY }}/update/Linux_x86_64/waterfox-${{ env.VERSION_DISPLAY }}.complete.mar" hashFunction="SHA512"
+          hashValue="HASH" size="SIZE"/>'
 
           '    </update>'
 
@@ -645,7 +631,8 @@ jobs:
 
           VERSION=$(grep '\<Version\>' obj-${{ env.ARCH }}/dist/bin/application.ini | cut -d'=' -f2)
 
-          BUILDID=$(grep 'BuildID=' obj-${{ env.ARCH }}/dist/bin/application.ini | cut -d'=' -f2)
+          BUILDID=$(grep 'BuildID=' obj-${{ env.ARCH }}/dist/bin/application.ini
+          | cut -d'=' -f2)
 
           SHA512=$(shasum -a 512 waterfox-${{ env.VERSION_DISPLAY }}.complete.mar | awk '{print $1}')
               SIZE=$(ls -l waterfox-${{ env.VERSION_DISPLAY }}.complete.mar | awk '{print $5}')
@@ -672,4 +659,3 @@ jobs:
             waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2
             waterfox-${{ env.VERSION_DISPLAY }}.complete.mar
             update.xml
-            browser/config/version_display.txt

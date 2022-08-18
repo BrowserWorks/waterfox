@@ -1,5 +1,5 @@
 name: Stage
-on:
+'on':
   workflow_call:
     inputs:
       DISPLAY_VERSION:
@@ -30,11 +30,11 @@ env:
 jobs:
   stage:
     name: Multi-platform
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       versionout: '${{ steps.versionexport.outputs.version }}'
     steps:
-      - name: Output VERSION_DISPLAY
+      - name: "\U0001F4E3 Output VERSION_DISPLAY"
         id: versionexport
         run: >-
           echo "::set-output name=version::$(echo ${{ inputs.DISPLAY_VERSION }})"
@@ -45,47 +45,48 @@ jobs:
           else
             echo "CHANNEL=release" >> $GITHUB_ENV
           fi
-      - name: Setup rclone
-        run: >-
-          curl https://rclone.org/install.sh | sudo bash
-      - name: Download Windows artifact
+      - name: "\U0001F4BF Setup rclone"
+        run: 'curl https://rclone.org/install.sh | sudo bash'
+      - name: ⏬ Download Windows artifact
         uses: actions/download-artifact@v3
         with:
           name: windows-build-output
           path: win/
-      - name: Stage Windows
+      - name: "\U0001F3AD Stage Windows"
         run: >
           rclone copyto win/update.xml :s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/update.xml
 
-          rclone copyto win/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
+          rclone copyto win/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
+          :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
 
-          rclone copyto win/Install\ Waterfox.exe :s3:cdn/waterfox/staging/${{
-          inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe
+          rclone copyto win/Install\ Waterfox.exe :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe
 
-          rclone copyto win/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
-
-      - name: Download macOS artifact
+          rclone copyto win/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+          :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+      - name: ⏬ Download macOS artifact
         uses: actions/download-artifact@v3
         with:
           name: macos-build-output
           path: mac/
-      - name: Stage macOS
+      - name: "\U0001F3AD Stage macOS"
         run: >
           rclone copyto mac/update.xml :s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/update.xml
 
-          rclone copyto mac/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
+          rclone copyto mac/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
+          :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
 
-          rclone copyto mac/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
-
-      - name: Download Linux artifact
+          rclone copyto mac/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+          :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+      - name: ⏬ Download Linux artifact
         uses: actions/download-artifact@v3
         with:
           name: linux-build-output
           path: lin/
-      - name: Stage Linux
+      - name: "\U0001F3AD Stage Linux"
         run: >
           rclone copyto lin/update.xml :s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/update.xml
 
           rclone copyto lin/waterfox-${{ inputs.DISPLAY_VERSION }}.en-US.linux-x86_64.tar.bz2 :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2
 
-          rclone copyto lin/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+          rclone copyto lin/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+          :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
