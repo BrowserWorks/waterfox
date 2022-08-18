@@ -1,6 +1,5 @@
 name: Production
-
-on:
+'on':
   workflow_call:
     inputs:
       COMMIT_SHA:
@@ -26,7 +25,6 @@ on:
         required: true
       CF_ZONE_ID:
         required: true
-
 env:
   PRE_RELEASE: '${{ inputs.PRE_RELEASE }}'
   RCLONE_S3_ACCESS_KEY_ID: '${{ secrets.AWS_ACCESS_KEY_ID }}'
@@ -34,23 +32,21 @@ env:
   RCLONE_S3_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
   RCLONE_S3_PROVIDER: Cloudflare
   RCLONE_S3_SECRET_ACCESS_KEY: '${{ secrets.AWS_SECRET_ACCESS_KEY }}'
-
 jobs:
   soft-release:
-    name: Soft Release
+    name: "\U0001F313 Soft Release"
     environment: hard-release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Create GitHub release
         uses: ncipollo/release-action@v1
         with:
           allowUpdates: true
-          commit: ${{ inputs.COMMIT_SHA }}
-          prerelease: ${{ inputs.PRE_RELEASE }}
-          tag: ${{ inputs.DISPLAY_VERSION }}
-      - name: Setup rclone
-        run: >-
-          curl https://rclone.org/install.sh | sudo bash
+          commit: '${{ inputs.COMMIT_SHA }}'
+          prerelease: '${{ inputs.PRE_RELEASE }}'
+          tag: '${{ inputs.DISPLAY_VERSION }}'
+      - name: "\U0001F4BF Setup rclone"
+        run: 'curl https://rclone.org/install.sh | sudo bash'
       - name: "\U0001F4E3 Export CHANNEL"
         run: |
           if [[ $PRE_RELEASE == 'true' ]]; then
@@ -58,7 +54,7 @@ jobs:
           else
             echo "CHANNEL=release" >> $GITHUB_ENV
           fi
-      - name: ⚙︎ Dry run AUS
+      - name: "\U0001F9EA Dry run AUS"
         run: |
           os=(WINNT_x86_64 Linux_x86_64 Darwin_x86_64-aarch64)
           for j in ${os[@]}
@@ -71,15 +67,20 @@ jobs:
             sed -i 's/staging/releases/g' ./aus_tmp/$j/update.xml
             rclone moveto ./aus_tmp/$j/update.xml :s3:aus/update/production/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/"$j"/update.xml --dry-run
           done
-      - name: ⎆ Move installers from staging to production
-        run: |
-          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
-          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe
-          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
-          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2 :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2
+      - name: "\U0001F9EA Move installers from staging to production"
+        run: >
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
+          :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
 
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe
+
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
+          :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
+
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2
+          :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2
       - name: ⎆ Update latest redirects
-        run: |
+        run: >
           curl "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ZONE_ID }}/rules/lists/500a3e4c6bd2435da861ad9f407f892b/items" \
               -H "X-Auth-Email: ${{ secrets.CF_EMAIL }}" \
               -H "X-Auth-Key: ${{ secrets.CF_AUTH }}" \
@@ -119,16 +120,15 @@ jobs:
                   }
                 }
               ]'
-
   hard-release:
-    name: Full Release
-    needs: [soft-release]
+    name: "\U0001F315 Hard Release"
+    needs:
+      - soft-release
     environment: hard-release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
-      - name: Setup rclone
-        run: >-
-          curl https://rclone.org/install.sh | sudo bash
+      - name: "\U0001F4BF Setup rclone"
+        run: 'curl https://rclone.org/install.sh | sudo bash'
       - name: "\U0001F4E3 Export CHANNEL"
         run: |
           if [[ $PRE_RELEASE == 'true' ]]; then
@@ -136,7 +136,7 @@ jobs:
           else
             echo "CHANNEL=release" >> $GITHUB_ENV
           fi
-      - name: ⚙︎ Move update XMLs from staging
+      - name: "\U0001F69A Move update XMLs from staging"
         run: |
           os=(WINNT_x86_64 Linux_x86_64 Darwin_x86_64-aarch64)
           for j in ${os[@]}
@@ -149,9 +149,10 @@ jobs:
             sed -i 's/staging/releases/g' ./aus_tmp/$j/update.xml
             rclone moveto ./aus_tmp/$j/update.xml :s3:aus/update/production/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/"$j"/update.xml
           done
-
-      - name: ⎆ Move binaries from staging
-        run: |
+      - name: "\U0001F69A Move MARs from staging"
+        run: >
           rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+
           rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+
           rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
