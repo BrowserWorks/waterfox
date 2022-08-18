@@ -222,10 +222,18 @@ jobs:
       - name: "\U0001F4E6 Package MAR"
         if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
         run: >
-          ./mach repackage mar -i obj-${{ env.ARCH }}/dist/waterfox.zip --mar
-          obj-${{ env.ARCH }}/dist/host/bin/mar -o waterfox-${{
-          env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id
-          release
+          if [[ $PRE_RELEASE == 'true' ]]; then
+            ./mach repackage mar -i obj-${{ env.ARCH }}/dist/waterfox.zip --mar
+            obj-${{ env.ARCH }}/dist/host/bin/mar -o waterfox-${{
+            env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id
+            beta
+          else
+            ./mach repackage mar -i obj-${{ env.ARCH }}/dist/waterfox.zip --mar
+            obj-${{ env.ARCH }}/dist/host/bin/mar -o waterfox-${{
+            env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id
+            release
+          fi
+
 
           xml=('<?xml version="1.0"?>'
 
@@ -466,9 +474,11 @@ jobs:
 
           ./mach python -m mozbuild.action.zip -C obj-${{ env.ARCH-X64 }}/dist/waterfox/ waterfox.zip Waterfox.app
 
-          ./mach repackage mar -i obj-${{ env.ARCH-X64 }}/dist/waterfox/waterfox.zip --mar $PWD/mar -o waterfox-${{
-          env.VERSION_DISPLAY }}.complete.mar --arch macos-x86_64-aarch64
-          --mar-channel-id release
+          if [[ $PRE_RELEASE == 'true' ]]; then
+            MAR=$PWD/mar MOZ_PRODUCT_VERSION=${{ env.VERSION_DISPLAY }} MAR_CHANNEL_ID=beta tools/update-packaging/make_full_update.sh waterfox-${{ env.VERSION_DISPLAY }}.complete.mar obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app
+          else
+            MAR=$PWD/mar MOZ_PRODUCT_VERSION=${{ env.VERSION_DISPLAY }} MAR_CHANNEL_ID=release tools/update-packaging/make_full_update.sh waterfox-${{ env.VERSION_DISPLAY }}.complete.mar obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app
+          fi
 
           xml=('<?xml version="1.0"?>'
 
@@ -610,7 +620,11 @@ jobs:
       - name: "\U0001F4E6 Package MAR"
         if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
         run: >
-          ./mach repackage mar -i waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2 --mar obj-${{ env.ARCH }}/dist/host/bin/mar -o waterfox-${{ env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id release
+          if [[ $PRE_RELEASE == 'true' ]]; then
+            ./mach repackage mar -i waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2 --mar obj-${{ env.ARCH }}/dist/host/bin/mar -o waterfox-${{ env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id beta
+          else
+            ./mach repackage mar -i waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2 --mar obj-${{ env.ARCH }}/dist/host/bin/mar -o waterfox-${{ env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id release
+          fi
 
           xml=('<?xml version="1.0"?>'
 
