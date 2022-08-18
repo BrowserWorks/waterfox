@@ -1,16 +1,15 @@
 name: Deployment
-on:
+'on':
   workflow_dispatch:
     inputs:
       prerelease:
-        description: 'This is a pre-release'
+        description: This is a pre-release
         required: true
         type: string
       tags:
-        description: 'Create a tag'
+        description: Tag a release
         required: true
         type: string
-
 jobs:
   build:
     name: Build
@@ -57,6 +56,6 @@ jobs:
       CF_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
       CF_ZONE_ID: '${{ secrets.CF_ZONE_ID }}'
     with:
-      COMMIT_SHA: ${{ github.sha }}
+      COMMIT_SHA: '${{ github.sha }}'
       PRE_RELEASE: '${{ github.event.inputs.prerelease }}'
       DISPLAY_VERSION: '${{ needs.stage.outputs.versiondisplay }}'
