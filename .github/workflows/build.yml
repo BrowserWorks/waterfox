@@ -397,6 +397,8 @@ jobs:
           p12-password: '${{ secrets.MACOS_PWD }}'
       - name: "\U0001D33B Unify .app(s)"
         run: >
+          brew unlink python@3.10
+
           MOZCONFIG=.mozconfig-${{ env.ARCH-X64 }} ./mach python
           toolkit/mozapps/installer/unify.py obj-${{ env.ARCH-X64 }}/dist/waterfox/*.app obj-${{ env.ARCH-ARM64 }}/dist/waterfox/*.app
       - name: ✍️ Sign .app(s)
