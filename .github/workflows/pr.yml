@@ -1,5 +1,5 @@
 name: Pull Request
-on:
+'on':
   pull_request_target:
     branches:
       - future
@@ -12,5 +12,4 @@ jobs:
       CF_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
       MOZ_API_KEY: '${{ secrets.MOZ_API_KEY }}'
     with:
-      # Not currently used. But may be useful in the future.
       TRIGGER_EVENT: '${{ github.event_name }}'
