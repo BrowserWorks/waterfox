@@ -18,7 +18,13 @@ on:
         required: true
       AWS_SECRET_ACCESS_KEY:
         required: true
+      CF_AUTH:
+        required: true
+      CF_EMAIL:
+        required: true
       CF_ENDPOINT:
+        required: true
+      CF_ZONE_ID:
         required: true
 
 env:
@@ -35,6 +41,13 @@ jobs:
     environment: hard-release
     runs-on: ubuntu-latest
     steps:
+      - name: Create GitHub release
+        uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          commit: ${{ inputs.COMMIT_SHA }}
+          prerelease: ${{ inputs.PRE_RELEASE }}
+          tag: ${{ inputs.DISPLAY_VERSION }}
       - name: Setup rclone
         run: >-
           curl https://rclone.org/install.sh | sudo bash
@@ -58,48 +71,54 @@ jobs:
             sed -i 's/staging/releases/g' ./aus_tmp/$j/update.xml
             rclone moveto ./aus_tmp/$j/update.xml :s3:aus/update/production/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/"$j"/update.xml --dry-run
           done
-      - name: ⎆ Dry run move from staging
+      - name: ⎆ Move installers from staging to production
         run: |
-          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe --dry-run
-          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe --dry-run
-          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar --dry-run
-          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg --dry-run
-          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar --dry-run
-          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2 :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2 --dry-run
-          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar --dry-run
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2 :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2
 
-        # for i in $(aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 ls s3://aus/update/release/ | awk '{OFS=" "};{if ($1=="PRE") print $2}')
-        # do
-        #     if [[ $i != '/' ]]
-        #     then
-        #     ver=$(echo $i | sed 's/\///g')
-        #         if [[ $i == "G3"* ]]
-        #         then
-        #             os=(Windows_NT Linux Darwin)
-        #             for j in ${os[@]}
-        #             do
-        #                 dest=s3://aus/update/release/$ver/$j/update.xml
-        #                 if [[ $j == "Windows_NT" ]]
-        #                 then
-        #                   j=WINNT
-        #                 fi
-        #                 # Need one for macOS unified now as well
-        #                 aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp --dry-run --content-type="text/xml" --metadata-directive="REPLACE" \
-        #                   s3://aus/update/release/${{ inputs.DISPLAY_VERSION }}/${j}_x86_64/update.xml \
-        #                   $dest
-        #             done
-        #         elif [[ $i == "G4"* ]]
-        #         then
-        #             os=(WINNT_x86_64 Linux_x86_64 Darwin_x86_64 Darwin_aarch64)
-        #             for j in ${os[@]}
-        #             do
-        #                 aws --endpoint-url https://${{ secrets.CF_ENDPOINT }} s3 cp --dry-run --content-type="text/xml" --metadata-directive="REPLACE" \
-        #                   s3://aus/update/release/${{ inputs.DISPLAY_VERSION }}/$j/update.xml \
-        #                   s3://aus.waterfox.net/update/Waterfox/$ver/default/$j/update.xml
-        #             done
-        #         fi
-        #     fi
-        # done
+      - name: ⎆ Update latest redirects
+        run: |
+          curl "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ZONE_ID }}/rules/lists/500a3e4c6bd2435da861ad9f407f892b/items" \
+              -H "X-Auth-Email: ${{ secrets.CF_EMAIL }}" \
+              -H "X-Auth-Key: ${{ secrets.CF_AUTH }}" \
+              -H "Content-Type: application/json" \
+              -d '[
+                {
+                  "redirect": {
+                    "source_url": "cdn1.waterfox.net/waterfox/releases/latest/windows",
+                    "target_url": "https://cdn1.waterfox.net/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox Setup ${{ inputs.DISPLAY_VERSION }}.exe",
+                    "status_code": 302
+                  }
+                }
+              ]'
+          curl "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ZONE_ID }}/rules/lists/500a3e4c6bd2435da861ad9f407f892b/items" \
+              -H "X-Auth-Email: ${{ secrets.CF_EMAIL }}" \
+              -H "X-Auth-Key: ${{ secrets.CF_AUTH }}" \
+              -H "Content-Type: application/json" \
+              -d '[
+                {
+                  "redirect": {
+                    "source_url": "cdn1.waterfox.net/waterfox/releases/latest/macos",
+                    "target_url": "https://cdn1.waterfox.net/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox ${{ inputs.DISPLAY_VERSION }}.dmg",
+                    "status_code": 302
+                  }
+                }
+              ]'
+          curl "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ZONE_ID }}/rules/lists/500a3e4c6bd2435da861ad9f407f892b/items" \
+              -H "X-Auth-Email: ${{ secrets.CF_EMAIL }}" \
+              -H "X-Auth-Key: ${{ secrets.CF_AUTH }}" \
+              -H "Content-Type: application/json" \
+              -d '[
+                {
+                  "redirect": {
+                    "source_url": "cdn1.waterfox.net/waterfox/releases/latest/linux",
+                    "target_url": "https://cdn1.waterfox.net/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2",
+                    "status_code": 302
+                  }
+                }
+              ]'
 
   hard-release:
     name: Full Release
@@ -117,13 +136,6 @@ jobs:
           else
             echo "CHANNEL=release" >> $GITHUB_ENV
           fi
-      - name: Create GitHub release
-        uses: ncipollo/release-action@v1
-        with:
-          allowUpdates: true
-          commit: ${{ inputs.COMMIT_SHA }}
-          prerelease: ${{ inputs.PRE_RELEASE }}
-          tag: ${{ inputs.DISPLAY_VERSION }}
       - name: ⚙︎ Move update XMLs from staging
         run: |
           os=(WINNT_x86_64 Linux_x86_64 Darwin_x86_64-aarch64)
@@ -140,26 +152,6 @@ jobs:
 
       - name: ⎆ Move binaries from staging
         run: |
-          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
-          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe
           rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
-          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
           rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
-          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2 :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2
           rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
-
-      # - name: ⎆ Update latest redirect
-      #   run: |
-      #       curl "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ZONE_ID }}/rules/lists/8eefc8eca6e6407e80132f90c00ce149/items" \
-      #       -H "X-Auth-Email: ${{ secrets.CF_EMAIL }}" \
-      #       -H "X-Auth-Key: ${{ secrets.CF_AUTH }}" \
-      #       -H "Content-Type: application/json" \
-      #       -d '[
-      #       {
-      #           "redirect": {
-      #           "source_url": "cdn.waterfox.net/releases/win64/latest",
-      #           "target_url": "https://cdn.waterfox.net/releases/win64/installer/Waterfox%20${{ github.event.inputs.version }}%20Setup.exe",
-      #           "status_code": 302
-      #           }
-      #       }
-      #       ]'
