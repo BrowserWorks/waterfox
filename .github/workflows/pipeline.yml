@@ -52,7 +52,10 @@ jobs:
     secrets:
       AWS_ACCESS_KEY_ID: '${{ secrets.CF_ACCESS_KEY_ID }}'
       AWS_SECRET_ACCESS_KEY: '${{ secrets.CF_ACCESS_KEY_SECRET }}'
+      CF_AUTH: '${{ secrets.CF_AUTH }}'
+      CF_EMAIL: '${{ secrets.CF_EMAIL }}'
       CF_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
+      CF_ZONE_ID: '${{ secrets.CF_ZONE_ID }}'
     with:
       COMMIT_SHA: ${{ github.sha }}
       PRE_RELEASE: '${{ github.event.inputs.prerelease }}'
