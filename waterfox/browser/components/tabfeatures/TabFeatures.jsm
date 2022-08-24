@@ -17,17 +17,6 @@ const TabFeatures = {
   PREF_REQUIRECONFIRM: "browser.restart_menu.requireconfirm",
   PREF_PURGECACHE: "browser.restart_menu.purgecache",
 
-  get browserBundle() {
-    return Services.strings.createBundle(
-      "chrome://extensibles/locale/extensibles.properties"
-    );
-  },
-  get brandBundle() {
-    return Services.strings.createBundle(
-      "chrome://branding/locale/brand.properties"
-    );
-  },
-
   init(window) {
     window.TabFeatures = this;
     this.initListeners(window);
@@ -130,7 +119,7 @@ const TabFeatures = {
         // Need brand in here to be able to expand { -brand-short-name }
         let l10n = new Localization([
           "branding/brand.ftl",
-          "browser/extensibles.ftl",
+          "browser/waterfox.ftl",
         ]);
         let [title, question] = (
           await l10n.formatMessages([
