@@ -73,6 +73,7 @@ jobs:
       - name: "\U0001F4E4 Checkout"
         uses: actions/checkout@v3
       - name: "\U0001F4E3 Override version_display.txt"
+        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
         run: |
           if [[ -n ${{ inputs.TAG_VERSION }} ]]; then
             echo ${{ inputs.TAG_VERSION }} > browser/config/version_display.txt
@@ -536,6 +537,7 @@ jobs:
       - name: "\U0001F4E4 Checkout"
         uses: actions/checkout@v3
       - name: "\U0001F4E3 Override version_display.txt"
+        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
         run: |
           if [[ -n ${{ inputs.TAG_VERSION }} ]]; then
             echo ${{ inputs.TAG_VERSION }} > browser/config/version_display.txt
