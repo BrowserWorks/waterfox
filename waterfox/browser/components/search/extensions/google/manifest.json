@@ -23,7 +23,7 @@
       "name": "Google",
       "search_url": "https://www.google.com/search",
       "search_form": "https://www.google.com/search?q={searchTerms}",
-      "suggest_url": "https://www.google.com/complete/search?q={searchTerms}",
+      "suggest_url": "https://www.google.com/complete/search?client=firefox&q={searchTerms}",
       "params": [
         {
           "name": "channel",
