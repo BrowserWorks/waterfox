@@ -54,7 +54,7 @@ ac_add_options --with-app-name=waterfox
 ac_add_options --with-branding=waterfox/browser/branding
 ac_add_options --with-distribution-id=net.waterfox
 if [ -d "$PWD"/waterfox/browser/locales/en-GB ]; then
-    ac_add_options --with-l10n-base="$PWD"/browser/locales/l10n
+    ac_add_options --with-l10n-base="$PWD"/waterfox/browser/locales
 fi
 if test -f "$PWD/mozilla-api"; then
     ac_add_options --with-mozilla-api-keyfile="$PWD"/mozilla-api
