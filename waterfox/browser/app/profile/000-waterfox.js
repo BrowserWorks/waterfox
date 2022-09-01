@@ -91,6 +91,7 @@ pref("extensions.pocket.showHome", false);
 pref("geo.provider.network.url", "");
 pref("image.avif.enabled", true);
 pref("image.jxl.enabled", true);
+pref("intl.multilingual.downloadEnabled", false, locked);
 pref("layout.css.backdrop-filter.enabled", true);
 pref("layout.css.color-mix.enabled", true);
 pref("layout.css.prefers-color-scheme.content-override", 3);
