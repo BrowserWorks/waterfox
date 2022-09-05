@@ -2988,6 +2988,17 @@
     }
   }
 }
+/** Monospace *****************************************************************/
+@supports -moz-bool-pref("userContent.page.monospace") {
+  @-moz-document url-prefix("about:"),
+               url-prefix("chrome://browser/content/places/places.xhtml"),
+               regexp("^(((jar:)?file:///)|(chrome://)).*/$")
+  {
+    * {
+      font-family: -moz-fixed;
+    }
+  }
+}
 /** Menu - Icons Layout *******************************************************/
 @supports -moz-bool-pref("userChrome.icon.menu") {
   @-moz-document url("chrome://browser/content/places/places.xhtml"),
@@ -3395,6 +3406,9 @@
       #downloadsListBox .download-state:not([exists], [state="0"]) .downloadTarget {
         text-decoration: line-through;
         text-decoration-color: color-mix(in srgb, currentColor 65%, transparent);
+      }
+      #downloadsListBox .download-state:not([exists], [state="0"]) .downloadTarget:hover {
+        text-decoration: none;
       }
       #downloadsListBox .download-state:not([exists], [state="0"]) .downloadTypeIcon {
         filter: grayscale(100%) !important;
