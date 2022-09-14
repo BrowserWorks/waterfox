@@ -147,7 +147,9 @@ var gBrowserInit = {
       let type = CustomizableUI.getAreaType(area);
       if (type == CustomizableUI.TYPE_TOOLBAR) {
         let node = document.getElementById(area);
-        CustomizableUI.registerToolbarNode(node);
+        if (node) {
+          CustomizableUI.registerToolbarNode(node);
+        }
       }
     }
     BrowserSearch.initPlaceHolder();
