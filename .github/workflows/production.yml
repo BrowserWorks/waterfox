@@ -119,6 +119,19 @@ jobs:
               -d '[
                 {
                   "redirect": {
+                    "source_url": "cdn1.waterfox.net/waterfox/releases/latest/windows-stub",
+                    "target_url": "https://cdn1.waterfox.net/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install Waterfox.exe",
+                    "status_code": 302
+                  }
+                }
+              ]'
+          curl "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ZONE_ID }}/rules/lists/500a3e4c6bd2435da861ad9f407f892b/items" \
+              -H "X-Auth-Email: ${{ secrets.CF_EMAIL }}" \
+              -H "X-Auth-Key: ${{ secrets.CF_AUTH }}" \
+              -H "Content-Type: application/json" \
+              -d '[
+                {
+                  "redirect": {
                     "source_url": "cdn1.waterfox.net/waterfox/releases/latest/macos",
                     "target_url": "https://cdn1.waterfox.net/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox ${{ inputs.DISPLAY_VERSION }}.dmg",
                     "status_code": 302
