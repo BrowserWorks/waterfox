@@ -45,7 +45,7 @@ export function InstallerPrefs(prefsList) {
   // "Software\Mozilla\Firefox\Installer\71AE18FE3142402B\".
   ChromeUtils.defineLazyGetter(this, "_registryKeyPath", function () {
     const app = AppConstants.MOZ_APP_NAME;
-    const vendor = Services.appinfo.vendor || "Mozilla";
+    const vendor = Services.appinfo.vendor || "BrowserWorks";
     const xreDirProvider = Cc[
       "@mozilla.org/xre/directory-provider;1"
     ].getService(Ci.nsIXREDirProvider);

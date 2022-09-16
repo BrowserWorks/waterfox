@@ -33,7 +33,7 @@
 #ifdef XP_WIN
 // This is the name of the old update directory
 // (i.e. C:\ProgramData\<OLD_ROOT_UPDATE_DIR_NAME>)
-#  define OLD_ROOT_UPDATE_DIR_NAME "Mozilla"
+#  define OLD_ROOT_UPDATE_DIR_NAME "Waterfox"
 // This is the name of the current update directory
 // (i.e. C:\ProgramData\<ROOT_UPDATE_DIR_NAME>)
 // It is really important that we properly set the permissions on this
@@ -43,7 +43,7 @@
 // this problem in the future, we are including a UUID in the root update
 // directory name to attempt to ensure that it will be created by this code and
 // won't already exist with the wrong permissions.
-#  define ROOT_UPDATE_DIR_NAME "Mozilla-1de4eec8-1241-4177-a864-e594e8d1fb38"
+#  define ROOT_UPDATE_DIR_NAME "Waterfox-1de4eec8-1241-4177-a864-e594e8d1fb38"
 // This describes the directory between the "Mozilla" directory and the install
 // path hash (i.e. C:\ProgramData\Mozilla\<UPDATE_PATH_MID_DIR_NAME>\<hash>)
 #  define UPDATE_PATH_MID_DIR_NAME "updates"
@@ -576,7 +576,7 @@ static HRESULT GetUpdateDirectory(const wchar_t* installPath,
   // The Windows installer caches this hash value in the registry
   bool gotHash = false;
   SimpleAutoString regPath;
-  regPath.AutoAllocAndAssignSprintf(L"SOFTWARE\\Mozilla\\%S\\TaskBarIDs",
+  regPath.AutoAllocAndAssignSprintf(L"Software\\Waterfox\\%S\\TaskBarIDs",
                                     MOZ_APP_BASENAME);
   if (regPath.Length() != 0) {
     gotHash = GetCachedHash(reinterpret_cast<const char16_t*>(installPath),
