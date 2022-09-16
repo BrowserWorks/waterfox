@@ -1,0 +1,24 @@
+@supports not -moz-bool-pref("browser.tabs.pinnedIconOnly") {
+  .tabbrowser-tab:is([pinned]) {
+    -moz-box-flex: 100;
+    max-width: 225px;
+    min-width: var(--tab-min-width);
+    width: 0;
+    transition: min-width 100ms ease-out,
+                max-width 100ms ease-out;
+  }
+
+  .tabbrowser-tab:is([pinned]):not([fadein]) {
+    max-width: 0.1px;
+    min-width: 0.1px;
+    visibility: hidden;
+  }
+
+  .tabbrowser-tab:is([pinned]) .tab-throbber,
+  .tabbrowser-tab:is([pinned]) .tab-icon-pending,
+  .tabbrowser-tab:is([pinned]) .tab-icon-image,
+  .tabbrowser-tab:is([pinned]) .tab-sharing-icon-overlay,
+  .tabbrowser-tab:is([pinned]) .tab-icon-overlay {
+    margin-inline-end: 5.5px;
+  }
+}
