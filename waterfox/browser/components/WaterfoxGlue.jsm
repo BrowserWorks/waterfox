@@ -58,6 +58,12 @@ const WaterfoxGlue = {
         const userContentSheet = "chrome://browser/skin/userContent.css"
         BrowserUtils.registerOrUnregisterSheet(userChromeSheet, isEnabled);
         BrowserUtils.registerOrUnregisterSheet(userContentSheet, isEnabled);
+    this.pinnedTabListener = PrefUtils.addObserver(
+      "browser.tabs.pinnedIconOnly",
+      isEnabled => {
+        // Pref being true actually means we need to unload the sheet, so invert.
+        const uri = "chrome://browser/content/tabfeatures/pinnedtab.css";
+        BrowserUtils.registerOrUnregisterSheet(uri, !isEnabled);
       }
     );
   },
