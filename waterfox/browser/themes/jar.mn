@@ -4,6 +4,7 @@
 
 browser.jar:
 %  skin browser classic/1.0 %skin/classic/browser/
- skin/classic/browser/userChrome.css     (lepton/leptonChrome.css)
- skin/classic/browser/userContent.css    (lepton/leptonContent.css)
- skin/classic/browser/lepton/            (lepton/icons/*.svg)
+ skin/classic/browser/userChrome.css              (lepton/leptonChrome.css)
+ skin/classic/browser/userContent.css             (lepton/leptonContent.css)
+ skin/classic/browser/lepton/                     (lepton/icons/*.svg)
+* skin/classic/browser/waterfox/general.css       (waterfox/general.css)
