@@ -3022,7 +3022,7 @@ int NS_main(int argc, NS_tchar** argv) {
   // This will be used to set `gIsElevated`, but we are going to do it later
   // when we are ready to set it for every OS to avoid inconsistency.
   bool isElevated =
-      strstr(argv[0], "/Library/PrivilegedHelperTools/org.mozilla.updater") !=
+      strstr(argv[0], "/Library/PrivilegedHelperTools/net.waterfox.updater") !=
       0;
   if (isElevated) {
     if (!ObtainUpdaterArguments(&argc, &argv, &gMARStrings)) {

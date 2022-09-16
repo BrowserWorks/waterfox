@@ -258,7 +258,7 @@ static const char SandboxPolicyContent[] = R"SANDBOX_LITERAL(
           (subpath debugWriteDir)
           (vnode-type REGULAR-FILE)))))
 
-  (allow-shared-list "org.mozilla.plugincontainer")
+  (allow-shared-list "net.waterfox.plugincontainer")
 
 ; Per-user and system-wide Extensions dir
   (allow file-read*

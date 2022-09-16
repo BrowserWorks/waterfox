@@ -1927,7 +1927,7 @@ function copyTestUpdaterToBinDir() {
   if (AppConstants.platform == "macosx") {
     updater.append("Contents");
     updater.append("MacOS");
-    updater.append("org.mozilla.updater");
+    updater.append("net.waterfox.updater");
   }
   return updater;
 }
@@ -2439,7 +2439,7 @@ function shouldRunServiceTest() {
   let isBinSigned = isBinarySigned(updaterBinPath);
 
   const REG_PATH =
-    "SOFTWARE\\Mozilla\\MaintenanceService\\" +
+    "SOFTWARE\\BrowserWorks\\MaintenanceService\\" +
     "3932ecacee736d366d6436db0f55bce4";
   let key = Cc["@mozilla.org/windows-registry-key;1"].createInstance(
     Ci.nsIWindowsRegKey
@@ -2470,7 +2470,7 @@ function shouldRunServiceTest() {
   }
 
   // Check to make sure the service is installed
-  let args = ["wait-for-service-stop", "MozillaMaintenance", "10"];
+  let args = ["wait-for-service-stop", "WaterfoxMaintenance", "10"];
   let exitValue = runTestHelperSync(args);
   Assert.notEqual(
     exitValue,
@@ -2825,7 +2825,7 @@ function waitForServiceStop(aFailTest) {
   debugDump("waiting for the maintenance service to stop if necessary");
   // Use the helper bin to ensure the service is stopped. If not stopped, then
   // wait for the service to stop (at most 120 seconds).
-  let args = ["wait-for-service-stop", "MozillaMaintenance", "120"];
+  let args = ["wait-for-service-stop", "WaterfoxMaintenance", "120"];
   let exitValue = runTestHelperSync(args);
   Assert.notEqual(exitValue, 0xee, "the maintenance service should exist");
   if (exitValue != 0) {
