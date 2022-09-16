@@ -6,6 +6,10 @@
 
 const EXPORTED_SYMBOLS = ["BrowserUtils"];
 
+const { XPCOMUtils } = ChromeUtils.import(
+  "resource://gre/modules/XPCOMUtils.jsm"
+);
+
 const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
 const { CustomizableUI } = ChromeUtils.import(
@@ -14,6 +18,13 @@ const { CustomizableUI } = ChromeUtils.import(
 
 const { PanelMultiView } = ChromeUtils.import(
   "resource:///modules/PanelMultiView.jsm"
+);
+
+XPCOMUtils.defineLazyServiceGetter(
+  this,
+  "styleSheetService",
+  "@mozilla.org/content/style-sheet-service;1",
+  "nsIStyleSheetService"
 );
 
 const BrowserUtils = {
@@ -61,13 +72,46 @@ const BrowserUtils = {
     }
   },
 
-  executeInAllWindows(aFunc) {
+  /**
+   * Helper function to execute a given function with some args in every open browser window.
+   * Window must be the functions first arg, subsequent args are passed in the same manner
+   * as to executeInAllWindows().
+   * @param func - The function to be called in each open browser window.
+   * @param args - The arguments to supply to the function.
+   * Example:
+   * BrowserUtils.executeInAllWindows(Urlbar.addDynamicStylesheet, "chrome://browser/skin/waterfox.css")
+   */
+  executeInAllWindows(func, ...args) {
     let windows = Services.wm.getEnumerator("navigator:browser");
     while (windows.hasMoreElements()) {
-      let win = windows.getNext();
-      let { document } = win;
-      aFunc(document, win);
+      let window = windows.getNext();
+      func(window, ...args);
     }
+  },
+
+  /**
+   * Helper method to register or unregister a given stylesheet depending on the bool arg passed.
+   * @param uri - The URI of the stylesheet to register or unregister.
+   * @param enabled - A boolean indicating whether to register or unregister the sheet.
+   */
+  registerOrUnregisterSheet(uri, enabled = false) {
+    if (enabled) {
+      BrowserUtils.registerStylesheet(uri);
+    } else {
+      BrowserUtils.unregisterStylesheet(uri);
+    }
+  },
+
+  registerStylesheet(uri) {
+    let url = Services.io.newURI(uri);
+    let type = styleSheetService.USER_SHEET;
+    styleSheetService.loadAndRegisterSheet(url, type);
+  },
+
+  unregisterStylesheet(uri) {
+    let url = Services.io.newURI(uri);
+    let type = styleSheetService.USER_SHEET;
+    styleSheetService.unregisterSheet(url, type);
   },
 
   setStyle(aStyleSheet) {

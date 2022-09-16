@@ -152,6 +152,7 @@ pref("xpinstall.signatures.required", false);
 
 // ** Theme Related Options ****************************************************
 // == Theme Distribution Settings ==============================================
+pref("userChrome.theme.enable",                   true); // Original, Photon
 pref("userChrome.tab.connect_to_window",          true); // Original, Photon
 pref("userChrome.tab.color_like_toolbar",         true); // Original, Photon
 
