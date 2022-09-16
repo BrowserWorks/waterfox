@@ -76,9 +76,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance,
   DWORD regValue = -1;
   DWORD regLength = sizeof regValue;
   HKEY hkeyCU, hkeyLM;
-  RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\mozilla.org\\windbgdlg", 0,
+  RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\waterfox.org\\windbgdlg", 0,
                 KEY_READ, &hkeyCU);
-  RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"Software\\mozilla.org\\windbgdlg", 0,
+  RegOpenKeyExW(HKEY_LOCAL_MACHINE, L"Software\\waterfox.org\\windbgdlg", 0,
                 KEY_READ, &hkeyLM);
   for (int i = __argc - 1; regValue == (DWORD)-1 && i; --i) {
     bool ok = false;
