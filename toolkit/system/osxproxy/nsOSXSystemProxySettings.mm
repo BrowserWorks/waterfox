@@ -104,7 +104,7 @@ nsresult nsOSXSystemProxySettings::Init() {
   // Register for notification of proxy setting changes
   // See:
   // http://developer.apple.com/documentation/Networking/Conceptual/CFNetwork/CFStreamTasks/chapter_4_section_5.html
-  mSystemDynamicStore = SCDynamicStoreCreate(NULL, CFSTR("Mozilla"),
+  mSystemDynamicStore = SCDynamicStoreCreate(NULL, CFSTR("BrowserWorks"),
                                              ProxyHasChangedWrapper, &mContext);
   if (!mSystemDynamicStore) return NS_ERROR_FAILURE;
 
