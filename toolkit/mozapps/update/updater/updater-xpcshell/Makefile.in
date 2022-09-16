@@ -36,7 +36,7 @@ ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 	$(NSINSTALL) $(srcdir)/../macos-frameworks/UpdateSettings/Info.plist  $(XPCSHELLTESTDIR)/data/updater-xpcshell.app/Contents/Frameworks/UpdateSettings.framework/Resources
 	rm -Rf $(XPCSHELLTESTDIR)/data/updater.app
 	mv $(XPCSHELLTESTDIR)/data/updater-xpcshell.app $(XPCSHELLTESTDIR)/data/updater.app
-	mv $(XPCSHELLTESTDIR)/data/updater.app/Contents/MacOS/updater-xpcshell $(XPCSHELLTESTDIR)/data/updater.app/Contents/MacOS/org.mozilla.updater
+	mv $(XPCSHELLTESTDIR)/data/updater.app/Contents/MacOS/updater-xpcshell $(XPCSHELLTESTDIR)/data/updater.app/Contents/MacOS/net.waterfox.updater
 
 ifdef MOCHITESTBROWSERDIR
 	rsync -a -C $(XPCSHELLTESTDIR)/data/updater.app $(MOCHITESTBROWSERDIR)/

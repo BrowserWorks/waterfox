@@ -7,11 +7,11 @@
 	<key>CFBundleDisplayName</key>
 	<string>updater</string>
 	<key>CFBundleExecutable</key>
-	<string>org.mozilla.updater</string>
+	<string>net.waterfox.updater</string>
 	<key>CFBundleIconFile</key>
 	<string>updater.icns</string>
 	<key>CFBundleIdentifier</key>
-	<string>org.mozilla.updater</string>
+	<string>net.waterfox.updater</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
