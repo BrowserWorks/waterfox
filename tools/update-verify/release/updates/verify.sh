@@ -164,7 +164,7 @@ do
         case $updater_package_filename in
           *dmg)
             platform_dirname="*.app"
-            updater_bins="Contents/MacOS/updater.app/Contents/MacOS/updater Contents/MacOS/updater.app/Contents/MacOS/org.mozilla.updater"
+            updater_bins="Contents/MacOS/updater.app/Contents/MacOS/updater Contents/MacOS/updater.app/Contents/MacOS/net.waterfox.updater"
             updater_platform="mac"
             mac_update_settings_dir_override=""
             ;;

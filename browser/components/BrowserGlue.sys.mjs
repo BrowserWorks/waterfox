@@ -2010,12 +2010,12 @@ BrowserGlue.prototype = {
       if (updateChannel) {
         let uninstalledValue = lazy.WindowsRegistry.readRegKey(
           Ci.nsIWindowsRegKey.ROOT_KEY_CURRENT_USER,
-          "Software\\Mozilla\\Firefox",
+          "Software\\BrowserWorks\\Waterfox",
           `Uninstalled-${updateChannel}`
         );
         let removalSuccessful = lazy.WindowsRegistry.removeRegKey(
           Ci.nsIWindowsRegKey.ROOT_KEY_CURRENT_USER,
-          "Software\\Mozilla\\Firefox",
+          "Software\\BrowserWorks\\Waterfox",
           `Uninstalled-${updateChannel}`
         );
         if (removalSuccessful && uninstalledValue == "True") {

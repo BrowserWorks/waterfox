@@ -201,7 +201,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>@APP_VERSION@</string>
 	<key>CFBundleSignature</key>
-	<string>MOZB</string>
+	<string>WFXB</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -262,8 +262,8 @@
   <string>GeckoNSApplication</string>
 	<key>SMPrivilegedExecutables</key>
 	<dict>
-		<key>org.mozilla.updater</key>
-		<string>identifier "org.mozilla.updater" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13] and certificate leaf[subject.OU] = "43AQ936H96"</string>
+		<key>net.waterfox.updater</key>
+		<string>identifier "net.waterfox.updater" and anchor apple generic and certificate 1[field.1.2.840.113635.100.6.2.6] and certificate leaf[field.1.2.840.113635.100.6.1.13] and certificate leaf[subject.OU] = "43AQ936H96"</string>
 	</dict>
   <key>MozillaDeveloperRepoPath</key>
   <string>@MOZ_DEVELOPER_REPO_PATH@</string>
