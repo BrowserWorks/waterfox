@@ -64,6 +64,7 @@ pref("browser.ping-centre.telemetry", false, locked);
 pref("browser.search.separatePrivateDefault", true);
 pref("browser.search.separatePrivateDefault.ui.enabled", true);
 pref("browser.send_pings", false, locked);
+pref("browser.tabs.pinnedIconOnly", false);
 pref("browser.tabs.remote.separatedMozillaDomains", "", locked);
 pref("browser.topsites.contile.enabled", false, locked);
 pref("browser.topsites.contile.endpoint", "", locked);
