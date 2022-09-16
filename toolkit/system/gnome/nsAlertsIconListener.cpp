@@ -293,10 +293,10 @@ nsresult nsAlertsIconListener::InitAlertAsync(nsIAlertNotification* aAlert,
       } else {
         NS_WARNING(
             "brand.properties not present, using default application name");
-        appShortName.AssignLiteral("Mozilla");
+        appShortName.AssignLiteral("Waterfox");
       }
     } else {
-      appShortName.AssignLiteral("Mozilla");
+      appShortName.AssignLiteral("Waterfox");
     }
 
     if (!notify_init(appShortName.get())) return NS_ERROR_FAILURE;

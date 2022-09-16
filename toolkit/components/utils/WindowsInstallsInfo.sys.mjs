@@ -53,7 +53,7 @@ export var WindowsInstallsInfo = {
       }
     }
 
-    const subKeyName = `Software\\Mozilla\\${Services.appinfo.name}\\TaskBarIDs`;
+    const subKeyName = `Software\\Waterfox\\${Services.appinfo.name}\\TaskBarIDs`;
 
     const paths = new Set();
 

@@ -258,10 +258,10 @@ let ShellServiceInternal = {
         lazy.NimbusFeatures.shellService.getVariable("setDefaultPDFHandler")
       ) {
         if (this._shouldSetDefaultPDFHandler()) {
-          lazy.log.info("Setting Firefox as default PDF handler");
-          extraFileExtensions.push(".pdf", "FirefoxPDF");
+          lazy.log.info("Setting Waterfox as default PDF handler");
+          extraFileExtensions.push(".pdf", "WaterfoxPDF");
         } else {
-          lazy.log.info("Not setting Firefox as default PDF handler");
+          lazy.log.info("Not setting Waterfox as default PDF handler");
         }
       }
       try {
@@ -302,7 +302,7 @@ let ShellServiceInternal = {
       try {
         this.defaultAgent.setDefaultExtensionHandlersUserChoice(aumi, [
           ".pdf",
-          "FirefoxPDF",
+          "WaterfoxPDF",
         ]);
       } catch (err) {
         telemetryResult = "ErrOther";

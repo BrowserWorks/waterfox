@@ -3489,7 +3489,7 @@ void nsWindow::SetIcon(const nsAString& aIconSpec) {
     nsAutoString brandName;
     WidgetUtils::GetBrandShortName(brandName);
     if (brandName.IsEmpty()) {
-      brandName.AssignLiteral(u"Mozilla");
+      brandName.AssignLiteral(u"Waterfox");
     }
     AppendUTF16toUTF8(brandName, iconName);
     ToLowerCase(iconName);

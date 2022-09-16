@@ -244,7 +244,7 @@ bool WinTaskbar::GenerateAppUserModelID(nsAString& aAppUserModelId,
   nsCString appName;
   if (appInfo && NS_SUCCEEDED(appInfo->GetName(appName))) {
     nsAutoString regKey;
-    regKey.AssignLiteral("Software\\Mozilla\\");
+    regKey.AssignLiteral("Software\\BrowserWorks\\");
     AppendASCIItoUTF16(appName, regKey);
     regKey.AppendLiteral("\\TaskBarIDs");
 

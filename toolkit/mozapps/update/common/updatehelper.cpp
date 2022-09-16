@@ -429,7 +429,7 @@ LaunchServiceSoftwareUpdateCommand(int argc, LPCWSTR* argv) {
   // 2) The command being executed, which is "software-update"
   // 3) The path to updater.exe (from argv[0])
   LPCWSTR* updaterServiceArgv = new LPCWSTR[argc + 2];
-  updaterServiceArgv[0] = L"MozillaMaintenance";
+  updaterServiceArgv[0] = L"WaterfoxMaintenance";
   updaterServiceArgv[1] = L"software-update";
 
   for (int i = 0; i < argc; ++i) {

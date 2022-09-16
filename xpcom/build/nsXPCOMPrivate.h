@@ -56,7 +56,7 @@ void LogTerm();
 
 #  define XPCOM_SEARCH_KEY "PATH"
 #  define GRE_CONF_NAME "gre.config"
-#  define GRE_WIN_REG_LOC L"Software\\mozilla.org\\GRE"
+#  define GRE_WIN_REG_LOC L"Software\\waterfox.net\\GRE"
 #  define XPCOM_DLL XUL_DLL
 #  define LXPCOM_DLL LXUL_DLL
 #  define XUL_DLL "xul.dll"
