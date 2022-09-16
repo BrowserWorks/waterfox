@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
   <key>Label</key>
-  <string>org.mozilla.updater</string>
+  <string>net.waterfox.updater</string>
   <key>RunAtLoad</key>
   <true/>
 </dict>
