@@ -4,14 +4,4 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DIRS += [
-    "extensions/common",
-    "themes",
-    ]
-
-DIST_SUBDIR = "browser"
-export("DIST_SUBDIR")
-
-JS_PREFERENCE_PP_FILES += [
-    "app/profile/000-waterfox.js",
-]
+JAR_MANIFESTS += ["jar.mn"]
