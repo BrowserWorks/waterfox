@@ -44,7 +44,7 @@ TEST(MaintenanceServiceTest, ServiceStartInteractiveOnly)
   ASSERT_TRUE(scmHandle);
 
   SC_HANDLE serviceHandle =
-      OpenServiceW(scmHandle, L"MozillaMaintenance", SERVICE_START);
+      OpenServiceW(scmHandle, L"WaterfoxMaintenance", SERVICE_START);
   // Automatically close the SCM when we are done with it.
   nsAutoServiceHandle uniqueServiceHandle(serviceHandle);
   ASSERT_FALSE(serviceHandle);
