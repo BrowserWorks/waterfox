@@ -1,3 +1,4 @@
 browser.jar:
 %  content browser %content/browser/ contentaccessible=yes
 *    content/browser/overlays/tabfeatures.xhtml            (content/tabfeatures.xhtml)
+     content/browser/tabfeatures/pinnedtab.css             (content/pinnedtab.css)
