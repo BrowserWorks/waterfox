@@ -16,7 +16,7 @@ DIRS += [
 ]
 
 EXTRA_JS_MODULES += [
-    "WaterfoxGlue.jsm",
+    "WaterfoxGlue.sys.mjs",
 ]
 
 JAR_MANIFESTS += ["jar.mn"]
