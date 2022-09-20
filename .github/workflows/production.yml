@@ -188,7 +188,7 @@ jobs:
                   then
                       for OS in "${OSA[@]}"
                       do
-                          rclone moveto ./aus_tmp/"$OS"/update.xml :s3:aus/update/production/${{ env.CHANNEL }}/"$VER"/"$OS"/update.xml
+                          rclone copyto ./aus_tmp/"$OS"/update.xml :s3:aus/update/production/${{ env.CHANNEL }}/"$VER"/"$OS"/update.xml
                       done
                   fi
               fi
