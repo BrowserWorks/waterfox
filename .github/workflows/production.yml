@@ -108,6 +108,7 @@ jobs:
                   "redirect": {
                     "source_url": "cdn1.waterfox.net/waterfox/releases/latest/windows",
                     "target_url": "https://cdn1.waterfox.net/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox Setup ${{ inputs.DISPLAY_VERSION }}.exe",
+                    "preserve_query_string": true,
                     "status_code": 302
                   }
                 }
@@ -121,6 +122,7 @@ jobs:
                   "redirect": {
                     "source_url": "cdn1.waterfox.net/waterfox/releases/latest/windows-stub",
                     "target_url": "https://cdn1.waterfox.net/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install Waterfox.exe",
+                    "preserve_query_string": true,
                     "status_code": 302
                   }
                 }
@@ -134,6 +136,7 @@ jobs:
                   "redirect": {
                     "source_url": "cdn1.waterfox.net/waterfox/releases/latest/macos",
                     "target_url": "https://cdn1.waterfox.net/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox ${{ inputs.DISPLAY_VERSION }}.dmg",
+                    "preserve_query_string": true,
                     "status_code": 302
                   }
                 }
@@ -147,6 +150,7 @@ jobs:
                   "redirect": {
                     "source_url": "cdn1.waterfox.net/waterfox/releases/latest/linux",
                     "target_url": "https://cdn1.waterfox.net/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2",
+                    "preserve_query_string": true,
                     "status_code": 302
                   }
                 }
