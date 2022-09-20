@@ -42,9 +42,10 @@ const UICustomizations = {
     this.toolbarPositionListener = PrefUtils.addObserver(
       this.PREF_TOOLBARPOS,
       value => {
-        UICustomizations.executeInAllWindows((doc, win) => {
-          UICustomizations.moveTabBar(win, value);
-          UICustomizations.styleMenuBar(doc, win);
+        UICustomizations.executeInAllWindows(window => {
+          const { document } = window;
+          UICustomizations.moveTabBar(window, value);
+          UICustomizations.styleMenuBar(document, window);
         });
       }
     );
@@ -52,8 +53,8 @@ const UICustomizations = {
     this.bookmarkBarPositionListener = PrefUtils.addObserver(
       this.PREF_BOOKMARKPOS,
       value => {
-        UICustomizations.executeInAllWindows((doc, win) => {
-          UICustomizations.moveBookmarksBar(win, value);
+        UICustomizations.executeInAllWindows(window => {
+          UICustomizations.moveBookmarksBar(window, value);
         });
       }
     );
