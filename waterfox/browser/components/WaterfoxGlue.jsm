@@ -58,6 +58,8 @@ const WaterfoxGlue = {
         const userContentSheet = "chrome://browser/skin/userContent.css"
         BrowserUtils.registerOrUnregisterSheet(userChromeSheet, isEnabled);
         BrowserUtils.registerOrUnregisterSheet(userContentSheet, isEnabled);
+      }
+    );
     this.pinnedTabListener = PrefUtils.addObserver(
       "browser.tabs.pinnedIconOnly",
       isEnabled => {
