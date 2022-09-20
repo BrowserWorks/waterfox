@@ -80,7 +80,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
     "resource:///modules/WebProtocolHandlerRegistrar.sys.mjs",
   WindowsRegistry: "resource://gre/modules/WindowsRegistry.sys.mjs",
   setTimeout: "resource://gre/modules/Timer.sys.mjs",
-  WaterfoxGlue: "resource:///modules/WaterfoxGlue.jsm",
+  WaterfoxGlue: "resource:///modules/WaterfoxGlue.sys.mjs",
 });
 
 XPCOMUtils.defineLazyServiceGetters(lazy, {
@@ -234,7 +234,7 @@ BrowserGlue.prototype = {
         const { BootstrapLoader } = ChromeUtils.importESModule(
           "resource:///modules/BootstrapLoader.sys.mjs"
         );
-        AddonManager.addExternalExtensionLoader(BootstrapLoader);
+        lazy.AddonManager.addExternalExtensionLoader(BootstrapLoader);
       break;
       case "notifications-open-settings":
         this._openPreferences("privacy-permissions");
@@ -402,7 +402,7 @@ BrowserGlue.prototype = {
 
     lazy.DesktopActorRegistry.init();
 
-    WaterfoxGlue.init();
+    lazy.WaterfoxGlue.init();
   },
 
   // cleanup (called on application shutdown)
