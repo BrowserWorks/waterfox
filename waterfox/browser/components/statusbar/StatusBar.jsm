@@ -108,21 +108,21 @@ const StatusBar = {
   async setStatusTextVisibility() {
     if (this.enabled && this.showLinks) {
       // Status bar enabled and want to display links in it
-      this.executeInAllWindows((doc, win) => {
-        let StatusPanel = win.StatusPanel;
-        win.statusbar.textNode.appendChild(StatusPanel._labelElement);
+      this.executeInAllWindows(window => {
+        let StatusPanel = window.StatusPanel;
+        window.statusbar.textNode.appendChild(StatusPanel._labelElement);
       });
     } else if (!this.enabled && this.showLinks) {
       // Status bar disabled so display links in StatusPanel
-      this.executeInAllWindows((doc, win) => {
-        let StatusPanel = win.StatusPanel;
+      this.executeInAllWindows(window => {
+        let StatusPanel = window.StatusPanel;
         StatusPanel.panel.firstChild.appendChild(StatusPanel._labelElement);
         StatusPanel.panel.firstChild.hidden = false;
       });
     } else {
       // Don't display links
-      this.executeInAllWindows((doc, win) => {
-        let StatusPanel = win.StatusPanel;
+      this.executeInAllWindows(window => {
+        let StatusPanel = window.StatusPanel;
         StatusPanel.panel.firstChild.appendChild(StatusPanel._labelElement);
         StatusPanel.panel.firstChild.hidden = true;
       });
