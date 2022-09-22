@@ -3,8 +3,10 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #aboutDialogContainer {
-  background-color: #20123a;
-  color: #fff;
+  background-image: url("chrome://branding/content/background.svg");
+  background-position: center;
+  background-size: cover;
+  color: #053361;
   color-scheme: dark;
 }
 
@@ -30,29 +32,31 @@
   }
 }
 
-.text-link {
+/* .text-link {
   color: #fff !important;
   text-decoration: underline;
-}
+} */
 
 #rightBox {
   margin-inline: 30px;
 }
 
-#bottomBox {
+/* #bottomBox {
   background-color: hsla(235, 43%, 10%, .5);
   padding: 15px 10px 15px;
-}
+} */
 
 #trademark {
   font-size: xx-small;
   text-align: center;
-  color: #999999;
+  color: #053361;
   margin-block: 10px;
 }
 
 @media (-moz-platform: macos) {
-  #checkForUpdatesButton, #downloadAndInstallButton, #updateButton {
+  #checkForUpdatesButton,
+  #downloadAndInstallButton,
+  #updateButton {
     color: #053361;
   }
 }
