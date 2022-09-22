@@ -96,6 +96,8 @@ pref("intl.multilingual.downloadEnabled", false, locked);
 pref("layout.css.backdrop-filter.enabled", true);
 pref("layout.css.color-mix.enabled", true);
 pref("layout.css.prefers-color-scheme.content-override", 3);
+pref("layout.forms.input-type-search.enabled", true);
+pref("layout.forms.reveal-password-button.enabled", true);
 pref("media.eme.enabled", false);
 pref("media.gmp-manager.url", "data:application/json,", locked);
 pref("messaging-system.rsexperimentloader.enabled", false, locked);
@@ -117,12 +119,12 @@ pref("security.certerrors.mitm.priming.enabled", false, locked);
 pref("security.certerrors.recordEventTelemetry", false, locked);
 pref("security.family_safety.mode", 0, locked);
 pref("security.identitypopup.recordEventTelemetry", false, locked);
+pref("security.insecure_connection_text.enabled", true);
 pref("security.pki.crlite_mode", 0, locked);
 pref("security.protectionspopup.recordEventTelemetry", false, locked);
 pref("security.ssl.enable_false_start", true);
 pref("security.ssl.errorReporting.enabled", false, locked);
 pref("services.settings.server", "data:application/json,", locked); // 24H
-pref("services.sync.engine.prefs", false, locked); // Never sync prefs, addons, or tabs with other browsers
 pref("services.sync.prefs.sync.browser.newtabpage.activity-stream.feeds.snippets", false, locked);
 pref("services.sync.prefs.sync.browser.newtabpage.activity-stream.showSponsored", false, locked);
 pref("services.sync.prefs.sync.browser.newtabpage.activity-stream.showSponsoredTopSites", false, locked);
