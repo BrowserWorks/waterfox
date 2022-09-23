@@ -279,15 +279,19 @@
     }
 
     .context-menu-list .context-menu-item button span {
-      padding-inline-start: 24px;
-      /* 16p + (4px *  2) */
+      /* Color */
       -moz-context-properties: fill, fill-opacity !important;
       fill: currentColor !important;
       /* Layout */
-      background-size: 16px;
-      background-repeat: no-repeat;
+      background-size: 16px !important;
+      background-repeat: no-repeat !important;
       background-image: var(--menuitem-image);
-      background-position: left 4px center;
+      padding-inline-start: 24px;
+      /* 16p + (4px *  2) */
+      background-position: var(--uc-menu-background-position, left) 4px center;
+    }
+    .context-menu-list .context-menu-item button span:dir(rtl) {
+      --uc-menu-background-position: right;
     }
 
     .context-menu-item span[data-l10n-id="newtab-menu-pin"] {
@@ -823,14 +827,17 @@
       :host,
       :root {
         --in-content-primary-button-text-color: AccentColorText !important;
-        --in-content-primary-button-background: Highlight !important;
-        --in-content-primary-button-background-hover: color-mix(in srgb, black 10%, Highlight) !important;
-        --in-content-primary-button-background-active: color-mix(in srgb, black 20%, Highlight) !important;
+        --in-content-primary-button-background: AccentColor !important;
+        --in-content-primary-button-background-hover: color-mix(in srgb, black 10%, AccentColor) !important;
+        --in-content-primary-button-background-active: color-mix(in srgb, black 20%, AccentColor) !important;
       }
       @supports -moz-bool-pref("userChrome.compatibility.accent_color") {
         :host,
         :root {
-          --in-content-primary-button-text-color: -moz-accent-color-foreground !important;
+          --in-content-primary-button-text-color: HighlightText !important;
+          --in-content-primary-button-background: Highlight !important;
+          --in-content-primary-button-background-hover: color-mix(in srgb, black 10%, Highlight) !important;
+          --in-content-primary-button-background-active: color-mix(in srgb, black 20%, Highlight) !important;
         }
       }
     }
@@ -3037,8 +3044,12 @@
 
     /* Padding */
     :root {
+      --uc-menu-background-position: left;
       --context-menu-background-padding-default: 5px;
       --context-menu-background-padding: var(--context-menu-background-padding-default);
+    }
+    :root:-moz-locale-dir(rtl) {
+      --uc-menu-background-position: right;
     }
 
     menupopup:is(#placesContext, #placesColumnsContext, #downloadsContextMenu)
@@ -3048,7 +3059,7 @@
     menupopup:is(#organizeButtonPopup, #maintenanceButtonPopup)
       > menuitem:not(.menuitem-iconic, .bookmark-item, .in-menulist, [checked="true"]),
     menupopup:is(#viewMenuPopup, #maintenanceButtonPopup) > menu:not(.menu-iconic, .in-menulist, [checked="true"]) {
-      background-position: left var(--context-menu-background-padding) center !important;
+      background-position: var(--uc-menu-background-position) var(--context-menu-background-padding) center !important;
       padding-inline-start: var(--context-menu-background-padding) !important;
     }
 
