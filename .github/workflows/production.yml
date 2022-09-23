@@ -35,7 +35,7 @@ env:
 jobs:
   soft-release:
     name: "\U0001F313 Soft Release"
-    environment: hard-release
+    environment: Approval
     runs-on: ubuntu-22.04
     steps:
       - name: Create GitHub release
@@ -100,8 +100,7 @@ jobs:
       - name: ⎆ Update latest redirects
         run: >
           curl "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ZONE_ID }}/rules/lists/500a3e4c6bd2435da861ad9f407f892b/items" \
-              -H "X-Auth-Email: ${{ secrets.CF_EMAIL }}" \
-              -H "X-Auth-Key: ${{ secrets.CF_AUTH }}" \
+              -H "Authorization: Bearer ${{ secrets.CF_AUTH }}" \
               -H "Content-Type: application/json" \
               -d '[
                 {
@@ -114,8 +113,7 @@ jobs:
                 }
               ]'
           curl "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ZONE_ID }}/rules/lists/500a3e4c6bd2435da861ad9f407f892b/items" \
-              -H "X-Auth-Email: ${{ secrets.CF_EMAIL }}" \
-              -H "X-Auth-Key: ${{ secrets.CF_AUTH }}" \
+              -H "Authorization: Bearer ${{ secrets.CF_AUTH }}" \
               -H "Content-Type: application/json" \
               -d '[
                 {
@@ -128,8 +126,7 @@ jobs:
                 }
               ]'
           curl "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ZONE_ID }}/rules/lists/500a3e4c6bd2435da861ad9f407f892b/items" \
-              -H "X-Auth-Email: ${{ secrets.CF_EMAIL }}" \
-              -H "X-Auth-Key: ${{ secrets.CF_AUTH }}" \
+              -H "Authorization: Bearer ${{ secrets.CF_AUTH }}" \
               -H "Content-Type: application/json" \
               -d '[
                 {
@@ -142,8 +139,7 @@ jobs:
                 }
               ]'
           curl "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ZONE_ID }}/rules/lists/500a3e4c6bd2435da861ad9f407f892b/items" \
-              -H "X-Auth-Email: ${{ secrets.CF_EMAIL }}" \
-              -H "X-Auth-Key: ${{ secrets.CF_AUTH }}" \
+              -H "Authorization: Bearer ${{ secrets.CF_AUTH }}" \
               -H "Content-Type: application/json" \
               -d '[
                 {
@@ -159,7 +155,7 @@ jobs:
     name: "\U0001F315 Hard Release"
     needs:
       - soft-release
-    environment: hard-release
+    environment: Approval
     runs-on: ubuntu-22.04
     steps:
       - name: "\U0001F4BF Setup rclone"
