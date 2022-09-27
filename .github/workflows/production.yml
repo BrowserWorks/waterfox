@@ -19,8 +19,6 @@ name: Production
         required: true
       CF_AUTH:
         required: true
-      CF_EMAIL:
-        required: true
       CF_ENDPOINT:
         required: true
       CF_ZONE_ID:
