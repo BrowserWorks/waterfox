@@ -87,10 +87,6 @@ const PrivateTab = {
     this.container = ContextualIdentityService._identities.find(
       container => container.name == aName
     );
-    if (this.container && this.container.icon == "private") {
-      ContextualIdentityService.remove(this.container.userContextId);
-      this.container = undefined;
-    }
     if (!this.container) {
       ContextualIdentityService.create(aName, "fingerprint", "purple");
       this.container = ContextualIdentityService._identities.find(
