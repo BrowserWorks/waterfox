@@ -422,7 +422,7 @@ jobs:
 
           create-dmg \
 
-          --volname "Waterfox Setup" \
+          --volname "Waterfox ${{ env.VERSION_DISPLAY }}" \
 
           --volicon "waterfox/browser/branding/disk.icns" \
 
@@ -430,13 +430,13 @@ jobs:
 
           --window-pos 200 120 \
 
-          --window-size 520 380 \
+          --window-size 500 357 \
 
           --no-internet-enable \
 
-          --icon-size 128 \
+          --icon-size 96 \
 
-          --icon "Waterfox.app" 100 178 \
+          --icon "Waterfox.app" 144 176 \
 
           --hide-extension "Waterfox.app" \
 
@@ -446,7 +446,7 @@ jobs:
 
           --eula "waterfox/browser/branding/license.txt" \
 
-          --app-drop-link 400 178 \
+          --app-drop-link 368 176 \
 
           "Waterfox ${{ env.VERSION_DISPLAY }}.dmg" \
 
