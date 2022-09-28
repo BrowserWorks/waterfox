@@ -97,6 +97,8 @@ jobs:
             win-
       - name: "\U0001F4BF Build dependencies"
         run: >
+          rustup update
+          
           rustup target add x86_64-pc-windows-msvc
 
           sudo apt update
@@ -313,6 +315,7 @@ jobs:
             mac-${{ matrix.arch }}
       - name: "\U0001F4BF Build dependencies"
         run: |
+          rustup update
           rustup target add ${{ matrix.arch }}
           sudo apt update
           wget https://www.7-zip.org/a/7z2201-linux-x64.tar.xz
