@@ -59,6 +59,10 @@ jobs:
           rclone copyto win/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
           :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
 
+          rclone copyto win/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe.sha512
+          :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe.sha512
+
+
           rclone copyto win/Install\ Waterfox.exe :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe
 
           rclone copyto win/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
@@ -75,6 +79,9 @@ jobs:
           rclone copyto mac/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
           :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
 
+          rclone copyto mac/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg.sha512
+          :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg.sha512
+
           rclone copyto mac/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
           :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
       - name: ⏬ Download Linux artifact
@@ -87,6 +94,8 @@ jobs:
           rclone copyto lin/update.xml :s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/update.xml
 
           rclone copyto lin/waterfox-${{ inputs.DISPLAY_VERSION }}.en-US.linux-x86_64.tar.bz2 :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2
+
+          rclone copyto lin/waterfox-${{ inputs.DISPLAY_VERSION }}.en-US.linux-x86_64.tar.bz2.sha512 :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.en-US.linux-x86_64.tar.bz2.sha512
 
           rclone copyto lin/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
           :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
