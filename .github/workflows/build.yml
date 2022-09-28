@@ -217,6 +217,8 @@ jobs:
 
           jsign -s $HOME/win-cross/dummy.pfx --storepass=password
           --storetype=PKCS12 "Install Waterfox.exe"
+
+          shasum -a 512 "Waterfox Setup ${{ env.VERSION_DISPLAY }}.exe" > "Waterfox Setup ${{ env.VERSION_DISPLAY }}.exe.sha512"
       - name: "\U0001F4E6 Package MAR"
         if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
         run: >
@@ -275,6 +277,7 @@ jobs:
           name: windows-build-output
           path: |
             Waterfox\ Setup\ ${{ env.VERSION_DISPLAY }}.exe
+            Waterfox\ Setup\ ${{ env.VERSION_DISPLAY }}.exe.sha512
             Install\ Waterfox.exe
             waterfox-${{ env.VERSION_DISPLAY }}.complete.mar
             update.xml
@@ -458,6 +461,8 @@ jobs:
           codesign -s "${{ secrets.MACOS_ID }}" -fv "Waterfox ${{ env.VERSION_DISPLAY }}.dmg"
 
           xcrun altool --notarize-app -f "Waterfox ${{ env.VERSION_DISPLAY }}.dmg" --primary-bundle-id 'net.waterfox.waterfox' -u ${{ secrets.MACOS_DEV_ID }} -p ${{ secrets.MACOS_DEV_PWD }}
+
+          shasum -a 512 "Waterfox ${{ env.VERSION_DISPLAY }}.dmg" > "Waterfox ${{ env.VERSION_DISPLAY }}.dmg.sha512"
       - name: "\U0001F4E6 Create MAR"
         run: >
           curl https://rclone.org/install.sh | sudo bash
@@ -524,6 +529,7 @@ jobs:
           name: macos-build-output
           path: |
             Waterfox ${{ env.VERSION_DISPLAY }}.dmg
+            Waterfox ${{ env.VERSION_DISPLAY }}.dmg.sha512
             waterfox-${{ env.VERSION_DISPLAY }}.complete.mar
             update.xml
   build-linux-x64:
@@ -609,6 +615,8 @@ jobs:
           fi
 
           mv obj-${{ env.ARCH }}/dist/waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2 .
+
+          shasum -a 512 waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2 > waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2.sha512
       - name: "\U0001F4E6 Package MAR"
         if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
         run: >
@@ -664,5 +672,6 @@ jobs:
           name: linux-build-output
           path: |
             waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2
+            waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2.sha512
             waterfox-${{ env.VERSION_DISPLAY }}.complete.mar
             update.xml
