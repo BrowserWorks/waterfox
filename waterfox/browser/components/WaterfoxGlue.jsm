@@ -217,8 +217,6 @@ const WaterfoxGlue = {
           case "australis-dark@waterfox.net":
             enableTheme("firefox-compact-dark@mozilla.org");
             break;
-          default:
-            enableTheme(DEFAULT_THEME);
         }
       } else {
         // If no activeTheme detected, set default.
