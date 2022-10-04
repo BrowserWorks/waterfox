@@ -495,13 +495,13 @@ Function .onUserAbort
     ${If} $0 == 1002
       ; The cancel button was clicked
       Call LaunchHelpPage
-      Call SendPing
+      SendMessage $HWNDPARENT "0x408" "120" ""
     ${Else}
       ; Either the continue button was clicked or the dialog was dismissed
       Call StartDownload
     ${EndIf}
   ${Else}
-    Call SendPing
+    SendMessage $HWNDPARENT "0x408" "120" ""
   ${EndIf}
 
   ; Aborting the abort will allow SendPing to hide the installer window and
@@ -1400,7 +1400,7 @@ Function WaitForAppLaunch
     WebBrowser::CancelTimer $TimerHandle
     StrCpy $ProgressCompleted "${PROGRESS_BAR_APP_LAUNCH_END_STEP}"
     Call SetProgressBars
-    Call SendPing
+    SendMessage $HWNDPARENT "0x408" "120" ""
     Return
   ${EndIf}
 
@@ -1409,7 +1409,7 @@ Function WaitForAppLaunch
   ${If} $0 >= ${AppLaunchWaitTimeoutMS}
     ; We've waited an unreasonably long time, so just exit.
     WebBrowser::CancelTimer $TimerHandle
-    Call SendPing
+    SendMessage $HWNDPARENT "0x408" "120" ""
     Return
   ${EndIf}
 
@@ -1428,7 +1428,7 @@ Function DisplayDownloadError
 
   MessageBox MB_OKCANCEL|MB_ICONSTOP "$(ERROR_DOWNLOAD_CONT)" IDCANCEL +2 IDOK +1
   Call LaunchHelpPage
-  Call SendPing
+  SendMessage $HWNDPARENT "0x408" "120" ""
 FunctionEnd
 
 Function LaunchHelpPage
