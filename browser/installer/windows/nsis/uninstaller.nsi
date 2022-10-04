@@ -154,7 +154,7 @@ ShowUnInstDetails nevershow
 !define URLUninstallSurvey "https://survey.waterfox.net/Desktop-Post-Uninstall?channel=${UpdateChannel}&version=${AppVersion}&osversion="
 
 ; Support for the profile refresh feature
-!define URLProfileRefreshHelp "https://support.mozilla.org/kb/refresh-firefox-reset-add-ons-and-settings"
+!define URLProfileRefreshHelp "https://www.waterfox.net/support/WINNT/refresh-waterfox-reset-add-ons-and-settings/"
 
 ; Arguments to add to the command line when launching FileMainEXE for profile refresh
 !define ArgsProfileRefresh "-reset-profile -migration -uninstaller-profile-refresh"
