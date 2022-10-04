@@ -73,7 +73,9 @@ pref("browser.uiCustomization.state", "{\"placements\":{\"widget-overflow-fixed-
 pref("browser.urlbar.dnsResolveSingleWordsAfterSearch", 0, locked);
 pref("browser.urlbar.eventTelemetry.enabled", false, locked);
 pref("browser.urlbar.showSearchSuggestionsFirst", false);
+pref("browser.urlbar.speculativeConnect.enabled", false);
 pref("browser.urlbar.trimURLs", false);
+pref("browser.xul.error_pages.expert_bad_cert", true);
 pref("corroborator.enabled", false, locked);
 pref("datareporting.healthreport.uploadEnabled", false, locked);
 pref("datareporting.policy.dataSubmissionEnabled", false, locked);
@@ -81,7 +83,8 @@ pref("devtools.debugger.chrome-debugging-host", "127.0.0.1");
 pref("devtools.webide.autoinstallADBExtension", false);
 pref("dom.security.unexpected_system_load_telemetry_enabled", false, locked);
 pref("extensions.allowPrivateBrowsingByDefault", true);
-pref("extensions.getAddons.cache.enabled", false, locked); // https://blog.mozilla.org/addons/how-to-opt-out-of-add-on-metadata-updates/
+pref("extensions.experiments.enabled", true);
+pref("extensions.getAddons.cache.enabled", false); // https://blog.mozilla.org/addons/how-to-opt-out-of-add-on-metadata-updates/
 pref("extensions.getAddons.showPane", false, locked);
 pref("extensions.htmlaboutaddons.recommendations.enabled", false, locked);
 pref("extensions.install_origins.enabled", true);
@@ -125,6 +128,13 @@ pref("security.protectionspopup.recordEventTelemetry", false, locked);
 pref("security.ssl.enable_false_start", true);
 pref("security.ssl.errorReporting.enabled", false, locked);
 pref("services.settings.server", "data:application/json,", locked); // 24H
+pref("services.sync.prefs.sync.app.shield.optoutstudies.enabled", false, locked);
+pref("services.sync.prefs.sync.browser.crashReports.unsubmittedCheck.autoSubmit2", false, locked);
+pref("services.sync.prefs.sync.browser.discovery.enabled", false, locked);
+pref("services.sync.prefs.sync.browser.newtabpage.activity-stream.asrouter.userprefs.cfr.addons", false, locked);
+pref("services.sync.prefs.sync.browser.newtabpage.activity-stream.asrouter.userprefs.cfr.features", false, locked);
+pref("services.sync.prefs.sync.browser.newtabpage.activity-stream.feeds.section.topstories", false, locked);
+pref("services.sync.prefs.sync.browser.newtabpage.activity-stream.section.topstories.rows", false, locked);
 pref("services.sync.prefs.sync.browser.newtabpage.activity-stream.feeds.snippets", false, locked);
 pref("services.sync.prefs.sync.browser.newtabpage.activity-stream.showSponsored", false, locked);
 pref("services.sync.prefs.sync.browser.newtabpage.activity-stream.showSponsoredTopSites", false, locked);
