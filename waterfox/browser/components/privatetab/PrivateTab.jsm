@@ -268,11 +268,13 @@ const PrivateTab = {
   },
 
   overridePlacesUIUtils() {
-    /* globals BrowserWindowTracker */
     // Unused vars required for eval to execute
     // eslint-disable-next-line no-unused-vars
     const { PlacesUtils } = ChromeUtils.import(
       "resource://gre/modules/PlacesUtils.jsm"
+    );
+    const { BrowserWindowTracker } = ChromeUtils.import(
+      "resource:///modules/BrowserWindowTracker.jsm"
     );
     // eslint-disable-next-line no-unused-vars
     const { PrivateBrowsingUtils } = ChromeUtils.import(
