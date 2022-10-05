@@ -81,6 +81,7 @@ pref("datareporting.healthreport.uploadEnabled", false, locked);
 pref("datareporting.policy.dataSubmissionEnabled", false, locked);
 pref("devtools.debugger.chrome-debugging-host", "127.0.0.1");
 pref("devtools.webide.autoinstallADBExtension", false);
+pref("doh-rollout.disable-heuristics", true); // Make sure DoH doesn't get enabled automatically
 pref("dom.security.unexpected_system_load_telemetry_enabled", false, locked);
 pref("extensions.allowPrivateBrowsingByDefault", true);
 pref("extensions.experiments.enabled", true);
