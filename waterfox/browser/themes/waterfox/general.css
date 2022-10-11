@@ -11,3 +11,184 @@
 :root[inDOMFullscreen] #browser-bottombox {
   visibility: collapse;
 }
+
+/* about:preferences Look & Feel icon */
+#category-theme > .category-icon {
+  list-style-image: url("chrome://browser/skin/customize.svg");
+}
+
+#waterfoxUserChromeCustomizations {
+  padding-right: 50px;
+}
+
+.presets-header {
+  max-height: 30px;
+}
+
+/* Popup container */
+.popup-container {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+    user-select: none;
+}
+
+/* The actual popup */
+.popup-container .info-popup {
+    visibility: hidden;
+    background-color: #555;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 8px 0;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    margin-left: -80px;
+}
+
+.popup-container .show {
+    visibility: visible;
+    max-width: 750px;
+}
+
+.preferences-info-button {
+  content: url("chrome://global/skin/icons/info.svg");
+  -moz-context-properties: fill, fill-opacity;
+  fill: currentColor;
+  width: 16px;
+  /* Vertically center */
+  margin: 0 10px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+#autoHideTabsImage {
+  content: url("chrome://browser/content/overlays/images/autohide_tab.gif");
+}
+
+#autoBlurTabsImage {
+  content: url("chrome://browser/content/overlays/images/autoblur_tab.gif");
+}
+
+#autoHideTabBarImage {
+  content: url("chrome://browser/content/overlays/images/autohide_tabbar.gif");
+}
+
+#centerTabContentImage {
+  content: url("chrome://browser/content/overlays/images/tab_center.png");
+}
+
+#centerTabLabelImage {
+  content: url("chrome://browser/content/overlays/images/tab_label.png");
+}
+
+#squareTabEdgesImage {
+  content: url("chrome://browser/content/overlays/images/tab_square.png");
+}
+
+#smoothTabEdgesImage {
+  content: url("chrome://browser/content/overlays/images/tab_normal.png");
+}
+
+#dragSpaceImage {
+  content: url("chrome://browser/content/overlays/images/drag_space.png");
+}
+
+#closeButtonHoverImage {
+  content: url("chrome://browser/content/overlays/images/close_button_hover.png");
+}
+
+#autoHideBackImage {
+  content: url("chrome://browser/content/overlays/images/autohide_back.gif");
+}
+
+#autoHideForwardImage {
+  content: url("chrome://browser/content/overlays/images/autohide_forward.gif");
+}
+
+#autoHidePageActionImage {
+  content: url("chrome://browser/content/overlays/images/autohide_pageaction.gif");
+}
+
+#hideNavBarIconBoxImage {
+  content: url("chrome://browser/content/overlays/images/hide_iconbox.png");
+}
+
+#centerNavBarTextImage {
+  content: url("chrome://browser/content/overlays/images/navbar_center.png");
+}
+
+#squareButtonEdgesImage {
+  content: url("chrome://browser/content/overlays/images/square_button_compare.png");
+}
+
+#autoHideBookmarkBarImage {
+  content: url("chrome://browser/content/overlays/images/autohide_bookmarksbar.gif");
+}
+
+#centerBookmarkBarItemsImage {
+  content: url("chrome://browser/content/overlays/images/bookmarkbar_centered.png");
+}
+
+#hideBookmbarkBarIconImage {
+  content: url("chrome://browser/content/overlays/images/bookmarkbar_label.png");
+}
+
+#hideBookmarkBarLabelImage {
+  content: url("chrome://browser/content/overlays/images/bookmarkbar_icon.png");
+}
+
+#monospaceFontImage {
+  content: url("chrome://browser/content/overlays/images/monospace_font.png");
+}
+
+#monospaceFontThemeImage {
+  content: url("chrome://browser/content/overlays/images/monospace_theme.png");
+}
+
+#hideDisabledMenuItemsImage {
+  content: url("chrome://browser/content/overlays/images/disabled_menu.png");
+}
+
+#squareMenuPanelImage {
+  content: url("chrome://browser/content/overlays/images/square_panel.png");
+}
+
+#squareMenuPopupImage {
+  content: url("chrome://browser/content/overlays/images/square_popup.png");
+}
+
+#squareFieldImage {
+  content: url("chrome://browser/content/overlays/images/square_field.png");
+}
+
+#removePanelStripImage {
+  content: url("chrome://browser/content/overlays/images/no_panel_separator.png");
+}
+
+#fullPanelStripImage {
+  content: url("chrome://browser/content/overlays/images/full_panel_separator.png");
+}
+
+#disableSidebarAnimateImage {
+  content: url("chrome://browser/content/overlays/images/sidebar_no_animate.gif");
+}
+
+#autoHideSidebarImage {
+  content: url("chrome://browser/content/overlays/images/autohide_sidebar.gif");
+}
+
+#hideSidebarHeaderImage {
+  content: url("chrome://browser/content/overlays/images/sidebar_no_header.png");
+}
+
+#showMacMenuIconsImage {
+  content: url("chrome://browser/content/overlays/images/mac_icons.png");
+}
+
+#twolineMediaPlayerImage {
+  content: url("chrome://browser/content/overlays/images/media_player.png");
+}
