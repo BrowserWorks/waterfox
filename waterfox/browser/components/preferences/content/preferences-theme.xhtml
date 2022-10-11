@@ -1,0 +1,439 @@
+<!-- Theme panel -->
+
+<script>
+    /* eslint-env mozilla/browser-window */
+    /* globals register_module gThemePane gotoPref */
+    Services.scriptloader.loadSubScript("chrome://browser/content/overlays/theme.js", this);
+
+    // Register the pane
+    register_module("paneTheme", gThemePane);
+
+    // This ensure that we actually render the Theme page when refreshing on
+    // about:preferences#theme. It is needed because the regular gotoPref in
+    // preferences.js cannot function properly as we do not register_module
+    // until this file is loaded, which has not been done when preferences.js
+    // is init'd.
+    if (location.href.includes("#theme")) {
+        setTimeout(() => {
+            gotoPref("paneTheme");
+        }, 0);
+    }
+</script>
+
+<html:template id="template-paneTheme">
+    <hbox id="firefoxThemeCategory" class="subcategory" hidden="true" data-category="paneTheme">
+        <html:h1 style="-moz-box-flex: 1;" data-l10n-id="pane-theme-title" />
+    </hbox>
+
+    <groupbox id="themeGroup" data-category="paneTheme" hidden="true">
+        <checkbox id="enableWaterfoxTheme" preference="userChrome.theme.enable" data-l10n-id="enable-waterfox-theme" />
+        <hbox>
+            <vbox id="waterfoxUserChromeCustomizations">
+                <!-- Tab Bar -->
+                <label>
+                    <html:h2 data-l10n-id="tab-bar-header" />
+                </label>
+                <hbox>
+                    <checkbox id="autoHideTabs" preference="userChrome.autohide.tab" data-l10n-id="auto-hide-tabs" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="autoHideTabsImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <checkbox id="autoBlurTabs" preference="userChrome.autohide.tab.blur"
+                        data-l10n-id="auto-blur-tabs" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="autoBlurTabsImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <checkbox id="autoHideTabBar" preference="userChrome.autohide.tabbar"
+                        data-l10n-id="auto-hide-tabbar" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="autoHideTabBarImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <checkbox id="centerTabContent" preference="userChrome.centered.tab"
+                        data-l10n-id="center-tab-content" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="centerTabContentImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <checkbox id="centerTabLabel" preference="userChrome.centered.tab.label"
+                        data-l10n-id="center-tab-label" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="centerTabLabelImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <checkbox id="squareTabEdges" preference="userChrome.rounding.square_tab"
+                        data-l10n-id="square-tab-edges" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="squareTabEdgesImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <checkbox id="dragSpace" preference="userChrome.padding.drag_space" data-l10n-id="drag-space" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="dragSpaceImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <checkbox id="closeButtonHover" preference="userChrome.tab.close_button_at_hover"
+                        data-l10n-id="close-button-hover" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="closeButtonHoverImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <!-- Nav Bar -->
+                <label>
+                    <html:h2 data-l10n-id="nav-bar-header" />
+                </label>
+
+                <hbox>
+                    <checkbox id="autoHideBack" preference="userChrome.autohide.back_button"
+                        data-l10n-id="auto-hide-back" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="autoHideBackImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <checkbox id="autoHideForward" preference="userChrome.autohide.forward_button"
+                        data-l10n-id="auto-hide-forward" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="autoHideForwardImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <checkbox id="autoHidePageAction" preference="userChrome.autohide.page_action"
+                        data-l10n-id="auto-hide-pageaction" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="autoHidePageActionImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <checkbox id="hideNavBarIconBox" preference="userChrome.hidden.urlbar_iconbox"
+                        data-l10n-id="hide-urlbar-iconbox" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="hideNavBarIconBoxImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <checkbox id="centerNavBarText" preference="userChrome.centered.urlbar"
+                        data-l10n-id="center-navbar-text" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="centerNavBarTextImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <checkbox id="squareButtonEdges" preference="userChrome.rounding.square_button"
+                        data-l10n-id="square-button-edges" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="squareButtonEdgesImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <checkbox id="compactNavBarPopup" preference="userChrome.padding.urlView_expanding"
+                    data-l10n-id="compact-navbar-popup" />
+
+                <!-- Bookmarks Bar -->
+                <label>
+                    <html:h2 data-l10n-id="bookmark-header" />
+                </label>
+                <hbox>
+                    <checkbox id="autoHideBookmarkBar" preference="userChrome.autohide.bookmarkbar"
+                        data-l10n-id="auto-hide-bookmarkbar" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="autoHideBookmarkBarImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <checkbox id="centerBookmarkBarItems" preference="userChrome.centered.bookmarkbar"
+                        data-l10n-id="center-bookmarkbar-items" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="centerBookmarkBarItemsImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <checkbox id="hideBookmbarkBarIcon" preference="userChrome.hidden.bookmarkbar_icon"
+                        data-l10n-id="hide-bookmarkbar-icon" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="hideBookmbarkBarIconImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <checkbox id="hideBookmarkBarLabel" preference="userChrome.hidden.bookmarkbar_label"
+                        data-l10n-id="hide-bookmarkbar-label" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="hideBookmarkBarLabelImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <!-- Font -->
+                <label>
+                    <html:h2 data-l10n-id="font-header" />
+                </label>
+
+                <hbox>
+                    <checkbox id="monospaceFont" preference="userContent.page.monospace"
+                        data-l10n-id="monospace-font" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="monospaceFontImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <checkbox id="monospaceFontTheme" preference="userContent.theme.monospace"
+                        data-l10n-id="monospace-font-theme" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="monospaceFontThemeImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <!-- Full Screen -->
+                <!-- <label>
+                    <html:h2 data-l10n-id="full-screen-header" />
+                </label> -->
+
+                <!-- Panels -->
+                <label>
+                    <html:h2 data-l10n-id="panels-header" />
+                </label>
+
+
+                <checkbox id="disablePanelAnimate" preference="userChrome.decoration.disable_panel_animate"
+                    data-l10n-id="disable-panel-animate" />
+
+                <hbox>
+                    <checkbox id="hideDisabledMenuItems" preference="userChrome.hidden.disabled_menu"
+                        data-l10n-id="hide-disabled-menuitems" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="hideDisabledMenuItemsImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <vbox>
+                        <checkbox id="squareMenuPanel" preference="userChrome.rounding.square_panel"
+                            data-l10n-id="square-menu-panel" />
+                        <checkbox id="squarePanelItem" preference="userChrome.rounding.square_panelitem"
+                            data-l10n-id="square-panel-item" />
+                    </vbox>
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="squareMenuPanelImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <!-- MacOS uses native context menus, so we cannot modify them with userChrome. Moz listed allowing this as a WONTFIX. -->
+#ifndef XP_MACOSX
+                <hbox>
+                    <checkbox id="squareMenuPopup" preference="userChrome.rounding.square_menupopup"
+                        data-l10n-id="square-menu-popup" />
+
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="squareMenuPopupImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <checkbox id="squareMenuItem" preference="userChrome.rounding.square_menuitem"
+                    data-l10n-id="square-menu-item" />
+#endif
+
+                <hbox>
+                    <vbox>
+                        <checkbox id="squareField" preference="userChrome.rounding.square_field"
+                            data-l10n-id="square-field" />
+                        <checkbox id="squareCheckbox" preference="userChrome.rounding.square_checklabel"
+                            data-l10n-id="square-checkbox" />
+                    </vbox>
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="squareFieldImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+
+                <checkbox id="compactContextMenu" preference="userChrome.padding.menu_compact"
+                    data-l10n-id="compact-context-menu" />
+                <checkbox id="compactBookmarkMenu" preference="userChrome.padding.bookmark_menu.compact"
+                    data-l10n-id="compact-bookmark-menu" />
+                <checkbox id="compactPanelHeader" preference="userChrome.padding.panel_header"
+                    data-l10n-id="compact-panel-header" />
+
+                <hbox>
+                    <checkbox id="removePanelStrip" preference="userChrome.panel.remove_strip"
+                        data-l10n-id="remove-panel-strip" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="removePanelStripImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <checkbox id="fullPanelStrip" preference="userChrome.panel.full_width_separator"
+                        data-l10n-id="full-panel-strip" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="fullPanelStripImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <!-- Sidebar -->
+                <label>
+                    <html:h2 data-l10n-id="sidebar-header" />
+                </label>
+                <hbox>
+                    <checkbox id="disableSidebarAnimate" preference="userChrome.decoration.disable_sidebar_animate"
+                        data-l10n-id="disable-sidebar-animate" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="disableSidebarAnimateImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <checkbox id="autoHideSidebar" preference="userChrome.autohide.sidebar"
+                        data-l10n-id="auto-hide-sidebar" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="autoHideSidebarImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <hbox>
+                    <checkbox id="hideSidebarHeader" preference="userChrome.hidden.sidebar_header"
+                        data-l10n-id="hide-sidebar-header" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="hideSidebarHeaderImage" class="info-popup" />
+                    </div>
+                </hbox>
+
+                <!-- Icons -->
+                <label>
+                    <html:h2 data-l10n-id="icons-header" />
+                </label>
+                <checkbox id="hideTabIcons" preference="userChrome.hidden.tab_icon" data-l10n-id="hide-tab-icons" />
+                <!-- <checkbox id="showMenuIcons" preference="userChrome.icon.menu.full" data-l10n-id="show-menu-icons" /> This does not do what one would expect, i.e. show/remove all icons -->
+#ifdef XP_MACOSX
+                <hbox>
+                    <checkbox id="showMacMenuIcons" preference="userChrome.icon.global_menu.mac"
+                        data-l10n-id="show-mac-menu-icons" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="showMacMenuIconsImage" class="info-popup" />
+                    </div>
+                </hbox>
+#endif
+
+                <!-- Media Player -->
+                <label>
+                    <html:h2 data-l10n-id="media-player-header" />
+                </label>
+                <hbox>
+                    <checkbox id="twolineMediaPlayer" preference="userContent.player.ui.twoline"
+                        data-l10n-id="twoline-media-player" />
+
+                    <div class="popup-container">
+                        <img class="preferences-info-button" />
+                        <img id="twolineMediaPlayerImage" class="info-popup" />
+                    </div>
+                </hbox>
+            </vbox>
+            <vbox id="waterfoxUserChromePresets">
+                <button id="refreshWaterfoxCustomTheme" is="highlightable-button"
+                    class="themepage-button check-theme-page-controlled" data-l10n-id="theme-refresh" />
+                <html:h2 style="-moz-box-flex: 1;" class="presets-header" data-l10n-id="preset-title" />
+                <button id="waterfoxDefaults" is="highlightable-button"
+                    class="themepage-button check-theme-page-controlled" data-l10n-id="waterfox-defaults" />
+                <button id="smoothCorners" is="highlightable-button"
+                    class="themepage-button check-theme-page-controlled" data-l10n-id="smooth-corners" />
+                <button id="squareCorners" is="highlightable-button"
+                    class="themepage-button check-theme-page-controlled" data-l10n-id="square-corners" />
+                <button id="autohideAll" is="highlightable-button" class="themepage-button check-theme-page-controlled"
+                    data-l10n-id="autohide-all" />
+                <button id="autohideNone" is="highlightable-button" class="themepage-button check-theme-page-controlled"
+                    data-l10n-id="autohide-none" />
+                <button id="centerAll" is="highlightable-button" class="themepage-button check-theme-page-controlled"
+                    data-l10n-id="center-all" />
+                <button id="centerNone" is="highlightable-button" class="themepage-button check-theme-page-controlled"
+                    data-l10n-id="center-none" />
+                <button id="reducePadding" is="highlightable-button"
+                    class="themepage-button check-theme-page-controlled" data-l10n-id="reduce-padding" />
+                <button id="increasePadding" is="highlightable-button"
+                    class="themepage-button check-theme-page-controlled" data-l10n-id="increase-padding" />
+            </vbox>
+        </hbox>
+
+
+    </groupbox>
+</html:template>
