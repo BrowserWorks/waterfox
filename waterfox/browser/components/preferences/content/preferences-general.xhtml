@@ -12,8 +12,20 @@
         Services.scriptloader.loadSubScript("chrome://browser/content/overlays/general.js", this);
         gMainPaneOverlay.init();
     </script>
+    <richlistbox id="categories">
+        <richlistitem id="category-theme"
+            class="category"
+            data-l10n-id="category-theme"
+            data-l10n-attrs="tooltiptext"
+            value="paneTheme"
+            align="center">
+            <image class="category-icon"/>
+            <label class="category-name" flex="1" data-l10n-id="pane-theme-title"></label>
+        </richlistitem>
+    </richlistbox>
 
     <vbox id="mainPrefPane">
+#include ./preferences-theme.xhtml
         <!-- Tab Bar Position preferences -->
         <vbox id="tabPositionSettingsContainer" insertafter="browserContainersbox">
             <label>
