@@ -4,6 +4,8 @@ browser.jar:
      content/browser/overlays/preferences-other.xhtml            (content/preferences-other.xhtml)
      content/browser/overlays/general.js                           (content/general.js)
      content/browser/overlays/privacy.js                           (content/privacy.js)
+     content/browser/overlays/theme.js                             (content/theme.js)
+     content/browser/overlays/images                               (images/**)
 
 %   resource waterfox %waterfox/ contentaccessible=yes
     waterfox/overlays/preferences-general.overlay                  (preferences-general.overlay)
