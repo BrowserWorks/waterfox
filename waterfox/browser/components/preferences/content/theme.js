@@ -70,6 +70,7 @@ var gThemePane = {
       { id: "userChrome.hidden.sidebar_header", type: "bool" },
 
       // Icons
+      { id: "userChrome.icon.disabled", type: "bool" },
       { id: "userChrome.hidden.tab_icon", type: "bool" },
       { id: "userChrome.icon.menu.full", type: "bool" },
       { id: "userChrome.icon.global_menu.mac", type: "bool" },
@@ -182,6 +183,13 @@ var gThemePane = {
     // Initialize prefs
     window.Preferences.addAll(this.preferences);
     const userChromeEnabled = PrefUtils.get(this.WATERFOX_THEME_PREF);
+    for (let pref of this.preferences) {
+      this._prefObservers.push(
+        PrefUtils.addObserver(pref.id, _ => {
+          this.refreshTheme();
+        })
+      );
+    }
 
     // Init presets
     for (let preset of this.presets) {
@@ -191,7 +199,6 @@ var gThemePane = {
           for (let pref of preset.prefs) {
             PrefUtils.set(pref.id, pref.value);
           }
-          this.refreshTheme();
         });
       }
     }
@@ -200,12 +207,6 @@ var gThemePane = {
     let defaultButton = document.getElementById("waterfoxDefaults");
     if (defaultButton) {
       defaultButton.addEventListener("click", this);
-    }
-
-    // Init refresh button
-    let refreshButton = document.getElementById("refreshWaterfoxCustomTheme");
-    if (refreshButton) {
-      refreshButton.addEventListener("click", this);
     }
 
     // Init popups
@@ -255,9 +256,6 @@ var gThemePane = {
         break;
       case "click":
         switch (event.target.id) {
-          case "refreshWaterfoxCustomTheme":
-            this.refreshTheme();
-            break;
           case "waterfoxDefaults":
             this.preferences.map(pref => {
               Services.prefs.clearUserPref(pref.id);
