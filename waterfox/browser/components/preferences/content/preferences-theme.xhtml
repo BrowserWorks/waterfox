@@ -381,6 +381,7 @@
                 <label>
                     <html:h2 data-l10n-id="icons-header" />
                 </label>
+                <checkbox id="hideAllIcons" preference="userChrome.icon.disabled" data-l10n-id="hide-all-icons" />
                 <checkbox id="hideTabIcons" preference="userChrome.hidden.tab_icon" data-l10n-id="hide-tab-icons" />
                 <!-- <checkbox id="showMenuIcons" preference="userChrome.icon.menu.full" data-l10n-id="show-menu-icons" /> This does not do what one would expect, i.e. show/remove all icons -->
 #ifdef XP_MACOSX
@@ -410,8 +411,6 @@
                 </hbox>
             </vbox>
             <vbox id="waterfoxUserChromePresets">
-                <button id="refreshWaterfoxCustomTheme" is="highlightable-button"
-                    class="themepage-button check-theme-page-controlled" data-l10n-id="theme-refresh" />
                 <html:h2 style="-moz-box-flex: 1;" class="presets-header" data-l10n-id="preset-title" />
                 <button id="waterfoxDefaults" is="highlightable-button"
                     class="themepage-button check-theme-page-controlled" data-l10n-id="waterfox-defaults" />
