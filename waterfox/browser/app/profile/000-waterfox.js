@@ -170,15 +170,24 @@ pref("userChrome.theme.enable",                   true); // Original, Photon
 pref("userChrome.tab.connect_to_window",          true); // Original, Photon
 pref("userChrome.tab.color_like_toolbar",         true); // Original, Photon
 
-// pref("userChrome.tab.lepton_like_padding",     true); // Original
+pref("userChrome.tab.lepton_like_padding",       false); // Original
 pref("userChrome.tab.photon_like_padding",        true); // Photon
 
+pref("userChrome.tab.dynamic_separator",         false); // Original, Proton
 pref("userChrome.tab.static_separator",           true); // Photon
-// pref("userChrome.tab.static_separator.selected_accent", true); // Just option
+pref("userChrome.tab.static_separator.selected_accent", false); // Just option
 
+pref("userChrome.tab.newtab_button_like_tab",    false); // Original
 pref("userChrome.tab.newtab_button_smaller",      true); // Photon
+pref("userChrome.tab.newtab_button_proton",      false); // Proton
 
+pref("userChrome.icon.panel_full",               false); // Original, Proton
 pref("userChrome.icon.panel_photon",              true); // Photon
+pref("userChrome.icon.panel_sparse",             false); // Just option
+
+// Original Only
+pref("userChrome.tab.box_shadow",                false);
+pref("userChrome.tab.bottom_rounded_corner",     false);
 
 // Photon Only
 pref("userChrome.tab.photon_like_contextline",    true);
@@ -186,7 +195,6 @@ pref("userChrome.rounding.square_tab",            true);
 
 // == Theme Default Settings ===================================================
 // -- User Chrome --------------------------------------------------------------
-pref("userChrome.compatibility.accent_color", true);
 pref("userChrome.compatibility.theme",       true);
 pref("userChrome.compatibility.os",          true);
 
@@ -254,6 +262,10 @@ pref("userContent.page.proton_color",     true);
 pref("userContent.page.dark_mode",        true); // Need proton_color
 pref("userContent.page.proton",           true); // Need proton_color
 
+// ** Useful Options ***********************************************************
+// Integrated calculator at urlbar
+pref("browser.urlbar.suggest.calculator", true);
+
 // -- Hide promos -------------------------------------------------------------
 pref("browser.preferences.moreFromMozilla", false, locked);
 pref("browser.vpn_promo.enabled", false, locked);
@@ -261,10 +273,6 @@ pref("browser.promo.focus.enabled", false, locked);
 pref("browser.contentblocking.report.lockwise.enabled", false, locked);
 pref("browser.contentblocking.report.monitor.enabled", false, locked);
 pref("browser.contentblocking.report.show_mobile_app", false, locked);
-
-// ** Useful Options ***********************************************************
-// Integrated calculator at urlbar
-pref("browser.urlbar.suggest.calculator", true);
 
 // Extensibles prefs
 pref("browser.tabs.duplicateTab", true);
