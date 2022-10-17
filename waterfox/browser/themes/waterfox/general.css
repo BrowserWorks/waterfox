@@ -192,3 +192,8 @@
 #twolineMediaPlayerImage {
   content: url("chrome://browser/content/overlays/images/media_player.png");
 }
+
+/* Prevent any horizontal scrolling on about:preferences */
+.main-content {
+  overflow-x: hidden !important;
+}
