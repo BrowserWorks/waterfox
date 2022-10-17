@@ -68,7 +68,7 @@ const gPrivacyPaneOverlay = {
   loadImagesReadPref() {
     let enabledPref = Preferences.get("permissions.default.image");
     let liaCheckbox = document.getElementById("loadImages");
-    if (enabledPref.value) {
+    if (enabledPref.value === 1) {
       liaCheckbox.checked = true;
     } else {
       liaCheckbox.checked = false;
@@ -76,7 +76,7 @@ const gPrivacyPaneOverlay = {
   },
 
   syncToLoadImagesPref() {
-    let value = document.getElementById("loadImages").checked ? 1 : 0;
+    let value = document.getElementById("loadImages").checked ? 1 : 2;
     Services.prefs.setIntPref("permissions.default.image", value);
   },
 };
