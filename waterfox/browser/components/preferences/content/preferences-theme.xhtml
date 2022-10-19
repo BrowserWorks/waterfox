@@ -42,15 +42,17 @@
                     </div>
                 </hbox>
 
-                <hbox>
-                    <checkbox id="autoBlurTabs" preference="userChrome.autohide.tab.blur"
-                        data-l10n-id="auto-blur-tabs" />
+                <vbox class="indent">
+                    <hbox>
+                        <checkbox id="autoBlurTabs" preference="userChrome.autohide.tab.blur"
+                            data-l10n-id="auto-blur-tabs" />
 
-                    <div class="popup-container">
-                        <img class="preferences-info-button" />
-                        <img id="autoBlurTabsImage" class="info-popup" />
-                    </div>
-                </hbox>
+                        <div class="popup-container">
+                            <img class="preferences-info-button" />
+                            <img id="autoBlurTabsImage" class="info-popup" />
+                        </div>
+                    </hbox>
+                </vbox>
 
                 <hbox>
                     <checkbox id="autoHideTabBar" preference="userChrome.autohide.tabbar"
@@ -72,18 +74,20 @@
                     </div>
                 </hbox>
 
-                <hbox>
-                    <checkbox id="centerTabLabel" preference="userChrome.centered.tab.label"
-                        data-l10n-id="center-tab-label" />
+                <vbox class="indent">
+                    <hbox>
+                        <checkbox id="centerTabLabel" preference="userChrome.centered.tab.label"
+                            data-l10n-id="center-tab-label" />
 
-                    <div class="popup-container">
-                        <img class="preferences-info-button" />
-                        <img id="centerTabLabelImage" class="info-popup" />
-                    </div>
-                </hbox>
+                        <div class="popup-container">
+                            <img class="preferences-info-button" />
+                            <img id="centerTabLabelImage" class="info-popup" />
+                        </div>
+                    </hbox>
+                </vbox>
 
                 <hbox>
-                    <checkbox id="squareTabEdges" preference="userChrome.rounding.square_tab"
+                    <checkbox id="squareTabCorners" preference="userChrome.tab.squareTabCorners"
                         data-l10n-id="square-tab-edges" />
 
                     <div class="popup-container">
@@ -91,6 +95,9 @@
                         <img id="squareTabEdgesImage" class="info-popup" />
                     </div>
                 </hbox>
+
+                <checkbox id="tabContextLine" preference="userChrome.tab.photon_like_contextline"
+                    data-l10n-id="tab-context-line" />
 
                 <hbox>
                     <checkbox id="dragSpace" preference="userChrome.padding.drag_space" data-l10n-id="drag-space" />
