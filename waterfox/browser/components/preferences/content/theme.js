@@ -31,6 +31,9 @@ var gThemePane = {
       { id: "userChrome.centered.tab", type: "bool" },
       { id: "userChrome.centered.tab.label", type: "bool" },
       { id: "userChrome.rounding.square_tab", type: "bool" },
+      { id: "userChrome.tab.bottom_rounded_corner", type: "bool" },
+      { id: "userChrome.tab.photon_like_contextline", type: "bool" },
+      { id: "userChrome.tab.squareTabCorners", type: "bool" },
       { id: "userChrome.padding.drag_space", type: "bool" },
       { id: "userChrome.tab.close_button_at_hover", type: "bool" },
 
@@ -84,12 +87,26 @@ var gThemePane = {
     ];
   },
 
+  get nestedPrefs() {
+    return [
+      {
+        id: "autoBlurTabs",
+        pref: "userChrome.autohide.tab",
+      },
+      {
+        id: "centerTabLabel",
+        pref: "userChrome.centered.tab",
+      },
+    ];
+  },
+
   get presets() {
     return [
       {
         id: "smoothCorners",
         prefs: [
           { id: "userChrome.rounding.square_tab", value: false },
+          { id: "userChrome.tab.bottom_rounded_corner", value: true },
           { id: "userChrome.rounding.square_button", value: false },
           { id: "userChrome.rounding.square_panel", value: false },
           { id: "userChrome.rounding.square_panelitem", value: false },
@@ -103,6 +120,7 @@ var gThemePane = {
         id: "squareCorners",
         prefs: [
           { id: "userChrome.rounding.square_tab", value: true },
+          { id: "userChrome.tab.bottom_rounded_corner", value: false },
           { id: "userChrome.rounding.square_button", value: true },
           { id: "userChrome.rounding.square_panel", value: true },
           { id: "userChrome.rounding.square_panelitem", value: true },
@@ -161,8 +179,8 @@ var gThemePane = {
         prefs: [
           { id: "userChrome.padding.drag_space", value: false },
           { id: "userChrome.padding.urlView_expanding", value: false },
-          { id: "userChrome.padding.menu_compact", value: false },
-          { id: "userChrome.padding.bookmark_menu.compact", value: false },
+          { id: "userChrome.padding.menu_compact", value: true },
+          { id: "userChrome.padding.bookmark_menu.compact", value: true },
           { id: "userChrome.padding.panel_header", value: false },
         ],
       },
@@ -171,8 +189,8 @@ var gThemePane = {
         prefs: [
           { id: "userChrome.padding.drag_space", value: true },
           { id: "userChrome.padding.urlView_expanding", value: true },
-          { id: "userChrome.padding.menu_compact", value: true },
-          { id: "userChrome.padding.bookmark_menu.compact", value: true },
+          { id: "userChrome.padding.menu_compact", value: false },
+          { id: "userChrome.padding.bookmark_menu.compact", value: false },
           { id: "userChrome.padding.panel_header", value: true },
         ],
       },
@@ -236,6 +254,14 @@ var gThemePane = {
       );
     }
 
+    // Init Tab Rounding
+    this.initTabRounding();
+
+    // Init Nested Prefs
+    for (let el of this.nestedPrefs) {
+      this.initNestedPrefs(el.id, el.pref);
+    }
+
     // Register unload listener
     window.addEventListener("unload", this);
   },
@@ -290,5 +316,59 @@ var gThemePane = {
     let url = Services.io.newURI(uri);
     let type = styleSheetService.USER_SHEET;
     styleSheetService.unregisterSheet(url, type);
+  },
+
+  async initTabRounding() {
+    let checkbox = document.getElementById("squareTabCorners");
+    // If it doesn't exist yet, try again.
+    while (!checkbox) {
+      const wait = ms => new Promise(res => setTimeout(res, ms, {}));
+      await wait(500);
+      checkbox = document.getElementById("squareTabCorners");
+    }
+
+    // Update the checkbox initially, and observe pref changes.
+    this.updateTabRoundingCheckbox();
+    this._prefObservers.push(
+      PrefUtils.addObserver("userChrome.tab.squareTabCorners", square => {
+        PrefUtils.set("userChrome.rounding.square_tab", square);
+        PrefUtils.set("userChrome.tab.bottom_rounded_corner", !square);
+      })
+    );
+  },
+
+  updateTabRoundingCheckbox() {
+    let checkbox = document.getElementById("squareTabCorners");
+    const enabled = PrefUtils.get(
+      "userChrome.tab.squareTabCorners",
+      PrefUtils.get("userChrome.rounding.square_tab", false) &&
+        PrefUtils.set("userChrome.tab.bottom_rounded_corner", true)
+    );
+
+    checkbox.checked = enabled;
+  },
+
+  async initNestedPrefs(id, controllingPref) {
+    let checkbox = document.getElementById(id);
+    // If it doesn't exist yet, try again.
+    while (!checkbox) {
+      const wait = ms => new Promise(res => setTimeout(res, ms, {}));
+      await wait(500);
+      checkbox = document.getElementById(id);
+    }
+    const enabled = PrefUtils.get(controllingPref, false);
+
+    checkbox.setAttribute("disabled", !enabled);
+
+    this._prefObservers.push(
+      PrefUtils.addObserver(controllingPref, (enabled, pref) => {
+        // We need this as observer fires for pref and pref.<some sub path>
+        if (pref !== controllingPref) {
+          return;
+        }
+        const checkbox = document.getElementById(id);
+        checkbox.setAttribute("disabled", !enabled);
+      })
+    );
   },
 };
