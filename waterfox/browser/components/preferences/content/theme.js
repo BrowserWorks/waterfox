@@ -105,8 +105,7 @@ var gThemePane = {
       {
         id: "smoothCorners",
         prefs: [
-          { id: "userChrome.rounding.square_tab", value: false },
-          { id: "userChrome.tab.bottom_rounded_corner", value: true },
+          { id: "userChrome.tab.squareTabCorners", value: false },
           { id: "userChrome.rounding.square_button", value: false },
           { id: "userChrome.rounding.square_panel", value: false },
           { id: "userChrome.rounding.square_panelitem", value: false },
@@ -119,8 +118,7 @@ var gThemePane = {
       {
         id: "squareCorners",
         prefs: [
-          { id: "userChrome.rounding.square_tab", value: true },
-          { id: "userChrome.tab.bottom_rounded_corner", value: false },
+          { id: "userChrome.tab.squareTabCorners", value: true },
           { id: "userChrome.rounding.square_button", value: true },
           { id: "userChrome.rounding.square_panel", value: true },
           { id: "userChrome.rounding.square_panelitem", value: true },
