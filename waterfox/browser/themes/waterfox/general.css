@@ -53,6 +53,7 @@
     bottom: 125%;
     left: 50%;
     margin-left: -80px;
+    max-height: 400px;
 }
 
 .popup-container .show {
@@ -73,15 +74,11 @@
 }
 
 #autoHideTabsImage {
-  content: url("chrome://browser/content/overlays/images/autohide_tab.gif");
+  content: url("chrome://browser/content/overlays/images/autohide_tab.png");
 }
 
 #autoBlurTabsImage {
-  content: url("chrome://browser/content/overlays/images/autoblur_tab.gif");
-}
-
-#autoHideTabBarImage {
-  content: url("chrome://browser/content/overlays/images/autohide_tabbar.gif");
+  content: url("chrome://browser/content/overlays/images/autoblur_tab.png");
 }
 
 #centerTabContentImage {
@@ -96,10 +93,6 @@
   content: url("chrome://browser/content/overlays/images/tab_square.png");
 }
 
-#smoothTabEdgesImage {
-  content: url("chrome://browser/content/overlays/images/tab_normal.png");
-}
-
 #dragSpaceImage {
   content: url("chrome://browser/content/overlays/images/drag_space.png");
 }
@@ -109,15 +102,11 @@
 }
 
 #autoHideBackImage {
-  content: url("chrome://browser/content/overlays/images/autohide_back.gif");
+  content: url("chrome://browser/content/overlays/images/autohide_back.png");
 }
 
 #autoHideForwardImage {
-  content: url("chrome://browser/content/overlays/images/autohide_forward.gif");
-}
-
-#autoHidePageActionImage {
-  content: url("chrome://browser/content/overlays/images/autohide_pageaction.gif");
+  content: url("chrome://browser/content/overlays/images/autohide_forward.png");
 }
 
 #hideNavBarIconBoxImage {
@@ -129,11 +118,7 @@
 }
 
 #squareButtonEdgesImage {
-  content: url("chrome://browser/content/overlays/images/square_button_compare.png");
-}
-
-#autoHideBookmarkBarImage {
-  content: url("chrome://browser/content/overlays/images/autohide_bookmarksbar.gif");
+  content: url("chrome://browser/content/overlays/images/square_button.png");
 }
 
 #hideBookmbarkBarIconImage {
@@ -176,12 +161,8 @@
   content: url("chrome://browser/content/overlays/images/full_panel_separator.png");
 }
 
-#disableSidebarAnimateImage {
-  content: url("chrome://browser/content/overlays/images/sidebar_no_animate.gif");
-}
-
 #autoHideSidebarImage {
-  content: url("chrome://browser/content/overlays/images/autohide_sidebar.gif");
+  content: url("chrome://browser/content/overlays/images/autohide_sidebar.png");
 }
 
 #hideSidebarHeaderImage {
@@ -192,8 +173,8 @@
   content: url("chrome://browser/content/overlays/images/mac_icons.png");
 }
 
-#twolineMediaPlayerImage {
-  content: url("chrome://browser/content/overlays/images/media_player.png");
+#contextLineImage {
+  content: url("chrome://browser/content/overlays/images/tab_contextline.png");
 }
 
 /* Prevent any horizontal scrolling on about:preferences */
