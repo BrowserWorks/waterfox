@@ -136,10 +136,6 @@
   content: url("chrome://browser/content/overlays/images/autohide_bookmarksbar.gif");
 }
 
-#centerBookmarkBarItemsImage {
-  content: url("chrome://browser/content/overlays/images/bookmarkbar_centered.png");
-}
-
 #hideBookmbarkBarIconImage {
   content: url("chrome://browser/content/overlays/images/bookmarkbar_label.png");
 }
