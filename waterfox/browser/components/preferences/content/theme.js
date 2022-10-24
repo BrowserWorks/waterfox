@@ -138,6 +138,7 @@ var gThemePane = {
           { id: "userChrome.autohide.page_action", value: true },
           { id: "userChrome.autohide.bookmarkbar", value: true },
           { id: "userChrome.autohide.sidebar", value: true },
+          { id: "userChrome.hidden.urlbar_iconbox", value: true },
         ],
       },
       {
@@ -151,6 +152,7 @@ var gThemePane = {
           { id: "userChrome.autohide.page_action", value: false },
           { id: "userChrome.autohide.bookmarkbar", value: false },
           { id: "userChrome.autohide.sidebar", value: false },
+          { id: "userChrome.hidden.urlbar_iconbox", value: false },
         ],
       },
       {
