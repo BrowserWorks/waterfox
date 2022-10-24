@@ -77,12 +77,9 @@ var gThemePane = {
       { id: "userChrome.icon.menu.full", type: "bool" },
       { id: "userChrome.icon.global_menu.mac", type: "bool" },
 
-      // Media Player
-      { id: "userContent.player.ui.twoline", type: "bool" },
-
       // Font
       { id: "userContent.page.monospace", type: "bool" },
-      { id: "userContent.theme.monospace", type: "bool" },
+      { id: "userChrome.theme.monospace", type: "bool" },
     ];
   },
 
