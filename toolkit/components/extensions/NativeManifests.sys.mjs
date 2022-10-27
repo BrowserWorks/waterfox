@@ -42,8 +42,12 @@ export var NativeManifests = {
         this._lookup = this._winLookup;
       } else if (platform == "macosx" || platform == "linux") {
         let dirs = [
-          Services.dirsvc.get("XREUserNativeManifests", Ci.nsIFile).path,
-          Services.dirsvc.get("XRESysNativeManifests", Ci.nsIFile).path,
+          Services.dirsvc
+            .get("XREUserNativeManifests", Ci.nsIFile)
+            .path.replace("Waterfox", "Mozilla"),
+          Services.dirsvc
+            .get("XRESysNativeManifests", Ci.nsIFile)
+            .path.replace("Waterfox", "Mozilla"),
         ];
         this._lookup = (type, name, context) =>
           this._tryPaths(type, name, dirs, context);
