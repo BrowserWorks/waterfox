@@ -1,14 +1,12 @@
-"use strict";
+const { synthesizeDrop, synthesizeMouseAtCenter } = EventUtils;
 
-var { synthesizeDrop, synthesizeMouseAtCenter } = EventUtils;
-
-const STATUSBAR_ENABLED_PREF = "browser.statusbar.enabled";
+const _STATUSBAR_ENABLED_PREF = "browser.statusbar.enabled";
 
 /**
  * Helper for opening toolbar context menu.
  */
-async function openToolbarContextMenu(contextMenu, target) {
-  let popupshown = BrowserTestUtils.waitForEvent(contextMenu, "popupshown");
+async function _openToolbarContextMenu(contextMenu, target) {
+  const popupshown = BrowserTestUtils.waitForEvent(contextMenu, "popupshown");
   EventUtils.synthesizeMouseAtCenter(target, { type: "contextmenu" });
   await popupshown;
 }
@@ -17,11 +15,11 @@ async function openToolbarContextMenu(contextMenu, target) {
  * Helpers for Customizable UI
  */
 
-function startCustomizing(aWindow = window) {
-  if (aWindow.document.documentElement.getAttribute("customizing") == "true") {
+function _startCustomizing(aWindow = window) {
+  if (aWindow.document.documentElement.getAttribute("customizing") === "true") {
     return null;
   }
-  let customizationReadyPromise = BrowserTestUtils.waitForEvent(
+  const customizationReadyPromise = BrowserTestUtils.waitForEvent(
     aWindow.gNavToolbox,
     "customizationready"
   );
@@ -29,11 +27,11 @@ function startCustomizing(aWindow = window) {
   return customizationReadyPromise;
 }
 
-function endCustomizing(aWindow = window) {
-  if (aWindow.document.documentElement.getAttribute("customizing") != "true") {
+function _endCustomizing(aWindow = window) {
+  if (aWindow.document.documentElement.getAttribute("customizing") !== "true") {
     return true;
   }
-  let afterCustomizationPromise = BrowserTestUtils.waitForEvent(
+  const afterCustomizationPromise = BrowserTestUtils.waitForEvent(
     aWindow.gNavToolbox,
     "aftercustomization"
   );
@@ -41,8 +39,8 @@ function endCustomizing(aWindow = window) {
   return afterCustomizationPromise;
 }
 
-function assertAreaPlacements(areaId, expectedPlacements) {
-  let actualPlacements = getAreaWidgetIds(areaId);
+function _assertAreaPlacements(areaId, expectedPlacements) {
+  const actualPlacements = getAreaWidgetIds(areaId);
   placementArraysEqual(areaId, actualPlacements, expectedPlacements);
 }
 
@@ -51,32 +49,25 @@ function getAreaWidgetIds(areaId) {
 }
 
 function placementArraysEqual(areaId, actualPlacements, expectedPlacements) {
-  info("Actual placements: " + actualPlacements.join(", "));
-  info("Expected placements: " + expectedPlacements.join(", "));
+  info(`Actual placements: ${actualPlacements.join(", ")}`);
+  info(`Expected placements: ${expectedPlacements.join(", ")}`);
   is(
     actualPlacements.length,
     expectedPlacements.length,
-    "Area " + areaId + " should have " + expectedPlacements.length + " items."
+    `Area ${areaId} should have ${expectedPlacements.length} items.`
   );
-  let minItems = Math.min(expectedPlacements.length, actualPlacements.length);
+  const minItems = Math.min(expectedPlacements.length, actualPlacements.length);
   for (let i = 0; i < minItems; i++) {
-    if (typeof expectedPlacements[i] == "string") {
+    if (typeof expectedPlacements[i] === "string") {
       is(
         actualPlacements[i],
         expectedPlacements[i],
-        "Item " + i + " in " + areaId + " should match expectations."
+        `Item ${i} in ${areaId} should match expectations.`
       );
     } else if (expectedPlacements[i] instanceof RegExp) {
       ok(
         expectedPlacements[i].test(actualPlacements[i]),
-        "Item " +
-          i +
-          " (" +
-          actualPlacements[i] +
-          ") in " +
-          areaId +
-          " should match " +
-          expectedPlacements[i]
+        `Item ${i} (${actualPlacements[i]}) in ${areaId} should match ${expectedPlacements[i]}`
       );
     } else {
       ok(
@@ -88,13 +79,13 @@ function placementArraysEqual(areaId, actualPlacements, expectedPlacements) {
   }
 }
 
-function simulateItemDrag(aToDrag, aTarget, aEvent = {}, aOffset = 2) {
+function _simulateItemDrag(aToDrag, aTarget, aEvent = {}, aOffset = 2) {
   let ev = aEvent;
-  if (ev == "end" || ev == "start") {
-    let win = aTarget.ownerGlobal;
+  if (ev === "end" || ev === "start") {
+    const win = aTarget.ownerGlobal;
     const dwu = win.windowUtils;
-    let bounds = dwu.getBoundsWithoutFlushing(aTarget);
-    if (ev == "end") {
+    const bounds = dwu.getBoundsWithoutFlushing(aTarget);
+    if (ev === "end") {
       ev = {
         clientX: bounds.right - aOffset,
         clientY: bounds.bottom - aOffset,

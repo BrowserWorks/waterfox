@@ -2,30 +2,25 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["StatusBar"];
+const lazy = {};
 
-const { CustomizableUI } = ChromeUtils.import(
-  "resource:///modules/CustomizableUI.jsm"
-);
+ChromeUtils.defineESModuleGetters(lazy, {
+  CustomizableUI: "resource:///modules/CustomizableUI.sys.mjs",
+  BrowserUtils: "resource:///modules/BrowserUtils.sys.mjs",
+  PrefUtils: "resource:///modules/PrefUtils.sys.mjs",
+  setTimeout: "resource://gre/modules/Timer.sys.mjs",
+});
 
-const { setTimeout } = ChromeUtils.import("resource://gre/modules/Timer.jsm");
-
-const { PrefUtils } = ChromeUtils.import("resource:///modules/PrefUtils.jsm");
-
-const { BrowserUtils } = ChromeUtils.import(
-  "resource:///modules/BrowserUtils.jsm"
-);
-
-const StatusBar = {
+export const StatusBar = {
   PREF_ENABLED: "browser.statusbar.enabled",
   PREF_STATUSTEXT: "browser.statusbar.appendStatusText",
 
   get enabled() {
-    return PrefUtils.get(this.PREF_ENABLED);
+    return lazy.PrefUtils.get(this.PREF_ENABLED);
   },
 
   get showLinks() {
-    return PrefUtils.get(this.PREF_STATUSTEXT);
+    return lazy.PrefUtils.get(this.PREF_STATUSTEXT);
   },
 
   get textInBar() {
@@ -37,7 +32,8 @@ const StatusBar = {
      @-moz-document url('chrome://browser/content/browser.xhtml') {
        #status-bar {
            color: initial !important;
-           background-color: var(--toolbar-non-lwt-bgcolor) !important;
+           border-top: 1px solid var(--chrome-content-separator-color);
+           background-color: var(--toolbar-bgcolor);
          }
          :root[customizing] #status-bar {
            visibility: visible !important;
@@ -53,12 +49,30 @@ const StatusBar = {
            border-radius: 3px !important;
            font-weight: bold !important;
          }
-         #status-bar > #status-text {
+         #wrapper-status-text > #status-text > #statuspanel-label {
+           display: none;
+         }
+         #status-bar #status-text {
            display: flex !important;
            justify-content: center !important;
-           align-content: center !important;
-           flex-direction: column !important;
+           align-items: center !important;
+           height: calc(2 * var(--toolbarbutton-inner-padding) + 16px);
          }
+         toolbarpaletteitem #status-text:before {
+           content: "Status text";
+           color: red;
+           border: 1px #aaa solid;
+           border-radius: 3px;
+           font-weight: bold;
+           display: flex;
+           justify-content: center;
+           align-content: center;
+           flex-direction: column;
+           align-items: center;
+           margin-inline: var(--toolbarbutton-outer-padding);
+           width: 100%;
+           height: 100%;
+        }
          /* Ensure text color of status bar widgets set correctly */
          toolbar .toolbarbutton-1 {
            color: var(--toolbarbutton-icon-fill) !important;
@@ -69,7 +83,7 @@ const StatusBar = {
 
   init(window) {
     if (!window.document.getElementById("status-dummybar")) {
-      setTimeout(() => {
+      lazy.setTimeout(() => {
         this.init(window);
       }, 25);
     } else if (!window.statusbar.node) {
@@ -79,86 +93,87 @@ const StatusBar = {
       this.configureBottomBox(window);
       this.initPrefListeners();
       this.registerArea(window, "status-bar");
-      BrowserUtils.setStyle(this.style);
+      lazy.BrowserUtils.setStyle(this.style);
     }
   },
 
   async initPrefListeners() {
-    this.enabledListener = PrefUtils.addObserver(
+    this.enabledListener = lazy.PrefUtils.addObserver(
       this.PREF_ENABLED,
-      isEnabled => {
+      (isEnabled) => {
         this.setStatusBarVisibility(isEnabled);
         this.setStatusTextVisibility();
       }
     );
-    this.textListener = PrefUtils.addObserver(
+    this.textListener = lazy.PrefUtils.addObserver(
       this.PREF_STATUSTEXT,
-      isEnabled => {
+      (_isEnabled) => {
         this.setStatusTextVisibility();
       }
     );
   },
 
   async setStatusBarVisibility(isEnabled) {
-    CustomizableUI.getWidget("status-dummybar").instances.forEach(dummyBar => {
+    const instances =
+      lazy.CustomizableUI.getWidget("status-dummybar").instances;
+    for (const dummyBar of instances) {
       dummyBar.node.setAttribute("collapsed", !isEnabled);
-    });
+    }
   },
-
   async setStatusTextVisibility() {
     if (this.enabled && this.showLinks) {
       // Status bar enabled and want to display links in it
-      this.executeInAllWindows(window => {
-        let StatusPanel = window.StatusPanel;
+      this.executeInAllWindows((window) => {
+        const StatusPanel = window.StatusPanel;
         window.statusbar.textNode.appendChild(StatusPanel._labelElement);
       });
     } else if (!this.enabled && this.showLinks) {
       // Status bar disabled so display links in StatusPanel
-      this.executeInAllWindows(window => {
-        let StatusPanel = window.StatusPanel;
-        StatusPanel.panel.firstChild.appendChild(StatusPanel._labelElement);
+      this.executeInAllWindows((window) => {
+        const StatusPanel = window.StatusPanel;
+        StatusPanel.panel.appendChild(StatusPanel._labelElement);
         StatusPanel.panel.firstChild.hidden = false;
       });
     } else {
       // Don't display links
-      this.executeInAllWindows(window => {
-        let StatusPanel = window.StatusPanel;
-        StatusPanel.panel.firstChild.appendChild(StatusPanel._labelElement);
+      this.executeInAllWindows((window) => {
+        const StatusPanel = window.StatusPanel;
+        StatusPanel.panel.appendChild(StatusPanel._labelElement);
         StatusPanel.panel.firstChild.hidden = true;
       });
     }
   },
 
   async registerArea(aWindow, aArea) {
-    if (!CustomizableUI.areas.includes("status-bar")) {
-      CustomizableUI.registerArea(aArea, {
-        type: CustomizableUI.TYPE_TOOLBAR,
-        defaultPlacements: [
-          "screenshot-button",
-          "zoom-controls",
-          "fullscreen-button",
-        ],
+    if (!lazy.CustomizableUI.areas.includes("status-bar")) {
+      lazy.CustomizableUI.registerArea(aArea, {
+        type: lazy.CustomizableUI.TYPE_TOOLBAR,
+        defaultPlacements: ["screenshot-button", "fullscreen-button"],
       });
-      let tb = aWindow.document.getElementById("status-dummybar");
-      CustomizableUI.registerToolbarNode(tb);
+      const tb = aWindow.document.getElementById("status-dummybar");
+      lazy.CustomizableUI.registerToolbarNode(tb);
     }
   },
 
   async configureDummyBar(aWindow, aId) {
-    let { document } = aWindow;
-    let el = document.getElementById(aId);
+    const { document } = aWindow;
+    const el = document.getElementById(aId);
     el.collapsed = !this.enabled;
-    el.setAttribute = function(att, value) {
-      let result = Element.prototype.setAttribute.apply(this, arguments);
+    el.setAttribute = function (att, value, ...rest) {
+      const result = Element.prototype.setAttribute.apply(this, [
+        att,
+        value,
+        ...rest,
+      ]);
 
-      if (att == "collapsed") {
-        let StatusPanel = aWindow.StatusPanel;
+      if (att === "collapsed") {
+        const StatusPanel = aWindow.StatusPanel;
         if (value === true) {
-          PrefUtils.set(StatusBar.PREF_ENABLED, false);
+          lazy.PrefUtils.set(StatusBar.PREF_ENABLED, false);
           aWindow.statusbar.node.setAttribute("collapsed", true);
-          StatusPanel.panel.firstChild.appendChild(StatusPanel._labelElement);
+          StatusPanel.panel.appendChild(StatusPanel._labelElement);
         } else {
-          PrefUtils.set(StatusBar.PREF_ENABLED, true);
+          lazy.PrefUtils.set(StatusBar.PREF_ENABLED, true);
           aWindow.statusbar.node.setAttribute("collapsed", false);
           if (StatusBar.textInBar) {
             aWindow.statusbar.textNode.appendChild(StatusPanel._labelElement);
@@ -171,7 +186,7 @@ const StatusBar = {
   },
 
   configureStatusBar(aWindow) {
-    let StatusPanel = aWindow.StatusPanel;
+    const StatusPanel = aWindow.StatusPanel;
     aWindow.statusbar.node = aWindow.document.getElementById("status-bar");
     aWindow.statusbar.textNode = aWindow.document.getElementById("status-text");
     if (this.textInBar) {
@@ -182,32 +197,32 @@ const StatusBar = {
   },
 
   async overrideStatusPanelLabel(aWindow) {
-    // eslint-disable-next-line no-unused-vars
-    let { StatusPanel, MousePosTracker } = aWindow;
-    // eslint-disable-next-line no-unused-vars
-    let window = aWindow;
-    // TODO: Should be able to do this with a WrappedJSObject instead
-    // eslint-disable-next-line no-eval
-    eval(
-      'Object.defineProperty(StatusPanel, "_label", {' +
-        Object.getOwnPropertyDescriptor(StatusPanel, "_label")
-          .set.toString()
-          .replace(/^set _label/, "set")
-          .replace(
-            /((\s+)this\.panel\.setAttribute\("inactive", "true"\);)/,
-            "$2this._labelElement.value = val;$1"
-          ) +
-        ", enumerable: true, configurable: true});"
-    );
+    const { StatusPanel } = aWindow.wrappedJSObject;
+
+    const originalSetter = Object.getOwnPropertyDescriptor(
+      StatusPanel,
+      "_label"
+    ).set;
+
+    Object.defineProperty(StatusPanel, "_label", {
+      set(val) {
+        if (this._labelElement) {
+          this._labelElement.value = val;
+        }
+        originalSetter.call(this, val);
+      },
+      enumerable: true,
+      configurable: true,
+    });
   },
 
   async configureBottomBox(aWindow) {
-    let { document } = aWindow;
-    let bottomBox = document.getElementById("browser-bottombox");
-    CustomizableUI.registerToolbarNode(aWindow.statusbar.node);
+    const { document } = aWindow;
+    const bottomBox = document.getElementById("browser-bottombox");
+    lazy.CustomizableUI.registerToolbarNode(aWindow.statusbar.node);
     bottomBox.appendChild(aWindow.statusbar.node);
   },
 };
 
 // Inherited props
-StatusBar.executeInAllWindows = BrowserUtils.executeInAllWindows;
+StatusBar.executeInAllWindows = lazy.BrowserUtils.executeInAllWindows;
