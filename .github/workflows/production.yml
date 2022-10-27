@@ -180,7 +180,7 @@ jobs:
           for OS in "${OSA[@]}"
           do
             mkdir -p aus_tmp/"$OS"/
-            rclone copyto :s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/"$OS"/update.xml ./aus_tmp/"$OS"/update.xml
+            rclone copyto :s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/"$OS"/update.xml ./aus_tmp/"$OS"/update.xml --s3-decompress
             sed -i 's/staging/releases/g' ./aus_tmp/"$OS"/update.xml
           done
           for VER in $(rclone lsf --dirs-only :s3:aus/update/production/${{ env.CHANNEL }} | awk -v RS= '{$1=$1}1' | sed 's|/||g')
@@ -191,7 +191,7 @@ jobs:
                   then
                       for OS in "${OSA[@]}"
                       do
-                          rclone copyto ./aus_tmp/"$OS"/update.xml :s3:aus/update/production/${{ env.CHANNEL }}/"$VER"/"$OS"/update.xml
+                          rclone copyto ./aus_tmp/"$OS"/update.xml :s3:aus/update/production/${{ env.CHANNEL }}/"$VER"/"$OS"/update.xml --s3-decompress
                       done
                   fi
               fi
