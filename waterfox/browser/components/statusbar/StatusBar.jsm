@@ -133,11 +133,7 @@ const StatusBar = {
     if (!CustomizableUI.areas.includes("status-bar")) {
       CustomizableUI.registerArea(aArea, {
         type: CustomizableUI.TYPE_TOOLBAR,
-        defaultPlacements: [
-          "screenshot-button",
-          "zoom-controls",
-          "fullscreen-button",
-        ],
+        defaultPlacements: ["screenshot-button", "fullscreen-button"],
       });
       let tb = aWindow.document.getElementById("status-dummybar");
       CustomizableUI.registerToolbarNode(tb);
