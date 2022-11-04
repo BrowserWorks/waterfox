@@ -6,6 +6,7 @@ cd $(dirname $0)
 
 ## Download latest release, override icons and CSS
 mkdir -p tmp
+## curl -LJ https://github.com/black7375/Firefox-UI-Fix/tarball/master | tar -zxf - --strip 1 -C tmp
 curl -LJ `curl -s https://api.github.com/repos/black7375/Firefox-UI-Fix/releases/latest | python3  -c 'import sys, json; print(json.load(sys.stdin)["tarball_url"])'` | tar -zxf - --strip 1 -C tmp
 mv -f tmp/icons/* icons
 mv -f tmp/css/leptonChrome.css leptonChrome.css
