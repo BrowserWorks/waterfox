@@ -89,7 +89,7 @@
                 </hbox>
                 <hbox>
                     <checkbox id="tabContextLine" preference="userChrome.tab.photon_like_contextline"
-                    data-l10n-id="tab-context-line" />
+                        data-l10n-id="tab-context-line" />
 
                     <div class="popup-container">
                         <img class="preferences-info-button" />
@@ -269,7 +269,7 @@
                 </hbox>
 
                 <!-- MacOS uses native context menus, so we cannot modify them with userChrome. Moz listed allowing this as a WONTFIX. -->
-                #ifndef XP_MACOSX
+#ifndef XP_MACOSX
                 <hbox>
                     <checkbox id="squareMenuPopup" preference="userChrome.rounding.square_menupopup"
                         data-l10n-id="square-menu-popup" />
@@ -283,7 +283,7 @@
 
                 <checkbox id="squareMenuItem" preference="userChrome.rounding.square_menuitem"
                     data-l10n-id="square-menu-item" />
-                #endif
+#endif
 
                 <hbox>
                     <vbox>
@@ -378,22 +378,17 @@
                 <html:h2 style="-moz-box-flex: 1;" class="presets-header" data-l10n-id="preset-title" />
                 <button id="waterfoxDefaults" is="highlightable-button"
                     class="themepage-button check-theme-page-controlled" data-l10n-id="waterfox-defaults" />
-                <button id="smoothCorners" is="highlightable-button"
-                    class="themepage-button check-theme-page-controlled" data-l10n-id="smooth-corners" />
-                <button id="squareCorners" is="highlightable-button"
-                    class="themepage-button check-theme-page-controlled" data-l10n-id="square-corners" />
-                <button id="autohideAll" is="highlightable-button" class="themepage-button check-theme-page-controlled"
-                    data-l10n-id="autohide-all" />
-                <button id="autohideNone" is="highlightable-button" class="themepage-button check-theme-page-controlled"
-                    data-l10n-id="autohide-none" />
-                <button id="centerAll" is="highlightable-button" class="themepage-button check-theme-page-controlled"
-                    data-l10n-id="center-all" />
-                <button id="centerNone" is="highlightable-button" class="themepage-button check-theme-page-controlled"
-                    data-l10n-id="center-none" />
-                <button id="reducePadding" is="highlightable-button"
-                    class="themepage-button check-theme-page-controlled" data-l10n-id="reduce-padding" />
-                <button id="increasePadding" is="highlightable-button"
-                    class="themepage-button check-theme-page-controlled" data-l10n-id="increase-padding" />
+                <button id="roundedCorners" is="highlightable-button"
+                    class="themepage-button check-theme-page-controlled" data-l10n-id="rounded-corners"
+                    data-l10n-args="{&quot;isRounded&quot;:true}" />
+                <button id="autohideElements" is="highlightable-button"
+                    class="themepage-button check-theme-page-controlled" data-l10n-id="autohide-all"
+                    data-l10n-args="{&quot;isAutohide&quot;:true}" />
+                <button id="centerElements" is="highlightable-button"
+                    class="themepage-button check-theme-page-controlled" data-l10n-id="center-all"
+                    data-l10n-args="{&quot;isCentered&quot;:true}" />
+                <button id="padElements" is="highlightable-button" class="themepage-button check-theme-page-controlled"
+                    data-l10n-id="reduce-padding" data-l10n-args="{&quot;isPadded&quot;:true}" />
             </vbox>
         </hbox>
 
