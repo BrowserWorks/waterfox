@@ -99,8 +99,8 @@ var gThemePane = {
   get presets() {
     return [
       {
-        id: "smoothCorners",
-        prefs: [
+        id: "roundedCorners",
+        on: [
           { id: "userChrome.tab.squareTabCorners", value: false },
           { id: "userChrome.rounding.square_button", value: false },
           { id: "userChrome.rounding.square_panel", value: false },
@@ -110,10 +110,7 @@ var gThemePane = {
           { id: "userChrome.rounding.square_field", value: false },
           { id: "userChrome.rounding.square_checklabel", value: false },
         ],
-      },
-      {
-        id: "squareCorners",
-        prefs: [
+        off: [
           { id: "userChrome.tab.squareTabCorners", value: true },
           { id: "userChrome.rounding.square_button", value: true },
           { id: "userChrome.rounding.square_panel", value: true },
@@ -125,8 +122,8 @@ var gThemePane = {
         ],
       },
       {
-        id: "autohideAll",
-        prefs: [
+        id: "autohideElements",
+        on: [
           { id: "userChrome.autohide.tab", value: true },
           { id: "userChrome.autohide.tab.blur", value: true },
           { id: "userChrome.autohide.tabbar", value: true },
@@ -137,10 +134,7 @@ var gThemePane = {
           { id: "userChrome.autohide.sidebar", value: true },
           { id: "userChrome.hidden.urlbar_iconbox", value: true },
         ],
-      },
-      {
-        id: "autohideNone",
-        prefs: [
+        off: [
           { id: "userChrome.autohide.tab", value: false },
           { id: "userChrome.autohide.tab.blur", value: false },
           { id: "userChrome.autohide.tabbar", value: false },
@@ -153,39 +147,33 @@ var gThemePane = {
         ],
       },
       {
-        id: "centerAll",
-        prefs: [
+        id: "centerElements",
+        on: [
           { id: "userChrome.centered.tab", value: true },
           { id: "userChrome.centered.tab.label", value: true },
           { id: "userChrome.centered.urlbar", value: true },
         ],
-      },
-      {
-        id: "centerNone",
-        prefs: [
+        off: [
           { id: "userChrome.centered.tab", value: false },
           { id: "userChrome.centered.tab.label", value: false },
           { id: "userChrome.centered.urlbar", value: false },
         ],
       },
       {
-        id: "reducePadding",
-        prefs: [
+        id: "padElements",
+        on: [
           { id: "userChrome.padding.drag_space", value: false },
-          { id: "userChrome.padding.urlView_expanding", value: false },
+          { id: "userChrome.padding.urlView_expanding", value: true },
           { id: "userChrome.padding.menu_compact", value: true },
           { id: "userChrome.padding.bookmark_menu.compact", value: true },
-          { id: "userChrome.padding.panel_header", value: false },
+          { id: "userChrome.padding.panel_header", value: true },
         ],
-      },
-      {
-        id: "increasePadding",
-        prefs: [
+        off: [
           { id: "userChrome.padding.drag_space", value: true },
-          { id: "userChrome.padding.urlView_expanding", value: true },
+          { id: "userChrome.padding.urlView_expanding", value: false },
           { id: "userChrome.padding.menu_compact", value: false },
           { id: "userChrome.padding.bookmark_menu.compact", value: false },
-          { id: "userChrome.padding.panel_header", value: true },
+          { id: "userChrome.padding.panel_header", value: false },
         ],
       },
     ];
@@ -207,8 +195,25 @@ var gThemePane = {
     for (let preset of this.presets) {
       let button = document.getElementById(preset.id);
       if (button) {
-        button.addEventListener("click", () => {
-          for (let pref of preset.prefs) {
+        button.addEventListener("click", event => {
+          const target = event.target.getAttribute("data-l10n-args");
+          if (!target) {
+            // Something has gone wrong as all our event targets should
+            // have a data-l10n-args attr.
+            return;
+          }
+
+          const [presetKey, presetValue] = Object.entries(
+            JSON.parse(target)
+          )[0];
+          event.target.setAttribute(
+            "data-l10n-args",
+            JSON.stringify({ [presetKey]: !presetValue })
+          );
+
+          // If the button is initially true, we want to set the
+          // false preset values.
+          for (let pref of preset[presetValue ? "off" : "on"]) {
             PrefUtils.set(pref.id, pref.value);
           }
         });
