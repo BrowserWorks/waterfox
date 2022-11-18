@@ -199,7 +199,7 @@ pref("userChrome.compatibility.accent_color", true, locked); // ESR102 Compatibi
 pref("userChrome.compatibility.theme",       true);
 pref("userChrome.compatibility.os",          true);
 // Required so users can select tabs from top of maximized window.
-pref("userChrome.compatibility.os.windows_maximized",          true);
+pref("userChrome.compatibility.os.windows_maximized",          false);
 
 pref("userChrome.theme.built_in_contrast",   true);
 pref("userChrome.theme.system_default",      true);
