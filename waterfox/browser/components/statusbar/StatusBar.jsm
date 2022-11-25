@@ -37,7 +37,8 @@ const StatusBar = {
      @-moz-document url('chrome://browser/content/browser.xhtml') {
        #status-bar {
            color: initial !important;
-           background-color: var(--toolbar-non-lwt-bgcolor) !important;
+           border-top: 1px solid var(--chrome-content-separator-color);
+           background-color: var(--toolbar-bgcolor);
          }
          :root[customizing] #status-bar {
            visibility: visible !important;
