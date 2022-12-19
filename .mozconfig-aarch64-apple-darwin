@@ -45,6 +45,7 @@ elif test -f "$HOME/.mozbuild/sccache/sccache"; then
     ac_add_options --with-ccache="$HOME"/.mozbuild/sccache/sccache
 fi
 ac_add_options --enable-install-strip
+ac_add_options --enable-jxl
 ac_add_options --enable-strip
 if test "$WFX_RELEASE"; then
     ac_add_options --enable-update-channel=release
