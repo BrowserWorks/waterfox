@@ -23,7 +23,12 @@ const PHF_PATH: &str = "::impl_::phf";
 fn main() {
     let out_dir = env::var("OUT_DIR").unwrap();
     let dest_path = Path::new(&out_dir).join("mime_types_generated.rs");
-    let mut outfile = BufWriter::new(File::create(dest_path).unwrap());
+    let mut outfile = BufWriter::new(File::create(&dest_path).unwrap());
+
+    println!(
+        "cargo:rustc-env=MIME_TYPES_GENERATED_PATH={}",
+        dest_path.display()
+    );
 
     #[cfg(feature = "phf")]
     build_forward_map(&mut outfile);
