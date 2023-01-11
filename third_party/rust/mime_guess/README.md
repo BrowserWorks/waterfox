@@ -1,4 +1,4 @@
-# mime_guess ![GitHub Workflow Status](https://img.shields.io/github/workflow/status/abonander/mime_guess/Rust) [![Crates.io](https://img.shields.io/crates/v/mime_guess.svg)](https://crates.io/crates/mime_guess)
+# mime_guess ![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/abonander/mime_guess/rust.yml?branch=master) [![Crates.io](https://img.shields.io/crates/v/mime_guess.svg)](https://crates.io/crates/mime_guess)
 
 MIME/MediaType guessing by file extension. 
 Uses a static map of known file extension -> MIME type mappings.

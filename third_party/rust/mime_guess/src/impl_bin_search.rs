@@ -1,7 +1,7 @@
 use unicase::UniCase;
 
 include!("mime_types.rs");
-include!(concat!(env!("OUT_DIR"), "/mime_types_generated.rs"));
+include!(env!("MIME_TYPES_GENERATED_PATH"));
 
 #[cfg(feature = "rev-mappings")]
 #[derive(Copy, Clone)]
