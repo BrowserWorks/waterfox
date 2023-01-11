@@ -28,6 +28,7 @@ body:
       label: Version
       description: What version of our software are you running? Please DO NOT report Classic bugs.
       options:
+        - G5
         - G4
         - Other
     validations:
