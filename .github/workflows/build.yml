@@ -291,7 +291,7 @@ jobs:
           - x86_64-apple-darwin
           - aarch64-apple-darwin
     concurrency:
-      group: '${{ github.head_ref }}-macos-multi'
+      group: "${{ github.ref }}-${{ matrix.arch }}-macos-multi"
       cancel-in-progress: true
     env:
       MOZCONFIG: '.mozconfig-${{ matrix.arch }}'
