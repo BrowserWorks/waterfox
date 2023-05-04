@@ -18,12 +18,13 @@ mk_add_options "export LD_LIBRARY_PATH=$HOME/.mozbuild/clang/lib"
 mk_add_options "export PATH=$TOOLS/cctools/bin:$HOME/.mozbuild/clang/bin:$PATH"
 unset MOZ_STDCXX_COMPAT
 
-if test "$WFX_RELEASE"; then
+if test "$WFX_RELEASE" || test "$WFX_PRE_RELEASE"; then
     ac_add_options --enable-lto
     ac_add_options --enable-optimize="-O3 -march=nehalem -mtune=haswell -w"
     ac_add_options --enable-release
     ac_add_options --enable-rust-simd
     ac_add_options RUSTC_OPT_LEVEL=3
+    export MOZILLA_OFFICIAL=1
     export RUSTFLAGS="$RUSTFLAGS -Ctarget-cpu=nehalem"
 fi
 
@@ -46,6 +47,11 @@ elif test -f "$HOME/.mozbuild/sccache/sccache"; then
 fi
 ac_add_options --enable-install-strip
 ac_add_options --enable-strip
+if test "$WFX_RELEASE"; then
+    ac_add_options --enable-update-channel=release
+elif test "$WFX_PRE_RELEASE"; then
+    ac_add_options --enable-update-channel=beta
+fi
 ac_add_options --enable-updater
 
 ac_add_options --target=x86_64-apple-darwin
