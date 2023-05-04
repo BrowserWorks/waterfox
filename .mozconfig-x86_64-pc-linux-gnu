@@ -11,12 +11,13 @@ if test -f "$HOME/.mozbuild/nasm/nasm"; then
     export NASM="$HOME"/.mozbuild/nasm/nasm
 fi
 
-if test "$WFX_RELEASE"; then
+if test "$WFX_RELEASE" || test "$WFX_PRE_RELEASE"; then
     ac_add_options --enable-lto
     ac_add_options --enable-optimize="-O3 -march=core2 -mtune=haswell -w"
     ac_add_options --enable-release
     ac_add_options --enable-rust-simd
     ac_add_options RUSTC_OPT_LEVEL=3
+    export MOZILLA_OFFICIAL=1
     export RUSTFLAGS="$RUSTFLAGS -Ctarget-cpu=core2"
 fi
 
@@ -39,6 +40,11 @@ fi
 ac_add_options --enable-install-strip
 ac_add_options --enable-pulseaudio
 ac_add_options --enable-strip
+if test "$WFX_RELEASE"; then
+    ac_add_options --enable-update-channel=release
+elif test "$WFX_PRE_RELEASE"; then
+    ac_add_options --enable-update-channel=beta
+fi
 ac_add_options --enable-updater
 
 ac_add_options --target=x86_64-pc-linux-gnu
