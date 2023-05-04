@@ -44,21 +44,27 @@ ac_add_options --disable-crashreporter
 ac_add_options --disable-debug
 ac_add_options --disable-dmd
 ac_add_options --disable-geckodriver
-ac_add_options --disable-jprof
 ac_add_options --disable-profiling
-ac_add_options --disable-trace-logging
-ac_add_options --disable-verify-mar
+ac_add_options --disable-tests
 ac_add_options --disable-updater
 
 ac_add_options --enable-application=browser
-ac_add_options --enable-bootstrap
+# Make sure to have the clang version in sync with your rust version
+# curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-20.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
+# tar -xvf clang.tar.zst -C $HOME/.mozbuild
+# rm clang.tar.zst
+ac_add_options --enable-bootstrap=-clang
+ac_add_options --enable-jxl
 ac_add_options --enable-optimize="-Os -w"
-ac_add_options --enable-tests
+ac_add_options --enable-unverified-updates
 
 ac_add_options --with-app-basename=Waterfox
 ac_add_options --with-app-name=waterfox
 ac_add_options --with-branding=waterfox/browser/branding
 ac_add_options --with-distribution-id=net.waterfox
+if [ -d "$PWD"/waterfox/browser/locales/en-GB ]; then
+    ac_add_options --with-l10n-base="$PWD"/waterfox/browser/locales
+fi
 
 if test -x "$(command -v sccache)"; then
     ac_add_options --with-ccache=sccache
@@ -69,3 +75,4 @@ fi
 mk_add_options AUTOCLOBBER=1
 mk_add_options MOZ_OBJDIR=./obj-"$(uname -s)"-"$(uname -m)"
 export MOZ_REQUIRE_SIGNING=
+export MOZ_TELEMETRY_REPORTING=
