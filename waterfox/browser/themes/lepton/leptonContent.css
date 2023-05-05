@@ -242,7 +242,8 @@
         }
       }
     }
-  } /** Activity Stream - Menu Icons ********************************************/
+  }
+  /** Activity Stream - Menu Icons ********************************************/
   @supports -moz-bool-pref("userChrome.icon.context_menu") {
     .context-menu-list .context-menu-item button {
       padding-inline-start: 0 !important;
@@ -251,6 +252,7 @@
       /* Color */
       -moz-context-properties: fill, fill-opacity, stroke !important;
       fill: currentColor !important;
+      stroke: currentColor;
       /* Layout */
       background-size: 16px !important;
       background-repeat: no-repeat !important;
@@ -408,6 +410,7 @@
     }
     #contentSearchSettingsButton::before {
       content: url("chrome://global/skin/icons/settings.svg") !important;
+      display: inline-flex;
       display: -moz-inline-box;
       /* Color */
       -moz-context-properties: fill, fill-opacity !important;
@@ -458,9 +461,7 @@
 }
 /** Error Page - Restore illustrations ****************************************/
 @supports -moz-bool-pref("userContent.page.illustration") {
-  @-moz-document url-prefix("about:neterror"),
-  url("about:restartrequired"), url("chrome://browser/content/aboutRestartRequired.xhtml"),
-  url("about:sessionrestore"),  url("chrome://browser/content/aboutSessionRestore.xhtml")
+  @-moz-document url-prefix("about:neterror"), url-prefix("about:restartrequired"), url("chrome://browser/content/aboutRestartRequired.xhtml"), url("about:sessionrestore"), url("chrome://browser/content/aboutSessionRestore.xhtml")
   {
     /* Illustrations Position */
     #errorPageContainer,
@@ -490,12 +491,7 @@
       padding-inline-start: 38%;
     }
   }
-  @-moz-document url-prefix("about:neterror?e=connectionFailure"),
-  url-prefix("about:neterror?e=netInterrupt"),
-  url-prefix("about:neterror?e=netReset"),
-  url-prefix("about:neterror?e=netTimeout"),
-  url-prefix("about:neterror?e=netOffline"),
-  url("about:restartrequired"), url("chrome://browser/content/aboutRestartRequired.xhtml")
+  @-moz-document url-prefix("about:neterror?e=connectionFailure"), url-prefix("about:neterror?e=netInterrupt"), url-prefix("about:neterror?e=netReset"), url-prefix("about:neterror?e=netTimeout"), url-prefix("about:neterror?e=netOffline"), url-prefix("about:restartrequired"), url("chrome://browser/content/aboutRestartRequired.xhtml")
   {
     :root {
       --uc-error-llustration: url(chrome://browser/skin/lepton/error-connection-failure.svg);
@@ -506,15 +502,12 @@
       --uc-error-llustration: url(chrome://browser/skin/lepton/error-server-not-found.svg);
     }
   }
-  @-moz-document url-prefix("about:neterror?e=blockedByPolicy"),
-  url-prefix("about:neterror?e=deniedPortAccess"),
-  url-prefix("about:neterror?e=malformedURI") {
+  @-moz-document url-prefix("about:neterror?e=blockedByPolicy"), url-prefix("about:neterror?e=deniedPortAccess"), url-prefix("about:neterror?e=malformedURI") {
     :root {
       --uc-error-llustration: url(chrome://browser/skin/illustrations/error-malformed-url.svg);
     }
   }
-  @-moz-document url-prefix("about:neterror?e=clockSkewError"),
-  url-prefix("about:neterror?e=nssFailure") {
+  @-moz-document url-prefix("about:neterror?e=clockSkewError"), url-prefix("about:neterror?e=nssFailure") {
     :root {
       --uc-error-llustration: url(chrome://browser/skin/lepton/blue-berror.svg);
     }
@@ -562,17 +555,20 @@
       }
     }
   }
+  @-moz-document url-prefix("about:preferences") {
+    #no-results-message::after {
+      content: url("chrome://browser/skin/lepton/no-search-results.svg");
+      width: 380px;
+      height: 293px;
+      margin-top: 64px;
+      margin-inline: auto;
+    }
+  }
 }
 /** Fully Dark Mode ***********************************************************/
 /*= Fully Dark Mode - Dark Mode Colors =======================================*/
 @supports -moz-bool-pref("userContent.page.proton_color") {
-  @-moz-document url-prefix("about:"),
-               url-prefix("chrome://browser/content/places/places.xhtml"),
-               url-prefix("https://addons.mozilla.org"),
-               url-prefix("https://support.mozilla.org"),
-               url-prefix("https://accounts.firefox.com"),
-               url-prefix("view-source"),
-               regexp("^(((jar:)?file:///)|(chrome://)).*/$")
+  @-moz-document url-prefix("about:"), url-prefix("chrome://"), url-prefix("https://addons.mozilla.org"), url-prefix("https://support.mozilla.org"), url-prefix("https://accounts.firefox.com"), url-prefix("view-source"), regexp("^((jar:)?file:///).*/$")
   {
     /*= Default Colors - Hard Coded ==============================================*/
     /* Based on chrome://global/skin/in-content/common.css */
@@ -679,6 +675,7 @@
       --card-shadow: var(--shadow-10);
       --card-outline-color: var(--grey-30);
       --card-shadow-hover: var(--card-shadow), 0 0 0 5px var(--card-outline-color);
+      --uc-warning-icon-bgcolor: #ffa436;
     }
     @media (-moz-toolbar-prefers-color-scheme: dark), (prefers-color-scheme: dark) {
       :host,
@@ -715,6 +712,13 @@
         --in-content-link-color-visited: var(--in-content-link-color);
         --card-outline-color: var(--grey-60);
         --dialog-warning-text-color: var(--red-40);
+        --uc-warning-icon-bgcolor: #ffbd4f;
+      }
+    }
+    @media (prefers-contrast) {
+      :host,
+      :root {
+        --uc-warning-icon-bgcolor: var(--in-content-page-color);
       }
     }
     @supports -moz-bool-pref("userContent.page.proton_color.dark_blue_accent") {
@@ -1660,12 +1664,7 @@
 /** Fully Proton Mode *********************************************************/
 @supports -moz-bool-pref("userContent.page.proton") {
   /*= Common contents ==========================================================*/ /*= abouts' common ===========================================================*/
-  @-moz-document url-prefix("about:plugins"),
-               url-prefix("about:cache"),
-               url-prefix("about:checkerboard"),
-               url-prefix("about:sync-log"),
-               url-prefix("about:memory"),
-               regexp("^(((jar:)?file:///)|(chrome://)).*/$")
+  @-moz-document url-prefix("about:plugins"), url-prefix("about:cache"), url-prefix("about:checkerboard"), url-prefix("about:sync-log"), url-prefix("about:memory"), regexp("^(((jar:)?file:///)|(chrome://)).*/$")
   {
     /* Base */
     html,
@@ -1727,6 +1726,13 @@
       margin: 4px 8px !important;
       /* Ensure font-size isn't overridden by widget styling (e.g. in forms.css) */
       font-size: 1em !important;
+    }
+    @supports -moz-bool-pref("userChrome.rounding.square_button") {
+      button,
+      select,
+      input[type="color"] {
+        border-radius: 0 !important;
+      }
     }
     button {
       font-weight: 600 !important;
@@ -1801,6 +1807,11 @@
       margin-inline: 0 6px !important;
       flex-shrink: 0 !important; /* avoid shrinking inside flex container */
     }
+    @supports -moz-bool-pref("userChrome.rounding.square_checklabel") {
+      input[type="checkbox"] {
+        border-radius: 0 !important;
+      }
+    }
     input[type="checkbox"]:enabled:hover {
       background-color: var(--checkbox-unchecked-hover-bgcolor) !important;
     }
@@ -1866,16 +1877,13 @@
       width: 100% !important;
     }
   }
-  @-moz-document url-prefix("about:plugins"),
-               url-prefix("about:cache"),
-               url-prefix("about:checkerboard") {
+  @-moz-document url-prefix("about:plugins"), url-prefix("about:cache"), url-prefix("about:checkerboard") {
     table {
       border: 1px solid var(--in-content-table-border-color) !important;
       border-radius: 0 !important;
     }
   }
-  @-moz-document url-prefix("about:cache"),
-               url-prefix("about:checkerboard") {
+  @-moz-document url-prefix("about:cache"), url-prefix("about:checkerboard") {
     th,
     td {
       border: 1px solid var(--in-content-table-border-color) !important;
@@ -1957,8 +1965,7 @@
     }
   }
   /*= Directory View ===========================================================*/
-  @-moz-document url-prefix("about:sync-log"),
-               regexp("^(((jar:)?file:///)|(chrome://)).*/$")
+  @-moz-document url-prefix("about:sync-log"), regexp("^(((jar:)?file:///)|(chrome://)).*/$")
   {
     body {
       background-color: var(--in-content-box-background) !important;
@@ -2007,6 +2014,17 @@
     }
     .opsRowLabel input {
       vertical-align: bottom !important;
+    }
+  }
+  /*= about:preferences ========================================================*/
+  @-moz-document url-prefix("chrome://browser/content")
+  {
+    #sanitizeEverythingWarningIcon {
+      list-style-image: url("chrome://global/skin/icons/warning.svg") !important;
+      -moz-context-properties: fill;
+      fill: var(--uc-warning-icon-bgcolor);
+      width: 48px;
+      height: 48px;
     }
   }
   /*= chrome://browser/content/places/places.xhtml =============================*/
@@ -2154,6 +2172,7 @@
         list-style-image: url("chrome://global/skin/icons/delete.svg") !important;
       }
       #clearDownloadsButton > .toolbarbutton-icon {
+        display: inline-flex !important;
         display: -moz-inline-box !important;
         margin-top: 0;
         margin-bottom: 0;
@@ -2258,6 +2277,11 @@
           padding: 5px !important;
           border-radius: 4px !important;
         }
+        @supports -moz-bool-pref("userChrome.rounding.square_button") {
+          #placesToolbar > toolbarbutton {
+            border-radius: 0 !important;
+          }
+        }
         #placesToolbar > toolbarbutton[disabled] {
           opacity: 0.6 !important;
         }
@@ -2280,10 +2304,15 @@
         #placesMenu > menu {
           appearance: none !important;
           color: var(--organizer-color) !important;
-          border-radius: 4px !important;
           padding-block: 5px !important;
           padding-inline-start: 5px !important;
+          border-radius: 4px !important;
           margin-inline-end: 2px !important;
+        }
+        @supports -moz-bool-pref("userChrome.rounding.square_button") {
+          #placesMenu > menu {
+            border-radius: 0 !important;
+          }
         }
         #placesMenu > menu[_moz-menuactive="true"],
         #placesMenu > menu:hover {
@@ -2310,6 +2339,12 @@
           margin: 0 !important;
           padding-block: 2px !important;
           min-height: 24px !important;
+        }
+        @supports -moz-bool-pref("userChrome.rounding.square_field") {
+          #searchFilter,
+          #detailsPane html|input {
+            border-radius: 0 !important;
+          }
         }
         #searchFilter[focused] {
           box-shadow: var(--organizer-toolbar-field-focus-box-shadow) !important;
@@ -2452,6 +2487,12 @@
           -moz-context-properties: fill !important;
           fill: currentColor !important;
         }
+        @supports -moz-bool-pref("userChrome.rounding.square_button") {
+          #editBookmarkPanelRows .expander-up,
+          #editBookmarkPanelRows .expander-down {
+            border-radius: 0 !important;
+          }
+        }
         #editBookmarkPanelRows .expander-up:hover,
         #editBookmarkPanelRows .expander-down:hover {
           background-color: var(--organizer-hover-background) !important;
@@ -2485,6 +2526,11 @@
           min-height: 20px !important;
           padding-inline: 4px !important;
         }
+        @supports -moz-bool-pref("userChrome.rounding.square_field") {
+          #places input {
+            border-radius: 0 !important;
+          }
+        }
         #places input:focus {
           outline: 2px solid var(--organizer-outline-color) !important;
           outline-offset: -1px !important;
@@ -2502,6 +2548,11 @@
           background-color: var(--organizer-content-background) !important;
           border: 1px solid var(--organizer-border-color) !important;
           border-radius: 4px !important;
+        }
+        @supports -moz-bool-pref("userChrome.rounding.square_field") {
+          #editBMPanel_tagsSelectorRow > richlistbox {
+            border-radius: 0 !important;
+          }
         }
         #editBMPanel_tagsSelectorRow > richlistbox > richlistitem {
           border: 1px solid transparent !important;
@@ -2572,6 +2623,7 @@
         /* From checkbox.css */
         menuitem[type="checkbox"] {
           appearance: none !important;
+          align-items: center !important;
           -moz-box-align: center !important;
           margin: 0px 2px !important;
         }
@@ -2736,11 +2788,185 @@
     }
   }
 }
+/** Rounding ******************************************************************/
+@supports -moz-bool-pref("userChrome.rounding.square_button") {
+  @-moz-document url-prefix("about:"), regexp("^chrome://\\w+/content/.*.xhtml$")
+  {
+    button:not(.toggle-button),
+    .close-icon,
+    .action-icon::before,
+    .page-section-header > .twisty,
+    .closed-tab-li-main,
+    #categories > .category,
+    .sidebar-footer-link {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document url-prefix("about:debugging") {
+    .sidebar-item {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document url-prefix("chrome://browser/content/places/places.xhtml"), url-prefix("about:downloads")
+  {
+    .downloadButton > .button-box {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document url-prefix("about:protections") {
+    #manage-protections,
+    #sign-up-for-monitor-link,
+    #get-proxy-extension-link,
+    #get-vpn-link,
+    #vpn-banner-link,
+    .monitor-partial-breaches-link-wrapper,
+    .monitor-breaches-link-wrapper {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document regexp(".*.pdf$") {
+    .toolbarButton,
+    .dropdownToolbarButton,
+    .secondaryToolbarButton,
+    .dialogButton {
+      border-radius: 0 !important;
+    }
+  }
+}
+@supports -moz-bool-pref("userChrome.rounding.square_dialog") {
+  @-moz-document url-prefix("about:") {
+    .dialogBox {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document url("about:home"), url("about:newtab") {
+    .modal {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document regexp(".*.pdf$") {
+    dialog {
+      border-radius: 0 !important;
+    }
+  }
+}
+@supports -moz-bool-pref("userChrome.rounding.square_checklabel") {
+  @-moz-document url-prefix("about:"), regexp("^chrome://\\w+/content/.*.xhtml$")
+  {
+    input[type="checkbox"]:not(.toggle-button),
+    .checkbox-check {
+      border-radius: 0 !important;
+    }
+  }
+}
+@supports -moz-bool-pref("userChrome.rounding.square_field") {
+  @-moz-document url-prefix("about:"), regexp("^chrome://\\w+/content/.*.xhtml$")
+  {
+    input:is([type="color"], [type="email"], [type="tel"], [type="text"], [type="password"], [type="url"], [type="number"]),
+    textarea,
+    select,
+    menulist,
+    tree,
+    treecols,
+    listheader,
+    richlistbox,
+    search-textbox,
+    .web-appearance-choice,
+    .content-blocking-category {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document url-prefix("about:debugging") {
+    .default-input {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document url("about:home"), url("about:newtab") {
+    .search-wrapper .search-handoff-button,
+    .search-wrapper input {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document regexp(".*.pdf$") {
+    .toolbarField,
+    .thumbnailSelectionRing {
+      border-radius: 0 !important;
+    }
+  }
+}
+@supports -moz-bool-pref("userChrome.rounding.square_menupopup") {
+  @-moz-document url-prefix("about:"), url-prefix("chrome://")
+  {
+    menupopup {
+      --panel-border-radius: 0 !important;
+    }
+  }
+  @-moz-document url-prefix("about:addons") {
+    panel-list {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document url-prefix("about:logins") {
+    .menu {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document url("about:home"), url("about:newtab") {
+    .context-menu {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document regexp(".*.pdf$") {
+    .doorHanger,
+    .doorHangerRight {
+      border-radius: 0 !important;
+    }
+  }
+}
+@supports -moz-bool-pref("userChrome.rounding.square_infobox") {
+  @-moz-document url-prefix("about:"), regexp("^chrome://\\w+/content/.*.xhtml$")
+  {
+    /*
+     * .container is inside shadow DOM,
+     * and it does not have any other classes,
+     * but there may be other elements with the same class,
+     * hence the weird selector.
+     */
+    link[href="chrome://global/content/elements/message-bar.css"] + .container,
+    .info-box-container:not(.content-blocking-category),
+    .options-container,
+    #sanitizeEverythingWarningBox {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document url-prefix("about:debugging") {
+    .message {
+      border-radius: 0 !important;
+    }
+  }
+}
+@-moz-document url("chrome://browser/content/places/places.xhtml")
+{
+  /*= Library ==============================================================*/
+  @supports -moz-bool-pref("userChrome.rounding.square_button") {
+    #placesToolbar > toolbarbutton,
+    #placesMenu > menu,
+    #editBookmarkPanelRows .expander-up,
+    #editBookmarkPanelRows .expander-down {
+      border-radius: 0 !important;
+    }
+  }
+  @supports -moz-bool-pref("userChrome.rounding.square_field") {
+    #searchFilter,
+    #detailsPane html|input,
+    #places input #editBMPanel_tagsSelectorRow > richlistbox {
+      border-radius: 0 !important;
+    }
+  }
+}
 /** Monospace *****************************************************************/
 @supports -moz-bool-pref("userContent.page.monospace") {
-  @-moz-document url-prefix("about:"),
-               url-prefix("chrome://browser/content/places/places.xhtml"),
-               regexp("^(((jar:)?file:///)|(chrome://)).*/$")
+  @-moz-document url-prefix("about:"), url-prefix("chrome://"), regexp("^((jar:)?file:///).*/$")
   {
     * {
       font-family: -moz-fixed;
@@ -2750,8 +2976,8 @@
 /** Menu - Icons Layout *******************************************************/
 @supports not -moz-bool-pref("userChrome.icon.disabled") {
   @supports -moz-bool-pref("userChrome.icon.menu") {
-    @-moz-document url("chrome://browser/content/places/places.xhtml"),
-               url("about:downloads") {
+    @-moz-document url("chrome://browser/content/places/places.xhtml"), url("about:downloads")
+    {
       menupopup menuitem:not([type="checkbox"][checked="true"], [type="radio"]),
       menupopup menu:not([type="checkbox"][checked="true"], [type="radio"]) {
         -moz-appearance: none !important; /* Linux: menulist */
@@ -2766,6 +2992,7 @@
         /* Color */
         -moz-context-properties: fill, fill-opacity, stroke !important;
         fill: currentColor !important;
+        stroke: currentColor;
         /* Layout */
         background-size: 16px !important;
         background-repeat: no-repeat !important;
@@ -2774,9 +3001,11 @@
       /* For native context menus */
       @supports -moz-bool-pref("widget.macos.native-context-menus") or -moz-bool-pref("widget.gtk.native-context-menus") {
         :not(menu, #ContentSelectDropdown)
-          > menupopup
+          > menupopup:not(.in-menulist)
           > menuitem:not(.menuitem-iconic, .bookmark-item, .in-menulist, [checked="true"]),
-        :not(menu, #ContentSelectDropdown) > menupopup > menu:not(.menu-iconic, .in-menulist, [checked="true"]) {
+        :not(menu, #ContentSelectDropdown)
+          > menupopup:not(.in-menulist)
+          > menu:not(.menu-iconic, .in-menulist, [checked="true"]) {
           list-style-image: var(--menuitem-image, url("chrome://browser/skin/lepton/blank.svg")) !important;
         }
       }
@@ -2800,60 +3029,147 @@
         padding-inline-start: var(--context-menu-background-padding) !important;
       }
       /* Padding - Windows */
-      @media (-moz-os-version: windows-win7), (-moz-platform: windows-win7) {
+      @media (-moz-os-version: windows-win7),
+        (-moz-platform: windows-win7),
+        (-moz-os-version: windows-win8),
+        (-moz-platform: windows-win8),
+        (-moz-os-version: windows-win10),
+        (-moz-platform: windows-win10) {
         :root {
-          --context-menu-background-padding-default: 2px;
+          --bookmark-menu-icon-text-padding: calc(
+            var(--context-menu-text-padding) + var(--arrowpanel-menuitem-padding-inline)
+          );
+          --bookmark-menu-icon-background-padding: calc(
+            var(--arrowpanel-menuitem-padding-inline) + var(--bookmark-menu-icon-align-padding)
+          );
         }
-      }
-      @media (-moz-os-version: windows-win8), (-moz-platform: windows-win8) {
-        :root {
-          --context-menu-background-padding-default: 3px;
+        @media (-moz-windows-non-native-menus) {
+          :root {
+            --context-menu-background-padding: 1em;
+            --context-menu-text-padding: 24px;
+            --menu-background-padding-default: calc(
+              var(--context-menu-background-padding) + var(--context-menu-text-padding)
+            );
+            --bookmark-menu-icon-align-padding: 0px;
+          }
+        }
+        @media not (-moz-windows-non-native-menus) {
+          :root {
+            --context-menu-text-padding: calc(1.45em + 8px);
+            --bookmark-menu-icon-align-padding: calc((1.45em - 16px) / 2 + 1px);
+          }
+          @media (-moz-os-version: windows-win7), (-moz-platform: windows-win7) {
+            :root {
+              --context-menu-background-padding-default: 2px;
+            }
+            @media (not (-moz-windows-non-native-menus)) and (-moz-windows-classic) {
+              :root {
+                --context-menu-background-padding-default: -0.5px;
+              }
+            }
+          }
+          @media (-moz-os-version: windows-win8), (-moz-platform: windows-win8) {
+            :root {
+              --context-menu-background-padding-default: 3px;
+            }
+          }
+          @media (-moz-os-version: windows-win10), (-moz-platform: windows-win10) {
+            :root {
+              --context-menu-background-padding: 3px;
+              --menu-background-padding-default: 0px;
+            }
+            @supports -moz-bool-pref("userChrome.compatibility.os.win11") {
+              :root {
+                --context-menu-background-padding: 5px;
+              }
+              #main-menubar {
+                --context-menu-background-padding: calc(5px + ((1.45em - 16px) / 2));
+              }
+              menuitem:is([type="checkbox"], [type="radio"]) {
+                --menu-padding: 0px;
+              }
+              menuitem[checked="true"] {
+                --context-menu-background-padding: 0px;
+              }
+              menuitem[checked="true"] > .menu-iconic-left {
+                transform: translateX(2px);
+              }
+            }
+            menupopup:is(#historyMenuPopup, #bookmarksMenuPopup) .menu-iconic > .menu-iconic-left,
+            menupopup:is(#historyMenuPopup, #bookmarksMenuPopup) .menuitem-iconic > .menu-iconic-left,
+            menupopup:not([placespopup="true"]) .menu-iconic > .menu-iconic-left,
+            menupopup:not([placespopup="true"]) .menuitem-iconic > .menu-iconic-left {
+              appearance: none !important;
+              padding-block: 0 !important;
+              padding-inline-start: 5px !important;
+              margin-inline-end: 8px !important;
+            }
+            @supports -moz-bool-pref("userChrome.compatibility.os.win11") {
+              menupopup:is(#historyMenuPopup, #bookmarksMenuPopup) .menu-iconic > .menu-iconic-left,
+              menupopup:is(#historyMenuPopup, #bookmarksMenuPopup) .menuitem-iconic > .menu-iconic-left,
+              menupopup:not([placespopup="true"]) .menu-iconic > .menu-iconic-left,
+              menupopup:not([placespopup="true"]) .menuitem-iconic > .menu-iconic-left {
+                box-sizing: content-box;
+              }
+            }
+            menupopup:is(#historyMenuPopup, #bookmarksMenuPopup) .menu-accel,
+            menupopup:is(#historyMenuPopup, #bookmarksMenuPopup) .menu-iconic-accel,
+            menupopup:not([placespopup="true"]) .menu-accel,
+            menupopup:not([placespopup="true"]) .menu-iconic-accel {
+              box-sizing: content-box;
+              min-height: 16px;
+            }
+            menupopup:is(#historyMenuPopup, #bookmarksMenuPopup) .menu-accel,
+            menupopup:is(#historyMenuPopup, #bookmarksMenuPopup) .menu-iconic-accel,
+            menupopup:is(#historyMenuPopup, #bookmarksMenuPopup) .menu-text,
+            menupopup:is(#historyMenuPopup, #bookmarksMenuPopup) .menu-iconic-text,
+            menupopup:not([placespopup="true"]) .menu-accel,
+            menupopup:not([placespopup="true"]) .menu-iconic-accel,
+            menupopup:not([placespopup="true"]) .menu-text,
+            menupopup:not([placespopup="true"]) .menu-iconic-text {
+              padding-block: 0 !important;
+            }
+          }
         }
       }
       @media (-moz-os-version: windows-win7),
         (-moz-platform: windows-win7),
         (-moz-os-version: windows-win8),
-        (-moz-platform: windows-win8) {
-        menupopup:is(#placesContext, #placesColumnsContext, #downloadsContextMenu)
-          menuitem:not(.menuitem-iconic, .bookmark-item, .in-menulist, [checked="true"]),
-        menupopup:is(#placesContext, #placesColumnsContext, #downloadsContextMenu)
-          menu:not(.menu-iconic, .in-menulist, [checked="true"]),
-        menupopup:is(#organizeButtonPopup, #maintenanceButtonPopup)
-          > menuitem:not(.menuitem-iconic, .bookmark-item, .in-menulist, [checked="true"]),
-        menupopup:is(#viewMenuPopup, #maintenanceButtonPopup) > menu:not(.menu-iconic, .in-menulist, [checked="true"]) {
-          background-position: left var(--context-menu-background-padding) center !important;
-          padding-inline-start: 0 !important;
-        }
-      }
-      @media (-moz-os-version: windows-win10), (-moz-platform: windows-win10) {
-        :root {
-          --context-menu-background-padding: 1em;
-          --context-menu-text-padding: 24px; /* 16px + 8px */
-          --menu-background-padding-default: calc(
-            var(--context-menu-background-padding) + var(--context-menu-text-padding)
-          );
-        }
+        (-moz-platform: windows-win8),
+        (-moz-os-version: windows-win10),
+        (-moz-platform: windows-win10) {
         @media not (-moz-windows-non-native-menus) {
-          :root {
-            --context-menu-background-padding: 3px;
-            --menu-background-padding-default: 0px;
+          menupopup:is(#placesContext, #placesColumnsContext, #downloadsContextMenu)
+            menuitem:not(.menuitem-iconic, .bookmark-item, .in-menulist, [checked="true"]),
+          menupopup:is(#placesContext, #placesColumnsContext, #downloadsContextMenu)
+            menu:not(.menu-iconic, .in-menulist, [checked="true"]),
+          menupopup:is(#organizeButtonPopup, #maintenanceButtonPopup)
+            > menuitem:not(.menuitem-iconic, .bookmark-item, .in-menulist, [checked="true"]),
+          menupopup:is(#viewMenuPopup, #maintenanceButtonPopup)
+            > menu:not(.menu-iconic, .in-menulist, [checked="true"]) {
+            background-position: left var(--context-menu-background-padding) center !important;
+            padding-inline-start: 0 !important;
           }
         }
-        menupopup:is(#placesContext, #placesColumnsContext, #downloadsContextMenu)
-          menuitem:not(.menuitem-iconic, .bookmark-item, .in-menulist, [checked="true"]),
-        menupopup:is(#placesContext, #placesColumnsContext, #downloadsContextMenu)
-          menu:not(.menu-iconic, .in-menulist, [checked="true"]),
-        menupopup:is(#organizeButtonPopup, #maintenanceButtonPopup)
-          > menuitem:not(.menuitem-iconic, .bookmark-item, .in-menulist, [checked="true"]),
-        menupopup:is(#viewMenuPopup, #maintenanceButtonPopup) > menu:not(.menu-iconic, .in-menulist, [checked="true"]) {
-          padding-inline-start: var(--menu-background-padding-default) !important;
-          margin-left: 0 !important;
+        @media (-moz-windows-non-native-menus) {
+          menupopup:is(#placesContext, #placesColumnsContext, #downloadsContextMenu)
+            menuitem:not(.menuitem-iconic, .bookmark-item, .in-menulist, [checked="true"]),
+          menupopup:is(#placesContext, #placesColumnsContext, #downloadsContextMenu)
+            menu:not(.menu-iconic, .in-menulist, [checked="true"]),
+          menupopup:is(#organizeButtonPopup, #maintenanceButtonPopup)
+            > menuitem:not(.menuitem-iconic, .bookmark-item, .in-menulist, [checked="true"]),
+          menupopup:is(#viewMenuPopup, #maintenanceButtonPopup)
+            > menu:not(.menu-iconic, .in-menulist, [checked="true"]) {
+            padding-inline-start: var(--menu-background-padding-default) !important;
+            margin-left: 0 !important;
+          }
         }
       }
       /* Padding - Linux */
       @media (-moz-gtk-csd-available) {
         :root {
           --context-menu-background-padding-default: 6px;
+          --context-menu-text-padding: 21px;
         }
         /* Contextmenu Checkbox Unset */
         menupopup:is(#placesContext, #placesColumnsContext, #downloadsContextMenu) menuitem[type="checkbox"] {
@@ -3090,6 +3406,36 @@
         }
         #browserImport {
           --menuitem-image: url("chrome://browser/skin/import.svg");
+        }
+      }
+    }
+    @-moz-document url-prefix("about:addons") {
+      @supports -moz-bool-pref("userChrome.icon.context_menu") {
+        button[role="menuitem"] {
+          background-image: var(--icon, url("chrome://browser/skin/lepton/blank.svg")); /* Don't use !important. because of [checked] */
+        }
+        panel-item[action="check-for-updates"] {
+          --icon: url("chrome://browser/skin/lepton/refresh-cw.svg");
+        }
+        panel-item[action="view-recent-updates"] {
+          --icon: url("chrome://global/skin/icons/info.svg");
+        }
+        panel-item[action="install-from-file"] {
+          --icon: url("chrome://devtools/skin/images/import.svg");
+        }
+        panel-item[action="debug-addons"] {
+          --icon: url("chrome://browser/skin/lepton/bug.svg");
+        }
+        panel-item[action="set-update-automatically"] {
+          --icon: url("chrome://devtools/skin/images/profiler-stopwatch.svg");
+        }
+        panel-item[action="reset-update-states"] {
+          --icon: url("chrome://devtools/skin/images/debugging-workers.svg");
+        }
+        panel-item[action="manage-shortcuts"],
+        panel-item[data-l10n-id="preferences-addon-button"],
+        panel-item[data-l10n-id="manage-addon-button"] {
+          --icon: url("chrome://global/skin/icons/settings.svg");
         }
       }
     }
