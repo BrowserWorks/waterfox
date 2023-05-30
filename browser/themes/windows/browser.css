@@ -64,6 +64,10 @@
   }
 }
 
+#browser-bottombox:not(:-moz-lwtheme) {
+  background-color: -moz-dialog;
+}
+
 /* Titlebar */
 
 .titlebar-buttonbox {
