@@ -61,6 +61,10 @@
   height: var(--tab-min-height);
 }
 
+#browser-bottombox:not(:-moz-lwtheme) {
+  background-color: -moz-dialog;
+}
+
 /* Titlebar */
 
 .titlebar-buttonbox {
