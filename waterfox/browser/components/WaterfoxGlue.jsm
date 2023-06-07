@@ -23,7 +23,7 @@ XPCOMUtils.defineLazyModuleGetters(lazy, {
   PrivateTab: "resource:///modules/PrivateTab.sys.mjs",
   StatusBar: "resource:///modules/StatusBar.sys.mjs",
   TabFeatures: "resource:///modules/TabFeatures.sys.mjs",
-  UICustomizations: "resource:///modules/UICustomizations.jsm",
+  UICustomizations: "resource:///modules/UICustomizations.sys.mjs",
 });
 
 XPCOMUtils.defineLazyGlobalGetters(this, ["fetch"]);
