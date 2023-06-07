@@ -1,7 +1,7 @@
 add_task(async function testMoveTabBar() {
   // Test default (topabove)
-  let el = document.querySelector("#TabsToolbar");
-  let bottomBox = document.querySelector("#browser-bottombox");
+  const el = document.querySelector("#TabsToolbar");
+  const bottomBox = document.querySelector("#browser-bottombox");
   is(el.parentElement.id, "titlebar", "Tab toolbar is below menu bar");
   // Test topbelow
   Services.prefs.setCharPref(TABBAR_POSITION_PREF, "topbelow");
@@ -28,7 +28,7 @@ add_task(async function testMoveTabBar() {
 
 add_task(async function testMoveBookmarksBar() {
   // Test default (top)
-  let el = document.querySelector("#PersonalToolbar");
+  const el = document.querySelector("#PersonalToolbar");
   is(
     el.parentElement.id,
     "navigator-toolbox",
