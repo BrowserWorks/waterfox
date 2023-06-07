@@ -147,7 +147,7 @@ const UICustomizations = {
       case "topabove":
         titlebar.insertAdjacentElement("beforeend", tabsToolbar);
         aWindow.gBrowser.setTabTitle(
-          aWindow.document.querySelector(".tabbrowser-tab[first-visible-tab]")
+          aWindow.document.querySelector(".tabbrowser-tab:first-child")
         );
         break;
       case "topbelow":
@@ -155,7 +155,7 @@ const UICustomizations = {
           .querySelector("#navigator-toolbox")
           .appendChild(tabsToolbar);
         aWindow.gBrowser.setTabTitle(
-          aWindow.document.querySelector(".tabbrowser-tab[first-visible-tab]")
+          aWindow.document.querySelector(".tabbrowser-tab:first-child")
         );
         break;
       case "bottomabove":
@@ -167,7 +167,7 @@ const UICustomizations = {
           bottomBox.insertAdjacentElement("afterbegin", tabsToolbar);
         }
         aWindow.gBrowser.setTabTitle(
-          aWindow.document.querySelector(".tabbrowser-tab[first-visible-tab]")
+          aWindow.document.querySelector(".tabbrowser-tab:first-child")
         );
         break;
       case "bottombelow":
@@ -175,7 +175,7 @@ const UICustomizations = {
         bottomBox.collapsed = false;
         bottomBox.insertAdjacentElement("beforeend", tabsToolbar);
         aWindow.gBrowser.setTabTitle(
-          aWindow.document.querySelector(".tabbrowser-tab[first-visible-tab]")
+          aWindow.document.querySelector(".tabbrowser-tab:first-child")
         );
         break;
     }
