@@ -60,6 +60,13 @@ const StatusBar = {
            align-content: center !important;
            flex-direction: column !important;
          }
+         toolbarpaletteitem #status-text:before {
+          content: "Status text";
+          color: red;
+          border: 1px #aaa solid;
+          border-radius: 3px;
+          font-weight: bold;
+        }
          /* Ensure text color of status bar widgets set correctly */
          toolbar .toolbarbutton-1 {
            color: var(--toolbarbutton-icon-fill) !important;
@@ -117,14 +124,14 @@ const StatusBar = {
       // Status bar disabled so display links in StatusPanel
       this.executeInAllWindows(window => {
         let StatusPanel = window.StatusPanel;
-        StatusPanel.panel.firstChild.appendChild(StatusPanel._labelElement);
+        StatusPanel.panel.appendChild(StatusPanel._labelElement);
         StatusPanel.panel.firstChild.hidden = false;
       });
     } else {
       // Don't display links
       this.executeInAllWindows(window => {
         let StatusPanel = window.StatusPanel;
-        StatusPanel.panel.firstChild.appendChild(StatusPanel._labelElement);
+        StatusPanel.panel.appendChild(StatusPanel._labelElement);
         StatusPanel.panel.firstChild.hidden = true;
       });
     }
@@ -153,7 +160,7 @@ const StatusBar = {
         if (value === true) {
           PrefUtils.set(StatusBar.PREF_ENABLED, false);
           aWindow.statusbar.node.setAttribute("collapsed", true);
-          StatusPanel.panel.firstChild.appendChild(StatusPanel._labelElement);
+          StatusPanel.panel.appendChild(StatusPanel._labelElement);
         } else {
           PrefUtils.set(StatusBar.PREF_ENABLED, true);
           aWindow.statusbar.node.setAttribute("collapsed", false);
