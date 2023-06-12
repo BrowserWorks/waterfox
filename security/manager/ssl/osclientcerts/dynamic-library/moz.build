@@ -16,6 +16,7 @@ if CONFIG["OS_ARCH"] == "WINNT":
         "crypt32",
         "kernel32",
         "ncrypt",
+        "ntdll",
         "userenv",
         "ws2_32",
         "ntdll",
