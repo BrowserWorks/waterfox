@@ -39,11 +39,11 @@ pref(
 // The number of days a binary is permitted to be old
 // without checking for an update.  This assumes that
 // app.update.checkInstallTime is true.
-pref("app.update.checkInstallTime.days", 31);
+pref("app.update.checkInstallTime.days", 2);
 
 // Give the user x seconds to reboot before showing a badge on the hamburger
-// button. default=4 days
-pref("app.update.badgeWaitTime", 345600);
+// button. default=immediately
+pref("app.update.badgeWaitTime", 0);
 
 // Number of usages of the web console.
 // If this is less than 5, then pasting code into the web console is disabled
