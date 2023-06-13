@@ -1,0 +1,23 @@
+{
+    "map" : [
+      {
+        "deep"         : false,
+        "runtime"      : true,
+        "force"        : true,
+        "keychain"     : [],
+        "sign"         : [],
+        "requirements" : [],
+        "entitlements" : ["prod.entitlements.xml"],
+        "globs"        : [
+          "/Contents/MacOS/updater.app",
+          "/Contents/Library/LaunchServices/net.waterfox.updater",
+          "/Contents/MacOS/plugin-container.app",
+          "/Contents/MacOS/XUL",
+          "/Contents/MacOS/*.dylib",
+          "/Contents/MacOS/waterfox-bin",
+          "/Contents/Resources/gmp-clearkey/*/*.dylib",
+          "/"
+        ]
+      }
+    ]
+  }
