@@ -1,5 +1,37 @@
 @namespace xul url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
 @namespace html url("http://www.w3.org/1999/xhtml");
+/** Compatibility *************************************************************/
+@-moz-document url-prefix("about:preferences") {
+  .content-blocking-warning.info-box-container > hbox > .content-blocking-warning-image {
+    margin-inline-start: -7px !important;
+    margin-inline-end: 8px !important;
+    width: 20px !important;
+  }
+  #pane-experimental-search-results-header,
+  #pane-experimental-subtitle {
+    min-height: 27px !important;
+    padding-inline-start: 35px !important;
+  }
+  #firefoxExperimentalCategory:not([hidden="true"]) {
+    display: inline-block;
+  }
+  #firefoxExperimentalCategory > label {
+    float: left;
+  }
+  #firefoxExperimentalCategory > hbox {
+    transform: translateY(5px);
+  }
+  #pane-experimental-featureGates > html|p[data-l10n-id="pane-experimental-description2"] {
+    border-bottom: 1px solid var(--in-content-border-color);
+    padding-bottom: 1.5em;
+  }
+}
+@-moz-document url-prefix("about:addons") {
+  #updates-message + .page-options-menu > .more-options-button {
+    box-sizing: content-box;
+    padding: 0 !important;
+  }
+}
 /** Video player **************************************************************/
 /* Control Bar Size */
 @supports -moz-bool-pref("userContent.player.size") {
@@ -2834,18 +2866,8 @@
   }
 }
 @supports -moz-bool-pref("userChrome.rounding.square_dialog") {
-  @-moz-document url-prefix("about:") {
-    .dialogBox {
-      border-radius: 0 !important;
-    }
-  }
   @-moz-document url("about:home"), url("about:newtab") {
     .modal {
-      border-radius: 0 !important;
-    }
-  }
-  @-moz-document regexp(".*.pdf$") {
-    dialog {
       border-radius: 0 !important;
     }
   }
@@ -2872,7 +2894,8 @@
     richlistbox,
     search-textbox,
     .web-appearance-choice,
-    .content-blocking-category {
+    .content-blocking-category,
+    #translations-manage-install-list {
       border-radius: 0 !important;
     }
   }
@@ -2897,6 +2920,7 @@
 @supports -moz-bool-pref("userChrome.rounding.square_menupopup") {
   @-moz-document url-prefix("about:"), url-prefix("chrome://")
   {
+    panel,
     menupopup {
       --panel-border-radius: 0 !important;
     }
@@ -2944,6 +2968,23 @@
       border-radius: 0 !important;
     }
   }
+  @-moz-document url-prefix("about:firefoxview") {
+    .card,
+    .card::before,
+    .empty-container,
+    .synced-tab-a,
+    .synced-tab-li-placeholder {
+      border-radius: 0 !important;
+    }
+  }
+}
+@-moz-document url-prefix("about:"), regexp(".*.pdf$") {
+  @supports -moz-bool-pref("userChrome.rounding.square_dialog") {
+    dialog,
+    .dialogBox {
+      border-radius: 0 !important;
+    }
+  }
 }
 @-moz-document url("chrome://browser/content/places/places.xhtml")
 {
@@ -2979,7 +3020,9 @@
     @-moz-document url("chrome://browser/content/places/places.xhtml"), url("about:downloads")
     {
       menupopup menuitem:not([type="checkbox"][checked="true"], [type="radio"]),
-      menupopup menu:not([type="checkbox"][checked="true"], [type="radio"]) {
+      menupopup menu:not([type="checkbox"][checked="true"], [type="radio"]),
+      menupopup menuitem:not([type="checkbox"][checked="true"], [type="radio"]) > .menu-iconic-left > .menu-iconic-icon,
+      menupopup menu:not([type="checkbox"][checked="true"], [type="radio"]) > .menu-iconic-left > .menu-iconic-icon {
         -moz-appearance: none !important; /* Linux: menulist */
       }
       menupopup:is(#placesContext, #placesColumnsContext, #downloadsContextMenu)
