@@ -2,19 +2,18 @@
 # Targetting ARM64 builds. Expected to be run on Linux.
 
 TOOLS=$HOME/macos-cross
-CROSS_SYSROOT=$TOOLS/MacOSX12.3.sdk
-export CC="$HOME"/.mozbuild/clang/bin/clang
-export CXX="$HOME"/.mozbuild/clang/bin/clang++
+export CC="$HOME"/macos-cross/clang/bin/clang
+export CXX="$HOME"/macos-cross/clang/bin/clang++
 export DMG_TOOL="$TOOLS"/dmg/dmg
-export DSYMUTIL="$HOME"/.mozbuild/clang/bin/dsymutil
+export DSYMUTIL="$HOME"/macos-cross/clang/bin/dsymutil
 export HFS_TOOL="$TOOLS"/dmg/hfsplus
 export HOST_CFLAGS="-g"
 export HOST_CXXFLAGS="-g"
 export HOST_LDFLAGS="-g"
 export MACOS_SDK_DIR="$CROSS_SYSROOT"
 export MKFSHFS="$TOOLS"/hfsplus-tools/newfs_hfs
-mk_add_options "export LD_LIBRARY_PATH=$HOME/.mozbuild/clang/lib"
-mk_add_options "export PATH=$TOOLS/cctools/bin:$HOME/.mozbuild/clang/bin:$PATH"
+mk_add_options "export LD_LIBRARY_PATH=$HOME/macos-cross/clang/lib"
+mk_add_options "export PATH=$TOOLS/cctools/bin:$HOME/macos-cross/clang/bin:$PATH"
 unset MOZ_STDCXX_COMPAT
 
 if test "$WFX_RELEASE" || test "$WFX_PRE_RELEASE"; then
@@ -34,11 +33,9 @@ ac_add_options --disable-geckodriver
 ac_add_options --disable-jprof
 ac_add_options --disable-profiling
 ac_add_options --disable-tests
-ac_add_options --disable-trace-logging
-ac_add_options --disable-verify-mar
 
 ac_add_options --enable-application=browser
-ac_add_options --enable-bootstrap
+ac_add_options --enable-bootstrap=-clang,-sccache
 if test -x "$(command -v sccache)"; then
     ac_add_options --with-ccache=sccache
 elif test -f "$HOME/.mozbuild/sccache/sccache"; then
@@ -52,6 +49,7 @@ if test "$WFX_RELEASE"; then
 elif test "$WFX_PRE_RELEASE"; then
     ac_add_options --enable-update-channel=beta
 fi
+ac_add_options --enable-unverified-updates
 ac_add_options --enable-updater
 
 ac_add_options --target=aarch64-apple-darwin
@@ -65,4 +63,6 @@ if [ -d "$PWD"/waterfox/browser/locales/en-GB ]; then
 fi
 
 mk_add_options AUTOCLOBBER=1
+export MOZ_INCLUDE_SOURCE_INFO=1
 export MOZ_REQUIRE_SIGNING=
+export MOZ_TELEMETRY_REPORTING=
