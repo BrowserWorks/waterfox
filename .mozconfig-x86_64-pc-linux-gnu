@@ -27,7 +27,6 @@ ac_add_options --disable-dmd
 ac_add_options --disable-geckodriver
 ac_add_options --disable-profiling
 ac_add_options --disable-tests
-ac_add_options --disable-verify-mar
 
 ac_add_options --enable-alsa
 ac_add_options --enable-application=browser
@@ -46,6 +45,7 @@ if test "$WFX_RELEASE"; then
 elif test "$WFX_PRE_RELEASE"; then
     ac_add_options --enable-update-channel=beta
 fi
+ac_add_options --enable-unverified-updates
 ac_add_options --enable-updater
 
 ac_add_options --target=x86_64-pc-linux-gnu
@@ -61,6 +61,7 @@ if test -f "$PWD/mozilla-api"; then
     ac_add_options --with-mozilla-api-keyfile="$PWD"/mozilla-api
 fi
 
-export MOZ_INCLUDE_SOURCE_INFO=1
 mk_add_options AUTOCLOBBER=1
+export MOZ_INCLUDE_SOURCE_INFO=1
 export MOZ_REQUIRE_SIGNING=
+export MOZ_TELEMETRY_REPORTING=
