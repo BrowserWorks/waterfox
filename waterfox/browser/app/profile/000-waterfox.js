@@ -93,6 +93,7 @@ pref("extensions.pocket.api", "");
 pref("extensions.pocket.enabled", false);
 pref("extensions.pocket.oAuthConsumerKey", "");
 pref("extensions.pocket.showHome", false);
+pref("extensions.systemAddon.update.url", "https://aus1.waterfox.net/update/SystemAddons/%DISPLAY_VERSION%/%OS%_%ARCH%/%CHANNEL%/%OS_VERSION%/%SYSTEM_CAPABILITIES%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/update.xml");
 pref("geo.provider.network.url", "");
 pref("image.avif.enabled", true);
 pref("image.jxl.enabled", true);
