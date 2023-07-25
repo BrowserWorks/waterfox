@@ -7,9 +7,6 @@ else
     export CC=clang
     export CXX=clang++
 fi
-if test -f "$HOME/.mozbuild/nasm/nasm"; then
-    export NASM="$HOME"/.mozbuild/nasm/nasm
-fi
 
 if test "$WFX_RELEASE" || test "$WFX_PRE_RELEASE"; then
     ac_add_options --enable-lto
@@ -30,7 +27,7 @@ ac_add_options --disable-tests
 
 ac_add_options --enable-alsa
 ac_add_options --enable-application=browser
-ac_add_options --enable-bootstrap
+ac_add_options --enable-bootstrap=-sccache
 if test -x "$(command -v sccache)"; then
     ac_add_options --with-ccache=sccache
 elif test -f "$HOME/.mozbuild/sccache/sccache"; then
@@ -38,6 +35,14 @@ elif test -f "$HOME/.mozbuild/sccache/sccache"; then
 fi
 ac_add_options --enable-install-strip
 ac_add_options --enable-jxl
+ac_add_options --enable-linker=lld
+if test "$GEN_PGO"; then
+    ac_add_options --enable-profile-generate
+elif test "$USE_PGO"; then
+    ac_add_options --enable-profile-use
+    ac_add_options --with-pgo-jarlog=$PWD/en-US.log
+    ac_add_options --with-pgo-profile-path=$PWD/merged.profdata
+fi
 ac_add_options --enable-pulseaudio
 ac_add_options --enable-strip
 if test "$WFX_RELEASE"; then
