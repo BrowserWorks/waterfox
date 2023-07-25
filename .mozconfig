@@ -49,7 +49,7 @@ ac_add_options --disable-profiling
 ac_add_options --disable-updater
 
 ac_add_options --enable-application=browser
-ac_add_options --enable-bootstrap
+ac_add_options --disable-bootstrap
 ac_add_options --enable-jxl
 ac_add_options --enable-optimize="-Os -w"
 ac_add_options --enable-tests
@@ -72,3 +72,4 @@ fi
 mk_add_options AUTOCLOBBER=1
 mk_add_options MOZ_OBJDIR=./obj-"$(uname -s)"-"$(uname -m)"
 export MOZ_REQUIRE_SIGNING=
+export MOZ_TELEMETRY_REPORTING=
