@@ -280,30 +280,37 @@ const PrivateTab = {
     const { PrivateBrowsingUtils } = ChromeUtils.import(
       "resource://gre/modules/PrivateBrowsingUtils.jsm"
     );
+
+    const lazy = {
+      BrowserWindowTracker,
+      PlacesUIUtils,
+      PrivateBrowsingUtils,
+    }
+
     // eslint-disable-next-line no-unused-vars
     function getBrowserWindow(aWindow) {
       // Prefer the caller window if it's a browser window, otherwise use
       // the top browser window.
       return aWindow &&
         aWindow.document.documentElement.getAttribute("windowtype") ==
-          "navigator:browser"
+        "navigator:browser"
         ? aWindow
-        : BrowserWindowTracker.getTopWindow();
+        : lazy.BrowserWindowTracker.getTopWindow();
     }
 
     // TODO: replace eval with new Function()();
     try {
       // eslint-disable-next-line no-eval
       eval(
-        "PlacesUIUtils.openTabset = function " +
-          PlacesUIUtils.openTabset
-            .toString()
-            .replace(
-              /(\s+)(inBackground: loadInBackground,)/,
-              "$1$2$1userContextId: aEvent.userContextId || 0,"
-            )
+        "lazy.PlacesUIUtils.openTabset = function " +
+        lazy.PlacesUIUtils.openTabset
+          .toString()
+          .replace(
+            /(\s+)(inBackground: loadInBackground,)/,
+            "$1$2$1userContextId: aEvent.userContextId || 0,"
+          )
       );
-    } catch (ex) {}
+    } catch (ex) { }
   },
 
   openAllPrivate(event) {
@@ -483,7 +490,7 @@ const PrivateTab = {
 
   initCustomFunctions(aWindow) {
     let { MozElements, PrivateTab } = aWindow;
-    MozElements.MozTab.prototype.getAttribute = function(att) {
+    MozElements.MozTab.prototype.getAttribute = function (att) {
       if (att == "usercontextid" && this.getAttribute("isToggling", false)) {
         this.removeAttribute("isToggling");
         // If in private tab and we attempt to toggle, remove container, else convert to private tab
