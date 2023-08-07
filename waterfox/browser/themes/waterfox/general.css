@@ -178,6 +178,6 @@
 }
 
 /* Prevent any horizontal scrolling on about:preferences */
-.main-content {
+#preferences-body .main-content {
   overflow-x: hidden !important;
 }
