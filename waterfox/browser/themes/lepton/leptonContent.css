@@ -1696,6 +1696,12 @@
 /** Fully Proton Mode *********************************************************/
 @supports -moz-bool-pref("userContent.page.proton") {
   /*= Common contents ==========================================================*/ /*= abouts' common ===========================================================*/
+  @-moz-document url-prefix("about:"), url-prefix("chrome://pippki/content/"), url-prefix("chrome://browser/content/")
+  {
+    xul|treecols {
+      border-bottom-color: var(--in-content-box-border-color) !important;
+    }
+  }
   @-moz-document url-prefix("about:plugins"), url-prefix("about:cache"), url-prefix("about:checkerboard"), url-prefix("about:sync-log"), url-prefix("about:memory"), regexp("^(((jar:)?file:///)|(chrome://)).*/$")
   {
     /* Base */
@@ -2057,6 +2063,22 @@
       fill: var(--uc-warning-icon-bgcolor);
       width: 48px;
       height: 48px;
+    }
+  }
+  @-moz-document url-prefix("about:preferences") {
+    #handlersView > richlistitem:hover,
+    #translations-manage-install-list > .translations-manage-language:hover {
+      background-color: var(--in-content-item-hover);
+      color: var(--in-content-item-hover-text);
+    }
+    #handlersView > richlistitem[selected="true"],
+    #translations-manage-install-list > .translations-manage-language[selected="true"] {
+      background-color: var(--in-content-item-selected);
+      color: var(--in-content-item-selected-text);
+    }
+    #handlersView > richlistitem:nth-child(even):not([selected="true"], :hover),
+    #translations-manage-install-list > .translations-manage-language:nth-child(even):not([selected="true"], :hover) {
+      background-color: var(--in-content-box-background-odd);
     }
   }
   /*= chrome://browser/content/places/places.xhtml =============================*/
@@ -3276,7 +3298,7 @@
           --menuitem-image: url("chrome://browser/skin/lepton/checkmark-circle.svg");
         }
         .downloadUseSystemDefaultMenuItem {
-          --menuitem-image: url("chrome://browser/skin/open.svg");
+          --menuitem-image: url("chrome://browser/skin/lepton/toolbarButton-upload.svg");
         }
         .downloadAlwaysUseSystemDefaultMenuItem {
           /* checkbox */
@@ -3412,6 +3434,11 @@
         #orgUndo {
           --menuitem-image: url("chrome://browser/skin/lepton/undo.svg");
         }
+        @supports -moz-bool-pref("userChrome.icon.menu.full") {
+          #orgRedo {
+            --menuitem-image: url("chrome://browser/skin/lepton/redo.svg");
+          }
+        }
         #orgCut {
           --menuitem-image: url("chrome://browser/skin/edit-cut.svg");
         }
@@ -3439,13 +3466,18 @@
         }
         /*= maintenanceButtonPopup ===================================================*/
         #backupBookmarks {
-          --menuitem-image: url("chrome://devtools/skin/images/datastore.svg");
+          --menuitem-image: url("chrome://browser/skin/lepton/datastore.svg");
+        }
+        @supports -moz-bool-pref("userChrome.icon.menu.full") {
+          #fileRestoreMenu {
+            --menuitem-image: url("chrome://browser/skin/lepton/datarestore.svg");
+          }
         }
         #fileImport {
           --menuitem-image: url("chrome://browser/skin/lepton/toolbarButton-download.svg");
         }
         #fileExport {
-          --menuitem-image: url("chrome://browser/skin/open.svg");
+          --menuitem-image: url("chrome://browser/skin/lepton/toolbarButton-upload.svg");
         }
         #browserImport {
           --menuitem-image: url("chrome://browser/skin/import.svg");
