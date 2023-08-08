@@ -10,7 +10,7 @@ fi
 
 if test "$WFX_RELEASE" || test "$WFX_PRE_RELEASE"; then
     ac_add_options --enable-lto
-    ac_add_options --enable-optimize="-O3 -march=core2 -mtune=haswell -w"
+    ac_add_options --enable-optimize="-march=core2 -mtune=haswell -O3 -w"
     ac_add_options --enable-release
     ac_add_options --enable-rust-simd
     ac_add_options RUSTC_OPT_LEVEL=3
