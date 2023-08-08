@@ -423,6 +423,39 @@
       }
     }
   }
+  /*= Windows - Classic Theme #734 =============================================*/
+  @media (-moz-os-version: windows-win7),
+    (-moz-platform: windows-win7),
+    (-moz-os-version: windows-win8),
+    (-moz-platform: windows-win8),
+    (-moz-os-version: windows-win10),
+    (-moz-platform: windows-win10) {
+    @media (-moz-windows-classic) {
+      :root[tabsintitlebar][sizemode="normal"]:not(:-moz-lwtheme) #navigator-toolbox {
+        appearance: auto !important;
+        -moz-default-appearance: -moz-window-titlebar !important;
+      }
+      :root[tabsintitlebar][sizemode="maximized"]:not(:-moz-lwtheme) #navigator-toolbox {
+        appearance: auto !important;
+        -moz-default-appearance: -moz-window-titlebar !important;
+      }
+      :root[tabsintitlebar]:not(:-moz-lwtheme) #tabbrowser-arrowscrollbox {
+        color: -moz-dialogtext !important;
+      }
+      :root[tabsintitlebar][sizemode="normal"] #navigator-toolbox:-moz-lwtheme {
+        background-image: linear-gradient(
+          to bottom,
+          ThreeDLightShadow 0,
+          ThreeDLightShadow 1px,
+          ThreeDHighlight 1px,
+          ThreeDHighlight 2px,
+          ActiveBorder 2px,
+          ActiveBorder 4px,
+          transparent 4px
+        ) !important;
+      }
+    }
+  }
 }
 /*= Others - Compatibility ===================================================*/
 @supports -moz-bool-pref("userChrome.compatibility.panel_cutoff") {
@@ -1329,8 +1362,8 @@
     --menu-color: var(--arrowpanel-color, var(--in-content-page-color)) !important;
     --menu-background-color: var(--arrowpanel-background, var(--in-content-button-background)) !important;
     --menu-border-color: var(
-      --toolbarbutton-active-background,
-      var(--button-active-bgcolor, var(--card-outline-color))
+      --panel-separator-color,
+      var(--toolbarbutton-active-background, var(--button-active-bgcolor, var(--card-outline-color)))
     ) !important;
     --menuitem-hover-background-color: var(
       --toolbarbutton-hover-background,
@@ -1351,8 +1384,9 @@
       --panel-border-color: var(--menu-border-color) !important;
     }
     html#main-window menupopup:not(.in-menulist):not([placespopup]) menuseparator,
+    html#main-window menupopup:not(.in-menulist):not([placespopup]) menuseparator::before,
     html#main-window menupopup:not(.in-menulist)[placespopup] menuseparator::before {
-      border-top: 1px solid var(--menu-border-color) !important;
+      border-color: var(--menu-border-color) !important;
     }
     html#main-window menupopup:not(.in-menulist) menu[disabled="true"],
     html#main-window menupopup:not(.in-menulist) menu[_moz-menuactive="true"][disabled="true"],
@@ -9593,11 +9627,14 @@
       max-width: var(--uc-sidebar-width) !important;
       will-change: min-width, max-width;
     }
-    #sidebar-box:is(:hover, :focus-within) {
+    #sidebar-box:is(:hover, :focus-within),
+    #sidebar-box:has(#sidebar-switcher-target.active) {
       --uc-sidebar-shadow-width: calc(var(--uc-sidebar-activate-width) - var(--uc-sidebar-width));
     }
     #sidebar-box:is(:hover, :focus-within) > #sidebar-header,
-    #sidebar-box:is(:hover, :focus-within) > #sidebar {
+    #sidebar-box:is(:hover, :focus-within) > #sidebar,
+    #sidebar-box:has(#sidebar-switcher-target.active) > #sidebar-header,
+    #sidebar-box:has(#sidebar-switcher-target.active) > #sidebar {
       min-width: var(--uc-sidebar-activate-width) !important;
       max-width: var(--uc-sidebar-activate-width) !important;
     }
@@ -9623,14 +9660,17 @@
         transition: min-width var(--uc-autohide-sidebar-speed) var(--animation-easing-function)
           var(--uc-autohide-sidebar-delay) !important;
       }
-      #sidebar-box:is(:hover, :focus-within) {
+      #sidebar-box:is(:hover, :focus-within),
+      #siebar-box:has(#sidebar-switcher-target.active) {
         transition: margin-inline-start var(--uc-autohide-sidebar-speed) var(--animation-easing-function),
           opacity var(--uc-autohide-sidebar-speed) ease-in-out,
           box-shadow var(--uc-autohide-sidebar-speed) var(--animation-easing-function) var(--uc-autohide-sidebar-speed),
           visibility 0s linear !important;
       }
       #sidebar-box:is(:hover, :focus-within) > #sidebar-header,
-      #sidebar-box:is(:hover, :focus-within) > #sidebar {
+      #sidebar-box:is(:hover, :focus-within) > #sidebar,
+      #siebar-box:has(#sidebar-switcher-target.active) > #sidebar-header,
+      #siebar-box:has(#sidebar-switcher-target.active) > #sidebar {
         transition-delay: 0ms !important;
       }
       :root[inFullscreen="true"] #sidebar-box {
@@ -9640,7 +9680,8 @@
           box-shadow calc(var(--uc-autohide-fullscreen-sidebar-speed) + 0.05s) var(--animation-easing-function),
           visibility 0s linear !important;
       }
-      :root[inFullscreen="true"] #sidebar-box:is(:hover, :focus-within) {
+      :root[inFullscreen="true"] #sidebar-box:is(:hover, :focus-within),
+      :root[inFullscreen="true"] #sidebar-box:has(#sidebar-switcher-target.active) {
         transition-delay: 0ms !important;
       }
     }
@@ -9653,7 +9694,8 @@
       overflow: hidden;
       will-change: min-width, max-width;
     }
-    #sidebar-box:is(:hover, :focus-within) {
+    #sidebar-box:is(:hover, :focus-within),
+    #sidebar-box:has(#sidebar-switcher-target.active) {
       min-width: var(--uc-sidebar-activate-width) !important;
       max-width: var(--uc-sidebar-activate-width) !important;
     }
@@ -9677,7 +9719,8 @@
             var(--uc-autohide-sidebar-delay),
           max-width var(--uc-autohide-sidebar-speed) var(--animation-easing-function) var(--uc-autohide-sidebar-delay) !important;
       }
-      #sidebar-box:is(:hover, :focus-within) {
+      #sidebar-box:is(:hover, :focus-within),
+      #sidebar-box:has(#sidebar-switcher-target.active) {
         transition-delay: 0ms !important;
       }
       :root[inFullscreen="true"] #sidebar-box {
@@ -9687,7 +9730,8 @@
       :root[inFullscreen="true"] #sidebar-box[positionend="true"] {
         transition-property: margin-inline-end !important;
       }
-      :root[inFullscreen="true"] #sidebar-box:is(:hover, :focus-within) {
+      :root[inFullscreen="true"] #sidebar-box:is(:hover, :focus-within),
+      :root[inFullscreen="true"] #sidebar-box:has(#sidebar-switcher-target.active) {
         transition-delay: 0ms !important;
       }
     }
@@ -10585,23 +10629,41 @@
       list-style-image: url("chrome://browser/skin/lepton/broom.svg");
     }
     /*= sidebarMenu-popup ========================================================*/
-    #identity-popup-more-info {
+    #identity-popup-more-info.subviewbutton {
       list-style-image: url("chrome://global/skin/icons/info.svg");
     }
-    #sidebar-switcher-bookmarks {
+    #identity-popup-more-info:is(menuitem) {
+      --menuitem-image: url("chrome://global/skin/icons/info.svg");
+    }
+    #sidebar-switcher-bookmarks.subviewbutton {
       list-style-image: url("chrome://browser/skin/bookmark.svg");
     }
-    #sidebar-switcher-history {
+    #sidebar-switcher-bookmarks:is(menuitem) {
+      --menuitem-image: url("chrome://browser/skin/bookmark.svg");
+    }
+    #sidebar-switcher-history.subviewbutton {
       list-style-image: url("chrome://browser/skin/history.svg");
     }
-    #sidebar-switcher-tabs {
+    #sidebar-switcher-history:is(menuitem) {
+      --menuitem-image: url("chrome://browser/skin/history.svg");
+    }
+    #sidebar-switcher-tabs.subviewbutton {
       list-style-image: url("chrome://browser/skin/lepton/synced-tabs.svg");
     }
-    #sidebar-reverse-position {
+    #sidebar-switcher-tabs:is(menuitem) {
+      --menuitem-image: url("chrome://browser/skin/lepton/synced-tabs.svg");
+    }
+    #sidebar-reverse-position.subviewbutton {
       list-style-image: var(--uc-sidebar-icon-reverse);
     }
-    #sidebarMenu-popup > .subviewbutton[data-l10n-id="sidebar-menu-close"] {
+    #sidebar-reverse-position:is(menuitem) {
+      --menuitem-image: var(--uc-sidebar-icon-reverse);
+    }
+    #sidebarMenu-popup > *.subviewbutton[data-l10n-id="sidebar-menu-close"] {
       list-style-image: url("chrome://global/skin/icons/close.svg");
+    }
+    #sidebarMenu-popup > *:is(menuitem)[data-l10n-id="sidebar-menu-close"] {
+      --menuitem-image: url("chrome://global/skin/icons/close.svg");
     }
     /*= unified-extensions-view ===================================================*/
     #unified-extensions-manage-extensions {
@@ -10649,6 +10711,7 @@
     .openintabs-menuitem,
     #blockedPopupDontShowMessage,
     #BMB_viewBookmarksToolbar,
+    #sidebarMenu-popup,
     #context_openANewTab.tabmix-newtab-menu-icon {
       /* Color */
       -moz-context-properties: fill, fill-opacity, stroke !important;
@@ -10706,9 +10769,20 @@
     .openintabs-menuitem,
     #blockedPopupDontShowMessage,
     #BMB_viewBookmarksToolbar,
+    #sidebarMenu-popup,
     #context_openANewTab.tabmix-newtab-menu-icon {
       background-position: var(--uc-menu-background-position) var(--context-menu-background-padding) center !important;
       padding-inline-start: var(--context-menu-background-padding) !important;
+    }
+    #sidebarMenu-popup:has(menuitem) {
+      margin-inline-start: calc(
+        (var(--context-menu-background-padding) + var(--panel-shadow-margin, 4px)) * -1
+      ) !important;
+    }
+    :not(menu, #ContentSelectDropdown, #context-navigation)
+      > #sidebarMenu-popup:has(menuitem)
+      > menuitem:not(.menuitem-iconic, .bookmark-item, .in-menulist, [checked="true"]) {
+      padding-inline-start: 28px !important;
     }
     /* Menubar */
     @supports -moz-bool-pref("userChrome.icon.global_menubar") {
@@ -10861,6 +10935,7 @@
         .openintabs-menuitem,
         #blockedPopupDontShowMessage,
         #BMB_viewBookmarksToolbar,
+        #sidebarMenu-popup,
         #context_openANewTab.tabmix-newtab-menu-icon {
           background-position: left var(--context-menu-background-padding) center !important;
           padding-inline-start: 0 !important;
@@ -10886,6 +10961,7 @@
         .openintabs-menuitem,
         #blockedPopupDontShowMessage,
         #BMB_viewBookmarksToolbar,
+        #sidebarMenu-popup,
         #context_openANewTab.tabmix-newtab-menu-icon {
           padding-inline-start: var(--menu-background-padding-default) !important;
           margin-left: 0 !important;
@@ -11616,7 +11692,7 @@
         --menuitem-image: url("chrome://browser/skin/lepton/checkmark-circle.svg");
       }
       .downloadUseSystemDefaultMenuItem {
-        --menuitem-image: url("chrome://browser/skin/open.svg");
+        --menuitem-image: url("chrome://browser/skin/lepton/toolbarButton-upload.svg");
       }
       .downloadAlwaysUseSystemDefaultMenuItem {
         /* checkbox */
@@ -11769,7 +11845,7 @@
       .pageActionContextMenuItem.extensionPinned.extensionUnpinned.manageExtensionItem {
         --menuitem-image: url("chrome://global/skin/icons/settings.svg");
       }
-      .pageActionContextMenuItem.extensionPinned.extensionUnpinned .removeExtensionItem {
+      .pageActionContextMenuItem.extensionPinned.extensionUnpinned.removeExtensionItem {
         --menuitem-image: url("chrome://global/skin/icons/delete.svg");
       }
       /*= customizationPanelItemContextMenu ========================================*/
@@ -11946,6 +12022,13 @@
       .unified-extensions-context-menu-report-extension {
         --menuitem-image: url("chrome://browser/skin/lepton/send.svg");
       }
+      /*= urlbarView-result-menu ===================================================*/
+      .urlbarView-result-menuitem[data-command="dismiss"] {
+        --menuitem-image: url("chrome://global/skin/icons/delete.svg");
+      }
+      .urlbarView-result-menuitem[data-command="help"] {
+        --menuitem-image: url("chrome://global/skin/icons/info.svg");
+      }
     }
     @supports -moz-bool-pref("userChrome.icon.global_menubar") {
       /*= main-menubar =============================================================*/
@@ -11987,7 +12070,7 @@
         --menuitem-image: url("chrome://browser/skin/privateBrowsing.svg");
       }
       #menu_openFile {
-        --menuitem-image: url("chrome://browser/skin/open.svg");
+        --menuitem-image: url("chrome://browser/skin/lepton/toolbarButton-upload.svg");
       }
       #menu_savePage {
         --menuitem-image: url("chrome://browser/skin/lepton/toolbarButton-download.svg");
@@ -12125,6 +12208,9 @@
       #hiddenTabsMenu {
         --menuitem-image: url("chrome://browser/skin/lepton/eye-hide.svg");
       }
+      #menu_searchHistory {
+        --menuitem-image: url("chrome://global/skin/icons/search-glass.svg");
+      }
       #historyUndoMenu {
         --menuitem-image: url("chrome://browser/skin/tab.svg");
       }
@@ -12148,6 +12234,9 @@
       }
       #menu_bookmarkThisPage[data-l10n-id="menu-bookmark-edit"] {
         --menuitem-image: url("chrome://browser/skin/bookmark.svg");
+      }
+      #menu_searchBookmarks {
+        --menuitem-image: url("chrome://global/skin/icons/search-glass.svg");
       }
       /*= menu_ToolsPopup ==========================================================*/
       #menu_openDownloads {
@@ -12261,6 +12350,11 @@
       #orgUndo {
         --menuitem-image: url("chrome://browser/skin/lepton/undo.svg");
       }
+      @supports -moz-bool-pref("userChrome.icon.menu.full") {
+        #orgRedo {
+          --menuitem-image: url("chrome://browser/skin/lepton/redo.svg");
+        }
+      }
       #orgCut {
         --menuitem-image: url("chrome://browser/skin/edit-cut.svg");
       }
@@ -12288,13 +12382,18 @@
       }
       /*= maintenanceButtonPopup ===================================================*/
       #backupBookmarks {
-        --menuitem-image: url("chrome://devtools/skin/images/datastore.svg");
+        --menuitem-image: url("chrome://browser/skin/lepton/datastore.svg");
+      }
+      @supports -moz-bool-pref("userChrome.icon.menu.full") {
+        #fileRestoreMenu {
+          --menuitem-image: url("chrome://browser/skin/lepton/datarestore.svg");
+        }
       }
       #fileImport {
         --menuitem-image: url("chrome://browser/skin/lepton/toolbarButton-download.svg");
       }
       #fileExport {
-        --menuitem-image: url("chrome://browser/skin/open.svg");
+        --menuitem-image: url("chrome://browser/skin/lepton/toolbarButton-upload.svg");
       }
       #browserImport {
         --menuitem-image: url("chrome://browser/skin/import.svg");
