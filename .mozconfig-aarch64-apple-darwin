@@ -1,6 +1,7 @@
 #!/bin/sh
 # Targetting ARM64 builds. Expected to be run on Linux.
 
+POLLY="-mllvm -polly -mllvm -polly-2nd-level-tiling -mllvm -polly-loopfusion-greedy -mllvm -polly-pattern-matching-based-opts -mllvm -polly-position=before-vectorizer -mllvm -polly-vectorizer=stripmine"
 TOOLS=$HOME/macos-cross
 export CC="$HOME"/macos-cross/clang/bin/clang
 export CXX="$HOME"/macos-cross/clang/bin/clang++
@@ -18,7 +19,7 @@ unset MOZ_STDCXX_COMPAT
 
 if test "$WFX_RELEASE" || test "$WFX_PRE_RELEASE"; then
     ac_add_options --enable-lto=cross
-    ac_add_options --enable-optimize="-O3 -mcpu=apple-m1 -w"
+    ac_add_options --enable-optimize="-mcpu=apple-m1 -O3 -w"
     ac_add_options --enable-release
     ac_add_options --enable-rust-simd
     ac_add_options RUSTC_OPT_LEVEL=3
