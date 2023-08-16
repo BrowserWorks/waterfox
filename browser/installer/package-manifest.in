@@ -248,7 +248,11 @@
 ; All the pref files must be part of base to prevent migration bugs
 @RESPATH@/browser/@PREF_DIR@/firefox.js
 @RESPATH@/browser/@PREF_DIR@/firefox-branding.js
-@RESPATH@/browser/@PREF_DIR@/000-waterfox.js
+@RESPATH@/browser/@PREF_DIR@/00-waterfox.js
+@RESPATH@/browser/@PREF_DIR@/01-theme.js
+@RESPATH@/browser/@PREF_DIR@/02-speed.js
+@RESPATH@/browser/@PREF_DIR@/03-privacy.js
+@RESPATH@/browser/@PREF_DIR@/04-features.js
 @RESPATH@/greprefs.js
 @RESPATH@/defaults/autoconfig/prefcalls.js
 @RESPATH@/browser/defaults/permissions
