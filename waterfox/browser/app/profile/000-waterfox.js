@@ -112,6 +112,11 @@ pref("network.http.max-persistent-connections-per-proxy", 256);
 pref("network.manage-offline-status", false);
 pref("network.trr.confirmation_telemetry_enabled", false, locked);
 pref("network.trr.exclude-etc-hosts", false, locked);
+pref("network.trr.mode", 2);
+pref("network.trr.ohttp.config_uri", "https://dooh.cloudflare-dns.com/.well-known/doohconfig");
+pref("network.trr.ohttp.uri", "https://dooh.cloudflare-dns.com/dns-query");
+pref("network.trr.ohttp.relay_uri", "https://dooh.waterfox.net/");
+pref("network.trr.use_ohttp", true);
 pref("network.trr.resolvers", "", locked);
 pref("plugin.state.flash", 0, locked); // Disable for defense-in-depth
 pref("privacy.resistFingerprinting.block_mozAddonManager", true); // This is set so that UA overrides work on AMO.
