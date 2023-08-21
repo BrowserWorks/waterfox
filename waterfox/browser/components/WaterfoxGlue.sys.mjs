@@ -221,12 +221,14 @@ export const WaterfoxGlue = {
       "browser.migration.version",
       128
     );
+    const waterfoxUIVersion = 1;
 
-    const waterfoxUIVersion = lazy.PrefUtils.get(
-      "browser.migration.waterfox_version",
-      0
-    );
-
+    if (!Services.prefs.prefHasUserValue("browser.migration.waterfox_version")) {
+      // This is a new profile, nothing to migrate.
+      Services.prefs.setIntPref("browser.migration.waterfox_version", waterfoxUIVersion);
+      return;
+    }
+    
     async function enableTheme(id) {
       const addon = await lazy.AddonManager.getAddonByID(id);
       // If we found it, enable it.
