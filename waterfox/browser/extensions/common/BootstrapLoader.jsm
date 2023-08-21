@@ -13,12 +13,13 @@ const { XPCOMUtils } = ChromeUtils.import(
   "resource://gre/modules/XPCOMUtils.jsm"
 );
 
-XPCOMUtils.defineLazyModuleGetters(this, {
+const lazy = {};
+
+XPCOMUtils.defineLazyModuleGetters(lazy, {
   AddonInternal: "resource://gre/modules/addons/XPIDatabase.jsm",
   Blocklist: "resource://gre/modules/Blocklist.jsm",
   ConsoleAPI: "resource://gre/modules/Console.jsm",
   InstallRDF: "resource:///modules/RDFManifestConverter.jsm",
-  Services: "resource://gre/modules/Services.jsm",
 });
 
 Services.obs.addObserver(doc => {
@@ -74,7 +75,7 @@ Services.obs.addObserver(doc => {
   }
 }, "chrome-document-loaded");
 
-XPCOMUtils.defineLazyGetter(this, "BOOTSTRAP_REASONS", () => {
+XPCOMUtils.defineLazyGetter(lazy, "BOOTSTRAP_REASONS", () => {
   const { XPIProvider } = ChromeUtils.import(
     "resource://gre/modules/addons/XPIProvider.jsm"
   );
@@ -224,9 +225,9 @@ var BootstrapLoader = {
     }
 
     let manifestData = await pkg.readString("install.rdf");
-    let manifest = InstallRDF.loadFromString(manifestData).decode();
+    let manifest = lazy.InstallRDF.loadFromString(manifestData).decode();
 
-    let addon = new AddonInternal();
+    let addon = new lazy.AddonInternal();
     for (let prop of PROP_METADATA) {
       if (hasOwnProperty(manifest, prop)) {
         addon[prop] = manifest[prop];
@@ -360,7 +361,7 @@ var BootstrapLoader = {
     }
 
     addon.userDisabled = false;
-    addon.softDisabled = addon.blocklistState == Blocklist.STATE_SOFTBLOCKED;
+    addon.softDisabled = addon.blocklistState == lazy.Blocklist.STATE_SOFTBLOCKED;
     addon.applyBackgroundUpdates = AddonManager.AUTOUPDATE_DEFAULT;
 
     addon.userPermissions = null;
@@ -391,12 +392,12 @@ var BootstrapLoader = {
     });
 
     try {
-      Object.assign(sandbox, BOOTSTRAP_REASONS);
+      Object.assign(sandbox, lazy.BOOTSTRAP_REASONS);
 
       XPCOMUtils.defineLazyGetter(
         sandbox,
         "console",
-        () => new ConsoleAPI({ consoleID: `addon/${addon.id}` })
+        () => new lazy.ConsoleAPI({ consoleID: `addon/${addon.id}` })
       );
 
       Services.scriptloader.loadSubScript(uri, sandbox);
@@ -447,7 +448,7 @@ var BootstrapLoader = {
         } catch (err) {
           throw err;
         } finally {
-          if (reason != BOOTSTRAP_REASONS.APP_SHUTDOWN) {
+          if (reason != lazy.BOOTSTRAP_REASONS.APP_SHUTDOWN) {
             logger.debug(`Removing manifest for ${file.path}\n`);
             Components.manager.removeBootstrappedManifestLocation(file);
           }

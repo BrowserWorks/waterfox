@@ -12,7 +12,9 @@ const { XPCOMUtils } = ChromeUtils.import(
 
 const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
-XPCOMUtils.defineLazyModuleGetters(this, {
+const lazy = {};
+
+XPCOMUtils.defineLazyModuleGetters(lazy, {
   AddonManager: "resource://gre/modules/AddonManager.jsm",
   BrowserWindowTracker: "resource:///modules/BrowserWindowTracker.jsm",
   FileUtils: "resource://gre/modules/FileUtils.jsm",
@@ -20,13 +22,13 @@ XPCOMUtils.defineLazyModuleGetters(this, {
   NetUtil: "resource://gre/modules/NetUtil.jsm",
 });
 
-XPCOMUtils.defineLazyGetter(this, "PopupNotifications", () => {
+XPCOMUtils.defineLazyGetter(lazy, "PopupNotifications", () => {
   // eslint-disable-next-line no-shadow
   let { PopupNotifications } = ChromeUtils.import(
     "resource://gre/modules/PopupNotifications.jsm"
   );
   try {
-    const win = BrowserWindowTracker.getTopWindow();
+    const win = lazy.BrowserWindowTracker.getTopWindow();
     const gBrowser = win.gBrowser;
     const document = win.document;
     const gURLBar = win.gURLBar;
@@ -46,7 +48,7 @@ XPCOMUtils.defineLazyGetter(this, "PopupNotifications", () => {
       { shouldSuppress }
     );
   } catch (ex) {
-    Cu.reportError(ex);
+    console.error(ex);
     return null;
   }
 });
@@ -71,15 +73,15 @@ class StoreHandler {
   // init vars
   constructor() {
     this.uuidString = this._getUUID().slice(1, -1);
-    this.xpiPath = OS.Path.join(
-      OS.Constants.Path.profileDir,
+    this.xpiPath = lazy.OS.Path.join(
+      lazy.OS.Constants.Path.profileDir,
       "extensions",
       "tmp",
       this.uuidString,
       "extension.xpi"
     );
-    this.manifestPath = OS.Path.join(
-      OS.Constants.Path.profileDir,
+    this.manifestPath = lazy.OS.Path.join(
+      lazy.OS.Constants.Path.profileDir,
       "extensions",
       "tmp",
       this.uuidString,
@@ -91,6 +93,7 @@ class StoreHandler {
 
   /**
    * Remove dir if it exists
+   *
    * @param dir string absolute path to directory to remove
    */
   flushDir(dir) {
@@ -135,13 +138,14 @@ class StoreHandler {
 
   /**
    * Display prompt in event of failed installation
+   *
    * @param msg string message to display
    */
   _installFailedMsg(
     msg = "Encountered an error during extension installation"
   ) {
     const anchorID = "addons-notification-icon";
-    const win = BrowserWindowTracker.getTopWindow();
+    const win = lazy.BrowserWindowTracker.getTopWindow();
     const browser = win.gBrowser.selectedBrowser;
     let action = {
       label: "OK",
@@ -152,7 +156,7 @@ class StoreHandler {
       persistent: true,
       hideClose: true,
     };
-    PopupNotifications.show(
+    lazy.PopupNotifications.show(
       browser,
       "addon-install-failed",
       msg,
@@ -165,24 +169,26 @@ class StoreHandler {
 
   /**
    * Get an nsiFile object from a given path
+   *
    * @param path string path to file
    */
   _getNsiFile(path) {
-    let nsiFile = new FileUtils.File(path);
+    let nsiFile = new lazy.FileUtils.File(path);
     return nsiFile;
   }
 
   /**
    * Attempt to install a crx extension
+   *
    * @param uri object uri of request
    * @param retry bool is this a retry attempt or not
    */
   attemptInstall(uri, retry = false) {
-    let channel = NetUtil.newChannel({
+    let channel = lazy.NetUtil.newChannel({
       uri: uri.spec,
       loadUsingSystemPrincipal: true,
     });
-    NetUtil.asyncFetch(channel, (aInputStream, aResult) => {
+    lazy.NetUtil.asyncFetch(channel, (aInputStream, aResult) => {
       // Check that we had success.
       if (!Components.isSuccessCode(aResult)) {
         if (!retry) {
@@ -197,8 +203,8 @@ class StoreHandler {
       // write nsiInputStream to nsiOutputStream
       // this was originally in a separate function but had error
       // passing input stream between funcs
-      let aOutputStream = FileUtils.openAtomicFileOutputStream(this.nsiFileXpi);
-      NetUtil.asyncCopy(aInputStream, aOutputStream, async aResultInner => {
+      let aOutputStream = lazy.FileUtils.openAtomicFileOutputStream(this.nsiFileXpi);
+      lazy.NetUtil.asyncCopy(aInputStream, aOutputStream, async aResultInner => {
         // Check that we had success.
         if (!Components.isSuccessCode(aResultInner)) {
           // delete any tmp files
@@ -245,12 +251,13 @@ class StoreHandler {
 
   /**
    * Remove Chrome headers from crx addon
+   *
    * @param path string path to downloaded extension file
    */
   async _removeChromeHeaders(path) {
     try {
       // read using OS.File to enable data manipulation
-      let arrayBuffer = await OS.File.read(path);
+      let arrayBuffer = await lazy.OS.File.read(path);
       // determine Chrome ext headers
       let locOfPk = arrayBuffer.slice(0, 3000);
       for (var i = 0; i < locOfPk.length; i++) {
@@ -271,7 +278,7 @@ class StoreHandler {
       // remove Chrome ext headers
       let zipBuffer = arrayBuffer.slice(i);
       // overwrite .zip with headers removed as ZipReader only compatible with nsiFile type, not Uint8Array
-      await OS.File.writeAtomic(path, zipBuffer);
+      await lazy.OS.File.writeAtomic(path, zipBuffer);
       return true;
     } catch (e) {
       Services.console.logStringMessage("CRX: Error removing Chrome headers");
@@ -281,6 +288,7 @@ class StoreHandler {
 
   /**
    * Check API compatibility and maybe add id and remove update_url from manifest
+   *
    * @param file nsiFile tmp extension file
    */
   _amendManifest(file) {
@@ -321,6 +329,7 @@ class StoreHandler {
 
   /**
    * Parse manifest file into JS Object
+   *
    * @param zr nsiZipReader ZipReader object
    */
   _parseManifest(zr) {
@@ -338,6 +347,7 @@ class StoreHandler {
 
   /**
    * Check support for APIs in manifest
+   *
    * @param manifest Object manifest to compatibility check
    */
   _manifestCompatCheck(manifest) {
@@ -457,6 +467,7 @@ class StoreHandler {
 
   /**
    * Ensure manifest compliance based on extension contents
+   *
    * @param manifest
    * @param zr
    */
@@ -476,16 +487,18 @@ class StoreHandler {
 
   /**
    * Write amended manifest to temporary manifest.json
+   *
    * @param file nsiFile tmp manifest.json
    * @param manifest string JSON string of amended manifest
    */
   _writeTmpManifest(file, manifest) {
-    let manifestOutputStream = FileUtils.openAtomicFileOutputStream(file);
+    let manifestOutputStream = lazy.FileUtils.openAtomicFileOutputStream(file);
     manifestOutputStream.write(manifest, manifest.length);
   }
 
   /**
    * Replace the manifest in the tmp extension file with the amended version
+   *
    * @param xpiFile nsiFile tmp extension file
    * @param manifestFile nsiFile tmp manifest.json
    */
@@ -519,14 +532,15 @@ class StoreHandler {
 
   /**
    * Silently install extension
+   *
    * @param xpiFile nsiFile tmp extension file to install
    */
   async _installXpi(xpiFile) {
-    let install = await AddonManager.getInstallForFile(xpiFile);
-    const win = BrowserWindowTracker.getTopWindow();
+    let install = await lazy.AddonManager.getInstallForFile(xpiFile);
+    const win = lazy.BrowserWindowTracker.getTopWindow();
     const browser = win.gBrowser.selectedBrowser;
     const document = win.document;
-    await AddonManager.installAddonFromAOM(
+    await lazy.AddonManager.installAddonFromAOM(
       browser,
       document.documentURI,
       install
@@ -535,6 +549,7 @@ class StoreHandler {
 
   /**
    * Remove tmp files
+   *
    * @param zipFile nsiFile tmp extension file
    */
   _cleanup(zipFile) {
