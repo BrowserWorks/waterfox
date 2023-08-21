@@ -4,21 +4,12 @@
 
 /* global */
 
-const EXPORTED_SYMBOLS = ["BrowserUtils"];
-
-const { XPCOMUtils } = ChromeUtils.import(
-  "resource://gre/modules/XPCOMUtils.jsm"
-);
+import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 
 const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
-const { CustomizableUI } = ChromeUtils.import(
-  "resource:///modules/CustomizableUI.jsm"
-);
-
-const { PanelMultiView } = ChromeUtils.import(
-  "resource:///modules/PanelMultiView.jsm"
-);
+import { CustomizableUI } from "resource:///modules/CustomizableUI.sys.mjs";
+import { PanelMultiView } from "resource:///modules/PanelMultiView.sys.mjs";
 
 const lazy = {};
 
@@ -29,7 +20,7 @@ XPCOMUtils.defineLazyServiceGetter(
   "nsIStyleSheetService"
 );
 
-const BrowserUtils = {
+export const BrowserUtils = {
   // internal functions/props
   get mostRecentWindow() {
     return Services.wm.getMostRecentWindow("navigator:browser");
@@ -78,6 +69,7 @@ const BrowserUtils = {
    * Helper function to execute a given function with some args in every open browser window.
    * Window must be the functions first arg, subsequent args are passed in the same manner
    * as to executeInAllWindows().
+   *
    * @param func - The function to be called in each open browser window.
    * @param args - The arguments to supply to the function.
    * Example:
@@ -93,6 +85,7 @@ const BrowserUtils = {
 
   /**
    * Helper method to register or unregister a given stylesheet depending on the bool arg passed.
+   *
    * @param uri - The URI of the stylesheet to register or unregister.
    * @param enabled - A boolean indicating whether to register or unregister the sheet.
    */
