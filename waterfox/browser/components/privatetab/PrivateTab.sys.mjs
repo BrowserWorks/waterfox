@@ -2,33 +2,16 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["PrivateTab"];
-
 const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
-const { ContextualIdentityService } = ChromeUtils.import(
-  "resource://gre/modules/ContextualIdentityService.jsm"
-);
+import { ContextualIdentityService } from "resource://gre/modules/ContextualIdentityService.sys.mjs";
+import { PlacesUIUtils } from "resource:///modules/PlacesUIUtils.sys.mjs";
+import { TabStateCache } from "resource:///modules/sessionstore/TabStateCache.sys.mjs";
+import { TabStateFlusher } from "resource:///modules/sessionstore/TabStateFlusher.sys.mjs";
+import { BrowserUtils } from "resource:///modules/BrowserUtils.sys.mjs";
+import { PrefUtils } from "resource:///modules/PrefUtils.sys.mjs";
 
-const { PlacesUIUtils } = ChromeUtils.import(
-  "resource:///modules/PlacesUIUtils.jsm"
-);
-
-const { TabStateCache } = ChromeUtils.import(
-  "resource:///modules/sessionstore/TabStateCache.jsm"
-);
-
-const { TabStateFlusher } = ChromeUtils.import(
-  "resource:///modules/sessionstore/TabStateFlusher.jsm"
-);
-
-const { BrowserUtils } = ChromeUtils.import(
-  "resource:///modules/BrowserUtils.jsm"
-);
-
-const { PrefUtils } = ChromeUtils.import("resource:///modules/PrefUtils.jsm");
-
-const PrivateTab = {
+export const PrivateTab = {
   config: {
     neverClearData: false, // TODO: change to pref controlled value; if you want to not record history but don"t care about other data, maybe even want to keep private logins
     restoreTabsOnRestart: true,
@@ -164,24 +147,18 @@ const PrivateTab = {
     let openAllLinks = "placesContext_openLinks:tabs";
     let openTab = "placesContext_open:newtab";
     // let document = event.target.ownerDocument;
-    document.getElementById("openPrivate").disabled = document.getElementById(
-      openTab
-    ).disabled;
-    document.getElementById("openPrivate").hidden = document.getElementById(
-      openTab
-    ).hidden;
-    document.getElementById(
-      "openAllPrivate"
-    ).disabled = document.getElementById(openAll).disabled;
-    document.getElementById("openAllPrivate").hidden = document.getElementById(
-      openAll
-    ).hidden;
-    document.getElementById(
-      "openAllLinksPrivate"
-    ).disabled = document.getElementById(openAllLinks).disabled;
-    document.getElementById(
-      "openAllLinksPrivate"
-    ).hidden = document.getElementById(openAllLinks).hidden;
+    document.getElementById("openPrivate").disabled =
+      document.getElementById(openTab).disabled;
+    document.getElementById("openPrivate").hidden =
+      document.getElementById(openTab).hidden;
+    document.getElementById("openAllPrivate").disabled =
+      document.getElementById(openAll).disabled;
+    document.getElementById("openAllPrivate").hidden =
+      document.getElementById(openAll).hidden;
+    document.getElementById("openAllLinksPrivate").disabled =
+      document.getElementById(openAllLinks).disabled;
+    document.getElementById("openAllLinksPrivate").hidden =
+      document.getElementById(openAllLinks).hidden;
   },
 
   isPrivate(aTab) {
@@ -270,22 +247,16 @@ const PrivateTab = {
   overridePlacesUIUtils() {
     // Unused vars required for eval to execute
     // eslint-disable-next-line no-unused-vars
-    const { PlacesUtils } = ChromeUtils.import(
-      "resource://gre/modules/PlacesUtils.jsm"
+    const { PlacesUtils } = ChromeUtils.importESModule(
+      "resource://gre/modules/PlacesUtils.sys.mjs"
     );
     const { BrowserWindowTracker } = ChromeUtils.import(
       "resource:///modules/BrowserWindowTracker.jsm"
     );
     // eslint-disable-next-line no-unused-vars
-    const { PrivateBrowsingUtils } = ChromeUtils.import(
-      "resource://gre/modules/PrivateBrowsingUtils.jsm"
+    const { PrivateBrowsingUtils } = ChromeUtils.importESModule(
+      "resource://gre/modules/PrivateBrowsingUtils.sys.mjs"
     );
-
-    const lazy = {
-      BrowserWindowTracker,
-      PlacesUIUtils,
-      PrivateBrowsingUtils,
-    }
 
     // eslint-disable-next-line no-unused-vars
     function getBrowserWindow(aWindow) {
@@ -293,9 +264,9 @@ const PrivateTab = {
       // the top browser window.
       return aWindow &&
         aWindow.document.documentElement.getAttribute("windowtype") ==
-        "navigator:browser"
+          "navigator:browser"
         ? aWindow
-        : lazy.BrowserWindowTracker.getTopWindow();
+        : BrowserWindowTracker.getTopWindow();
     }
 
     // TODO: replace eval with new Function()();
@@ -303,14 +274,14 @@ const PrivateTab = {
       // eslint-disable-next-line no-eval
       eval(
         "lazy.PlacesUIUtils.openTabset = function " +
-        lazy.PlacesUIUtils.openTabset
-          .toString()
-          .replace(
-            /(\s+)(inBackground: loadInBackground,)/,
-            "$1$2$1userContextId: aEvent.userContextId || 0,"
-          )
+          PlacesUIUtils.openTabset
+            .toString()
+            .replace(
+              /(\s+)(inBackground: loadInBackground,)/,
+              "$1$2$1userContextId: aEvent.userContextId || 0,"
+            )
       );
-    } catch (ex) { }
+    } catch (ex) {}
   },
 
   openAllPrivate(event) {
@@ -503,6 +474,7 @@ const PrivateTab = {
     };
   },
 
-  orig_getAttribute: Services.wm.getMostRecentBrowserWindow("navigator:browser")
-    .MozElements.MozTab.prototype.getAttribute,
+  orig_getAttribute:
+    Services.wm.getMostRecentBrowserWindow("navigator:browser").MozElements
+      .MozTab.prototype.getAttribute,
 };

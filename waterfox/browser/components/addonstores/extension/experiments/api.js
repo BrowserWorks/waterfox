@@ -6,8 +6,8 @@
 
 "use strict";
 
-const { StoreHandler } = ChromeUtils.import(
-  "resource:///modules/StoreHandler.jsm"
+const { StoreHandler } = ChromeUtils.importESModule(
+  "resource:///modules/StoreHandler.sys.mjs"
 );
 
 this.total = class extends ExtensionAPI {
@@ -34,7 +34,7 @@ this.total = class extends ExtensionAPI {
           try {
             new StoreHandler().attemptInstall({ spec: uri });
           } catch (ex) {
-            Cu.reportError(ex);
+            console.error(ex);
           }
         },
       },

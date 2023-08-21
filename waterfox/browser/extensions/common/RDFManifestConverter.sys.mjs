@@ -1,17 +1,12 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-"use strict";
-
-var EXPORTED_SYMBOLS = ["InstallRDF"];
 
 const lazy = {};
 
-ChromeUtils.defineModuleGetter(
-  lazy,
-  "RDFDataSource",
-  "resource:///modules/RDFDataSource.jsm"
-);
+ChromeUtils.defineESModuleGetters(lazy, {
+  RDFDataSource: "resource:///modules/RDFDataSource.sys.mjs",
+});
 
 const RDFURI_INSTALL_MANIFEST_ROOT = "urn:mozilla:install-manifest";
 
@@ -45,7 +40,7 @@ class Manifest {
   }
 }
 
-class InstallRDF extends Manifest {
+export class InstallRDF extends Manifest {
   _readProps(source, obj, props) {
     for (let prop of props) {
       let val = getProperty(source, prop);
