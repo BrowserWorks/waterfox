@@ -2,21 +2,17 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-"use strict";
-
 const CRX_CONTENT_TYPE = "application/x-chrome-extension";
 
 const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
 const lazy = {};
 
-ChromeUtils.defineModuleGetter(
-  lazy,
-  "StoreHandler",
-  "resource:///modules/StoreHandler.jsm"
-);
+ChromeUtils.defineESModuleGetters(lazy, {
+  StoreHandler: "resource:///modules/StoreHandler.sys.mjs",
+});
 
-function ExtensionCompatibilityHandler() {}
+export function ExtensionCompatibilityHandler() {}
 
 ExtensionCompatibilityHandler.prototype = {
   /**
@@ -51,5 +47,3 @@ ExtensionCompatibilityHandler.prototype = {
     dump(msg + "\n");
   },
 };
-
-var EXPORTED_SYMBOLS = ["ExtensionCompatibilityHandler"];

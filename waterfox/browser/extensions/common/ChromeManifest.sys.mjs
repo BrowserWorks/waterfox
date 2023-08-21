@@ -1,9 +1,6 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-"use strict";
-
-this.EXPORTED_SYMBOLS = ["ChromeManifest"];
 
 const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
@@ -11,7 +8,7 @@ const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
  * A parser for chrome.manifest files. Implements a subset of
  * https://developer.mozilla.org/en-US/docs/Mozilla/Chrome_Registration
  */
-class ChromeManifest {
+export class ChromeManifest {
   /**
    * Constructs the chrome.manifest parser
    *
@@ -19,7 +16,7 @@ class ChromeManifest {
    *                                      those included via the |manifest| instruction. The
    *                                      function will take the file as an argument and should
    *                                      resolve with the string contents of that file
-   * @param {Object} options            Object describing the current system. The keys are manifest
+   * @param {object} options            Object describing the current system. The keys are manifest
    *                                      instructions
    */
   constructor(loader, options) {

@@ -2,14 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["IOUtils"];
-
 var { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
 var kStringBlockSize = 4096;
 var kStreamBlockSize = 8192;
 
-var IOUtils = {
+export var IOUtils = {
   /**
    * Read a file containing ASCII text into a string.
    *

@@ -5,7 +5,9 @@
 /* eslint-env mozilla/browser-window */
 "use strict";
 
-const { PrefUtils } = ChromeUtils.import("resource:///modules/PrefUtils.jsm");
+const { PrefUtils } = ChromeUtils.importESModule(
+  "resource:///modules/PrefUtils.sys.mjs"
+);
 
 XPCOMUtils.defineLazyServiceGetter(
   this,

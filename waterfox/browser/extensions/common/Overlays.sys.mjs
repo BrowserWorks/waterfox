@@ -4,25 +4,19 @@
 
 /* exported Overlays */
 
-"use strict";
-
-const EXPORTED_SYMBOLS = ["Overlays"];
-
 const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
 const lazy = {};
 
-ChromeUtils.defineModuleGetter(
-  lazy,
-  "setTimeout",
-  "resource://gre/modules/Timer.jsm"
-);
+ChromeUtils.defineESModuleGetters(lazy, {
+  setTimeout: "resource://gre/modules/Timer.sys.mjs",
+});
 
 /**
  * The overlays class, providing support for loading overlays like they used to work. This class
  * should likely be called through its static method Overlays.load()
  */
-class Overlays {
+export class Overlays {
   /**
    * Load overlays for the given window using the overlay provider, which can for example be a
    * ChromeManifest object.
@@ -66,7 +60,7 @@ class Overlays {
    * Loads the given urls into the window, recursively loading further overlays as provided by the
    * overlayProvider.
    *
-   * @param {String[]} urls                         The urls to load
+   * @param {string[]} urls                         The urls to load
    */
   async load(urls) {
     const unloadedOverlays = new Set(
@@ -278,7 +272,7 @@ class Overlays {
    * Gets the overlays referenced by processing instruction on a document.
    *
    * @param {DOMDocument} document  The document to read instructions from
-   * @return {String[]}             URLs of the overlays from the document
+   * @returns {string[]}             URLs of the overlays from the document
    */
   _collectOverlays(doc) {
     const urls = [];
@@ -321,7 +315,7 @@ class Overlays {
    * level.
    *
    * @param {Element} node          The DOM Element to resolve in the target document.
-   * @return {Boolean}              True, if the node was merged/inserted, false otherwise
+   * @returns {boolean}              True, if the node was merged/inserted, false otherwise
    */
   _resolveForwardReference(node) {
     if (node.id) {
@@ -378,6 +372,7 @@ class Overlays {
 
   /**
    * Delete the target node.
+   *
    * @param {Element} target     The node to delete.
    */
   _deleteElement(target) {
@@ -527,8 +522,8 @@ class Overlays {
   /**
    * Fetches the overlay from the given chrome:// or resource:// URL.
    *
-   * @param {String} srcUrl          The URL to load
-   * @return {Promise<XMLDocument>}  Returns a promise that is resolved with the XML document.
+   * @param {string} srcUrl          The URL to load
+   * @returns {Promise<XMLDocument>}  Returns a promise that is resolved with the XML document.
    */
   fetchOverlay(srcUrl) {
     if (!srcUrl.startsWith("chrome://") && !srcUrl.startsWith("resource://")) {
@@ -566,7 +561,7 @@ class Overlays {
    * be an inline script with textContent.
    *
    * @param {Element} node                          The <script> element to load the script from
-   * @return {Object[]}                             An object with listener and useCapture,
+   * @returns {object[]}                             An object with listener and useCapture,
    *                                                  describing load handlers the script creates
    *                                                  when first run.
    */
@@ -575,7 +570,7 @@ class Overlays {
 
     const oldAddEventListener = this.window.addEventListener;
     if (this.document.readyState == "complete") {
-      this.window.addEventListener = function(
+      this.window.addEventListener = function (
         type,
         listener,
         useCapture,
@@ -608,7 +603,7 @@ class Overlays {
       try {
         Services.scriptloader.loadSubScript(url, this.window);
       } catch (ex) {
-        Cu.reportError(ex);
+        console.error(ex);
       }
     } else if (node.textContent) {
       console.debug(`Loading eval'd script into ${this.window.location}`);
@@ -619,7 +614,7 @@ class Overlays {
         // loadSubScript will have to do.
         Services.scriptloader.loadSubScript(dataURL, this.window);
       } catch (ex) {
-        Cu.reportError(ex);
+        console.error(ex);
       }
     }
 
@@ -635,8 +630,8 @@ class Overlays {
   /**
    * Load the CSS stylesheet from the given url
    *
-   * @param {String} url        The url to load from
-   * @return {Element}          An HTML link element for this stylesheet
+   * @param {string} url        The url to load from
+   * @returns {Element}          An HTML link element for this stylesheet
    */
   loadCSS(url) {
     console.debug(`Loading ${url} into ${this.window.location}`);
