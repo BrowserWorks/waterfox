@@ -97,7 +97,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
     "resource:///modules/WebProtocolHandlerRegistrar.sys.mjs",
   WindowsRegistry: "resource://gre/modules/WindowsRegistry.sys.mjs",
   setTimeout: "resource://gre/modules/Timer.sys.mjs",
-  WaterfoxGlue: "resource:///modules/WaterfoxGlue.jsm",
+  WaterfoxGlue: "resource:///modules/WaterfoxGlue.sys.mjs",
 });
 
 XPCOMUtils.defineLazyServiceGetters(lazy, {
@@ -262,8 +262,8 @@ BrowserGlue.prototype = {
   observe: async function BG_observe(subject, topic, data) {
     switch (topic) {
       case "app-startup":
-        const { BootstrapLoader } = ChromeUtils.import(
-          "resource:///modules/BootstrapLoader.jsm"
+        const { BootstrapLoader } = ChromeUtils.importESModule(
+          "resource:///modules/BootstrapLoader.sys.mjs"
         );
         lazy.AddonManager.addExternalExtensionLoader(BootstrapLoader);
       break;

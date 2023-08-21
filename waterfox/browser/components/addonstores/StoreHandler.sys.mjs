@@ -2,30 +2,27 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-"use strict";
-
-var EXPORTED_SYMBOLS = ["StoreHandler"];
-
-const { XPCOMUtils } = ChromeUtils.import(
-  "resource://gre/modules/XPCOMUtils.jsm"
-);
+import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 
 const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
 const lazy = {};
 
+ChromeUtils.defineESModuleGetters(lazy, {
+  AddonManager: "resource://gre/modules/AddonManager.sys.mjs",
+  FileUtils: "resource://gre/modules/FileUtils.sys.mjs",
+  NetUtil: "resource://gre/modules/NetUtil.sys.mjs",
+});
+
 XPCOMUtils.defineLazyModuleGetters(lazy, {
-  AddonManager: "resource://gre/modules/AddonManager.jsm",
   BrowserWindowTracker: "resource:///modules/BrowserWindowTracker.jsm",
-  FileUtils: "resource://gre/modules/FileUtils.jsm",
   OS: "resource://gre/modules/osfile.jsm",
-  NetUtil: "resource://gre/modules/NetUtil.jsm",
 });
 
 XPCOMUtils.defineLazyGetter(lazy, "PopupNotifications", () => {
   // eslint-disable-next-line no-shadow
-  let { PopupNotifications } = ChromeUtils.import(
-    "resource://gre/modules/PopupNotifications.jsm"
+  let { PopupNotifications } = ChromeUtils.importESModule(
+    "resource://gre/modules/PopupNotifications.sys.mjs"
   );
   try {
     const win = lazy.BrowserWindowTracker.getTopWindow();
@@ -69,7 +66,7 @@ const ReusableStreamInstance = Components.Constructor(
 
 const uuidGenerator = Services.uuid;
 
-class StoreHandler {
+export class StoreHandler {
   // init vars
   constructor() {
     this.uuidString = this._getUUID().slice(1, -1);
@@ -203,49 +200,55 @@ class StoreHandler {
       // write nsiInputStream to nsiOutputStream
       // this was originally in a separate function but had error
       // passing input stream between funcs
-      let aOutputStream = lazy.FileUtils.openAtomicFileOutputStream(this.nsiFileXpi);
-      lazy.NetUtil.asyncCopy(aInputStream, aOutputStream, async aResultInner => {
-        // Check that we had success.
-        if (!Components.isSuccessCode(aResultInner)) {
-          // delete any tmp files
-          this._cleanup(this.nsiFileXpi);
-          this._installFailedMsg(
-            "This add-on could not be installed because of a filesystem error."
-          );
-          return false;
-        }
-        try {
-          await this._removeChromeHeaders(this.xpiPath);
-          let manifest = this._amendManifest(this.nsiFileXpi);
-          // Notify tests
-          Services.obs.notifyObservers(null, "waterfox-test-stores");
-          if (manifest instanceof Array) {
+      let aOutputStream = lazy.FileUtils.openAtomicFileOutputStream(
+        this.nsiFileXpi
+      );
+      lazy.NetUtil.asyncCopy(
+        aInputStream,
+        aOutputStream,
+        async aResultInner => {
+          // Check that we had success.
+          if (!Components.isSuccessCode(aResultInner)) {
+            // delete any tmp files
             this._cleanup(this.nsiFileXpi);
             this._installFailedMsg(
-              "This add-on could not be installed because not all of its features are supported."
-            );
-            Services.console.logStringMessage(
-              "CRX: Unsupported APIs: " + manifest.join(",")
+              "This add-on could not be installed because of a filesystem error."
             );
             return false;
           }
-          this._writeTmpManifest(this.nsiManifest, manifest);
-          this._replaceManifestInXpi(this.nsiFileXpi, this.nsiManifest);
-          await this._installXpi(this.nsiFileXpi);
-          // this._cleanup(this.nsiFileXpi);
-          this._resetUUID();
-        } catch (e) {
-          // delete any tmp files
-          this._cleanup(this.nsiFileXpi);
-          this._installFailedMsg(
-            "There was an issue while attempting to install the add-on."
-          );
-          Services.console.logStringMessage(
-            "CRX: Error installing add-on: " + e
-          );
-          return false;
+          try {
+            await this._removeChromeHeaders(this.xpiPath);
+            let manifest = this._amendManifest(this.nsiFileXpi);
+            // Notify tests
+            Services.obs.notifyObservers(null, "waterfox-test-stores");
+            if (manifest instanceof Array) {
+              this._cleanup(this.nsiFileXpi);
+              this._installFailedMsg(
+                "This add-on could not be installed because not all of its features are supported."
+              );
+              Services.console.logStringMessage(
+                "CRX: Unsupported APIs: " + manifest.join(",")
+              );
+              return false;
+            }
+            this._writeTmpManifest(this.nsiManifest, manifest);
+            this._replaceManifestInXpi(this.nsiFileXpi, this.nsiManifest);
+            await this._installXpi(this.nsiFileXpi);
+            // this._cleanup(this.nsiFileXpi);
+            this._resetUUID();
+          } catch (e) {
+            // delete any tmp files
+            this._cleanup(this.nsiFileXpi);
+            this._installFailedMsg(
+              "There was an issue while attempting to install the add-on."
+            );
+            Services.console.logStringMessage(
+              "CRX: Error installing add-on: " + e
+            );
+            return false;
+          }
         }
-      });
+      );
     });
   }
 
