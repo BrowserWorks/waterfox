@@ -2,21 +2,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["StatusBar"];
+import { CustomizableUI } from "resource:///modules/CustomizableUI.sys.mjs";
 
-const { CustomizableUI } = ChromeUtils.import(
-  "resource:///modules/CustomizableUI.jsm"
-);
+import { setTimeout } from "resource://gre/modules/Timer.sys.mjs";
+import { PrefUtils } from "resource:///modules/PrefUtils.sys.mjs";
+import { BrowserUtils } from "resource:///modules/BrowserUtils.sys.mjs";
 
-const { setTimeout } = ChromeUtils.import("resource://gre/modules/Timer.jsm");
-
-const { PrefUtils } = ChromeUtils.import("resource:///modules/PrefUtils.jsm");
-
-const { BrowserUtils } = ChromeUtils.import(
-  "resource:///modules/BrowserUtils.jsm"
-);
-
-const StatusBar = {
+export const StatusBar = {
   PREF_ENABLED: "browser.statusbar.enabled",
   PREF_STATUSTEXT: "browser.statusbar.appendStatusText",
 
@@ -152,7 +144,7 @@ const StatusBar = {
     let { document } = aWindow;
     let el = document.getElementById(aId);
     el.collapsed = !this.enabled;
-    el.setAttribute = function(att, value) {
+    el.setAttribute = function (att, value) {
       let result = Element.prototype.setAttribute.apply(this, arguments);
 
       if (att == "collapsed") {

@@ -2,24 +2,20 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-"use strict";
+import { AddonManager } from "resource://gre/modules/AddonManager.sys.mjs";
 
-var EXPORTED_SYMBOLS = ["BootstrapLoader"];
-
-const { AddonManager } = ChromeUtils.import(
-  "resource://gre/modules/AddonManager.jsm"
-);
-const { XPCOMUtils } = ChromeUtils.import(
-  "resource://gre/modules/XPCOMUtils.jsm"
-);
+import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 
 const lazy = {};
 
+ChromeUtils.defineESModuleGetters(lazy, {
+  Blocklist: "resource://gre/modules/Blocklist.sys.mjs",
+  ConsoleAPI: "resource://gre/modules/Console.sys.mjs",
+  InstallRDF: "resource:///modules/RDFManifestConverter.sys.mjs",
+});
+
 XPCOMUtils.defineLazyModuleGetters(lazy, {
   AddonInternal: "resource://gre/modules/addons/XPIDatabase.jsm",
-  Blocklist: "resource://gre/modules/Blocklist.jsm",
-  ConsoleAPI: "resource://gre/modules/Console.jsm",
-  InstallRDF: "resource:///modules/RDFManifestConverter.jsm",
 });
 
 Services.obs.addObserver(doc => {
@@ -29,9 +25,9 @@ Services.obs.addObserver(doc => {
       "chrome://mozapps/content/extensions/aboutaddons.html"
   ) {
     const win = doc.defaultView;
-    let handleEvent_orig = win.customElements.get("addon-card").prototype
-      .handleEvent;
-    win.customElements.get("addon-card").prototype.handleEvent = function(e) {
+    let handleEvent_orig =
+      win.customElements.get("addon-card").prototype.handleEvent;
+    win.customElements.get("addon-card").prototype.handleEvent = function (e) {
       if (
         e.type === "click" &&
         e.target.getAttribute("action") === "preferences" &&
@@ -63,7 +59,7 @@ Services.obs.addObserver(doc => {
       }
     };
     let update_orig = win.customElements.get("addon-options").prototype.update;
-    win.customElements.get("addon-options").prototype.update = function(
+    win.customElements.get("addon-options").prototype.update = function (
       card,
       addon
     ) {
@@ -82,13 +78,15 @@ XPCOMUtils.defineLazyGetter(lazy, "BOOTSTRAP_REASONS", () => {
   return XPIProvider.BOOTSTRAP_REASONS;
 });
 
-const { Log } = ChromeUtils.import("resource://gre/modules/Log.jsm");
+import { Log } from "resource://gre/modules/Log.sys.mjs";
+
 var logger = Log.repository.getLogger("addons.bootstrap");
 
 /**
  * Valid IDs fit this pattern.
  */
-var gIDTest = /^(\{[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}|[a-z0-9-\._]*\@[a-z0-9-\._]+)$/i;
+var gIDTest =
+  /^(\{[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}|[a-z0-9-\._]*\@[a-z0-9-\._]+)$/i;
 
 // Properties that exist in the install manifest
 const PROP_METADATA = [
@@ -172,7 +170,7 @@ function getURIForResourceInFile(aFile, aPath) {
   return buildJarURI(aFile, aPath);
 }
 
-var BootstrapLoader = {
+export var BootstrapLoader = {
   name: "bootstrap",
   manifestFile: "install.rdf",
   async loadManifest(pkg) {
@@ -180,7 +178,7 @@ var BootstrapLoader = {
      * Reads locale properties from either the main install manifest root or
      * an em:localized section in the install manifest.
      *
-     * @param {Object} aSource
+     * @param {object} aSource
      *        The resource to read the properties from.
      * @param {boolean} isDefault
      *        True if the locale is to be read from the main install manifest
@@ -189,7 +187,7 @@ var BootstrapLoader = {
      *        An array of locale names already seen for this install manifest.
      *        Any locale names seen as a part of this function will be added to
      *        this array
-     * @returns {Object}
+     * @returns {object}
      *        an object containing the locale properties
      */
     function readLocale(aSource, isDefault, aSeenLocales) {
@@ -361,7 +359,8 @@ var BootstrapLoader = {
     }
 
     addon.userDisabled = false;
-    addon.softDisabled = addon.blocklistState == lazy.Blocklist.STATE_SOFTBLOCKED;
+    addon.softDisabled =
+      addon.blocklistState == lazy.Blocklist.STATE_SOFTBLOCKED;
     addon.applyBackgroundUpdates = AddonManager.AUTOUPDATE_DEFAULT;
 
     addon.userPermissions = null;
