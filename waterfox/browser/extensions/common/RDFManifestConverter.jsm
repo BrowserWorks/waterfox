@@ -5,8 +5,10 @@
 
 var EXPORTED_SYMBOLS = ["InstallRDF"];
 
+const lazy = {};
+
 ChromeUtils.defineModuleGetter(
-  this,
+  lazy,
   "RDFDataSource",
   "resource:///modules/RDFDataSource.jsm"
 );
@@ -31,15 +33,15 @@ class Manifest {
   }
 
   static loadFromString(text) {
-    return new this(RDFDataSource.loadFromString(text));
+    return new this(lazy.RDFDataSource.loadFromString(text));
   }
 
   static loadFromBuffer(buffer) {
-    return new this(RDFDataSource.loadFromBuffer(buffer));
+    return new this(lazy.RDFDataSource.loadFromBuffer(buffer));
   }
 
   static async loadFromFile(uri) {
-    return new this(await RDFDataSource.loadFromFile(uri));
+    return new this(await lazy.RDFDataSource.loadFromFile(uri));
   }
 }
 
