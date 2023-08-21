@@ -118,9 +118,10 @@ uint32_t CacheObserver::MemoryCacheCapacity() {
     if (x > 0) {
       // 0.1 is added here for rounding
       capacity = (int32_t)(x * x / 3.0 + x + 2.0 / 3 + 0.1);
-      if (capacity > 32) {
-        capacity = 32;
-      }
+      // Allow cache to be higher for systems with > 8GiB of RAM
+      // if (capacity > 32) {
+      //   capacity = 32;
+      // }
       capacity <<= 10;
     }
     return capacity;
