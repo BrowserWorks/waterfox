@@ -20,8 +20,10 @@ const { PanelMultiView } = ChromeUtils.import(
   "resource:///modules/PanelMultiView.jsm"
 );
 
+const lazy = {};
+
 XPCOMUtils.defineLazyServiceGetter(
-  this,
+  lazy,
   "styleSheetService",
   "@mozilla.org/content/style-sheet-service;1",
   "nsIStyleSheetService"
@@ -103,15 +105,25 @@ const BrowserUtils = {
   },
 
   registerStylesheet(uri) {
-    let url = Services.io.newURI(uri);
-    let type = styleSheetService.USER_SHEET;
-    styleSheetService.loadAndRegisterSheet(url, type);
+    if (!this.sheetRegistered(uri)) {
+      let url = Services.io.newURI(uri);
+      let type = lazy.styleSheetService.USER_SHEET;
+      lazy.styleSheetService.loadAndRegisterSheet(url, type);
+    }
   },
 
   unregisterStylesheet(uri) {
+    if (this.sheetRegistered(uri)) {
+      let url = Services.io.newURI(uri);
+      let type = lazy.styleSheetService.USER_SHEET;
+      lazy.styleSheetService.unregisterSheet(url, type);
+    }
+  },
+
+  sheetRegistered(uri) {
     let url = Services.io.newURI(uri);
-    let type = styleSheetService.USER_SHEET;
-    styleSheetService.unregisterSheet(url, type);
+    let type = lazy.styleSheetService.USER_SHEET;
+    return lazy.styleSheetService.sheetRegistered(url, type);
   },
 
   setStyle(aStyleSheet) {
