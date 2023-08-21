@@ -1,6 +1,8 @@
 "use strict";
 
-const { PrefUtils } = ChromeUtils.import("resource:///modules/PrefUtils.jsm");
+const { PrefUtils } = ChromeUtils.importESModule(
+  "resource:///modules/PrefUtils.sys.mjs"
+);
 
 const STRING_PREF = "browser.test.stringPref";
 const INT_PREF = "browser.test.intPref";
