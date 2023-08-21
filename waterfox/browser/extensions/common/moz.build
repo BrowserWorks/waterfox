@@ -4,14 +4,14 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 EXTRA_JS_MODULES += [
-    "BootstrapLoader.jsm",
-    "ChromeManifest.jsm",
-    "ExtensionSupport.jsm",
-    "IOUtils.jsm",
-    "iteratorUtils.jsm",
-    "Overlays.jsm",
-    "RDFDataSource.jsm",
-    "RDFManifestConverter.jsm",
+    "BootstrapLoader.sys.mjs",
+    "ChromeManifest.sys.mjs",
+    "ExtensionSupport.sys.mjs",
+    "IOUtils.sys.mjs",
+    "iteratorUtils.sys.mjs",
+    "Overlays.sys.mjs",
+    "RDFDataSource.sys.mjs",
+    "RDFManifestConverter.sys.mjs",
 ]
 
 LOCAL_INCLUDES += ["/netwerk/base"]

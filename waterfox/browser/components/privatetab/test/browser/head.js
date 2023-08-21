@@ -1,30 +1,28 @@
 "use strict";
 
-const { AppConstants } = ChromeUtils.import(
-  "resource://gre/modules/AppConstants.jsm"
+const { TabStateFlusher } = ChromeUtils.importESModule(
+  "resource:///modules/sessionstore/TabStateFlusher.sys.mjs"
 );
 
-const { TabStateFlusher } = ChromeUtils.import(
-  "resource:///modules/sessionstore/TabStateFlusher.jsm"
+const { TabStateCache } = ChromeUtils.importESModule(
+  "resource:///modules/sessionstore/TabStateCache.sys.mjs"
 );
 
-const { TabStateCache } = ChromeUtils.import(
-  "resource:///modules/sessionstore/TabStateCache.jsm"
-);
-
-const { SearchTestUtils } = ChromeUtils.import(
-  "resource://testing-common/SearchTestUtils.jsm"
+const { SearchTestUtils } = ChromeUtils.importESModule(
+  "resource://testing-common/SearchTestUtils.sys.mjs"
 );
 
 SearchTestUtils.init(this);
 
-const { UrlbarTestUtils } = ChromeUtils.import(
-  "resource://testing-common/UrlbarTestUtils.jsm"
+const { UrlbarTestUtils } = ChromeUtils.importESModule(
+  "resource://testing-common/UrlbarTestUtils.sys.mjs"
 );
 
 UrlbarTestUtils.init(this);
 
-const { PrivateTab } = ChromeUtils.import("resource:///modules/PrivateTab.jsm");
+const { PrivateTab } = ChromeUtils.importESModule(
+  "resource:///modules/PrivateTab.sys.mjs"
+);
 
 const URI1 = "https://test1.example.com/";
 const URI2 = "https://example.com/";

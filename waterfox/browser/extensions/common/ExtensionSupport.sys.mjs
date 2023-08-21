@@ -1,32 +1,27 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
-"use strict";
 
 /**
  * Helper functions for use by extensions that should ease them plug
  * into the application.
  */
 
-this.EXPORTED_SYMBOLS = ["ExtensionSupport"];
+import { AddonManager } from "resource://gre/modules/AddonManager.sys.mjs";
 
-const { AddonManager } = ChromeUtils.import(
-  "resource://gre/modules/AddonManager.jsm"
-);
 const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
-// ChromeUtils.import("resource://gre/modules/Deprecated.jsm") - needed for warning.
-const { NetUtil } = ChromeUtils.import("resource://gre/modules/NetUtil.jsm");
 
-var { fixIterator } = ChromeUtils.import(
-  "resource:///modules/iteratorUtils.jsm"
-);
-const { IOUtils } = ChromeUtils.import("resource:///modules/IOUtils.jsm");
+// ChromeUtils.import("resource://gre/modules/Deprecated.jsm") - needed for warning.
+import { NetUtil } from "resource://gre/modules/NetUtil.sys.mjs";
+
+import { fixIterator } from "resource:///modules/iteratorUtils.sys.mjs";
+import { IOUtils } from "resource:///modules/IOUtils.sys.mjs";
 
 var extensionHooks = new Map();
 var legacyExtensions = new Map();
 var openWindowList;
 
-var ExtensionSupport = {
+export var ExtensionSupport = {
   /**
    * A Map-like object which tracks legacy extension status. The "has" method
    * returns only active extensions for compatibility with existing code.
@@ -170,11 +165,11 @@ var ExtensionSupport = {
       try {
         Cu.evalInSandbox(prefDataString, sandbox);
       } catch (e) {
-        Cu.reportError(
-          "Error reading default prefs of addon " +
-            addonFile.leafName +
-            ": " +
-            e
+        console.error(
+          "Error reading default prefs of addon ",
+          addonFile.leafName,
+          ": ",
+          e
         );
       }
     }
@@ -209,13 +204,15 @@ var ExtensionSupport = {
    */
   registerWindowListener(aID, aExtensionHook) {
     if (!aID) {
-      Cu.reportError("No extension ID provided for the window listener");
+      console.error("No extension ID provided for the window listener");
       return false;
     }
 
     if (extensionHooks.has(aID)) {
-      Cu.reportError(
-        "Window listener for extension + '" + aID + "' already registered"
+      console.error(
+        "Window listener for extension + '",
+        aID,
+        "' already registered"
       );
       return false;
     }
@@ -224,8 +221,10 @@ var ExtensionSupport = {
       !("onLoadWindow" in aExtensionHook) &&
       !("onUnloadWindow" in aExtensionHook)
     ) {
-      Cu.reportError(
-        "The extension + '" + aID + "' does not provide any callbacks"
+      console.error(
+        "The extension + '",
+        aID,
+        "' does not provide any callbacks"
       );
       return false;
     }
@@ -270,14 +269,16 @@ var ExtensionSupport = {
    */
   unregisterWindowListener(aID) {
     if (!aID) {
-      Cu.reportError("No extension ID provided for the window listener");
+      console.error("No extension ID provided for the window listener");
       return false;
     }
 
     let windowListener = extensionHooks.get(aID);
     if (!windowListener) {
-      Cu.reportError(
-        "Couldn't remove window listener for extension + '" + aID + "'"
+      console.error(
+        "Couldn't remove window listener for extension + '",
+        aID,
+        "'"
       );
       return false;
     }
@@ -325,7 +326,7 @@ var ExtensionSupport = {
     // aWindow.document.location.href will not be "about:blank" any more.
     aWindow.addEventListener(
       "load",
-      function() {
+      function () {
         ExtensionSupport._addToListAndNotify(aWindow, aID);
       },
       { once: true }
@@ -344,7 +345,7 @@ var ExtensionSupport = {
     openWindowList.add(aWindow);
     aWindow.addEventListener(
       "unload",
-      function() {
+      function () {
         ExtensionSupport._checkAndRunMatchingExtensions(aWindow, "unload");
       },
       { once: true }

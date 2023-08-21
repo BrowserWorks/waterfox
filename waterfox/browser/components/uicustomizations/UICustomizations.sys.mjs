@@ -4,15 +4,11 @@
 
 /* global */
 
-const EXPORTED_SYMBOLS = ["UICustomizations"];
+import { PrefUtils } from "resource:///modules/PrefUtils.sys.mjs";
 
-const { PrefUtils } = ChromeUtils.import("resource:///modules/PrefUtils.jsm");
+import { BrowserUtils } from "resource:///modules/BrowserUtils.sys.mjs";
 
-const { BrowserUtils } = ChromeUtils.import(
-  "resource:///modules/BrowserUtils.jsm"
-);
-
-const UICustomizations = {
+export const UICustomizations = {
   PREF_TOOLBARPOS: "browser.tabs.toolbarposition",
   PREF_BOOKMARKPOS: "browser.bookmarks.toolbarposition",
   PREF_DEFAULTTHEME: "browser.lepton.enabled",

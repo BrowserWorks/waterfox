@@ -4,15 +4,11 @@
 
 /* global */
 
-const EXPORTED_SYMBOLS = ["TabFeatures"];
-
 const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
-const { AppConstants } = ChromeUtils.import(
-  "resource://gre/modules/AppConstants.jsm"
-);
+import { AppConstants } from "resource://gre/modules/AppConstants.sys.mjs";
 
-const TabFeatures = {
+export const TabFeatures = {
   PREF_ACTIVETAB: "browser.tabs.copyurl.activetab",
   PREF_REQUIRECONFIRM: "browser.restart_menu.requireconfirm",
   PREF_PURGECACHE: "browser.restart_menu.purgecache",
@@ -136,8 +132,9 @@ const TabFeatures = {
         this._attemptRestart();
       }
     } catch (e) {
-      Cu.reportError(
-        "We're sorry but something has gone wrong with 'restartBrowser' " + e
+      console.error(
+        "We're sorry but something has gone wrong with 'restartBrowser' ",
+        e
       );
     }
   },

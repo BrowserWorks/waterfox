@@ -5,8 +5,8 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 EXTRA_JS_MODULES += [
-    "AddonStores.jsm",
-    "StoreHandler.jsm",
+    "AddonStores.sys.mjs",
+    "StoreHandler.sys.mjs",
 ]
 
 JAR_MANIFESTS += ["jar.mn"]
