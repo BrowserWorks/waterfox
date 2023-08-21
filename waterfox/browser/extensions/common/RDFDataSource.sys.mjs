@@ -1,7 +1,6 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-"use strict";
 
 /**
  * This module creates a new API for accessing and modifying RDF graphs. The
@@ -149,16 +148,6 @@ const RDF_PROPERTY_INVALID_TYPES = [
  * most of our rdf examples are unnamespaced so leaving off for the time being.
  */
 const USE_RDFNS_ATTR = false;
-
-var EXPORTED_SYMBOLS = [
-  "RDFLiteral",
-  "RDFIntLiteral",
-  "RDFDateLiteral",
-  "RDFBlankNode",
-  "RDFResource",
-  "RDFDataSource",
-];
-
 
 const lazy = {};
 
@@ -323,7 +312,7 @@ class RDFNode {
 /**
  * A simple literal value
  */
-class RDFLiteral extends RDFNode {
+export class RDFLiteral extends RDFNode {
   constructor(value) {
     super();
     this._value = value;
@@ -350,7 +339,7 @@ class RDFLiteral extends RDFNode {
 /**
  * A literal that is integer typed.
  */
-class RDFIntLiteral extends RDFLiteral {
+export class RDFIntLiteral extends RDFLiteral {
   constructor(value) {
     super(parseInt(value));
   }
@@ -372,7 +361,7 @@ class RDFIntLiteral extends RDFLiteral {
 /**
  * A literal that represents a date.
  */
-class RDFDateLiteral extends RDFLiteral {
+export class RDFDateLiteral extends RDFLiteral {
   constructor(value) {
     if (!(value instanceof Date)) {
       throw new Error("RDFDateLiteral must be constructed with a Date object");
@@ -486,7 +475,7 @@ class RDFSubject extends RDFNode {
     let elements;
     if (RDF_LISTITEM.test(assertion.getPredicate())) {
       // Find all the containers
-      elements = this._elements.filter(function(element) {
+      elements = this._elements.filter(function (element) {
         return (
           element.namespaceURI == NS_RDF &&
           (element.localName == "Seq" ||
@@ -541,7 +530,7 @@ class RDFSubject extends RDFNode {
     }
 
     // Filter out all the containers
-    elements = this._elements.filter(function(element) {
+    elements = this._elements.filter(function (element) {
       return (
         element.namespaceURI != NS_RDF ||
         (element.localName != "Seq" &&
@@ -1108,7 +1097,7 @@ class RDFSubject extends RDFNode {
 /**
  * Creates a new RDFResource for the datasource. Private.
  */
-class RDFResource extends RDFSubject {
+export class RDFResource extends RDFSubject {
   constructor(ds, uri) {
     if (!(ds instanceof RDFDataSource)) {
       throw new Error("datasource must be an RDFDataSource");
@@ -1167,7 +1156,7 @@ class RDFResource extends RDFSubject {
 /**
  * Creates a new blank node. Private.
  */
-class RDFBlankNode extends RDFSubject {
+export class RDFBlankNode extends RDFSubject {
   constructor(ds, nodeID) {
     if (!(ds instanceof RDFDataSource)) {
       throw new Error("datasource must be an RDFDataSource");
@@ -1261,7 +1250,7 @@ class RDFBlankNode extends RDFSubject {
  * changed as assertions are added and removed to the RDF. Pass a null document
  * to start with an empty graph.
  */
-class RDFDataSource {
+export class RDFDataSource {
   constructor(document) {
     // All known resources, indexed on URI
     this._resources = {};

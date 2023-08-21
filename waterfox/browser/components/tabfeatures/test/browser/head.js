@@ -1,9 +1,5 @@
 "use strict";
 
-const { AppConstants } = ChromeUtils.import(
-  "resource://gre/modules/AppConstants.jsm"
-);
-
 var { synthesizeDrop, synthesizeMouseAtCenter } = EventUtils;
 
 const COPY_URL_PREF = "browser.tabs.copyurl";
