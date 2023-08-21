@@ -2,28 +2,20 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-"use strict";
-
-const EXPORTED_SYMBOLS = ["WaterfoxGlue"];
-
-const { XPCOMUtils } = ChromeUtils.import(
-  "resource://gre/modules/XPCOMUtils.jsm"
-);
-
-const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
-
 const lazy = {};
 
-XPCOMUtils.defineLazyModuleGetters(lazy, {
-  AddonManager: "resource://gre/modules/AddonManager.jsm",
-  BrowserUtils: "resource:///modules/BrowserUtils.jsm",
-  ChromeManifest: "resource:///modules/ChromeManifest.jsm",
-  Overlays: "resource:///modules/Overlays.jsm",
-  PrefUtils: "resource:///modules/PrefUtils.jsm",
-  PrivateTab: "resource:///modules/PrivateTab.jsm",
-  StatusBar: "resource:///modules/StatusBar.jsm",
-  TabFeatures: "resource:///modules/TabFeatures.jsm",
-  UICustomizations: "resource:///modules/UICustomizations.jsm",
+ChromeUtils.defineESModuleGetters(lazy, {
+  AddonManager: "resource://gre/modules/AddonManager.sys.mjs",
+  AttributionCode: "resource:///modules/AttributionCode.sys.mjs",
+  BrowserUtils: "resource:///modules/BrowserUtils.sys.mjs",
+  ChromeManifest: "resource:///modules/ChromeManifest.sys.mjs",
+  Overlays: "resource:///modules/Overlays.sys.mjs",
+  PrefUtils: "resource:///modules/PrefUtils.sys.mjs",
+  PrivateTab: "resource:///modules/PrivateTab.sys.mjs",
+  StatusBar: "resource:///modules/StatusBar.sys.mjs",
+  TabFeatures: "resource:///modules/TabFeatures.sys.mjs",
+  setTimeout: "resource://gre/modules/Timer.sys.mjs",
+  UICustomizations: "resource:///modules/UICustomizations.sys.mjs",
 });
 
 const WATERFOX_CUSTOMIZATIONS_PREF =
@@ -39,7 +31,9 @@ const WATERFOX_DEFAULT_THEMES = [
 const WATERFOX_USERCHROME = "chrome://browser/skin/userChrome.css";
 const WATERFOX_USERCONTENT = "chrome://browser/skin/userContent.css";
 
-const WaterfoxGlue = {
+export const WaterfoxGlue = {
+  _addonManagersListeners: [],
+
   async init() {
     // Set pref observers
     this._setPrefObservers();
@@ -250,6 +244,7 @@ const WaterfoxGlue = {
         enableTheme(DEFAULT_THEME);
       }
     }
+
     if (waterfoxUIVersion < 1) {
       const themeEnablePref = "userChrome.theme.enable";
       const enabled = lazy.PrefUtils.get(themeEnablePref);

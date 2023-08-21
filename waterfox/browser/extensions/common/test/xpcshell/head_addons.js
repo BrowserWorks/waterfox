@@ -22,69 +22,46 @@ const MAX_TIME_DIFFERENCE = 3000;
 // times are modified (10 hours old).
 const MAKE_FILE_OLD_DIFFERENCE = 10 * 3600 * 1000;
 
-var { AppConstants } = ChromeUtils.import(
-  "resource://gre/modules/AppConstants.jsm"
+var { AppConstants } = ChromeUtils.importESModule(
+  "resource://gre/modules/AppConstants.sys.mjs"
 );
-var { FileUtils } = ChromeUtils.import("resource://gre/modules/FileUtils.jsm");
-var { NetUtil } = ChromeUtils.import("resource://gre/modules/NetUtil.jsm");
+var { FileUtils } = ChromeUtils.importESModule(
+  "resource://gre/modules/FileUtils.sys.mjs"
+);
+var { NetUtil } = ChromeUtils.importESModule(
+  "resource://gre/modules/NetUtil.sys.mjs"
+);
 var { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
-var { XPCOMUtils } = ChromeUtils.import(
-  "resource://gre/modules/XPCOMUtils.jsm"
+var { XPCOMUtils } = ChromeUtils.importESModule(
+  "resource://gre/modules/XPCOMUtils.sys.mjs"
 );
-var { AddonRepository } = ChromeUtils.import(
-  "resource://gre/modules/addons/AddonRepository.jsm"
+var { AddonRepository } = ChromeUtils.importESModule(
+  "resource://gre/modules/addons/AddonRepository.sys.mjs"
 );
 var { OS } = ChromeUtils.import("resource://gre/modules/osfile.jsm");
 
-var { AddonTestUtils, MockAsyncShutdown } = ChromeUtils.import(
-  "resource://testing-common/AddonTestUtils.jsm"
+var { AddonTestUtils, MockAsyncShutdown } = ChromeUtils.importESModule(
+  "resource://testing-common/AddonTestUtils.sys.mjs"
 );
 
-ChromeUtils.defineModuleGetter(
-  this,
-  "Blocklist",
-  "resource://gre/modules/Blocklist.jsm"
-);
-ChromeUtils.defineModuleGetter(
-  this,
-  "Extension",
-  "resource://gre/modules/Extension.jsm"
-);
-ChromeUtils.defineModuleGetter(
-  this,
-  "ExtensionTestUtils",
-  "resource://testing-common/ExtensionXPCShellUtils.jsm"
-);
-ChromeUtils.defineModuleGetter(
-  this,
-  "ExtensionTestCommon",
-  "resource://testing-common/ExtensionTestCommon.jsm"
-);
+ChromeUtils.defineESModuleGetters(this, {
+  Blocklist: "resource://gre/modules/Blocklist.sys.mjs",
+  Extension: "resource://gre/modules/Extension.sys.mjs",
+  ExtensionTestCommon: "resource://testing-common/ExtensionTestCommon.sys.mjs",
+  ExtensionTestUtils:
+    "resource://testing-common/ExtensionXPCShellUtils.sys.mjs",
+});
 ChromeUtils.defineModuleGetter(
   this,
   "HttpServer",
   "resource://testing-common/httpd.js"
 );
-ChromeUtils.defineModuleGetter(
-  this,
-  "MockRegistrar",
-  "resource://testing-common/MockRegistrar.jsm"
-);
-ChromeUtils.defineModuleGetter(
-  this,
-  "MockRegistry",
-  "resource://testing-common/MockRegistry.jsm"
-);
-ChromeUtils.defineModuleGetter(
-  this,
-  "PromiseTestUtils",
-  "resource://testing-common/PromiseTestUtils.jsm"
-);
-ChromeUtils.defineModuleGetter(
-  this,
-  "TestUtils",
-  "resource://testing-common/TestUtils.jsm"
-);
+ChromeUtils.defineESModuleGetters(this, {
+  MockRegistrar: "resource://testing-common/MockRegistrar.sys.mjs",
+  MockRegistry: "resource://testing-common/MockRegistry.sys.mjs",
+  PromiseTestUtils: "resource://testing-common/PromiseTestUtils.sys.mjs",
+  TestUtils: "resource://testing-common/TestUtils.sys.mjs",
+});
 
 XPCOMUtils.defineLazyServiceGetter(
   this,
@@ -197,8 +174,8 @@ var { AddonManager, AddonManagerInternal, AddonManagerPrivate } = AMscope;
 
 // Wrap the startup functions to ensure the bootstrap loader is added.
 function promiseStartupManager(newVersion) {
-  const { BootstrapLoader } = ChromeUtils.import(
-    "resource:///modules/BootstrapLoader.jsm"
+  const { BootstrapLoader } = ChromeUtils.importESModule(
+    "resource:///modules/BootstrapLoader.sys.mjs"
   );
   AddonManager.addExternalExtensionLoader(BootstrapLoader);
   return AddonTestUtils.promiseStartupManager(newVersion);
@@ -657,6 +634,7 @@ function checkAddon(id, addon, expected) {
  * Tests that an add-on does appear in the crash report annotations, if
  * crash reporting is enabled. The test will fail if the add-on is not in the
  * annotation.
+ *
  * @param  aId
  *         The ID of the add-on
  * @param  aVersion
@@ -684,6 +662,7 @@ function do_check_in_crash_annotation(aId, aVersion) {
  * Tests that an add-on does not appear in the crash report annotations, if
  * crash reporting is enabled. The test will fail if the add-on is in the
  * annotation.
+ *
  * @param  aId
  *         The ID of the add-on
  * @param  aVersion
@@ -786,7 +765,7 @@ function do_check_addons(aActualAddons, aExpectedAddons, aProperties) {
 function do_check_addon(aActualAddon, aExpectedAddon, aProperties) {
   Assert.notEqual(aActualAddon, null);
 
-  aProperties.forEach(function(aProperty) {
+  aProperties.forEach(function (aProperty) {
     let actualValue = aActualAddon[aProperty];
     let expectedValue = aExpectedAddon[aProperty];
 
@@ -1135,7 +1114,7 @@ const AddonListener = {
     let [event, properties] = getExpectedEvent(aAddon.id);
     Assert.equal("onPropertyChanged", event);
     Assert.equal(aProperties.length, properties.length);
-    properties.forEach(function(aProperty) {
+    properties.forEach(function (aProperty) {
       // Only test that the expected properties are listed, having additional
       // properties listed is not necessary a problem
       if (!aProperties.includes(aProperty)) {
@@ -1452,7 +1431,7 @@ function pathShouldntExist(file) {
 
 // Wrap a function (typically a callback) to catch and report exceptions.
 function do_exception_wrap(func) {
-  return function() {
+  return function () {
     try {
       func.apply(null, arguments);
     } catch (e) {
@@ -1503,9 +1482,9 @@ async function saveJSON(aData, aFile) {
  * Create a callback function that calls do_execute_soon on an actual callback and arguments.
  */
 function callback_soon(aFunction) {
-  return function(...args) {
+  return function (...args) {
     executeSoon(
-      function() {
+      function () {
         aFunction.apply(null, args);
       },
       aFunction.name ? "delayed callback " + aFunction.name : "delayed callback"

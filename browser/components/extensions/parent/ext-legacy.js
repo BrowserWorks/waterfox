@@ -1,22 +1,13 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+"use strict";
 
-ChromeUtils.defineModuleGetter(
-  this,
-  "ChromeManifest",
-  "resource:///modules/ChromeManifest.jsm"
-);
-ChromeUtils.defineModuleGetter(
-  this,
-  "ExtensionSupport",
-  "resource:///modules/ExtensionSupport.jsm"
-);
-ChromeUtils.defineModuleGetter(
-  this,
-  "Overlays",
-  "resource:///modules/Overlays.jsm"
-);
+ChromeUtils.defineESModuleGetters(this, {
+  ChromeManifest: "resource:///modules/ChromeManifest.sys.mjs",
+  ExtensionSupport: "resource:///modules/ExtensionSupport.sys.mjs",
+  Overlays: "resource:///modules/Overlays.sys.mjs",
+});
 ChromeUtils.defineModuleGetter(
   this,
   "XPIInternal",
@@ -25,10 +16,12 @@ ChromeUtils.defineModuleGetter(
 
 Cu.importGlobalProperties(["fetch"]);
 
-var { XPCOMUtils } = ChromeUtils.import(
-  "resource://gre/modules/XPCOMUtils.jsm"
+var { XPCOMUtils } = ChromeUtils.importESModule(
+  "resource://gre/modules/XPCOMUtils.sys.mjs"
 );
-var { ConsoleAPI } = ChromeUtils.import("resource://gre/modules/Console.jsm");
+var { ConsoleAPI } = ChromeUtils.importESModule(
+  "resource://gre/modules/Console.sys.mjs"
+);
 
 XPCOMUtils.defineLazyGetter(this, "BOOTSTRAP_REASONS", () => {
   const { XPIProvider } = ChromeUtils.import(
@@ -37,7 +30,9 @@ XPCOMUtils.defineLazyGetter(this, "BOOTSTRAP_REASONS", () => {
   return XPIProvider.BOOTSTRAP_REASONS;
 });
 
-const { Log } = ChromeUtils.import("resource://gre/modules/Log.jsm");
+const { Log } = ChromeUtils.importESModule(
+  "resource://gre/modules/Log.sys.mjs"
+);
 var logger = Log.repository.getLogger("addons.bootstrap");
 
 let bootstrapScopes = new Map();
@@ -96,9 +91,7 @@ this.legacy = class extends ExtensionAPI {
         Services.obs.notifyObservers(null, "startupcache-invalidate");
       }
       console.log(
-        `Legacy WebExtension ${
-          this.extension.id
-        } has already been loaded in this run, refusing to do so again. Please restart.`
+        `Legacy WebExtension ${this.extension.id} has already been loaded in this run, refusing to do so again. Please restart.`
       );
       return;
     }
@@ -123,11 +116,7 @@ this.legacy = class extends ExtensionAPI {
       if (!isDistroAddon && scope & autoDisableScopes) {
         state.pendingOperation = "install";
         console.log(
-          `Legacy WebExtension ${
-            this.extension.id
-          } loading for other reason than startup (${
-            this.extension.startupReason
-          }), refusing to load immediately.`
+          `Legacy WebExtension ${this.extension.id} loading for other reason than startup (${this.extension.startupReason}), refusing to load immediately.`
         );
         ExtensionSupport.loadedLegacyExtensions.notifyObservers(state);
 
@@ -139,11 +128,7 @@ this.legacy = class extends ExtensionAPI {
     if (this.extension.startupReason == "ADDON_ENABLE") {
       state.pendingOperation = "enable";
       console.log(
-        `Legacy WebExtension ${
-          this.extension.id
-        } loading for other reason than startup (${
-          this.extension.startupReason
-        }), refusing to load immediately.`
+        `Legacy WebExtension ${this.extension.id} loading for other reason than startup (${this.extension.startupReason}), refusing to load immediately.`
       );
       ExtensionSupport.loadedLegacyExtensions.notifyObservers(state);
       return;
