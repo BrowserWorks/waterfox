@@ -12,7 +12,9 @@ const { XPCOMUtils } = ChromeUtils.import(
 
 const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
-XPCOMUtils.defineLazyModuleGetters(this, {
+const lazy = {};
+
+XPCOMUtils.defineLazyModuleGetters(lazy, {
   AddonManager: "resource://gre/modules/AddonManager.jsm",
   BrowserUtils: "resource:///modules/BrowserUtils.jsm",
   ChromeManifest: "resource:///modules/ChromeManifest.jsm",
@@ -24,7 +26,18 @@ XPCOMUtils.defineLazyModuleGetters(this, {
   UICustomizations: "resource:///modules/UICustomizations.jsm",
 });
 
-XPCOMUtils.defineLazyGlobalGetters(this, ["fetch"]);
+const WATERFOX_CUSTOMIZATIONS_PREF =
+  "browser.theme.enableWaterfoxCustomizations";
+
+const WATERFOX_DEFAULT_THEMES = [
+  "default-theme@mozilla.org",
+  "firefox-compact-light@mozilla.org",
+  "firefox-compact-dark@mozilla.org",
+  "firefox-alpenglow@mozilla.org",
+];
+
+const WATERFOX_USERCHROME = "chrome://browser/skin/userChrome.css";
+const WATERFOX_USERCONTENT = "chrome://browser/skin/userContent.css";
 
 const WaterfoxGlue = {
   async init() {
@@ -32,15 +45,23 @@ const WaterfoxGlue = {
     this._setPrefObservers();
 
     // Load always-on Waterfox custom CSS.
-    BrowserUtils.registerStylesheet(
+    lazy.BrowserUtils.registerStylesheet(
       "chrome://browser/skin/waterfox/general.css"
     );
-    if (PrefUtils.get("userChrome.theme.enable", true)) {
-      const userChromeSheet = "chrome://browser/skin/userChrome.css";
-      const userContentSheet = "chrome://browser/skin/userContent.css";
-      BrowserUtils.registerStylesheet(userChromeSheet);
-      BrowserUtils.registerStylesheet(userContentSheet);
-    }
+
+    // Maybe load Waterfox stylesheets
+    (async () => {
+      let amInitialized = false;
+      while (!amInitialized) {
+        try {
+          const activeThemeId = await this.getActiveThemeId();
+          this.updateCustomStylesheets({ id: activeThemeId, type: "theme" });
+          amInitialized = true;
+        } catch (ex) {
+          await new Promise(res => lazy.setTimeout(res, 500, {}));
+        }
+      }
+    })();
 
     // Parse chrome.manifest
     this.startupManifest = await this.getChromeManifest("startup");
@@ -50,27 +71,28 @@ const WaterfoxGlue = {
     Services.obs.addObserver(this, "chrome-document-loaded");
     // Observe main-pane-loaded topic to detect about:preferences open
     Services.obs.addObserver(this, "main-pane-loaded");
-    // Observe final-ui-startup to launch browser window dependant tasks
-    Services.obs.addObserver(this, "final-ui-startup");
+    // Observe browser-delayed-startup-finished to launch delayed tasks
+    Services.obs.addObserver(this, "browser-delayed-startup-finished");
+    // Observe browser shutdown
+    Services.obs.addObserver(this, "quit-application-granted");
+    // Listen for addon events
+    this.addAddonListener();
   },
 
   async _setPrefObservers() {
-    this.leptonListener = PrefUtils.addObserver(
-      "userChrome.theme.enable",
-      isEnabled => {
-        // Pref being false means we need to unload the sheet.
-        const userChromeSheet = "chrome://browser/skin/userChrome.css";
-        const userContentSheet = "chrome://browser/skin/userContent.css";
-        BrowserUtils.registerOrUnregisterSheet(userChromeSheet, isEnabled);
-        BrowserUtils.registerOrUnregisterSheet(userContentSheet, isEnabled);
+    this.leptonListener = lazy.PrefUtils.addObserver(
+      WATERFOX_CUSTOMIZATIONS_PREF,
+      async _ => {
+        const activeThemeId = await this.getActiveThemeId();
+        this.updateCustomStylesheets({ id: activeThemeId, type: "theme" });
       }
     );
-    this.pinnedTabListener = PrefUtils.addObserver(
+    this.pinnedTabListener = lazy.PrefUtils.addObserver(
       "browser.tabs.pinnedIconOnly",
       isEnabled => {
         // Pref being true actually means we need to unload the sheet, so invert.
         const uri = "chrome://browser/content/tabfeatures/pinnedtab.css";
-        BrowserUtils.registerOrUnregisterSheet(uri, !isEnabled);
+        lazy.BrowserUtils.registerOrUnregisterSheet(uri, !isEnabled);
       }
     );
   },
@@ -93,7 +115,7 @@ const WaterfoxGlue = {
         uri = "resource://waterfox/overlays/preferences-other.overlay";
         break;
     }
-    let chromeManifest = new ChromeManifest(async () => {
+    let chromeManifest = new lazy.ChromeManifest(async () => {
       let res = await fetch(uri);
       let text = await res.text();
       if (privateWindow) {
@@ -128,16 +150,16 @@ const WaterfoxGlue = {
           const window = subject.defaultView;
           // Do not load non-private overlays in private window
           if (window.PrivateBrowsingUtils.isWindowPrivate(window)) {
-            Overlays.load(this.privateManifest, window);
+            lazy.Overlays.load(this.privateManifest, window);
           } else {
-            Overlays.load(this.startupManifest, window);
+            lazy.Overlays.load(this.startupManifest, window);
             // Only load in non-private browser windows
-            PrivateTab.init(window);
+            lazy.PrivateTab.init(window);
           }
           // Load in all browser windows (private and normal)
-          TabFeatures.init(window);
-          StatusBar.init(window);
-          UICustomizations.init(window);
+          lazy.TabFeatures.init(window);
+          lazy.StatusBar.init(window);
+          lazy.UICustomizations.init(window);
         }
         break;
       case "main-pane-loaded":
@@ -147,7 +169,7 @@ const WaterfoxGlue = {
           // exists before we attempt to load our overlay. If we are loading directly on privacy
           // this exists before overlaying occurs, so we have no issues. Loading overlays on
           // #general is fine regardless of which pane we refresh/initially load.
-          await Overlays.load(
+          await lazy.Overlays.load(
             await this.getChromeManifest("preferences-general"),
             subject
           );
@@ -156,14 +178,14 @@ const WaterfoxGlue = {
             !subject.document.getElementById("homeContentsGroup")
           ) {
             subject.setTimeout(async () => {
-              await Overlays.load(
+              await lazy.Overlays.load(
                 await this.getChromeManifest("preferences-other"),
                 subject
               );
               subject.privacyInitialized = true;
             }, 500);
           } else {
-            await Overlays.load(
+            await lazy.Overlays.load(
               await this.getChromeManifest("preferences-other"),
               subject
             );
@@ -181,7 +203,7 @@ const WaterfoxGlue = {
   async _beforeUIStartup() {
     this._migrateUI();
 
-    AddonManager.maybeInstallBuiltinAddon(
+    lazy.AddonManager.maybeInstallBuiltinAddon(
       "addonstores@waterfox.net",
       "1.0.0",
       "resource://builtin-addons/addonstores/"
@@ -194,8 +216,13 @@ const WaterfoxGlue = {
       128
     );
 
+    const waterfoxUIVersion = lazy.PrefUtils.get(
+      "browser.migration.waterfox_version",
+      0
+    );
+
     async function enableTheme(id) {
-      const addon = await AddonManager.getAddonByID(id);
+      const addon = await lazy.AddonManager.getAddonByID(id);
       // If we found it, enable it.
       addon?.enable();
     }
@@ -223,5 +250,83 @@ const WaterfoxGlue = {
         enableTheme(DEFAULT_THEME);
       }
     }
+    if (waterfoxUIVersion < 1) {
+      const themeEnablePref = "userChrome.theme.enable";
+      const enabled = lazy.PrefUtils.get(themeEnablePref);
+      lazy.PrefUtils.set(WATERFOX_CUSTOMIZATIONS_PREF, enabled ? 1 : 2);
+    }
+
+    lazy.PrefUtils.set("browser.migration.waterfox_version", 1);
+  },
+
+  async _delayedTasks() {
+    let tasks = [
+      {
+        task: () => {
+          // Reset prefs
+          Services.prefs.clearUserPref(
+            "startup.homepage_welcome_url.additional"
+          );
+          Services.prefs.clearUserPref("startup.homepage_override_url");
+        },
+      },
+    ];
+
+    for (const task of tasks) {
+      task.task();
+    }
+  },
+
+  async getActiveThemeId() {
+    // Try to get active theme from the pref
+    const activeThemeID = lazy.PrefUtils.get("extensions.activeThemeID", "");
+    if (activeThemeID) {
+      return activeThemeID;
+    }
+    // Otherwise just grab it from AddonManager
+    const themes = await lazy.AddonManager.getAddonsByTypes(["theme"]);
+    return themes.find(addon => addon.isActive).id;
+  },
+
+  addAddonListener() {
+    let listener = {
+      onInstalled: addon => this.updateCustomStylesheets(addon),
+      onEnabled: addon => this.updateCustomStylesheets(addon),
+    };
+    this._addonManagersListeners.push(listener);
+    lazy.AddonManager.addAddonListener(listener);
+  },
+
+  removeAddonListeners() {
+    for (let listener of this._addonManagersListeners) {
+      lazy.AddonManager.removeAddonListener(listener);
+    }
+  },
+
+  updateCustomStylesheets(addon) {
+    if (addon.type === "theme") {
+      // If any theme and WF on any theme, reload stylesheets for every theme enable.
+      // If WF theme and WF customisations, then reload stylesheets.
+      // If no customizations, unregister sheets for every theme enable.
+      if (
+        lazy.PrefUtils.get(WATERFOX_CUSTOMIZATIONS_PREF, 0) === 0 ||
+        (lazy.PrefUtils.get(WATERFOX_CUSTOMIZATIONS_PREF, 0) === 1 &&
+          WATERFOX_DEFAULT_THEMES.includes(addon.id))
+      ) {
+        this.loadWaterfoxStylesheets();
+      } else {
+        this.unloadWaterfoxStylesheets();
+      }
+    }
+  },
+
+  loadWaterfoxStylesheets() {
+    lazy.BrowserUtils.registerStylesheet(WATERFOX_USERCHROME);
+    lazy.BrowserUtils.registerStylesheet(WATERFOX_USERCONTENT);
+  },
+
+  unloadWaterfoxStylesheets() {
+    lazy.BrowserUtils.unregisterStylesheet(WATERFOX_USERCHROME);
+    lazy.BrowserUtils.unregisterStylesheet(WATERFOX_USERCONTENT);
   },
 };

@@ -159,23 +159,10 @@ var EXPORTED_SYMBOLS = [
   "RDFDataSource",
 ];
 
-const { XPCOMUtils } = ChromeUtils.import(
-  "resource://gre/modules/XPCOMUtils.jsm"
-);
 
-XPCOMUtils.defineLazyGlobalGetters(this, [
-  "DOMParser",
-  "Element",
-  "XMLSerializer",
-  "fetch",
-]);
+const lazy = {};
 
-ChromeUtils.defineModuleGetter(this, "OS", "resource://gre/modules/osfile.jsm");
-ChromeUtils.defineModuleGetter(
-  this,
-  "Services",
-  "resource://gre/modules/Services.jsm"
-);
+ChromeUtils.defineModuleGetter(lazy, "OS", "resource://gre/modules/osfile.jsm");
 
 function isAttr(obj) {
   return (
@@ -198,7 +185,7 @@ function isText(obj) {
  * Logs an error message to the error console
  */
 function ERROR(str) {
-  Cu.reportError(str);
+  console.error(str);
 }
 
 function RDF_R(name) {
@@ -1716,7 +1703,7 @@ class RDFDataSource {
    * Saves the RDF/XML to a file.
    */
   async saveToFile(file) {
-    return OS.File.writeAtomic(
+    return lazy.OS.File.writeAtomic(
       file,
       new TextEncoder().encode(this.serializeToString())
     );

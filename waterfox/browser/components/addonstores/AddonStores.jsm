@@ -8,8 +8,10 @@ const CRX_CONTENT_TYPE = "application/x-chrome-extension";
 
 const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
+const lazy = {};
+
 ChromeUtils.defineModuleGetter(
-  this,
+  lazy,
   "StoreHandler",
   "resource:///modules/StoreHandler.jsm"
 );
@@ -32,7 +34,7 @@ ExtensionCompatibilityHandler.prototype = {
     if (aMimetype == CRX_CONTENT_TYPE) {
       // attempt install
       try {
-        return new StoreHandler().attemptInstall(uri);
+        return new lazy.StoreHandler().attemptInstall(uri);
       } catch (ex) {
         this.log(ex);
       }
