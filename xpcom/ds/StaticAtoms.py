@@ -13,6 +13,7 @@ from Atom import (
     PseudoElementAtom,
 )
 from HTMLAtoms import HTML_PARSER_ATOMS
+from NativeMenuAtoms import NATIVE_MENU_ATOMS
 
 # Static atom definitions, used to generate nsGkAtomList.h.
 #
@@ -2576,7 +2577,7 @@ STATIC_ATOMS = [
     InheritingAnonBoxAtom("AnonBox_mozSVGForeignContent", ":-moz-svg-foreign-content"),
     InheritingAnonBoxAtom("AnonBox_mozSVGText", ":-moz-svg-text"),
     # END ATOMS
-] + HTML_PARSER_ATOMS
+] + HTML_PARSER_ATOMS + NATIVE_MENU_ATOMS
 # fmt: on
 
 
