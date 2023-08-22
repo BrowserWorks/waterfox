@@ -342,6 +342,13 @@ toolbox {
   }
 }
 
+@media (-moz-platform: linux) {
+*|*:root[shellshowingmenubar="true"]
+toolbar[type="menubar"]:not([customizing="true"]) {
+  display: none !important;
+}
+}
+
 toolbarspring {
   flex: 1000 1000;
 }

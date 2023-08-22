@@ -162,6 +162,9 @@ pref("dom.text-recognition.enabled", true);
 // Fastback caching - if this pref is negative, then we calculate the number
 // of content viewers to cache based on the amount of available memory.
 pref("browser.sessionhistory.max_total_viewers", -1);
+#ifdef MOZ_WIDGET_GTK
+pref("ui.use_unity_menubar", true);
+#endif
 
 // See http://whatwg.org/specs/web-apps/current-work/#ping
 pref("browser.send_pings", false);
