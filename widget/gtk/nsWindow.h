@@ -30,6 +30,8 @@
 #include "IMContextWrapper.h"
 #include "LookAndFeel.h"
 
+#include "nsMenuBar.h"
+
 #ifdef ACCESSIBILITY
 #  include "mozilla/a11y/LocalAccessible.h"
 #endif
@@ -212,6 +214,8 @@ class nsWindow final : public nsBaseWidget {
   already_AddRefed<Screen> GetWidgetScreen() override;
   nsresult MakeFullScreen(bool aFullScreen) override;
   void HideWindowChrome(bool aShouldHide) override;
+
+  void SetMenuBar(mozilla::UniquePtr<nsMenuBar> aMenuBar);
 
   /**
    * GetLastUserInputTime returns a timestamp for the most recent user input
@@ -939,6 +943,8 @@ class nsWindow final : public nsBaseWidget {
   static GtkWindowDecoration sGtkWindowDecoration;
 
   static bool sTransparentMainWindow;
+
+  mozilla::UniquePtr<nsMenuBar> mMenuBar;
 
 #ifdef ACCESSIBILITY
   RefPtr<mozilla::a11y::LocalAccessible> mRootAccessible;

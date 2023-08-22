@@ -7618,6 +7618,10 @@ void nsWindow::HideWindowChrome(bool aShouldHide) {
   SetWindowDecoration(aShouldHide ? BorderStyle::None : mBorderStyle);
 }
 
+void nsWindow::SetMenuBar(UniquePtr<nsMenuBar> aMenuBar) {
+  mMenuBar = std::move(aMenuBar);
+}
+
 bool nsWindow::CheckForRollup(gdouble aMouseX, gdouble aMouseY, bool aIsWheel,
                               bool aAlwaysRollup) {
   LOG("nsWindow::CheckForRollup() aAlwaysRollup %d", aAlwaysRollup);
