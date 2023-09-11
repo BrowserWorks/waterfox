@@ -16,7 +16,6 @@ ChromeUtils.defineESModuleGetters(lazy, {
 
 XPCOMUtils.defineLazyModuleGetters(lazy, {
   BrowserWindowTracker: "resource:///modules/BrowserWindowTracker.jsm",
-  OS: "resource://gre/modules/osfile.jsm",
 });
 
 XPCOMUtils.defineLazyGetter(lazy, "PopupNotifications", () => {
@@ -70,15 +69,16 @@ export class StoreHandler {
   // init vars
   constructor() {
     this.uuidString = this._getUUID().slice(1, -1);
-    this.xpiPath = lazy.OS.Path.join(
-      lazy.OS.Constants.Path.profileDir,
+    const profileDir = Services.dirsvc.get("ProfD", Ci.nsIFile).path;    
+    this.xpiPath = PathUtils.join(
+      profileDir,
       "extensions",
       "tmp",
       this.uuidString,
       "extension.xpi"
     );
-    this.manifestPath = lazy.OS.Path.join(
-      lazy.OS.Constants.Path.profileDir,
+    this.manifestPath = PathUtils.join(
+      profileDir,
       "extensions",
       "tmp",
       this.uuidString,
@@ -259,8 +259,8 @@ export class StoreHandler {
    */
   async _removeChromeHeaders(path) {
     try {
-      // read using OS.File to enable data manipulation
-      let arrayBuffer = await lazy.OS.File.read(path);
+      // read using IOUtils to enable data manipulation
+      let arrayBuffer = await IOUtils.read(path);
       // determine Chrome ext headers
       let locOfPk = arrayBuffer.slice(0, 3000);
       for (var i = 0; i < locOfPk.length; i++) {
@@ -281,7 +281,7 @@ export class StoreHandler {
       // remove Chrome ext headers
       let zipBuffer = arrayBuffer.slice(i);
       // overwrite .zip with headers removed as ZipReader only compatible with nsiFile type, not Uint8Array
-      await lazy.OS.File.writeAtomic(path, zipBuffer);
+      await IOUtils.write(path, zipBuffer);
       return true;
     } catch (e) {
       Services.console.logStringMessage("CRX: Error removing Chrome headers");
