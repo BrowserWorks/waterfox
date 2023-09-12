@@ -50,8 +50,13 @@ pref("userChrome.compatibility.os.win11",             false);
 
 // == Theme Custom Settings ====================================================
 // -- User Chrome --------------------------------------------------------------
+pref("userChrome.theme.private",                       true);
 pref("userChrome.theme.proton_color.dark_blue_accent", true);
 pref("userChrome.theme.monospace",                     false);
+pref("userChrome.theme.transparent.frame",             false);
+pref("userChrome.theme.transparent.menu",              false);
+pref("userChrome.theme.transparent.panel",             false);
+pref("userChrome.theme.non_native_menu",               false); // only for linux
 
 pref("userChrome.decoration.disable_panel_animate",    false);
 pref("userChrome.decoration.disable_sidebar_animate",  false);
@@ -183,6 +188,7 @@ pref("userChrome.icon.global_menu.mac",                false);
 pref("userContent.player.ui.twoline",                  false);
 
 pref("userContent.newTab.hidden_logo",                 false);
+pref("userContent.newTab.background_image",            false);
 
 pref("userContent.page.proton_color.dark_blue_accent", true);
 pref("userContent.page.proton_color.system_accent",    false);
