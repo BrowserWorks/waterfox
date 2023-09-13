@@ -7,7 +7,6 @@
 
 pref("browser.theme.enableWaterfoxCustomizations", 1);
 pref("browser.uidensity", 1);
-pref("extensions.activeThemeID", "default-theme@mozilla.org");
 
 // ** Theme Related Options ****************************************************
 // == Theme Distribution Settings ==============================================
