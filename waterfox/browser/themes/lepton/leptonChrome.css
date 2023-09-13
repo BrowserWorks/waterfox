@@ -2573,6 +2573,11 @@
 @supports -moz-bool-pref("userChrome.theme.transparent.panel") {
   panel[type="arrow"] {
     --panel-background: transparent !important;
+    background: var(--toolbar-bgcolor) !important;
+    opacity: 0.95;
+    border-radius: 16px;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(5px);
   }
   panelview {
     background: color-mix(in srgb, var(--arrowpanel-background) 90%, transparent) !important;
