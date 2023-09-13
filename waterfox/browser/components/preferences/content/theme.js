@@ -54,6 +54,8 @@ var gThemePane = {
       { id: "userChrome.hidden.bookmarkbar_label", type: "bool" },
 
       // Panels
+      { id: "userChrome.theme.transparent.panel", type: "bool" },
+      { id: "userChrome.theme.transparent.menu", type: "bool" },
       { id: "userChrome.decoration.disable_panel_animate", type: "bool" },
       { id: "userChrome.hidden.disabled_menu", type: "bool" },
       { id: "userChrome.rounding.square_panel", type: "bool" },
