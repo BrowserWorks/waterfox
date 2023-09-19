@@ -66,7 +66,7 @@ jobs:
           do
               if [[ $VER != '/' ]]
               then
-                  if [[ $VER == "G5"* ]]
+                if [[ $VER == "G5"* ]] || [[ $VER == "G6"* ]]
                   then
                       for OS in "${OSA[@]}"
                       do
@@ -106,6 +106,7 @@ jobs:
           rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.en-US.linux-x86_64.tar.bz2.sha512
           :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.en-US.linux-x86_64.tar.bz2.sha512
       - name: ⎆ Update latest redirects
+        if: ${{ inputs.PRE_RELEASE == 'false' }}
         run: >
           curl "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ZONE_ID }}/rules/lists/500a3e4c6bd2435da861ad9f407f892b/items" \
               -H "Authorization: Bearer ${{ secrets.CF_AUTH }}" \
@@ -175,6 +176,13 @@ jobs:
           else
             echo "CHANNEL=release" >> $GITHUB_ENV
           fi
+      - name: "\U0001F69A Move MARs from staging"
+        run: >
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
       - name: "\U0001F69A Move update XMLs from staging"
         run: |
           OSA=(WINNT_x86_64 Linux_x86_64 Darwin_x86_64-aarch64)
@@ -188,7 +196,7 @@ jobs:
           do
               if [[ $VER != '/' ]]
               then
-                  if [[ $VER == "G5"* ]]
+                  if [[ $VER == "G5"* ]] || [[ $VER == "G6"* ]]
                   then
                       for OS in "${OSA[@]}"
                       do
@@ -206,10 +214,3 @@ jobs:
           END
               rclone moveto ./update.xml :s3:aus/update/production/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/"$OS"/update.xml
           done
-      - name: "\U0001F69A Move MARs from staging"
-        run: >
-          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
-
-          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
-
-          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
