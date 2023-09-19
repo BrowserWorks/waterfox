@@ -1,21 +1,21 @@
 name: Build
-'on':
+"on":
   workflow_call:
     inputs:
       PRE_RELEASE:
-        required: false
-        type: string
-      TAG_VERSION:
         required: false
         type: string
       TRIGGER_EVENT:
         description: Trigger event for the workflow
         required: true
         type: string
+      TAG_VERSION:
+        required: false
+        type: string
     outputs:
       versiondisplay:
         description: Output display version
-        value: '${{ jobs.build-windows-x64.outputs.versionout }}'
+        value: "${{ jobs.build-windows-x64.outputs.versionout }}"
     secrets:
       AWS_ACCESS_KEY_ID:
         required: true
@@ -32,48 +32,101 @@ name: Build
       AZURE_VAULT_ID:
         required: false
       CF_ENDPOINT:
-        required: true
-      MACOS_CRT:
         required: false
-      MACOS_DEV_ID:
+      MACOS_CERTIFICATE:
         required: false
-      MACOS_DEV_PWD:
+      MACOS_CERTIFICATE_NAME:
         required: false
-      MACOS_ID:
+      MACOS_CERTIFICATE_PWD:
         required: false
-      MACOS_PWD:
+      MACOS_CI_KEYCHAIN_PWD:
+        required: false
+      MACOS_NOTARIZATION_APPLE_ID:
+        required: false
+      MACOS_NOTARIZATION_PWD:
+        required: false
+      MACOS_NOTARIZATION_TEAM_ID:
         required: false
       MOZ_API_KEY:
         required: true
+      ONE_PEM:
+        required: false
+      SIGN_BASE64:
+        required: false
 env:
-  PRE_RELEASE: '${{ inputs.PRE_RELEASE }}'
-  RCLONE_S3_ACCESS_KEY_ID: '${{ secrets.AWS_ACCESS_KEY_ID }}'
+  AWS_ACCESS_KEY_ID: "${{ secrets.AWS_ACCESS_KEY_ID }}"
+  AWS_SECRET_ACCESS_KEY: "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+  PRE_RELEASE: "${{ inputs.PRE_RELEASE }}"
+  RCLONE_S3_ACCESS_KEY_ID: "${{ secrets.AWS_ACCESS_KEY_ID }}"
   RCLONE_S3_ACL: private
-  RCLONE_S3_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
+  RCLONE_S3_ENDPOINT: "${{ secrets.CF_ENDPOINT }}"
   RCLONE_S3_PROVIDER: Cloudflare
-  RCLONE_S3_SECRET_ACCESS_KEY: '${{ secrets.AWS_SECRET_ACCESS_KEY }}'
+  RCLONE_S3_SECRET_ACCESS_KEY: "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
 permissions:
   id-token: write
   contents: read
 jobs:
-  build-windows-x64:
-    name: Windows
+  build-windows-x64-stage-1:
+    name: Windows Stage 1
     runs-on:
-      - buildjet-16vcpu-ubuntu-2204
+      - buildjet-8vcpu-ubuntu-2204
     concurrency:
-      group: '${{ github.head_ref }}-windows-x64'
+      group: "${{ github.head_ref }}-windows-x64-stage-1"
       cancel-in-progress: true
     env:
       MOZCONFIG: .mozconfig-x86_64-pc-windows-msvc
-      WINEDEBUG: '-all'
+      WINEDEBUG: "-all"
       ARCH: x86_64-pc-mingw32
+      CARGO_INCREMENTAL: "0"
+      CARGO_TERM_COLOR: always
+      SCCACHE_BUCKET: "waterfox-cache-win-x64-stage-1"
+      SCCACHE_ENDPOINT: "${{ secrets.CF_ENDPOINT }}"
+      SCCACHE_REGION: auto
     outputs:
-      versionout: '${{ steps.versionexport.outputs.version }}'
+      versionout: "${{ steps.versionexport.outputs.version }}"
     steps:
+      - name: Install sccache
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        env:
+          LINK: https://github.com/mozilla/sccache/releases/download
+          SCCACHE_VERSION: "v0.5.4"
+        run: |
+          SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
+          mkdir -p $HOME/.local/bin
+          curl -L "$LINK/$SCCACHE_VERSION/$SCCACHE_FILE.tar.gz" | tar xz
+          mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Start sccache server
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        run: sccache --start-server
+      - name: "\U0001F4BF Build dependencies"
+        run: |
+          sudo apt install msitools
+          rustup update
+          rustup target add x86_64-pc-windows-msvc
+          curl -L "https://www.7-zip.org/a/7z2300-linux-x64.tar.xz" | tar xJ
+          sudo mv 7zz /usr/local/bin/7z
+          curl https://rclone.org/install.sh | sudo bash
+      - name: "\U0001F9F0 win-cross Cache"
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
+        id: cache-win-cross
+        uses: actions/cache@v3
+        with:
+          path: ${HOME}/win-cross
+          key: clang-17
+      - name: "\U0001F4BF Setup win-cross"
+        if: steps.cache-win-cross.outputs.cache-hit != 'true'
+        run: |
+          rclone copyto :s3:cdn/waterfox/libraries/toolchain/win-cross-102.tar.zst ./win-cross.tar.zst
+          tar -xvf win-cross.tar.zst -C $HOME/
+          rclone copyto :s3:cdn/waterfox/libraries/toolchain/clang-17.tar.zst ./clang-17.tar.zst
+          mkdir -p $HOME/win-cross
+          tar -xvf clang-17.tar.zst -C $HOME/win-cross
       - name: "\U0001F4E4 Checkout"
         uses: actions/checkout@v3
       - name: "\U0001F4E3 Override version_display.txt"
-        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         run: |
           if [[ -n ${{ inputs.TAG_VERSION }} ]]; then
             echo ${{ inputs.TAG_VERSION }} > browser/config/version_display.txt
@@ -83,49 +136,7 @@ jobs:
           echo 'EOF' >> $GITHUB_ENV
       - name: "\U0001F4E3 Export VERSION_DISPLAY"
         id: versionexport
-        run: 'echo "::set-output name=version::$(echo ${{ env.VERSION_DISPLAY }})"'
-      - name: "\U0001F9F0 Cache"
-        uses: actions/cache@v3
-        id: win-cache
-        timeout-minutes: 5
-        continue-on-error: true
-        with:
-          path: |
-            ~/.cache/sccache
-          key: 'win-${{ hashFiles(''**/browser/config/version_display.txt'') }}'
-          restore-keys: |
-            win-
-      - name: "\U0001F4BF Build dependencies"
-        run: >
-          rustup update
-          
-          rustup target add x86_64-pc-windows-msvc
-
-          sudo apt update
-
-          sudo apt install -y uuid libasound2-dev libcurl4-openssl-dev
-          libdbus-1-dev libdbus-glib-1-dev libdrm-dev libgtk-3-dev libpulse-dev
-          libx11-xcb-dev xvfb upx nsis jq yasm nasm
-
-          aria2c
-          https://github.com/ebourg/jsign/releases/download/4.1/jsign_4.1_all.deb
-
-          sudo apt install -y ./jsign_4.1_all.deb
-
-          aria2c https://www.7-zip.org/a/7z2201-linux-x64.tar.xz
-
-          tar xf 7z2201-linux-x64.tar.xz
-
-          sudo mv 7zz /usr/local/bin/7z
-
-          curl https://rclone.org/install.sh | sudo bash
-      - name: "\U0001F4BF Setup win-cross"
-        run: >
-          rclone copyto
-          :s3:cdn/waterfox/libraries/toolchain/win-cross-102.tar.zst
-          ./win-cross.tar.zst
-
-          tar -xvf win-cross.tar.zst -C $HOME/
+        run: echo "version=$(echo ${{ env.VERSION_DISPLAY }})" >> $GITHUB_OUTPUT
       - name: "\U0001F3D7 Build"
         run: |
           if [[ ${{ inputs.TRIGGER_EVENT }} == 'workflow_dispatch' ]]; then
@@ -138,24 +149,178 @@ jobs:
               echo "Set WFX_RELEASE as ${WFX_RELEASE}"
               echo "WFX_PRE_RELEASE should be 0. ${WFX_PRE_RELEASE}"
             fi
+            export GEN_PGO=1
+            ./mach python --virtualenv build ./taskcluster/scripts/misc/get_vs.py build/vs/vs2022.yaml $HOME/win-root
           fi
           ./mach build
+      - name: Stop sccache
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        run: |
+          sccache --stop-server
       - name: "\U0001F4E6 Package"
-        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        run: |
+          ./mach package
+      - name: "\U0001F199 Upload Stage 1 Artifact"
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-${{ env.ARCH }}-stage-1-${{ github.run_id }}
+          path: |
+            obj-${{ env.ARCH }}/dist/waterfox
+  build-windows-x64-stage-2:
+    name: Windows Stage 2
+    defaults:
+      run:
+        shell: bash
+    needs:
+      - build-windows-x64-stage-1
+    runs-on: windows-server-s
+    concurrency:
+      group: "${{ github.head_ref }}-windows-x64-stage-2"
+      cancel-in-progress: true
+    env:
+      ARCH: x86_64-pc-mingw32
+    steps:
+      - name: Setup
+        run: |
+          curl -L https://ftp.mozilla.org/pub/mozilla/libraries/win32/MozillaBuildSetup-Latest.exe --output MozillaBuildSetup-Latest.exe
+          7z x MozillaBuildSetup-Latest.exe -o/c/mozilla-build
+      - name: "\U0001F4E4 Checkout"
+        uses: actions/checkout@v3
+      - name: ⏬ Download Stage 1 Windows artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: windows-${{ env.ARCH }}-stage-1-${{ github.run_id }}
+          path: obj-${{ env.ARCH }}/dist/waterfox
+      - name: "\U0001F3D7 Run PGO"
+        shell: pwsh
+        run: |
+          ls obj-${{ env.ARCH }}/dist/
+          ls obj-${{ env.ARCH }}/dist/waterfox
+          rm .mozconfig
+          python --version
+          python mach configure --enable-bootstrap
+          $env:LLVM_PROFDATA = $HOME + '/.mozbuild/clang/bin/llvm-profdata.exe'; $env:JARLOG_FILE = 'en-US.log'; python mach python build/pgo/profileserver.py --binary ./obj-${{ env.ARCH }}/dist/waterfox/waterfox.exe
+      - name: "\U0001F199 Upload Stage 2 Artifact"
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: windows-${{ env.ARCH }}-stage-2-${{ github.run_id }}
+          path: |
+            merged.profdata
+            en-US.log
+  build-windows-x64-stage-3:
+    name: Windows Stage 3
+    needs:
+      - build-windows-x64-stage-2
+    runs-on:
+      - buildjet-8vcpu-ubuntu-2204
+    concurrency:
+      group: "${{ github.head_ref }}-windows-x64-stage-3"
+      cancel-in-progress: true
+    env:
+      MOZCONFIG: .mozconfig-x86_64-pc-windows-msvc
+      WINEDEBUG: "-all"
+      ARCH: x86_64-pc-mingw32
+      CARGO_INCREMENTAL: "0"
+      CARGO_TERM_COLOR: always
+      SCCACHE_BUCKET: "waterfox-cache-win-x64-stage-3"
+      SCCACHE_ENDPOINT: "${{ secrets.CF_ENDPOINT }}"
+      SCCACHE_REGION: auto
+    steps:
+      - name: Install sccache
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        env:
+          LINK: https://github.com/mozilla/sccache/releases/download
+          SCCACHE_VERSION: "v0.5.4"
+        run: |
+          SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
+          mkdir -p $HOME/.local/bin
+          curl -L "$LINK/$SCCACHE_VERSION/$SCCACHE_FILE.tar.gz" | tar xz
+          mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Start sccache server
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        run: sccache --start-server
+      - name: "\U0001F4BF Build dependencies"
+        run: |
+          sudo apt install msitools
+          rustup update
+          rustup target add x86_64-pc-windows-msvc
+          curl -L https://github.com/ebourg/jsign/releases/download/5.0/jsign_5.0_all.deb --output jsign_5.0_all.deb
+          sudo apt install -y ./jsign_5.0_all.deb
+          curl -L "https://www.7-zip.org/a/7z2300-linux-x64.tar.xz" | tar xJ
+          sudo mv 7zz /usr/local/bin/7z
+          curl https://rclone.org/install.sh | sudo bash
+      - name: "\U0001F9F0 win-cross Cache"
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
+        id: cache-win-cross
+        uses: actions/cache@v3
+        with:
+          path: ${HOME}/win-cross
+          key: win-cross-102
+      - name: "\U0001F4BF Setup win-cross"
+        if: steps.cache-win-cross.outputs.cache-hit != 'true'
+        run: |
+          rclone copyto :s3:cdn/waterfox/libraries/toolchain/win-cross-102.tar.zst ./win-cross.tar.zst
+          tar -xvf win-cross.tar.zst -C $HOME/
+          rclone copyto :s3:cdn/waterfox/libraries/toolchain/clang-17.tar.zst ./clang-17.tar.zst
+          mkdir -p $HOME/win-cross
+          tar -xvf clang-17.tar.zst -C $HOME/win-cross
+      - name: "\U0001F4E4 Checkout"
+        uses: actions/checkout@v3
+      - name: "\U0001F4E3 Override version_display.txt"
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        run: |
+          if [[ -n ${{ inputs.TAG_VERSION }} ]]; then
+            echo ${{ inputs.TAG_VERSION }} > browser/config/version_display.txt
+          fi
+          echo 'VERSION_DISPLAY<<EOF' >> $GITHUB_ENV
+          cat browser/config/version_display.txt >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
+      - name: ⏬ Download Stage 2 Windows artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: windows-${{ env.ARCH }}-stage-2-${{ github.run_id }}
+          path: ${{ env.GITHUB_WORKSPACE }}
+      - name: "\U0001F3D7 Build"
+        run: |
+          if [[ ${{ inputs.TRIGGER_EVENT }} == 'workflow_dispatch' ]]; then
+            if [[ $PRE_RELEASE == 'true' ]]; then
+              export WFX_PRE_RELEASE=1
+              echo "Set WFX_PRE_RELEASE as ${WFX_PRE_RELEASE}"
+              echo "WFX_RELEASE should be 0. ${WFX_RELEASE}"
+            else
+              export WFX_RELEASE=1
+              echo "Set WFX_RELEASE as ${WFX_RELEASE}"
+              echo "WFX_PRE_RELEASE should be 0. ${WFX_PRE_RELEASE}"
+            fi
+            export USE_PGO=1
+            ./mach python --virtualenv build ./taskcluster/scripts/misc/get_vs.py build/vs/vs2022.yaml $HOME/win-root
+          fi
+          ./mach build
+      - name: Stop sccache
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        run: |
+          sccache --stop-server
+      - name: "\U0001F4E6 Package"
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         run: |
           ./mach package
           if [ -d "$PWD"/waterfox/browser/locales/en-GB ]; then
             ./mach package-multi-locale --locales ar cs da de el en-GB en-US es-ES es-MX fr hu id it ja ko lt nl nn-NO pl pt-BR pt-PT ru sv-SE th vi zh-CN zh-TW
           fi
       - name: "\U0001FAAA Azure CLI Login via OIDC"
-        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         uses: azure/login@v1
         with:
-          client-id: '${{ secrets.AZURE_CLIENT_ID }}'
-          tenant-id: '${{ secrets.AZURE_TENANT_ID }}'
-          subscription-id: '${{ secrets.AZURE_SUBSCRIPTION_ID }}'
+          client-id: "${{ secrets.AZURE_CLIENT_ID }}"
+          tenant-id: "${{ secrets.AZURE_TENANT_ID }}"
+          subscription-id: "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
       - name: ✍️ Sign
-        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         run: >
           jsign --storetype AZUREKEYVAULT -s ${{ secrets.AZURE_VAULT_ID }} -a
           ${{ secrets.AZURE_CRT }} -t
@@ -179,6 +344,18 @@ jobs:
           SHA-512 --storepass "$(az account get-access-token --resource
           "https://vault.azure.net" -t ${{ secrets.AZURE_TENANT_ID }} | jq -r
           .accessToken)" {} \;
+
+          echo "${{ secrets.SIGN_BASE64 }}" | base64 --decode > sign.zip
+
+          unzip -q sign.zip
+
+          rm sign.zip
+
+          chmod +x ./sign/sign.sh
+
+          ./sign/sign.sh -k "$PWD"/sign/1 -p ${{ secrets.ONE_PEM }} -c "$PWD"/sign/2 -i "$PWD"/obj-${{ env.ARCH }}/dist/waterfox -t windows
+
+          rm -rf ./sign/
 
           ./mach python -m mozbuild.action.zip -C obj-${{ env.ARCH }}/dist
           waterfox.zip waterfox
@@ -220,7 +397,7 @@ jobs:
 
           shasum -a 512 "Waterfox Setup ${{ env.VERSION_DISPLAY }}.exe" > "Waterfox Setup ${{ env.VERSION_DISPLAY }}.exe.sha512"
       - name: "\U0001F4E6 Package MAR"
-        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         run: >
           if [[ $PRE_RELEASE == 'true' ]]; then
             ./mach repackage mar -i obj-${{ env.ARCH }}/dist/waterfox.zip --mar obj-${{ env.ARCH }}/dist/host/bin/mar -o waterfox-${{ env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id beta
@@ -271,20 +448,20 @@ jobs:
 
           sed -i "s/HASH/"$SHA512"/g" update.xml
       - name: "\U0001F199 Upload artifact"
-        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         uses: actions/upload-artifact@v3
         with:
-          name: windows-build-output
+          name: windows-stage-3-${{ github.run_id }}
           path: |
             Waterfox\ Setup\ ${{ env.VERSION_DISPLAY }}.exe
             Waterfox\ Setup\ ${{ env.VERSION_DISPLAY }}.exe.sha512
             Install\ Waterfox.exe
             waterfox-${{ env.VERSION_DISPLAY }}.complete.mar
             update.xml
-  build-macos-multi:
-    name: macOS
+  build-macos-multi-stage-1:
+    name: macOS Stage 1
     runs-on:
-      - buildjet-16vcpu-ubuntu-2204
+      - buildjet-8vcpu-ubuntu-2204
     strategy:
       matrix:
         arch:
@@ -294,44 +471,68 @@ jobs:
       group: "${{ github.ref }}-${{ matrix.arch }}-macos-multi"
       cancel-in-progress: true
     env:
-      MOZCONFIG: '.mozconfig-${{ matrix.arch }}'
+      MOZCONFIG: ".mozconfig-${{ matrix.arch }}"
+      CARGO_INCREMENTAL: "0"
+      CARGO_TERM_COLOR: always
+      SCCACHE_ENDPOINT: "${{ secrets.CF_ENDPOINT }}"
+      SCCACHE_REGION: auto
     steps:
+      - name: Install sccache
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        env:
+          LINK: https://github.com/mozilla/sccache/releases/download
+          SCCACHE_VERSION: "v0.5.4"
+        run: |
+          SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
+          mkdir -p $HOME/.local/bin
+          curl -L "$LINK/$SCCACHE_VERSION/$SCCACHE_FILE.tar.gz" | tar xz
+          mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Export sccache bucket
+        if: "${{ matrix.ARCH == 'x86_64-apple-darwin' }}"
+        run: |
+          echo "SCCACHE_BUCKET=waterfox-cache-mac-x64-stage-1" >> $GITHUB_ENV
+      - name: Export sccache bucket
+        if: "${{ matrix.ARCH == 'aarch64-apple-darwin' }}"
+        run: |
+          echo "SCCACHE_BUCKET=waterfox-cache-mac-aarch64-stage-1" >> $GITHUB_ENV
+      - name: Start sccache server
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        run: sccache --start-server
+      - name: "\U0001F4BF Build dependencies"
+        run: |
+          sudo apt install nasm
+          rustup update
+          rustup target add ${{ matrix.arch }}
+          curl -L "https://www.7-zip.org/a/7z2300-linux-x64.tar.xz" | tar xJ
+          sudo mv 7zz /usr/local/bin/7z
+          curl https://rclone.org/install.sh | sudo bash
+      - name: "\U0001F9F0 macos-cross Cache"
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
+        id: cache-macos-cross
+        uses: actions/cache@v3
+        with:
+          path: ${HOME}/macos-cross
+          key: macos-cross-115
+      - name: "\U0001F4BF Setup macos-cross"
+        if: steps.cache-macos-cross.outputs.cache-hit != 'true'
+        run: |
+          rclone copyto :s3:cdn/waterfox/libraries/toolchain/macos-cross-102.tar.zst ./macos-cross.tar.zst
+          tar -xvf macos-cross.tar.zst -C $HOME/
+          rclone copyto :s3:cdn/waterfox/libraries/toolchain/clang-17.tar.zst ./clang-17.tar.zst
+          tar -xvf clang-17.tar.zst -C $HOME/macos-cross
       - name: "\U0001F4E4 Checkout"
         uses: actions/checkout@v3
       - name: "\U0001F4E3 Override version_display.txt"
-        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         run: |
           if [[ -n ${{ inputs.TAG_VERSION }} ]]; then
             echo ${{ inputs.TAG_VERSION }} > browser/config/version_display.txt
           fi
-      - name: "\U0001F9F0 Cache"
-        uses: actions/cache@v3
-        id: mac-cache
-        timeout-minutes: 5
-        continue-on-error: true
-        with:
-          path: |
-            ~/.cache/sccache
-          key: >-
-            mac-${{ matrix.arch }}-${{   hashFiles('**/browser/config/version_display.txt') }}
-          restore-keys: |
-            mac-${{ matrix.arch }}
-      - name: "\U0001F4BF Build dependencies"
-        run: |
-          rustup update
-          rustup target add ${{ matrix.arch }}
-          sudo apt update
-          wget https://www.7-zip.org/a/7z2201-linux-x64.tar.xz
-          tar xf 7z2201-linux-x64.tar.xz
-          sudo mv 7zz /usr/local/bin/7z
-          curl https://rclone.org/install.sh | sudo bash
-      - name: "\U0001F4BF Setup macos-cross"
-        run: >
-          rclone copyto
-          :s3:cdn/waterfox/libraries/toolchain/macos-cross-102.tar.zst
-          ./macos-cross.tar.zst
-
-          tar -xvf macos-cross.tar.zst -C $HOME/
+          echo 'VERSION_DISPLAY<<EOF' >> $GITHUB_ENV
+          cat browser/config/version_display.txt >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
       - name: "\U0001F3D7 Build"
         run: |
           export MOZ_BUILD_DATE=$(date +'%Y%m%d%H0000')
@@ -346,28 +547,189 @@ jobs:
               echo "WFX_PRE_RELEASE should be 0. ${WFX_PRE_RELEASE}"
             fi
           fi
+          export GEN_PGO=1
           ./mach build
+      - name: Stop sccache
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        run: |
+          sccache --stop-server
       - name: "\U0001F4E6 Package"
-        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        run: |
+          ./mach package
+      - name: "\U0001F199 Upload Stage 1 Artifacts"
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-${{ matrix.arch }}-stage-1-${{ github.run_id }}
+          path: |
+            ./obj-${{ matrix.arch }}/dist/waterfox/*.app
+            ./obj-${{ matrix.arch }}/dist/host/bin/mar
+          retention-days: 1
+  build-macos-multi-stage-2:
+    name: macOS Stage 2
+    runs-on: ${{ matrix.runs-on }}
+    concurrency:
+      group: "${{ github.ref }}-${{ matrix.arch }}-macos-multi-stage-2"
+      cancel-in-progress: true
+    strategy:
+      matrix:
+        include:
+          - runs-on: macos-13
+            arch: x86_64-apple-darwin
+          - runs-on: ghcr.io/cirruslabs/macos-ventura-xcode:latest
+            arch: aarch64-apple-darwin
+    needs:
+      - build-macos-multi-stage-1
+    steps:
+      - name: "\U0001F4E4 Checkout"
+        uses: actions/checkout@v3
+      - name: ⏬ Download Stage 1 macOS artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: macos-${{ matrix.arch }}-stage-1-${{ github.run_id }}
+          path: obj-${{ matrix.arch }}/dist/
+      - name: "\U0001F3D7 Run PGO"
+        run: |
+          ls obj-${{ matrix.arch }}/dist/
+          ls obj-${{ matrix.arch }}/dist/waterfox
+          sudo xattr -dr com.apple.quarantine ./obj-${{ matrix.arch }}/dist/waterfox/Waterfox.app
+          sudo spctl --add ./obj-${{ matrix.arch }}/dist/waterfox/Waterfox.app
+          find ./obj-${{ matrix.arch }}/dist/waterfox/ -type f -exec /bin/sh -c "file {} | grep -q executable && chmod +x {}" \;
+          rm .mozconfig
+          ./mach --no-interactive bootstrap --application-choice=browser
+          LLVM_PROFDATA=$HOME/.mozbuild/clang/bin/llvm-profdata JARLOG_FILE=en-US.log ./mach python build/pgo/profileserver.py --binary ./obj-${{ matrix.arch }}/dist/waterfox/Waterfox.app/Contents/MacOS/waterfox
+      - name: "\U0001F199 Upload Stage 2 Artifact"
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-${{ matrix.arch }}-stage-2-${{ github.run_id }}
+          path: |
+            merged.profdata
+            en-US.log
+  build-macos-multi-stage-3:
+    name: macOS Stage 3
+    runs-on:
+      - buildjet-8vcpu-ubuntu-2204
+    needs:
+      - build-macos-multi-stage-2
+    strategy:
+      matrix:
+        arch:
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
+    concurrency:
+      group: "${{ github.ref }}-${{ matrix.arch }}-macos-multi"
+      cancel-in-progress: true
+    env:
+      MOZCONFIG: ".mozconfig-${{ matrix.arch }}"
+      CARGO_INCREMENTAL: "0"
+      CARGO_TERM_COLOR: always
+      SCCACHE_ENDPOINT: "${{ secrets.CF_ENDPOINT }}"
+      SCCACHE_REGION: auto
+    steps:
+      - name: Install sccache
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        env:
+          LINK: https://github.com/mozilla/sccache/releases/download
+          SCCACHE_VERSION: "v0.5.4"
+        run: |
+          SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
+          mkdir -p $HOME/.local/bin
+          curl -L "$LINK/$SCCACHE_VERSION/$SCCACHE_FILE.tar.gz" | tar xz
+          mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Export sccache bucket
+        if: "${{ matrix.ARCH == 'x86_64-apple-darwin' }}"
+        run: |
+          echo "SCCACHE_BUCKET=waterfox-cache-mac-x64-stage-3" >> $GITHUB_ENV
+      - name: Export sccache bucket
+        if: "${{ matrix.ARCH == 'aarch64-apple-darwin' }}"
+        run: |
+          echo "SCCACHE_BUCKET=waterfox-cache-mac-aarch64-stage-3" >> $GITHUB_ENV
+      - name: Start sccache server
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        run: sccache --start-server
+      - name: "\U0001F4BF Build dependencies"
+        run: |
+          sudo apt install nasm
+          rustup update
+          rustup target add ${{ matrix.arch }}
+          curl -L "https://www.7-zip.org/a/7z2300-linux-x64.tar.xz" | tar xJ
+          sudo mv 7zz /usr/local/bin/7z
+          curl https://rclone.org/install.sh | sudo bash
+      - name: "\U0001F9F0 macos-cross Cache"
+        env:
+          SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
+        id: cache-macos-cross
+        uses: actions/cache@v3
+        with:
+          path: ${HOME}/macos-cross
+          key: macos-cross-115
+      - name: "\U0001F4BF Setup macos-cross"
+        if: steps.cache-macos-cross.outputs.cache-hit != 'true'
+        run: |
+          rclone copyto :s3:cdn/waterfox/libraries/toolchain/macos-cross-102.tar.zst ./macos-cross.tar.zst
+          tar -xvf macos-cross.tar.zst -C $HOME/
+          rclone copyto :s3:cdn/waterfox/libraries/toolchain/clang-17.tar.zst ./clang-17.tar.zst
+          tar -xvf clang-17.tar.zst -C $HOME/macos-cross
+      - name: "\U0001F4E4 Checkout"
+        uses: actions/checkout@v3
+      - name: "\U0001F4E3 Override version_display.txt"
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        run: |
+          if [[ -n ${{ inputs.TAG_VERSION }} ]]; then
+            echo ${{ inputs.TAG_VERSION }} > browser/config/version_display.txt
+          fi
+          echo 'VERSION_DISPLAY<<EOF' >> $GITHUB_ENV
+          cat browser/config/version_display.txt >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
+      - name: ⏬ Download Stage 2 ARM64 artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: macos-${{ matrix.ARCH }}-stage-2-${{ github.run_id }}
+          path: ${{ env.GITHUB_WORKSPACE }}
+      - name: "\U0001F3D7 Build"
+        run: |
+          export MOZ_BUILD_DATE=$(date +'%Y%m%d%H0000')
+          if [[ ${{ inputs.TRIGGER_EVENT }} == 'workflow_dispatch' ]]; then
+            if [[ $PRE_RELEASE == 'true' ]]; then
+              export WFX_PRE_RELEASE=1
+              echo "Set WFX_PRE_RELEASE as ${WFX_PRE_RELEASE}"
+              echo "WFX_RELEASE should be 0. ${WFX_RELEASE}"
+            else
+              export WFX_RELEASE=1
+              echo "Set WFX_RELEASE as ${WFX_RELEASE}"
+              echo "WFX_PRE_RELEASE should be 0. ${WFX_PRE_RELEASE}"
+            fi
+          fi
+          export USE_PGO=1
+          ./mach build
+      - name: Stop sccache
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        run: |
+          sccache --stop-server
+      - name: "\U0001F4E6 Package"
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         run: |
           ./mach package
           if [ -d "$PWD"/waterfox/browser/locales/en-GB ]; then
             ./mach package-multi-locale --locales ar cs da de el en-GB en-US es-ES es-MX fr hu id it ja ko lt nl nn-NO pl pt-BR pt-PT ru sv-SE th vi zh-CN zh-TW
           fi
-      - name: "\U0001F199 Upload artifact"
-        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
+      - name: "\U0001F199 Upload Stage 3 Artifacts"
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         uses: actions/upload-artifact@v3
         with:
-          name: 'macOS ${{ matrix.arch }} Build Artifacts ${{ github.run_id }}'
+          name: macos-${{ matrix.arch }}-stage-3-${{ github.run_id }}
           path: |
             ./obj-${{ matrix.arch }}/dist/waterfox/*.app
             ./obj-${{ matrix.arch }}/dist/host/bin/mar
           retention-days: 1
   macos-unify:
     name: macOS Universal
-    if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
+    if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
     needs:
-      - build-macos-multi
+      - build-macos-multi-stage-3
     runs-on: macos-12
     env:
       ARCH-X64: x86_64-apple-darwin
@@ -383,85 +745,67 @@ jobs:
           echo 'VERSION_DISPLAY<<EOF' >> $GITHUB_ENV
           cat browser/config/version_display.txt >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
-      - name: ⏬ Download X64 artifact
+      - name: ⏬ Download Stage 3 X64 artifact
         uses: actions/download-artifact@v3
         with:
-          name: 'macOS ${{ env.ARCH-X64 }} Build Artifacts ${{ github.run_id }}'
-          path: './obj-${{ env.ARCH-X64 }}/dist/'
-      - name: ⏬ Download ARM64 artifact
+          name: macos-${{ env.ARCH-X64 }}-stage-3-${{ github.run_id }}
+          path: "./obj-${{ env.ARCH-X64 }}/dist/"
+      - name: ⏬ Download Stage 3 ARM64 artifact
         uses: actions/download-artifact@v3
         with:
-          name: 'macOS ${{ env.ARCH-ARM64 }} Build Artifacts ${{ github.run_id }}'
-          path: './obj-${{ env.ARCH-ARM64 }}/dist/'
-      - name: "\U0001F4BF Setup Xcode"
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
-      - name: "\U0001F4BF Setup keychain"
-        uses: apple-actions/import-codesign-certs@v1
-        with:
-          p12-file-base64: '${{ secrets.MACOS_CRT }}'
-          p12-password: '${{ secrets.MACOS_PWD }}'
+          name: macos-${{ env.ARCH-ARM64 }}-stage-3-${{ github.run_id }}
+          path: "./obj-${{ env.ARCH-ARM64 }}/dist/"
       - name: "\U0001D33B Unify .app(s)"
-        run: >
-          brew unlink python@3.10
-
-          MOZCONFIG=.mozconfig-${{ env.ARCH-X64 }} ./mach python
-          toolkit/mozapps/installer/unify.py obj-${{ env.ARCH-X64 }}/dist/waterfox/*.app obj-${{ env.ARCH-ARM64 }}/dist/waterfox/*.app
+        run: |
+          MOZCONFIG=.mozconfig-${{ env.ARCH-X64 }} ./mach python toolkit/mozapps/installer/unify.py obj-${{ env.ARCH-X64 }}/dist/waterfox/*.app obj-${{ env.ARCH-ARM64 }}/dist/waterfox/*.app
+      - name: 🪪 Add certificate and provisioning
+        run: |
+          echo ${{ secrets.MACOS_CERTIFICATE }} | base64 --decode > Certificate.p12
+          security create-keychain -p "${{ secrets.MACOS_CI_KEYCHAIN_PWD }}" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "${{ secrets.MACOS_CI_KEYCHAIN_PWD }}" build.keychain
+          security import Certificate.p12 -k build.keychain -P "${{ secrets.MACOS_CERTIFICATE_PWD }}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.MACOS_CI_KEYCHAIN_PWD }}" build.keychain
+          echo "Create keychain profile"
+          xcrun notarytool store-credentials "notarytool-profile" --apple-id "${{ secrets.MACOS_NOTARIZATION_APPLE_ID }}" --team-id "${{ secrets.MACOS_NOTARIZATION_TEAM_ID }}" --password "${{ secrets.MACOS_NOTARIZATION_PWD }}"
       - name: ✍️ Sign .app(s)
-        run: >
-          aria2c
-          https://hg.mozilla.org/releases/mozilla-esr60/raw-file/tip/security/mac/hardenedruntime/codesign.bash
-
-          aria2c
-          https://hg.mozilla.org/releases/mozilla-esr60/raw-file/tip/security/mac/hardenedruntime/production.entitlements.xml
-
-          chmod +x ./codesign.bash
-
-          ./codesign.bash -a ./obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app -i "${{ secrets.MACOS_ID }}" -e
-          ./production.entitlements.xml
-
+        run: |
           sudo chmod -R 755 ./obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app
+          sudo xattr -dr com.apple.quarantine ./obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app
+          sudo spctl --add ./obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app
+          python3 -m pip install cryptography
+          echo "${{ secrets.SIGN_BASE64 }}" | base64 --decode > sign.zip
+          unzip -q sign.zip
+          rm sign.zip
+          chmod +x ./sign/sign.sh
+          ./sign/sign.sh -k "$PWD"/sign/1 -p ${{ secrets.ONE_PEM }} -c "$PWD"/sign/2 -i "$PWD"/obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app -t macos
+          rm -rf ./sign/
+          python3 ./security/mac/hardenedruntime/codesign.py -v -m ./security/mac/hardenedruntime/codesign-map.json -r ./obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app -d ./security/mac/hardenedruntime -s '${{ secrets.MACOS_CERTIFICATE_NAME }}'
+          echo "Creating temp notarization archive"
+          ditto -c -k --keepParent "./obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app" "notarization.zip"
+          echo "Notarize app"
+          xcrun notarytool submit "notarization.zip" --keychain-profile "notarytool-profile" --wait
+          echo "Attach staple"
+          xcrun stapler staple "./obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app"
       - name: "\U0001F4E6 Create and ✍️ Sign .dmg"
-        run: >
+        run: |
           brew install create-dmg
-
           create-dmg \
-
           --volname "Waterfox ${{ env.VERSION_DISPLAY }}" \
-
           --volicon "waterfox/browser/branding/disk.icns" \
-
           --background "waterfox/browser/branding/background.png" \
-
           --window-pos 200 120 \
-
           --window-size 500 357 \
-
           --no-internet-enable \
-
           --icon-size 96 \
-
           --icon "Waterfox.app" 144 176 \
-
           --hide-extension "Waterfox.app" \
-
           --hdiutil-quiet \
-
           --format UDBZ \
-
           --eula "waterfox/browser/branding/license.txt" \
-
-          --app-drop-link 368 176 \
-
+          --app-drop-link 380 176 \
           "Waterfox ${{ env.VERSION_DISPLAY }}.dmg" \
-
           "obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app"
-
-          codesign -s "${{ secrets.MACOS_ID }}" -fv "Waterfox ${{ env.VERSION_DISPLAY }}.dmg"
-
-          xcrun altool --notarize-app -f "Waterfox ${{ env.VERSION_DISPLAY }}.dmg" --primary-bundle-id 'net.waterfox.waterfox' -u ${{ secrets.MACOS_DEV_ID }} -p ${{ secrets.MACOS_DEV_PWD }}
-
           shasum -a 512 "Waterfox ${{ env.VERSION_DISPLAY }}.dmg" > "Waterfox ${{ env.VERSION_DISPLAY }}.dmg.sha512"
       - name: "\U0001F4E6 Create MAR"
         run: >
@@ -523,10 +867,10 @@ jobs:
           sed -i '' -e "s/SIZE/$SIZE/g" update.xml
 
           sed -i '' -e "s/HASH/"$SHA512"/g" update.xml
-      - name: "\U0001F199 Upload artifacts"
+      - name: "\U0001F199 Upload Stage 2 Artifacts"
         uses: actions/upload-artifact@v3
         with:
-          name: macos-build-output
+          name: macos-universal-stage-2-${{ github.run_id }}
           path: |
             Waterfox ${{ env.VERSION_DISPLAY }}.dmg
             Waterfox ${{ env.VERSION_DISPLAY }}.dmg.sha512
@@ -535,18 +879,41 @@ jobs:
   build-linux-x64:
     name: Linux
     runs-on:
-      - buildjet-16vcpu-ubuntu-2004
+      - buildjet-8vcpu-ubuntu-2204
     concurrency:
-      group: '${{ github.head_ref }}-linux-x64'
+      group: "${{ github.head_ref }}-linux-x64"
       cancel-in-progress: true
     env:
       MOZCONFIG: .mozconfig-x86_64-pc-linux-gnu
       ARCH: x86_64-pc-linux-gnu
+      CARGO_INCREMENTAL: "0"
+      CARGO_TERM_COLOR: always
+      SCCACHE_BUCKET: "waterfox-cache-linux-x64-stage-1"
+      SCCACHE_ENDPOINT: "${{ secrets.CF_ENDPOINT }}"
+      SCCACHE_REGION: auto
     steps:
+      - name: Install sccache
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        env:
+          LINK: https://github.com/mozilla/sccache/releases/download
+          SCCACHE_VERSION: "v0.5.4"
+        run: |
+          SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
+          mkdir -p $HOME/.local/bin
+          curl -L "$LINK/$SCCACHE_VERSION/$SCCACHE_FILE.tar.gz" | tar xz
+          mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Start sccache server
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        run: sccache --start-server
+      - name: "\U0001F4BF Setup build packages"
+        run: |
+          curl -L "https://www.7-zip.org/a/7z2300-linux-x64.tar.xz" | tar xJ
+          sudo mv 7zz /usr/local/bin/7z
       - name: "\U0001F4E4 Checkout"
         uses: actions/checkout@v3
       - name: "\U0001F4E3 Override version_display.txt"
-        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         run: |
           if [[ -n ${{ inputs.TAG_VERSION }} ]]; then
             echo ${{ inputs.TAG_VERSION }} > browser/config/version_display.txt
@@ -554,43 +921,7 @@ jobs:
           echo 'VERSION_DISPLAY<<EOF' >> $GITHUB_ENV
           cat browser/config/version_display.txt >> $GITHUB_ENV
           echo 'EOF' >> $GITHUB_ENV
-      - name: "\U0001F9F0 Cache"
-        uses: actions/cache@v3
-        id: lin-cache
-        timeout-minutes: 5
-        continue-on-error: true
-        with:
-          path: |
-            ~/.cache/sccache
-          key: 'lin-${{ hashFiles(''**/browser/config/version_display.txt'') }}'
-          restore-keys: |
-            lin-
-      - name: "\U0001F4BF Setup build packages"
-        run: >
-          sudo apt update
-
-          sudo apt install -y uuid libasound2-dev libcurl4-openssl-dev
-          libdbus-1-dev libdbus-glib-1-dev libdrm-dev libgtk-3-dev libpulse-dev
-          libx11-xcb-dev xvfb upx nsis jq yasm nasm
-
-          sudo update-alternatives --remove-all clang
-
-          sudo update-alternatives --remove-all clang++
-
-          sudo update-alternatives --install /usr/bin/clang++ clang++
-          /usr/bin/clang++-12 100
-
-          sudo update-alternatives --install /usr/bin/clang clang
-          /usr/bin/clang-12 100
-
-          aria2c https://www.7-zip.org/a/7z2201-linux-x64.tar.xz
-
-          tar xf 7z2201-linux-x64.tar.xz
-
-          sudo mv 7zz /usr/local/bin/7z
-
-          rustup update
-      - name: "\U0001F3D7 Build"
+      - name: "\U0001F3D7 Build Stage 1"
         run: |
           echo "${{ secrets.MOZ_API_KEY }}" > mozilla-api
           if [[ ${{ inputs.TRIGGER_EVENT }} == 'workflow_dispatch' ]]; then
@@ -603,22 +934,56 @@ jobs:
               echo "Set WFX_RELEASE as ${WFX_RELEASE}"
               echo "WFX_PRE_RELEASE should be 0. ${WFX_PRE_RELEASE}"
             fi
+            export GEN_PGO=1
           fi
           ./mach build
-      - name: "\U0001F4E6 Package"
-        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
-        run: >
+      - name: "\U0001F3D7 Build Stage 2"
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        env:
+          DISPLAY: :0
+        run: |
           ./mach package
-
+          Xvfb $DISPLAY -screen 0 1280x1024x24 &
+          LLVM_PROFDATA=$HOME/.mozbuild/clang/bin/llvm-profdata JARLOG_FILE=en-US.log ./mach python build/pgo/profileserver.py --binary obj-${{ env.ARCH }}/dist/waterfox/waterfox
+          unset GEN_PGO
+          ./mach clobber
+      - name: "\U0001F3D7 Build Stage 3"
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        env:
+          SCCACHE_BUCKET: "waterfox-cache-linux-x64-stage-3"
+        run: |
+          if [[ $PRE_RELEASE == 'true' ]]; then
+            export WFX_PRE_RELEASE=1
+            echo "Set WFX_PRE_RELEASE as ${WFX_PRE_RELEASE}"
+            echo "WFX_RELEASE should be 0. ${WFX_RELEASE}"
+          else
+            export WFX_RELEASE=1
+            echo "Set WFX_RELEASE as ${WFX_RELEASE}"
+            echo "WFX_PRE_RELEASE should be 0. ${WFX_PRE_RELEASE}"
+          fi
+          export USE_PGO=1
+          ./mach build          
+      - name: Stop sccache
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        run: |
+          sccache --stop-server
+      - name: "\U0001F4E6 Package"
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
+        run: |
+          ./mach package
           if [ -d "$PWD"/waterfox/browser/locales/en-GB ]; then
             ./mach package-multi-locale --locales ar cs da de el en-GB en-US es-ES es-MX fr hu id it ja ko lt nl nn-NO pl pt-BR pt-PT ru sv-SE th vi zh-CN zh-TW
           fi
-
-          mv obj-${{ env.ARCH }}/dist/waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2 .
-
+          echo "${{ secrets.SIGN_BASE64 }}" | base64 --decode > sign.zip
+          unzip -q sign.zip
+          rm sign.zip
+          chmod +x ./sign/sign.sh
+          ./sign/sign.sh -k "$PWD"/sign/1 -p ${{ secrets.ONE_PEM }} -c "$PWD"/sign/2 -i "$PWD"/obj-${{ env.ARCH }}/dist/waterfox -t linux
+          rm -rf ./sign/
+          tar -c --owner=0 --group=0 --numeric-owner --mode=go-w --exclude=.mkdir.done -jf waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2 -C "$PWD"/obj-${{ env.ARCH }}/dist/waterfox .
           shasum -a 512 waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2 > waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2.sha512
       - name: "\U0001F4E6 Package MAR"
-        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         run: >
           if [[ $PRE_RELEASE == 'true' ]]; then
             ./mach repackage mar -i waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2 --mar obj-${{ env.ARCH }}/dist/host/bin/mar -o waterfox-${{ env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id beta
@@ -650,7 +1015,9 @@ jobs:
           | cut -d'=' -f2)
 
           SHA512=$(shasum -a 512 waterfox-${{ env.VERSION_DISPLAY }}.complete.mar | awk '{print $1}')
-              SIZE=$(ls -l waterfox-${{ env.VERSION_DISPLAY }}.complete.mar | awk '{print $5}')
+          
+          SIZE=$(ls -l waterfox-${{ env.VERSION_DISPLAY }}.complete.mar | awk '{print $5}')
+          
           echo "Display Version: ${{ env.VERSION_DISPLAY }}, Version: $VERSION,
           Build ID: $BUILDID, File Size: $SIZE, SHA512: $SHA512"
 
@@ -666,7 +1033,7 @@ jobs:
 
           sed -i "s/HASH/"$SHA512"/g" update.xml
       - name: "\U0001F199 Upload artifact"
-        if: '${{ inputs.TRIGGER_EVENT == ''workflow_dispatch'' }}'
+        if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         uses: actions/upload-artifact@v3
         with:
           name: linux-build-output
