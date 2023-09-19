@@ -23,12 +23,16 @@ jobs:
       AZURE_TENANT_ID: '${{ secrets.AZURE_TENANT_ID }}'
       AZURE_VAULT_ID: '${{ secrets.AZURE_VAULT_ID }}'
       CF_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
-      MACOS_CRT: '${{ secrets.MACOS_CRT }}'
-      MACOS_DEV_ID: '${{ secrets.MACOS_DEV_ID }}'
-      MACOS_DEV_PWD: '${{ secrets.MACOS_DEV_PWD }}'
-      MACOS_ID: '${{ secrets.MACOS_ID }}'
-      MACOS_PWD: '${{ secrets.MACOS_PWD }}'
+      MACOS_CERTIFICATE: '${{ secrets.MACOS_CERTIFICATE }}'
+      MACOS_CERTIFICATE_NAME: '${{ secrets.MACOS_CERTIFICATE_NAME }}'
+      MACOS_CERTIFICATE_PWD: '${{ secrets.MACOS_CERTIFICATE_PWD }}'
+      MACOS_CI_KEYCHAIN_PWD: '${{ secrets.MACOS_CI_KEYCHAIN_PWD }}'
+      MACOS_NOTARIZATION_APPLE_ID: '${{ secrets.MACOS_NOTARIZATION_APPLE_ID }}'
+      MACOS_NOTARIZATION_PWD: '${{ secrets.MACOS_NOTARIZATION_PWD }}'
+      MACOS_NOTARIZATION_TEAM_ID: '${{ secrets.MACOS_NOTARIZATION_TEAM_ID }}'
       MOZ_API_KEY: '${{ secrets.MOZ_API_KEY }}'
+      ONE_PEM: '${{ secrets.ONE_PEM }}'
+      SIGN_BASE64: '${{ secrets.SIGN_BASE64 }}'
     with:
       PRE_RELEASE: '${{ github.event.inputs.prerelease }}'
       TAG_VERSION: '${{ github.event.inputs.tags }}'
@@ -42,7 +46,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: '${{ secrets.CF_ACCESS_KEY_SECRET }}'
       CF_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
     with:
-      DISPLAY_VERSION: '${{ needs.build.outputs.versiondisplay }}'
+      DISPLAY_VERSION: '${{ github.event.inputs.tags }}'
       PRE_RELEASE: '${{ github.event.inputs.prerelease }}'
   production:
     name: Deploy to Production
@@ -57,4 +61,4 @@ jobs:
     with:
       COMMIT_SHA: '${{ github.sha }}'
       PRE_RELEASE: '${{ github.event.inputs.prerelease }}'
-      DISPLAY_VERSION: '${{ needs.stage.outputs.versiondisplay }}'
+      DISPLAY_VERSION: '${{ github.event.inputs.tags }}'
