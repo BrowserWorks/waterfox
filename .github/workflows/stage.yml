@@ -90,9 +90,9 @@ jobs:
           path: lin/
       - name: "\U0001F3AD Stage Linux"
         run: >
-          rclone copyto lin/waterfox-${{ inputs.DISPLAY_VERSION }}.en-US.linux-x86_64.tar.bz2 :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2
+          rclone copyto lin/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2 :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2
 
-          rclone copyto lin/waterfox-${{ inputs.DISPLAY_VERSION }}.en-US.linux-x86_64.tar.bz2.sha512 :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.en-US.linux-x86_64.tar.bz2.sha512
+          rclone copyto lin/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2.sha512 :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2.sha512
 
           rclone copyto lin/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
           :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
