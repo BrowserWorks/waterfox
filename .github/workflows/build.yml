@@ -980,15 +980,15 @@ jobs:
           chmod +x ./sign/sign.sh
           ./sign/sign.sh -k "$PWD"/sign/1 -p ${{ secrets.ONE_PEM }} -c "$PWD"/sign/2 -i "$PWD"/obj-${{ env.ARCH }}/dist/waterfox -t linux
           rm -rf ./sign/
-          tar -c --owner=0 --group=0 --numeric-owner --mode=go-w --exclude=.mkdir.done -jf waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2 -C "$PWD"/obj-${{ env.ARCH }}/dist/waterfox .
-          shasum -a 512 waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2 > waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2.sha512
+          tar -c --owner=0 --group=0 --numeric-owner --mode=go-w --exclude=.mkdir.done -jf waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2 -C "$PWD"/obj-${{ env.ARCH }}/dist/waterfox .
+          shasum -a 512 waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2 > waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2.sha512
       - name: "\U0001F4E6 Package MAR"
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         run: >
           if [[ $PRE_RELEASE == 'true' ]]; then
-            ./mach repackage mar -i waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2 --mar obj-${{ env.ARCH }}/dist/host/bin/mar -o waterfox-${{ env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id beta
+            ./mach repackage mar -i waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2 --mar obj-${{ env.ARCH }}/dist/host/bin/mar -o waterfox-${{ env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id beta
           else
-            ./mach repackage mar -i waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2 --mar obj-${{ env.ARCH }}/dist/host/bin/mar -o waterfox-${{ env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id release
+            ./mach repackage mar -i waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2 --mar obj-${{ env.ARCH }}/dist/host/bin/mar -o waterfox-${{ env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id release
           fi
 
           xml=('<?xml version="1.0"?>'
@@ -1038,7 +1038,7 @@ jobs:
         with:
           name: linux-build-output
           path: |
-            waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2
-            waterfox-${{ env.VERSION_DISPLAY }}.en-US.linux-x86_64.tar.bz2.sha512
+            waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2
+            waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2.sha512
             waterfox-${{ env.VERSION_DISPLAY }}.complete.mar
             update.xml
