@@ -18,30 +18,6 @@
  * SECTION: TRACKING PROTECTION                                             *
 ****************************************************************************/
 
-// PREF: Enhanced Tracking Protection (ETP)
-// Tracking Content blocking will strip cookies and block all resource requests to domains listed in Disconnect.me.
-// Firefox deletes all stored site data (incl. cookies, browser storage) if the site is a known tracker and hasn’t
-// been interacted with in the last 30 days.
-// [NOTE] FF86: "Strict" tracking protection enables dFPI.
-// [1] https://support.mozilla.org/en-US/kb/enhanced-tracking-protection-firefox-desktop
-// [2] https://www.reddit.com/r/firefox/comments/l7xetb/network_priority_for_firefoxs_enhanced_tracking/gle2mqn/?web2x&context=3
-pref("browser.contentblocking.category", "strict");
-pref("network.http.referer.disallowCrossSiteRelaxingDefault.pbmode.top_navigation", true); // DEFAULT
-pref("network.http.referer.disallowCrossSiteRelaxingDefault.pbmode", true); // DEFAULT
-pref("network.http.referer.disallowCrossSiteRelaxingDefault.top_navigation", true); // enabled with "Strict"
-pref("network.http.referer.disallowCrossSiteRelaxingDefault", true); // DEFAULT
-pref("privacy.annotate_channels.strict_list.enabled", true); // enabled with "Strict"
-pref("privacy.annotate_channels.strict_list.pbmode.enabled", true); // DEFAULT
-pref("privacy.query_stripping.enabled", true);
-pref("privacy.query_stripping.enabled.pbmode", true);
-pref("privacy.socialtracking.block_cookies.enabled", true); // DEFAULT
-pref("privacy.trackingprotection.enabled", true);
-pref("privacy.trackingprotection.cryptomining.enabled", true); // DEFAULT
-pref("privacy.trackingprotection.emailtracking.data_collection.enabled", false, locked);
-pref("privacy.trackingprotection.emailtracking.enabled", true); // enabled with "Strict"
-pref("privacy.trackingprotection.fingerprinting.enabled", true); // DEFAULT
-pref("privacy.trackingprotection.socialtracking.enabled", true); // enabled with "Strict"
-
 // PREF: allow embedded tweets, Instagram and Reddit posts, and TikTok embeds
 // [TEST - reddit embed] https://www.pcgamer.com/amazing-halo-infinite-bugs-are-already-rolling-in/
 // [TEST - instagram embed] https://www.ndtv.com/entertainment/bharti-singh-and-husband-haarsh-limbachiyaa-announce-pregnancy-see-trending-post-2646359
@@ -59,9 +35,7 @@ pref("privacy.trackingprotection.lower_network_priority", true);
 // PREF: SameSite Cookies
 // [1] https://hacks.mozilla.org/2020/08/changes-to-samesite-cookie-behavior/
 // [2] https://web.dev/samesite-cookies-explained/
-pref("network.cookie.sameSite.laxByDefault", true);
 pref("network.cookie.sameSite.noneRequiresSecure", true);
-pref("network.cookie.sameSite.schemeful", true);
 
 // PREF: battery status tracking
 // [NOTE] Pref remains, but API is depreciated.
@@ -354,13 +328,6 @@ pref("permissions.delegation.enabled", false);
 pref("network.http.referer.defaultPolicy.trackers", 1);
 pref("network.http.referer.defaultPolicy.trackers.pbmode", 1);
 
-// PREF: control the amount of cross-origin information to send
-// Controls how much referrer to send across origins (different domains).
-// 0=send full URI (default), 1=scheme+host+port+path, 2=scheme+host+port
-// [1] https://blog.mozilla.org/security/2021/03/22/firefox-87-trims-http-referrers-by-default-to-protect-user-privacy/
-// [2] https://web.dev/referrer-best-practices/
-pref("network.http.referer.XOriginTrimmingPolicy", 2);
-
 /******************************************************************************
  * SECTION: CONTAINERS                                                        *
 ******************************************************************************/
@@ -464,6 +431,7 @@ pref("browser.safebrowsing.allowOverride", true); // DEFAULT
 // PREF: disable Firefox View [FF106+]
 // [1] https://support.mozilla.org/en-US/kb/how-set-tab-pickup-firefox-view#w_what-is-firefox-view
 pref("browser.tabs.firefox-view", false);
+pref("browser.firefox-view.feature-tour", "{\"screen\":\"\",\"complete\":true}");
 
 // PREF: use Mozilla geolocation service instead of Google when geolocation is enabled
 pref("geo.provider.network.url", "");
