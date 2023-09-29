@@ -458,15 +458,16 @@
 
     /**
      * Determines if we should select all the text in the searchbar based on the
-     * searchbar state, and whether the selection is empty.
+     * clickSelectsAll pref, searchbar state, and whether the selection is empty.
      */
     _maybeSelectAll() {
       if (
         !this._preventClickSelectsAll &&
+        UrlbarPrefs.get("clickSelectsAll") &&
         document.activeElement == this._textbox &&
         this._textbox.selectionStart == this._textbox.selectionEnd
       ) {
-        this.select();
+        this._textbox.editor.selectAll();
       }
     }
 
@@ -572,6 +573,11 @@
           // Open the suggestions whenever clicking on the search icon or if there
           // is text in the textbox.
           this.openSuggestionsPanel(true);
+        }
+
+        if (event.detail == 2 && UrlbarPrefs.get("doubleClickSelectsAll")) {
+          this._textbox.editor.selectAll();
+          event.preventDefault();
         }
       });
     }
