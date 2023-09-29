@@ -46,6 +46,16 @@ pref("browser.topsites.contile.enabled", false, locked);
 pref("browser.topsites.contile.endpoint", "", locked);
 pref("browser.topsites.useRemoteSetting", false, locked);
 pref("browser.uiCustomization.state", "{\"placements\":{\"widget-overflow-fixed-list\":[],\"unified-extensions-area\":[],\"nav-bar\":[\"back-button\",\"forward-button\",\"stop-reload-button\",\"urlbar-container\",\"save-to-pocket-button\",\"search-container\",\"downloads-button\",\"fxa-toolbar-menu-button\",\"unified-extensions-button\"],\"TabsToolbar\":[\"firefox-view-button\",\"tabbrowser-tabs\",\"new-tab-button\",\"alltabs-button\"],\"PersonalToolbar\":[\"import-button\",\"personal-bookmarks\"],\"status-bar\":[\"screenshot-button\",\"fullscreen-button\",\"status-text\"]},\"seen\":[\"developer-button\"],\"dirtyAreaCache\":[\"nav-bar\",\"status-bar\",\"PersonalToolbar\",\"TabsToolbar\"],\"currentVersion\":19,\"newElementCount\":3}");
+#ifdef UNIX_BUT_NOT_MAC
+pref("browser.urlbar.clickSelectsAll", false);
+#else
+pref("browser.urlbar.clickSelectsAll", true);
+#endif
+#ifdef UNIX_BUT_NOT_MAC
+pref("browser.urlbar.doubleClickSelectsAll", true);
+#else
+pref("browser.urlbar.doubleClickSelectsAll", false);
+#endif
 pref("doh-rollout.enabled", false, locked);
 pref("doh-rollout.disable-heuristics", true, locked);
 pref("dom.security.unexpected_system_load_telemetry_enabled", false, locked);
