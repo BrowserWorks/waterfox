@@ -69,6 +69,28 @@ CommonDialog.prototype = {
         this.iconClass = ["question-icon"];
         this.soundID = Ci.nsISound.EVENT_CONFIRM_DIALOG_OPEN;
         break;
+      case "confirmEx2":
+        var numButtons2 = 0;
+        if (this.args.button0Label) {
+          numButtons2++;
+        }
+        if (this.args.button1Label) {
+          numButtons2++;
+        }
+        if (this.args.button2Label) {
+          numButtons2++;
+        }
+        if (this.args.button3Label) {
+          numButtons2++;
+        }
+        if (numButtons2 == 0) {
+          throw new Error("A dialog with no buttons? Can not haz.");
+        }
+        this.numButtons = numButtons2;
+        this.hasInputField = false;
+        this.iconClass = ["question-icon"];
+        this.soundID = Ci.nsISound.EVENT_CONFIRM_DIALOG_OPEN;
+        break;
       case "prompt":
         this.numButtons = 2;
         this.iconClass = ["question-icon"];
@@ -162,13 +184,35 @@ CommonDialog.prototype = {
     let infoBody = this.ui.infoBody;
     infoBody.appendChild(infoBody.ownerDocument.createTextNode(croppedMessage));
 
+    // WATERFOX: Check if both labels are undefined before deciding to hide the container.
+    // This first checks if both labels are undefined before hiding the container. 
+    // If not, it shows the container and then proceeds to render each checkbox if its corresponding label is defined.
     let label = this.args.checkLabel;
-    if (label) {
-      // Only show the checkbox if label has a value.
+    let label2 = this.args.checkLabel2;
+
+    if (!label && !label2) {
+      // Hide everything if both labels undefined  
+      this.ui.checkboxContainer.hidden = true;
+    } else {
+      // Show container
       this.ui.checkboxContainer.hidden = false;
-      this.ui.checkboxContainer.clientTop; // style flush to assure binding is attached
-      this.setLabelForNode(this.ui.checkbox, label);
-      this.ui.checkbox.checked = this.args.checked;
+      this.ui.checkboxContainer.clientTop;
+
+      if (label) {
+        this.setLabelForNode(this.ui.checkbox, label);
+        this.ui.checkbox.hidden = false; 
+        this.ui.checkbox.checked = this.args.checked;
+      } else {
+        this.ui.checkbox.hidden = true;
+      }
+
+      if (label2) {
+        this.setLabelForNode(this.ui.checkbox2, label2);
+        this.ui.checkbox2.hidden = false;
+        this.ui.checkbox2.checked = this.args.checked2;  
+      } else {
+        this.ui.checkbox2.hidden = true;
+      }
     }
 
     // set the icon
@@ -299,6 +343,10 @@ CommonDialog.prototype = {
 
   onCheckbox() {
     this.args.checked = this.ui.checkbox.checked;
+  },
+
+  onCheckbox2() {
+    this.args.checked2 = this.ui.checkbox2.checked;
   },
 
   onButton0() {
