@@ -81,6 +81,17 @@ interface nsIPrompt : nsISupports
                    in wstring checkMsg,
                    inout boolean checkValue);
 
+    int32_t confirmEx2(in wstring dialogTitle,
+                   in wstring text,
+                   in unsigned long buttonFlags,
+                   in wstring button0Title,
+                   in wstring button1Title,
+                   in wstring button2Title,
+                   in wstring checkMsg,
+                   inout boolean checkValue,
+                   in wstring checkMsg2,
+                   inout boolean checkValue2);
+
      boolean prompt(in wstring dialogTitle,
                     in wstring text,
                     inout wstring value,
