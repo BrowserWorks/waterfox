@@ -339,6 +339,67 @@ interface nsIPromptService : nsISupports
                     in wstring aButton2Title,
                     in wstring aCheckMsg,
                     inout boolean aCheckState);
+
+  /**
+   * Puts up a dialog with up to 3 buttons and an optional, labeled checkbox.
+   *
+   * @param aParent
+   *        The parent window or null.
+   * @param aDialogTitle
+   *        Text to appear in the title of the dialog.
+   * @param aText
+   *        Text to appear in the body of the dialog.
+   * @param aButtonFlags
+   *        A combination of Button Flags.
+   * @param aButton0Title
+   *        Used when button 0 uses TITLE_IS_STRING
+   * @param aButton1Title
+   *        Used when button 1 uses TITLE_IS_STRING
+   * @param aButton2Title
+   *        Used when button 2 uses TITLE_IS_STRING
+   * @param aCheckMsg
+   *        Text to appear with the checkbox.  Null if no checkbox.
+   * @param aCheckState
+   *        Contains the initial checked state of the checkbox when this method
+   *        is called and the final checked state after this method returns.
+   * @param aCheckMsg2
+   *        A second text to appear with the checkbox.  Null if no checkbox.
+   * @param aCheckState2
+   *        Contains the initial checked state of the checkbox when this method
+   *        is called and the final checked state after this method returns.
+   *
+   * @return index of the button pressed.
+   *
+   * Buttons are numbered 0 - 2. The implementation can decide whether the
+   * sequence goes from right to left or left to right.  Button 0 is the
+   * default button unless one of the Button Default Flags is specified.
+   *
+   * A button may use a predefined title, specified by one of the Button Title
+   * Flags values.  Each title value can be multiplied by a position value to
+   * assign the title to a particular button.  If BUTTON_TITLE_IS_STRING is
+   * used for a button, the string parameter for that button will be used.  If
+   * the value for a button position is zero, the button will not be shown.
+   *
+   * In general, aButtonFlags is constructed per the following example:
+   *
+   *   aButtonFlags = (BUTTON_POS_0) * (BUTTON_TITLE_AAA) +
+   *                  (BUTTON_POS_1) * (BUTTON_TITLE_BBB) +
+   *                   BUTTON_POS_1_DEFAULT;
+   *
+   * where "AAA" and "BBB" correspond to one of the button titles.
+   */
+  int32_t confirmEx2(in mozIDOMWindowProxy aParent,
+                    in wstring aDialogTitle,
+                    in wstring aText,
+                    in unsigned long aButtonFlags,
+                    in wstring aButton0Title,
+                    in wstring aButton1Title,
+                    in wstring aButton2Title,
+                    in wstring aCheckMsg,
+                    inout boolean aCheckState,
+                    in wstring aCheckMsg2,
+                    inout boolean aCheckState2);
+
   /**
    * Like confirmEx, but with a BrowsingContext as parent.
    *

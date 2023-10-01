@@ -94,7 +94,7 @@
       });
       ChromeUtils.defineLazyGetter(this, "tabLocalization", () => {
         return new Localization(
-          ["browser/tabbrowser.ftl", "branding/brand.ftl"],
+          ["browser/tabbrowser.ftl", "branding/brand.ftl", "browser/waterfox.ftl"],
           true
         );
       });
@@ -3425,36 +3425,65 @@
       // default to true: if it were false, we wouldn't get this far
       var warnOnClose = { value: true };
 
+      let restoreSession;
+      let startupPref = Services.prefs.getIntPref("browser.startup.page");
+  
+      // If we are set to anything other than restore session,
+      // leave its value.
+      if (startupPref != 3) {
+        restoreSession = { value: false };
+      } else {
+        restoreSession = { value: true };
+      }
+
       // focus the window before prompting.
       // this will raise any minimized window, which will
       // make it obvious which window the prompt is for and will
       // solve the problem of windows "obscuring" the prompt.
       // see bug #350299 for more details
       window.focus();
-      const [title, button, checkbox] = this.tabLocalization.formatValuesSync([
+      const [title, button, checkbox, checkboxLabel2] = this.tabLocalization.formatValuesSync([
         {
           id: "tabbrowser-confirm-close-tabs-title",
           args: { tabCount: tabsToClose },
         },
         { id: "tabbrowser-confirm-close-tabs-button" },
         { id: "tabbrowser-confirm-close-tabs-checkbox" },
+        { id: "tabbrowser-confirm-session-restore-checkbox" }
       ]);
       let flags =
         ps.BUTTON_TITLE_IS_STRING * ps.BUTTON_POS_0 +
         ps.BUTTON_TITLE_CANCEL * ps.BUTTON_POS_1;
       let checkboxLabel =
         aCloseTabs == this.closingTabsEnum.ALL ? checkbox : null;
-      var buttonPressed = ps.confirmEx(
-        window,
-        title,
-        null,
-        flags,
-        button,
-        null,
-        null,
-        checkboxLabel,
-        warnOnClose
-      );
+      var buttonPressed;
+      if (Services.prefs.getBoolPref("browser.tabs.warnOnCloseOtherTabs")) {
+        buttonPressed = ps.confirmEx(
+          window,
+          title,
+          null,
+          flags,
+          button,
+          null,
+          null,
+          checkboxLabel,
+          warnOnClose
+        );
+      } else if (Services.prefs.getBoolPref("browser.tabs.warnOnClose")) {
+        buttonPressed = ps.confirmEx2(
+          window,
+          title,
+          null,
+          flags,
+          button,
+          null,
+          null,
+          checkboxLabel,
+          warnOnClose,
+          checkboxLabel2,
+          restoreSession
+        );
+      }
 
       Services.telemetry.setEventRecordingEnabled("close_tab_warning", true);
       let closeTabEnumKey =
@@ -3498,6 +3527,16 @@
         !warnOnClose.value
       ) {
         Services.prefs.setBoolPref(pref, false);
+      }
+
+      if (buttonPressed == 0) {
+        if (!restoreSession.value) {
+          if (startupPref === 3) {
+            Services.prefs.setIntPref("browser.startup.page", 1);
+          }
+        } else if (restoreSession.value) {
+          Services.prefs.setIntPref("browser.startup.page", 3);
+        }
       }
 
       return reallyClose;
