@@ -96,6 +96,7 @@ function commonDialogOnLoad() {
     infoTitle: document.getElementById("infoTitle"),
     infoIcon: document.getElementById("infoIcon"),
     checkbox: document.getElementById("checkbox"),
+    checkbox2: document.getElementById("checkbox2"),
     checkboxContainer: document.getElementById("checkboxContainer"),
     button3: dialog.getButton("extra2"),
     button2: dialog.getButton("extra1"),

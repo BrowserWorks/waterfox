@@ -311,6 +311,34 @@ Prompter.prototype = {
     );
   },
 
+  confirmEx2(
+    domWin,
+    title,
+    text,
+    flags,
+    button0,
+    button1,
+    button2,
+    checkLabel,
+    checkValue,
+    checkLabel2,
+    checkValue2
+  ) {
+    let p = this.pickPrompter({ domWin });
+    return p.confirmEx2(
+      title,
+      text,
+      flags,
+      button0,
+      button1,
+      button2,
+      checkLabel,
+      checkValue,
+      checkLabel2,
+      checkValue2
+    );
+  },
+
   /**
    * Puts up a dialog with up to 3 buttons and an optional, labeled checkbox.
    * @param {BrowsingContext} browsingContext - The browsing context the
@@ -1487,6 +1515,66 @@ class ModalPrompter {
 
     this.openPromptSync(args);
     checkValue.value = args.checked;
+    return args.buttonNumClicked;
+  }
+
+  confirmEx2(
+    title,
+    text,
+    flags,
+    button0,
+    button1,
+    button2,
+    checkLabel,
+    checkValue,
+    checkLabel2,
+    checkValue2,
+    extraArgs = {}
+  ) {
+    if (!title) {
+      title = InternalPromptUtils.getLocalizedString("Confirm");
+    }
+
+    let args = {
+      promptType: "confirmEx2",
+      title,
+      text,
+      checkLabel,
+      checked: this.async ? checkValue : checkValue.value,
+      checkLabel2,
+      checked2: this.async ? checkValue2 : checkValue2.value,
+      ok: false,
+      buttonNumClicked: 1,
+      ...extraArgs,
+    };
+
+    let [label0, label1, label2, defaultButtonNum, isDelayEnabled] =
+      InternalPromptUtils.confirmExHelper(flags, button0, button1, button2);
+
+    args.defaultButtonNum = defaultButtonNum;
+    args.enableDelay = isDelayEnabled;
+
+    if (label0) {
+      args.button0Label = label0;
+      if (label1) {
+        args.button1Label = label1;
+        if (label2) {
+          args.button2Label = label2;
+        }
+      }
+    }
+
+    if (this.async) {
+      return this.openPromptAsync(args, result => ({
+        checked: !!result.checked,
+        checked2: !!result.checked2,
+        buttonNumClicked: result.buttonNumClicked,
+      }));
+    }
+
+    this.openPromptSync(args);
+    checkValue.value = args.checked;
+    checkValue2.value = args.checked2;
     return args.buttonNumClicked;
   }
 

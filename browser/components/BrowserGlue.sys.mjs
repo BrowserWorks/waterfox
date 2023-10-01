@@ -3464,6 +3464,18 @@ BrowserGlue.prototype = {
       aQuitType = "quit";
     }
 
+    let restoreSession;
+    let startupPref = Services.prefs.getIntPref("browser.startup.page");
+
+    // If we are set to anything other than restore session, 
+    if (startupPref != 3) {
+      console.log("Value of: " + startupPref);
+      restoreSession = { value: false };
+    } else {
+      console.log("Value of: " + startupPref);
+      restoreSession = { value: true };
+    }
+
     let win = lazy.BrowserWindowTracker.getTopWindow();
 
     // Our prompt for quitting is most important, so replace others.
@@ -3502,19 +3514,23 @@ BrowserGlue.prototype = {
       checkboxLabelId = "tabbrowser-confirm-close-tabs-checkbox";
     }
 
-    const [title, buttonLabel, checkboxLabel] =
+    let checkboxLabelId2 = "tabbrowser-confirm-session-restore-checkbox";
+
+    const [title, buttonLabel, checkboxLabel, checkboxLabel2] =
       win.gBrowser.tabLocalization.formatMessagesSync([
         titleId,
         buttonLabelId,
         checkboxLabelId,
+        checkboxLabelId2,
       ]);
 
     let warnOnClose = { value: true };
+
     let flags =
       Services.prompt.BUTTON_TITLE_IS_STRING * Services.prompt.BUTTON_POS_0 +
       Services.prompt.BUTTON_TITLE_CANCEL * Services.prompt.BUTTON_POS_1;
     // buttonPressed will be 0 for closing, 1 for cancel (don't close/quit)
-    let buttonPressed = Services.prompt.confirmEx(
+    let buttonPressed = Services.prompt.confirmEx2(
       win,
       title.value,
       null,
@@ -3523,7 +3539,9 @@ BrowserGlue.prototype = {
       null,
       null,
       checkboxLabel.value,
-      warnOnClose
+      warnOnClose,
+      checkboxLabel2.value,
+      restoreSession
     );
     Services.telemetry.setEventRecordingEnabled("close_tab_warning", true);
     let warnCheckbox = warnOnClose.value ? "checked" : "unchecked";
@@ -3553,6 +3571,18 @@ BrowserGlue.prototype = {
         Services.prefs.setBoolPref("browser.warnOnQuitShortcut", false);
       } else {
         Services.prefs.setBoolPref("browser.tabs.warnOnClose", false);
+      }
+    }
+
+    // If we are set to anything other than restore session,
+    // leave its value.
+    if (buttonPressed == 0) {
+      if (!restoreSession.value) {
+        if (startupPref === 3) {
+          Services.prefs.setIntPref("browser.startup.page", 1);
+        }
+      } else if (restoreSession.value) {
+        Services.prefs.setIntPref("browser.startup.page", 3);
       }
     }
 
