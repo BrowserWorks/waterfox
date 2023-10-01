@@ -1532,6 +1532,18 @@ BrowserGlue.prototype = {
       aQuitType = "quit";
     }
 
+    let restoreSession;
+    let startupPref = Services.prefs.getIntPref("browser.startup.page");
+
+    // If we are set to anything other than restore session,
+    if (startupPref != 3) {
+      console.log("Value of: " + startupPref);
+      restoreSession = { value: false };
+    } else {
+      console.log("Value of: " + startupPref);
+      restoreSession = { value: true };
+    }
+
     let win = lazy.BrowserWindowTracker.getTopWindow();
 
     // Our prompt for quitting is most important, so replace others.
@@ -1585,11 +1597,14 @@ BrowserGlue.prototype = {
       checkboxLabelId = "tabbrowser-ask-close-tabs-checkbox";
     }
 
-    const [title, quitButtonLabel, checkboxLabel] =
+    let checkboxLabelId2 = "tabbrowser-confirm-session-restore-checkbox";
+
+    const [title, quitButtonLabel, checkboxLabel, checkboxLabel2] =
       win.gBrowser.tabLocalization.formatMessagesSync([
         titleId,
         quitButtonLabelId,
         checkboxLabelId,
+        checkboxLabelId2,
       ]);
 
     // Only format the "close current tab" message if needed
@@ -1621,7 +1636,7 @@ BrowserGlue.prototype = {
     }
 
     // buttonPressed will be 0 for close all, 1 for cancel (don't close/quit), 2 for close current tab
-    let buttonPressed = Services.prompt.confirmEx(
+    let buttonPressed = Services.prompt.confirmEx2(
       win,
       title.value,
       null,
@@ -1630,7 +1645,9 @@ BrowserGlue.prototype = {
       null,
       showCloseCurrentTabOption ? closeTabButtonLabel.value : null,
       checkboxLabel.value,
-      warnOnClose
+      warnOnClose,
+      checkboxLabel2.value,
+      restoreSession
     );
 
     // If the user has unticked the box, and has confirmed closing, stop showing
@@ -1646,6 +1663,18 @@ BrowserGlue.prototype = {
     // Close the current tab if user selected BUTTON_POS_2
     if (buttonPressed === 2) {
       win.gBrowser.removeTab(win.gBrowser.selectedTab);
+    }
+
+    // If we are set to anything other than restore session,
+    // leave its value.
+    if (buttonPressed == 0) {
+      if (!restoreSession.value) {
+        if (startupPref === 3) {
+          Services.prefs.setIntPref("browser.startup.page", 1);
+        }
+      } else if (restoreSession.value) {
+        Services.prefs.setIntPref("browser.startup.page", 3);
+      }
     }
 
     this._quitSource = "unknown";
