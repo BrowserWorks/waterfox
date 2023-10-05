@@ -60,6 +60,9 @@ const gMainPaneOverlay = {
 
       // Scripts
       { id: "javascript.enabled", type: "bool" },
+
+      // DoOH
+      { id: "network.trr.use_ohttp", type: "bool" },
     ];
   },
 
@@ -77,6 +80,10 @@ const gMainPaneOverlay = {
       });
       document.initialized = true;
     }
+    this.setEventListener("enableObliviousDns", "click", function () {
+      let value = document.getElementById("enableObliviousDns").checked ? 2 : 0;
+      Services.prefs.setIntPref("network.trr.mode", value);
+    });
   },
 
   showRelevantElements() {
@@ -88,7 +95,7 @@ const gMainPaneOverlay = {
       "geolocationGroup",
     ];
 
-    let idsPrivacy = ["webrtc", "refheader"];
+    let idsPrivacy = ["webrtc", "refheader", "dohBox"];
     let win = Services.wm.getMostRecentWindow("navigator:browser");
     let uri = win.gBrowser.currentURI.spec;
     if (
