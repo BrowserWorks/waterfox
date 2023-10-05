@@ -745,6 +745,7 @@ nsBrowserContentHandler.prototype = {
   // to retrieve any other startup pages that needs to be displayed.
   // See Bug 1642039 for more information.
   getFirstWindowArgs() {
+
     var prefb = Services.prefs;
 
     if (!gFirstWindow) {
@@ -918,6 +919,7 @@ nsBrowserContentHandler.prototype = {
               lazy.LaterRun.enable(lazy.LaterRun.ENABLE_REASON_UPDATE_APPLIED);
             }
 
+
             // Send the update ping to signal that the update was successful.
             // Only do this if the update is installed right now.
             // The following code is ran asynchronously, but we won't await on it
@@ -947,11 +949,17 @@ nsBrowserContentHandler.prototype = {
             break;
           }
           case OVERRIDE_NEW_BUILD_ID: {
+
             // We must spin the events loop because `getFirstWindowArgs` cannot be
             // easily made asynchronous, having too many synchronous callers. Additionally
             // we must know the value of `updateInstalledAtStartup` immediately,
             // in order to properly enable `lazy.LaterRun`, that will be invoked shortly after this.
-            let updateInstalledAtStartup = spinForUpdateInstalledAtStartup();
+            let updateInstalledAtStartup = false;
+            try {
+              updateInstalledAtStartup = spinForUpdateInstalledAtStartup();
+            } catch (e) {
+              // ignore
+            }
 
             if (updateInstalledAtStartup) {
               let handleUpdateSuccessTask = lazy.UpdatePing.handleUpdateSuccess(
@@ -968,6 +976,27 @@ nsBrowserContentHandler.prototype = {
 
               lazy.LaterRun.enable(lazy.LaterRun.ENABLE_REASON_UPDATE_APPLIED);
             }
+            // Open the release notes / What's New Page for build-id-only updates,
+            // regardless of whether the update manager reports it was installed at startup.
+            // Prefer update-provided URL when allowed; fall back to the pref.
+            try {
+              const defaultOverridePage =
+                Services.urlFormatter.formatURLPref("startup.homepage_override_url");
+              const update = spinForLastUpdateInstalled();
+              // getPostUpdateOverridePage enforces actions/policy and can return "" if disabled.
+              overridePage = getPostUpdateOverridePage(update, defaultOverridePage);
+
+              // Fallback to pref-defined page if update actions/policy suppressed WNP.
+              if (!overridePage) {
+                overridePage = defaultOverridePage;
+              }
+
+            } catch (e) {
+              // If update info isn't available, just use the pref directly.
+              overridePage =
+                Services.urlFormatter.formatURLPref("startup.homepage_override_url");
+            }
+            overridePage = overridePage.replace("%OLD_VERSION%", old_mstone);
             break;
           }
         }
