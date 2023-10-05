@@ -918,6 +918,7 @@ nsBrowserContentHandler.prototype = {
               lazy.LaterRun.enable(lazy.LaterRun.ENABLE_REASON_UPDATE_APPLIED);
             }
 
+            overridePage = getPostUpdateOverridePage(update, overridePage);
             // Send the update ping to signal that the update was successful.
             // Only do this if the update is installed right now.
             // The following code is ran asynchronously, but we won't await on it
