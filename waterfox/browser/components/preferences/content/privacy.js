@@ -43,6 +43,11 @@ const gPrivacyPaneOverlay = {
     javascriptPermissions.checked = Preferences.get(
       javascriptPermissions.getAttribute("preference")
     ).value;
+
+    let obliviousDns = document.getElementById("enableObliviousDns");
+    obliviousDns.checked = Preferences.get(
+      obliviousDns.getAttribute("preference")
+    ).value;
   },
 
   /**
