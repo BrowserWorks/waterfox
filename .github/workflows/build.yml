@@ -980,7 +980,7 @@ jobs:
           chmod +x ./sign/sign.sh
           ./sign/sign.sh -k "$PWD"/sign/1 -p ${{ secrets.ONE_PEM }} -c "$PWD"/sign/2 -i "$PWD"/obj-${{ env.ARCH }}/dist/waterfox -t linux
           rm -rf ./sign/
-          tar -c --owner=0 --group=0 --numeric-owner --mode=go-w --exclude=.mkdir.done -jf waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2 -C "$PWD"/obj-${{ env.ARCH }}/dist/waterfox .
+          tar -c --owner=0 --group=0 --numeric-owner --mode=go-w --exclude=.mkdir.done -jf waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2 -C "$PWD"/obj-${{ env.ARCH }}/dist waterfox
           shasum -a 512 waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2 > waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2.sha512
       - name: "\U0001F4E6 Package MAR"
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
