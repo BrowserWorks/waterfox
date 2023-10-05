@@ -67,5 +67,13 @@
                     preference="javascript.enabled" flex="1" />
             </hbox>
         </groupbox>
+
+        <!-- DNS -->
+        <groupbox id="dohBox">
+            <hbox id="obliviousDns" data-subcategory="doh" insertbefore="dohCategories">
+                <checkbox id="enableObliviousDns" class="tail-with-learn-more" data-l10n-id="enable-dooh"
+                    preference="network.trr.use_ohttp" flex="1" />
+            </hbox>
+        </groupbox>
     </vbox>
 </overlay>
