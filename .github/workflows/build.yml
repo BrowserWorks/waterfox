@@ -577,7 +577,7 @@ jobs:
         include:
           - runs-on: macos-13
             arch: x86_64-apple-darwin
-          - runs-on: ghcr.io/cirruslabs/macos-ventura-xcode:latest
+          - runs-on: macos-13-xlarge
             arch: aarch64-apple-darwin
     needs:
       - build-macos-multi-stage-1
@@ -596,7 +596,17 @@ jobs:
           sudo xattr -dr com.apple.quarantine ./obj-${{ matrix.arch }}/dist/waterfox/Waterfox.app
           sudo spctl --add ./obj-${{ matrix.arch }}/dist/waterfox/Waterfox.app
           find ./obj-${{ matrix.arch }}/dist/waterfox/ -type f -exec /bin/sh -c "file {} | grep -q executable && chmod +x {}" \;
-          rm .mozconfig
+          rm .mozconfig || true
+          rm /usr/local/bin/2to3 || true
+          rm /usr/local/bin/2to3-3.11 || true
+          rm /usr/local/bin/idle3 || true
+          rm /usr/local/bin/idle3.11 || true
+          rm /usr/local/bin/pydoc3 || true
+          rm /usr/local/bin/pydoc3.11 || true
+          rm /usr/local/bin/python3 || true
+          rm /usr/local/bin/python3-config || true
+          rm /usr/local/bin/python3.11 || true
+          rm /usr/local/bin/python3.11-config || true
           ./mach --no-interactive bootstrap --application-choice=browser
           LLVM_PROFDATA=$HOME/.mozbuild/clang/bin/llvm-profdata JARLOG_FILE=en-US.log ./mach python build/pgo/profileserver.py --binary ./obj-${{ matrix.arch }}/dist/waterfox/Waterfox.app/Contents/MacOS/waterfox
       - name: "\U0001F199 Upload Stage 2 Artifact"
