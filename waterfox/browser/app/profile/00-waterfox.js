@@ -89,6 +89,8 @@ pref("signon.management.page.mobileAppleURL", "", locked);
 pref("signon.recipes.remoteRecipes.enabled", false, locked);
 pref("svg.context-properties.content.enabled", true);
 pref("toolkit.legacyUserProfileCustomizations.stylesheets", true, locked);
+// Don't close window or tab when Ctrl + W is pressed.
+pref("browser.closeShortcut.disabled", false);
 
 // Extensibles prefs
 pref("browser.tabs.duplicateTab", true);
