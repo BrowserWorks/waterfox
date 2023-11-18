@@ -23,6 +23,7 @@
 # These defines should match application.ini settings
 !define AppName               "Waterfox"
 !define AppVersion            "@APP_VERSION@"
+!define AppVersionDisplay     "@APP_VERSION_DISPLAY@"
 !define GREVersion            @MOZILLA_VERSION@
 !define AB_CD                 "@AB_CD@"
 
