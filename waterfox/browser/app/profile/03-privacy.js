@@ -152,8 +152,9 @@ pref("privacy.history.custom", true);
  * SECTION: SPECULATIVE CONNECTIONS                           *
 ******************************************************************************/
 
-// Since we are using ODNS (or DOOH) by default, make connections even if HTTPS
-pref("network.dns.disablePrefetchFromHTTPS", false);
+// Disable DNS prefetch, to put less load on infrastructure.
+pref("network.dns.disablePrefetch", true);
+pref("network.dns.disablePrefetchFromHTTPS", true);
 
 // PREF: early hints
 // [1] https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/103
