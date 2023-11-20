@@ -89,7 +89,7 @@ jobs:
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         env:
           LINK: https://github.com/mozilla/sccache/releases/download
-          SCCACHE_VERSION: "v0.5.4"
+          SCCACHE_VERSION: "v0.7.3"
         run: |
           SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
           mkdir -p $HOME/.local/bin
@@ -124,7 +124,7 @@ jobs:
           mkdir -p $HOME/win-cross
           tar -xvf clang-17.tar.zst -C $HOME/win-cross
       - name: "\U0001F4E4 Checkout"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: "\U0001F4E3 Override version_display.txt"
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         run: |
@@ -187,7 +187,7 @@ jobs:
           curl -L https://ftp.mozilla.org/pub/mozilla/libraries/win32/MozillaBuildSetup-Latest.exe --output MozillaBuildSetup-Latest.exe
           7z x MozillaBuildSetup-Latest.exe -o/c/mozilla-build
       - name: "\U0001F4E4 Checkout"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: ⏬ Download Stage 1 Windows artifact
         uses: actions/download-artifact@v3
         with:
@@ -233,7 +233,7 @@ jobs:
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         env:
           LINK: https://github.com/mozilla/sccache/releases/download
-          SCCACHE_VERSION: "v0.5.4"
+          SCCACHE_VERSION: "v0.7.3"
         run: |
           SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
           mkdir -p $HOME/.local/bin
@@ -270,7 +270,7 @@ jobs:
           mkdir -p $HOME/win-cross
           tar -xvf clang-17.tar.zst -C $HOME/win-cross
       - name: "\U0001F4E4 Checkout"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: "\U0001F4E3 Override version_display.txt"
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         run: |
@@ -481,7 +481,7 @@ jobs:
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         env:
           LINK: https://github.com/mozilla/sccache/releases/download
-          SCCACHE_VERSION: "v0.5.4"
+          SCCACHE_VERSION: "v0.7.3"
         run: |
           SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
           mkdir -p $HOME/.local/bin
@@ -523,7 +523,7 @@ jobs:
           rclone copyto :s3:cdn/waterfox/libraries/toolchain/clang-17.tar.zst ./clang-17.tar.zst
           tar -xvf clang-17.tar.zst -C $HOME/macos-cross
       - name: "\U0001F4E4 Checkout"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: "\U0001F4E3 Override version_display.txt"
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         run: |
@@ -575,7 +575,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - runs-on: macos-13
+          - runs-on: macos-13-large
             arch: x86_64-apple-darwin
           - runs-on: macos-13-xlarge
             arch: aarch64-apple-darwin
@@ -583,14 +583,18 @@ jobs:
       - build-macos-multi-stage-1
     steps:
       - name: "\U0001F4E4 Checkout"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: ⏬ Download Stage 1 macOS artifact
         uses: actions/download-artifact@v3
         with:
           name: macos-${{ matrix.arch }}-stage-1-${{ github.run_id }}
           path: obj-${{ matrix.arch }}/dist/
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11' 
       - name: "\U0001F3D7 Run PGO"
         run: |
+          python --version
           ls obj-${{ matrix.arch }}/dist/
           ls obj-${{ matrix.arch }}/dist/waterfox
           sudo xattr -dr com.apple.quarantine ./obj-${{ matrix.arch }}/dist/waterfox/Waterfox.app
@@ -642,7 +646,7 @@ jobs:
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         env:
           LINK: https://github.com/mozilla/sccache/releases/download
-          SCCACHE_VERSION: "v0.5.4"
+          SCCACHE_VERSION: "v0.7.3"
         run: |
           SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
           mkdir -p $HOME/.local/bin
@@ -684,7 +688,7 @@ jobs:
           rclone copyto :s3:cdn/waterfox/libraries/toolchain/clang-17.tar.zst ./clang-17.tar.zst
           tar -xvf clang-17.tar.zst -C $HOME/macos-cross
       - name: "\U0001F4E4 Checkout"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: "\U0001F4E3 Override version_display.txt"
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         run: |
@@ -746,7 +750,7 @@ jobs:
       ARCH-ARM64: aarch64-apple-darwin
     steps:
       - name: "\U0001F4E4 Checkout"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: "\U0001F4E3 Override version_display.txt"
         run: |
           if [[ -n ${{ inputs.TAG_VERSION }} ]]; then
@@ -765,6 +769,9 @@ jobs:
         with:
           name: macos-${{ env.ARCH-ARM64 }}-stage-3-${{ github.run_id }}
           path: "./obj-${{ env.ARCH-ARM64 }}/dist/"
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11' 
       - name: "\U0001D33B Unify .app(s)"
         run: |
           MOZCONFIG=.mozconfig-${{ env.ARCH-X64 }} ./mach python toolkit/mozapps/installer/unify.py obj-${{ env.ARCH-X64 }}/dist/waterfox/*.app obj-${{ env.ARCH-ARM64 }}/dist/waterfox/*.app
@@ -906,7 +913,7 @@ jobs:
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         env:
           LINK: https://github.com/mozilla/sccache/releases/download
-          SCCACHE_VERSION: "v0.5.4"
+          SCCACHE_VERSION: "v0.7.3"
         run: |
           SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
           mkdir -p $HOME/.local/bin
@@ -921,7 +928,7 @@ jobs:
           curl -L "https://www.7-zip.org/a/7z2300-linux-x64.tar.xz" | tar xJ
           sudo mv 7zz /usr/local/bin/7z
       - name: "\U0001F4E4 Checkout"
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: "\U0001F4E3 Override version_display.txt"
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         run: |
