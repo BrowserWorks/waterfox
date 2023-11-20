@@ -490,14 +490,24 @@
       padding-top: 0 !important;
     }
   }
-  /** Activity Stream - Hide Firefox's logo ***********************************/
+  /** Activity Stream - Custom background image *******************************/
   @supports -moz-bool-pref("userContent.newTab.background_image") {
-    body {
-      background-image: var(--uc-newTab-wallpaper, url("chrome://browser/skin/lepton/Forest-trees-sunset-art-picture_3840x2160.jpg"));
+    body::before {
+      content: "";
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      background-image: var(--uc-newTab-wallpaper, url("chrome://browser/skin/lepton/horizon-sunrise.svg"));
       background-size: cover; /* or auto auto */
       background-repeat: no-repeat;
       background-position: right top;
       background-attachment: fixed;
+      /** Use night sky version in dark mode **********************************/
+    }
+    @media (-moz-toolbar-prefers-color-scheme: dark), (prefers-color-scheme: dark) {
+      body::before {
+        background-image: var(--uc-newTab-wallpaper, url("chrome://browser/skin/lepton/horizon-night.svg"));
+      }
     }
   }
 }
@@ -2175,18 +2185,21 @@
       height: 48px;
     }
   }
-  @-moz-document url-prefix("about:preferences") {
-    #handlersView > richlistitem:hover,
+  @-moz-document url-prefix("about:preferences"), url-prefix("chrome://browser/content/preferences/dialogs/"), url-prefix("chrome://pippki/content/")
+  {
+    :is(.contentPane, .main-content, #certmanagertabs) richlistbox > richlistitem:hover,
     #translations-manage-install-list > .translations-manage-language:hover {
       background-color: var(--in-content-item-hover);
       color: var(--in-content-item-hover-text);
     }
-    #handlersView > richlistitem[selected="true"],
+    :is(.contentPane, .main-content, #certmanagertabs) richlistbox > richlistitem[selected="true"],
     #translations-manage-install-list > .translations-manage-language[selected="true"] {
       background-color: var(--in-content-item-selected);
       color: var(--in-content-item-selected-text);
     }
-    #handlersView > richlistitem:nth-child(even):not([selected="true"], :hover),
+    :is(.contentPane, .main-content, #certmanagertabs)
+      richlistbox
+      > richlistitem:nth-child(even):not([selected="true"], :hover),
     #translations-manage-install-list > .translations-manage-language:nth-child(even):not([selected="true"], :hover) {
       background-color: var(--in-content-box-background-odd);
     }
@@ -2205,7 +2218,7 @@
       #editBMPanel_folderMenuList:not([selectedGuid="toolbar_____"], [selectedGuid="menu________"]),
       #editBMPanel_folderMenuList .folder-icon:not([id]),
       .downloadIconShow > .button-box > .button-icon {
-        list-style-image: url("chrome://browser/skin/lepton/folder.svg") !important;
+        list-style-image: var(--uc-folder-icon) !important;
       }
       /* Standard Folder - Open */
       :-moz-any(#PlacesToolbar, #BMB_bookmarksPopup, #bookmarksMenu)
@@ -2255,8 +2268,9 @@
       }
       /* Tag */
       :-moz-any(#placesList, #placeContent) treechildren::-moz-tree-image(title, query, tagContainer),
-      :-moz-any(#placesList, #placeContent) treechildren::-moz-tree-image(query, OrganizerQuery_tags_______v) {
-        list-style-image: url("chrome://browser/skin/places/tag.svg") !important;
+      :-moz-any(#placesList, #placeContent) treechildren::-moz-tree-image(query, OrganizerQuery_tags_______v),
+      .bookmark-item[query][tagContainer] {
+        list-style-image: url("chrome://browser/skin/lepton/tag.svg") !important;
       }
       /* Bookmark */
       :-moz-any(#placesList, #placeContent) treechildren::-moz-tree-image(query, OrganizerQuery_allbms_____v) {
@@ -2266,8 +2280,15 @@
       #BMB_bookmarksPopup #BMB_bookmarksToolbar,
       #bookmarksMenuPopup #bookmarksToolbarFolderMenu,
       :-moz-any(#bookmarks-view, #editBMPanel_folderTree, #placesList, #placeContent)
-        treechildren::-moz-tree-image(container, queryFolder_toolbar_____) {
-        list-style-image: url("chrome://browser/skin/places/bookmarksToolbar.svg") !important;
+        treechildren::-moz-tree-image(container, queryFolder_toolbar_____),
+      #editBMPanel_folderMenuList[selectedGuid="toolbar_____"],
+      #editBMPanel_toolbarFolderItem,
+      #bookmarksToolbarFolderMenu,
+      #BMB_bookmarksToolbar,
+      #panelMenu_bookmarksToolbar,
+      #bookmarks-toolbar-button,
+      #bookmarks-toolbar-placeholder {
+        list-style-image: url("chrome://browser/skin/lepton/bookmarks-toolbar-alt.svg") !important;
       }
       /* Bookmark Menu */
       :-moz-any(#bookmarks-view, #editBMPanel_folderTree, #placesList, #placeContent)
@@ -2305,7 +2326,7 @@
       #bookmarksMenuPopup #bookmarksToolbarFolderMenu[open="true"],
       :-moz-any(#bookmarks-view, #editBMPanel_folderTree, #placesList, #placeContent)
         treechildren::-moz-tree-image(container, open, queryFolder_toolbar_____) {
-        list-style-image: url("chrome://browser/skin/lepton/bookmarksToolbar-open.svg") !important;
+        list-style-image: url("chrome://browser/skin/lepton/bookmarksToolbar-open-alt.svg") !important;
       }
       /* Bookmark Menu */
       :-moz-any(#bookmarks-view, #editBMPanel_folderTree, #placesList, #placeContent)
@@ -2954,6 +2975,12 @@
 }
 /** Rounding ******************************************************************/
 @supports -moz-bool-pref("userChrome.rounding.square_button") {
+  .all-buttons-container,
+  .highlight-buttons > button,
+  .cancel-shot,
+  #pictureInPictureToggle > .pip-small {
+    border-radius: 0 !important;
+  }
   @-moz-document url-prefix("about:"), regexp("^chrome://\\w+/content/.*.xhtml$")
   {
     button:not(.toggle-button),
@@ -3157,6 +3184,14 @@
 /** Menu - Icons Layout *******************************************************/
 @supports not -moz-bool-pref("userChrome.icon.disabled") {
   @supports -moz-bool-pref("userChrome.icon.menu") {
+    :root {
+      --uc-folder-icon: url("chrome://global/skin/icons/folder.svg");
+    }
+    @supports -moz-bool-pref("userChrome.icon.library") {
+      :root {
+        --uc-folder-icon: url("chrome://browser/skin/lepton/folder.svg");
+      }
+    }
     @-moz-document url("chrome://browser/content/places/places.xhtml"), url("about:downloads")
     {
       menupopup menuitem:not([type="checkbox"][checked="true"], [type="radio"]),
@@ -3487,12 +3522,7 @@
           --menuitem-image: url("chrome://browser/skin/lepton/fluid.svg");
         }
         .downloadShowMenuItem {
-          --menuitem-image: url("chrome://global/skin/icons/folder.svg");
-        }
-        @supports -moz-bool-pref("userChrome.icon.library") {
-          .downloadShowMenuItem {
-            --menuitem-image: url("chrome://browser/skin/lepton/folder.svg");
-          }
+          --menuitem-image: var(--uc-folder-icon);
         }
         #downloadsContextMenu > menuitem.downloadOpenReferrerMenuItem,
         #downloadsContextMenu > menuitem[command="downloadsCmd_openReferrer"] {
@@ -3523,7 +3553,7 @@
         #placesContext_open\:newtab,
         #placesContext_openContainer\:tabs,
         #placesContext_openLinks\:tabs {
-          --menuitem-image: url("chrome://browser/skin/new-tab.svg");
+          --menuitem-image: var(--uc-new-tab-icon);
         }
         #placesContext_open\:newcontainertab {
           --menuitem-image: url("chrome://browser/skin/lepton/container-openin-16.svg");
@@ -3552,32 +3582,26 @@
           --menuitem-image: url("chrome://browser/skin/lepton/text-sort-ascending.svg");
         }
         #placesContext_cut {
-          --menuitem-image: url("chrome://browser/skin/edit-cut.svg");
+          --menuitem-image: url("chrome://browser/skin/lepton/edit-cut.svg");
         }
         #placesContext_copy {
           --menuitem-image: url("chrome://browser/skin/lepton/edit-copy.svg");
         }
         #placesContext_paste_group {
-          --menuitem-image: url("chrome://browser/skin/edit-paste.svg");
+          --menuitem-image: url("chrome://browser/skin/lepton/edit-paste.svg");
         }
         #placesContext_new\:bookmark {
           --menuitem-image: url("chrome://browser/skin/bookmark.svg");
         }
         #placesContext_showInFolder,
         #placesContext_new\:folder {
-          --menuitem-image: url("chrome://global/skin/icons/folder.svg");
-        }
-        @supports -moz-bool-pref("userChrome.icon.library") {
-          #placesContext_showInFolder,
-          #placesContext_new\:folder {
-            --menuitem-image: url("chrome://browser/skin/lepton/folder.svg");
-          }
+          --menuitem-image: var(--uc-folder-icon);
         }
         #placesContext_new\:separator {
           --menuitem-image: url("chrome://browser/skin/lepton/vertical-line.svg");
         }
         #placesContext_paste {
-          --menuitem-image: url("chrome://browser/skin/edit-paste.svg");
+          --menuitem-image: url("chrome://browser/skin/lepton/edit-paste.svg");
         }
         #placesContext_createBookmark {
           --menuitem-image: url("chrome://browser/skin/bookmark.svg");
@@ -3599,12 +3623,7 @@
           --menuitem-image: url("chrome://browser/skin/bookmark.svg");
         }
         #newfolder {
-          --menuitem-image: url("chrome://global/skin/icons/folder.svg");
-        }
-        @supports -moz-bool-pref("userChrome.icon.library") {
-          #newfolder {
-            --menuitem-image: url("chrome://browser/skin/lepton/folder.svg");
-          }
+          --menuitem-image: var(--uc-folder-icon);
         }
         #newseparator {
           --menuitem-image: url("chrome://browser/skin/lepton/vertical-line.svg");
@@ -3618,13 +3637,13 @@
           }
         }
         #orgCut {
-          --menuitem-image: url("chrome://browser/skin/edit-cut.svg");
+          --menuitem-image: url("chrome://browser/skin/lepton/edit-cut.svg");
         }
         #orgCopy {
           --menuitem-image: url("chrome://browser/skin/lepton/edit-copy.svg");
         }
         #orgPaste {
-          --menuitem-image: url("chrome://browser/skin/edit-paste.svg");
+          --menuitem-image: url("chrome://browser/skin/lepton/edit-paste.svg");
         }
         #orgDelete {
           --menuitem-image: url("chrome://global/skin/icons/delete.svg");
