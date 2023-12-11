@@ -23,7 +23,7 @@ ChromeUtils.defineLazyGetter(lazy, "MigrationUtils", () => {
   return undefined;
 });
 
-const MOZ_APP_NAME = AppConstants.MOZ_APP_NAME;
+const MOZ_APP_NAME = "firefox";
 
 export var ResetProfile = {
   /**
