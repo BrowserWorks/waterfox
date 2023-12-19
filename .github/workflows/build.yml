@@ -62,9 +62,6 @@ env:
   RCLONE_S3_ENDPOINT: "${{ secrets.CF_ENDPOINT }}"
   RCLONE_S3_PROVIDER: Cloudflare
   RCLONE_S3_SECRET_ACCESS_KEY: "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-permissions:
-  id-token: write
-  contents: read
 jobs:
   build-windows-x64-stage-1:
     name: Windows Stage 1
@@ -228,6 +225,9 @@ jobs:
       SCCACHE_BUCKET: "waterfox-cache-win-x64-stage-3"
       SCCACHE_ENDPOINT: "${{ secrets.CF_ENDPOINT }}"
       SCCACHE_REGION: auto
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Install sccache
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
@@ -603,14 +603,19 @@ jobs:
           rm .mozconfig || true
           rm /usr/local/bin/2to3 || true
           rm /usr/local/bin/2to3-3.11 || true
+          rm /usr/local/bin/2to3-3.12 || true
           rm /usr/local/bin/idle3 || true
           rm /usr/local/bin/idle3.11 || true
+          rm /usr/local/bin/idle3.12 || true
           rm /usr/local/bin/pydoc3 || true
           rm /usr/local/bin/pydoc3.11 || true
+          rm /usr/local/bin/pydoc3.12 || true
           rm /usr/local/bin/python3 || true
           rm /usr/local/bin/python3-config || true
           rm /usr/local/bin/python3.11 || true
+          rm /usr/local/bin/python3.12 || true
           rm /usr/local/bin/python3.11-config || true
+          rm /usr/local/bin/python3.12-config || true
           ./mach --no-interactive bootstrap --application-choice=browser
           LLVM_PROFDATA=$HOME/.mozbuild/clang/bin/llvm-profdata JARLOG_FILE=en-US.log ./mach python build/pgo/profileserver.py --binary ./obj-${{ matrix.arch }}/dist/waterfox/Waterfox.app/Contents/MacOS/waterfox
       - name: "\U0001F199 Upload Stage 2 Artifact"
