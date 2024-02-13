@@ -245,43 +245,14 @@ export const PrivateTab = {
   },
 
   overridePlacesUIUtils() {
-    // Unused vars required for eval to execute
-    // eslint-disable-next-line no-unused-vars
-    const { PlacesUtils } = ChromeUtils.importESModule(
-      "resource://gre/modules/PlacesUtils.sys.mjs"
-    );
-    const { BrowserWindowTracker } = ChromeUtils.import(
-      "resource:///modules/BrowserWindowTracker.jsm"
-    );
-    // eslint-disable-next-line no-unused-vars
-    const { PrivateBrowsingUtils } = ChromeUtils.importESModule(
-      "resource://gre/modules/PrivateBrowsingUtils.sys.mjs"
-    );
+    // Save a reference to the original function
+    const originalOpenTabset = PlacesUIUtils.openTabset;
 
-    // eslint-disable-next-line no-unused-vars
-    function getBrowserWindow(aWindow) {
-      // Prefer the caller window if it's a browser window, otherwise use
-      // the top browser window.
-      return aWindow &&
-        aWindow.document.documentElement.getAttribute("windowtype") ==
-          "navigator:browser"
-        ? aWindow
-        : BrowserWindowTracker.getTopWindow();
-    }
-
-    // TODO: replace eval with new Function()();
-    try {
-      // eslint-disable-next-line no-eval
-      eval(
-        "lazy.PlacesUIUtils.openTabset = function " +
-          PlacesUIUtils.openTabset
-            .toString()
-            .replace(
-              /(\s+)(inBackground: loadInBackground,)/,
-              "$1$2$1userContextId: aEvent.userContextId || 0,"
-            )
-      );
-    } catch (ex) {}
+    // Redefine the function
+    PlacesUIUtils.openTabset = function(aEvent, aWindow, aTabs, loadInBackground) {
+      // Call the original function with the modified arguments
+      return originalOpenTabset.call(this, aEvent, aWindow, aTabs, loadInBackground, aEvent.userContextId || 0);
+    };
   },
 
   openAllPrivate(event) {
