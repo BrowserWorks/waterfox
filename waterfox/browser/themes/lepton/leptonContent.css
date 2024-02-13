@@ -1517,6 +1517,7 @@
         background: var(--in-content-page-background) !important;
       }
       /* Text */
+      blockquote,
       .mzp-c-menu-category .mzp-c-menu-title,
       .mzp-c-menu-item .mzp-c-menu-item-link,
       .mzp-c-menu-item .mzp-c-menu-item-link > *,
@@ -1610,6 +1611,9 @@
       }
       .support-callouts > .card.is-inverse :is(h1, h2, h3, h4, h5, h6, li, p) {
         color: var(--in-content-page-color) !important;
+      }
+      blockquote {
+        border-color: var(--in-content-border-color) !important;
       }
       .sumo-button.secondary-button {
         border-color: transparent !important;
