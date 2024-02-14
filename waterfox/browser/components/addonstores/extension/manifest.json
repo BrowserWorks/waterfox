@@ -15,8 +15,8 @@
   "content_scripts": [
     {
       "matches": [
-        "http://chrome.google.com/webstore*",
-        "https://chrome.google.com/webstore*"
+        "http://chromewebstore.google.com/*",
+        "https://chromewebstore.google.com/*"
       ],
       "js": ["cws.js"],
       "run_at": "document_start",
