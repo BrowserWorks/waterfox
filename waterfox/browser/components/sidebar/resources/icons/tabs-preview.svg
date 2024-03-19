@@ -1,0 +1,10 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px"
+	 y="0px" width="16px" height="16px" viewBox="0 0 16 16" enable-background="new 0 0 16 16" xml:space="preserve">
+<path fill="context-fill" d="M9.8,7H6.2C5.262,7,4.5,6.239,4.5,5.3l0,0V2.7C4.5,1.761,5.262,1,6.2,1h3.6c0.938,0,1.7,0.761,1.7,1.7l0,0v2.6
+	C11.5,6.239,10.738,7,9.8,7z M6.5,5h3V3h-3V5z M9.8,15H6.2c-0.938,0-1.7-0.762-1.7-1.7l0,0v-2.6C4.5,9.762,5.262,9,6.2,9l0,0h3.6
+	c0.938,0,1.7,0.762,1.7,1.7v2.6C11.5,14.238,10.738,15,9.8,15z M6.5,13h3v-2h-3V13z"/>
+</svg>
