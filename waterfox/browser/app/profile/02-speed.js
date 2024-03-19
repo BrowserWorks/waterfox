@@ -122,13 +122,6 @@ pref("media.cache_resume_threshold", 6000); // default=30; when a network connec
  * SECTION: NETWORK                                                         *
 ****************************************************************************/
 
-// PREF: use bigger packets
-// Reduce Firefox's CPU usage by requiring fewer application-to-driver data transfers.
-// However, it does not affect the actual packet sizes transmitted over the network.
-// [1] https://www.mail-archive.com/support-seamonkey@lists.mozilla.org/msg74561.html
-pref("network.buffer.cache.size", 262144); // 256 kb; default=32768 (32 kb)
-pref("network.buffer.cache.count", 128); // default=24
-
 // PREF: increase the absolute number of HTTP connections
 // [1] https://kb.mozillazine.org/Network.http.max-connections
 // [2] https://kb.mozillazine.org/Network.http.max-persistent-connections-per-server
