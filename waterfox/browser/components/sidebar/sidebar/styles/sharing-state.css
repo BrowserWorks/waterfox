@@ -1,0 +1,114 @@
+@charset "UTF-8";
+/*
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
+:root {
+  --sharing-state-size: var(--svg-small-icon-size);
+
+  /* https://searchfox.org/mozilla-central/rev/6b8a3f804789fb865f42af54e9d2fef9dd3ec74d/browser/themes/shared/tabs.css#284-316 */
+  --sharing-state-color: rgb(224, 41, 29);
+
+  /* https://searchfox.org/mozilla-central/rev/6b8a3f804789fb865f42af54e9d2fef9dd3ec74d/browser/themes/shared/tabs.css#271-282 */
+  --tab-sharing-icon-animation: 3s linear tab-sharing-icon-pulse infinite;
+  --tab-sharing-icon-animation-inverted: 3s linear tab-sharing-icon-pulse-inverted infinite;
+}
+
+@keyframes tab-sharing-icon-pulse {
+  0%, 16.66%, 83.33%, 100% {
+    opacity: 0;
+  }
+  33.33%, 66.66% {
+    opacity: 1;
+  }
+}
+@keyframes tab-sharing-icon-pulse-inverted {
+  0%, 16.66%, 83.33%, 100% {
+    opacity: 1;
+  }
+  33.33%, 66.66% {
+    opacity: 0;
+  }
+}
+
+/* Show sharing status of regular tabs as a separate icon, for more notability.
+   Sharing status of faviconized tabs are shown in the favicon area, and styles are defined in favicon.css */
+
+tab-sharing-state {
+  background: none transparent;
+  border: none 0 transparent;
+  display: none;
+  height: var(--sharing-state-size);
+  margin: 0;
+  min-height: var(--sharing-state-size);
+  min-width: var(--sharing-state-size); /* this is required to prevent shrinking of the box which has no position:static content */
+  opacity: 1;
+  padding: 0;
+  position: relative;
+  width: var(--sharing-state-size);
+  z-index: var(--tab-ui-z-index);
+}
+
+tab-sharing-state::after {
+  -moz-context-properties: fill;
+  background: none no-repeat center / 100%;
+  content: "";
+  display: inline-block;
+  fill: var(--sharing-state-color);
+  height: var(--sharing-state-size);
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: var(--sharing-state-size);
+}
+:root.simulate-svg-context-fill tab-sharing-state::after {
+  background: var(--sharing-state-color);
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: 100%;
+}
+
+tab-item:not(.collapsed):not(.faviconized):not(.active).sharing-camera tab-sharing-state,
+tab-item:not(.collapsed):not(.faviconized):not(.active).sharing-microphone tab-sharing-state,
+tab-item:not(.collapsed):not(.faviconized):not(.active).sharing-screen tab-sharing-state,
+tab-item:not(.collapsed):not(.faviconized):not(.sharing-camera).has-sharing-camera-member.subtree-collapsed[data-child-ids]
+  tab-sharing-state,
+tab-item:not(.collapsed):not(.faviconized):not(.sharing-microphone).has-sharing-microphone-member.subtree-collapsed[data-child-ids]
+  tab-sharing-state,
+tab-item:not(.collapsed):not(.faviconized):not(.sharing-screen).has-sharing-screen-member.subtree-collapsed[data-child-ids]
+  tab-sharing-state {
+  animation: var(--tab-sharing-icon-animation);
+  display: inline-block;
+}
+
+tab-item:not(.collapsed):not(.faviconized).sharing-camera tab-sharing-state::after,
+tab-item:not(.collapsed):not(.faviconized).has-sharing-camera-member tab-sharing-state::after {
+  background-image: url("./icons/camera.svg");
+}
+:root.simulate-svg-context-fill tab-item:not(.collapsed):not(.faviconized).sharing-camera tab-sharing-state::after,
+:root.simulate-svg-context-fill tab-item:not(.collapsed):not(.faviconized).has-sharing-camera-member tab-sharing-state::after {
+  background-image: none;
+  mask-image: url("./icons/camera.svg");
+}
+
+tab-item:not(.collapsed):not(.faviconized).sharing-microphone tab-sharing-state::after,
+tab-item:not(.collapsed):not(.faviconized).has-sharing-camera-microphone tab-sharing-state::after {
+  background-image: url("./icons/microphone.svg");
+}
+:root.simulate-svg-context-fill tab-item:not(.collapsed):not(.faviconized).sharing-microphone tab-sharing-state::after,
+:root.simulate-svg-context-fill tab-item:not(.collapsed):not(.faviconized).has-sharing-microphone-member tab-sharing-state::after {
+  background-image: none;
+  mask-image: url("./icons/microphone.svg");
+}
+
+tab-item:not(.collapsed):not(.faviconized).sharing-screen tab-sharing-state::after,
+tab-item:not(.collapsed):not(.faviconized).has-sharing-camera-screen tab-sharing-state::after {
+  background-image: url("./icons/screen.svg");
+}
+:root.simulate-svg-context-fill tab-item:not(.collapsed):not(.faviconized).sharing-screen tab-sharing-state::after,
+:root.simulate-svg-context-fill tab-item:not(.collapsed):not(.faviconized).has-sharing-screen-member tab-sharing-state::after {
+  background-image: none;
+  mask-image: url("./icons/screen.svg");
+}
