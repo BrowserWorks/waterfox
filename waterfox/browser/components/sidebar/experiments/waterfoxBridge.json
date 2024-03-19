@@ -1,0 +1,470 @@
+[
+  {
+    "namespace": "waterfoxBridge",
+
+    "types": [
+      {
+        "id": "TabPreviewInfo",
+        "type": "object",
+        "description": "Information of a tab preview image.",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "A URL string to a tab preview image."
+          },
+          "found": {
+            "type": "boolean",
+            "description": "Indicates availability of the preview image."
+          }
+        }
+      },
+      {
+        "id": "SyncDeviceInfo",
+        "type": "object",
+        "description": "An object indicating sync device.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The identifier string of a sync device."
+          },
+          "name": {
+            "type": "string",
+            "description": "The visible name of a sync device."
+          },
+          "target": {
+            "type": "string",
+            "description": "The type string of a sync device."
+          }
+        }
+      },
+      {
+        "id": "ShareService",
+        "type": "object",
+        "description": "An object indicating sync device.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The name of a sharing service."
+          },
+          "title": {
+            "type": "string",
+            "description": "The menu label for a sharing service."
+          },
+          "image": {
+            "type": "string",
+            "description": "The image for a sharing device."
+          }
+        }
+      }
+    ],
+
+    "functions": [
+      {
+        "name": "initUI",
+        "type": "function",
+        "description": "Initializes the custom UI for Waterfox.",
+        "async": true,
+        "parameters": []
+      },
+      {
+        "name": "reserveToLoadForbiddenURL",
+        "type": "function",
+        "description": "Reserve a URL to load by Waterfox.",
+        "async": true,
+        "parameters": [
+          {
+            "type": "string",
+            "name": "url"
+          }
+        ]
+      },
+      {
+        "name": "getFileURL",
+        "type": "function",
+        "description": "Get file: URL from a file.",
+        "async": true,
+        "parameters": [
+          {
+            "name": "file",
+            "type": "object",
+            "description": "Information of a file.",
+            "properties": {
+              "lastModified": {
+                "type": "integer",
+                "description": "Last modified timestamp of the file."
+              },
+              "name": {
+                "type": "string",
+                "description": "Name of the file."
+              },
+              "size": {
+                "type": "integer",
+                "description": "Size of the file."
+              },
+              "type": {
+                "type": "string",
+                "description": "MIME type of the file."
+              }
+            }
+          }
+        ],
+        "returns": {
+          "type": "string",
+          "name": "url"
+        }
+      },
+      {
+        "name": "getTabPreview",
+        "type": "function",
+        "description": "Returns a tab preview image URL and its metadata.",
+        "async": true,
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "tabId",
+            "minimum": 0
+          }
+        ],
+        "returns": {
+          "type": "array",
+          "items": {
+            "$ref": "waterfoxBridge.TabPreviewInfo"
+          }
+        }
+      },
+      {
+        "name": "showPreviewPanel",
+        "type": "function",
+        "description": "Shows the preview panel for the tab.",
+        "async": true,
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "tabId",
+            "minimum": 0
+          },
+          {
+            "type": "integer",
+            "name": "top"
+          }
+        ]
+      },
+      {
+        "name": "hidePreviewPanel",
+        "type": "function",
+        "description": "Hides the preview panel for the window.",
+        "async": true,
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "windowId",
+            "minimum": 0
+          }
+        ]
+      },
+      {
+        "name": "openPreferences",
+        "type": "function",
+        "description": "Opens the preferences.",
+        "async": true,
+        "parameters": []
+      },
+
+      {
+        "name": "listSyncDevices",
+        "type": "function",
+        "description": "Returns an array of sync device information.",
+        "async": true,
+        "parameters": [],
+        "returns": {
+          "type": "array",
+          "items": {
+            "$ref": "waterfoxBridge.SyncDeviceInfo"
+          }
+        }
+      },
+      {
+        "name": "sendToDevice",
+        "type": "function",
+        "description": "Sends tabs to a device or all devices.",
+        "async": true,
+        "parameters": [
+          {
+            "name": "tabIds",
+            "description": "The tab or list of tabs to send.",
+            "type": "array",
+            "choices": [
+              { "type": "integer", "minimum": 0 },
+              { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+            ]
+          },
+          {
+            "name": "deviceId",
+            "type": "string",
+            "description": "The ID of a device",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "name": "openSyncDeviceSettings",
+        "type": "function",
+        "description": "Opens the settings of sync devices.",
+        "async": true,
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "windowId",
+            "minimum": 0,
+            "optional": true
+          }
+        ]
+      },
+
+      {
+        "name": "listSharingServices",
+        "type": "function",
+        "description": "Returns an array of share service on macOS.",
+        "async": true,
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "tabId",
+            "minimum": 0,
+            "optional": true
+          }
+        ],
+        "returns": {
+          "type": "array",
+          "items": {
+            "$ref": "waterfoxBridge.ShareService"
+          }
+        }
+      },
+      {
+        "name": "share",
+        "type": "function",
+        "description": "Shares tabs via browser's share feature.",
+        "async": true,
+        "parameters": [
+          {
+            "name": "tabIds",
+            "description": "The tab or list of tabs to share.",
+            "type": "array",
+            "choices": [
+              { "type": "integer", "minimum": 0 },
+              { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+            ]
+          },
+          {
+            "name": "shareName",
+            "type": "string",
+            "description": "The name of a sharing method on macOS",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "name": "openSharingPreferences",
+        "type": "function",
+        "description": "Opens the preferences of sharing services on macOS.",
+        "async": true,
+        "parameters": []
+      },
+
+      {
+        "name": "listAutoplayBlockedTabs",
+        "type": "function",
+        "description": "Returns an array of autoplay blocked tabs in a window.",
+        "async": true,
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "windowId",
+            "minimum": 0,
+            "optional": true
+          }
+        ],
+        "returns": {
+          "type": "array",
+          "items": {
+            "$ref": "tabs.Tab"
+          }
+        }
+      },
+      {
+        "name": "isAutoplayBlockedTab",
+        "type": "function",
+        "description": "Returns the tab's autoplay blocked state.",
+        "async": true,
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "windowId",
+            "minimum": 0
+          }
+        ],
+        "returns": {
+          "type": "boolean",
+          "name": "autoplayBlocked"
+        }
+      },
+      {
+        "name": "unblockAutoplay",
+        "type": "function",
+        "description": "Resumes blocked autoplay of tabs.",
+        "async": true,
+        "parameters": [
+          {
+            "name": "tabIds",
+            "description": "The tab or list of tabs to resume autoplay.",
+            "type": "array",
+            "choices": [
+              { "type": "integer", "minimum": 0 },
+              { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+            ]
+          }
+        ]
+      },
+
+      {
+        "name": "isSelectionClipboardAvailable",
+        "type": "function",
+        "description": "Returns availability of the selection clipboard.",
+        "async": true,
+        "parameters": [
+        ],
+        "returns": {
+          "type": "boolean",
+          "name": "selectionClipboardAvailable"
+        }
+      },
+      {
+        "name": "getSelectionClipboardContents",
+        "type": "function",
+        "description": "Returns the contents of the selection clipboard as a string.",
+        "async": true,
+        "parameters": [
+        ],
+        "returns": {
+          "type": "string",
+          "name": "selectionClipboardContents"
+        }
+      }
+    ],
+
+    "events": [
+      {
+        "name": "onWindowVisibilityChanged",
+        "description": "Notified when the minimized state of a window is changed.",
+        "type": "function",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "windowId",
+            "minimum": 0
+          },
+          {
+            "type": "string",
+            "name": "visibilityState"
+          }
+        ]
+      },
+      {
+        "name": "onMenuCommand",
+        "description": "Notified when a menu command is invoked.",
+        "type": "function",
+        "parameters": [
+          {
+            "name": "eventInfo",
+            "type": "object",
+            "description": "An object indicating command event.",
+            "properties": {
+              "itemId": {
+                "type": "string",
+                "description": "The id of the event target."
+              },
+              "detail": {
+                "type": "integer",
+                "description": "Corresponding to MouseEvent.prototype.detail."
+              },
+              "button": {
+                "type": "integer",
+                "description": "Corresponding to MouseEvent.prototype.button."
+              },
+              "altKey": {
+                "type": "boolean",
+                "description": "Corresponding to MouseEvent.prototype.altKey."
+              },
+              "ctrlKey": {
+                "type": "boolean",
+                "description": "Corresponding to MouseEvent.prototype.ctrlKey."
+              },
+              "metaKey": {
+                "type": "boolean",
+                "description": "Corresponding to MouseEvent.prototype.metaKey."
+              },
+              "shiftKey": {
+                "type": "boolean",
+                "description": "Corresponding to MouseEvent.prototype.shiftKey."
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "onSidebarShown",
+        "description": "Notified when the sidebar is shown.",
+        "type": "function",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "windowId"
+          }
+        ]
+      },
+      {
+        "name": "onSidebarHidden",
+        "description": "Notified when the sidebar is hidden.",
+        "type": "function",
+        "parameters": [
+          {
+            "type": "integer",
+            "name": "windowId"
+          }
+        ]
+      },
+      {
+        "name": "onHoverPreviewChanged",
+        "description": "Notified when hover preview is activated or deactivated.",
+        "type": "function",
+        "parameters": [
+          {
+            "type": "boolean",
+            "name": "hoverPreviewEnabled"
+          }
+        ]
+      },
+      {
+        "name": "onAutoplayBlocked",
+        "description": "Notified when a tab's autoplay is blocked.",
+        "type": "function",
+        "parameters": [
+          {
+            "$ref": "tabs.Tab"
+          }
+        ]
+      },
+      {
+        "name": "onAutoplayUnblocked",
+        "description": "Notified when a tab's autoplay is unblocked.",
+        "type": "function",
+        "parameters": [
+          {
+            "$ref": "tabs.Tab"
+          }
+        ]
+      }
+    ]
+  }
+]
