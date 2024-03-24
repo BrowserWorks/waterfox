@@ -3715,6 +3715,13 @@
         }
       }
     }
+    @-moz-document url-prefix("about:logins") {
+      @supports -moz-bool-pref("userChrome.icon.context_menu") {
+        .menuitem-export {
+          background-image: url("chrome://browser/skin/lepton/toolbarButton-download.svg") !important;
+        }
+      }
+    }
   }
 }
 /** Download Panel ************************************************************/
