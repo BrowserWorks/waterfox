@@ -94,6 +94,7 @@ pref("browser.closeShortcut.disabled", false);
 
 // Extensibles prefs
 pref("browser.tabs.duplicateTab", true);
+pref("browser.tabs.closeButtons", false);
 pref("browser.tabs.copyurl", true);
 pref("browser.tabs.copyallurls", false);
 pref("browser.tabs.copyurl.activetab", false);

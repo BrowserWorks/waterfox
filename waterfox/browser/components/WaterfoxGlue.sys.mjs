@@ -89,6 +89,15 @@ export const WaterfoxGlue = {
         lazy.BrowserUtils.registerOrUnregisterSheet(uri, !isEnabled);
       }
     );
+    this.styleSheetChanges = lazy.PrefUtils.addObserver(
+      "browser.tabs.closeButtons",
+      () => {
+        // Pref being true actually means we need to unload the sheet, so invert.
+        const uri = "chrome://browser/skin/waterfox/general.css";
+        lazy.BrowserUtils.unregisterStylesheet(uri);
+        lazy.BrowserUtils.registerStylesheet(uri);
+      }
+    )
   },
 
   async getChromeManifest(manifest) {
