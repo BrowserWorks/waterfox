@@ -181,3 +181,9 @@
 #preferences-body .main-content {
   overflow-x: hidden !important;
 }
+
+@supports -moz-bool-pref("browser.tabs.closeButtons") {
+  .tab-close-button {
+    display: none !important
+  }
+}
