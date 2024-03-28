@@ -32,6 +32,7 @@ pref("app.update.url.override", "", sticky); // Override URL for application upd
 // Defines browser behavior on startup and general UI settings.
 pref("browser.startup.page", 3); // 0=blank, 1=home, 2=last visited page, 3=resume previous session.
 pref("browser.privateTab.showNewTabButton", false); // Show new private tab button next to existing new tab buttons
+pref("browser.tabs.closeButtons", false); // Hide close button on tabs
 pref("browser.tabs.pinnedIconOnly", true); // Pinned tabs show only an icon, no text.
 pref("browser.tabs.warnOnClose", true); // Warn user when attempting to close multiple tabs.
 // Stores the state of toolbar customizations (e.g., button placements).
