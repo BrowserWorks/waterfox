@@ -52,3 +52,9 @@
   color: #053361;
   margin-block: 10px;
 }
+
+@media (-moz-platform: macos) {
+  #checkForUpdatesButton, #downloadAndInstallButton, #updateButton {
+    color: #053361;
+  }
+}
