@@ -48,7 +48,7 @@ jobs:
       - name: "\U0001F4BF Setup rclone"
         run: 'curl https://rclone.org/install.sh | sudo bash'
       - name: ⏬ Download Windows artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: windows-stage-3-${{ github.run_id }}
           path: win/
@@ -67,7 +67,7 @@ jobs:
 
           rclone copyto win/update.xml :s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/update.xml
       - name: ⏬ Download macOS artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: macos-universal-stage-2-${{ github.run_id }}
           path: mac/
@@ -84,7 +84,7 @@ jobs:
 
           rclone copyto mac/update.xml :s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/update.xml
       - name: ⏬ Download Linux artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: linux-build-output
           path: lin/
