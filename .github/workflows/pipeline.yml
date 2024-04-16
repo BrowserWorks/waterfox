@@ -2,6 +2,10 @@ name: Deployment
 'on':
   workflow_dispatch:
     inputs:
+      date:
+        description: Build date
+        required: true
+        type: string
       prerelease:
         description: This is a pre-release
         required: true
@@ -34,6 +38,7 @@ jobs:
       ONE_PEM: '${{ secrets.ONE_PEM }}'
       SIGN_BASE64: '${{ secrets.SIGN_BASE64 }}'
     with:
+      MOZ_BUILD_DATE: '${{ github.event.inputs.date }}'
       PRE_RELEASE: '${{ github.event.inputs.prerelease }}'
       TAG_VERSION: '${{ github.event.inputs.tags }}'
       TRIGGER_EVENT: '${{ github.event_name }}'
