@@ -1,0 +1,29 @@
+{
+  "name": "Mojeek",
+  "description": "Search the web using Mojeek",
+  "manifest_version": 2,
+  "version": "1.0",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "mojeek@search.waterfox.net"
+    }
+  },
+  "hidden": true,
+  "icons": {
+    "16": "favicon.ico",
+    "144": "favicon.png"
+  },
+  "web_accessible_resources": [
+    "favicon.ico",
+    "favicon.png"
+  ],
+  "chrome_settings_overrides": {
+    "search_provider": {
+      "keyword": "@m",
+      "name": "Mojeek",
+      "search_url": "https://www.mojeek.com/search",
+      "search_form": "https://www.mojeek.com/",
+      "search_url_get_params": "q={searchTerms}"
+    }
+  }
+}
