@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extensionName__",
-  "version": "1.0.0.1",
+  "version": "1.0.0.2",
   "author": "Waterfox",
   "hidden": true,
   "description": "__MSG_extensionDescription__",
