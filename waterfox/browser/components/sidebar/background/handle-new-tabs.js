@@ -528,7 +528,10 @@ Tab.onUpdated.addListener((tab, changeInfo) => {
     const siteMatcher  = /^\w+:\/\/([^\/]+)(?:$|\/.*$)/;
     const openerTabSite = possibleOpenerTab.url.match(siteMatcher);
     const newTabSite    = tab.url.match(siteMatcher);
-    if (openerTabSite && newTabSite && openerTabSite[1] == newTabSite[1]) {
+    if (openerTabSite &&
+        newTabSite &&
+        tab.url != possibleOpenerTab.url && // It may be opened by "Duplciate Tab" or "Open in New Container Tab" if the URL is completely same.
+        openerTabSite[1] == newTabSite[1]) {
       log('behave as a tab opened from same site (delayed)');
       tab.$TST.addState(Constants.kTAB_STATE_OPENED_FOR_SAME_WEBSITE);
       handleNewTabFromActiveTab(tab, {

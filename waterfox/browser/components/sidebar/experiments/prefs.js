@@ -951,6 +951,31 @@ const AboutPreferencesWatcher = {
       case 'browser.tabs.searchclipboardfor.middleclick':
         Services.prefs.setBoolPref(`${this.BASE_PREF}middleClickPasteURLOnNewTabButton`, Services.prefs.getBoolPref(name));
         break;
+
+      case 'browser.tabs.insertAfterCurrent':
+      case 'browser.tabs.insertRelatedAfterCurrent': {
+        const insertAfterCurrent        = Services.prefs.getBoolPref('browser.tabs.insertAfterCurrent');
+        const insertRelatedAfterCurrent = Services.prefs.getBoolPref('browser.tabs.insertRelatedAfterCurrent');
+        const useTree = (
+          Services.prefs.getBoolPref(`${this.BASE_PREF}autoAttach`, false) &&
+          Services.prefs.getBoolPref(`${this.BASE_PREF}syncParentTabAndOpenerTab`, false)
+        );
+        Services.prefs.setStringPref(`${this.BASE_PREF}autoAttachOnOpenedWithOwner`,
+          !useTree ? -1 :
+            insertRelatedAfterCurrent ? 5 :
+              insertAfterCurrent ? 6 :
+                0);
+        Services.prefs.setStringPref(`${this.BASE_PREF}insertNewTabFromPinnedTabAt`,
+          !useTree ? -1 :
+            insertRelatedAfterCurrent ? 3 :
+              insertAfterCurrent ? 0 :
+                1);
+        Services.prefs.setStringPref(`${this.BASE_PREF}insertNewTabFromFirefoxViewAt`,
+          !useTree ? -1 :
+            insertRelatedAfterCurrent ? 3 :
+              insertAfterCurrent ? 0 :
+                1);
+      }; break;
     }
   },
 
@@ -1081,6 +1106,7 @@ this.prefs = class extends ExtensionAPI {
       Services.prefs.setBoolPref(dest, Services.prefs.getBoolPref(source));
     }
     Services.prefs.addObserver('browser.tabs.', AboutPreferencesWatcher);
+    AboutPreferencesWatcher.onPrefChanged('browser.tabs.insertAfterCurrent');
 
     return {
       prefs: {
