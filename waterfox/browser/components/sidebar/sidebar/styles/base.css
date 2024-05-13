@@ -921,7 +921,7 @@ tab-item:not(.collapsed) tab-closebox:active {
 /* contextual identity (aka Container Tab) */
 
 .contextual-identity-marker {
-  --contextual-identity-marker-width: calc(var(--tab-current-size) / 12);
+  --contextual-identity-marker-width: calc(var(--favicon-size) / 5.5);
   position: absolute;
   z-index: var(--tab-ui-z-index);
 }
