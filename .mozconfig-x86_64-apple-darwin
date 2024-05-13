@@ -18,7 +18,7 @@ mk_add_options "export PATH=$TOOLS/cctools/bin:$HOME/macos-cross/clang/bin:$PATH
 unset MOZ_STDCXX_COMPAT
 
 if test "$WFX_RELEASE" || test "$WFX_PRE_RELEASE"; then
-    ac_add_options --enable-lto=cross
+    ac_add_options --enable-lto=cross,full
     ac_add_options --enable-optimize="-march=nehalem -mtune=haswell -O3 -w"
     ac_add_options --enable-release
     ac_add_options --enable-rust-simd
