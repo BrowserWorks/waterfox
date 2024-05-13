@@ -34,7 +34,9 @@ const WATERFOX_SPECIFIC_VALUES = {
   syncParentTabAndOpenerTab: false,
 
   // don't attach tabs as children of the active tab by default if possible
-  autoAttachOnOpenedWithOwner: Constants.kNEWTAB_OPEN_AS_CHILD_NEXT_TO_LAST_RELATED_TAB,
+  autoAttachOnOpenedWithOwner: Constants.kNEWTAB_DO_NOTHING,
+  insertNewTabFromPinnedTabAt: Constants.kINSERT_NO_CONTROL,
+  insertNewTabFromFirefoxViewAt: Constants.kINSERT_NO_CONTROL,
   autoGroupNewTabsFromPinned: false,
   autoAttachOnNewTabButtonMiddleClick: Constants.kNEWTAB_OPEN_AS_NEXT_SIBLING,
   autoAttachSameSiteOrphan: Constants.kNEWTAB_OPEN_AS_NEXT_SIBLING,
