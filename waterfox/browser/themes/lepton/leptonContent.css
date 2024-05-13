@@ -342,9 +342,19 @@
     .top-site-outer .tile {
       overflow: hidden;
     }
-    .top-site-outer .tile .icon-wrapper {
+    .top-site-outer .icon-wrapper {
       width: 100% !important; /* Original: 48px */
       height: 100% !important; /* Original: 48px */
+    }
+    .top-site-outer.add-button .tile .icon-wrapper {
+      width: 24px !important;
+      height: 24px !important;
+    }
+    .top-site-outer .context-menu-button {
+      top: 0px !important; /* Original: -20px */
+    }
+    .top-site-outer .context-menu {
+      top: 16.75px !important; /* Original: 6.75px */
     }
   }
   /** Activity Stream - Animate ***********************************************/
