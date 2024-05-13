@@ -781,7 +781,7 @@ const BrowserWindowWatcher = {
        }
       }
       else {
-        FullScreen.__ws_sidebar.show();
+        FullScreen.__ws_sidebar.show({ exitting: true });
         FullScreen.__ws_sidebar.cleanup();
       }
 
@@ -830,12 +830,14 @@ const BrowserWindowWatcher = {
           this.startListenToShow();
         },
 
-        show() {
+        show({ exitting } = {}) {
           sidebarBox.removeAttribute('fullscreenShouldAnimate');
           sidebarBox.style.marginLeft = sidebarBox.style.marginRight = '';
 
           this.endListenToShow();
-          this.updateMouseTargetRect();
+          if (!exitting) {
+            this.updateMouseTargetRect();
+          }
         },
 
         cleanup() {
