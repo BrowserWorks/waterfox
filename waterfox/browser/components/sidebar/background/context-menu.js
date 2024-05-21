@@ -333,11 +333,11 @@ addBookmarkItems.done = false;
 TabContextMenu.onTopLevelItemAdded.addListener(reserveToRefreshItems);
 
 function reserveToRefreshItems() {
-  const startAt = `${Date.now()}-${parseInt(Math.random() * 65000)}`;
-  reserveToRefreshItems.lastStartedAt = startAt;
+  if (reserveToRefreshItems.invoked)
+    return;
+  reserveToRefreshItems.invoked = true;
   setTimeout(() => { // because window.requestAnimationFrame is decelerate for an invisible document.
-    if (reserveToRefreshItems.lastStartedAt != startAt)
-      return;
+    reserveToRefreshItems.invoked = false;
     addTabItems();
     addBookmarkItems();
   }, 0);

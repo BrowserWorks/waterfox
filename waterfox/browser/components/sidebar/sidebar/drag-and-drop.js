@@ -36,6 +36,7 @@ import {
   sha1sum,
   isMacOS,
   isLinux,
+  dumpTab,
 } from '/common/common.js';
 import * as ApiTabs from '/common/api-tabs.js';
 import * as BackgroundConnection from './background-connection.js';
@@ -257,16 +258,24 @@ function getDropAction(event) {
         if (info.draggedTab.windowId != TabsStore.getCurrentWindowId()) {
           return true;
         }
-        if (info.parent &&
-            info.parent.id == info.draggedTab.id) {
+        if (!configs.moveSoloTabOnDropParentToDescendant &&
+            info.parent?.id == info.draggedTab.id) {
           log('canDrop:undroppable: drop on child');
           return false;
         }
         if (info.dragOverTab) {
-          if (info.draggedTabIds.includes(info.dragOverTab.id)) {
+          if (info.draggedTab.id == info.dragOverTab.id) {
             log('canDrop:undroppable: on self');
             return false;
           }
+          if (info.draggedTab.highlighted &&
+              info.dragOverTab.highlighted &&
+              info.draggedTabIds.includes(info.dragOverTab.id)) {
+            log('canDrop:undroppable: on dragging multiselected tabs');
+            return false;
+          }
+          if (configs.moveSoloTabOnDropParentToDescendant)
+            return true;
           const ancestors = info.dragOverTab.$TST.ancestors;
           /* too many function call in this way, so I use alternative way for better performance.
           return !info.draggedTabIds.includes(info.dragOverTab.id) &&
@@ -1230,22 +1239,30 @@ function onDrop(event) {
 
   if (dropActionInfo.dragData &&
       dropActionInfo.dragData.tab) {
-    log('there are dragged tabs');
+    log('there are dragged tabs: ', () => dropActionInfo.dragData.tabs.map(dumpTab));
     if (configs.enableWorkaroundForBug1548949) {
       configs.workaroundForBug1548949DroppedTabs = dropActionInfo.dragData.tabs.map(tab => `${mInstanceId}/${tab.id}`).join('\n');
       log('workaround for bug 1548949: setting last dropped tabs: ', configs.workaroundForBug1548949DroppedTabs);
     }
+    const { draggedTabs, structure, insertBefore, insertAfter } = sanitizeDraggedTabs({
+      draggedTabs:  dropActionInfo.dragData.tabs,
+      structure:    dropActionInfo.dragData.structure,
+      insertBefore: dropActionInfo.insertBefore,
+      insertAfter:  dropActionInfo.insertAfter,
+      parent:       dropActionInfo.parent,
+      isCopy:       dt.dropEffect == 'copy',
+    });
     const fromOtherProfile = dropActionInfo.dragData.instanceId != mInstanceId;
     BackgroundConnection.sendMessage({
       type:                Constants.kCOMMAND_PERFORM_TABS_DRAG_DROP,
       windowId:            dropActionInfo.dragData.windowId,
-      tabs:                dropActionInfo.dragData.tabs,
-      structure:           dropActionInfo.dragData.structure,
+      tabs:                draggedTabs,
+      structure,
       action:              dropActionInfo.action,
       allowedActions:      dropActionInfo.dragData.behavior,
-      attachToId:          dropActionInfo.parent && dropActionInfo.parent.id,
-      insertBeforeId:      dropActionInfo.insertBefore && dropActionInfo.insertBefore.id,
-      insertAfterId:       dropActionInfo.insertAfter && dropActionInfo.insertAfter.id,
+      attachToId:          dropActionInfo.parent?.id,
+      insertBeforeId:      insertBefore?.id,
+      insertAfterId:       insertAfter?.id,
       destinationWindowId: TabsStore.getCurrentWindowId(),
       duplicate:           !fromOtherProfile && dt.dropEffect == 'copy',
       import:              fromOtherProfile
@@ -1275,13 +1292,22 @@ function onDrop(event) {
         windowId:    recentTab.windowId,
         highlighted: true,
       });
-      const structure = (recentTab.windowId == TabsStore.getCurrentWindowId()) ?
+      const structureFromMultiselectedTabs = (recentTab.windowId == TabsStore.getCurrentWindowId()) ?
         TreeBehavior.getTreeStructureFromTabs(multiselectedTabs.map(tab => Tab.get(tab.id))) :
         (await browser.runtime.sendMessage({
           type: Constants.kCOMMAND_PULL_TREE_STRUCTURE,
           tabIds: multiselectedTabs.map(tab => tab.id),
         })).structure;
-      log('maybe dragged tabs: ', multiselectedTabs, structure);
+      log('maybe dragged tabs: ', multiselectedTabs, structureFromMultiselectedTabs);
+
+      const { draggedTabs, structure, insertBefore, insertAfter } = sanitizeDraggedTabs({
+        draggedTabs:  multiselectedTabs,
+        structure:    structureFromMultiselectedTabs,
+        insertBefore: dropActionInfo.insertBefore,
+        insertAfter:  dropActionInfo.insertAfter,
+        parent:       dropActionInfo.parent,
+        isCopy:       dt.dropEffect == 'copy',
+      });
 
       const allowedActions = event.shiftKey ?
         configs.tabDragBehaviorShift :
@@ -1289,13 +1315,13 @@ function onDrop(event) {
       BackgroundConnection.sendMessage({
         type:                Constants.kCOMMAND_PERFORM_TABS_DRAG_DROP,
         windowId:            recentTab.windowId,
-        tabs:                multiselectedTabs,
+        tabs:                draggedTabs,
         structure,
         action:              dropActionInfo.action,
         allowedActions,
-        attachToId:          dropActionInfo.parent && dropActionInfo.parent.id,
-        insertBeforeId:      dropActionInfo.insertBefore && dropActionInfo.insertBefore.id,
-        insertAfterId:       dropActionInfo.insertAfter && dropActionInfo.insertAfter.id,
+        attachToId:          dropActionInfo.parent?.id,
+        insertBeforeId:      insertBefore?.id,
+        insertAfterId:       insertAfter?.id,
         destinationWindowId: TabsStore.getCurrentWindowId(),
         duplicate:           dt.dropEffect == 'copy',
         import:              false
@@ -1308,6 +1334,26 @@ function onDrop(event) {
   handleDroppedNonTabItems(event, dropActionInfo);
 }
 onDrop = EventUtils.wrapWithErrorHandler(onDrop);
+
+function sanitizeDraggedTabs({ draggedTabs, structure, insertBefore, insertAfter, parent, isCopy }) {
+  const parentId = parent?.id;
+  log('sanitizeDraggedTabs: ', () => ({ draggedTabs: draggedTabs.map(dumpTab), structure, insertBefore: dumpTab(insertBefore), insertAfter: dumpTab(insertAfter), parentId, isCopy }));
+  if (isCopy ||
+      !configs.moveSoloTabOnDropParentToDescendant ||
+      draggedTabs.every(tab => tab.id != parentId))
+    return { draggedTabs, structure, insertBefore, insertAfter };
+
+  log('=> dropping parent to a descendant: partial attach mode');
+  for (let i = draggedTabs.length - 1; i > -1; i--) {
+    if (structure[i].parent < 0)
+      continue;
+    draggedTabs.splice(i, 1);
+    structure.splice(i, 1);
+  }
+  insertBefore = parent?.$TST.nextSiblingTab;
+  insertAfter  = parent;
+  return { draggedTabs, structure, insertBefore, insertAfter };
+}
 
 async function onDragEnd(event) {
   log('onDragEnd, ', { event, mDraggingOnSelfWindow, mDraggingOnDraggedTabs, dropEffect: event.dataTransfer.dropEffect });
