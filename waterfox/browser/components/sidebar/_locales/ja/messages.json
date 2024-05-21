@@ -24,6 +24,8 @@
   "command_tabbarDown":            { "message": "タブの一覧を数行下にスクロール" },
   "command_tabbarPageDown":        { "message": "タブの一覧を1ページ下にスクロール" },
   "command_tabbarEnd":             { "message": "タブの一覧を末尾までスクロール" },
+  "command_toggleTreeCollapsed":   { "message": "ツリーの折りたたみ状態を切り替える" },
+  "command_toggleTreeCollapsedRecursively": { "message": "ツリーの折りたたみ状態を再帰的に切り替える" },
   "command_toggleSubPanel":        { "message": "サブパネルの表示・非表示を切り替える" },
   "command_switchSubPanel":        { "message": "サブパネルの内容を切り替える" },
   "command_increaseSubPanel":      { "message": "サブパネルの高さを広げる" },

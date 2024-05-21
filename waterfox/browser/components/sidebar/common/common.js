@@ -316,6 +316,7 @@ export const configs = new Configs({
   showTabDragBehaviorNotification: true,
   guessDraggedNativeTabs: true,
   ignoreTabDropNearSidebarArea: true,
+  moveSoloTabOnDropParentToDescendant: true,
 
   fixupTreeOnTabVisibilityChanged: false,
   fixupOrderOfTabsFromOtherDevice: true,
@@ -1026,6 +1027,119 @@ export async function doProgressively(tabs, task, interval) {
     }
   }
   return Promise.all(results);
+}
+
+
+let useLegacyOverflowEvents = false;
+
+export function watchOverflowStateChange({ target, moreResizeTargets, onOverflow, onUnderflow, horizontal, vertical }) {
+  if (!horizontal && !vertical)
+    return;
+
+  onOverflow  = onOverflow  || (() => {});
+  onUnderflow = onUnderflow || (() => {});
+
+  let lastOverflow = null;
+  let invoked = false;
+  const onObserved = () => {
+    if (invoked)
+      return;
+    invoked = true;
+    window.requestAnimationFrame(() => {
+      invoked = false;
+
+      const overflow = (
+        (horizontal && isOverflowHorizontally(target)) ||
+        (vertical && isOverflowVertically(target))
+      );
+      if (overflow === lastOverflow)
+        return;
+
+      lastOverflow = overflow;
+
+      if (overflow) {
+        onOverflow();
+      }
+      else {
+        onUnderflow();
+      }
+    });
+  };
+
+  let resizeObserver/*, mutationObserver*/;
+  if (useLegacyOverflowEvents) {
+    const resizeTargets = new Set([target, ...(moreResizeTargets || [])]);
+    resizeObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        if (!resizeTargets.has(entry.target))
+          continue;
+        onObserved();
+      }
+    });
+    for (const resizeTarget of resizeTargets) {
+      resizeObserver.observe(resizeTarget);
+    }
+
+    /*
+    // ResizeObserver won't observe changes of scrollHeight/Width,
+    // Observing changes of the DOM tree can be workaround.
+    mutationObserver = new MutationObserver(mutations => {
+      for (let mutation of mutations) {
+        if (mutation.type != 'childList' &&
+            mutation.type != 'subtree')
+          continue;
+        onObserved();
+      }
+    });
+    mutationObserver.observe(target, {
+      childList: true,
+      subtree:   true,
+    });
+    */
+  }
+
+  const destroyObserver = () => {
+    if (!resizeObserver)
+      return;
+    resizeObserver.disconnect();
+    resizeObserver = null;
+    /*
+    mutationObserver.disconnect();
+    mutationObserver = null;
+    */
+  };
+
+  // Legacy method for Firefox 127 or older.
+  // See also: https://bugzilla.mozilla.org/show_bug.cgi?id=1888737
+  const onOverflowEvent = event => {
+    if (!useLegacyOverflowEvents) {
+      useLegacyOverflowEvents = true;
+      destroyObserver();
+    }
+    if (event.target != target)
+      return;
+    if (event.type == 'overflow')
+      onOverflow();
+    else
+      onUnderflow();
+  };
+  target.addEventListener('overflow', onOverflowEvent);
+  target.addEventListener('underflow', onOverflowEvent);
+
+  const unwatch = () => {
+    target.removeEventListener('overflow', onOverflowEvent);
+    target.removeEventListener('underflow', onOverflowEvent);
+    destroyObserver();
+  };
+  return unwatch;
+}
+
+function isOverflowHorizontally(target) {
+  return target.scrollWidth > target.clientWidth;
+}
+
+function isOverflowVertically(target) {
+  return target.scrollHeight > target.clientHeight;
 }
 
 

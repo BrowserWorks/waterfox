@@ -24,6 +24,8 @@
   "command_tabbarDown":            { "message": "Scroll Tabs Down by Lines" },
   "command_tabbarPageDown":        { "message": "Scroll Tabs Down by Page" },
   "command_tabbarEnd":             { "message": "Scroll Tabs to End" },
+  "command_toggleTreeCollapsed":   { "message": "Toggle Tree Collapsed" },
+  "command_toggleTreeCollapsedRecursively": { "message": "Toggle Tree Collapsed Recursively" },
   "command_toggleSubPanel":        { "message": "Toggle Sub Panel" },
   "command_switchSubPanel":        { "message": "Switch Sub Panel contents" },
   "command_increaseSubPanel":      { "message": "Increase Size of the Sub Panel" },

@@ -44,7 +44,8 @@ import {
   wait,
   nextFrame,
   configs,
-  shouldApplyAnimation
+  shouldApplyAnimation,
+  watchOverflowStateChange,
 } from '/common/common.js';
 
 import * as ApiTabs from '/common/api-tabs.js';
@@ -63,6 +64,8 @@ import * as Size from './size.js';
 
 export const onPositionUnlocked = new EventListenerManager();
 export const onVirtualScrollViewportUpdated = new EventListenerManager();
+export const onNormalTabsOverflow = new EventListenerManager();
+export const onNormalTabsUnderflow = new EventListenerManager();
 
 function log(...args) {
   internalLogger('sidebar/scroll', ...args);
@@ -95,8 +98,7 @@ export function init(scrollPosition) {
   document.addEventListener('wheel', onWheel, { capture: true, passive: false });
   mPinnedScrollBox.addEventListener('scroll', onScroll);
   mNormalScrollBox.addEventListener('scroll', onScroll);
-  mNormalScrollBox.addEventListener('overflow', onOverflow);
-  mNormalScrollBox.addEventListener('underflow', onUnderflow);
+  startObserveOverflowStateChange();
   browser.runtime.onMessage.addListener(onMessage);
   BackgroundConnection.onMessage.addListener(onBackgroundMessage);
   TSTAPI.onMessageExternal.addListener(onMessageExternal);
@@ -123,10 +125,10 @@ export function init(scrollPosition) {
 
   mScrollingInternallyCount++;
   restoreScrollPosition.scrollPosition = scrollPosition;
-  mNormalScrollBox.addEventListener('overflow', onInitialOverflow);
+  onNormalTabsOverflow.addListener(onInitialOverflow);
   onVirtualScrollViewportUpdated.addListener(onInitialUpdate);
   wait(1000).then(() => {
-    mNormalScrollBox.removeEventListener('overflow', onInitialOverflow);
+    onNormalTabsOverflow.removeListener(onInitialOverflow);
     onVirtualScrollViewportUpdated.removeListener(onInitialUpdate);
     if (restoreScrollPosition.scrollPosition != -1 &&
         mScrollingInternallyCount > 0)
@@ -136,11 +138,28 @@ export function init(scrollPosition) {
   });
 }
 
-function onInitialOverflow(event) {
-  if (event.target != event.currentTarget)
-    return;
+function startObserveOverflowStateChange() {
+  watchOverflowStateChange({
+    target: mNormalScrollBox,
+    vertical: true,
+    moreResizeTargets: [
+      // We need to watch resizing of the virtual scroll container to detect the changed state correctly.
+      mNormalScrollBox.querySelector('.virtual-scroll-container'),
+    ],
+    onOverflow() { onNormalTabsOverflow.dispatch(); },
+    onUnderflow() { onNormalTabsUnderflow.dispatch(); },
+  });
 
-  mNormalScrollBox.removeEventListener('overflow', onInitialOverflow);
+  onNormalTabsOverflow.addListener(() => {
+    reserveToUpdateScrolledState(mNormalScrollBox);
+  });
+  onNormalTabsUnderflow.addListener(() => {
+    reserveToUpdateScrolledState(mNormalScrollBox);
+  });
+}
+
+function onInitialOverflow() {
+  onNormalTabsOverflow.removeListener(onInitialOverflow);
   onInitialOverflow.done = true;
   if (onInitialUpdate.done)
     restoreScrollPosition();
@@ -183,15 +202,13 @@ export function reserveToRenderVirtualScrollViewport({ trigger, force } = {}) {
       mScrollingInternallyCount > 0)
     return;
 
-  const startAt = `${Date.now()}-${parseInt(Math.random() * 65000)}`;
-  renderVirtualScrollViewport.lastStartedAt = startAt;
   if (trigger)
     renderVirtualScrollViewport.triggers.add(trigger);
-  window.requestAnimationFrame(() => {
-    if (renderVirtualScrollViewport.lastStartedAt != startAt)
-      return;
-    renderVirtualScrollViewport();
-  });
+
+  if (renderVirtualScrollViewport.invoked)
+    return;
+  renderVirtualScrollViewport.invoked = true;
+  window.requestAnimationFrame(() => renderVirtualScrollViewport());
 }
 
 let mLastRenderableTabs;
@@ -203,7 +220,7 @@ let mScrollPosition = 0;
 renderVirtualScrollViewport.triggers = new Set();
 
 function renderVirtualScrollViewport(scrollPosition = undefined) {
-  renderVirtualScrollViewport.lastStartedAt = null;
+  renderVirtualScrollViewport.invoked = false;
   const triggers = new Set([...renderVirtualScrollViewport.triggers]);
   renderVirtualScrollViewport.triggers.clear();
 
@@ -377,7 +394,7 @@ function renderVirtualScrollViewport(scrollPosition = undefined) {
               spacer.setAttribute('data-tab-id', RegExp.$1);
               win.containerElement.insertBefore(
                 spacer,
-                win.containerElement.querySelector(`.sticky-tab-spacer[data-tab-id="${referenceTab?.id}"]`) ||
+                (referenceTab && win.containerElement.querySelector(`.sticky-tab-spacer[data-tab-id="${referenceTab.id}"]`)) ||
                 (referenceTabHasValidReferenceElement &&
                  referenceTab.$TST.element) ||
                 null
@@ -386,7 +403,7 @@ function renderVirtualScrollViewport(scrollPosition = undefined) {
             }
             SidebarTabs.renderTab(Tab.get(id), {
               insertBefore: referenceTabHasValidReferenceElement ? referenceTab :
-                win.containerElement.querySelector(`.sticky-tab-spacer[data-tab-id="${referenceTab?.id}"]`) ||
+                (referenceTab && win.containerElement.querySelector(`.sticky-tab-spacer[data-tab-id="${referenceTab.id}"]`)) ||
                 null,
             });
           }
@@ -908,18 +925,18 @@ function scrollToTabs(tabs) {
 */
 
 export function autoScrollOnMouseEvent(event) {
-  if (!event.target.closest)
+  if (!event.target.closest ||
+      autoScrollOnMouseEvent.invoked)
     return;
 
   const scrollBox = event.target.closest(`#${mPinnedScrollBox.id}, #${mNormalScrollBox.id}`);
-  if (!scrollBox || !scrollBox.classList.contains(Constants.kTABBAR_STATE_OVERFLOW))
+  if (!scrollBox ||
+      !scrollBox.classList.contains(Constants.kTABBAR_STATE_OVERFLOW))
     return;
 
-  const startAt = `${Date.now()}-${parseInt(Math.random() * 65000)}`;
-  autoScrollOnMouseEvent.lastStartedAt = startAt;
+  autoScrollOnMouseEvent.invoked = true;
   window.requestAnimationFrame(() => {
-    if (autoScrollOnMouseEvent.lastStartedAt != startAt)
-      return;
+    autoScrollOnMouseEvent.invoked = false;
 
     const tabbarRect = Size.getScrollBoxRect(scrollBox);
     const scrollPixels = Math.round(Size.getRenderedTabHeight() * 0.5);
@@ -1021,20 +1038,13 @@ function onScroll(event) {
   reserveToSaveScrollPosition();
 }
 
-function onOverflow(event) {
-  reserveToUpdateScrolledState(event.currentTarget);
-}
-
-function onUnderflow(event) {
-  reserveToUpdateScrolledState(event.currentTarget);
-}
 
 function reserveToUpdateScrolledState(scrollBox) {
-  const startAt = `${Date.now()}-${parseInt(Math.random() * 65000)}`;
-  scrollBox.__reserveToUpdateScrolledState_lastStartedAt = startAt; // eslint-disable-line no-underscore-dangle
+  if (scrollBox.__reserveToUpdateScrolledState_invoked) // eslint-disable-line no-underscore-dangle
+    return;
+  scrollBox.__reserveToUpdateScrolledState_invoked = true; // eslint-disable-line no-underscore-dangle
   window.requestAnimationFrame(() => {
-    if (scrollBox.__reserveToUpdateScrolledState_lastStartedAt != startAt) // eslint-disable-line no-underscore-dangle
-      return;
+    scrollBox.__reserveToUpdateScrolledState_invoked = false; // eslint-disable-line no-underscore-dangle
 
     const scrolled = scrollBox.$scrollTop > 0;
     const fullyScrolled = scrollBox.$scrollTop == scrollBox.$scrollTopMax;
