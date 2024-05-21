@@ -223,8 +223,10 @@ export function updateContainers() {
   mPinnedTabsScrollBoxRect = mPinnedScrollBox.getBoundingClientRect();
   mNormalTabsScrollBoxRect = mNormalScrollBox.getBoundingClientRect();
 
-  const pinnedContainerStyle = window.getComputedStyle(mPinnedScrollBox, null);
-  mPinnedTabsContainerWidth = mPinnedTabsScrollBoxRect.width - parseFloat(pinnedContainerStyle.paddingLeft) - parseFloat(pinnedContainerStyle.borderLeftWidth) - parseFloat(pinnedContainerStyle.paddingRight) - parseFloat(pinnedContainerStyle.borderRightWidth);
+  const pinnedContainerBox     = mPinnedScrollBox.querySelector('.tabs');
+  const pinnedContainerBoxRect = pinnedContainerBox.getBoundingClientRect();
+  const pinnedContainerStyle   = window.getComputedStyle(pinnedContainerBox, null);
+  mPinnedTabsContainerWidth    = pinnedContainerBoxRect.width - parseFloat(pinnedContainerStyle.paddingLeft) - parseFloat(pinnedContainerStyle.borderLeftWidth) - parseFloat(pinnedContainerStyle.paddingRight) - parseFloat(pinnedContainerStyle.borderRightWidth);
 
   const range = document.createRange();
   //range.selectNodeContents(mTabBar);

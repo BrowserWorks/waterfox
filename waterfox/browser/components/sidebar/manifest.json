@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extensionName__",
-  "version": "1.0.0.2",
+  "version": "1.0.1",
   "author": "Waterfox",
   "hidden": true,
   "description": "__MSG_extensionDescription__",
@@ -75,6 +75,12 @@
     },
     "expandAll": {
       "description": "__MSG_context_expandAll_command__"
+    },
+    "toggleTreeCollapsed": {
+      "description": "__MSG_command_toggleTreeCollapsed__"
+    },
+    "toggleTreeCollapsedRecursively": {
+      "description": "__MSG_command_toggleTreeCollapsedRecursively__"
     },
     "bookmarkTree": {
       "description": "__MSG_context_bookmarkTree_command__"
@@ -192,62 +198,36 @@
     }
   },
   "web_accessible_resources": [
-    {
-      "resources": [
-        "/resources/group-tab.html*"
-      ],
-      "matches": [
-        "<all_urls>"
-      ]
-    }
+    { "resources": ["/resources/group-tab.html*"],
+      "matches": ["<all_urls>"] }
   ],
   "protocol_handlers": [
-    {
-      "protocol": "ext+ws",
-      "name": "Waterfox",
-      "uriTemplate": "/resources/protocol-handler.html?%s"
-    }
+    { "protocol":    "ext+ws",
+      "name":        "Waterfox",
+      "uriTemplate": "/resources/protocol-handler.html?%s" }
   ],
   "experiment_apis": {
     "prefs": {
       "schema": "experiments/prefs.json",
       "parent": {
-        "scopes": [
-          "addon_parent"
-        ],
-        "paths": [
-          [
-            "prefs"
-          ]
-        ],
+        "scopes": ["addon_parent"],
+        "paths": [["prefs"]],
         "script": "experiments/prefs.js"
       }
     },
     "syncPrefs": {
       "schema": "experiments/syncPrefs.json",
       "child": {
-        "scopes": [
-          "addon_child"
-        ],
-        "paths": [
-          [
-            "syncPrefs"
-          ]
-        ],
+        "scopes": ["addon_child"],
+        "paths": [["syncPrefs"]],
         "script": "experiments/syncPrefs.js"
       }
     },
     "waterfoxBridge": {
       "schema": "experiments/waterfoxBridge.json",
       "parent": {
-        "scopes": [
-          "addon_parent"
-        ],
-        "paths": [
-          [
-            "waterfoxBridge"
-          ]
-        ],
+        "scopes": ["addon_parent"],
+        "paths": [["waterfoxBridge"]],
         "script": "experiments/waterfoxBridge.js"
       }
     }
