@@ -101,9 +101,9 @@ export async function attachTabTo(child, parent, options = {}) {
     parent:           parent.id,
     children:         parent.$TST.getAttribute(Constants.kCHILDREN),
     insertAt:         options.insertAt,
-    insertBefore:     options.insertBefore && options.insertBefore.id,
-    insertAfter:      options.insertAfter && options.insertAfter.id,
-    lastRelatedTab:   options.lastRelatedTab && options.lastRelatedTab.id,
+    insertBefore:     options.insertBefore?.id,
+    insertAfter:      options.insertAfter?.id,
+    lastRelatedTab:   options.lastRelatedTab?.id,
     dontMove:         options.dontMove,
     dontUpdateIndent: options.dontUpdateIndent,
     forceExpand:      options.forceExpand,
@@ -631,26 +631,10 @@ export async function detachTabsFromTree(tabs, options = {}) {
   tabs = Array.from(tabs).reverse();
   const promisedAttach = [];
   for (const tab of tabs) {
-    const children = tab.$TST.children;
-    const parent   = tab.$TST.parent;
-    for (const child of children) {
-      if (!tabs.includes(child)) {
-        if (parent) {
-          promisedAttach.push(attachTabTo(child, parent, {
-            ...options,
-            dontMove: true
-          }));
-        }
-        else {
-          detachTab(child, options);
-          if (child.$TST.collapsed)
-            await collapseExpandTabAndSubtree(child, {
-              ...options,
-              collapsed: false
-            });
-        }
-      }
-    }
+    promisedAttach.push(detachAllChildren(tab, {
+      ...options,
+      behavior:  Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
+    }));
   }
   if (promisedAttach.length > 0)
     await Promise.all(promisedAttach);
