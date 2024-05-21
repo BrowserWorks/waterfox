@@ -41,7 +41,6 @@ import * as GapCanceller from './gap-canceller.js';
 import * as SidebarTabs from './sidebar-tabs.js';
 import * as Size from './size.js';
 
-// eslint-disable-next-line no-unused-vars
 function log(...args) {
   internalLogger('sidebar/pinned-tabs', ...args);
 }
@@ -81,8 +80,6 @@ export function reposition(options = {}) {
       Math.floor(maxWidth / width)
   ) : 1;
   const maxRow = Math.ceil(pinnedTabs.length / maxCol);
-  let col    = 0;
-  let row    = 0;
 
   const pinnedTabsAreaRatio = Math.min(Math.max(0, configs.maxPinnedTabsRowsAreaPercentage), 100) / 100;
   const allTabsAreaHeight   = Size.getAllTabsAreaSize() + GapCanceller.getOffset();
@@ -101,7 +98,10 @@ export function reposition(options = {}) {
 
   Size.updateContainers();
 
+  let count = 0;
+  let row = 0;
   for (const tab of pinnedTabs) {
+    count++;
     if (options.justNow)
       tab.$TST.removeState(Constants.kTAB_STATE_ANIMATION_READY);
 
@@ -120,13 +120,14 @@ export function reposition(options = {}) {
     });
     */
 
-    col++;
-    if (col >= maxCol) {
-      col = 0;
+    if (count > 0 &&
+        count / maxCol == 0) {
       row++;
       //log('=> new row');
     }
   }
+  log('reposition: ', { maxWidth, faviconized, width, height, maxCol, maxRow, pinnedTabsAreaRatio, allTabsAreaHeight, mMaxVisibleRows, mAreaHeight });
+  log('overflow: contentsHeight > mAreaHeight : ', contentsHeight > mAreaHeight);
   SidebarTabs.pinnedContainer.classList.toggle('overflow', contentsHeight > mAreaHeight);
 }
 

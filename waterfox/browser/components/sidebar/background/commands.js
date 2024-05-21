@@ -540,21 +540,20 @@ export async function moveTabsWithStructure(tabs, params = {}) {
         movedWholeTree.push(descendant);
     }
   }
-  log('=> movedTabs: ', () => movedTabs.map(dumpTab).join(' / '));
+  log('=> movedTabs: ', () => ['moved', movedTabs.map(dumpTab).join(' / '), 'whole', movedWholeTree.map(dumpTab).join(' / ')]);
 
-  while (params.insertBefore &&
-         movedWholeTree.includes(params.insertBefore)) {
-    params.insertBefore = params.insertBefore && params.insertBefore.$TST.nextTab;
+  const movedTabsSet = new Set(movedTabs);
+  while (movedTabsSet.has(params.insertBefore)) {
+    params.insertBefore = params.insertBefore?.$TST.nextTab;
   }
-  while (params.insertAfter &&
-         movedWholeTree.includes(params.insertAfter)) {
-    params.insertAfter = params.insertAfter && params.insertAfter.$TST.previousTab;
+  while (movedTabsSet.has(params.insertAfter)) {
+    params.insertAfter = params.insertAfter?.$TST.previousTab;
   }
 
   const windowId = params.windowId || tabs[0].windowId;
   const destinationWindowId = params.destinationWindowId ||
-    params.insertBefore && params.insertBefore.windowId || 
-      params.insertAfter && params.insertAfter.windowId ||
+    params.insertBefore?.windowId ||
+      params.insertAfter?.windowId ||
         windowId;
 
   // Basically tabs should not be moved between regular window and private browsing window,
@@ -562,11 +561,14 @@ export async function moveTabsWithStructure(tabs, params = {}) {
   if (movedTabs[0].incognito != Tab.getFirstTab(destinationWindowId).incognito)
     return [];
 
-  if (!params.import && movedWholeTree.length != movedTabs.length) {
+  if (!params.import &&
+      movedWholeTree.length != movedTabs.length) {
     log('=> partially moved');
     if (!params.duplicate)
       await Tree.detachTabsFromTree(movedTabs, {
-        broadcast: params.broadcast
+        insertBefore: params.insertBefore,
+        insertAfter:  params.insertAfter,
+        broadcast:    params.broadcast,
       });
   }
 
@@ -703,7 +705,7 @@ export async function moveTabsWithStructure(tabs, params = {}) {
 }
 
 async function attachTabsWithStructure(tabs, parent, options = {}) {
-  log('attachTabsWithStructure: start ', () => [tabs.map(dumpTab), dumpTab(parent)]);
+  log('attachTabsWithStructure: start ', () => ['tabs', ...tabs.map(dumpTab), 'parent', dumpTab(parent), 'insertBefore', dumpTab(options.insertBefore), 'insertAfter', dumpTab(options.insertAfter)]);
   if (parent &&
       !options.insertBefore &&
       !options.insertAfter) {

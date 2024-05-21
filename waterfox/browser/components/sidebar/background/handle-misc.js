@@ -104,7 +104,7 @@ async function onShortcutCommand(command) {
   if (mInitializationPhase < PHASE_BACKGROUND_INITIALIZED)
     return;
 
-  let activeTabs = await browser.tabs.query({
+  let activeTabs = command.tab ? [command.tab] : await browser.tabs.query({
     active:        true,
     currentWindow: true,
   }).catch(ApiTabs.createErrorHandler());
@@ -303,6 +303,19 @@ async function onShortcutCommand(command) {
         windowId: activeTab.windowId,
         to:       'bottom'
       });
+      return;
+
+    case 'toggleTreeCollapsed':
+      if (activeTab.$TST.subtreeCollapsed)
+        Commands.expandTree(selectedTabs);
+      else
+        Commands.collapseTree(selectedTabs);
+      return;
+    case 'toggleTreeCollapsedRecursively':
+      if (activeTab.$TST.subtreeCollapsed)
+        Commands.expandTree(selectedTabs, { recursively: true });
+      else
+        Commands.collapseTree(selectedTabs, { recursively: true });
       return;
 
     case 'toggleSubPanel':
