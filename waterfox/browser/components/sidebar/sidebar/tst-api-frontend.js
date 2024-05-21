@@ -545,12 +545,17 @@ function onExtraContentsAboveChanged(id, params) {
     params = id;
     id = browser.runtime.id;
   }
-  const startAt = `${Date.now()}-${parseInt(Math.random() * 65000)}`;
-  onExtraContentsAboveChanged.lastStartedAt = startAt;
+  if (onExtraContentsAboveChanged.invoked)
+    return;
+  onExtraContentsAboveChanged.invoked = true;
   window.requestAnimationFrame(() => {
-    if (onExtraContentsAboveChanged.lastStartedAt != startAt)
-      return;
-    setExtraContentsToContainer(mDummyTab.extraItemsContainerAboveRoot, id, params);
+    onExtraContentsAboveChanged.invoked = false;
+    if (params.container != mDummyTab.extraItemsContainerAboveRoot) {
+      setExtraContentsToContainer(mDummyTab.extraItemsContainerAboveRoot, id, {
+        ...params,
+        container: mDummyTab.extraItemsContainerAboveRoot,
+      });
+    }
     throttledUpdateSize();
   });
 }
@@ -560,22 +565,27 @@ function onExtraContentsBelowChanged(id, params) {
     params = id;
     id = browser.runtime.id;
   }
-  const startAt = `${Date.now()}-${parseInt(Math.random() * 65000)}`;
-  onExtraContentsBelowChanged.lastStartedAt = startAt;
+  if (onExtraContentsBelowChanged.invoked)
+    return;
+  onExtraContentsBelowChanged.invoked = true;
   window.requestAnimationFrame(() => {
-    if (onExtraContentsAboveChanged.lastStartedAt != startAt)
-      return;
-    setExtraContentsToContainer(mDummyTab.extraItemsContainerBelowRoot, id, params);
+    onExtraContentsBelowChanged.invoked = false;
+    if (params.container != mDummyTab.extraItemsContainerBelowRoot) {
+      setExtraContentsToContainer(mDummyTab.extraItemsContainerBelowRoot, id, {
+        ...params,
+        container: mDummyTab.extraItemsContainerBelowRoot,
+      });
+    }
     throttledUpdateSize();
   });
 }
 
 function throttledUpdateSize() {
-  const startAt = `${Date.now()}-${parseInt(Math.random() * 65000)}`;
-  throttledUpdateSize.lastStartedAt = startAt;
+  if (throttledUpdateSize.invoked)
+    return;
+  throttledUpdateSize.invoked = true;
   window.requestAnimationFrame(() => {
-    if (throttledUpdateSize.lastStartedAt != startAt)
-      return;
+    throttledUpdateSize.invoked = false;
     Size.updateTabs();
     Size.updateContainers();
   });
