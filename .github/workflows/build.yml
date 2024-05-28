@@ -950,6 +950,8 @@ jobs:
           sudo mv 7zz /usr/local/bin/7z
       - name: "\U0001F4E4 Checkout"
         uses: actions/checkout@v4
+      - name: "🦀 Pin Rust version"
+        run: rustup default 1.77.2
       - name: "\U0001F4E3 Override version_display.txt"
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         run: |
