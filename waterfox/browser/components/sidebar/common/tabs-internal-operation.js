@@ -70,6 +70,32 @@ export async function activateTab(tab, { byMouseOperation, keepMultiselection, s
   }
 }
 
+export async function blurTab(bluredTabs, { windowId, silently } = {}) {
+  if (bluredTabs &&
+      !Array.isArray(bluredTabs))
+    bluredTabs = [bluredTabs];
+
+  const bluredTabIds = new Set(Array.from(bluredTabs || [], tab => tab.id || tab));
+
+  let bluredTabsFound = false;
+  let nextActiveTab  = null;
+  for (const tab of Tab.getVisibleTabs(windowId || bluredTabs[0].windowId)) {
+    const blured = bluredTabIds.has(tab.id);
+    if (blured)
+      bluredTabsFound = true;
+    if (!bluredTabsFound)
+      nextActiveTab = tab;
+    if (bluredTabsFound &&
+        !blured) {
+      nextActiveTab = tab;
+      break;
+    }
+  }
+  if (nextActiveTab)
+    await activateTab(nextActiveTab, { silently });
+  return nextActiveTab;
+}
+
 export function removeTab(tab) {
   return removeTabs([tab]);
 }

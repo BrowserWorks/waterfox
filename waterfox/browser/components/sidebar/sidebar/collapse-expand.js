@@ -55,6 +55,8 @@ export async function setCollapsed(tab, info = {}) {
   if (!TabsStore.ensureLivingTab(tab)) // do nothing for closed tab!
     return;
 
+  const changed = info.collapsed != tab.$TST.collapsed;
+
   tab.$TST.shouldExpandLater = false; // clear flag
 
   if (info.collapsed) {
@@ -104,12 +106,18 @@ export async function setCollapsed(tab, info = {}) {
 
     if (shouldApplyAnimation() &&
         !info.justNow &&
-        configs.collapseDuration > 0)
+        configs.collapseDuration > 0 &&
+        changed)
       return; // force completion is required only for non-animation case
 
     //log('=> skip animation');
-    if (tab.$TST.collapsed)
+    if (tab.$TST.collapsed) {
+      tab.$TST.removeState(Constants.kTAB_STATE_COLLAPSING);
       tab.$TST.addState(Constants.kTAB_STATE_COLLAPSED_DONE);
+    }
+    else {
+      tab.$TST.removeState(Constants.kTAB_STATE_EXPANDING);
+    }
 
     TabsStore.updateVirtualScrollRenderabilityIndexForTab(tab);
     onUpdated.dispatch(tab, {
@@ -122,7 +130,8 @@ export async function setCollapsed(tab, info = {}) {
 
   if (!shouldApplyAnimation() ||
       info.justNow ||
-      configs.collapseDuration < 1) {
+      configs.collapseDuration < 1 ||
+      !changed) {
     //log('=> skip animation');
     onCompleted(tab, info);
     return;
