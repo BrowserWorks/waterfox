@@ -263,8 +263,10 @@ BackgroundConnection.onMessage.addListener(async message => {
       if (!tab ||
           !lastMessage)
         return;
-      if (tab.$TST.getAttribute(Constants.kLEVEL) != lastMessage.level)
+      if (tab.$TST.getAttribute(Constants.kLEVEL) != lastMessage.level) {
         tab.$TST.setAttribute(Constants.kLEVEL, lastMessage.level);
+        tryUpdateVisualMaxTreeLevel();
+      }
       reserveToUpdateIndent();
     }; break;
 
