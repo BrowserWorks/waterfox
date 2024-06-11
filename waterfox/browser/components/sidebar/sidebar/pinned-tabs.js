@@ -48,9 +48,14 @@ function log(...args) {
 let mTargetWindow;
 let mAreaHeight     = 0;
 let mMaxVisibleRows = 0;
+let mMaxCol         = 0;
+let mMaxColLastRow  = 0;
+let mMaxRow         = 0;
+const mTabsMatrix = new Map();
 
 export function init() {
   mTargetWindow = TabsStore.getCurrentWindowId();
+  browser.runtime.onMessage.addListener(onMessage);
 }
 
 function getTabHeight() {
@@ -97,10 +102,18 @@ export function reposition(options = {}) {
     document.documentElement.style.removeProperty('--pinned-tabs-max-column');
 
   Size.updateContainers();
+  mTabsMatrix.clear();
 
   let count = 0;
   let row = 0;
+  let col = 0;
+  mMaxCol = 0;
+  mMaxColLastRow = 0;
+  mMaxRow = 0;
   for (const tab of pinnedTabs) {
+    mMaxCol = Math.max(col, mMaxCol);
+    mMaxRow = row;
+
     count++;
     if (options.justNow)
       tab.$TST.removeState(Constants.kTAB_STATE_ANIMATION_READY);
@@ -108,8 +121,13 @@ export function reposition(options = {}) {
     tab.$TST.toggleState(Constants.kTAB_STATE_FAVICONIZED, faviconized);
     tab.$TST.toggleState(Constants.kTAB_STATE_LAST_ROW, row == maxRow - 1);
 
+    if (row == maxRow - 1)
+      mMaxColLastRow = col;
+
     if (options.justNow)
       tab.$TST.addState(Constants.kTAB_STATE_ANIMATION_READY);
+
+    mTabsMatrix.set(`${col}:${row}`, tab.id);
 
     /*
     log('pinned tab: ', {
@@ -120,9 +138,11 @@ export function reposition(options = {}) {
     });
     */
 
+    col++;
     if (count > 0 &&
-        count / maxCol == 0) {
+        count % maxCol == 0) {
       row++;
+      col = 0;
       //log('=> new row');
     }
   }
@@ -147,12 +167,102 @@ function reset() {
   }
   mAreaHeight     = 0;
   mMaxVisibleRows = 0;
+  mMaxCol         = 0;
+  mMaxColLastRow  = 0;
+  mMaxRow         = 0;
+  mTabsMatrix.clear();
   Size.updateContainers();
 }
 
 function clearStyle(tab) {
   tab.$TST.removeState(Constants.kTAB_STATE_FAVICONIZED);
   tab.$TST.removeState(Constants.kTAB_STATE_LAST_ROW);
+}
+
+function getTabPosition(tab) {
+  if (!tab)
+    throw new Error('missing tab');
+
+  log('getTabPosition from ', [...mTabsMatrix.keys()]);
+  for (const [position, tabId] of mTabsMatrix.entries()) {
+    if (tabId != tab.id)
+      continue;
+    const [col, row] = position.split(':');
+    log(` => ${col}:${row}`);
+    return {
+      col: parseInt(col),
+      row: parseInt(row),
+    };
+  }
+
+  throw new Error(`no pinned tab with id ${tab.id}`);
+}
+
+// This must be synchronous and return Promise on demando, to avoid
+// blocking to other listeners.
+function onMessage(message, _sender, _respond) {
+  if (!message ||
+      typeof message.type != 'string' ||
+      message.type.indexOf('ws:') != 0)
+    return;
+
+  if (message.windowId &&
+      message.windowId != mTargetWindow)
+    return;
+
+  //log('onMessage: ', message, sender);
+  switch (message.type) {
+    case Constants.kCOMMAND_GET_ABOVE_TAB: {
+      try {
+        const { col, row } = getTabPosition(Tab.get(message.tabId));
+        const nextRow = row - 1;
+        log(`above tab: ${col}:${row} => ${col}:${nextRow}`);
+        return Promise.resolve(
+          mTabsMatrix.get(`${col}:${nextRow}`) ||
+          null
+        );
+      }
+      catch(_error) {
+        return Promise.resolve(
+          mTabsMatrix.get(`0:${mMaxRow}`) ||
+          null
+        );
+      }
+    }; break;
+
+    case Constants.kCOMMAND_GET_BELOW_TAB: {
+      const { col, row } = getTabPosition(Tab.get(message.tabId));
+      const nextRow = row + 1;
+      log(`below tab: ${col}:${row} => ${col}:${nextRow}`);
+      return Promise.resolve(
+        mTabsMatrix.get(`${col}:${nextRow}`) ||
+        mTabsMatrix.get(`${mMaxColLastRow}:${nextRow}`) ||
+        null
+      );
+    }; break;
+
+    case Constants.kCOMMAND_GET_LEFT_TAB: {
+      const { col, row } = getTabPosition(Tab.get(message.tabId));
+      const maxCol = row == mMaxRow ? mMaxColLastRow : mMaxCol;
+      const nextCol = col == 0 ? maxCol : col - 1;
+      log(`left tab: ${col}:${row} => ${nextCol}:${row}`);
+      return Promise.resolve(
+        mTabsMatrix.get(`${nextCol}:${row}`) ||
+        null
+      );
+    }; break;
+
+    case Constants.kCOMMAND_GET_RIGHT_TAB: {
+      const { col, row } = getTabPosition(Tab.get(message.tabId));
+      const maxCol = row == mMaxRow ? mMaxColLastRow : mMaxCol;
+      const nextCol = col == maxCol ? 0 : col + 1;
+      log(`right tab: ${col}:${row} => ${nextCol}:${row}`);
+      return Promise.resolve(
+        mTabsMatrix.get(`${nextCol}:${row}`) ||
+        null
+      );
+    }; break;
+  }
 }
 
 const BUFFER_KEY_PREFIX = 'pinned-tabs-';
