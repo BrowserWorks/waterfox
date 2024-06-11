@@ -14,10 +14,16 @@
   "command_focusNext":             { "message": "Focus to Next Tab (expand tree)" },
   "command_focusNextSilently":     { "message": "Focus to Next Tab (don't expand tree)" },
   "command_focusParent":           { "message": "Focus to Parent Tab" },
+  "command_focusParentOrCollapse": { "message": "Collapse Tree or Focus to Parent Tab" },
   "command_focusFirstChild":       { "message": "Focus to First Child Tab" },
+  "command_focusFirstChildOrExpand": { "message": "Expand Tree or Focus to First Child Tab" },
   "command_focusLastChild":        { "message": "Focus to Last Child Tab" },
   "command_focusPreviousSibling":  { "message": "Focus to Previous Sibling Tab" },
   "command_focusNextSibling":      { "message": "Focus to Next Sibling Tab" },
+  "command_simulateUpOnTree":      { "message": "Simulate Up Key on Tree" },
+  "command_simulateDownOnTree":    { "message": "Simulate Down Key on Tree" },
+  "command_simulateLeftOnTree":    { "message": "Simulate Left Key on Tree" },
+  "command_simulateRightOnTree":   { "message": "Simulate Right Key on Tree" },
   "command_tabbarUp":              { "message": "Scroll Tabs Up by Lines" },
   "command_tabbarPageUp":          { "message": "Scroll Tabs Up by Page" },
   "command_tabbarHome":            { "message": "Scroll Tabs to Top" },
@@ -135,7 +141,7 @@
       "progress": { "content": "$1", "example": "50" }
     }},
 
-  "blank_allUrlsPermissionRequiredMessage": { "message": "This message is here due to Firefox tried to restore a dialog which is provided by Tree Style Tab addon. Please grant the \"Access your data for all websites\" permission via the \"Permissions\" tab of Tree Style Tab's details page in the Add-on Manager, if this message is not wanted to appear anymore." },
+  "blank_allUrlsPermissionRequiredMessage": { "message": "This message is here due to Firefox tried to restore a dialog which is provided by Tree Style Tab extension. Please grant the \"Access your data for all websites\" permission via the \"Permissions\" tab of Tree Style Tab's details page in the Add-on Manager, if you don't want this message to appear anymore." },
 
   "warnOnCloseTabs_title":     { "message": "Close tabs?" },
   "warnOnCloseTabs_message":   { "message": "You are about to close $NUMBER$ tabs. Are you sure you want to continue?",
@@ -269,12 +275,12 @@
   "message_startup_userChromeCss_description_3": { "message": "." },
 
   "api_requestedPermissions_title": { "message": "Request for Extra Permissions" },
-  "api_requestedPermissions_message": { "message": "⚠The addon \"$NAME$\" is requesting to do following operation:\n\n$PERMISSIONS$\n\nvia Tabs Sidebar's API. Click here if you grant that.",
+  "api_requestedPermissions_message": { "message": "⚠The extension \"$NAME$\" is requesting to do following operation:\n\n$PERMISSIONS$\n\nvia Tabs Sidebar's API. Click here if you grant that.",
     "placeholders": {
       "NAME":        { "content": "$1", "example": "foobar" },
       "PERMISSIONS": { "content": "$2", "example": "tabs" }
     }},
-  "api_requestedPermissions_message_linux": { "message": "⚠The addon \"$NAME$\" is requesting to do following operation:\n\n$PERMISSIONS$\n\nvia Tabs Sidebar's API. Click the button if you grant that.",
+  "api_requestedPermissions_message_linux": { "message": "⚠The extension \"$NAME$\" is requesting to do following operation:\n\n$PERMISSIONS$\n\nvia Tabs Sidebar's API. Click the button if you grant that.",
     "placeholders": {
       "NAME":        { "content": "$1", "example": "foobar" },
       "PERMISSIONS": { "content": "$2", "example": "tabs" }
@@ -409,7 +415,7 @@
   "config_showDialogInSidebar_label": { "message": "Show dialogs in the sidebar if possible" },
   "config_outOfScreenTabsRenderingPages_label": { "message": "Number of pages to pre-render tabs:" },
   "config_outOfScreenTabsRenderingPages_description": { "message": "* \"-1\" will pre-render all tabs for better scrolling performance, and as a trade off you may need to wait long time on initialization." },
-  "config_renderHiddenTabs_label": { "message": "Show hidden tabs which are hidden by other addons" },
+  "config_renderHiddenTabs_label": { "message": "Show hidden tabs which are hidden by other extensions" },
 
 
   "config_context_caption": { "message": "Context Menu" },
@@ -460,7 +466,7 @@
   "config_autoAttachOnOpenedWithOwner_after": { "message": "\u200b" },
 
   "config_insertNewTabFromFirefoxViewAt_caption": { "message": "Insertion position of new child tabs from Firefox View (will appear as root tabs)" },
-  "config_insertNewTabFromFirefoxViewAt_noControl": { "message": "No control (respect the decision by the browser or other tab addons)" },
+  "config_insertNewTabFromFirefoxViewAt_noControl": { "message": "No control (respect the decision by the browser or other tab extensions)" },
   "config_insertNewTabFromFirefoxViewAt_nextToLastRelatedTab": { "message": "Next to the recently opened child, or near the opener" },
   "config_insertNewTabFromFirefoxViewAt_top": { "message": "The top of the tree (near the opener)" },
   "config_insertNewTabFromFirefoxViewAt_end": { "message": "The end of the tree" },
@@ -469,7 +475,7 @@
   "config_groupTabTemporaryStateForChildrenOfFirefoxView_label": { "message": "Default state of group tabs for tabs opened from Firefox View:" },
 
   "config_insertNewTabFromPinnedTabAt_caption": { "message": "Insertion position of new child tabs from pinned tabs (will appear as root tabs)" },
-  "config_insertNewTabFromPinnedTabAt_noControl": { "message": "No control (respect the decision by the browser or other tab addons)" },
+  "config_insertNewTabFromPinnedTabAt_noControl": { "message": "No control (respect the decision by the browser or other tab extensions)" },
   "config_insertNewTabFromPinnedTabAt_nextToLastRelatedTab": { "message": "Next to the recently opened child, or near the opener" },
   "config_insertNewTabFromPinnedTabAt_top": { "message": "The top of the tree (near the opener)" },
   "config_insertNewTabFromPinnedTabAt_end": { "message": "The end of the tree" },
@@ -574,13 +580,13 @@
   "config_autoAttachOnAnyOtherTrigger_sibling": { "message": "Sibling of the current tab" },
   "config_autoAttachOnAnyOtherTrigger_nextSibling": { "message": "Next Sibling of the current tab" },
   "config_autoAttachOnAnyOtherTrigger_after": { "message": "\u200b" },
-  "config_autoAttachOnAnyOtherTrigger_caution": { "message": "*CAUTION: This option has a risk breaking behavior of other addons." },
+  "config_autoAttachOnAnyOtherTrigger_caution": { "message": "*CAUTION: This option has a risk breaking behavior of other extensions." },
   "config_inheritContextualIdentityToTabsFromAnyOtherTriggerMode_label": { "message": "Container:" },
   "config_inheritContextualIdentityToTabsFromAnyOtherTriggerMode_default": { "message": "(no control)" },
   "config_inheritContextualIdentityToTabsFromAnyOtherTriggerMode_parent": { "message": "Inherit from the parent tab on the tree" },
   "config_inheritContextualIdentityToTabsFromAnyOtherTriggerMode_lastActive": { "message": "Inherit from the current tab" },
 
-  "config_inheritContextualIdentityToUnopenableURLTabs_label": { "message": "Reopen tab with inherited container anyway, even if it has a URL unable to open by addon's permission" },
+  "config_inheritContextualIdentityToUnopenableURLTabs_label": { "message": "Reopen tab with inherited container anyway, even if it has a URL unable to open by extension's permission" },
 
   "config_groupTab_caption": { "message": "Auto-grouping of tabs" },
 
@@ -620,13 +626,13 @@
   "config_successorTabControlLevel_caption": { "message": "When the current tab is closed as a last child" },
   "config_successorTabControlLevel_inTree": { "message": "Focus to the previous tab in the tree" },
   "config_successorTabControlLevel_simulateDefault": { "message": "Focus to the next tab always (the browser's default)" },
-  "config_successorTabControlLevel_never": { "message": "Never control focus (respect the browser or other addon's control)" },
+  "config_successorTabControlLevel_never": { "message": "Never control focus (respect the browser or other extension's control)" },
   "config_successorTabControlLevel_legacyDescription": { "message": "*The browser's built-in behavior for \"browser.tabs.selectOwnerOnClose\"=\"true\" works prior to this config." },
   "config_simulateSelectOwnerOnClose_label": { "message": "Move focus back to the opener tab if possible, when the current tab is closed (*simulation of the browser's built-in behavior for \"browser.tabs.selectOwnerOnClose\"=\"true\", prior to the config above)" },
 
-  "config_fixupTreeOnTabVisibilityChanged_caption": { "message": "When visibility of tabs are changed by other addons" },
-  "config_fixupTreeOnTabVisibilityChanged_fix":     { "message": "Fix up tree structure with visible tabs automatically (*Recommended if you use another addon to switch tab groups)" },
-  "config_fixupTreeOnTabVisibilityChanged_keep":    { "message": "Keep tree structure including hidden tabs (*Recommended if you use another addon which changes temporary visibility of tabs)" },
+  "config_fixupTreeOnTabVisibilityChanged_caption": { "message": "When visibility of tabs are changed by other extensions" },
+  "config_fixupTreeOnTabVisibilityChanged_fix":     { "message": "Fix up tree structure with visible tabs automatically (*Recommended if you use another extension to switch tab groups)" },
+  "config_fixupTreeOnTabVisibilityChanged_keep":    { "message": "Keep tree structure including hidden tabs (*Recommended if you use another extension which changes temporary visibility of tabs)" },
 
   "config_autoCollapseExpandSubtreeOnAttach_label": { "message": "When a new tree appears, collapse others automatically" },
   "config_autoCollapseExpandSubtreeOnSelect_label": { "message": "When a tab gets focus, expand its tree and collapse others automatically" },
@@ -637,7 +643,7 @@
 
   "config_treeDoubleClickBehavior_caption":             { "message": "Double-click on a tab" },
   "config_treeDoubleClickBehavior_toggleCollapsed":     { "message": "Collapse/expand tree" },
-  "config_treeDoubleClickBehavior_toggleSticky":        { "message": "Stick to tab bar adges / Unstick from tab bar edges" },
+  "config_treeDoubleClickBehavior_toggleSticky":        { "message": "Stick to tab bar edges / Unstick from tab bar edges" },
   "config_treeDoubleClickBehavior_close":               { "message": "Close tab" },
   "config_treeDoubleClickBehavior_close_note":          { "message": " (*simulation of the browser's built-in behavior for \"browser.tabs.closeTabByDblclick\"=\"true\")" },
   "config_treeDoubleClickBehavior_none":                { "message": "Do nothing" },
@@ -647,21 +653,21 @@
 
   "config_parentTabOperationBehaviorMode_parallel": { "message": "Recommended preset using the browser's native tab bar as the Solo Tab Operation UI" },
   "config_closeParentBehavior_insideSidebar":       { "message": "When a parent tab with Expanded Tree is Closed via the sidebar," },
-  "config_closeParentBehavior_outsideSidebar":      { "message": "When a parent tab (whether its Tree is Expanded or Collapsed) is Closed via the browser's native tab bar, keyboard shortcuts or other addons," },
-  "config_moveParentBehavior_outsideSidebar":       { "message": "When a parent tab (whether its Tree is Expanded or Collapsed) is Moved via the browser's native tab bar, keyboard shortcuts or other addons," },
+  "config_closeParentBehavior_outsideSidebar":      { "message": "When a parent tab (whether its Tree is Expanded or Collapsed) is Closed via the browser's native tab bar, keyboard shortcuts or other extensions," },
+  "config_moveParentBehavior_outsideSidebar":       { "message": "When a parent tab (whether its Tree is Expanded or Collapsed) is Moved via the browser's native tab bar, keyboard shortcuts or other extensions," },
 
   "config_parentTabOperationBehaviorMode_consistent":         { "message": "Recommended preset using Consistent Tab Behaviors controlled under TST" },
   "config_parentTabOperationBehaviorMode_consistent_caption": { "message": "When a parent tab with Expanded Tree is closed/moved," },
-  "config_parentTabOperationBehaviorMode_consistent_notes":   { "message": "Tabs behave as configured above consistently, even via the browser's native tab bar, keyboard shortcuts or other addons." },
+  "config_parentTabOperationBehaviorMode_consistent_notes":   { "message": "Tabs behave as configured above consistently, even via the browser's native tab bar, keyboard shortcuts or other extensions." },
 
   "config_parentTabOperationBehaviorMode_custom":                { "message": "Custom" },
   "config_closeParentBehavior_insideSidebar_expanded_caption":   { "message": "Close: When a parent tab with Expanded Tree is Closed via the sidebar," },
-  "config_closeParentBehavior_outsideSidebar_collapsed_caption": { "message": "Close: When a parent tab with Collapsed Tree is Closed via the browser's native tab bar, keyboard shortcuts or other addons," },
-  "config_closeParentBehavior_outsideSidebar_expanded_caption":  { "message": "Close: When a parent tab with Expanded Tree is Closed via the browser's native tab bar, keyboard shortcuts or other addons," },
+  "config_closeParentBehavior_outsideSidebar_collapsed_caption": { "message": "Close: When a parent tab with Collapsed Tree is Closed via the browser's native tab bar, keyboard shortcuts or other extensions," },
+  "config_closeParentBehavior_outsideSidebar_expanded_caption":  { "message": "Close: When a parent tab with Expanded Tree is Closed via the browser's native tab bar, keyboard shortcuts or other extensions," },
   "config_closeParentBehavior_noSidebar_collapsed_caption":      { "message": "if the sidebar is closed," },
   "config_closeParentBehavior_noSidebar_expanded_caption":       { "message": "if the sidebar is closed," },
-  "config_moveParentBehavior_outsideSidebar_collapsed_caption":  { "message": "Move: When a parent tab with Collapsed Tree is Moved via the browser's native tab bar, keyboard shortcuts or other addons," },
-  "config_moveParentBehavior_outsideSidebar_expanded_caption":   { "message": "Move: When a parent tab with Expanded Tree is Moved via the browser's native tab bar, keyboard shortcuts or other addons," },
+  "config_moveParentBehavior_outsideSidebar_collapsed_caption":  { "message": "Move: When a parent tab with Collapsed Tree is Moved via the browser's native tab bar, keyboard shortcuts or other extensions," },
+  "config_moveParentBehavior_outsideSidebar_expanded_caption":   { "message": "Move: When a parent tab with Expanded Tree is Moved via the browser's native tab bar, keyboard shortcuts or other extensions," },
   "config_moveParentBehavior_noSidebar_collapsed_caption":       { "message": "if the sidebar is closed," },
   "config_moveParentBehavior_noSidebar_expanded_caption":        { "message": "if the sidebar is closed," },
 
@@ -689,7 +695,7 @@
   "config_warnOnCloseTabsWithListing_label": { "message": "List closing tabs in the confirmation dialog" },
 
   "config_insertNewChildAt_caption": { "message": "Default insertion position of new child tabs on un-controlled cases" },
-  "config_insertNewChildAt_noControl": { "message": "No control (respect the decision by the browser or other tab addons)" },
+  "config_insertNewChildAt_noControl": { "message": "No control (respect the decision by the browser or other tab extensions)" },
   "config_insertNewChildAt_nextToLastRelatedTab": { "message": "Next to the recently opened child, or next to the parent" },
   "config_insertNewChildAt_top": { "message": "The top of the tree (next to the parent)" },
   "config_insertNewChildAt_end": { "message": "The end of the tree" },
@@ -751,7 +757,7 @@
 
   "config_bookmarkTreeFolderName_before": { "message": "Folder name for \"Bookmark this Tree\":" },
   "config_bookmarkTreeFolderName_after": { "message": "\u200b" },
-  "config_bookmarkTreeFolderName_description": { "message": "Available placeholders: %TITLE% (title of the first tab), %URL% (URL of the first tab), %YEAR% (year, four digits), %SHORT_YEAR% (year, two digits), %MONTH% (month, two digits), %DATE% (date, two digits), %HOURS% (hours, two digits), %MINUTES% (minutes, two digits), %SECONDS% (seconds, two digits), %MILLISECONDS% (milliseconds, trhee digits), %GROUP% (title of the first tab if it is group tab - otherwise blank), %ANY(value1, value2, ...)% (the first effective value from the given list)" },
+  "config_bookmarkTreeFolderName_description": { "message": "Available placeholders: %TITLE% (title of the first tab), %URL% (URL of the first tab), %YEAR% (year, four digits), %SHORT_YEAR% (year, two digits), %MONTH% (month, two digits), %DATE% (date, two digits), %HOURS% (hours, two digits), %MINUTES% (minutes, two digits), %SECONDS% (seconds, two digits), %MILLISECONDS% (milliseconds, three digits), %GROUP% (title of the first tab if it is group tab - otherwise blank), %ANY(value1, value2, ...)% (the first effective value from the given list)" },
 
   "config_defaultBookmarkParentId_label_before":  { "message": "Create new bookmarks under" },
   "config_defaultBookmarkParentId_label_after":   { "message": "\u200b" },
@@ -783,10 +789,10 @@
   "config_userStyleRulesTheme_default":   { "message": "Default" },
 
 
-  "config_addons_caption": { "message": "Extra Features via Other Addons" },
+  "config_addons_caption": { "message": "Extra Features via Other Extensions" },
 
   "config_addons_description_before": { "message": "There are " },
-  "config_addons_description_link_label": { "message": "addons which extend TST itself" },
+  "config_addons_description_link_label": { "message": "extensions which extend TST itself" },
   "config_addons_description_after": { "message": ". Check them out if you need more features on TST's sidebar." },
   "helper_addons_list_link_uri": { "message": "https://github.com/piroor/treestyletab/wiki/Helper-addons-extending-functionality-of-TST" },
 
@@ -795,15 +801,15 @@
   "config_theme_description_after": { "message": " for examples." },
   "helper_theme_list_link_uri": { "message": "https://github.com/piroor/treestyletab/wiki/Code-snippets-for-custom-style-rules#restore-old-built-in-themes" },
 
-  "config_externaladdonpermissions_label": { "message": "Permissions for API Call from Other Addons" },
-  "config_externaladdonpermissions_description": { "message": "Addons allowed here may access detailed tab data or tabs in private windows, <em>through Tabs Sidebar's permissions</em>, even if the addon ifself is forbidden by the browser to access them. <em>Please don't give permission for addons if you cannot trust them.</em>" },
-  "config_externalAddonPermissions_header_name": { "message": "Addon Name" },
+  "config_externaladdonpermissions_label": { "message": "Permissions for API Call from Other Extensions" },
+  "config_externaladdonpermissions_description": { "message": "Extensions allowed here may access detailed tab data or tabs in private windows, <em>through Tabs Sidebar's permissions</em>, even if the extension ifself is forbidden by the browser to access them. <em>Please don't give permission for extensions if you cannot trust them.</em>" },
+  "config_externalAddonPermissions_header_name": { "message": "Extension Name" },
   "config_externalAddonPermissions_header_permissions": { "message": "Allowed Special Operations" },
   "config_externalAddonPermissions_header_incognito": { "message": "Notify Messages from Private Windows" },
 
   "addon_containerBookmarks_label": { "message": "Container Bookmarks" },
   "addon_containerBookmarks_uri": { "message": "https://addons.mozilla.org/firefox/addon/container-bookmarks/" },
-  "config_containerRedirectKey_label": { "message": "Redirect Key (*Please set a value same to the one in the addon's options page):" },
+  "config_containerRedirectKey_label": { "message": "Redirect Key (*Please set a value same to the one in the extension's options page):" },
 
 
   "config_debug_caption": { "message": "Development" },
@@ -919,7 +925,7 @@
 
 
   "tryConfirmUsingTST_title":   { "message": "Conflicting Features Detected" },
-  "tryConfirmUsingTST_message": { "message": "\"Tree Style Tab\" addon has been detected: it may conflict with Waterfox's Tabs Sidebar. Please choose which one to enable." },
+  "tryConfirmUsingTST_message": { "message": "\"Tree Style Tab\" extension has been detected: it may conflict with Waterfox's Tabs Sidebar. Please choose which one to enable." },
   "tryConfirmUsingTST_WS":      { "message": "Waterfox's Tabs Sidebar" },
   "tryConfirmUsingTST_TST":     { "message": "Tree Style Tab" },
   "tryConfirmUsingTST_both":    { "message": "Activate Both" },

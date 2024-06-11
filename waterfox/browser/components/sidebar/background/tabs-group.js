@@ -120,6 +120,9 @@ function cleanupNeedlssGroupTab(tabs) {
   log('trying to clanup needless temporary group tabs from ', () => tabs.map(dumpTab));
   const tabsToBeRemoved = [];
   for (const tab of tabs) {
+    if (tab.$TST.temporaryMetadata.has('movingAcrossWindows'))
+      continue;
+
     if (tab.$TST.isTemporaryGroupTab) {
       if (tab.$TST.childIds.length > 1)
         break;
