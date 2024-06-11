@@ -14,10 +14,16 @@
   "command_focusNext":             { "message": "次のタブにフォーカスを移す（ツリーを展開する）" },
   "command_focusNextSilently":     { "message": "次のタブにフォーカスを移す（ツリーを展開しない）" },
   "command_focusParent":           { "message": "親のタブにフォーカスを移す" },
+  "command_focusParentOrCollapse": { "message": "ツリーを折りたたむか、親のタブにフォーカスを移す" },
   "command_focusFirstChild":       { "message": "最初の子タブにフォーカスを移す" },
+  "command_focusFirstChildOrExpand": { "message": "ツリーを展開するか、最初の子タブにフォーカスを移す" },
   "command_focusLastChild":        { "message": "最後の子タブにフォーカスを移す" },
   "command_focusPreviousSibling":  { "message": "同階層の前のタブにフォーカスを移す" },
   "command_focusNextSibling":      { "message": "同階層の次のタブにフォーカスを移す" },
+  "command_simulateUpOnTree":      { "message": "ツリー上での↑キーを模倣" },
+  "command_simulateDownOnTree":    { "message": "ツリー上での↓キーを模倣" },
+  "command_simulateLeftOnTree":    { "message": "ツリー上での←キーを模倣" },
+  "command_simulateRightOnTree":   { "message": "ツリー上での→キーを模倣" },
   "command_tabbarUp":              { "message": "タブの一覧を数行上にスクロール" },
   "command_tabbarPageUp":          { "message": "タブの一覧を1ページ上にスクロール" },
   "command_tabbarHome":            { "message": "タブの一覧を先頭までスクロール" },
@@ -135,7 +141,7 @@
       "progress": { "content": "$1", "example": "50" }
     }},
 
-  "blank_allUrlsPermissionRequiredMessage": { "message": "このメッセージはTree Style Tabが提供するダイアログをFirefoxが開き直そうとしたために表示されています。このメッセージを表示したくない場合は、アドオン管理画面のTree Style Tabの詳細ページの「権限」タブで「すべてのウェブサイトの保存されたデータへのアクセス」の権限を許可してください。" },
+  "blank_allUrlsPermissionRequiredMessage": { "message": "このメッセージはTree Style Tabが提供するダイアログをFirefoxが開き直そうとしたために表示されています。このメッセージを表示したくない場合は、拡張機能管理画面のTree Style Tabの詳細ページの「権限」タブで「すべてのウェブサイトの保存されたデータへのアクセス」の権限を許可してください。" },
 
   "warnOnCloseTabs_title":     { "message": "タブを閉じますか？" },
   "warnOnCloseTabs_message":   { "message": "複数 ($NUMBER$) のタブを閉じようとしています。すべてのタブを閉じてよろしいですか？",
@@ -269,12 +275,12 @@
   "message_startup_userChromeCss_description_3": { "message": "\u200b" },
 
   "api_requestedPermissions_title": { "message": "アクセス権の要求" },
-  "api_requestedPermissions_message": { "message": "⚠アドオン「$NAME$」がTabs SidebarのAPIを経由して以下のことをしようとしています。\n\n$PERMISSIONS$\n\n許可する場合はこの通知をクリックしてアドオンに許可を与えてください。",
+  "api_requestedPermissions_message": { "message": "⚠拡張機能「$NAME$」がTabs SidebarのAPIを経由して以下のことをしようとしています。\n\n$PERMISSIONS$\n\n許可する場合はこの通知をクリックして拡張機能に許可を与えてください。",
     "placeholders": {
       "NAME":        { "content": "$1", "example": "foobar" },
       "PERMISSIONS": { "content": "$2", "example": "tabs" }
     }},
-  "api_requestedPermissions_message_linux": { "message": "⚠アドオン「$NAME$」がTabs SidebarのAPIを経由して以下のことをしようとしています。\n\n$PERMISSIONS$\n\n許可する場合はボタンをクリックしてアドオンに許可を与えてください。",
+  "api_requestedPermissions_message_linux": { "message": "⚠拡張機能「$NAME$」がTabs SidebarのAPIを経由して以下のことをしようとしています。\n\n$PERMISSIONS$\n\n許可する場合はボタンをクリックして拡張機能に許可を与えてください。",
     "placeholders": {
       "NAME":        { "content": "$1", "example": "foobar" },
       "PERMISSIONS": { "content": "$2", "example": "tabs" }
@@ -406,7 +412,7 @@
   "config_showDialogInSidebar_label": { "message": "可能であればサイドバー内でダイアログを表示する" },
   "config_outOfScreenTabsRenderingPages_label": { "message": "タブを事前にレンダリングしておくページ数:" },
   "config_outOfScreenTabsRenderingPages_description": { "message": "※「-1」を指定するとすべてのタブを事前にレンダリングするようになり、スクロールの応答性が向上しますが、引き替えとして、初期化処理に長い時間を要するようになります" },
-  "config_renderHiddenTabs_label": { "message": "他のアドオンが隠したタブを表示する" },
+  "config_renderHiddenTabs_label": { "message": "他の拡張機能が隠したタブを表示する" },
 
 
   "config_context_caption": { "message": "コンテキストメニュー" },
@@ -457,7 +463,7 @@
   "config_autoAttachOnOpenedWithOwner_after": { "message": "開く" },
 
   "config_insertNewTabFromFirefoxViewAt_caption": { "message": "Firefox Viewから（最上位のタブとして表れる）新しい子タブを開く位置" },
-  "config_insertNewTabFromFirefoxViewAt_noControl": { "message": "制御しない（ブラウザーや他のアドオンの判断に任せる）" },
+  "config_insertNewTabFromFirefoxViewAt_noControl": { "message": "制御しない（ブラウザーや他の拡張機能の判断に任せる）" },
   "config_insertNewTabFromFirefoxViewAt_nextToLastRelatedTab": { "message": "直近に開いた子タブの隣、もしくは親タブの近く" },
   "config_insertNewTabFromFirefoxViewAt_top": { "message": "ツリーの先頭（親タブの近く）" },
   "config_insertNewTabFromFirefoxViewAt_end": { "message": "ツリーの末尾" },
@@ -466,7 +472,7 @@
   "config_groupTabTemporaryStateForChildrenOfFirefoxView_label": { "message": "Firefox Viewから開かれたタブをまとめるグループ化用のタブの初期状態:" },
 
   "config_insertNewTabFromPinnedTabAt_caption": { "message": "ピン留めされたタブから（最上位のタブとして表れる）新しい子タブを開く位置" },
-  "config_insertNewTabFromPinnedTabAt_noControl": { "message": "制御しない（ブラウザーや他のアドオンの判断に任せる）" },
+  "config_insertNewTabFromPinnedTabAt_noControl": { "message": "制御しない（ブラウザーや他の拡張機能の判断に任せる）" },
   "config_insertNewTabFromPinnedTabAt_nextToLastRelatedTab": { "message": "直近に開いた子タブの隣、もしくは親タブの近く" },
   "config_insertNewTabFromPinnedTabAt_top": { "message": "ツリーの先頭（親タブの近く）" },
   "config_insertNewTabFromPinnedTabAt_end": { "message": "ツリーの末尾" },
@@ -571,13 +577,13 @@
   "config_autoAttachOnAnyOtherTrigger_sibling": { "message": "現在のタブと同階層に" },
   "config_autoAttachOnAnyOtherTrigger_nextSibling": { "message": "現在のタブと同階層で隣に" },
   "config_autoAttachOnAnyOtherTrigger_after": { "message": "開く" },
-  "config_autoAttachOnAnyOtherTrigger_caution": { "message": "※警告：このオプションは他のアドオンの動作を妨げる危険性があります" },
+  "config_autoAttachOnAnyOtherTrigger_caution": { "message": "※警告：このオプションは他の拡張機能の動作を妨げる危険性があります" },
   "config_inheritContextualIdentityToTabsFromAnyOtherTriggerMode_label": { "message": "コンテナー:" },
   "config_inheritContextualIdentityToTabsFromAnyOtherTriggerMode_default": { "message": "（制御しない）" },
   "config_inheritContextualIdentityToTabsFromAnyOtherTriggerMode_parent": { "message": "ツリー上での親から継承" },
   "config_inheritContextualIdentityToTabsFromAnyOtherTriggerMode_lastActive": { "message": "現在のタブから継承" },
 
-  "config_inheritContextualIdentityToUnopenableURLTabs_label": { "message": "アドオンの権限で開けないURLのタブを、コンテナーを継承するために安全なURLで強制的に開き直す" },
+  "config_inheritContextualIdentityToUnopenableURLTabs_label": { "message": "拡張機能の権限で開けないURLのタブを、コンテナーを継承するために安全なURLで強制的に開き直す" },
 
   "config_groupTab_caption": { "message": "タブを自動的にグループ化する" },
 
@@ -617,13 +623,13 @@
   "config_successorTabControlLevel_caption": { "message": "現在のタブが最後の子タブだった時に、現在のタブを閉じた後は" },
   "config_successorTabControlLevel_inTree": { "message": "ツリー内の1つ前のタブにフォーカスを移す" },
   "config_successorTabControlLevel_simulateDefault": { "message": "次のタブにフォーカスを移す（ブラウザー既定の動作）" },
-  "config_successorTabControlLevel_never": { "message": "フォーカスを制御しない（ブラウザーまたは他のアドオンによる制御を尊重）" },
+  "config_successorTabControlLevel_never": { "message": "フォーカスを制御しない（ブラウザーまたは他の拡張機能による制御を尊重）" },
   "config_successorTabControlLevel_legacyDescription": { "message": "※ブラウザー組み込みの機能である\"browser.tabs.selectOwnerOnClose\"=\"true\"の挙動の方が、この設定よりも優先的に反映されます。" },
   "config_simulateSelectOwnerOnClose_label": { "message": "現在のタブが閉じられた時、可能であればそのタブを開いた元のタブにフォーカスを戻す（※ブラウザー組み込みの機能である\"browser.tabs.selectOwnerOnClose\"=\"true\"の挙動の再現。上記の設定よりも優先的に反映されます。）" },
 
-  "config_fixupTreeOnTabVisibilityChanged_caption": { "message": "タブの表示・非表示が他のアドオンによって切り替えられた場合" },
-  "config_fixupTreeOnTabVisibilityChanged_fix":     { "message": "表示中のタブに基づいてツリー構造を自動的に修正する（※タブのグループを切り替えるアドオンとの併用時に推奨）" },
-  "config_fixupTreeOnTabVisibilityChanged_keep":    { "message": "非表示のタブも含めてツリー構造を維持する（※一時的にタブを非表示にするアドオンとの併用時に推奨）" },
+  "config_fixupTreeOnTabVisibilityChanged_caption": { "message": "タブの表示・非表示が他の拡張機能によって切り替えられた場合" },
+  "config_fixupTreeOnTabVisibilityChanged_fix":     { "message": "表示中のタブに基づいてツリー構造を自動的に修正する（※タブのグループを切り替える拡張機能との併用時に推奨）" },
+  "config_fixupTreeOnTabVisibilityChanged_keep":    { "message": "非表示のタブも含めてツリー構造を維持する（※一時的にタブを非表示にする拡張機能との併用時に推奨）" },
 
   "config_autoCollapseExpandSubtreeOnAttach_label": { "message": "新しいツリーが作られた時は、自動的に他のツリーを折りたたむ" },
   "config_autoCollapseExpandSubtreeOnSelect_label": { "message": "タブを切り替えた時は、フォーカスされたタブのツリーを自動的に展開して、他のツリーを折りたたむ" },
@@ -644,22 +650,22 @@
 
   "config_parentTabOperationBehaviorMode_parallel": { "message": "タブを個別に操作するUIとしてブラウザー自身のタブバーを使う場合の推奨動作" },
   "config_closeParentBehavior_insideSidebar":       { "message": "展開状態のツリーの親タブをサイドバー内で閉じた時は、" },
-  "config_closeParentBehavior_outsideSidebar":      { "message": "ツリーの開閉状態に関わらず、ブラウザー自身のタブバー、キーボードショートカット、他のアドオンでツリーの親タブを閉じた時は、" },
-  "config_moveParentBehavior_outsideSidebar":       { "message": "ツリーの開閉状態に関わらず、ブラウザー自身のタブバー、キーボードショートカット、他のアドオンでツリーの親タブを移動した時は、" },
+  "config_closeParentBehavior_outsideSidebar":      { "message": "ツリーの開閉状態に関わらず、ブラウザー自身のタブバー、キーボードショートカット、他の拡張機能でツリーの親タブを閉じた時は、" },
+  "config_moveParentBehavior_outsideSidebar":       { "message": "ツリーの開閉状態に関わらず、ブラウザー自身のタブバー、キーボードショートカット、他の拡張機能でツリーの親タブを移動した時は、" },
 
   "config_parentTabOperationBehaviorMode_consistent":         { "message": "タブの振る舞いを全面的にTSTで制御する場合の推奨動作" },
   "config_parentTabOperationBehaviorMode_consistent_caption": { "message": "展開状態のツリーの親タブを閉じた/移動した時は、" },
-  "config_parentTabOperationBehaviorMode_consistent_notes":   { "message": "ブラウザー自身のタブバー、キーボードショートカット、他のアドオンでの操作に対しても、常にこの通り動作します。" },
+  "config_parentTabOperationBehaviorMode_consistent_notes":   { "message": "ブラウザー自身のタブバー、キーボードショートカット、他の拡張機能での操作に対しても、常にこの通り動作します。" },
 
   "config_parentTabOperationBehaviorMode_custom":                { "message": "カスタム" },
   "config_closeParentBehavior_insideSidebar_expanded_caption":   { "message": "閉じる：展開状態のツリーの親タブを、サイドバー内で閉じた場合は、" },
-  "config_closeParentBehavior_outsideSidebar_collapsed_caption": { "message": "閉じる：折りたたまれたツリーの親タブを、ブラウザー自身のタブバー、キーボードショートカット、他のアドオンで閉じた場合は、" },
+  "config_closeParentBehavior_outsideSidebar_collapsed_caption": { "message": "閉じる：折りたたまれたツリーの親タブを、ブラウザー自身のタブバー、キーボードショートカット、他の拡張機能で閉じた場合は、" },
   "config_closeParentBehavior_noSidebar_collapsed_caption":      { "message": "サイドバーが非表示の時は、" },
-  "config_closeParentBehavior_outsideSidebar_expanded_caption":  { "message": "閉じる：展開状態のツリーの親タブを、ブラウザー自身のタブバー、キーボードショートカット、他のアドオンで閉じた場合は、" },
+  "config_closeParentBehavior_outsideSidebar_expanded_caption":  { "message": "閉じる：展開状態のツリーの親タブを、ブラウザー自身のタブバー、キーボードショートカット、他の拡張機能で閉じた場合は、" },
   "config_closeParentBehavior_noSidebar_expanded_caption":       { "message": "サイドバーが非表示の時は、" },
-  "config_moveParentBehavior_outsideSidebar_collapsed_caption":  { "message": "移動：折りたたまれたツリーの親タブを、ブラウザー自身のタブバー、キーボードショートカット、他のアドオンで移動した場合は、" },
+  "config_moveParentBehavior_outsideSidebar_collapsed_caption":  { "message": "移動：折りたたまれたツリーの親タブを、ブラウザー自身のタブバー、キーボードショートカット、他の拡張機能で移動した場合は、" },
   "config_moveParentBehavior_noSidebar_collapsed_caption":       { "message": "サイドバーが非表示の時は、" },
-  "config_moveParentBehavior_outsideSidebar_expanded_caption":   { "message": "移動：展開状態のツリーの親タブを、ブラウザー自身のタブバー、キーボードショートカット、他のアドオンで移動した場合は、" },
+  "config_moveParentBehavior_outsideSidebar_expanded_caption":   { "message": "移動：展開状態のツリーの親タブを、ブラウザー自身のタブバー、キーボードショートカット、他の拡張機能で移動した場合は、" },
   "config_moveParentBehavior_noSidebar_expanded_caption":        { "message": "サイドバーが非表示の時は、" },
 
   "config_parentTabOperationBehavior_entireTree":           { "message": "ツリー全体を閉じる/移動する" },
@@ -686,7 +692,7 @@
   "config_warnOnCloseTabsWithListing_label": { "message": "閉じようとしているタブの一覧を確認のダイアログに表示する" },
 
   "config_insertNewChildAt_caption": { "message": "子タブの挿入位置が未制御の場合の既定の挿入位置" },
-  "config_insertNewChildAt_noControl": { "message": "制御しない（ブラウザーや他のアドオンの判断に任せる）" },
+  "config_insertNewChildAt_noControl": { "message": "制御しない（ブラウザーや他の拡張機能の判断に任せる）" },
   "config_insertNewChildAt_nextToLastRelatedTab": { "message": "直近に開いた子タブの隣、もしくは親タブの隣" },
   "config_insertNewChildAt_top": { "message": "ツリーの先頭（親タブの隣）" },
   "config_insertNewChildAt_end": { "message": "ツリーの末尾" },
@@ -780,10 +786,10 @@
   "config_userStyleRulesTheme_default":   { "message": "既定" },
 
 
-  "config_addons_caption": { "message": "他のアドオンによる機能追加" },
+  "config_addons_caption": { "message": "他の拡張機能による機能追加" },
 
   "config_addons_description_before": { "message": "\u200b" },
-  "config_addons_description_link_label": { "message": "TST自体を拡張する他のアドオン" },
+  "config_addons_description_link_label": { "message": "TST自体を拡張する他の拡張機能" },
   "config_addons_description_after": { "message": "を組み合わせると、TSTのサイドバーにさらに機能を追加できます。" },
   "helper_addons_list_link_uri": { "message": "https://github.com/piroor/treestyletab/wiki/TST%E3%81%AE%E6%A9%9F%E8%83%BD%E3%82%92%E6%8B%A1%E5%BC%B5%E3%81%99%E3%82%8B%E3%82%A2%E3%83%89%E3%82%AA%E3%83%B3" },
 
@@ -792,9 +798,9 @@
   "config_theme_description_after": { "message": "にある例を参照して下さい。" },
   "helper_theme_list_link_uri": { "message": "https://github.com/piroor/treestyletab/wiki/Code-snippets-for-custom-style-rules#restore-old-built-in-themes" },
 
-  "config_externaladdonpermissions_label": { "message": "他のアドオンからのAPI呼び出しに与える許可" },
-  "config_externaladdonpermissions_description": { "message": "ここでチェックを入れたアドオンは、ブラウザー自体がそのアドオンにタブの詳細情報やプライベートウィンドウのタブへのアクセスを禁止していても、<em>Tabs Sidebarの権限で</em>それらにアクセスできるようになります。<em>信用できないアドオンに対しては絶対に権限を与えないで下さい。<em>" },
-  "config_externalAddonPermissions_header_name": { "message": "アドオン名" },
+  "config_externaladdonpermissions_label": { "message": "他の拡張機能からのAPI呼び出しに与える許可" },
+  "config_externaladdonpermissions_description": { "message": "ここでチェックを入れた拡張機能は、ブラウザー自体がその拡張機能にタブの詳細情報やプライベートウィンドウのタブへのアクセスを禁止していても、<em>Tabs Sidebarの権限で</em>それらにアクセスできるようになります。<em>信用できない拡張機能に対しては絶対に権限を与えないで下さい。<em>" },
+  "config_externalAddonPermissions_header_name": { "message": "拡張機能名" },
   "config_externalAddonPermissions_header_permissions": { "message": "許可する特別な操作" },
   "config_externalAddonPermissions_header_incognito": { "message": "プライベートウィンドウからのメッセージを通知する" },
 
@@ -830,7 +836,7 @@
   "config_useCachedTree_label": { "message": "キャッシュを使ってツリーの初期化を高速化する" },
   "config_useCachedTree_description": { "message": "※キャッシュの不整合で動作が不安定になっている場合、このチェックをOFFにして再度ONにすることでキャッシュが刷新され状況が改善するかもしれません。" },
   "config_persistCachedTree_label": { "message": "キャッシュを永続化する" },
-  "config_persistCachedTree_description": { "message": "※ブラウザー起動時やアドオン更新時などの初期化処理を短縮できますが、ブラウザーのセッションファイルが肥大化しディスクI/Oが増加します" },
+  "config_persistCachedTree_description": { "message": "※ブラウザー起動時や拡張機能更新時などの初期化処理を短縮できますが、ブラウザーのセッションファイルが肥大化しディスクI/Oが増加します" },
   "config_acceleratedTabCreation_label": { "message": "新しいタブが開かれた時の処理を高速化する（※動作が不安定になります）" },
   "config_maximumAcceptableDelayForTabDuplication_before": { "message": "\u200b" },
   "config_maximumAcceptableDelayForTabDuplication_after": { "message": "ミリ秒以内にタブの複製を完了できなかった場合は処理を中断する" },
@@ -915,7 +921,7 @@
 
 
   "tryConfirmUsingTST_title":   { "message": "競合の検出" },
-  "tryConfirmUsingTST_message": { "message": "「Tree Style Tab」アドオンが検出されました：Waterfoxのタブサイドバーと競合する恐れがあります。どちらの機能を有効にするか選択してください。" },
+  "tryConfirmUsingTST_message": { "message": "「Tree Style Tab」拡張機能が検出されました：Waterfoxのタブサイドバーと競合する恐れがあります。どちらの機能を有効にするか選択してください。" },
   "tryConfirmUsingTST_WS":      { "message": "Waterfoxのタブサイドバー" },
   "tryConfirmUsingTST_TST":     { "message": "Tree Style Tab" },
   "tryConfirmUsingTST_both":    { "message": "両方有効にする" },

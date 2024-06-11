@@ -2261,7 +2261,10 @@ function destroyWaitingTabTask(task) {
 }
 
 function onWaitingTabTracked(tab) {
-  const tasks = mWaitingTasks.get(tab?.id);
+  if (!tab)
+    return;
+
+  const tasks = mWaitingTasks.get(tab.id);
   if (!tasks)
     return;
 
@@ -2279,7 +2282,10 @@ Tab.onElementBound.addListener(onWaitingTabTracked);
 Tab.onTracked.addListener(onWaitingTabTracked);
 
 function onWaitingTabDestroyed(tab) {
-  const tasks = mWaitingTasks.get(tab?.id);
+  if (!tab)
+    return;
+
+  const tasks = mWaitingTasks.get(tab.id);
   if (!tasks)
     return;
 
@@ -2322,6 +2328,7 @@ async function waitUntilTracked(tabId, options = {}) {
   const stack = configs.debug && new Error().stack;
   const tab = Tab.get(tabId);
   if (tab) {
+    onWaitingTabTracked(tab);
     if (options.element)
       return tab.$TST.promisedElement;
     return tab;
@@ -2343,8 +2350,11 @@ async function waitUntilTracked(tabId, options = {}) {
       }
     }, configs.maximumDelayUntilTabIsTracked); // Tabs.moveTabs() between windows may take much time
     browser.tabs.get(tabId).catch(_error => null).then(tab => {
-      if (tab)
+      if (tab) {
+        if (Tab.get(tabId))
+          onWaitingTabTracked(tab);
         return;
+      }
       const { resolve } = destroyWaitingTabTask(task);
       if (resolve) {
         log('waitUntilTracked was called for unexisting tab');

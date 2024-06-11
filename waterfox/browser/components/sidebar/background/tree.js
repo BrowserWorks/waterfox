@@ -1434,6 +1434,15 @@ export async function moveTabs(tabs, options = {}) {
   const structure = TreeBehavior.getTreeStructureFromTabs(tabs);
   log('original tree structure: ', structure);
 
+  let hasActive = false;
+  for (const tab of movedTabs) {
+    if (tab.active)
+      hasActive = true;
+    if (isAcrossWindows &&
+        !options.duplicate)
+      tab.$TST.temporaryMetadata.set('movingAcrossWindows', true);
+  }
+
   if (!options.duplicate)
     await detachTabsFromTree(tabs, options);
 
@@ -1504,9 +1513,11 @@ export async function moveTabs(tabs, options = {}) {
             movedTabIds = movedTabs.map(tab => tab.id);
           }
           else {
+            const movedTabIdsSet = new Set(movedTabIds);
             for (const tab of movedTabs) {
-              if (tab.$TST.parent &&
-                  !movedTabs.includes(tab.$TST.parent))
+              tab.$TST.temporaryMetadata.set('movingAcrossWindows', true);
+              if (tab.$TST.parentId &&
+                  !movedTabIdsSet.has(tab.$TST.parentId))
                 detachTab(tab, {
                   broadcast:    true,
                   toBeDetached: true
@@ -1543,13 +1554,38 @@ export async function moveTabs(tabs, options = {}) {
         toIndex--;
       log(' => ', toIndex);
       if (isAcrossWindows) {
+        let temporaryFocusHolderTab = null;
+        if (hasActive) {
+          // Blur to-be-moved tab, otherwise tabs.move() will activate them for each
+          // while the moving process and all dicarded tabs are unexpectedly restored.
+          const nextActiveTab = await TabsInternalOperation.blurTab(movedTabs, {
+            silently: true,
+          });
+          if (!nextActiveTab) {
+            // There is no focusible left tab, so we move focus to a tmeporary tab.
+            // It will be removed automatically after tabs are moved.
+            temporaryFocusHolderTab = await browser.tabs.create({
+              url:    'about:blank',
+              active: true,
+              windowId
+            });
+          }
+        }
         movedTabs = await browser.tabs.move(movedTabIds, {
           windowId: destinationWindowId,
           index:    toIndex
         });
+        if (temporaryFocusHolderTab) {
+          const leftTabsInSourceWindow = await browser.tabs.query({ windowId });
+          if (leftTabsInSourceWindow.length == 1)
+            browser.windows.remove(windowId);
+          else
+            browser.tabs.remove(temporaryFocusHolderTab.id);
+        }
         movedTabs   = movedTabs.map(tab => Tab.get(tab.id));
         movedTabIds = movedTabs.map(tab => tab.id);
         for (const tab of movedTabs) {
+          tab.$TST.temporaryMetadata.delete('movingAcrossWindows');
           tab.windowId = destinationWindowId;
         }
         log('moved across windows: ', movedTabIds);
@@ -2132,8 +2168,6 @@ SidebarConnection.onMessage.addListener(async (windowId, message) => {
       log('new window requested: ', message);
       await Tab.waitUntilTracked(message.tabIds);
       const tabs = message.tabIds.map(id => TabsStore.tabs.get(id));
-      if (!message.duplicate)
-        await detachTabsFromTree(tabs);
       openNewWindowFromTabs(tabs, message);
     }; break;
   }

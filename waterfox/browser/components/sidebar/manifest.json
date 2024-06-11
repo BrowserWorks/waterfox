@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extensionName__",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "author": "Waterfox",
   "hidden": true,
   "description": "__MSG_extensionDescription__",
@@ -133,8 +133,14 @@
     "focusParent": {
       "description": "__MSG_command_focusParent__"
     },
+    "focusParentOrCollapse": {
+      "description": "__MSG_command_focusParentOrCollapse__"
+    },
     "focusFirstChild": {
       "description": "__MSG_command_focusFirstChild__"
+    },
+    "focusFirstChildOrExpand": {
+      "description": "__MSG_command_focusFirstChildOrExpand__"
     },
     "focusLastChild": {
       "description": "__MSG_command_focusLastChild__"
@@ -145,16 +151,40 @@
     "focusNextSibling": {
       "description": "__MSG_command_focusNextSibling__"
     },
+    "simulateUpOnTree": {
+      "description": "__MSG_command_simulateUpOnTree__",
+      "suggested_key": {
+        "default": "Alt+Shift+Up"
+      }
+    },
+    "simulateDownOnTree": {
+      "description": "__MSG_command_simulateDownOnTree__",
+      "suggested_key": {
+        "default": "Alt+Shift+Down"
+      }
+    },
+    "simulateLeftOnTree": {
+      "description": "__MSG_command_simulateLeftOnTree__",
+      "suggested_key": {
+        "default": "Alt+Shift+Left"
+      }
+    },
+    "simulateRightOnTree": {
+      "description": "__MSG_command_simulateRightOnTree__",
+      "suggested_key": {
+        "default": "Alt+Shift+Right"
+      }
+    },
     "tabbarUp": {
       "description": "__MSG_command_tabbarUp__",
       "suggested_key": {
-        "default": "Alt+Shift+Up"
+        "default": "Alt+Up"
       }
     },
     "tabbarPageUp": {
       "description": "__MSG_command_tabbarPageUp__",
       "suggested_key": {
-        "default": "Alt+Shift+PageUp"
+        "default": "Alt+PageUp"
       }
     },
     "tabbarHome": {
@@ -166,19 +196,19 @@
     "tabbarDown": {
       "description": "__MSG_command_tabbarDown__",
       "suggested_key": {
-        "default": "Alt+Shift+Down"
+        "default": "Alt+Down"
       }
     },
     "tabbarPageDown": {
       "description": "__MSG_command_tabbarPageDown__",
       "suggested_key": {
-        "default": "Alt+Shift+PageDown"
+        "default": "Alt+PageDown"
       }
     },
     "tabbarEnd": {
       "description": "__MSG_command_tabbarEnd__",
       "suggested_key": {
-        "default": "Alt+Shift+End"
+        "default": "Alt+End"
       }
     },
     "toggleSubPanel": {
@@ -198,36 +228,62 @@
     }
   },
   "web_accessible_resources": [
-    { "resources": ["/resources/group-tab.html*"],
-      "matches": ["<all_urls>"] }
+    {
+      "resources": [
+        "/resources/group-tab.html*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
   ],
   "protocol_handlers": [
-    { "protocol":    "ext+ws",
-      "name":        "Waterfox",
-      "uriTemplate": "/resources/protocol-handler.html?%s" }
+    {
+      "protocol": "ext+ws",
+      "name": "Waterfox",
+      "uriTemplate": "/resources/protocol-handler.html?%s"
+    }
   ],
   "experiment_apis": {
     "prefs": {
       "schema": "experiments/prefs.json",
       "parent": {
-        "scopes": ["addon_parent"],
-        "paths": [["prefs"]],
+        "scopes": [
+          "addon_parent"
+        ],
+        "paths": [
+          [
+            "prefs"
+          ]
+        ],
         "script": "experiments/prefs.js"
       }
     },
     "syncPrefs": {
       "schema": "experiments/syncPrefs.json",
       "child": {
-        "scopes": ["addon_child"],
-        "paths": [["syncPrefs"]],
+        "scopes": [
+          "addon_child"
+        ],
+        "paths": [
+          [
+            "syncPrefs"
+          ]
+        ],
         "script": "experiments/syncPrefs.js"
       }
     },
     "waterfoxBridge": {
       "schema": "experiments/waterfoxBridge.json",
       "parent": {
-        "scopes": ["addon_parent"],
-        "paths": [["waterfoxBridge"]],
+        "scopes": [
+          "addon_parent"
+        ],
+        "paths": [
+          [
+            "waterfoxBridge"
+          ]
+        ],
         "script": "experiments/waterfoxBridge.js"
       }
     }
