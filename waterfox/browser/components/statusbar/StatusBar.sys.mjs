@@ -46,18 +46,29 @@ export const StatusBar = {
            border-radius: 3px !important;
            font-weight: bold !important;
          }
-         #status-bar > #status-text {
+         #wrapper-status-text > #status-text > #statuspanel-label {
+           display: none;
+         }
+         #status-bar #status-text {
            display: flex !important;
            justify-content: center !important;
-           align-content: center !important;
-           flex-direction: column !important;
+           align-items: center !important;
+           height: calc(2 * var(--toolbarbutton-inner-padding) + 16px);
          }
          toolbarpaletteitem #status-text:before {
-          content: "Status text";
-          color: red;
-          border: 1px #aaa solid;
-          border-radius: 3px;
-          font-weight: bold;
+           content: "Status text";
+           color: red;
+           border: 1px #aaa solid;
+           border-radius: 3px;
+           font-weight: bold;
+           display: flex;
+           justify-content: center;
+           align-content: center;
+           flex-direction: column;
+           align-items: center;
+           margin-inline: var(--toolbarbutton-outer-padding);
+           width: 100%;
+           height: 100%;
         }
          /* Ensure text color of status bar widgets set correctly */
          toolbar .toolbarbutton-1 {
