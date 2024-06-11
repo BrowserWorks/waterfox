@@ -91,6 +91,11 @@ export const kCOMMAND_NOTIFY_CONTEXT_OVERRIDDEN      = 'ws:notify-context-overri
 export const kCOMMAND_AUTODETECT_DUPLICATED_TAB_DETECTION_DELAY = 'ws:autodetect-duplicated-tab-detection-delay';
 export const kCOMMAND_TEST_DUPLICATED_TAB_DETECTION             = 'ws:test-duplicated-tab-detection';
 export const kCOMMAND_WAIT_UNTIL_SUCCESSORS_UPDATED = 'ws:wait-until-successors-updated';
+export const kCOMMAND_GET_SIDEBAR_POSITION          = 'ws:get-sidebar-position';
+export const kCOMMAND_GET_ABOVE_TAB                 = 'ws:get-above-tab';
+export const kCOMMAND_GET_BELOW_TAB                 = 'ws:get-below-tab';
+export const kCOMMAND_GET_LEFT_TAB                  = 'ws:get-left-tab';
+export const kCOMMAND_GET_RIGHT_TAB                 = 'ws:get-right-tab';
 export const kCOMMAND_GET_BOUNDING_CLIENT_RECT      = 'ws:get-bounding-client-rect';
 
 export const kCOMMAND_ACTIVATE_TAB            = 'ws:activate-tab';

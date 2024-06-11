@@ -220,13 +220,18 @@ export function updateTabs() {
 }
 
 export function updateContainers() {
+  let modifiedCount = 0;
+
   mPinnedTabsScrollBoxRect = mPinnedScrollBox.getBoundingClientRect();
   mNormalTabsScrollBoxRect = mNormalScrollBox.getBoundingClientRect();
 
   const pinnedContainerBox     = mPinnedScrollBox.querySelector('.tabs');
   const pinnedContainerBoxRect = pinnedContainerBox.getBoundingClientRect();
   const pinnedContainerStyle   = window.getComputedStyle(pinnedContainerBox, null);
-  mPinnedTabsContainerWidth    = pinnedContainerBoxRect.width - parseFloat(pinnedContainerStyle.paddingLeft) - parseFloat(pinnedContainerStyle.borderLeftWidth) - parseFloat(pinnedContainerStyle.paddingRight) - parseFloat(pinnedContainerStyle.borderRightWidth);
+  const newPinnedTabsContainerWidth = pinnedContainerBoxRect.width - parseFloat(pinnedContainerStyle.paddingLeft) - parseFloat(pinnedContainerStyle.borderLeftWidth) - parseFloat(pinnedContainerStyle.paddingRight) - parseFloat(pinnedContainerStyle.borderRightWidth);
+  if (newPinnedTabsContainerWidth != mPinnedTabsContainerWidth)
+    modifiedCount++;
+  mPinnedTabsContainerWidth    = newPinnedTabsContainerWidth;
 
   const range = document.createRange();
   //range.selectNodeContents(mTabBar);
@@ -235,10 +240,19 @@ export function updateContainers() {
   range.selectNodeContents(mTabBar);
   range.setStartAfter(mNormalScrollBox);
   const normalTabsViewPortFollowingAreaSize = range.getBoundingClientRect().height;
-  mNormalTabsViewPortSize = mTabBar.offsetHeight - normalTabsViewPortPrecedingAreaSize - normalTabsViewPortFollowingAreaSize;
+  const newNormalTabsViewportSize = mTabBar.offsetHeight - normalTabsViewPortPrecedingAreaSize - normalTabsViewPortFollowingAreaSize;
   range.detach();
+  if (newNormalTabsViewportSize != mNormalTabsViewPortSize)
+    modifiedCount++;
+  mNormalTabsViewPortSize = newNormalTabsViewportSize;
 
-  mAllTabsAreaSize = mTabBar.parentNode.offsetHeight;
+  const newAllTabsAreaSize = mTabBar.parentNode.offsetHeight;
+  if (newAllTabsAreaSize != mAllTabsAreaSize)
+    modifiedCount++;
+  mAllTabsAreaSize = newAllTabsAreaSize;
+
+  if (modifiedCount > 0)
+    onUpdated.dispatch();
 }
 
 export function calc(expression) {
