@@ -62,14 +62,6 @@
 #endif
 
 #if JXL_COMPILER_MSVC
-#define JXL_UNREACHABLE_BUILTIN __assume(false)
-#elif JXL_COMPILER_CLANG || JXL_COMPILER_GCC >= 405
-#define JXL_UNREACHABLE_BUILTIN __builtin_unreachable()
-#else
-#define JXL_UNREACHABLE_BUILTIN
-#endif
-
-#if JXL_COMPILER_MSVC
 #define JXL_MAYBE_UNUSED
 #else
 // Encountered "attribute list cannot appear here" when using the C++17
@@ -164,5 +156,15 @@ using ssize_t = intptr_t;
 
 // Known / distinguished C++ standards.
 #define JXL_CXX_17 201703
+
+// In most cases we consider build as "debug". Use `NDEBUG` for release build.
+#if defined(JXL_DEBUG_BUILD)
+#undef JXL_DEBUG_BUILD
+#define JXL_DEBUG_BUILD 1
+#elif defined(NDEBUG)
+#define JXL_DEBUG_BUILD 0
+#else
+#define JXL_DEBUG_BUILD 1
+#endif
 
 #endif  // LIB_JXL_BASE_COMPILER_SPECIFIC_H_

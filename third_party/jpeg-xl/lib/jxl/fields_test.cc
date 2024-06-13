@@ -44,7 +44,7 @@ void TestU32Coder(const uint32_t value, const size_t expected_bits_written) {
   EXPECT_TRUE(U32Coder::Write(enc, value, &writer));
   EXPECT_EQ(expected_bits_written, writer.BitsWritten());
   writer.ZeroPadToByte();
-  allotment.ReclaimAndCharge(&writer, 0, nullptr);
+  allotment.ReclaimAndCharge(&writer, LayerType::Header, nullptr);
 
   BitReader reader(writer.GetSpan());
   const uint32_t decoded_value = U32Coder::Read(enc, &reader);
@@ -77,7 +77,7 @@ void TestU64Coder(const uint64_t value, const size_t expected_bits_written) {
   EXPECT_EQ(expected_bits_written, writer.BitsWritten());
 
   writer.ZeroPadToByte();
-  allotment.ReclaimAndCharge(&writer, 0, nullptr);
+  allotment.ReclaimAndCharge(&writer, LayerType::Header, nullptr);
 
   BitReader reader(writer.GetSpan());
   const uint64_t decoded_value = U64Coder::Read(&reader);
@@ -178,7 +178,7 @@ Status TestF16Coder(const float value) {
   EXPECT_TRUE(F16Coder::Write(value, &writer));
   EXPECT_EQ(F16Coder::MaxEncodedBits(), writer.BitsWritten());
   writer.ZeroPadToByte();
-  allotment.ReclaimAndCharge(&writer, 0, nullptr);
+  allotment.ReclaimAndCharge(&writer, LayerType::Header, nullptr);
 
   BitReader reader(writer.GetSpan());
   float decoded_value;
@@ -216,7 +216,7 @@ TEST(FieldsTest, TestRoundtripSize) {
     EXPECT_EQ(0u, extension_bits);
 
     BitWriter writer{memory_manager};
-    ASSERT_TRUE(WriteSizeHeader(size, &writer, 0, nullptr));
+    ASSERT_TRUE(WriteSizeHeader(size, &writer, LayerType::Header, nullptr));
     EXPECT_EQ(total_bits, writer.BitsWritten());
     writer.ZeroPadToByte();
 
@@ -372,20 +372,20 @@ TEST(FieldsTest, TestNewDecoderOldData) {
   ASSERT_LE(total_bits, kMaxOutBytes * kBitsPerByte);
   EXPECT_EQ(0u, extension_bits);
   AuxOut aux_out;
-  ASSERT_TRUE(Bundle::Write(old_bundle, &writer, kLayerHeader, &aux_out));
+  ASSERT_TRUE(Bundle::Write(old_bundle, &writer, LayerType::Header, &aux_out));
 
   BitWriter::Allotment allotment(&writer,
                                  kMaxOutBytes * kBitsPerByte - total_bits);
   writer.Write(20, 0xA55A);  // sentinel
   writer.ZeroPadToByte();
-  allotment.ReclaimAndCharge(&writer, kLayerHeader, nullptr);
+  allotment.ReclaimAndCharge(&writer, LayerType::Header, nullptr);
 
   ASSERT_LE(writer.GetSpan().size(), kMaxOutBytes);
   BitReader reader(writer.GetSpan());
   NewBundle new_bundle;
   ASSERT_TRUE(Bundle::Read(&reader, &new_bundle));
   EXPECT_EQ(reader.TotalBitsConsumed(),
-            aux_out.layers[kLayerHeader].total_bits);
+            aux_out.layer(LayerType::Header).total_bits);
   EXPECT_EQ(reader.ReadBits(20), 0xA55Au);
   EXPECT_TRUE(reader.Close());
 
@@ -417,23 +417,23 @@ TEST(FieldsTest, TestOldDecoderNewData) {
   ASSERT_TRUE(Bundle::CanEncode(new_bundle, &extension_bits, &total_bits));
   EXPECT_NE(0u, extension_bits);
   AuxOut aux_out;
-  ASSERT_TRUE(Bundle::Write(new_bundle, &writer, kLayerHeader, &aux_out));
-  ASSERT_LE(aux_out.layers[kLayerHeader].total_bits,
+  ASSERT_TRUE(Bundle::Write(new_bundle, &writer, LayerType::Header, &aux_out));
+  ASSERT_LE(aux_out.layer(LayerType::Header).total_bits,
             kMaxOutBytes * kBitsPerByte);
 
   BitWriter::Allotment allotment(
-      &writer,
-      kMaxOutBytes * kBitsPerByte - aux_out.layers[kLayerHeader].total_bits);
+      &writer, kMaxOutBytes * kBitsPerByte -
+                   aux_out.layer(LayerType::Header).total_bits);
   // Ensure Read skips the additional fields
   writer.Write(20, 0xA55A);  // sentinel
   writer.ZeroPadToByte();
-  allotment.ReclaimAndCharge(&writer, kLayerHeader, nullptr);
+  allotment.ReclaimAndCharge(&writer, LayerType::Header, nullptr);
 
   BitReader reader(writer.GetSpan());
   OldBundle old_bundle;
   ASSERT_TRUE(Bundle::Read(&reader, &old_bundle));
   EXPECT_EQ(reader.TotalBitsConsumed(),
-            aux_out.layers[kLayerHeader].total_bits);
+            aux_out.layer(LayerType::Header).total_bits);
   EXPECT_EQ(reader.ReadBits(20), 0xA55Au);
   EXPECT_TRUE(reader.Close());
 

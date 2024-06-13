@@ -9,19 +9,21 @@
 // Facade for (non-inlined) inverse integral transforms.
 
 #include <cstddef>
+#include <cstdint>
 
-#include "lib/jxl/ac_strategy.h"
 #include "lib/jxl/base/compiler_specific.h"
 
 namespace jxl {
 
-void TransformToPixels(AcStrategy::Type strategy,
+enum class AcStrategyType : uint32_t;
+
+void TransformToPixels(AcStrategyType strategy,
                        float* JXL_RESTRICT coefficients,
                        float* JXL_RESTRICT pixels, size_t pixels_stride,
                        float* JXL_RESTRICT scratch_space);
 
 // Equivalent of the above for DC image.
-void LowestFrequenciesFromDC(jxl::AcStrategy::Type strategy, const float* dc,
+void LowestFrequenciesFromDC(AcStrategyType strategy, const float* dc,
                              size_t dc_stride, float* llf,
                              float* JXL_RESTRICT scratch);
 

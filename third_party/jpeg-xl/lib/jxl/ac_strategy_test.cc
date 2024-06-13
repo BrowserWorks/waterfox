@@ -25,7 +25,7 @@ namespace {
 class AcStrategyRoundtrip : public ::hwy::TestWithParamTargetAndT<int> {
  protected:
   void Run() {
-    const AcStrategy::Type type = static_cast<AcStrategy::Type>(GetParam());
+    const AcStrategyType type = static_cast<AcStrategyType>(GetParam());
     const AcStrategy acs = AcStrategy::FromRawStrategy(type);
     const size_t dct_scratch_size =
         3 * (MaxVectorSize() / sizeof(float)) * AcStrategy::kMaxBlockDim;
@@ -37,7 +37,7 @@ class AcStrategyRoundtrip : public ::hwy::TestWithParamTargetAndT<int> {
     float* input = idct + AcStrategy::kMaxCoeffArea;
     float* scratch_space = input + AcStrategy::kMaxCoeffArea;
 
-    Rng rng(type * 65537 + 13);
+    Rng rng(static_cast<int>(type) * 65537 + 13);
 
     for (size_t j = 0; j < 64; j++) {
       size_t i = (acs.log2_covered_blocks()
@@ -53,7 +53,7 @@ class AcStrategyRoundtrip : public ::hwy::TestWithParamTargetAndT<int> {
                         scratch_space);
       for (size_t j = 0; j < 64u << acs.log2_covered_blocks(); j++) {
         ASSERT_NEAR(idct[j], j == i ? 0.2f : 0, 2e-6)
-            << "j = " << j << " i = " << i << " acs " << type;
+            << "j = " << j << " i = " << i << " acs " << static_cast<int>(type);
       }
     }
     // Test DC.
@@ -70,7 +70,8 @@ class AcStrategyRoundtrip : public ::hwy::TestWithParamTargetAndT<int> {
         dc[y * acs.covered_blocks_x() * 8 + x] = 0.2;
         for (size_t j = 0; j < 64u << acs.log2_covered_blocks(); j++) {
           ASSERT_NEAR(idct[j], dc[j], 1e-6)
-              << "j = " << j << " x = " << x << " y = " << y << " acs " << type;
+              << "j = " << j << " x = " << x << " y = " << y << " acs "
+              << static_cast<int>(type);
         }
       }
     }
@@ -79,8 +80,7 @@ class AcStrategyRoundtrip : public ::hwy::TestWithParamTargetAndT<int> {
 
 HWY_TARGET_INSTANTIATE_TEST_SUITE_P_T(
     AcStrategyRoundtrip,
-    ::testing::Range(0,
-                     static_cast<int>(AcStrategy::Type::kNumValidStrategies)));
+    ::testing::Range(0, static_cast<int>(AcStrategy::kNumValidStrategies)));
 
 TEST_P(AcStrategyRoundtrip, Test) { Run(); }
 
@@ -89,7 +89,7 @@ class AcStrategyRoundtripDownsample
     : public ::hwy::TestWithParamTargetAndT<int> {
  protected:
   void Run() {
-    const AcStrategy::Type type = static_cast<AcStrategy::Type>(GetParam());
+    const AcStrategyType type = static_cast<AcStrategyType>(GetParam());
     const AcStrategy acs = AcStrategy::FromRawStrategy(type);
     const size_t dct_scratch_size =
         3 * (MaxVectorSize() / sizeof(float)) * AcStrategy::kMaxBlockDim;
@@ -102,7 +102,7 @@ class AcStrategyRoundtripDownsample
     float* scratch_space = dc + AcStrategy::kMaxCoeffArea;
 
     std::fill_n(coeffs, AcStrategy::kMaxCoeffArea, 0.0f);
-    Rng rng(type * 65537 + 13);
+    Rng rng(static_cast<int>(type) * 65537 + 13);
 
     for (size_t y = 0; y < acs.covered_blocks_y(); y++) {
       for (size_t x = 0; x < acs.covered_blocks_x(); x++) {
@@ -130,7 +130,7 @@ class AcStrategyRoundtripDownsample
             }
             sum /= 64.0f;
             ASSERT_NEAR(sum, dc[dy * 8 * acs.covered_blocks_x() + dx], 1e-6)
-                << "acs " << type;
+                << "acs " << static_cast<int>(type);
           }
         }
       }
@@ -140,8 +140,7 @@ class AcStrategyRoundtripDownsample
 
 HWY_TARGET_INSTANTIATE_TEST_SUITE_P_T(
     AcStrategyRoundtripDownsample,
-    ::testing::Range(0,
-                     static_cast<int>(AcStrategy::Type::kNumValidStrategies)));
+    ::testing::Range(0, static_cast<int>(AcStrategy::kNumValidStrategies)));
 
 TEST_P(AcStrategyRoundtripDownsample, Test) { Run(); }
 
@@ -150,7 +149,7 @@ TEST_P(AcStrategyRoundtripDownsample, Test) { Run(); }
 class AcStrategyDownsample : public ::hwy::TestWithParamTargetAndT<int> {
  protected:
   void Run() {
-    const AcStrategy::Type type = static_cast<AcStrategy::Type>(GetParam());
+    const AcStrategyType type = static_cast<AcStrategyType>(GetParam());
     const AcStrategy acs = AcStrategy::FromRawStrategy(type);
     const size_t dct_scratch_size =
         3 * (MaxVectorSize() / sizeof(float)) * AcStrategy::kMaxBlockDim;
@@ -165,7 +164,7 @@ class AcStrategyDownsample : public ::hwy::TestWithParamTargetAndT<int> {
     float* coeffs = idct + AcStrategy::kMaxCoeffArea;
     float* scratch_space = coeffs + AcStrategy::kMaxCoeffArea;
 
-    Rng rng(type * 65537 + 13);
+    Rng rng(static_cast<int>(type) * 65537 + 13);
 
     for (size_t y = 0; y < cy; y++) {
       for (size_t x = 0; x < cx; x++) {
@@ -195,7 +194,7 @@ class AcStrategyDownsample : public ::hwy::TestWithParamTargetAndT<int> {
             ASSERT_NEAR(
                 sum, idct_acs_downsampled[dy * 8 * acs.covered_blocks_x() + dx],
                 1e-6)
-                << " acs " << type;
+                << " acs " << static_cast<int>(type);
           }
         }
       }
@@ -205,8 +204,7 @@ class AcStrategyDownsample : public ::hwy::TestWithParamTargetAndT<int> {
 
 HWY_TARGET_INSTANTIATE_TEST_SUITE_P_T(
     AcStrategyDownsample,
-    ::testing::Range(0,
-                     static_cast<int>(AcStrategy::Type::kNumValidStrategies)));
+    ::testing::Range(0, static_cast<int>(AcStrategy::kNumValidStrategies)));
 
 TEST_P(AcStrategyDownsample, Test) { Run(); }
 
@@ -229,7 +227,7 @@ TEST_P(AcStrategyTargetTest, RoundtripAFVDCT) {
 }
 
 TEST_P(AcStrategyTargetTest, BenchmarkAFV) {
-  const AcStrategy::Type type = AcStrategy::Type::AFV0;
+  const AcStrategyType type = AcStrategyType::AFV0;
   HWY_ALIGN_MAX float pixels[64] = {1};
   HWY_ALIGN_MAX float coeffs[64] = {};
   const size_t dct_scratch_size =

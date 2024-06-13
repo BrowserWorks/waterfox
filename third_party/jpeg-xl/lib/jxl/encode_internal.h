@@ -30,7 +30,6 @@
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/data_parallel.h"
 #include "lib/jxl/base/status.h"
-#include "lib/jxl/enc_aux_out.h"
 #include "lib/jxl/enc_fast_lossless.h"
 #include "lib/jxl/enc_params.h"
 #include "lib/jxl/image_metadata.h"
@@ -675,7 +674,7 @@ struct JxlEncoderFrameSettingsStruct {
 };
 
 struct JxlEncoderStatsStruct {
-  jxl::AuxOut aux_out;
+  std::unique_ptr<jxl::AuxOut> aux_out;
 };
 
 #endif  // LIB_JXL_ENCODE_INTERNAL_H_

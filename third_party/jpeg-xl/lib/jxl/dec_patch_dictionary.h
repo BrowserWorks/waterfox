@@ -65,8 +65,10 @@ enum class PatchBlendMode : uint8_t {
   // For other channels: sample = old + alpha * new
   kAlphaWeightedAddAbove = 6,
   kAlphaWeightedAddBelow = 7,
-  kNumBlendModes,
 };
+
+constexpr uint8_t kNumPatchBlendModes =
+    static_cast<uint8_t>(PatchBlendMode::kAlphaWeightedAddBelow) + 1;
 
 inline bool UsesAlpha(PatchBlendMode mode) {
   return mode == PatchBlendMode::kBlendAbove ||

@@ -18,9 +18,11 @@
 
 namespace jxl {
 
-void RenderPipeline::Builder::AddStage(
+Status RenderPipeline::Builder::AddStage(
     std::unique_ptr<RenderPipelineStage> stage) {
+  if (!stage) return JXL_FAILURE("internal: no stage to add");
   stages_.push_back(std::move(stage));
+  return true;
 }
 
 StatusOr<std::unique_ptr<RenderPipeline>> RenderPipeline::Builder::Finalize(

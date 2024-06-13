@@ -12,7 +12,6 @@
 #include <vector>
 
 #include "lib/jxl/ac_context.h"  // BlockCtxMap
-#include "lib/jxl/ac_strategy.h"
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/rect.h"
 #include "lib/jxl/coeff_order_fwd.h"
@@ -24,6 +23,8 @@
 // strategy and quantization field.
 
 namespace jxl {
+
+class AcStrategyImage;
 
 // Generate DCT NxN quantized AC values tokens.
 // Only the subset "rect" [in units of blocks] within all images.

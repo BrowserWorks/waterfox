@@ -740,8 +740,9 @@ jxl::Status JxlEncoderStruct::ProcessOneEnqueuedInput() {
     }
     // Only send ICC (at least several hundred bytes) if fields aren't enough.
     if (metadata.m.color_encoding.WantICC()) {
-      if (!jxl::WriteICC(metadata.m.color_encoding.ICC(), &writer,
-                         jxl::kLayerHeader, aux_out)) {
+      if (!jxl::WriteICC(
+              jxl::Span<const uint8_t>(metadata.m.color_encoding.ICC()),
+              &writer, jxl::LayerType::Header, aux_out)) {
         return JXL_API_ERROR(this, JXL_ENC_ERR_GENERIC,
                              "Failed to write ICC profile");
       }
@@ -750,7 +751,7 @@ jxl::Status JxlEncoderStruct::ProcessOneEnqueuedInput() {
 
     jxl::BitWriter::Allotment allotment(&writer, 8);
     writer.ZeroPadToByte();
-    allotment.ReclaimAndCharge(&writer, jxl::kLayerHeader, aux_out);
+    allotment.ReclaimAndCharge(&writer, jxl::LayerType::Header, aux_out);
 
     header_bytes = std::move(writer).TakeBytes();
 
@@ -2660,7 +2661,9 @@ JXL_EXPORT void JxlEncoderSetDebugImageCallback(
 }
 
 JXL_EXPORT JxlEncoderStats* JxlEncoderStatsCreate() {
-  return new JxlEncoderStats();
+  JxlEncoderStats* result = new JxlEncoderStats();
+  result->aux_out = jxl::make_unique<jxl::AuxOut>();
+  return result;
 }
 
 JXL_EXPORT void JxlEncoderStatsDestroy(JxlEncoderStats* stats) { delete stats; }
@@ -2668,44 +2671,44 @@ JXL_EXPORT void JxlEncoderStatsDestroy(JxlEncoderStats* stats) { delete stats; }
 JXL_EXPORT void JxlEncoderCollectStats(JxlEncoderFrameSettings* frame_settings,
                                        JxlEncoderStats* stats) {
   if (!stats) return;
-  frame_settings->values.aux_out = &stats->aux_out;
+  frame_settings->values.aux_out = stats->aux_out.get();
 }
 
 JXL_EXPORT size_t JxlEncoderStatsGet(const JxlEncoderStats* stats,
                                      JxlEncoderStatsKey key) {
   if (!stats) return 0;
-  const jxl::AuxOut& aux_out = stats->aux_out;
+  const jxl::AuxOut& aux_out = *stats->aux_out;
   switch (key) {
     case JXL_ENC_STAT_HEADER_BITS:
-      return aux_out.layers[jxl::kLayerHeader].total_bits;
+      return aux_out.layer(jxl::LayerType::Header).total_bits;
     case JXL_ENC_STAT_TOC_BITS:
-      return aux_out.layers[jxl::kLayerTOC].total_bits;
+      return aux_out.layer(jxl::LayerType::Toc).total_bits;
     case JXL_ENC_STAT_DICTIONARY_BITS:
-      return aux_out.layers[jxl::kLayerDictionary].total_bits;
+      return aux_out.layer(jxl::LayerType::Dictionary).total_bits;
     case JXL_ENC_STAT_SPLINES_BITS:
-      return aux_out.layers[jxl::kLayerSplines].total_bits;
+      return aux_out.layer(jxl::LayerType::Splines).total_bits;
     case JXL_ENC_STAT_NOISE_BITS:
-      return aux_out.layers[jxl::kLayerNoise].total_bits;
+      return aux_out.layer(jxl::LayerType::Noise).total_bits;
     case JXL_ENC_STAT_QUANT_BITS:
-      return aux_out.layers[jxl::kLayerQuant].total_bits;
+      return aux_out.layer(jxl::LayerType::Quant).total_bits;
     case JXL_ENC_STAT_MODULAR_TREE_BITS:
-      return aux_out.layers[jxl::kLayerModularTree].total_bits;
+      return aux_out.layer(jxl::LayerType::ModularTree).total_bits;
     case JXL_ENC_STAT_MODULAR_GLOBAL_BITS:
-      return aux_out.layers[jxl::kLayerModularGlobal].total_bits;
+      return aux_out.layer(jxl::LayerType::ModularGlobal).total_bits;
     case JXL_ENC_STAT_DC_BITS:
-      return aux_out.layers[jxl::kLayerDC].total_bits;
+      return aux_out.layer(jxl::LayerType::Dc).total_bits;
     case JXL_ENC_STAT_MODULAR_DC_GROUP_BITS:
-      return aux_out.layers[jxl::kLayerModularDcGroup].total_bits;
+      return aux_out.layer(jxl::LayerType::ModularDcGroup).total_bits;
     case JXL_ENC_STAT_CONTROL_FIELDS_BITS:
-      return aux_out.layers[jxl::kLayerControlFields].total_bits;
+      return aux_out.layer(jxl::LayerType::ControlFields).total_bits;
     case JXL_ENC_STAT_COEF_ORDER_BITS:
-      return aux_out.layers[jxl::kLayerOrder].total_bits;
+      return aux_out.layer(jxl::LayerType::Order).total_bits;
     case JXL_ENC_STAT_AC_HISTOGRAM_BITS:
-      return aux_out.layers[jxl::kLayerAC].total_bits;
+      return aux_out.layer(jxl::LayerType::Ac).total_bits;
     case JXL_ENC_STAT_AC_BITS:
-      return aux_out.layers[jxl::kLayerACTokens].total_bits;
+      return aux_out.layer(jxl::LayerType::AcTokens).total_bits;
     case JXL_ENC_STAT_MODULAR_AC_GROUP_BITS:
-      return aux_out.layers[jxl::kLayerModularAcGroup].total_bits;
+      return aux_out.layer(jxl::LayerType::ModularAcGroup).total_bits;
     case JXL_ENC_STAT_NUM_SMALL_BLOCKS:
       return aux_out.num_small_blocks;
     case JXL_ENC_STAT_NUM_DCT4X8_BLOCKS:
@@ -2736,5 +2739,5 @@ JXL_EXPORT size_t JxlEncoderStatsGet(const JxlEncoderStats* stats,
 JXL_EXPORT void JxlEncoderStatsMerge(JxlEncoderStats* stats,
                                      const JxlEncoderStats* other) {
   if (!stats || !other) return;
-  stats->aux_out.Assimilate(other->aux_out);
+  stats->aux_out->Assimilate(*other->aux_out);
 }

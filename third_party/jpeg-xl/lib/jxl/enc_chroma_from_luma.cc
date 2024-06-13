@@ -256,7 +256,7 @@ void ComputeTile(const Image3F& opsin, const Rect& opsin_rect,
 
     for (size_t x = x0; x < x1; x++) {
       AcStrategy acs = use_dct8
-                           ? AcStrategy::FromRawStrategy(AcStrategy::Type::DCT)
+                           ? AcStrategy::FromRawStrategy(AcStrategyType::DCT)
                            : ac_strategy->ConstRow(y)[x];
       if (!acs.IsFirstBlock()) continue;
       size_t xs = acs.covered_blocks_x();
@@ -375,7 +375,7 @@ void CfLHeuristics::ComputeTile(const Rect& r, const Image3F& opsin,
 }
 
 void ColorCorrelationEncodeDC(const ColorCorrelation& color_correlation,
-                              BitWriter* writer, size_t layer,
+                              BitWriter* writer, LayerType layer,
                               AuxOut* aux_out) {
   float color_factor = color_correlation.GetColorFactor();
   float base_correlation_x = color_correlation.GetBaseCorrelationX();

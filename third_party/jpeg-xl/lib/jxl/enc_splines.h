@@ -6,7 +6,7 @@
 #ifndef LIB_JXL_ENC_SPLINES_H_
 #define LIB_JXL_ENC_SPLINES_H_
 
-#include <cstddef>
+#include <cstdint>
 
 #include "lib/jxl/enc_ans_params.h"
 #include "lib/jxl/enc_bit_writer.h"
@@ -16,9 +16,10 @@
 namespace jxl {
 
 struct AuxOut;
+enum class LayerType : uint8_t;
 
 // Only call if splines.HasAny().
-void EncodeSplines(const Splines& splines, BitWriter* writer, size_t layer,
+void EncodeSplines(const Splines& splines, BitWriter* writer, LayerType layer,
                    const HistogramParams& histogram_params, AuxOut* aux_out);
 
 Splines FindSplines(const Image3F& opsin);

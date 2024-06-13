@@ -68,7 +68,7 @@ class RenderPipeline {
 
     // Adds a stage to the pipeline. Must be called at least once; the last
     // added stage cannot have kInOut channels.
-    void AddStage(std::unique_ptr<RenderPipelineStage> stage);
+    Status AddStage(std::unique_ptr<RenderPipelineStage> stage);
 
     // Enables using the simple (i.e. non-memory-efficient) implementation of
     // the pipeline.

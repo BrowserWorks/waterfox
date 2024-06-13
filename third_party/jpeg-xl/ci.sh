@@ -498,7 +498,7 @@ cmd_release() {
 
 cmd_opt() {
   CMAKE_BUILD_TYPE="RelWithDebInfo"
-  CMAKE_CXX_FLAGS+=" -DJXL_DEBUG_WARNING -DJXL_DEBUG_ON_ERROR"
+  CMAKE_CXX_FLAGS+=" -DJXL_DEBUG_BUILD -DJXL_DEBUG_ON_ERROR"
   cmake_configure "$@"
   cmake_build_and_test
 }

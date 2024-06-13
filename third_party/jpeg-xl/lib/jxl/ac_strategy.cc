@@ -96,7 +96,7 @@ StatusOr<AcStrategyImage> AcStrategyImage::Create(
   return img;
 }
 
-size_t AcStrategyImage::CountBlocks(AcStrategy::Type type) const {
+size_t AcStrategyImage::CountBlocks(AcStrategyType type) const {
   size_t ret = 0;
   for (size_t y = 0; y < layers_.ysize(); y++) {
     const uint8_t* JXL_RESTRICT row = layers_.ConstRow(y);
