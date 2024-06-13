@@ -87,6 +87,7 @@ class UpsamplingStage : public RenderPipelineStage {
  private:
   template <size_t N>
   JXL_INLINE float Kernel(size_t x, size_t y, ssize_t ix, ssize_t iy) const {
+    static_assert(N == 2 || N == 4 || N == 8, "N must be 2, 4, or 8");
     ix += 2;
     iy += 2;
     if (N == 2) {
@@ -102,7 +103,6 @@ class UpsamplingStage : public RenderPipelineStage {
                     [x % 8 < 4 ? x % 4 : 3 - x % 4][y % 8 < 4 ? iy : 4 - iy]
                     [x % 8 < 4 ? ix : 4 - ix];
     }
-    JXL_UNREACHABLE("Invalid upsample");
   }
 
   template <ssize_t N>

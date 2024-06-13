@@ -13,6 +13,7 @@
 #include "lib/jxl/base/span.h"
 #include "lib/jxl/color_encoding_internal.h"
 #include "lib/jxl/dec_bit_reader.h"
+#include "lib/jxl/enc_aux_out.h"
 #include "lib/jxl/enc_bit_writer.h"
 #include "lib/jxl/enc_icc_codec.h"
 #include "lib/jxl/test_memory_manager.h"
@@ -25,7 +26,8 @@ namespace {
 void TestProfile(const IccBytes& icc) {
   JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   BitWriter writer{memory_manager};
-  ASSERT_TRUE(WriteICC(icc, &writer, 0, nullptr));
+  ASSERT_TRUE(WriteICC(Span<const uint8_t>(icc), &writer,
+                       jxl::LayerType::Header, nullptr));
   writer.ZeroPadToByte();
   std::vector<uint8_t> dec;
   BitReader reader(writer.GetSpan());

@@ -9,7 +9,6 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "lib/jxl/ac_strategy.h"
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/rect.h"
 #include "lib/jxl/coeff_order_fwd.h"
@@ -21,6 +20,8 @@
 namespace jxl {
 
 struct AuxOut;
+class AcStrategyImage;
+enum class LayerType : uint8_t;
 
 // Orders that are actually used in part of image. `rect` is in block units.
 // Returns {orders that are used, orders that might be made non-default}.
@@ -39,14 +40,14 @@ void ComputeCoeffOrder(SpeedTier speed, const ACImage& acs,
 
 void EncodeCoeffOrders(uint16_t used_orders,
                        const coeff_order_t* JXL_RESTRICT order,
-                       BitWriter* writer, size_t layer,
+                       BitWriter* writer, LayerType layer,
                        AuxOut* JXL_RESTRICT aux_out);
 
 // Encoding/decoding of a single permutation. `size`: number of elements in the
 // permutation. `skip`: number of elements to skip from the *beginning* of the
 // permutation.
 void EncodePermutation(const coeff_order_t* JXL_RESTRICT order, size_t skip,
-                       size_t size, BitWriter* writer, int layer,
+                       size_t size, BitWriter* writer, LayerType layer,
                        AuxOut* aux_out);
 
 }  // namespace jxl

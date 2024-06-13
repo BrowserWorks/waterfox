@@ -20,6 +20,7 @@
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/coeff_order_fwd.h"
 #include "lib/jxl/dec_bit_reader.h"
+#include "lib/jxl/enc_aux_out.h"
 #include "lib/jxl/enc_bit_writer.h"
 #include "lib/jxl/enc_coeff_order.h"
 #include "lib/jxl/test_memory_manager.h"
@@ -32,7 +33,7 @@ void RoundtripPermutation(coeff_order_t* perm, coeff_order_t* out, size_t len,
                           size_t* size) {
   JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   BitWriter writer{memory_manager};
-  EncodePermutation(perm, 0, len, &writer, 0, nullptr);
+  EncodePermutation(perm, 0, len, &writer, LayerType::Header, nullptr);
   writer.ZeroPadToByte();
   Status status = true;
   {

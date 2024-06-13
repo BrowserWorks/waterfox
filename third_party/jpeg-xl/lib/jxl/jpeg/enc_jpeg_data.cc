@@ -9,8 +9,11 @@
 #include <jxl/memory_manager.h>
 #include <jxl/types.h>
 
+#include <cstdint>
+
 #include "lib/jxl/base/sanitizers.h"
 #include "lib/jxl/codec_in_out.h"
+#include "lib/jxl/enc_aux_out.h"
 #include "lib/jxl/enc_bit_writer.h"
 #include "lib/jxl/image_bundle.h"
 #include "lib/jxl/jpeg/enc_jpeg_data_reader.h"
@@ -330,7 +333,8 @@ Status EncodeJPEGData(JxlMemoryManager* memory_manager, JPEGData& jpeg_data,
   size_t brotli_capacity = BrotliEncoderMaxCompressedSize(total_data);
 
   BitWriter writer{memory_manager};
-  JXL_RETURN_IF_ERROR(Bundle::Write(jpeg_data, &writer, 0, nullptr));
+  JXL_RETURN_IF_ERROR(
+      Bundle::Write(jpeg_data, &writer, LayerType::Header, nullptr));
   writer.ZeroPadToByte();
   {
     PaddedBytes serialized_jpeg_data = std::move(writer).TakeBytes();

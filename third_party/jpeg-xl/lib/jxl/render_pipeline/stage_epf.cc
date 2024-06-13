@@ -6,6 +6,8 @@
 #include "lib/jxl/render_pipeline/stage_epf.h"
 
 #include "lib/jxl/base/common.h"
+#include "lib/jxl/base/compiler_specific.h"
+#include "lib/jxl/base/status.h"
 #include "lib/jxl/common.h"  // JXL_HIGH_PRECISION
 #include "lib/jxl/epf.h"
 
@@ -508,18 +510,19 @@ HWY_EXPORT(GetEPFStage2);
 
 std::unique_ptr<RenderPipelineStage> GetEPFStage(const LoopFilter& lf,
                                                  const ImageF& sigma,
-                                                 size_t epf_stage) {
+                                                 EpfStage epf_stage) {
   JXL_ASSERT(lf.epf_iters != 0);
   switch (epf_stage) {
-    case 0:
+    case EpfStage::Zero:
       return HWY_DYNAMIC_DISPATCH(GetEPFStage0)(lf, sigma);
-    case 1:
+    case EpfStage::One:
       return HWY_DYNAMIC_DISPATCH(GetEPFStage1)(lf, sigma);
-    case 2:
+    case EpfStage::Two:
       return HWY_DYNAMIC_DISPATCH(GetEPFStage2)(lf, sigma);
-    default:
-      JXL_UNREACHABLE("Invalid EPF stage");
   }
+  JXL_DEBUG_ABORT("internal: unexpected EpfStage: %d",
+                  static_cast<int>(epf_stage));
+  return nullptr;
 }
 
 }  // namespace jxl

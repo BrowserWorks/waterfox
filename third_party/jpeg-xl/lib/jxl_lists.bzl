@@ -432,6 +432,7 @@ libjxl_extras_sources = [
     "extras/alpha_blend.h",
     "extras/common.cc",
     "extras/common.h",
+    "extras/compressed_icc.cc",
     "extras/dec/color_description.cc",
     "extras/dec/color_description.h",
     "extras/dec/color_hints.cc",
@@ -558,6 +559,7 @@ libjxl_public_headers = [
     "include/jxl/cms_interface.h",
     "include/jxl/codestream_header.h",
     "include/jxl/color_encoding.h",
+    "include/jxl/compressed_icc.h",
     "include/jxl/decode.h",
     "include/jxl/decode_cxx.h",
     "include/jxl/encode.h",
@@ -587,6 +589,7 @@ libjxl_testlib_files = [
 
 libjxl_tests = [
     "extras/codec_test.cc",
+    "extras/compressed_icc_test.cc",
     "extras/dec/color_description_test.cc",
     "extras/dec/pgx_test.cc",
     "extras/gain_map_test.cc",

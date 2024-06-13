@@ -8,7 +8,7 @@
 
 #include <jxl/memory_manager.h>
 
-#include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #include "lib/jxl/base/status.h"
@@ -17,14 +17,15 @@
 namespace jxl {
 
 struct AuxOut;
+enum class LayerType : uint8_t;
 struct BitWriter;
 
 Status DequantMatricesEncode(
     JxlMemoryManager* memory_manager, const DequantMatrices& matrices,
-    BitWriter* writer, size_t layer, AuxOut* aux_out,
+    BitWriter* writer, LayerType layer, AuxOut* aux_out,
     ModularFrameEncoder* modular_frame_encoder = nullptr);
 Status DequantMatricesEncodeDC(const DequantMatrices& matrices,
-                               BitWriter* writer, size_t layer,
+                               BitWriter* writer, LayerType layer,
                                AuxOut* aux_out);
 // For consistency with QuantEncoding, higher values correspond to more
 // precision.

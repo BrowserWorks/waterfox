@@ -12,7 +12,6 @@
 #include <cstddef>
 #include <cstdint>
 
-#include "lib/jxl/ac_strategy.h"
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/coeff_order_fwd.h"
@@ -42,14 +41,10 @@ static JXL_MAYBE_UNUSED constexpr size_t kCoeffOrderMaxSize =
 
 // Mapping from AC strategy to order bucket. Strategies with different natural
 // orders must have different buckets.
-constexpr uint8_t kStrategyOrder[] = {
+constexpr std::array<uint8_t, 27> kStrategyOrder = {
     0, 1, 1, 1, 2, 3, 4, 4, 5,  5,  6,  6,  1,  1,
     1, 1, 1, 1, 7, 8, 8, 9, 10, 10, 11, 12, 12,
 };
-
-static_assert(AcStrategy::kNumValidStrategies ==
-                  sizeof(kStrategyOrder) / sizeof(*kStrategyOrder),
-              "Update this array when adding or removing AC strategies.");
 
 constexpr JXL_MAYBE_UNUSED uint32_t kPermutationContexts = 8;
 

@@ -144,9 +144,8 @@ class FastXYBStage : public RenderPipelineStage {
         GetInputRow(input_rows, 2, 0),
         has_alpha_ ? GetInputRow(input_rows, alpha_c_, 0) : nullptr};
     uint8_t* out_buf = rgb_ + stride_ * ypos + (rgba_ ? 4 : 3) * xpos;
-    FastXYBTosRGB8(xyba, out_buf, rgba_,
-                   xsize + xpos <= width_ ? xsize : width_ - xpos);
-    return true;
+    return FastXYBTosRGB8(xyba, out_buf, rgba_,
+                          xsize + xpos <= width_ ? xsize : width_ - xpos);
   }
 
   RenderPipelineChannelMode GetChannelMode(size_t c) const final {
@@ -173,7 +172,7 @@ class FastXYBStage : public RenderPipelineStage {
 std::unique_ptr<RenderPipelineStage> GetFastXYBTosRGB8Stage(
     uint8_t* rgb, size_t stride, size_t width, size_t height, bool rgba,
     bool has_alpha, size_t alpha_c) {
-  JXL_ASSERT(HasFastXYBTosRGB8());
+  if (!HasFastXYBTosRGB8()) return nullptr;
   return make_unique<FastXYBStage>(rgb, stride, width, height, rgba, has_alpha,
                                    alpha_c);
 }

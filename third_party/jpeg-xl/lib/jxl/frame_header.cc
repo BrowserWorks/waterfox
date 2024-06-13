@@ -5,7 +5,10 @@
 
 #include "lib/jxl/frame_header.h"
 
+#if JXL_DEBUG_V_LEVEL >= 1
 #include <sstream>
+#include <string>
+#endif
 
 #include "lib/jxl/base/printf_macros.h"
 #include "lib/jxl/base/status.h"
@@ -27,7 +30,7 @@ static Status VisitBlendMode(Visitor* JXL_RESTRICT visitor,
       Val(static_cast<uint32_t>(BlendMode::kAdd)),
       Val(static_cast<uint32_t>(BlendMode::kBlend)), BitsOffset(2, 3),
       static_cast<uint32_t>(default_value), &encoded));
-  if (encoded > 4) {
+  if (encoded > static_cast<uint32_t>(BlendMode::kMul)) {
     return JXL_FAILURE("Invalid blend_mode");
   }
   *blend_mode = static_cast<BlendMode>(encoded);

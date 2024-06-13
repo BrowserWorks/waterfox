@@ -92,8 +92,8 @@ void OpsinToLinear(const Image3F& opsin, const Rect& rect, ThreadPool* pool,
 void YcbcrToRgb(const Image3F& ycbcr, Image3F* rgb, const Rect& rect);
 
 bool HasFastXYBTosRGB8();
-void FastXYBTosRGB8(const float* input[4], uint8_t* output, bool is_rgba,
-                    size_t xsize);
+Status FastXYBTosRGB8(const float* input[4], uint8_t* output, bool is_rgba,
+                      size_t xsize);
 
 }  // namespace jxl
 
