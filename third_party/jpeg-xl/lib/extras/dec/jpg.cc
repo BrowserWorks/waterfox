@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "lib/extras/size_constraints.h"
+#include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/sanitizers.h"
 #include "lib/jxl/base/status.h"
 
@@ -155,12 +156,12 @@ void MyErrorExit(j_common_ptr cinfo) {
 }
 
 void MyOutputMessage(j_common_ptr cinfo) {
-#if JXL_DEBUG_WARNING == 1
-  char buf[JMSG_LENGTH_MAX + 1];
-  (*cinfo->err->format_message)(cinfo, buf);
-  buf[JMSG_LENGTH_MAX] = 0;
-  JXL_WARNING("%s", buf);
-#endif
+  if (JXL_DEBUG_BUILD) {
+    char buf[JMSG_LENGTH_MAX + 1];
+    (*cinfo->err->format_message)(cinfo, buf);
+    buf[JMSG_LENGTH_MAX] = 0;
+    JXL_WARNING("%s", buf);
+  }
 }
 
 void UnmapColors(uint8_t* row, size_t xsize, int components,

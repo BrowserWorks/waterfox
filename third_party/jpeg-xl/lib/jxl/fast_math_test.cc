@@ -192,8 +192,9 @@ HWY_NOINLINE void TestFastXYB() {
         for (int y = 0; y < kChunk; y++) {
           const float* xyba[4] = {xyb.PlaneRow(0, y), xyb.PlaneRow(1, y),
                                   xyb.PlaneRow(2, y), nullptr};
-          jxl::HWY_NAMESPACE::FastXYBTosRGB8(
-              xyba, roundtrip.data() + 3 * xyb.xsize() * y, false, xyb.xsize());
+          JXL_CHECK(jxl::HWY_NAMESPACE::FastXYBTosRGB8(
+              xyba, roundtrip.data() + 3 * xyb.xsize() * y, false,
+              xyb.xsize()));
         }
         for (int ir = 0; ir < kChunk; ir++) {
           for (int ig = 0; ig < kChunk; ig++) {

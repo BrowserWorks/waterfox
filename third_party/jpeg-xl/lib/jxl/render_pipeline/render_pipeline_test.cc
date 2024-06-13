@@ -98,7 +98,7 @@ Status DecodeFile(const Span<const uint8_t> file, bool use_slow_pipeline,
     if (!reader.AllReadsWithinBounds()) {
       return JXL_FAILURE("Reader out of bounds read.");
     }
-    io->CheckMetadata();
+    JXL_RETURN_IF_ERROR(io->CheckMetadata());
     // reader is closed here.
   }
   return ret;
@@ -107,9 +107,9 @@ Status DecodeFile(const Span<const uint8_t> file, bool use_slow_pipeline,
 TEST(RenderPipelineTest, Build) {
   JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   RenderPipeline::Builder builder(memory_manager, /*num_c=*/1);
-  builder.AddStage(jxl::make_unique<UpsampleXSlowStage>());
-  builder.AddStage(jxl::make_unique<UpsampleYSlowStage>());
-  builder.AddStage(jxl::make_unique<Check0FinalStage>());
+  ASSERT_TRUE(builder.AddStage(jxl::make_unique<UpsampleXSlowStage>()));
+  ASSERT_TRUE(builder.AddStage(jxl::make_unique<UpsampleYSlowStage>()));
+  ASSERT_TRUE(builder.AddStage(jxl::make_unique<Check0FinalStage>()));
   builder.UseSimpleImplementation();
   FrameDimensions frame_dimensions;
   frame_dimensions.Set(/*xsize=*/1024, /*ysize=*/1024, /*group_size_shift=*/0,
@@ -121,9 +121,9 @@ TEST(RenderPipelineTest, Build) {
 TEST(RenderPipelineTest, CallAllGroups) {
   JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   RenderPipeline::Builder builder(memory_manager, /*num_c=*/1);
-  builder.AddStage(jxl::make_unique<UpsampleXSlowStage>());
-  builder.AddStage(jxl::make_unique<UpsampleYSlowStage>());
-  builder.AddStage(jxl::make_unique<Check0FinalStage>());
+  ASSERT_TRUE(builder.AddStage(jxl::make_unique<UpsampleXSlowStage>()));
+  ASSERT_TRUE(builder.AddStage(jxl::make_unique<UpsampleYSlowStage>()));
+  ASSERT_TRUE(builder.AddStage(jxl::make_unique<Check0FinalStage>()));
   builder.UseSimpleImplementation();
   FrameDimensions frame_dimensions;
   frame_dimensions.Set(/*xsize=*/1024, /*ysize=*/1024, /*group_size_shift=*/0,
@@ -145,9 +145,9 @@ TEST(RenderPipelineTest, CallAllGroups) {
 TEST(RenderPipelineTest, BuildFast) {
   JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   RenderPipeline::Builder builder(memory_manager, /*num_c=*/1);
-  builder.AddStage(jxl::make_unique<UpsampleXSlowStage>());
-  builder.AddStage(jxl::make_unique<UpsampleYSlowStage>());
-  builder.AddStage(jxl::make_unique<Check0FinalStage>());
+  ASSERT_TRUE(builder.AddStage(jxl::make_unique<UpsampleXSlowStage>()));
+  ASSERT_TRUE(builder.AddStage(jxl::make_unique<UpsampleYSlowStage>()));
+  ASSERT_TRUE(builder.AddStage(jxl::make_unique<Check0FinalStage>()));
   FrameDimensions frame_dimensions;
   frame_dimensions.Set(/*xsize=*/1024, /*ysize=*/1024, /*group_size_shift=*/0,
                        /*max_hshift=*/0, /*max_vshift=*/0,
@@ -158,9 +158,9 @@ TEST(RenderPipelineTest, BuildFast) {
 TEST(RenderPipelineTest, CallAllGroupsFast) {
   JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   RenderPipeline::Builder builder(memory_manager, /*num_c=*/1);
-  builder.AddStage(jxl::make_unique<UpsampleXSlowStage>());
-  builder.AddStage(jxl::make_unique<UpsampleYSlowStage>());
-  builder.AddStage(jxl::make_unique<Check0FinalStage>());
+  ASSERT_TRUE(builder.AddStage(jxl::make_unique<UpsampleXSlowStage>()));
+  ASSERT_TRUE(builder.AddStage(jxl::make_unique<UpsampleYSlowStage>()));
+  ASSERT_TRUE(builder.AddStage(jxl::make_unique<Check0FinalStage>()));
   builder.UseSimpleImplementation();
   FrameDimensions frame_dimensions;
   frame_dimensions.Set(/*xsize=*/1024, /*ysize=*/1024, /*group_size_shift=*/0,

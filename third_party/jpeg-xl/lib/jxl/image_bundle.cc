@@ -31,14 +31,14 @@ void ImageBundle::SetFromImage(Image3F&& color,
   VerifySizes();
 }
 
-void ImageBundle::VerifyMetadata() const {
+Status ImageBundle::VerifyMetadata() const {
   JXL_CHECK(!c_current_.ICC().empty());
   JXL_CHECK(metadata_->color_encoding.IsGray() == IsGray());
 
   if (metadata_->HasAlpha() && alpha().xsize() == 0) {
-    JXL_UNREACHABLE("MD alpha_bits %u IB alpha %" PRIuS " x %" PRIuS "\n",
-                    metadata_->GetAlphaBits(), alpha().xsize(),
-                    alpha().ysize());
+    return JXL_UNREACHABLE(
+        "MD alpha_bits %u IB alpha %" PRIuS " x %" PRIuS "\n",
+        metadata_->GetAlphaBits(), alpha().xsize(), alpha().ysize());
   }
   const uint32_t alpha_bits = metadata_->GetAlphaBits();
   JXL_CHECK(alpha_bits <= 32);
@@ -46,6 +46,7 @@ void ImageBundle::VerifyMetadata() const {
   // metadata_->num_extra_channels may temporarily differ from
   // extra_channels_.size(), e.g. after SetAlpha. They are synced by the next
   // call to VisitFields.
+  return true;
 }
 
 void ImageBundle::VerifySizes() const {

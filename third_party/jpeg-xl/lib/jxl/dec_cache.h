@@ -10,7 +10,6 @@
 #include <jxl/memory_manager.h>
 #include <jxl/types.h>
 
-#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <cstdint>
@@ -19,12 +18,10 @@
 #include <vector>
 
 #include "hwy/aligned_allocator.h"
-#include "lib/jxl/ac_strategy.h"
 #include "lib/jxl/base/common.h"  // kMaxNumPasses
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/data_parallel.h"
 #include "lib/jxl/base/status.h"
-#include "lib/jxl/coeff_order.h"
 #include "lib/jxl/common.h"
 #include "lib/jxl/dct_util.h"
 #include "lib/jxl/dec_ans.h"
@@ -186,65 +183,14 @@ struct PassesDecoderState {
   }
 
   // Initialize the decoder state after all of DC is decoded.
-  Status InitForAC(size_t num_passes, ThreadPool* pool) {
-    shared_storage.coeff_order_size = 0;
-    for (uint8_t o = 0; o < AcStrategy::kNumValidStrategies; ++o) {
-      if (((1 << o) & used_acs) == 0) continue;
-      uint8_t ord = kStrategyOrder[o];
-      shared_storage.coeff_order_size =
-          std::max(kCoeffOrderOffset[3 * (ord + 1)] * kDCTBlockSize,
-                   shared_storage.coeff_order_size);
-    }
-    size_t sz = num_passes * shared_storage.coeff_order_size;
-    if (sz > shared_storage.coeff_orders.size()) {
-      shared_storage.coeff_orders.resize(sz);
-    }
-    return true;
-  }
+  Status InitForAC(size_t num_passes, ThreadPool* pool);
 };
 
 // Temp images required for decoding a single group. Reduces memory allocations
 // for large images because we only initialize min(#threads, #groups) instances.
 struct GroupDecCache {
   Status InitOnce(JxlMemoryManager* memory_manager, size_t num_passes,
-                  size_t used_acs) {
-    for (size_t i = 0; i < num_passes; i++) {
-      if (num_nzeroes[i].xsize() == 0) {
-        // Allocate enough for a whole group - partial groups on the
-        // right/bottom border just use a subset. The valid size is passed via
-        // Rect.
-
-        JXL_ASSIGN_OR_RETURN(num_nzeroes[i],
-                             Image3I::Create(memory_manager, kGroupDimInBlocks,
-                                             kGroupDimInBlocks));
-      }
-    }
-    size_t max_block_area = 0;
-
-    for (uint8_t o = 0; o < AcStrategy::kNumValidStrategies; ++o) {
-      AcStrategy acs = AcStrategy::FromRawStrategy(o);
-      if ((used_acs & (1 << o)) == 0) continue;
-      size_t area =
-          acs.covered_blocks_x() * acs.covered_blocks_y() * kDCTBlockSize;
-      max_block_area = std::max(area, max_block_area);
-    }
-
-    if (max_block_area > max_block_area_) {
-      max_block_area_ = max_block_area;
-      // We need 3x float blocks for dequantized coefficients and 1x for scratch
-      // space for transforms.
-      float_memory_ = hwy::AllocateAligned<float>(max_block_area_ * 7);
-      // We need 3x int32 or int16 blocks for quantized coefficients.
-      int32_memory_ = hwy::AllocateAligned<int32_t>(max_block_area_ * 3);
-      int16_memory_ = hwy::AllocateAligned<int16_t>(max_block_area_ * 3);
-    }
-
-    dec_group_block = float_memory_.get();
-    scratch_space = dec_group_block + max_block_area_ * 3;
-    dec_group_qblock = int32_memory_.get();
-    dec_group_qblock16 = int16_memory_.get();
-    return true;
-  }
+                  size_t used_acs);
 
   Status InitDCBufferOnce(JxlMemoryManager* memory_manager) {
     if (dc_buffer.xsize() == 0) {

@@ -10,7 +10,6 @@
 #include <cstdint>
 #include <hwy/aligned_allocator.h>
 
-#include "lib/jxl/ac_strategy.h"
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
@@ -27,6 +26,7 @@
 namespace jxl {
 
 struct AuxOut;
+class AcStrategyImage;
 
 // AC strategy selection: utility struct.
 
@@ -67,8 +67,8 @@ struct AcStrategyHeuristics {
             const ImageF& mask, const ImageF& mask1x1,
             DequantMatrices* matrices);
   void PrepareForThreads(std::size_t num_threads);
-  void ProcessRect(const Rect& rect, const ColorCorrelationMap& cmap,
-                   AcStrategyImage* ac_strategy, size_t thread);
+  Status ProcessRect(const Rect& rect, const ColorCorrelationMap& cmap,
+                     AcStrategyImage* ac_strategy, size_t thread);
   Status Finalize(const FrameDimensions& frame_dim,
                   const AcStrategyImage& ac_strategy, AuxOut* aux_out);
   const CompressParams& cparams;

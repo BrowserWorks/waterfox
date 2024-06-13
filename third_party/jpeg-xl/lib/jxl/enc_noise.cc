@@ -354,7 +354,7 @@ Status GetNoiseParameter(const Image3F& opsin, NoiseParams* noise_params,
 }
 
 void EncodeNoise(const NoiseParams& noise_params, BitWriter* writer,
-                 size_t layer, AuxOut* aux_out) {
+                 LayerType layer, AuxOut* aux_out) {
   JXL_ASSERT(noise_params.HasAny());
 
   BitWriter::Allotment allotment(writer, NoiseParams::kNumNoisePoints * 16);

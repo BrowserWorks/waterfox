@@ -429,6 +429,7 @@ set(JPEGXL_INTERNAL_EXTRAS_SOURCES
   extras/alpha_blend.h
   extras/common.cc
   extras/common.h
+  extras/compressed_icc.cc
   extras/dec/color_description.cc
   extras/dec/color_description.h
   extras/dec/color_hints.cc
@@ -547,6 +548,7 @@ set(JPEGXL_INTERNAL_PUBLIC_HEADERS
   include/jxl/cms_interface.h
   include/jxl/codestream_header.h
   include/jxl/color_encoding.h
+  include/jxl/compressed_icc.h
   include/jxl/decode.h
   include/jxl/decode_cxx.h
   include/jxl/encode.h
@@ -576,6 +578,7 @@ set(JPEGXL_INTERNAL_TESTLIB_FILES
 
 set(JPEGXL_INTERNAL_TESTS
   extras/codec_test.cc
+  extras/compressed_icc_test.cc
   extras/dec/color_description_test.cc
   extras/dec/pgx_test.cc
   extras/gain_map_test.cc

@@ -139,7 +139,7 @@ void DequantLane(Vec<D> scaled_dequant_x, Vec<D> scaled_dequant_y,
 template <ACType ac_type>
 void DequantBlock(const AcStrategy& acs, float inv_global_scale, int quant,
                   float x_dm_multiplier, float b_dm_multiplier, Vec<D> x_cc_mul,
-                  Vec<D> b_cc_mul, size_t kind, size_t size,
+                  Vec<D> b_cc_mul, AcStrategyType kind, size_t size,
                   const Quantizer& quantizer, size_t covered_blocks,
                   const size_t* sbx,
                   const float* JXL_RESTRICT* JXL_RESTRICT dc_row,
@@ -224,14 +224,16 @@ Status DecodeGroupImpl(const FrameHeader& frame_header,
       return JXL_FAILURE(
           "Quantization table is not a JPEG quantization table.");
     }
+    JXL_CHECK(qe[0].qraw.qtable->size() == 3 * 8 * 8);
+    int* qtable = qe[0].qraw.qtable->data();
     for (size_t c = 0; c < 3; c++) {
       if (frame_header.color_transform == ColorTransform::kNone) {
-        dcoff[c] = 1024 / (*qe[0].qraw.qtable)[64 * c];
+        dcoff[c] = 1024 / qtable[64 * c];
       }
       for (size_t i = 0; i < 64; i++) {
         // Transpose the matrix, as it will be used on the transposed block.
-        int n = qe[0].qraw.qtable->at(64 + i);
-        int d = qe[0].qraw.qtable->at(64 * c + i);
+        int n = qtable[64 + i];
+        int d = qtable[64 * c + i];
         if (n <= 0 || d <= 0 || n >= 65536 || d >= 65536) {
           return JXL_FAILURE("Invalid JPEG quantization table");
         }
@@ -345,7 +347,7 @@ Status DecodeGroupImpl(const FrameHeader& frame_header,
         }
 
         if (JXL_UNLIKELY(jpeg_data)) {
-          if (acs.Strategy() != AcStrategy::Type::DCT) {
+          if (acs.Strategy() != AcStrategyType::DCT) {
             return JXL_FAILURE(
                 "Can only decode to JPEG if only DCT-8 is used.");
           }
@@ -414,7 +416,7 @@ Status DecodeGroupImpl(const FrameHeader& frame_header,
           // Dequantize and add predictions.
           dequant_block(
               acs, inv_global_scale, row_quant[bx], dec_state->x_dm_multiplier,
-              dec_state->b_dm_multiplier, x_cc_mul, b_cc_mul, acs.RawStrategy(),
+              dec_state->b_dm_multiplier, x_cc_mul, b_cc_mul, acs.Strategy(),
               size, dec_state->shared->quantizer,
               acs.covered_blocks_y() * acs.covered_blocks_x(), sbx, dc_rows,
               dc_stride,

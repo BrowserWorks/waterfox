@@ -213,7 +213,7 @@ Status FindBestDequantMatrices(JxlMemoryManager* memory_manager,
     // Set numerators of all quantization matrices to constant values.
     float weights[3][1] = {{1.0f / wp[0]}, {1.0f / wp[1]}, {1.0f / wp[2]}};
     DctQuantWeightParams dct_params(weights);
-    std::vector<QuantEncoding> encodings(DequantMatrices::kNum,
+    std::vector<QuantEncoding> encodings(kNumQuantTables,
                                          QuantEncoding::DCT(dct_params));
     JXL_RETURN_IF_ERROR(DequantMatricesSetCustom(dequant_matrices, encodings,
                                                  modular_frame_encoder));
@@ -1021,7 +1021,8 @@ Status LossyFrameHeuristics(const FrameHeader& frame_header,
                     cparams.speed_tier <= SpeedTier::kSquirrel)) {
     JXL_RETURN_IF_ERROR(
         FindBestPatchDictionary(*opsin, enc_state, cms, pool, aux_out));
-    PatchDictionaryEncoder::SubtractFrom(image_features.patches, opsin);
+    JXL_RETURN_IF_ERROR(
+        PatchDictionaryEncoder::SubtractFrom(image_features.patches, opsin));
   }
 
   const float quant_dc = InitialQuantDC(cparams.butteraugli_distance);
@@ -1111,7 +1112,9 @@ Status LossyFrameHeuristics(const FrameHeader& frame_header,
   acs_heuristics.Init(*opsin, rect, initial_quant_field, initial_quant_masking,
                       initial_quant_masking1x1, &matrices);
 
+  std::atomic<bool> has_error{false};
   auto process_tile = [&](const uint32_t tid, const size_t thread) {
+    if (has_error) return;
     size_t n_enc_tiles = DivCeil(frame_dim.xsize_blocks, kEncTileDimInBlocks);
     size_t tx = tid % n_enc_tiles;
     size_t ty = tid / n_enc_tiles;
@@ -1134,7 +1137,10 @@ Status LossyFrameHeuristics(const FrameHeader& frame_header,
     }
 
     // Choose block sizes.
-    acs_heuristics.ProcessRect(r, cmap, &ac_strategy, thread);
+    if (!acs_heuristics.ProcessRect(r, cmap, &ac_strategy, thread)) {
+      has_error = true;
+      return;
+    }
 
     // Always set the initial quant field, so we can compute the CfL map with
     // more accuracy. The initial quant field might change in slower modes, but
@@ -1161,6 +1167,9 @@ Status LossyFrameHeuristics(const FrameHeader& frame_header,
         return true;
       },
       process_tile, "Enc Heuristics"));
+  if (has_error) {
+    return JXL_FAILURE("process_tile failed");
+  }
 
   JXL_RETURN_IF_ERROR(acs_heuristics.Finalize(frame_dim, ac_strategy, aux_out));
 
