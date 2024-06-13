@@ -418,16 +418,19 @@ void WriteHeaders(BitWriter* writer, size_t xsize, size_t ysize) {
   BitWriter::Allotment allotment(writer, 16);
   writer->Write(8, 0xFF);
   writer->Write(8, kCodestreamMarker);
-  allotment.ReclaimAndCharge(writer, 0, nullptr);
+  allotment.ReclaimAndCharge(writer, LayerType::Header, nullptr);
   CodecMetadata metadata;
   EXPECT_TRUE(metadata.size.Set(xsize, ysize));
-  EXPECT_TRUE(WriteSizeHeader(metadata.size, writer, 0, nullptr));
+  EXPECT_TRUE(
+      WriteSizeHeader(metadata.size, writer, LayerType::Header, nullptr));
   metadata.m.color_encoding = ColorEncoding::LinearSRGB(/*is_gray=*/true);
   metadata.m.xyb_encoded = false;
   metadata.m.SetUintSamples(31);
-  EXPECT_TRUE(WriteImageMetadata(metadata.m, writer, 0, nullptr));
+  EXPECT_TRUE(
+      WriteImageMetadata(metadata.m, writer, LayerType::Header, nullptr));
   metadata.transform_data.nonserialized_xyb_encoded = metadata.m.xyb_encoded;
-  EXPECT_TRUE(Bundle::Write(metadata.transform_data, writer, 0, nullptr));
+  EXPECT_TRUE(Bundle::Write(metadata.transform_data, writer, LayerType::Header,
+                            nullptr));
   writer->ZeroPadToByte();
   FrameHeader frame_header(&metadata);
   frame_header.encoding = FrameEncoding::kModular;
@@ -475,13 +478,13 @@ TEST(ModularTest, PredictorIntegerOverflow) {
     WriteHistograms(bw.get());
     GroupHeader header;
     header.use_global_tree = true;
-    EXPECT_TRUE(Bundle::Write(header, bw.get(), 0, nullptr));
+    EXPECT_TRUE(Bundle::Write(header, bw.get(), LayerType::Header, nullptr));
     // After UnpackSigned this becomes (1 << 31) - 1, the largest pixel_type,
     // and after adding the offset we get -(1 << 31).
     bw->Write(8, 119);
     bw->Write(28, 0xfffffff);
     bw->ZeroPadToByte();
-    allotment.ReclaimAndCharge(bw.get(), 0, nullptr);
+    allotment.ReclaimAndCharge(bw.get(), LayerType::Header, nullptr);
   }
   EXPECT_TRUE(WriteGroupOffsets(group_codes, {}, &writer, nullptr));
   writer.AppendByteAligned(group_codes);
@@ -521,7 +524,7 @@ TEST(ModularTest, UnsqueezeIntegerOverflow) {
     params.begin_c = 0;
     params.num_c = 1;
     header.transforms[0].squeezes.emplace_back(params);
-    EXPECT_TRUE(Bundle::Write(header, bw.get(), 0, nullptr));
+    EXPECT_TRUE(Bundle::Write(header, bw.get(), LayerType::Header, nullptr));
     for (size_t i = 0; i < xsize * ysize; ++i) {
       // After UnpackSigned and adding offset, this becomes (1 << 31) - 1, both
       // in the image and in the residual channels, and unsqueeze makes them
@@ -531,7 +534,7 @@ TEST(ModularTest, UnsqueezeIntegerOverflow) {
       bw->Write(28, 0xffffffe);
     }
     bw->ZeroPadToByte();
-    allotment.ReclaimAndCharge(bw.get(), 0, nullptr);
+    allotment.ReclaimAndCharge(bw.get(), LayerType::Header, nullptr);
   }
   EXPECT_TRUE(WriteGroupOffsets(group_codes, {}, &writer, nullptr));
   writer.AppendByteAligned(group_codes);

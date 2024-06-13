@@ -16,6 +16,7 @@
 namespace jxl {
 
 struct AuxOut;
+enum class LayerType : uint8_t;
 
 // Max limit is 255 because encoding assumes numbers < 255
 // More clusters can help compression, but makes encode/decode somewhat slower
@@ -24,7 +25,7 @@ static const size_t kClustersLimit = 128;
 // Encodes the given context map to the bit stream. The number of different
 // histogram ids is given by num_histograms.
 void EncodeContextMap(const std::vector<uint8_t>& context_map,
-                      size_t num_histograms, BitWriter* writer, size_t layer,
+                      size_t num_histograms, BitWriter* writer, LayerType layer,
                       AuxOut* aux_out);
 
 void EncodeBlockCtxMap(const BlockCtxMap& block_ctx_map, BitWriter* writer,

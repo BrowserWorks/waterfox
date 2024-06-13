@@ -305,7 +305,8 @@ Status LowMemoryRenderPipeline::Init() {
   }
   for (size_t i = first_image_dim_stage_; i < stages_.size(); i++) {
     if (stages_[i]->SwitchToImageDimensions()) {
-      JXL_UNREACHABLE("Cannot switch to image dimensions multiple times");
+      return JXL_UNREACHABLE(
+          "cannot switch to image dimensions multiple times");
     }
     std::vector<std::pair<size_t, size_t>> input_sizes(shifts.size());
     for (size_t c = 0; c < shifts.size(); c++) {

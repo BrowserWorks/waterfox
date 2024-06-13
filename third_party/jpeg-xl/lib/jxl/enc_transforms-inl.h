@@ -10,16 +10,19 @@
 #define LIB_JXL_ENC_TRANSFORMS_INL_H_
 #endif
 
-#include <stddef.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <hwy/highway.h>
 
 #include "lib/jxl/ac_strategy.h"
-#include "lib/jxl/coeff_order_fwd.h"
 #include "lib/jxl/dct-inl.h"
 #include "lib/jxl/dct_scales.h"
+
 HWY_BEFORE_NAMESPACE();
 namespace jxl {
+
+enum class AcStrategyType : uint32_t;
+
 namespace HWY_NAMESPACE {
 namespace {
 
@@ -445,12 +448,12 @@ void AFVTransformFromPixels(const float* JXL_RESTRICT pixels,
   coefficients[8] = (block00 + block01 - 2 * block10) * 0.25f;
 }
 
-HWY_MAYBE_UNUSED void TransformFromPixels(const AcStrategy::Type strategy,
+HWY_MAYBE_UNUSED void TransformFromPixels(const AcStrategyType strategy,
                                           const float* JXL_RESTRICT pixels,
                                           size_t pixels_stride,
                                           float* JXL_RESTRICT coefficients,
                                           float* JXL_RESTRICT scratch_space) {
-  using Type = AcStrategy::Type;
+  using Type = AcStrategyType;
   switch (strategy) {
     case Type::IDENTITY: {
       for (size_t y = 0; y < 2; y++) {
@@ -656,15 +659,13 @@ HWY_MAYBE_UNUSED void TransformFromPixels(const AcStrategy::Type strategy,
                                    scratch_space);
       break;
     }
-    case Type::kNumValidStrategies:
-      JXL_UNREACHABLE("Invalid strategy");
   }
 }
 
-HWY_MAYBE_UNUSED void DCFromLowestFrequencies(const AcStrategy::Type strategy,
+HWY_MAYBE_UNUSED void DCFromLowestFrequencies(const AcStrategyType strategy,
                                               const float* block, float* dc,
                                               size_t dc_stride) {
-  using Type = AcStrategy::Type;
+  using Type = AcStrategyType;
   switch (strategy) {
     case Type::DCT16X8: {
       ReinterpretingIDCT</*DCT_ROWS=*/2 * kBlockDim, /*DCT_COLS=*/kBlockDim,
@@ -786,8 +787,6 @@ HWY_MAYBE_UNUSED void DCFromLowestFrequencies(const AcStrategy::Type strategy,
     case Type::IDENTITY:
       dc[0] = block[0];
       break;
-    case Type::kNumValidStrategies:
-      JXL_UNREACHABLE("Invalid strategy");
   }
 }
 

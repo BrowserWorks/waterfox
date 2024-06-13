@@ -155,21 +155,21 @@ void int_to_float(const pixel_type* const JXL_RESTRICT row_in,
 #if JXL_DEBUG_V_LEVEL >= 1
 std::string ModularStreamId::DebugString() const {
   std::ostringstream os;
-  os << (kind == kGlobalData   ? "ModularGlobal"
-         : kind == kVarDCTDC   ? "VarDCTDC"
-         : kind == kModularDC  ? "ModularDC"
-         : kind == kACMetadata ? "ACMeta"
-         : kind == kQuantTable ? "QuantTable"
-         : kind == kModularAC  ? "ModularAC"
-                               : "");
-  if (kind == kVarDCTDC || kind == kModularDC || kind == kACMetadata ||
-      kind == kModularAC) {
+  os << (kind == GlobalData   ? "ModularGlobal"
+         : kind == VarDCTDC   ? "VarDCTDC"
+         : kind == ModularDC  ? "ModularDC"
+         : kind == ACMetadata ? "ACMeta"
+         : kind == QuantTable ? "QuantTable"
+         : kind == ModularAC  ? "ModularAC"
+                              : "");
+  if (kind == VarDCTDC || kind == ModularDC || kind == ACMetadata ||
+      kind == ModularAC) {
     os << " group " << group_id;
   }
-  if (kind == kModularAC) {
+  if (kind == ModularAC) {
     os << " pass " << pass_id;
   }
-  if (kind == kQuantTable) {
+  if (kind == QuantTable) {
     os << " " << quant_table_id;
   }
   return os.str();
@@ -306,8 +306,8 @@ Status ModularFrameDecoder::DecodeGroup(
   JXL_DEBUG_V(6, "Decoding %s with rect %s and shift bracket %d..%d %s",
               stream.DebugString().c_str(), Description(rect).c_str(), minShift,
               maxShift, zerofill ? "using zerofill" : "");
-  JXL_DASSERT(stream.kind == ModularStreamId::kModularDC ||
-              stream.kind == ModularStreamId::kModularAC);
+  JXL_DASSERT(stream.kind == ModularStreamId::Kind::ModularDC ||
+              stream.kind == ModularStreamId::Kind::ModularAC);
   const size_t xsize = rect.xsize();
   const size_t ysize = rect.ysize();
   JXL_ASSIGN_OR_RETURN(Image gi, Image::Create(memory_manager_, xsize, ysize,
@@ -515,7 +515,7 @@ Status ModularFrameDecoder::DecodeAcMetadata(const FrameHeader& frame_header,
         return JXL_FAILURE("Invalid AC strategy, y overflow");
       }
       JXL_RETURN_IF_ERROR(
-          ac_strategy.SetNoBoundsCheck(x, y, AcStrategy::Type(row_in_1[num])));
+          ac_strategy.SetNoBoundsCheck(x, y, AcStrategyType(row_in_1[num])));
       row_qf[ix] = 1 + std::max<int32_t>(0, std::min(Quantizer::kQuantMax - 1,
                                                      row_in_2[num]));
       num++;
@@ -785,15 +785,19 @@ Status ModularFrameDecoder::DecodeQuantTable(
                                                  /*undo_transforms=*/true));
   }
   if (!encoding->qraw.qtable) {
-    encoding->qraw.qtable = new std::vector<int>();
+    encoding->qraw.qtable =
+        new std::vector<int>(required_size_x * required_size_y * 3);
+  } else {
+    JXL_CHECK(encoding->qraw.qtable->size() ==
+              required_size_x * required_size_y * 3);
   }
-  encoding->qraw.qtable->resize(required_size_x * required_size_y * 3);
+  int* qtable = encoding->qraw.qtable->data();
   for (size_t c = 0; c < 3; c++) {
     for (size_t y = 0; y < required_size_y; y++) {
       int32_t* JXL_RESTRICT row = image.channel[c].Row(y);
       for (size_t x = 0; x < required_size_x; x++) {
-        (*encoding->qraw.qtable)[c * required_size_x * required_size_y +
-                                 y * required_size_x + x] = row[x];
+        qtable[c * required_size_x * required_size_y + y * required_size_x +
+               x] = row[x];
         if (row[x] <= 0) {
           return JXL_FAILURE("Invalid raw quantization table");
         }
