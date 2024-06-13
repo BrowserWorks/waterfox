@@ -29,9 +29,10 @@ TEST(ImageBundleTest, ExtraChannelName) {
   eci.type = ExtraChannel::kBlack;
   eci.name = "testK";
   metadata.extra_channel_info.push_back(std::move(eci));
-  ASSERT_TRUE(WriteImageMetadata(metadata, &writer, /*layer=*/0, &aux_out));
+  ASSERT_TRUE(
+      WriteImageMetadata(metadata, &writer, LayerType::Header, &aux_out));
   writer.ZeroPadToByte();
-  allotment.ReclaimAndCharge(&writer, /*layer=*/0, &aux_out);
+  allotment.ReclaimAndCharge(&writer, LayerType::Header, &aux_out);
 
   BitReader reader(writer.GetSpan());
   ImageMetadata metadata_out;

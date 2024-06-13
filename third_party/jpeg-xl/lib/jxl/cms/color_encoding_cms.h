@@ -353,13 +353,13 @@ struct ColorEncoding {
   PrimariesCIExy GetPrimaries() const {
     JXL_DASSERT(have_fields);
     JXL_ASSERT(HasPrimaries());
-    PrimariesCIExy xy;
+    PrimariesCIExy xy{};
     switch (primaries) {
       case Primaries::kCustom:
         xy.r = red.GetValue();
         xy.g = green.GetValue();
         xy.b = blue.GetValue();
-        return xy;
+        break;
 
       case Primaries::kSRGB:
         xy.r.x = 0.639998686;
@@ -368,7 +368,7 @@ struct ColorEncoding {
         xy.g.y = 0.600003357;
         xy.b.x = 0.150002046;
         xy.b.y = 0.059997204;
-        return xy;
+        break;
 
       case Primaries::k2100:
         xy.r.x = 0.708;
@@ -377,7 +377,7 @@ struct ColorEncoding {
         xy.g.y = 0.797;
         xy.b.x = 0.131;
         xy.b.y = 0.046;
-        return xy;
+        break;
 
       case Primaries::kP3:
         xy.r.x = 0.680;
@@ -386,9 +386,13 @@ struct ColorEncoding {
         xy.g.y = 0.690;
         xy.b.x = 0.150;
         xy.b.y = 0.060;
-        return xy;
+        break;
+
+      default:
+        JXL_DEBUG_ABORT("internal: unexpected Primaries: %d",
+                        static_cast<int>(primaries));
     }
-    JXL_UNREACHABLE("Invalid Primaries %u", static_cast<uint32_t>(primaries));
+    return xy;
   }
 
   Status SetPrimaries(const PrimariesCIExy& xy) {
@@ -429,28 +433,32 @@ struct ColorEncoding {
 
   CIExy GetWhitePoint() const {
     JXL_DASSERT(have_fields);
-    CIExy xy;
+    CIExy xy{};
     switch (white_point) {
       case WhitePoint::kCustom:
-        return white.GetValue();
+        xy = white.GetValue();
+        break;
 
       case WhitePoint::kD65:
         xy.x = 0.3127;
         xy.y = 0.3290;
-        return xy;
+        break;
 
       case WhitePoint::kDCI:
         // From https://ieeexplore.ieee.org/document/7290729 C.2 page 11
         xy.x = 0.314;
         xy.y = 0.351;
-        return xy;
+        break;
 
       case WhitePoint::kE:
         xy.x = xy.y = 1.0 / 3;
-        return xy;
+        break;
+
+      default:
+        JXL_DEBUG_ABORT("internal: unexpected WhitePoint: %d",
+                        static_cast<int>(white_point));
     }
-    JXL_UNREACHABLE("Invalid WhitePoint %u",
-                    static_cast<uint32_t>(white_point));
+    return xy;
   }
 
   Status SetWhitePoint(const CIExy& xy) {

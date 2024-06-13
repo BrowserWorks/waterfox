@@ -12,6 +12,7 @@
 
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/dec_bit_reader.h"
+#include "lib/jxl/enc_aux_out.h"
 #include "lib/jxl/enc_bit_writer.h"
 #include "lib/jxl/enc_fields.h"
 #include "lib/jxl/fields.h"
@@ -52,7 +53,8 @@ TEST(QuantizerTest, BitStreamRoundtripSameQuant) {
   quantizer1.SetQuant(0.17f, 0.17f, &raw_quant_field);
   BitWriter writer{memory_manager};
   QuantizerParams params = quantizer1.GetParams();
-  EXPECT_TRUE(WriteQuantizerParams(params, &writer, 0, nullptr));
+  EXPECT_TRUE(
+      WriteQuantizerParams(params, &writer, LayerType::Header, nullptr));
   writer.ZeroPadToByte();
   const size_t bits_written = writer.BitsWritten();
   Quantizer quantizer2(&dequant);
@@ -79,7 +81,8 @@ TEST(QuantizerTest, BitStreamRoundtripRandomQuant) {
   quantizer1.SetQuantField(quant_dc, qf, &raw_quant_field);
   BitWriter writer{memory_manager};
   QuantizerParams params = quantizer1.GetParams();
-  EXPECT_TRUE(WriteQuantizerParams(params, &writer, 0, nullptr));
+  EXPECT_TRUE(
+      WriteQuantizerParams(params, &writer, LayerType::Header, nullptr));
   writer.ZeroPadToByte();
   const size_t bits_written = writer.BitsWritten();
   Quantizer quantizer2(&dequant);

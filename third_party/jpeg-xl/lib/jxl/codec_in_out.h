@@ -72,17 +72,20 @@ class CodecInOut {
     JXL_CHECK(metadata.size.Set(xsize, ysize));
   }
 
-  void CheckMetadata() const {
+  Status CheckMetadata() const {
     JXL_CHECK(metadata.m.bit_depth.bits_per_sample != 0);
     JXL_CHECK(!metadata.m.color_encoding.ICC().empty());
 
-    if (preview_frame.xsize() != 0) preview_frame.VerifyMetadata();
+    if (preview_frame.xsize() != 0) {
+      JXL_RETURN_IF_ERROR(preview_frame.VerifyMetadata());
+    }
     JXL_CHECK(preview_frame.metadata() == &metadata.m);
 
     for (const ImageBundle& ib : frames) {
-      ib.VerifyMetadata();
+      JXL_RETURN_IF_ERROR(ib.VerifyMetadata());
       JXL_CHECK(ib.metadata() == &metadata.m);
     }
+    return true;
   }
 
   size_t xsize() const { return metadata.size.xsize(); }

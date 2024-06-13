@@ -173,7 +173,7 @@ Status InitializePassesEncoder(const FrameHeader& frame_header,
                           aux_out ? &dc_aux_out : nullptr));
     if (aux_out) {
       for (const auto& l : dc_aux_out.layers) {
-        aux_out->layers[kLayerDC].Assimilate(l);
+        aux_out->layer(LayerType::Dc).Assimilate(l);
       }
     }
     const Span<const uint8_t> encoded = special_frame->GetSpan();

@@ -27,6 +27,8 @@
 
 namespace jxl {
 
+enum class AcStrategyType : uint32_t;
+
 static constexpr int kGlobalScaleDenom = 1 << 16;
 static constexpr int kGlobalScaleNumerator = 4096;
 
@@ -117,11 +119,13 @@ class Quantizer {
 
   void DumpQuantizationMap(const ImageI& raw_quant_field) const;
 
-  JXL_INLINE const float* DequantMatrix(size_t quant_kind, size_t c) const {
+  JXL_INLINE const float* DequantMatrix(AcStrategyType quant_kind,
+                                        size_t c) const {
     return dequant_->Matrix(quant_kind, c);
   }
 
-  JXL_INLINE const float* InvDequantMatrix(size_t quant_kind, size_t c) const {
+  JXL_INLINE const float* InvDequantMatrix(AcStrategyType quant_kind,
+                                           size_t c) const {
     return dequant_->InvMatrix(quant_kind, c);
   }
 

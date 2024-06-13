@@ -8,37 +8,37 @@
 
 // Optional output information for debugging and analyzing size usage.
 
-#include <stddef.h>
-
 #include <array>
-#include <functional>
-#include <string>
+#include <cstddef>
+#include <cstdint>
 
 namespace jxl {
 
 struct ColorEncoding;
 
 // For LayerName and AuxOut::layers[] index. Order does not matter.
-enum {
-  kLayerHeader = 0,
-  kLayerTOC,
-  kLayerDictionary,
-  kLayerSplines,
-  kLayerNoise,
-  kLayerQuant,
-  kLayerModularTree,
-  kLayerModularGlobal,
-  kLayerDC,
-  kLayerModularDcGroup,
-  kLayerControlFields,
-  kLayerOrder,
-  kLayerAC,
-  kLayerACTokens,
-  kLayerModularAcGroup,
-  kNumImageLayers
+enum class LayerType : uint8_t {
+  Header = 0,
+  Toc,
+  Dictionary,
+  Splines,
+  Noise,
+  Quant,
+  ModularTree,
+  ModularGlobal,
+  Dc,
+  ModularDcGroup,
+  ControlFields,
+  Order,
+  Ac,
+  AcTokens,
+  ModularAcGroup,
 };
 
-const char* LayerName(size_t layer);
+constexpr uint8_t kNumImageLayers =
+    static_cast<uint8_t>(LayerType::ModularAcGroup) + 1;
+
+const char* LayerName(LayerType layer);
 
 // Statistics gathered during compression or decompression.
 struct AuxOut {
@@ -80,6 +80,14 @@ struct AuxOut {
   }
 
   std::array<LayerTotals, kNumImageLayers> layers;
+
+  const LayerTotals& layer(LayerType idx) const {
+    return layers[static_cast<uint8_t>(idx)];
+  }
+  LayerTotals& layer(LayerType idx) {
+    return layers[static_cast<uint8_t>(idx)];
+  }
+
   size_t num_blocks = 0;
 
   // Number of blocks that use larger DCT (set by ac_strategy).

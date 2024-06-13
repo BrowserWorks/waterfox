@@ -199,7 +199,7 @@ Status ConvertPackedPixelFileToCodecInOut(const PackedPixelFile& ppf,
   } else {
     SetIntensityTarget(&io->metadata.m);
   }
-  io->CheckMetadata();
+  JXL_RETURN_IF_ERROR(io->CheckMetadata());
   return true;
 }
 

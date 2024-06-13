@@ -16,6 +16,7 @@
 #include "lib/jxl/base/common.h"
 #include "lib/jxl/base/float.h"
 #include "lib/jxl/base/printf_macros.h"
+#include "lib/jxl/base/status.h"
 
 namespace jxl {
 namespace {
@@ -246,7 +247,7 @@ Status BufferToImageBundle(const JxlPixelFormat& pixel_format, uint32_t xsize,
   JXL_RETURN_IF_ERROR(ConvertFromExternal(
       jxl::Bytes(static_cast<const uint8_t*>(buffer), size), xsize, ysize,
       c_current, bitdepth, pixel_format, pool, ib));
-  ib->VerifyMetadata();
+  JXL_RETURN_IF_ERROR(ib->VerifyMetadata());
 
   return true;
 }

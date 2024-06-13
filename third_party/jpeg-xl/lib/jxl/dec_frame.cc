@@ -447,6 +447,9 @@ Status FrameDecoder::ProcessACGlobal(BitReader* br) {
     bool is_gray = (num_components == 1);
     auto jpeg_c_map = JpegOrder(frame_header_.color_transform, is_gray);
     size_t qt_set = 0;
+    JXL_CHECK(num_components <= 3);
+    JXL_CHECK(qe[0].qraw.qtable->size() == 3 * 8 * 8);
+    int* qtable = qe[0].qraw.qtable->data();
     for (size_t c = 0; c < num_components; c++) {
       // TODO(eustas): why 1-st quant table for gray?
       size_t quant_c = is_gray ? 1 : c;
@@ -456,7 +459,7 @@ Status FrameDecoder::ProcessACGlobal(BitReader* br) {
       for (size_t x = 0; x < 8; x++) {
         for (size_t y = 0; y < 8; y++) {
           jpeg_data->quant[qpos].values[x * 8 + y] =
-              (*qe[0].qraw.qtable)[quant_c * 64 + y * 8 + x];
+              qtable[quant_c * 64 + y * 8 + x];
         }
       }
     }

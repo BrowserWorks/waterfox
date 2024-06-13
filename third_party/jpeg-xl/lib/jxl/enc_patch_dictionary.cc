@@ -44,7 +44,7 @@ static constexpr size_t kPatchFrameReferenceId = 3;
 
 // static
 void PatchDictionaryEncoder::Encode(const PatchDictionary& pdic,
-                                    BitWriter* writer, size_t layer,
+                                    BitWriter* writer, LayerType layer,
                                     AuxOut* aux_out) {
   JXL_ASSERT(pdic.HasAny());
   JxlMemoryManager* memory_manager = writer->memory_manager();
@@ -116,8 +116,8 @@ void PatchDictionaryEncoder::Encode(const PatchDictionary& pdic,
 }
 
 // static
-void PatchDictionaryEncoder::SubtractFrom(const PatchDictionary& pdic,
-                                          Image3F* opsin) {
+Status PatchDictionaryEncoder::SubtractFrom(const PatchDictionary& pdic,
+                                            Image3F* opsin) {
   // TODO(veluca): this can likely be optimized knowing it runs on full images.
   for (size_t y = 0; y < opsin->ysize(); y++) {
     float* JXL_RESTRICT rows[3] = {
@@ -159,13 +159,14 @@ void PatchDictionaryEncoder::SubtractFrom(const PatchDictionary& pdic,
           } else if (mode == PatchBlendMode::kNone) {
             // Nothing to do.
           } else {
-            JXL_UNREACHABLE("Blending mode %u not yet implemented",
-                            static_cast<uint32_t>(mode));
+            return JXL_UNREACHABLE("blending mode %u not yet implemented",
+                                   static_cast<uint32_t>(mode));
           }
         }
       }
     }
   }
+  return true;
 }
 
 namespace {
@@ -814,7 +815,7 @@ Status RoundtripPatchFrame(Image3F* reference_frame,
       cms, pool, special_frame.get(), aux_out ? &patch_aux_out : nullptr));
   if (aux_out) {
     for (const auto& l : patch_aux_out.layers) {
-      aux_out->layers[kLayerDictionary].Assimilate(l);
+      aux_out->layer(LayerType::Dictionary).Assimilate(l);
     }
   }
   const Span<const uint8_t> encoded = special_frame->GetSpan();

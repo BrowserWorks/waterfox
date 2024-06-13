@@ -10,7 +10,6 @@
 #include <cstring>  // memcpy
 
 #include "lib/jxl/base/byte_order.h"
-#include "lib/jxl/base/printf_macros.h"
 #include "lib/jxl/enc_aux_out.h"
 
 namespace jxl {
@@ -29,7 +28,7 @@ BitWriter::Allotment::Allotment(BitWriter* JXL_RESTRICT writer, size_t max_bits)
 BitWriter::Allotment::~Allotment() {
   if (!called_) {
     // Not calling is a bug - unused storage will not be reclaimed.
-    JXL_UNREACHABLE("Did not call Allotment::ReclaimUnused");
+    JXL_DEBUG_ABORT("Did not call Allotment::ReclaimUnused");
   }
 }
 
@@ -42,22 +41,17 @@ void BitWriter::Allotment::FinishedHistogram(BitWriter* JXL_RESTRICT writer) {
 }
 
 void BitWriter::Allotment::ReclaimAndCharge(BitWriter* JXL_RESTRICT writer,
-                                            size_t layer,
+                                            LayerType layer,
                                             AuxOut* JXL_RESTRICT aux_out) {
   size_t used_bits = 0;
   size_t unused_bits = 0;
   PrivateReclaim(writer, &used_bits, &unused_bits);
 
-#if JXL_FALSE
-  printf("Layer %s bits: max %" PRIuS " used %" PRIuS " unused %" PRIuS "\n",
-         LayerName(layer), MaxBits(), used_bits, unused_bits);
-#endif
-
   // This may be a nested call with aux_out == null. Whenever we know that
   // aux_out is null, we can call ReclaimUnused directly.
   if (aux_out != nullptr) {
-    aux_out->layers[layer].total_bits += used_bits;
-    aux_out->layers[layer].histogram_bits += HistogramBits();
+    aux_out->layer(layer).total_bits += used_bits;
+    aux_out->layer(layer).histogram_bits += HistogramBits();
   }
 }
 
@@ -118,7 +112,7 @@ void BitWriter::AppendUnaligned(const BitWriter& other) {
     Write(remaining_bits,
           other.storage_[full_bytes] & ((1u << remaining_bits) - 1));
   }
-  allotment.ReclaimAndCharge(this, 0, nullptr);
+  allotment.ReclaimAndCharge(this, LayerType::Header, nullptr);
 }
 
 void BitWriter::AppendByteAligned(const std::vector<BitWriter>& others) {

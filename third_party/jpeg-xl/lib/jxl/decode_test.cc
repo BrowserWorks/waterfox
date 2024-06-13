@@ -726,7 +726,8 @@ std::vector<uint8_t> GetTestHeader(size_t xsize, size_t ysize,
   // SizeHeader
   jxl::CodecMetadata metadata;
   EXPECT_TRUE(metadata.size.Set(xsize, ysize));
-  EXPECT_TRUE(WriteSizeHeader(metadata.size, &writer, 0, nullptr));
+  EXPECT_TRUE(
+      WriteSizeHeader(metadata.size, &writer, jxl::LayerType::Header, nullptr));
 
   if (!metadata_default) {
     metadata.m.SetUintSamples(bits_per_sample);
@@ -744,17 +745,20 @@ std::vector<uint8_t> GetTestHeader(size_t xsize, size_t ysize,
         metadata.m.color_encoding.SetICC(std::move(copy), JxlGetDefaultCms()));
   }
 
-  EXPECT_TRUE(jxl::Bundle::Write(metadata.m, &writer, 0, nullptr));
+  EXPECT_TRUE(
+      jxl::Bundle::Write(metadata.m, &writer, jxl::LayerType::Header, nullptr));
   metadata.transform_data.nonserialized_xyb_encoded = metadata.m.xyb_encoded;
-  EXPECT_TRUE(jxl::Bundle::Write(metadata.transform_data, &writer, 0, nullptr));
+  EXPECT_TRUE(jxl::Bundle::Write(metadata.transform_data, &writer,
+                                 jxl::LayerType::Header, nullptr));
 
   if (!icc_profile.empty()) {
     EXPECT_TRUE(metadata.m.color_encoding.WantICC());
-    EXPECT_TRUE(jxl::WriteICC(icc_profile, &writer, 0, nullptr));
+    EXPECT_TRUE(jxl::WriteICC(jxl::Span<const uint8_t>(icc_profile), &writer,
+                              jxl::LayerType::Header, nullptr));
   }
 
   writer.ZeroPadToByte();
-  allotment.ReclaimAndCharge(&writer, 0, nullptr);
+  allotment.ReclaimAndCharge(&writer, jxl::LayerType::Header, nullptr);
   return std::vector<uint8_t>(
       writer.GetSpan().data(),
       writer.GetSpan().data() + writer.GetSpan().size());

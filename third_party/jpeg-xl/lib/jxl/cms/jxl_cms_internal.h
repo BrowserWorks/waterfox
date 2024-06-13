@@ -774,9 +774,12 @@ static std::string ToString(JxlColorSpace color_space) {
       return "XYB";
     case JXL_COLOR_SPACE_UNKNOWN:
       return "CS?";
+    default:
+      // Should not happen - visitor fails if enum is invalid.
+      JXL_DEBUG_ABORT("Invalid ColorSpace %u",
+                      static_cast<uint32_t>(color_space));
+      return "Invalid";
   }
-  // Should not happen - visitor fails if enum is invalid.
-  JXL_UNREACHABLE("Invalid ColorSpace %u", static_cast<uint32_t>(color_space));
 }
 
 static std::string ToString(JxlWhitePoint white_point) {
@@ -789,9 +792,12 @@ static std::string ToString(JxlWhitePoint white_point) {
       return "EER";
     case JXL_WHITE_POINT_DCI:
       return "DCI";
+    default:
+      // Should not happen - visitor fails if enum is invalid.
+      JXL_DEBUG_ABORT("Invalid WhitePoint %u",
+                      static_cast<uint32_t>(white_point));
+      return "Invalid";
   }
-  // Should not happen - visitor fails if enum is invalid.
-  JXL_UNREACHABLE("Invalid WhitePoint %u", static_cast<uint32_t>(white_point));
 }
 
 static std::string ToString(JxlPrimaries primaries) {
@@ -804,9 +810,11 @@ static std::string ToString(JxlPrimaries primaries) {
       return "DCI";
     case JXL_PRIMARIES_CUSTOM:
       return "Cst";
+    default:
+      // Should not happen - visitor fails if enum is invalid.
+      JXL_DEBUG_ABORT("Invalid Primaries %u", static_cast<uint32_t>(primaries));
+      return "Invalid";
   }
-  // Should not happen - visitor fails if enum is invalid.
-  JXL_UNREACHABLE("Invalid Primaries %u", static_cast<uint32_t>(primaries));
 }
 
 static std::string ToString(JxlTransferFunction transfer_function) {
@@ -826,11 +834,14 @@ static std::string ToString(JxlTransferFunction transfer_function) {
     case JXL_TRANSFER_FUNCTION_UNKNOWN:
       return "TF?";
     case JXL_TRANSFER_FUNCTION_GAMMA:
-      JXL_UNREACHABLE("Invalid TransferFunction: gamma");
+      JXL_DEBUG_ABORT("Invalid TransferFunction: gamma");
+      return "Invalid";
+    default:
+      // Should not happen - visitor fails if enum is invalid.
+      JXL_DEBUG_ABORT("Invalid TransferFunction %u",
+                      static_cast<uint32_t>(transfer_function));
+      return "Invalid";
   }
-  // Should not happen - visitor fails if enum is invalid.
-  JXL_UNREACHABLE("Invalid TransferFunction %u",
-                  static_cast<uint32_t>(transfer_function));
 }
 
 static std::string ToString(JxlRenderingIntent rendering_intent) {
@@ -845,8 +856,9 @@ static std::string ToString(JxlRenderingIntent rendering_intent) {
       return "Abs";
   }
   // Should not happen - visitor fails if enum is invalid.
-  JXL_UNREACHABLE("Invalid RenderingIntent %u",
+  JXL_DEBUG_ABORT("Invalid RenderingIntent %u",
                   static_cast<uint32_t>(rendering_intent));
+  return "Invalid";
 }
 
 static std::string ColorEncodingDescriptionImpl(const JxlColorEncoding& c) {
@@ -1051,7 +1063,8 @@ static Status MaybeCreateProfileImpl(const JxlColorEncoding& c,
               CreateICCCurvParaTag({2.6, 1.0, 0.0, 1.0, 0.0}, 3, &tags));
           break;
         default:
-          JXL_UNREACHABLE("Unknown TF %u", static_cast<unsigned int>(tf));
+          return JXL_UNREACHABLE("unknown TF %u",
+                                 static_cast<unsigned int>(tf));
       }
     }
     FinalizeICCTag(&tags, &tag_offset, &tag_size);

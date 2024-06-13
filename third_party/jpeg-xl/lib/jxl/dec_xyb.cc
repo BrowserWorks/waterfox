@@ -178,9 +178,9 @@ HWY_EXPORT(HasFastXYBTosRGB8);
 bool HasFastXYBTosRGB8() { return HWY_DYNAMIC_DISPATCH(HasFastXYBTosRGB8)(); }
 
 HWY_EXPORT(FastXYBTosRGB8);
-void FastXYBTosRGB8(const float* input[4], uint8_t* output, bool is_rgba,
-                    size_t xsize) {
-  HWY_DYNAMIC_DISPATCH(FastXYBTosRGB8)(input, output, is_rgba, xsize);
+Status FastXYBTosRGB8(const float* input[4], uint8_t* output, bool is_rgba,
+                      size_t xsize) {
+  return HWY_DYNAMIC_DISPATCH(FastXYBTosRGB8)(input, output, is_rgba, xsize);
 }
 
 void OpsinParams::Init(float intensity_target) {
