@@ -30,6 +30,7 @@
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/data_parallel.h"
 #include "lib/jxl/base/status.h"
+#include "lib/jxl/enc_aux_out.h"
 #include "lib/jxl/enc_fast_lossless.h"
 #include "lib/jxl/enc_params.h"
 #include "lib/jxl/image_metadata.h"
@@ -213,7 +214,7 @@ class JxlEncoderChunkedFrameAdapter {
   }
 
   // TODO(szabadka) Move instead of copy.
-  void SetJPEGData(const jpeg::JPEGData& jpeg_data) {
+  void SetJPEGData(const jpeg::JPEGData jpeg_data) {
     jpeg_data_ = jpeg_data;
     has_jpeg_data_ = true;
   }
@@ -430,12 +431,9 @@ class JxlEncoderOutputProcessorWrapper {
   friend class JxlOutputProcessorBuffer;
 
  public:
-  explicit JxlEncoderOutputProcessorWrapper(JxlMemoryManager* memory_manager)
-      : memory_manager_(memory_manager) {}
-  JxlEncoderOutputProcessorWrapper(JxlMemoryManager* memory_manager,
-                                   JxlEncoderOutputProcessor processor)
-      : memory_manager_(memory_manager),
-        external_output_processor_(
+  JxlEncoderOutputProcessorWrapper() = default;
+  explicit JxlEncoderOutputProcessorWrapper(JxlEncoderOutputProcessor processor)
+      : external_output_processor_(
             jxl::make_unique<JxlEncoderOutputProcessor>(processor)) {}
 
   bool HasAvailOut() const { return avail_out_ != nullptr; }
@@ -474,10 +472,6 @@ class JxlEncoderOutputProcessorWrapper {
   bool AppendBufferToExternalProcessor(void* data, size_t count);
 
   struct InternalBuffer {
-    explicit InternalBuffer(JxlMemoryManager* memory_manager)
-        : owned_data(memory_manager) {
-      JXL_ASSERT(memory_manager != nullptr);
-    }
     // Bytes in the range `[output_position_ - start_of_the_buffer,
     // written_bytes)` need to be flushed out.
     size_t written_bytes = 0;
@@ -502,7 +496,6 @@ class JxlEncoderOutputProcessorWrapper {
   bool stop_requested_ = false;
   bool has_buffer_ = false;
 
-  JxlMemoryManager* memory_manager_;
   std::unique_ptr<JxlEncoderOutputProcessor> external_output_processor_;
 };
 
@@ -587,7 +580,6 @@ jxl::Status AppendData(JxlEncoderOutputProcessorWrapper& output_processor,
 // Internal use only struct, can only be initialized correctly by
 // JxlEncoderCreate.
 struct JxlEncoderStruct {
-  JxlEncoderStruct() : output_processor(&memory_manager) {}
   JxlMemoryManager memory_manager;
   jxl::MemoryManagerUniquePtr<jxl::ThreadPool> thread_pool{
       nullptr, jxl::MemoryManagerDeleteHelper(&memory_manager)};
@@ -674,7 +666,7 @@ struct JxlEncoderFrameSettingsStruct {
 };
 
 struct JxlEncoderStatsStruct {
-  std::unique_ptr<jxl::AuxOut> aux_out;
+  jxl::AuxOut aux_out;
 };
 
 #endif  // LIB_JXL_ENCODE_INTERNAL_H_

@@ -25,7 +25,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#ifdef __cplusplus
+#if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
@@ -387,11 +387,6 @@ typedef enum {
    * 0 = disabled, 1 = enabled (default)
    */
   JXL_ENC_FRAME_SETTING_USE_FULL_IMAGE_HEURISTICS = 38,
-
-  /** Disable perceptual optimizations. 0 = optimizations enabled (default), 1 =
-   * optimizations disabled.
-   */
-  JXL_ENC_FRAME_SETTING_DISABLE_PERCEPTUAL_HEURISTICS = 39,
 
   /** Enum value not to be used as an option. This value is added to force the
    * C compiler to have the enum to take a known size.
@@ -1593,7 +1588,7 @@ JXL_EXPORT void JxlEncoderSetDebugImageCallback(
 JXL_EXPORT void JxlEncoderCollectStats(JxlEncoderFrameSettings* frame_settings,
                                        JxlEncoderStats* stats);
 
-#ifdef __cplusplus
+#if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
 

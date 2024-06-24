@@ -8,15 +8,12 @@
 
 // Operations on images.
 
-#include <jxl/memory_manager.h>
-
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 
 #include "lib/jxl/base/compiler_specific.h"
-#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/frame_dimensions.h"
 #include "lib/jxl/image.h"
@@ -120,9 +117,7 @@ StatusOr<Plane<T>> LinComb(const T lambda1, const Plane<T>& image1,
   const size_t ysize = image1.ysize();
   JXL_CHECK(xsize == image2.xsize());
   JXL_CHECK(ysize == image2.ysize());
-  JxlMemoryManager* memory_manager = image1.memory_manager();
-  JXL_ASSIGN_OR_RETURN(Plane<T> out,
-                       Plane<T>::Create(memory_manager, xsize, ysize));
+  JXL_ASSIGN_OR_RETURN(Plane<T> out, Plane<T>::Create(xsize, ysize));
   for (size_t y = 0; y < ysize; ++y) {
     const T* const JXL_RESTRICT row1 = image1.Row(y);
     const T* const JXL_RESTRICT row2 = image2.Row(y);

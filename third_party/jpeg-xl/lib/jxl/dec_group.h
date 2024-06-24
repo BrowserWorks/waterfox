@@ -16,7 +16,7 @@
 #include "lib/jxl/dec_bit_reader.h"
 #include "lib/jxl/dec_cache.h"
 #include "lib/jxl/frame_header.h"
-#include "lib/jxl/jpeg/jpeg_data.h"
+#include "lib/jxl/image_bundle.h"
 #include "lib/jxl/render_pipeline/render_pipeline.h"
 
 namespace jxl {
@@ -29,7 +29,7 @@ Status DecodeGroup(const FrameHeader& frame_header,
                    PassesDecoderState* JXL_RESTRICT dec_state,
                    GroupDecCache* JXL_RESTRICT group_dec_cache, size_t thread,
                    RenderPipelineInput& render_pipeline_input,
-                   jpeg::JPEGData* JXL_RESTRICT jpeg_data, size_t first_pass,
+                   ImageBundle* JXL_RESTRICT decoded, size_t first_pass,
                    bool force_draw, bool dc_only, bool* should_run_pipeline);
 
 Status DecodeGroupForRoundtrip(const FrameHeader& frame_header,
@@ -39,7 +39,7 @@ Status DecodeGroupForRoundtrip(const FrameHeader& frame_header,
                                GroupDecCache* JXL_RESTRICT group_dec_cache,
                                size_t thread,
                                RenderPipelineInput& render_pipeline_input,
-                               jpeg::JPEGData* JXL_RESTRICT jpeg_data,
+                               ImageBundle* JXL_RESTRICT decoded,
                                AuxOut* aux_out);
 
 }  // namespace jxl

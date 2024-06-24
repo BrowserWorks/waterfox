@@ -6,21 +6,28 @@
 #ifndef LIB_JXL_PROGRESSIVE_SPLIT_H_
 #define LIB_JXL_PROGRESSIVE_SPLIT_H_
 
-#include <cstddef>
-#include <cstdint>
-#include <limits>
+#include <stddef.h>
+#include <stdint.h>
 
+#include <limits>
+#include <memory>
+#include <vector>
+
+#include "lib/jxl/ac_strategy.h"
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/status.h"
+#include "lib/jxl/chroma_from_luma.h"
 #include "lib/jxl/common.h"  // kMaxNumPasses
+#include "lib/jxl/dct_util.h"
 #include "lib/jxl/frame_header.h"
+#include "lib/jxl/image.h"
+#include "lib/jxl/image_ops.h"
+#include "lib/jxl/splines.h"
 
 // Functions to split DCT coefficients in multiple passes. All the passes of a
 // single frame are added together.
 
 namespace jxl {
-
-class AcStrategy;
 
 constexpr size_t kNoDownsamplingFactor = std::numeric_limits<size_t>::max();
 

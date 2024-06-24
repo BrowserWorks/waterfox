@@ -10,9 +10,9 @@ origin:
 
   url: https://github.com/libjxl/libjxl
 
-  release: d947eb5f98f04a403bc5e96c1f4c71e6a1b3cca4 (2024-06-05T13:13:01Z).
+  release: e1489592a770b989303b0edc5cc1dc447bbe0515 (2024-03-08T08:10:58Z).
 
-  revision: d947eb5f98f04a403bc5e96c1f4c71e6a1b3cca4
+  revision: e1489592a770b989303b0edc5cc1dc447bbe0515
 
   license: Apache-2.0
 
@@ -24,7 +24,7 @@ updatebot:
     tasks:
       - type: vendoring
         enabled: True
-        frequency: 3 weeks
+        frequency: release
 
 vendoring:
   url: https://github.com/libjxl/libjxl

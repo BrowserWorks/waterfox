@@ -6,14 +6,22 @@
 #ifndef LIB_JPEGLI_TEST_UTILS_H_
 #define LIB_JPEGLI_TEST_UTILS_H_
 
-#include <cstddef>
-#include <cstdint>
+#include <stddef.h>
+#include <stdint.h>
+
+#include <algorithm>
 #include <string>
 #include <vector>
 
+/* clang-format off */
+#include <stdio.h>
+#include <jpeglib.h>
+#include <setjmp.h>
+/* clang-format on */
+
+#include "lib/jpegli/common.h"
+#include "lib/jpegli/libjpeg_test_util.h"
 #include "lib/jpegli/test_params.h"
-#include "lib/jpegli/types.h"
-#include "lib/jxl/base/include_jpeglib.h"  // NOLINT
 
 namespace jpegli {
 

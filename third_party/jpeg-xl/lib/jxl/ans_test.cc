@@ -3,21 +3,19 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include <jxl/memory_manager.h>
+#include <stddef.h>
+#include <stdint.h>
 
-#include <cstddef>
-#include <cstdint>
 #include <vector>
 
 #include "lib/jxl/ans_params.h"
 #include "lib/jxl/base/random.h"
-#include "lib/jxl/base/status.h"
+#include "lib/jxl/base/span.h"
 #include "lib/jxl/dec_ans.h"
 #include "lib/jxl/dec_bit_reader.h"
 #include "lib/jxl/enc_ans.h"
 #include "lib/jxl/enc_aux_out.h"
 #include "lib/jxl/enc_bit_writer.h"
-#include "lib/jxl/test_memory_manager.h"
 #include "lib/jxl/testing.h"
 
 namespace jxl {
@@ -25,32 +23,29 @@ namespace {
 
 void RoundtripTestcase(int n_histograms, int alphabet_size,
                        const std::vector<Token>& input_values) {
-  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   constexpr uint16_t kMagic1 = 0x9e33;
   constexpr uint16_t kMagic2 = 0x8b04;
 
-  BitWriter writer{memory_manager};
+  BitWriter writer;
   // Space for magic bytes.
   BitWriter::Allotment allotment_magic1(&writer, 16);
   writer.Write(16, kMagic1);
-  allotment_magic1.ReclaimAndCharge(&writer, LayerType::Header, nullptr);
+  allotment_magic1.ReclaimAndCharge(&writer, 0, nullptr);
 
   std::vector<uint8_t> context_map;
   EntropyEncodingData codes;
   std::vector<std::vector<Token>> input_values_vec;
   input_values_vec.push_back(input_values);
 
-  BuildAndEncodeHistograms(memory_manager, HistogramParams(), n_histograms,
-                           input_values_vec, &codes, &context_map, &writer,
-                           LayerType::Header, nullptr);
-  WriteTokens(input_values_vec[0], codes, context_map, 0, &writer,
-              LayerType::Header, nullptr);
+  BuildAndEncodeHistograms(HistogramParams(), n_histograms, input_values_vec,
+                           &codes, &context_map, &writer, 0, nullptr);
+  WriteTokens(input_values_vec[0], codes, context_map, 0, &writer, 0, nullptr);
 
   // Magic bytes + padding
   BitWriter::Allotment allotment_magic2(&writer, 24);
   writer.Write(16, kMagic2);
   writer.ZeroPadToByte();
-  allotment_magic2.ReclaimAndCharge(&writer, LayerType::Header, nullptr);
+  allotment_magic2.ReclaimAndCharge(&writer, 0, nullptr);
 
   // We do not truncate the output. Reading past the end reads out zeroes
   // anyway.
@@ -60,11 +55,10 @@ void RoundtripTestcase(int n_histograms, int alphabet_size,
 
   std::vector<uint8_t> dec_context_map;
   ANSCode decoded_codes;
-  ASSERT_TRUE(DecodeHistograms(memory_manager, &br, n_histograms,
-                               &decoded_codes, &dec_context_map));
+  ASSERT_TRUE(
+      DecodeHistograms(&br, n_histograms, &decoded_codes, &dec_context_map));
   ASSERT_EQ(dec_context_map, context_map);
-  JXL_ASSIGN_OR_DIE(ANSSymbolReader reader,
-                    ANSSymbolReader::Create(&decoded_codes, &br));
+  ANSSymbolReader reader(&decoded_codes, &br);
 
   for (const Token& symbol : input_values) {
     uint32_t read_symbol =
@@ -163,7 +157,6 @@ TEST(ANSTest, RandomUnbalancedStreamRoundtripBig) {
 }
 
 TEST(ANSTest, UintConfigRoundtrip) {
-  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   for (size_t log_alpha_size = 5; log_alpha_size <= 8; log_alpha_size++) {
     std::vector<HybridUintConfig> uint_config;
     std::vector<HybridUintConfig> uint_config_dec;
@@ -176,10 +169,10 @@ TEST(ANSTest, UintConfigRoundtrip) {
     }
     uint_config.emplace_back(log_alpha_size, 0, 0);
     uint_config_dec.resize(uint_config.size());
-    BitWriter writer{memory_manager};
+    BitWriter writer;
     BitWriter::Allotment allotment(&writer, 10 * uint_config.size());
     EncodeUintConfigs(uint_config, &writer, log_alpha_size);
-    allotment.ReclaimAndCharge(&writer, LayerType::Header, nullptr);
+    allotment.ReclaimAndCharge(&writer, 0, nullptr);
     writer.ZeroPadToByte();
     BitReader br(writer.GetSpan());
     EXPECT_TRUE(DecodeUintConfigs(log_alpha_size, &uint_config_dec, &br));
@@ -193,7 +186,6 @@ TEST(ANSTest, UintConfigRoundtrip) {
 }
 
 void TestCheckpointing(bool ans, bool lz77) {
-  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   std::vector<std::vector<Token>> input_values(1);
   for (size_t i = 0; i < 1024; i++) {
     input_values[0].emplace_back(0, i % 4);
@@ -215,14 +207,13 @@ void TestCheckpointing(bool ans, bool lz77) {
                             : HistogramParams::LZ77Method::kNone;
   params.force_huffman = !ans;
 
-  BitWriter writer{memory_manager};
+  BitWriter writer;
   {
     auto input_values_copy = input_values;
-    BuildAndEncodeHistograms(memory_manager, params, 1, input_values_copy,
-                             &codes, &context_map, &writer, LayerType::Header,
-                             nullptr);
-    WriteTokens(input_values_copy[0], codes, context_map, 0, &writer,
-                LayerType::Header, nullptr);
+    BuildAndEncodeHistograms(params, 1, input_values_copy, &codes, &context_map,
+                             &writer, 0, nullptr);
+    WriteTokens(input_values_copy[0], codes, context_map, 0, &writer, 0,
+                nullptr);
     writer.ZeroPadToByte();
   }
 
@@ -235,11 +226,9 @@ void TestCheckpointing(bool ans, bool lz77) {
 
     std::vector<uint8_t> dec_context_map;
     ANSCode decoded_codes;
-    ASSERT_TRUE(DecodeHistograms(memory_manager, &br, 1, &decoded_codes,
-                                 &dec_context_map));
+    ASSERT_TRUE(DecodeHistograms(&br, 1, &decoded_codes, &dec_context_map));
     ASSERT_EQ(dec_context_map, context_map);
-    JXL_ASSIGN_OR_DIE(ANSSymbolReader reader,
-                      ANSSymbolReader::Create(&decoded_codes, &br));
+    ANSSymbolReader reader(&decoded_codes, &br);
 
     ANSSymbolReader::Checkpoint checkpoint;
     size_t br_pos = 0;

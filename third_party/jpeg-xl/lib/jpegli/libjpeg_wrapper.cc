@@ -38,7 +38,7 @@ void jpeg_stdio_src(j_decompress_ptr cinfo, FILE *infile) {
 }
 
 void jpeg_mem_src(j_decompress_ptr cinfo, const unsigned char *inbuffer,
-                  unsigned long insize /* NOLINT */) {
+                  unsigned long insize) {
   jpegli_mem_src(cinfo, inbuffer, insize);
 }
 
@@ -138,7 +138,7 @@ void jpeg_stdio_dest(j_compress_ptr cinfo, FILE *outfile) {
 }
 
 void jpeg_mem_dest(j_compress_ptr cinfo, unsigned char **outbuffer,
-                   unsigned long *outsize /* NOLINT */) {
+                   unsigned long *outsize) {
   jpegli_mem_dest(cinfo, outbuffer, outsize);
 }
 

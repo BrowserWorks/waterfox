@@ -202,8 +202,8 @@ size_t TOCBucket(size_t group_size) {
 
 size_t TOCSize(const std::vector<size_t>& group_sizes) {
   size_t toc_bits = 0;
-  for (size_t group_size : group_sizes) {
-    toc_bits += kTOCBits[TOCBucket(group_size)];
+  for (size_t i = 0; i < group_sizes.size(); i++) {
+    toc_bits += kTOCBits[TOCBucket(group_sizes[i])];
   }
   return (toc_bits + 7) / 8;
 }
@@ -328,8 +328,8 @@ struct PrefixCode {
   template <typename T>
   static void ComputeCodeLengthsNonZeroImpl(const uint64_t* freqs, size_t n,
                                             size_t precision, T infty,
-                                            const uint8_t* min_limit,
-                                            const uint8_t* max_limit,
+                                            uint8_t* min_limit,
+                                            uint8_t* max_limit,
                                             uint8_t* nbits) {
     assert(precision < 15);
     assert(n <= kMaxNumSymbols);
@@ -454,8 +454,8 @@ struct PrefixCode {
     uint8_t min_lengths[kNumLZ77] = {};
     uint8_t l = 15 - level1_nbits[numraw];
     uint8_t max_lengths[kNumLZ77];
-    for (uint8_t& max_length : max_lengths) {
-      max_length = l;
+    for (size_t i = 0; i < kNumLZ77; i++) {
+      max_lengths[i] = l;
     }
     size_t num_lz77 = kNumLZ77;
     while (num_lz77 > 0 && lz77_counts[num_lz77 - 1] == 0) num_lz77--;
@@ -487,11 +487,11 @@ struct PrefixCode {
   void WriteTo(BitWriter* writer) const {
     uint64_t code_length_counts[18] = {};
     code_length_counts[17] = 3 + 2 * (kNumLZ77 - 1);
-    for (uint8_t raw_nbit : raw_nbits) {
-      code_length_counts[raw_nbit]++;
+    for (size_t i = 0; i < kNumRawSymbols; i++) {
+      code_length_counts[raw_nbits[i]]++;
     }
-    for (uint8_t lz77_nbit : lz77_nbits) {
-      code_length_counts[lz77_nbit]++;
+    for (size_t i = 0; i < kNumLZ77; i++) {
+      code_length_counts[lz77_nbits[i]]++;
     }
     uint8_t code_length_nbits[18] = {};
     uint8_t code_length_nbits_min[18] = {};
@@ -527,8 +527,9 @@ struct PrefixCode {
                          code_length_bits, 18);
     // Encode raw bit code lengths.
     // Max bits written in this loop: 19 * 5 = 95
-    for (uint8_t raw_nbit : raw_nbits) {
-      writer->Write(code_length_nbits[raw_nbit], code_length_bits[raw_nbit]);
+    for (size_t i = 0; i < kNumRawSymbols; i++) {
+      writer->Write(code_length_nbits[raw_nbits[i]],
+                    code_length_bits[raw_nbits[i]]);
     }
     size_t num_lz77 = kNumLZ77;
     while (lz77_nbits[num_lz77 - 1] == 0) {
@@ -536,8 +537,8 @@ struct PrefixCode {
     }
     // Encode 0s until 224 (start of LZ77 symbols). This is in total 224-19 =
     // 205.
-    static_assert(kLZ77Offset == 224);
-    static_assert(kNumRawSymbols == 19);
+    static_assert(kLZ77Offset == 224, "");
+    static_assert(kNumRawSymbols == 19, "");
     {
       // Max bits in this block: 24
       writer->Write(code_length_nbits[17], code_length_bits[17]);
@@ -589,8 +590,8 @@ struct JxlFastLosslessFrameState {
 
 size_t JxlFastLosslessOutputSize(const JxlFastLosslessFrameState* frame) {
   size_t total_size_groups = 0;
-  for (const auto& section : frame->group_data) {
-    total_size_groups += SectionSize(section);
+  for (size_t i = 0; i < frame->group_data.size(); i++) {
+    total_size_groups += SectionSize(frame->group_data[i]);
   }
   return frame->header.bytes_written + total_size_groups;
 }
@@ -681,7 +682,7 @@ void JxlFastLosslessPrepareHeader(JxlFastLosslessFrameState* frame,
 
     output->Write(1, 1);  // all_default transform data
 
-    // No ICC, no preview. Frame should start at byte boundary.
+    // No ICC, no preview. Frame should start at byte boundery.
     output->ZeroPadToByte();
   }
 #else
@@ -718,10 +719,11 @@ void JxlFastLosslessPrepareHeader(JxlFastLosslessFrameState* frame,
   output->Write(1, 0);      // No TOC permutation
   output->ZeroPadToByte();  // TOC is byte-aligned.
   assert(add_image_header || output->bytes_written <= kMaxFrameHeaderSize);
-  for (size_t group_size : frame->group_sizes) {
-    size_t bucket = TOCBucket(group_size);
+  for (size_t i = 0; i < frame->group_sizes.size(); i++) {
+    size_t sz = frame->group_sizes[i];
+    size_t bucket = TOCBucket(sz);
     output->Write(2, bucket);
-    output->Write(kTOCBits[bucket] - 2, group_size - kGroupSizeOffset[bucket]);
+    output->Write(kTOCBits[bucket] - 2, sz - kGroupSizeOffset[bucket]);
   }
   output->ZeroPadToByte();  // Groups are byte-aligned.
 }
@@ -1130,13 +1132,13 @@ struct SIMDVec16 {
     __m512i rg = _mm512_permutexvar_epi64(
         permuteidx, _mm512_packus_epi32(_mm512_and_si512(bytes1, rg_mask),
                                         _mm512_and_si512(bytes2, rg_mask)));
-    __m512i b_a = _mm512_permutexvar_epi64(
+    __m512i ba = _mm512_permutexvar_epi64(
         permuteidx, _mm512_packus_epi32(_mm512_srli_epi32(bytes1, 16),
                                         _mm512_srli_epi32(bytes2, 16)));
     __m512i r = _mm512_and_si512(rg, _mm512_set1_epi16(0xFF));
     __m512i g = _mm512_srli_epi16(rg, 8);
-    __m512i b = _mm512_and_si512(b_a, _mm512_set1_epi16(0xFF));
-    __m512i a = _mm512_srli_epi16(b_a, 8);
+    __m512i b = _mm512_and_si512(ba, _mm512_set1_epi16(0xFF));
+    __m512i a = _mm512_srli_epi16(ba, 8);
     return {SIMDVec16{r}, SIMDVec16{g}, SIMDVec16{b}, SIMDVec16{a}};
   }
   static std::array<SIMDVec16, 4> LoadRGBA16(const unsigned char* data) {
@@ -1669,14 +1671,14 @@ struct SIMDVec16 {
         _mm256_packus_epi32(_mm256_and_si256(bytes1, rg_mask),
                             _mm256_and_si256(bytes2, rg_mask)),
         0b11011000);
-    __m256i b_a = _mm256_permute4x64_epi64(
+    __m256i ba = _mm256_permute4x64_epi64(
         _mm256_packus_epi32(_mm256_srli_epi32(bytes1, 16),
                             _mm256_srli_epi32(bytes2, 16)),
         0b11011000);
     __m256i r = _mm256_and_si256(rg, _mm256_set1_epi16(0xFF));
     __m256i g = _mm256_srli_epi16(rg, 8);
-    __m256i b = _mm256_and_si256(b_a, _mm256_set1_epi16(0xFF));
-    __m256i a = _mm256_srli_epi16(b_a, 8);
+    __m256i b = _mm256_and_si256(ba, _mm256_set1_epi16(0xFF));
+    __m256i a = _mm256_srli_epi16(ba, 8);
     return {SIMDVec16{r}, SIMDVec16{g}, SIMDVec16{b}, SIMDVec16{a}};
   }
   static std::array<SIMDVec16, 4> LoadRGBA16(const unsigned char* data) {
@@ -2345,10 +2347,9 @@ FJXL_INLINE void StoreToWriterAVX512(const Bits32& bits32, BitWriter& output) {
   auto sh4 = [zero](__m512i vec) { return _mm512_alignr_epi64(vec, zero, 4); };
 
   // Compute first-past-end-bit-position.
-  __m512i end_intermediate0 = _mm512_add_epi64(nbits, sh1(nbits));
-  __m512i end_intermediate1 =
-      _mm512_add_epi64(end_intermediate0, sh2(end_intermediate0));
-  __m512i end = _mm512_add_epi64(end_intermediate1, sh4(end_intermediate1));
+  __m512i end_interm0 = _mm512_add_epi64(nbits, sh1(nbits));
+  __m512i end_interm1 = _mm512_add_epi64(end_interm0, sh2(end_interm0));
+  __m512i end = _mm512_add_epi64(end_interm1, sh4(end_interm1));
 
   uint64_t simd_nbits = _mm512_cvtsi512_si32(_mm512_alignr_epi64(end, end, 7));
 
@@ -3613,8 +3614,7 @@ bool detect_palette(const unsigned char* r, size_t width,
   size_t x = 0;
   bool collided = false;
   // this is just an unrolling of the next loop
-  size_t look_ahead = 7 + ((nb_chans == 1) ? 3 : ((nb_chans < 4) ? 1 : 0));
-  for (; x + look_ahead < width; x += 8) {
+  for (; x + 7 < width; x += 8) {
     uint32_t p[8] = {}, index[8];
     for (int i = 0; i < 8; i++) memcpy(&p[i], r + (x + i) * nb_chans, 4);
     for (int i = 0; i < 8; i++) p[i] &= ((1llu << (8 * nb_chans)) - 1);
@@ -4112,7 +4112,7 @@ class FJxlFrameInput {
 
 size_t JxlFastLosslessEncode(const unsigned char* rgba, size_t width,
                              size_t row_stride, size_t height, size_t nb_chans,
-                             size_t bitdepth, bool big_endian, int effort,
+                             size_t bitdepth, int big_endian, int effort,
                              unsigned char** output, void* runner_opaque,
                              FJxlParallelRunner runner) {
   FJxlFrameInput input(rgba, row_stride, nb_chans, bitdepth);
@@ -4138,8 +4138,7 @@ size_t JxlFastLosslessEncode(const unsigned char* rgba, size_t width,
 
 JxlFastLosslessFrameState* JxlFastLosslessPrepareFrame(
     JxlChunkedFrameInputSource input, size_t width, size_t height,
-    size_t nb_chans, size_t bitdepth, bool big_endian, int effort,
-    int oneshot) {
+    size_t nb_chans, size_t bitdepth, int big_endian, int effort, int oneshot) {
 #if FJXL_ENABLE_AVX512
   if (__builtin_cpu_supports("avx512cd") &&
       __builtin_cpu_supports("avx512vbmi") &&

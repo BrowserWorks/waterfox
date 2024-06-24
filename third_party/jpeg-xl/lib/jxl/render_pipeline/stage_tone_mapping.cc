@@ -5,8 +5,6 @@
 
 #include "lib/jxl/render_pipeline/stage_tone_mapping.h"
 
-#include "lib/jxl/base/sanitizers.h"
-
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_tone_mapping.cc"
 #include <hwy/foreach_target.h>
@@ -14,6 +12,7 @@
 
 #include "lib/jxl/cms/tone_mapping-inl.h"
 #include "lib/jxl/dec_xyb-inl.h"
+#include "lib/jxl/sanitizers.h"
 
 HWY_BEFORE_NAMESPACE();
 namespace jxl {
@@ -35,10 +34,10 @@ class ToneMappingStage : public RenderPipelineStage {
                               output_encoding_info_.orig_intensity_target) {
       tone_mapper_ = jxl::make_unique<ToneMapper>(
           /*source_range=*/std::pair<float, float>(
-              0.0f, output_encoding_info_.orig_intensity_target),
+              0, output_encoding_info_.orig_intensity_target),
           /*target_range=*/
           std::pair<float, float>(
-              0.0f, output_encoding_info_.desired_intensity_target),
+              0, output_encoding_info_.desired_intensity_target),
           output_encoding_info_.luminances);
     } else if (orig_tf.IsHLG() && !dest_tf.IsHLG()) {
       hlg_ootf_ = jxl::make_unique<HlgOOTF>(

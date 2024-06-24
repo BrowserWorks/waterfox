@@ -5,18 +5,16 @@
 
 #include "lib/jxl/enc_external_image.h"
 
-#include <jxl/memory_manager.h>
 #include <jxl/types.h>
+#include <string.h>
 
 #include <atomic>
-#include <cstring>
 #include <utility>
 
 #include "lib/jxl/base/byte_order.h"
 #include "lib/jxl/base/common.h"
 #include "lib/jxl/base/float.h"
 #include "lib/jxl/base/printf_macros.h"
-#include "lib/jxl/base/status.h"
 
 namespace jxl {
 namespace {
@@ -104,7 +102,6 @@ Status ConvertFromExternalNoSizeCheck(const uint8_t* data, size_t xsize,
                                       size_t bits_per_sample,
                                       JxlPixelFormat format, ThreadPool* pool,
                                       ImageBundle* ib) {
-  JxlMemoryManager* memory_manager = ib->memory_manager();
   bool has_alpha = format.num_channels == 2 || format.num_channels == 4;
   if (format.num_channels < color_channels) {
     return JXL_FAILURE("Expected %" PRIuS
@@ -112,8 +109,7 @@ Status ConvertFromExternalNoSizeCheck(const uint8_t* data, size_t xsize,
                        color_channels, format.num_channels);
   }
 
-  JXL_ASSIGN_OR_RETURN(Image3F color,
-                       Image3F::Create(memory_manager, xsize, ysize));
+  JXL_ASSIGN_OR_RETURN(Image3F color, Image3F::Create(xsize, ysize));
   for (size_t c = 0; c < color_channels; ++c) {
     JXL_RETURN_IF_ERROR(ConvertFromExternalNoSizeCheck(
         data, xsize, ysize, stride, bits_per_sample, format, c, pool,
@@ -128,8 +124,7 @@ Status ConvertFromExternalNoSizeCheck(const uint8_t* data, size_t xsize,
   // Passing an interleaved image with an alpha channel to an image that doesn't
   // have alpha channel just discards the passed alpha channel.
   if (has_alpha && ib->HasAlpha()) {
-    JXL_ASSIGN_OR_RETURN(ImageF alpha,
-                         ImageF::Create(memory_manager, xsize, ysize));
+    JXL_ASSIGN_OR_RETURN(ImageF alpha, ImageF::Create(xsize, ysize));
     JXL_RETURN_IF_ERROR(ConvertFromExternalNoSizeCheck(
         data, xsize, ysize, stride, bits_per_sample, format,
         format.num_channels - 1, pool, &alpha));
@@ -137,8 +132,7 @@ Status ConvertFromExternalNoSizeCheck(const uint8_t* data, size_t xsize,
   } else if (!has_alpha && ib->HasAlpha()) {
     // if alpha is not passed, but it is expected, then assume
     // it is all-opaque
-    JXL_ASSIGN_OR_RETURN(ImageF alpha,
-                         ImageF::Create(memory_manager, xsize, ysize));
+    JXL_ASSIGN_OR_RETURN(ImageF alpha, ImageF::Create(xsize, ysize));
     FillImage(1.0f, &alpha);
     ib->SetAlpha(std::move(alpha));
   }
@@ -178,7 +172,6 @@ Status ConvertFromExternal(Span<const uint8_t> bytes, size_t xsize,
                            size_t color_channels, size_t bits_per_sample,
                            JxlPixelFormat format, ThreadPool* pool,
                            ImageBundle* ib) {
-  JxlMemoryManager* memory_manager = ib->memory_manager();
   bool has_alpha = format.num_channels == 2 || format.num_channels == 4;
   if (format.num_channels < color_channels) {
     return JXL_FAILURE("Expected %" PRIuS
@@ -186,8 +179,7 @@ Status ConvertFromExternal(Span<const uint8_t> bytes, size_t xsize,
                        color_channels, format.num_channels);
   }
 
-  JXL_ASSIGN_OR_RETURN(Image3F color,
-                       Image3F::Create(memory_manager, xsize, ysize));
+  JXL_ASSIGN_OR_RETURN(Image3F color, Image3F::Create(xsize, ysize));
   for (size_t c = 0; c < color_channels; ++c) {
     JXL_RETURN_IF_ERROR(ConvertFromExternal(bytes.data(), bytes.size(), xsize,
                                             ysize, bits_per_sample, format, c,
@@ -202,8 +194,7 @@ Status ConvertFromExternal(Span<const uint8_t> bytes, size_t xsize,
   // Passing an interleaved image with an alpha channel to an image that doesn't
   // have alpha channel just discards the passed alpha channel.
   if (has_alpha && ib->HasAlpha()) {
-    JXL_ASSIGN_OR_RETURN(ImageF alpha,
-                         ImageF::Create(memory_manager, xsize, ysize));
+    JXL_ASSIGN_OR_RETURN(ImageF alpha, ImageF::Create(xsize, ysize));
     JXL_RETURN_IF_ERROR(ConvertFromExternal(
         bytes.data(), bytes.size(), xsize, ysize, bits_per_sample, format,
         format.num_channels - 1, pool, &alpha));
@@ -211,8 +202,7 @@ Status ConvertFromExternal(Span<const uint8_t> bytes, size_t xsize,
   } else if (!has_alpha && ib->HasAlpha()) {
     // if alpha is not passed, but it is expected, then assume
     // it is all-opaque
-    JXL_ASSIGN_OR_RETURN(ImageF alpha,
-                         ImageF::Create(memory_manager, xsize, ysize));
+    JXL_ASSIGN_OR_RETURN(ImageF alpha, ImageF::Create(xsize, ysize));
     FillImage(1.0f, &alpha);
     ib->SetAlpha(std::move(alpha));
   }
@@ -247,7 +237,7 @@ Status BufferToImageBundle(const JxlPixelFormat& pixel_format, uint32_t xsize,
   JXL_RETURN_IF_ERROR(ConvertFromExternal(
       jxl::Bytes(static_cast<const uint8_t*>(buffer), size), xsize, ysize,
       c_current, bitdepth, pixel_format, pool, ib));
-  JXL_RETURN_IF_ERROR(ib->VerifyMetadata());
+  ib->VerifyMetadata();
 
   return true;
 }

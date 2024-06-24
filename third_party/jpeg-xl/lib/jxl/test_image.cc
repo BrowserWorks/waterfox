@@ -8,11 +8,8 @@
 #include <jxl/encode.h>
 
 #include <algorithm>
-#include <cstddef>
-#include <cstdint>
 #include <cstring>
 #include <utility>
-#include <vector>
 
 #include "lib/extras/dec/color_description.h"
 #include "lib/extras/dec/color_hints.h"
@@ -291,7 +288,8 @@ TestImage& TestImage::SetAllBitDepths(uint32_t bits_per_sample,
     ppf_.info.alpha_bits = bits_per_sample;
     ppf_.info.alpha_exponent_bits = exponent_bits_per_sample;
   }
-  for (auto& ec : ppf_.extra_channels_info) {
+  for (size_t i = 0; i < ppf_.extra_channels_info.size(); ++i) {
+    extras::PackedExtraChannel& ec = ppf_.extra_channels_info[i];
     ec.ec_info.bits_per_sample = bits_per_sample;
     ec.ec_info.exponent_bits_per_sample = exponent_bits_per_sample;
   }
@@ -325,7 +323,7 @@ TestImage& TestImage::SetColorEncoding(const std::string& description) {
 }
 
 TestImage& TestImage::CoalesceGIFAnimationWithAlpha() {
-  JXL_ASSIGN_OR_DIE(extras::PackedFrame canvas, ppf_.frames[0].Copy());
+  extras::PackedFrame canvas = ppf_.frames[0].Copy();
   JXL_CHECK(canvas.color.format.num_channels == 3);
   JXL_CHECK(canvas.color.format.data_type == JXL_TYPE_UINT8);
   JXL_CHECK(canvas.extra_channels.size() == 1);
@@ -333,7 +331,7 @@ TestImage& TestImage::CoalesceGIFAnimationWithAlpha() {
     const extras::PackedFrame& frame = ppf_.frames[i];
     JXL_CHECK(frame.extra_channels.size() == 1);
     const JxlLayerInfo& layer_info = frame.frame_info.layer_info;
-    JXL_ASSIGN_OR_DIE(extras::PackedFrame rendered, canvas.Copy());
+    extras::PackedFrame rendered = canvas.Copy();
     uint8_t* pixels_rendered =
         reinterpret_cast<uint8_t*>(rendered.color.pixels());
     const uint8_t* pixels_frame =
@@ -355,7 +353,7 @@ TestImage& TestImage::CoalesceGIFAnimationWithAlpha() {
       }
     }
     if (layer_info.save_as_reference != 0) {
-      JXL_ASSIGN_OR_DIE(canvas, rendered.Copy());
+      canvas = rendered.Copy();
     }
     ppf_.frames[i] = std::move(rendered);
   }
@@ -395,14 +393,10 @@ void TestImage::Frame::SetValue(size_t y, size_t x, size_t c, float val) {
 
 TestImage::Frame TestImage::AddFrame() {
   size_t index = ppf_.frames.size();
-  JXL_ASSIGN_OR_DIE(
-      extras::PackedFrame frame,
-      extras::PackedFrame::Create(ppf_.info.xsize, ppf_.info.ysize, format_));
+  extras::PackedFrame frame(ppf_.info.xsize, ppf_.info.ysize, format_);
   for (size_t i = 0; i < ppf_.extra_channels_info.size(); ++i) {
     JxlPixelFormat ec_format = {1, format_.data_type, format_.endianness, 0};
-    JXL_ASSIGN_OR_DIE(extras::PackedImage image,
-                      extras::PackedImage::Create(ppf_.info.xsize,
-                                                  ppf_.info.ysize, ec_format));
+    extras::PackedImage image(ppf_.info.xsize, ppf_.info.ysize, ec_format);
     frame.extra_channels.emplace_back(std::move(image));
   }
   ppf_.frames.emplace_back(std::move(frame));
@@ -410,12 +404,10 @@ TestImage::Frame TestImage::AddFrame() {
 }
 
 TestImage::Frame TestImage::AddPreview(size_t xsize, size_t ysize) {
-  JXL_ASSIGN_OR_DIE(extras::PackedFrame frame,
-                    extras::PackedFrame::Create(xsize, ysize, format_));
+  extras::PackedFrame frame(xsize, ysize, format_);
   for (size_t i = 0; i < ppf_.extra_channels_info.size(); ++i) {
     JxlPixelFormat ec_format = {1, format_.data_type, format_.endianness, 0};
-    JXL_ASSIGN_OR_DIE(extras::PackedImage image,
-                      extras::PackedImage::Create(xsize, ysize, ec_format));
+    extras::PackedImage image(xsize, ysize, ec_format);
     frame.extra_channels.emplace_back(std::move(image));
   }
   ppf_.preview_frame = make_unique<extras::PackedFrame>(std::move(frame));

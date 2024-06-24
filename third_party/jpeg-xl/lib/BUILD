@@ -3,9 +3,6 @@
 # Use of this source code is governed by a BSD-style
 # license that can be found in the LICENSE file.
 
-load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
-load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
-
 # Load sources/headers/tests lists.
 load(
     "jxl_lists.bzl",
@@ -26,8 +23,8 @@ load(
     "libjxl_enc_sources",
     "libjxl_extras_for_tools_sources",
     "libjxl_extras_sources",
-    # "libjxl_gbench_sources",
-    # "libjxl_jpegli_lib_version",
+    #'libjxl_gbench_sources',
+    "libjxl_jpegli_lib_version",
     "libjxl_jpegli_libjpeg_helper_files",
     "libjxl_jpegli_sources",
     "libjxl_jpegli_testlib_files",
@@ -54,12 +51,13 @@ load(
     "libjxl_deps_png",
     "libjxl_deps_runfiles",
     "libjxl_deps_skcms",
-    # "libjxl_deps_testdata",
-    # "libjxl_deps_webp",
+    "libjxl_deps_testdata",
     "libjxl_root_package",
     "libjxl_test_shards",
     "libjxl_test_timeouts",
 )
+load("@bazel_skylib//rules:expand_template.bzl", "expand_template")
+load("@bazel_skylib//rules:copy_file.bzl", "copy_file")
 
 DEFAULT_VISIBILITY = ["//:__subpackages__"]
 
@@ -68,7 +66,7 @@ DEFAULT_COMPATIBILITY = []
 INCLUDES_DIR = "include"
 
 package(
-    default_visibility = DEFAULT_VISIBILITY,
+    default_visibility = ["//:__subpackages__"],
 )
 
 licenses(["notice"])

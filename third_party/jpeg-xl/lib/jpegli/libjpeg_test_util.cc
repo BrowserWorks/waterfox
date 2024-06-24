@@ -5,11 +5,13 @@
 
 #include "lib/jpegli/libjpeg_test_util.h"
 
-#include <cstring>
+/* clang-format off */
+#include <stdio.h>
+#include <jpeglib.h>
+#include <setjmp.h>
+/* clang-format on */
 
-#include "lib/jxl/base/include_jpeglib.h"  // NOLINT
-#include "lib/jxl/base/sanitizers.h"
-#include "lib/jxl/base/status.h"
+#include "lib/jxl/sanitizers.h"
 
 namespace jpegli {
 
@@ -124,8 +126,6 @@ void DecodeWithLibjpeg(const CompressParams& jparams,
   if (dparams.output_mode == COEFFICIENTS) {
     jvirt_barray_ptr* coef_arrays = jpeg_read_coefficients(cinfo);
     JXL_CHECK(coef_arrays != nullptr);
-    jxl::msan::UnpoisonMemory(coef_arrays,
-                              cinfo->num_components * sizeof(jvirt_barray_ptr));
     CopyCoefficients(cinfo, coef_arrays, output);
   } else {
     JXL_CHECK(jpeg_start_decompress(cinfo));
@@ -204,8 +204,6 @@ void DecodeAllScansWithLibjpeg(const CompressParams& jparams,
       if (dparams.output_mode == COEFFICIENTS) {
         jvirt_barray_ptr* coef_arrays = jpeg_read_coefficients(&cinfo);
         JXL_CHECK(coef_arrays != nullptr);
-        jxl::msan::UnpoisonMemory(
-            coef_arrays, cinfo.num_components * sizeof(jvirt_barray_ptr));
         CopyCoefficients(&cinfo, coef_arrays, &output_progression->back());
       }
     }
@@ -245,7 +243,6 @@ size_t DecodeWithLibjpeg(const CompressParams& jparams,
     }
     jpeg_mem_src(&cinfo, compressed, len);
     DecodeWithLibjpeg(jparams, dparams, &cinfo, output);
-    jxl::msan::UnpoisonMemory(cinfo.src, sizeof(jpeg_source_mgr));
     bytes_read = len - cinfo.src->bytes_in_buffer;
     return true;
   };

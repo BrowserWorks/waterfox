@@ -5,21 +5,15 @@
 
 #include "lib/jxl/render_pipeline/stage_write.h"
 
-#include <jxl/memory_manager.h>
-
-#include <cstdint>
 #include <type_traits>
 
 #include "lib/jxl/alpha.h"
 #include "lib/jxl/base/common.h"
-#include "lib/jxl/base/compiler_specific.h"
-#include "lib/jxl/base/sanitizers.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/dec_cache.h"
-#include "lib/jxl/dec_xyb.h"
 #include "lib/jxl/image.h"
 #include "lib/jxl/image_bundle.h"
-#include "lib/jxl/memory_manager_internal.h"
+#include "lib/jxl/sanitizers.h"
 
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_write.cc"
@@ -119,8 +113,7 @@ class WriteToOutputStage : public RenderPipelineStage {
   WriteToOutputStage(const ImageOutput& main_output, size_t width,
                      size_t height, bool has_alpha, bool unpremul_alpha,
                      size_t alpha_c, Orientation undo_orientation,
-                     const std::vector<ImageOutput>& extra_output,
-                     JxlMemoryManager* memory_manager)
+                     const std::vector<ImageOutput>& extra_output)
       : RenderPipelineStage(RenderPipelineStage::Settings()),
         width_(width),
         height_(height),
@@ -133,8 +126,7 @@ class WriteToOutputStage : public RenderPipelineStage {
         flip_x_(ShouldFlipX(undo_orientation)),
         flip_y_(ShouldFlipY(undo_orientation)),
         transpose_(ShouldTranspose(undo_orientation)),
-        opaque_alpha_(kMaxPixelsPerCall, 1.0f),
-        memory_manager_(memory_manager) {
+        opaque_alpha_(kMaxPixelsPerCall, 1.0f) {
     for (size_t ec = 0; ec < extra_output.size(); ++ec) {
       if (extra_output[ec].callback.IsPresent() || extra_output[ec].buffer) {
         Output extra(extra_output[ec]);
@@ -252,18 +244,14 @@ class WriteToOutputStage : public RenderPipelineStage {
       JXL_RETURN_IF_ERROR(extra.PrepareForThreads(num_threads));
     }
     temp_out_.resize(num_threads);
-    for (AlignedMemory& temp : temp_out_) {
-      size_t alloc_size =
-          sizeof(float) * kMaxPixelsPerCall * main_.num_channels_;
-      JXL_ASSIGN_OR_RETURN(temp,
-                           AlignedMemory::Create(memory_manager_, alloc_size));
+    for (CacheAlignedUniquePtr& temp : temp_out_) {
+      temp = AllocateArray(sizeof(float) * kMaxPixelsPerCall *
+                           main_.num_channels_);
     }
     if ((has_alpha_ && want_alpha_ && unpremul_alpha_) || flip_x_) {
       temp_in_.resize(num_threads * main_.num_channels_);
-      for (AlignedMemory& temp : temp_in_) {
-        size_t alloc_size = sizeof(float) * kMaxPixelsPerCall;
-        JXL_ASSIGN_OR_RETURN(
-            temp, AlignedMemory::Create(memory_manager_, alloc_size));
+      for (CacheAlignedUniquePtr& temp : temp_in_) {
+        temp = AllocateArray(sizeof(float) * kMaxPixelsPerCall);
       }
     }
     return true;
@@ -294,7 +282,7 @@ class WriteToOutputStage : public RenderPipelineStage {
     float* temp_in[4];
     for (size_t c = 0; c < main_.num_channels_; ++c) {
       size_t tix = thread_id * main_.num_channels_ + c;
-      temp_in[c] = temp_in_[tix].address<float>();
+      temp_in[c] = reinterpret_cast<float*>(temp_in_[tix].get());
       memcpy(temp_in[c], line_buffers[c], sizeof(float) * len);
     }
     auto small_alpha = Set(d, kSmallAlpha);
@@ -317,12 +305,14 @@ class WriteToOutputStage : public RenderPipelineStage {
       FlipX(out, thread_id, len, &xstart, input);
     }
     if (out.data_type_ == JXL_TYPE_UINT8) {
-      uint8_t* JXL_RESTRICT temp = temp_out_[thread_id].address<uint8_t>();
+      uint8_t* JXL_RESTRICT temp =
+          reinterpret_cast<uint8_t*>(temp_out_[thread_id].get());
       StoreUnsignedRow(out, input, len, temp, xstart, ypos);
       WriteToOutput(out, thread_id, ypos, xstart, len, temp);
     } else if (out.data_type_ == JXL_TYPE_UINT16 ||
                out.data_type_ == JXL_TYPE_FLOAT16) {
-      uint16_t* JXL_RESTRICT temp = temp_out_[thread_id].address<uint16_t>();
+      uint16_t* JXL_RESTRICT temp =
+          reinterpret_cast<uint16_t*>(temp_out_[thread_id].get());
       if (out.data_type_ == JXL_TYPE_UINT16) {
         StoreUnsignedRow(out, input, len, temp, xstart, ypos);
       } else {
@@ -339,7 +329,8 @@ class WriteToOutputStage : public RenderPipelineStage {
       }
       WriteToOutput(out, thread_id, ypos, xstart, len, temp);
     } else if (out.data_type_ == JXL_TYPE_FLOAT) {
-      float* JXL_RESTRICT temp = temp_out_[thread_id].address<float>();
+      float* JXL_RESTRICT temp =
+          reinterpret_cast<float*>(temp_out_[thread_id].get());
       StoreFloatRow(out, input, len, temp);
       if (out.swap_endianness_) {
         size_t output_len = len * out.num_channels_;
@@ -356,7 +347,7 @@ class WriteToOutputStage : public RenderPipelineStage {
     float* temp_in[4];
     for (size_t c = 0; c < out.num_channels_; ++c) {
       size_t tix = thread_id * main_.num_channels_ + c;
-      temp_in[c] = temp_in_[tix].address<float>();
+      temp_in[c] = reinterpret_cast<float*>(temp_in_[tix].get());
       if (temp_in[c] != line_buffers[c]) {
         memcpy(temp_in[c], line_buffers[c], sizeof(float) * len);
       }
@@ -536,22 +527,19 @@ class WriteToOutputStage : public RenderPipelineStage {
   bool transpose_;
   std::vector<Output> extra_channels_;
   std::vector<float> opaque_alpha_;
-  JxlMemoryManager* memory_manager_;
-  std::vector<AlignedMemory> temp_in_;
-  std::vector<AlignedMemory> temp_out_;
+  std::vector<CacheAlignedUniquePtr> temp_in_;
+  std::vector<CacheAlignedUniquePtr> temp_out_;
 };
 
-#if JXL_CXX_LANG < JXL_CXX_17
 constexpr size_t WriteToOutputStage::kMaxPixelsPerCall;
-#endif
 
 std::unique_ptr<RenderPipelineStage> GetWriteToOutputStage(
     const ImageOutput& main_output, size_t width, size_t height, bool has_alpha,
     bool unpremul_alpha, size_t alpha_c, Orientation undo_orientation,
-    std::vector<ImageOutput>& extra_output, JxlMemoryManager* memory_manager) {
+    std::vector<ImageOutput>& extra_output) {
   return jxl::make_unique<WriteToOutputStage>(
       main_output, width, height, has_alpha, unpremul_alpha, alpha_c,
-      undo_orientation, extra_output, memory_manager);
+      undo_orientation, extra_output);
 }
 
 // NOLINTNEXTLINE(google-readability-namespace-comments)
@@ -568,15 +556,14 @@ HWY_EXPORT(GetWriteToOutputStage);
 namespace {
 class WriteToImageBundleStage : public RenderPipelineStage {
  public:
-  explicit WriteToImageBundleStage(
-      ImageBundle* image_bundle, const OutputEncodingInfo& output_encoding_info)
+  explicit WriteToImageBundleStage(ImageBundle* image_bundle,
+                                   ColorEncoding color_encoding)
       : RenderPipelineStage(RenderPipelineStage::Settings()),
         image_bundle_(image_bundle),
-        color_encoding_(output_encoding_info.color_encoding) {}
+        color_encoding_(std::move(color_encoding)) {}
 
   Status SetInputSizes(
       const std::vector<std::pair<size_t, size_t>>& input_sizes) override {
-    JxlMemoryManager* memory_manager = image_bundle_->memory_manager();
 #if JXL_ENABLE_ASSERT
     JXL_ASSERT(input_sizes.size() >= 3);
     for (size_t c = 1; c < input_sizes.size(); c++) {
@@ -585,16 +572,14 @@ class WriteToImageBundleStage : public RenderPipelineStage {
     }
 #endif
     // TODO(eustas): what should we do in the case of "want only ECs"?
-    JXL_ASSIGN_OR_RETURN(Image3F tmp,
-                         Image3F::Create(memory_manager, input_sizes[0].first,
-                                         input_sizes[0].second));
+    JXL_ASSIGN_OR_RETURN(Image3F tmp, Image3F::Create(input_sizes[0].first,
+                                                      input_sizes[0].second));
     image_bundle_->SetFromImage(std::move(tmp), color_encoding_);
     // TODO(veluca): consider not reallocating ECs if not needed.
     image_bundle_->extra_channels().clear();
     for (size_t c = 3; c < input_sizes.size(); c++) {
-      JXL_ASSIGN_OR_RETURN(ImageF ch,
-                           ImageF::Create(memory_manager, input_sizes[c].first,
-                                          input_sizes[c].second));
+      JXL_ASSIGN_OR_RETURN(ImageF ch, ImageF::Create(input_sizes[c].first,
+                                                     input_sizes[c].second));
       image_bundle_->extra_channels().emplace_back(std::move(ch));
     }
     return true;
@@ -631,10 +616,8 @@ class WriteToImageBundleStage : public RenderPipelineStage {
 
 class WriteToImage3FStage : public RenderPipelineStage {
  public:
-  WriteToImage3FStage(JxlMemoryManager* memory_manager, Image3F* image)
-      : RenderPipelineStage(RenderPipelineStage::Settings()),
-        memory_manager_(memory_manager),
-        image_(image) {}
+  explicit WriteToImage3FStage(Image3F* image)
+      : RenderPipelineStage(RenderPipelineStage::Settings()), image_(image) {}
 
   Status SetInputSizes(
       const std::vector<std::pair<size_t, size_t>>& input_sizes) override {
@@ -645,9 +628,8 @@ class WriteToImage3FStage : public RenderPipelineStage {
       JXL_ASSERT(input_sizes[c].second == input_sizes[0].second);
     }
 #endif
-    JXL_ASSIGN_OR_RETURN(*image_,
-                         Image3F::Create(memory_manager_, input_sizes[0].first,
-                                         input_sizes[0].second));
+    JXL_ASSIGN_OR_RETURN(
+        *image_, Image3F::Create(input_sizes[0].first, input_sizes[0].second));
     return true;
   }
 
@@ -670,30 +652,28 @@ class WriteToImage3FStage : public RenderPipelineStage {
   const char* GetName() const override { return "WriteI3F"; }
 
  private:
-  JxlMemoryManager* memory_manager_;
   Image3F* image_;
 };
 
 }  // namespace
 
 std::unique_ptr<RenderPipelineStage> GetWriteToImageBundleStage(
-    ImageBundle* image_bundle, const OutputEncodingInfo& output_encoding_info) {
+    ImageBundle* image_bundle, ColorEncoding color_encoding) {
   return jxl::make_unique<WriteToImageBundleStage>(image_bundle,
-                                                   output_encoding_info);
+                                                   std::move(color_encoding));
 }
 
-std::unique_ptr<RenderPipelineStage> GetWriteToImage3FStage(
-    JxlMemoryManager* memory_manager, Image3F* image) {
-  return jxl::make_unique<WriteToImage3FStage>(memory_manager, image);
+std::unique_ptr<RenderPipelineStage> GetWriteToImage3FStage(Image3F* image) {
+  return jxl::make_unique<WriteToImage3FStage>(image);
 }
 
 std::unique_ptr<RenderPipelineStage> GetWriteToOutputStage(
     const ImageOutput& main_output, size_t width, size_t height, bool has_alpha,
     bool unpremul_alpha, size_t alpha_c, Orientation undo_orientation,
-    std::vector<ImageOutput>& extra_output, JxlMemoryManager* memory_manager) {
+    std::vector<ImageOutput>& extra_output) {
   return HWY_DYNAMIC_DISPATCH(GetWriteToOutputStage)(
       main_output, width, height, has_alpha, unpremul_alpha, alpha_c,
-      undo_orientation, extra_output, memory_manager);
+      undo_orientation, extra_output);
 }
 
 }  // namespace jxl

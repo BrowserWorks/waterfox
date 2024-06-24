@@ -6,18 +6,9 @@
 #ifndef LIB_JXL_RENDER_PIPELINE_LOW_MEMORY_RENDER_PIPELINE_H_
 #define LIB_JXL_RENDER_PIPELINE_LOW_MEMORY_RENDER_PIPELINE_H_
 
-#include <jxl/memory_manager.h>
+#include <stdint.h>
 
-#include <cstddef>
-#include <cstdint>
-#include <utility>
-#include <vector>
-
-#include "lib/jxl/base/rect.h"
-#include "lib/jxl/base/status.h"
 #include "lib/jxl/dec_group_border.h"
-#include "lib/jxl/frame_header.h"
-#include "lib/jxl/image.h"
 #include "lib/jxl/render_pipeline/render_pipeline.h"
 
 namespace jxl {
@@ -25,10 +16,6 @@ namespace jxl {
 // A multithreaded, low-memory rendering pipeline that only allocates a minimal
 // amount of buffers.
 class LowMemoryRenderPipeline final : public RenderPipeline {
- public:
-  explicit LowMemoryRenderPipeline(JxlMemoryManager* memory_manager)
-      : RenderPipeline(memory_manager) {}
-
  private:
   std::vector<std::pair<ImageF*, Rect>> PrepareBuffers(
       size_t group_id, size_t thread_id) override;
