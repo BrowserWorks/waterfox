@@ -8,7 +8,7 @@
 
 // Noise parameter estimation.
 
-#include <cstdint>
+#include <stddef.h>
 
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/enc_bit_writer.h"
@@ -18,7 +18,6 @@
 namespace jxl {
 
 struct AuxOut;
-enum class LayerType : uint8_t;
 
 // Get parameters of the noise for NoiseParams model
 // Returns whether a valid noise model (with HasAny()) is set.
@@ -28,7 +27,7 @@ Status GetNoiseParameter(const Image3F& opsin, NoiseParams* noise_params,
 // Does not write anything if `noise_params` are empty. Otherwise, caller must
 // set FrameHeader.flags.kNoise.
 void EncodeNoise(const NoiseParams& noise_params, BitWriter* writer,
-                 LayerType layer, AuxOut* aux_out);
+                 size_t layer, AuxOut* aux_out);
 
 }  // namespace jxl
 

@@ -8,11 +8,13 @@
 #ifndef LIB_JXL_ENC_CLUSTER_H_
 #define LIB_JXL_ENC_CLUSTER_H_
 
-#include <cstddef>
-#include <cstdint>
-#include <cstring>
+#include <stddef.h>
+#include <stdint.h>
+#include <string.h>
+
 #include <vector>
 
+#include "lib/jxl/ans_params.h"
 #include "lib/jxl/base/common.h"
 #include "lib/jxl/enc_ans_params.h"
 

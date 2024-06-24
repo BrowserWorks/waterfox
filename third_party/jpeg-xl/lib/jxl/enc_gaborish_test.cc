@@ -11,14 +11,11 @@
 
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/data_parallel.h"
-#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/convolve.h"
 #include "lib/jxl/image.h"
 #include "lib/jxl/image_ops.h"
 #include "lib/jxl/image_test_utils.h"
-#include "lib/jxl/test_memory_manager.h"
-#include "lib/jxl/test_utils.h"
 #include "lib/jxl/testing.h"
 
 namespace jxl {
@@ -45,8 +42,7 @@ void ConvolveGaborish(const ImageF& in, float weight1, float weight2,
 }
 
 void TestRoundTrip(const Image3F& in, float max_l1) {
-  JXL_ASSIGN_OR_DIE(Image3F fwd, Image3F::Create(jxl::test::MemoryManager(),
-                                                 in.xsize(), in.ysize()));
+  JXL_ASSIGN_OR_DIE(Image3F fwd, Image3F::Create(in.xsize(), in.ysize()));
   ThreadPool* null_pool = nullptr;
   ConvolveGaborish(in.Plane(0), 0, 0, null_pool, &fwd.Plane(0));
   ConvolveGaborish(in.Plane(1), 0, 0, null_pool, &fwd.Plane(1));
@@ -62,8 +58,7 @@ void TestRoundTrip(const Image3F& in, float max_l1) {
 }
 
 TEST(GaborishTest, TestZero) {
-  JXL_ASSIGN_OR_DIE(Image3F in,
-                    Image3F::Create(jxl::test::MemoryManager(), 20, 20));
+  JXL_ASSIGN_OR_DIE(Image3F in, Image3F::Create(20, 20));
   ZeroFillImage(&in);
   TestRoundTrip(in, 0.0f);
 }
@@ -71,8 +66,7 @@ TEST(GaborishTest, TestZero) {
 // Disabled: large difference.
 #if JXL_FALSE
 TEST(GaborishTest, TestDirac) {
-  JXL_ASSIGN_OR_DIE(Image3F in,
-                    Image3F::Create(jxl::test::MemoryManager(), 20, 20));
+  JXL_ASSIGN_OR_DIE(Image3F in, Image3F::Create(20, 20));
   ZeroFillImage(&in);
   in.PlaneRow(1, 10)[10] = 10.0f;
   TestRoundTrip(in, 0.26f);
@@ -80,8 +74,7 @@ TEST(GaborishTest, TestDirac) {
 #endif
 
 TEST(GaborishTest, TestFlat) {
-  JXL_ASSIGN_OR_DIE(Image3F in,
-                    Image3F::Create(jxl::test::MemoryManager(), 20, 20));
+  JXL_ASSIGN_OR_DIE(Image3F in, Image3F::Create(20, 20));
   FillImage(1.0f, &in);
   TestRoundTrip(in, 1E-5f);
 }

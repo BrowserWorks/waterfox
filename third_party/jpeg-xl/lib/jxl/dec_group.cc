@@ -5,13 +5,13 @@
 
 #include "lib/jxl/dec_group.h"
 
+#include <stdint.h>
+#include <string.h>
+
 #include <algorithm>
-#include <cstdint>
-#include <cstring>
 #include <memory>
 #include <utility>
 
-#include "lib/jxl/chroma_from_luma.h"
 #include "lib/jxl/frame_header.h"
 
 #undef HWY_TARGET_INCLUDE
@@ -24,7 +24,6 @@
 #include "lib/jxl/base/bits.h"
 #include "lib/jxl/base/common.h"
 #include "lib/jxl/base/printf_macros.h"
-#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/coeff_order.h"
 #include "lib/jxl/common.h"  // kMaxNumPasses
@@ -139,7 +138,7 @@ void DequantLane(Vec<D> scaled_dequant_x, Vec<D> scaled_dequant_y,
 template <ACType ac_type>
 void DequantBlock(const AcStrategy& acs, float inv_global_scale, int quant,
                   float x_dm_multiplier, float b_dm_multiplier, Vec<D> x_cc_mul,
-                  Vec<D> b_cc_mul, AcStrategyType kind, size_t size,
+                  Vec<D> b_cc_mul, size_t kind, size_t size,
                   const Quantizer& quantizer, size_t covered_blocks,
                   const size_t* sbx,
                   const float* JXL_RESTRICT* JXL_RESTRICT dc_row,
@@ -171,7 +170,7 @@ Status DecodeGroupImpl(const FrameHeader& frame_header,
                        PassesDecoderState* JXL_RESTRICT dec_state,
                        size_t thread, size_t group_idx,
                        RenderPipelineInput& render_pipeline_input,
-                       jpeg::JPEGData* jpeg_data, DrawMode draw) {
+                       ImageBundle* decoded, DrawMode draw) {
   // TODO(veluca): investigate cache usage in this function.
   const Rect block_rect =
       dec_state->shared->frame_dim.BlockGroupRect(group_idx);
@@ -210,12 +209,11 @@ Status DecodeGroupImpl(const FrameHeader& frame_header,
   std::array<int, 3> dcoff = {};
 
   // TODO(veluca): all of this should be done only once per image.
-  const ColorCorrelation& color_correlation = dec_state->shared->cmap.base();
-  if (jpeg_data) {
-    if (!color_correlation.IsJPEGCompatible()) {
+  if (decoded->IsJPEG()) {
+    if (!dec_state->shared->cmap.IsJPEGCompatible()) {
       return JXL_FAILURE("The CfL map is not JPEG-compatible");
     }
-    jpeg_is_gray = (jpeg_data->components.size() == 1);
+    jpeg_is_gray = (decoded->jpeg_data->components.size() == 1);
     jpeg_c_map = JpegOrder(frame_header.color_transform, jpeg_is_gray);
     const std::vector<QuantEncoding>& qe =
         dec_state->shared->matrices.encodings();
@@ -224,16 +222,14 @@ Status DecodeGroupImpl(const FrameHeader& frame_header,
       return JXL_FAILURE(
           "Quantization table is not a JPEG quantization table.");
     }
-    JXL_CHECK(qe[0].qraw.qtable->size() == 3 * 8 * 8);
-    int* qtable = qe[0].qraw.qtable->data();
     for (size_t c = 0; c < 3; c++) {
       if (frame_header.color_transform == ColorTransform::kNone) {
-        dcoff[c] = 1024 / qtable[64 * c];
+        dcoff[c] = 1024 / (*qe[0].qraw.qtable)[64 * c];
       }
       for (size_t i = 0; i < 64; i++) {
         // Transpose the matrix, as it will be used on the transposed block.
-        int n = qtable[64 + i];
-        int d = qtable[64 * c + i];
+        int n = qe[0].qraw.qtable->at(64 + i);
+        int d = qe[0].qraw.qtable->at(64 * c + i);
         if (n <= 0 || d <= 0 || n >= 65536 || d >= 65536) {
           return JXL_FAILURE("Invalid JPEG quantization table");
         }
@@ -283,8 +279,8 @@ Status DecodeGroupImpl(const FrameHeader& frame_header,
     for (size_t c = 0; c < 3; c++) {
       idct_row[c] = render_pipeline_input.GetBuffer(c).second.Row(
           render_pipeline_input.GetBuffer(c).first, sby[c] * kBlockDim);
-      if (jpeg_data) {
-        auto& component = jpeg_data->components[jpeg_c_map[c]];
+      if (decoded->IsJPEG()) {
+        auto& component = decoded->jpeg_data->components[jpeg_c_map[c]];
         jpeg_row[c] =
             component.coeffs.data() +
             (component.width_in_blocks * (r[c].y0() + sby[c]) + r[c].x0()) *
@@ -296,8 +292,10 @@ Status DecodeGroupImpl(const FrameHeader& frame_header,
     for (size_t tx = 0; tx < DivCeil(xsize_blocks, kColorTileDimInBlocks);
          tx++) {
       size_t abs_tx = tx + block_rect.x0() / kColorTileDimInBlocks;
-      auto x_cc_mul = Set(d, color_correlation.YtoXRatio(row_cmap[0][abs_tx]));
-      auto b_cc_mul = Set(d, color_correlation.YtoBRatio(row_cmap[2][abs_tx]));
+      auto x_cc_mul =
+          Set(d, dec_state->shared->cmap.YtoXRatio(row_cmap[0][abs_tx]));
+      auto b_cc_mul =
+          Set(d, dec_state->shared->cmap.YtoBRatio(row_cmap[2][abs_tx]));
       // Increment bx by llf_x because those iterations would otherwise
       // immediately continue (!IsFirstBlock). Reduces mispredictions.
       for (; bx < xsize_blocks && bx < (tx + 1) * kColorTileDimInBlocks;) {
@@ -346,8 +344,8 @@ Status DecodeGroupImpl(const FrameHeader& frame_header,
           continue;
         }
 
-        if (JXL_UNLIKELY(jpeg_data)) {
-          if (acs.Strategy() != AcStrategyType::DCT) {
+        if (JXL_UNLIKELY(decoded->IsJPEG())) {
+          if (acs.Strategy() != AcStrategy::Type::DCT) {
             return JXL_FAILURE(
                 "Can only decode to JPEG if only DCT-8 is used.");
           }
@@ -384,8 +382,8 @@ Status DecodeGroupImpl(const FrameHeader& frame_header,
               }
             } else {
               // transposed_dct_y contains the y channel block, transposed.
-              const auto scale =
-                  Set(di, ColorCorrelation::RatioJPEG(row_cmap[c][abs_tx]));
+              const auto scale = Set(
+                  di, dec_state->shared->cmap.RatioJPEG(row_cmap[c][abs_tx]));
               const auto round = Set(di, 1 << (kCFLFixedPointPrecision - 1));
               for (int i = 0; i < 64; i += Lanes(d)) {
                 auto in = Load(di, transposed_dct + i);
@@ -416,7 +414,7 @@ Status DecodeGroupImpl(const FrameHeader& frame_header,
           // Dequantize and add predictions.
           dequant_block(
               acs, inv_global_scale, row_quant[bx], dec_state->x_dm_multiplier,
-              dec_state->b_dm_multiplier, x_cc_mul, b_cc_mul, acs.Strategy(),
+              dec_state->b_dm_multiplier, x_cc_mul, b_cc_mul, acs.RawStrategy(),
               size, dec_state->shared->quantizer,
               acs.covered_blocks_y() * acs.covered_blocks_x(), sbx, dc_rows,
               dc_stride,
@@ -608,10 +606,8 @@ struct GetBlockFromBitstream : public GetBlock {
       }
       ctx_offset[pass] = cur_histogram * block_ctx_map->NumACContexts();
 
-      JXL_ASSIGN_OR_RETURN(
-          decoders[pass],
-          ANSSymbolReader::Create(&dec_state->code[pass + first_pass],
-                                  readers[pass]));
+      decoders[pass] =
+          ANSSymbolReader(&dec_state->code[pass + first_pass], readers[pass]);
     }
     nzeros_stride = group_dec_cache->num_nzeroes[0].PixelsPerRow();
     for (size_t i = 0; i < num_passes; i++) {
@@ -692,9 +688,8 @@ Status DecodeGroup(const FrameHeader& frame_header,
                    PassesDecoderState* JXL_RESTRICT dec_state,
                    GroupDecCache* JXL_RESTRICT group_dec_cache, size_t thread,
                    RenderPipelineInput& render_pipeline_input,
-                   jpeg::JPEGData* JXL_RESTRICT jpeg_data, size_t first_pass,
+                   ImageBundle* JXL_RESTRICT decoded, size_t first_pass,
                    bool force_draw, bool dc_only, bool* should_run_pipeline) {
-  JxlMemoryManager* memory_manager = dec_state->memory_manager();
   DrawMode draw =
       (num_passes + first_pass == frame_header.passes.num_passes) || force_draw
           ? kDraw
@@ -705,7 +700,7 @@ Status DecodeGroup(const FrameHeader& frame_header,
   }
 
   if (draw == kDraw && num_passes == 0 && first_pass == 0) {
-    JXL_RETURN_IF_ERROR(group_dec_cache->InitDCBufferOnce(memory_manager));
+    JXL_RETURN_IF_ERROR(group_dec_cache->InitDCBufferOnce());
     const YCbCrChromaSubsampling& cs = frame_header.chroma_subsampling;
     for (size_t c : {0, 1, 2}) {
       size_t hs = cs.HShift(c);
@@ -782,7 +777,7 @@ Status DecodeGroup(const FrameHeader& frame_header,
 
   JXL_RETURN_IF_ERROR(HWY_DYNAMIC_DISPATCH(DecodeGroupImpl)(
       frame_header, get_block.get(), group_dec_cache, dec_state, thread,
-      group_idx, render_pipeline_input, jpeg_data, draw));
+      group_idx, render_pipeline_input, decoded, draw));
 
   for (size_t pass = 0; pass < num_passes; pass++) {
     if (!get_block->decoders[pass].CheckANSFinalState()) {
@@ -799,18 +794,16 @@ Status DecodeGroupForRoundtrip(const FrameHeader& frame_header,
                                GroupDecCache* JXL_RESTRICT group_dec_cache,
                                size_t thread,
                                RenderPipelineInput& render_pipeline_input,
-                               jpeg::JPEGData* JXL_RESTRICT jpeg_data,
+                               ImageBundle* JXL_RESTRICT decoded,
                                AuxOut* aux_out) {
-  JxlMemoryManager* memory_manager = dec_state->memory_manager();
   GetBlockFromEncoder get_block(ac, group_idx, frame_header.passes.shift);
   JXL_RETURN_IF_ERROR(group_dec_cache->InitOnce(
-      memory_manager,
       /*num_passes=*/0,
       /*used_acs=*/(1u << AcStrategy::kNumValidStrategies) - 1));
 
   return HWY_DYNAMIC_DISPATCH(DecodeGroupImpl)(
       frame_header, &get_block, group_dec_cache, dec_state, thread, group_idx,
-      render_pipeline_input, jpeg_data, kDraw);
+      render_pipeline_input, decoded, kDraw);
 }
 
 }  // namespace jxl

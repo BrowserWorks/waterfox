@@ -15,8 +15,6 @@
 
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/data_parallel.h"
-#include "lib/jxl/base/matrix_ops.h"
-#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/color_encoding_internal.h"
 #include "lib/jxl/image.h"
@@ -41,7 +39,7 @@ struct OutputEncodingInfo {
   // Used for the HLG OOTF and PQ tone mapping.
   float orig_intensity_target;
   // Opsin inverse matrix taken from the metadata.
-  Matrix3x3 orig_inverse_matrix;
+  float orig_inverse_matrix[9];
   bool default_transform;
   bool xyb_encoded;
   //
@@ -62,7 +60,7 @@ struct OutputEncodingInfo {
   // Luminances of color_encoding's primaries, used for the HLG inverse OOTF and
   // for PQ tone mapping.
   // Default to sRGB's.
-  Vector3 luminances;
+  float luminances[3];
   // Used for the HLG inverse OOTF and PQ tone mapping.
   float desired_intensity_target;
   bool cms_set = false;
@@ -92,8 +90,8 @@ void OpsinToLinear(const Image3F& opsin, const Rect& rect, ThreadPool* pool,
 void YcbcrToRgb(const Image3F& ycbcr, Image3F* rgb, const Rect& rect);
 
 bool HasFastXYBTosRGB8();
-Status FastXYBTosRGB8(const float* input[4], uint8_t* output, bool is_rgba,
-                      size_t xsize);
+void FastXYBTosRGB8(const float* input[4], uint8_t* output, bool is_rgba,
+                    size_t xsize);
 
 }  // namespace jxl
 

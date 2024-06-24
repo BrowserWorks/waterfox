@@ -7,7 +7,6 @@
 
 #include <jxl/cms.h>
 #include <jxl/cms_interface.h>
-#include <jxl/memory_manager.h>
 #include <jxl/types.h>
 
 #include <cstddef>
@@ -39,7 +38,6 @@
 #include "lib/jxl/image.h"
 #include "lib/jxl/image_bundle.h"
 #include "lib/jxl/padded_bytes.h"
-#include "lib/jxl/test_memory_manager.h"
 
 #if !defined(TEST_DATA_PATH)
 #include "tools/cpp/runfiles/runfiles.h"
@@ -60,19 +58,6 @@ std::string GetTestDataPath(const std::string& filename) {
   return kRunfiles->Rlocation(root + filename);
 }
 #endif
-
-jxl::IccBytes GetIccTestProfile() {
-  return ReadTestData("external/Compact-ICC-Profiles/profiles/scRGB-v2.icc");
-}
-
-std::vector<uint8_t> GetCompressedIccTestProfile() {
-  BitWriter writer(MemoryManager());
-  const IccBytes icc = GetIccTestProfile();
-  JXL_CHECK(
-      WriteICC(Span<const uint8_t>(icc), &writer, LayerType::Header, nullptr));
-  writer.ZeroPadToByte();
-  return std::vector<uint8_t>(writer.GetSpan().begin(), writer.GetSpan().end());
-}
 
 std::vector<uint8_t> ReadTestData(const std::string& filename) {
   std::string full_path = GetTestDataPath(filename);
@@ -295,8 +280,7 @@ std::vector<ColorEncodingDescriptor> AllEncodings() {
 jxl::CodecInOut SomeTestImageToCodecInOut(const std::vector<uint8_t>& buf,
                                           size_t num_channels, size_t xsize,
                                           size_t ysize) {
-  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
-  jxl::CodecInOut io{memory_manager};
+  jxl::CodecInOut io;
   io.SetSize(xsize, ysize);
   io.metadata.m.SetAlphaBits(16);
   io.metadata.m.color_encoding = jxl::ColorEncoding::SRGB(
@@ -573,10 +557,9 @@ double DistanceRMS(const uint8_t* a, const uint8_t* b, size_t xsize,
 
 float ButteraugliDistance(const extras::PackedPixelFile& a,
                           const extras::PackedPixelFile& b, ThreadPool* pool) {
-  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
-  CodecInOut io0{memory_manager};
+  CodecInOut io0;
   JXL_CHECK(ConvertPackedPixelFileToCodecInOut(a, pool, &io0));
-  CodecInOut io1{memory_manager};
+  CodecInOut io1;
   JXL_CHECK(ConvertPackedPixelFileToCodecInOut(b, pool, &io1));
   // TODO(eustas): simplify?
   return ButteraugliDistance(io0.frames, io1.frames, ButteraugliParams(),
@@ -614,34 +597,31 @@ float ButteraugliDistance(const std::vector<ImageBundle>& frames0,
 
 float Butteraugli3Norm(const extras::PackedPixelFile& a,
                        const extras::PackedPixelFile& b, ThreadPool* pool) {
-  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
-  CodecInOut io0{memory_manager};
+  CodecInOut io0;
   JXL_CHECK(ConvertPackedPixelFileToCodecInOut(a, pool, &io0));
-  CodecInOut io1{memory_manager};
+  CodecInOut io1;
   JXL_CHECK(ConvertPackedPixelFileToCodecInOut(b, pool, &io1));
-  ButteraugliParams butteraugli_params;
+  ButteraugliParams ba;
   ImageF distmap;
-  ButteraugliDistance(io0.frames, io1.frames, butteraugli_params,
-                      *JxlGetDefaultCms(), &distmap, pool);
-  return ComputeDistanceP(distmap, butteraugli_params, 3);
+  ButteraugliDistance(io0.frames, io1.frames, ba, *JxlGetDefaultCms(), &distmap,
+                      pool);
+  return ComputeDistanceP(distmap, ba, 3);
 }
 
 float ComputeDistance2(const extras::PackedPixelFile& a,
                        const extras::PackedPixelFile& b) {
-  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
-  CodecInOut io0{memory_manager};
+  CodecInOut io0;
   JXL_CHECK(ConvertPackedPixelFileToCodecInOut(a, nullptr, &io0));
-  CodecInOut io1{memory_manager};
+  CodecInOut io1;
   JXL_CHECK(ConvertPackedPixelFileToCodecInOut(b, nullptr, &io1));
   return ComputeDistance2(io0.Main(), io1.Main(), *JxlGetDefaultCms());
 }
 
 float ComputePSNR(const extras::PackedPixelFile& a,
                   const extras::PackedPixelFile& b) {
-  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
-  CodecInOut io0{memory_manager};
+  CodecInOut io0;
   JXL_CHECK(ConvertPackedPixelFileToCodecInOut(a, nullptr, &io0));
-  CodecInOut io1{memory_manager};
+  CodecInOut io1;
   JXL_CHECK(ConvertPackedPixelFileToCodecInOut(b, nullptr, &io1));
   return ComputePSNR(io0.Main(), io1.Main(), *JxlGetDefaultCms());
 }
@@ -735,10 +715,9 @@ bool SamePixels(const extras::PackedPixelFile& a,
 
 Status ReadICC(BitReader* JXL_RESTRICT reader,
                std::vector<uint8_t>* JXL_RESTRICT icc, size_t output_limit) {
-  JxlMemoryManager* memort_manager = jxl::test::MemoryManager();
   icc->clear();
-  ICCReader icc_reader{memort_manager};
-  PaddedBytes icc_buffer{memort_manager};
+  ICCReader icc_reader;
+  PaddedBytes icc_buffer;
   JXL_RETURN_IF_ERROR(icc_reader.Init(reader, output_limit));
   JXL_RETURN_IF_ERROR(icc_reader.Process(reader, &icc_buffer));
   Bytes(icc_buffer).AppendTo(*icc);
@@ -773,8 +752,7 @@ Status PrepareCodecMetadataFromIO(const CompressParams& cparams,
 Status EncodePreview(const CompressParams& cparams, const ImageBundle& ib,
                      const CodecMetadata* metadata, const JxlCmsInterface& cms,
                      ThreadPool* pool, BitWriter* JXL_RESTRICT writer) {
-  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
-  BitWriter preview_writer{memory_manager};
+  BitWriter preview_writer;
   // TODO(janwas): also support generating preview by downsampling
   if (ib.HasColor()) {
     AuxOut aux_out;
@@ -783,9 +761,8 @@ Status EncodePreview(const CompressParams& cparams, const ImageBundle& ib,
     // encoding this frame is warrented.
     FrameInfo frame_info;
     frame_info.is_preview = true;
-    JXL_RETURN_IF_ERROR(EncodeFrame(memory_manager, cparams, frame_info,
-                                    metadata, ib, cms, pool, &preview_writer,
-                                    &aux_out));
+    JXL_RETURN_IF_ERROR(EncodeFrame(cparams, frame_info, metadata, ib, cms,
+                                    pool, &preview_writer, &aux_out));
     preview_writer.ZeroPadToByte();
   }
 
@@ -801,11 +778,10 @@ Status EncodePreview(const CompressParams& cparams, const ImageBundle& ib,
 
 Status EncodeFile(const CompressParams& params, const CodecInOut* io,
                   std::vector<uint8_t>* compressed, ThreadPool* pool) {
-  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   compressed->clear();
   const JxlCmsInterface& cms = *JxlGetDefaultCms();
-  JXL_RETURN_IF_ERROR(io->CheckMetadata());
-  BitWriter writer{memory_manager};
+  io->CheckMetadata();
+  BitWriter writer;
 
   CompressParams cparams = params;
   if (io->Main().color_transform != ColorTransform::kNone) {
@@ -822,9 +798,8 @@ Status EncodeFile(const CompressParams& params, const CodecInOut* io,
 
   // Only send ICC (at least several hundred bytes) if fields aren't enough.
   if (metadata->m.color_encoding.WantICC()) {
-    JXL_RETURN_IF_ERROR(
-        WriteICC(Span<const uint8_t>(metadata->m.color_encoding.ICC()), &writer,
-                 LayerType::Header, /* aux_out */ nullptr));
+    JXL_RETURN_IF_ERROR(WriteICC(metadata->m.color_encoding.ICC(), &writer,
+                                 kLayerHeader, /* aux_out */ nullptr));
   }
 
   if (metadata->m.have_preview) {
@@ -835,7 +810,7 @@ Status EncodeFile(const CompressParams& params, const CodecInOut* io,
   // Each frame should start on byte boundaries.
   BitWriter::Allotment allotment(&writer, 8);
   writer.ZeroPadToByte();
-  allotment.ReclaimAndCharge(&writer, LayerType::Header, /* aux_out */ nullptr);
+  allotment.ReclaimAndCharge(&writer, kLayerHeader, /* aux_out */ nullptr);
 
   for (size_t i = 0; i < io->frames.size(); i++) {
     FrameInfo info;
@@ -843,9 +818,8 @@ Status EncodeFile(const CompressParams& params, const CodecInOut* io,
     if (io->frames[i].use_for_next_frame) {
       info.save_as_reference = 1;
     }
-    JXL_RETURN_IF_ERROR(EncodeFrame(memory_manager, cparams, info,
-                                    metadata.get(), io->frames[i], cms, pool,
-                                    &writer,
+    JXL_RETURN_IF_ERROR(EncodeFrame(cparams, info, metadata.get(),
+                                    io->frames[i], cms, pool, &writer,
                                     /* aux_out */ nullptr));
   }
 

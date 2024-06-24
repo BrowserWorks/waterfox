@@ -8,11 +8,14 @@
 
 // Forward/backward-compatible 'bundles' with auto-serialized 'fields'.
 
+#include <cmath>  // abs
+#include <cstdarg>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 
+#include "lib/jxl/base/bits.h"
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/dec_bit_reader.h"
@@ -21,7 +24,6 @@
 namespace jxl {
 
 struct AuxOut;
-enum class LayerType : uint8_t;
 struct BitWriter;
 
 // Integer coders: BitsCoder (raw), U32Coder (table), U64Coder (varint).
@@ -183,8 +185,8 @@ Status Read(BitReader* reader, Fields* JXL_RESTRICT fields);
 // this.
 bool CanRead(BitReader* reader, Fields* JXL_RESTRICT fields);
 
-Status Write(const Fields& fields, BitWriter* JXL_RESTRICT writer,
-             LayerType layer, AuxOut* aux_out);
+Status Write(const Fields& fields, BitWriter* JXL_RESTRICT writer, size_t layer,
+             AuxOut* aux_out);
 }  // namespace Bundle
 
 // Different subclasses of Visitor are passed to implementations of Fields

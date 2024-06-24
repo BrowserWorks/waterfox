@@ -150,7 +150,7 @@ Status DecodeImagePGX(const Span<const uint8_t> bytes,
                       const SizeConstraints* constraints) {
   Parser parser(bytes);
   HeaderPGX header = {};
-  const uint8_t* pos = nullptr;
+  const uint8_t* pos;
   if (!parser.ParseHeader(&header, &pos)) return false;
   JXL_RETURN_IF_ERROR(
       VerifyDimensions(constraints, header.xsize, header.ysize));
@@ -188,12 +188,7 @@ Status DecodeImagePGX(const Span<const uint8_t> bytes,
   };
   ppf->frames.clear();
   // Allocates the frame buffer.
-  {
-    JXL_ASSIGN_OR_RETURN(
-        PackedFrame frame,
-        PackedFrame::Create(header.xsize, header.ysize, format));
-    ppf->frames.emplace_back(std::move(frame));
-  }
+  ppf->frames.emplace_back(header.xsize, header.ysize, format);
   const auto& frame = ppf->frames.back();
   size_t pgx_remaining_size = bytes.data() + bytes.size() - pos;
   if (pgx_remaining_size < frame.color.pixels_size) {

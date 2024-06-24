@@ -37,8 +37,6 @@ struct CompressParams {
   bool max_error_mode = false;
   float max_error[3] = {0.0, 0.0, 0.0};
 
-  bool disable_perceptual_optimizations = false;
-
   SpeedTier speed_tier = SpeedTier::kSquirrel;
   int brotli_effort = -1;
 
@@ -108,12 +106,9 @@ struct CompressParams {
 
   // modular mode options below
   ModularOptions options;
-
-  // TODO(eustas): use Override?
   int responsive = -1;
   int colorspace = -1;
   int move_to_front_from_channel = -1;
-
   // Use Global channel palette if #colors < this percentage of range
   float channel_colors_pre_transform_percent = 95.f;
   // Use Local channel palette if #colors < this percentage of range

@@ -7,16 +7,14 @@
 
 #include <cmath>
 #include <cstdint>
-#include <cstring>
 #include <fstream>
-#include <sstream>
 
 #include "lib/jpegli/decode.h"
 #include "lib/jpegli/encode.h"
 #include "lib/jxl/base/byte_order.h"
 #include "lib/jxl/base/printf_macros.h"
-#include "lib/jxl/base/sanitizers.h"
 #include "lib/jxl/base/status.h"
+#include "lib/jxl/sanitizers.h"
 
 #if !defined(TEST_DATA_PATH)
 #include "tools/cpp/runfiles/runfiles.h"
@@ -173,18 +171,6 @@ std::string ColorSpaceName(J_COLOR_SPACE colorspace) {
       return "CMYK";
     case JCS_YCCK:
       return "YCCK";
-    case JCS_EXT_RGB:
-      return "EXT_RGB";
-    case JCS_EXT_BGR:
-      return "EXT_BGR";
-    case JCS_EXT_RGBA:
-      return "EXT_RGBA";
-    case JCS_EXT_BGRA:
-      return "EXT_BGRA";
-    case JCS_EXT_ARGB:
-      return "EXT_ARGB";
-    case JCS_EXT_ABGR:
-      return "EXT_ABGR";
     default:
       return "";
   }
@@ -315,12 +301,9 @@ std::ostream& operator<<(std::ostream& os, const CompressParams& jparams) {
 void SetNumChannels(J_COLOR_SPACE colorspace, size_t* channels) {
   if (colorspace == JCS_GRAYSCALE) {
     *channels = 1;
-  } else if (colorspace == JCS_RGB || colorspace == JCS_YCbCr ||
-             colorspace == JCS_EXT_RGB || colorspace == JCS_EXT_BGR) {
+  } else if (colorspace == JCS_RGB || colorspace == JCS_YCbCr) {
     *channels = 3;
-  } else if (colorspace == JCS_CMYK || colorspace == JCS_YCCK ||
-             colorspace == JCS_EXT_RGBA || colorspace == JCS_EXT_BGRA ||
-             colorspace == JCS_EXT_ARGB || colorspace == JCS_EXT_ABGR) {
+  } else if (colorspace == JCS_CMYK || colorspace == JCS_YCCK) {
     *channels = 4;
   } else if (colorspace == JCS_UNKNOWN) {
     JXL_CHECK(*channels <= 4);
@@ -347,28 +330,7 @@ void ConvertPixel(const uint8_t* input_rgb, uint8_t* out,
   if (colorspace == JCS_GRAYSCALE) {
     const float Y = 0.299f * r + 0.587f * g + 0.114f * b;
     out8[0] = static_cast<uint8_t>(std::round(Y * kMul));
-  } else if (colorspace == JCS_RGB || colorspace == JCS_EXT_RGB ||
-             colorspace == JCS_EXT_RGBA) {
-    out8[0] = input_rgb[0];
-    out8[1] = input_rgb[1];
-    out8[2] = input_rgb[2];
-    if (colorspace == JCS_EXT_RGBA) out8[3] = 255;
-  } else if (colorspace == JCS_EXT_BGR || colorspace == JCS_EXT_BGRA) {
-    out8[2] = input_rgb[0];
-    out8[1] = input_rgb[1];
-    out8[0] = input_rgb[2];
-    if (colorspace == JCS_EXT_BGRA) out8[3] = 255;
-  } else if (colorspace == JCS_EXT_ABGR) {
-    out8[0] = 255;
-    out8[3] = input_rgb[0];
-    out8[2] = input_rgb[1];
-    out8[1] = input_rgb[2];
-  } else if (colorspace == JCS_EXT_ARGB) {
-    out8[0] = 255;
-    out8[1] = input_rgb[0];
-    out8[2] = input_rgb[1];
-    out8[3] = input_rgb[2];
-  } else if (colorspace == JCS_UNKNOWN) {
+  } else if (colorspace == JCS_RGB || colorspace == JCS_UNKNOWN) {
     for (size_t c = 0; c < num_channels; ++c) {
       out8[c] = input_rgb[std::min<size_t>(2, c)];
     }
@@ -428,23 +390,9 @@ void ConvertPixel(const uint8_t* input_rgb, uint8_t* out,
 void ConvertToGrayscale(TestImage* img) {
   if (img->color_space == JCS_GRAYSCALE) return;
   JXL_CHECK(img->data_type == JPEGLI_TYPE_UINT8);
-  bool rgb_pre_alpha =
-      img->color_space == JCS_EXT_ARGB || img->color_space == JCS_EXT_ABGR;
-  bool rgb_post_alpha =
-      img->color_space == JCS_EXT_RGBA || img->color_space == JCS_EXT_BGRA;
-  bool rgb_alpha = rgb_pre_alpha || rgb_post_alpha;
-  bool is_rgb = img->color_space == JCS_RGB ||
-                img->color_space == JCS_EXT_RGB ||
-                img->color_space == JCS_EXT_BGR || rgb_alpha;
-  bool switch_br = img->color_space == JCS_EXT_BGR ||
-                   img->color_space == JCS_EXT_ABGR ||
-                   img->color_space == JCS_EXT_BGRA;
-  size_t stride = rgb_alpha ? 4 : 3;
-  size_t offset = rgb_pre_alpha ? 1 : 0;
-  for (size_t i = offset; i < img->pixels.size(); i += stride) {
-    if (is_rgb) {
-      if (switch_br) std::swap(img->pixels[i], img->pixels[i + 2]);
-      ConvertPixel(&img->pixels[i], &img->pixels[i / stride], JCS_GRAYSCALE, 1);
+  for (size_t i = 0; i < img->pixels.size(); i += 3) {
+    if (img->color_space == JCS_RGB) {
+      ConvertPixel(&img->pixels[i], &img->pixels[i / 3], JCS_GRAYSCALE, 1);
     } else if (img->color_space == JCS_YCbCr) {
       img->pixels[i / 3] = img->pixels[i];
     }
@@ -702,11 +650,11 @@ void EncodeWithJpegli(const TestImage& input, const CompressParams& jparams,
     for (int c = 0; c < cinfo->num_components; ++c) {
       jpeg_component_info* comp = &cinfo->comp_info[c];
       for (size_t by = 0; by < comp->height_in_blocks; ++by) {
-        JBLOCKARRAY blocks = (*cinfo->mem->access_virt_barray)(
+        JBLOCKARRAY ba = (*cinfo->mem->access_virt_barray)(
             comptr, coef_arrays[c], by, 1, TRUE);
         size_t stride = comp->width_in_blocks * sizeof(JBLOCK);
         size_t offset = by * comp->width_in_blocks * DCTSIZE2;
-        memcpy(blocks[0], &input.coeffs[c][offset], stride);
+        memcpy(ba[0], &input.coeffs[c][offset], stride);
       }
     }
   } else {
@@ -725,7 +673,7 @@ void EncodeWithJpegli(const TestImage& input, const CompressParams& jparams,
 bool EncodeWithJpegli(const TestImage& input, const CompressParams& jparams,
                       std::vector<uint8_t>* compressed) {
   uint8_t* buffer = nullptr;
-  unsigned long buffer_size = 0;  // NOLINT
+  unsigned long buffer_size = 0;
   jpeg_compress_struct cinfo;
   const auto try_catch_block = [&]() -> bool {
     ERROR_HANDLER_SETUP(jpegli);

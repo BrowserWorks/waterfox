@@ -20,7 +20,7 @@
 
 #include <memory>
 
-#ifndef __cplusplus
+#if !(defined(__cplusplus) || defined(c_plusplus))
 #error "This a C++ only header. Use jxl/decode.h from C sources."
 #endif
 

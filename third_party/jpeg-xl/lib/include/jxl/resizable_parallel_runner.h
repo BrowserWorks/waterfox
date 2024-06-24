@@ -37,7 +37,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-#ifdef __cplusplus
+#if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
@@ -68,7 +68,7 @@ JxlResizableParallelRunnerSuggestThreads(uint64_t xsize, uint64_t ysize);
  */
 JXL_THREADS_EXPORT void JxlResizableParallelRunnerDestroy(void* runner_opaque);
 
-#ifdef __cplusplus
+#if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
 

@@ -8,11 +8,9 @@
 
 // BitWriter class: unbuffered writes using unaligned 64-bit stores.
 
-#include <jxl/memory_manager.h>
+#include <stddef.h>
+#include <stdint.h>
 
-#include <cstddef>
-#include <cstdint>
-#include <memory>
 #include <utility>
 #include <vector>
 
@@ -25,7 +23,6 @@
 namespace jxl {
 
 struct AuxOut;
-enum class LayerType : uint8_t;
 
 struct BitWriter {
   // Upper bound on `n_bits` in each call to Write. We shift a 64-bit word by
@@ -35,8 +32,7 @@ struct BitWriter {
   // yet zero-initialized).
   static constexpr size_t kMaxBitsPerCall = 56;
 
-  explicit BitWriter(JxlMemoryManager* memory_manager)
-      : bits_written_(0), storage_(memory_manager) {}
+  BitWriter() : bits_written_(0) {}
 
   // Disallow copying - may lead to bugs.
   BitWriter(const BitWriter&) = delete;
@@ -45,8 +41,6 @@ struct BitWriter {
   BitWriter& operator=(BitWriter&&) = default;
 
   size_t BitsWritten() const { return bits_written_; }
-
-  JxlMemoryManager* memory_manager() const { return storage_.memory_manager(); }
 
   Span<const uint8_t> GetSpan() const {
     // Callers must ensure byte alignment to avoid uninitialized bits.
@@ -92,7 +86,7 @@ struct BitWriter {
       return histogram_bits_;
     }
 
-    void ReclaimAndCharge(BitWriter* JXL_RESTRICT writer, LayerType layer,
+    void ReclaimAndCharge(BitWriter* JXL_RESTRICT writer, size_t layer,
                           AuxOut* JXL_RESTRICT aux_out);
 
    private:

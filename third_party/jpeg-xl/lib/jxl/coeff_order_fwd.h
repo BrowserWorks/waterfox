@@ -8,8 +8,8 @@
 
 // Breaks circular dependency between ac_strategy and coeff_order.
 
-#include <cstddef>
-#include <cstdint>
+#include <stddef.h>
+#include <stdint.h>
 
 #include "lib/jxl/base/compiler_specific.h"
 

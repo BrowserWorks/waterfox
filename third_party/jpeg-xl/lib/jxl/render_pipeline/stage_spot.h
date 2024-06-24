@@ -6,8 +6,7 @@
 #ifndef LIB_JXL_RENDER_PIPELINE_STAGE_SPOT_H_
 #define LIB_JXL_RENDER_PIPELINE_STAGE_SPOT_H_
 
-#include <cstddef>
-#include <memory>
+#include <utility>
 
 #include "lib/jxl/render_pipeline/render_pipeline_stage.h"
 

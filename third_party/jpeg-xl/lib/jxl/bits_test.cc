@@ -5,9 +5,6 @@
 
 #include "lib/jxl/base/bits.h"
 
-#include <cstddef>
-#include <cstdint>
-
 #include "lib/jxl/testing.h"
 
 namespace jxl {
