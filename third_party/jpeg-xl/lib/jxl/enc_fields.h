@@ -6,8 +6,6 @@
 #ifndef LIB_JXL_ENC_FIELDS_H_
 #define LIB_JXL_ENC_FIELDS_H_
 
-#include <cstdint>
-
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/enc_bit_writer.h"
 #include "lib/jxl/frame_header.h"
@@ -18,7 +16,6 @@
 namespace jxl {
 
 struct AuxOut;
-enum class LayerType : uint8_t;
 
 // Write headers from the CodecMetadata. Also may modify nonserialized_...
 // fields of the metadata.
@@ -29,11 +26,11 @@ Status WriteFrameHeader(const FrameHeader& frame,
                         BitWriter* JXL_RESTRICT writer, AuxOut* aux_out);
 
 Status WriteQuantizerParams(const QuantizerParams& params,
-                            BitWriter* JXL_RESTRICT writer, LayerType layer,
+                            BitWriter* JXL_RESTRICT writer, size_t layer,
                             AuxOut* aux_out);
 
 Status WriteSizeHeader(const SizeHeader& size, BitWriter* JXL_RESTRICT writer,
-                       LayerType layer, AuxOut* aux_out);
+                       size_t layer, AuxOut* aux_out);
 
 }  // namespace jxl
 

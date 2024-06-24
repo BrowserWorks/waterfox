@@ -19,8 +19,7 @@ class ScopeGuard {
   ScopeGuard &operator=(ScopeGuard &&) = delete;
 
   // Pre-C++17 does not guarantee RVO -> require move constructor.
-  ScopeGuard(ScopeGuard &&other) noexcept
-      : callback_(std::move(other.callback_)) {
+  ScopeGuard(ScopeGuard &&other) : callback_(std::move(other.callback_)) {
     other.armed_ = false;
   }
 

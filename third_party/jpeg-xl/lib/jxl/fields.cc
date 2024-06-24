@@ -6,7 +6,7 @@
 #include "lib/jxl/fields.h"
 
 #include <algorithm>
-#include <cinttypes>  // PRIu64
+#include <cinttypes>
 #include <cmath>
 #include <cstddef>
 #include <hwy/base.h>
@@ -414,19 +414,19 @@ class CanEncodeVisitor : public VisitorBase {
 void Bundle::Init(Fields* fields) {
   InitVisitor visitor;
   if (!visitor.Visit(fields)) {
-    JXL_DEBUG_ABORT("Init should never fail");
+    JXL_UNREACHABLE("Init should never fail");
   }
 }
 void Bundle::SetDefault(Fields* fields) {
   SetDefaultVisitor visitor;
   if (!visitor.Visit(fields)) {
-    JXL_DEBUG_ABORT("SetDefault should never fail");
+    JXL_UNREACHABLE("SetDefault should never fail");
   }
 }
 bool Bundle::AllDefault(const Fields& fields) {
   AllDefaultVisitor visitor;
   if (!visitor.VisitConst(fields)) {
-    JXL_DEBUG_ABORT("AllDefault should never fail");
+    JXL_UNREACHABLE("AllDefault should never fail");
   }
   return visitor.AllDefault();
 }

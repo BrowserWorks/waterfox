@@ -6,17 +6,9 @@
 #ifndef LIB_JXL_MODULAR_ENCODING_CONTEXT_PREDICT_H_
 #define LIB_JXL_MODULAR_ENCODING_CONTEXT_PREDICT_H_
 
-#include <algorithm>
-#include <array>
-#include <cmath>
-#include <cstddef>
-#include <cstdint>
+#include <utility>
 #include <vector>
 
-#include "lib/jxl/base/bits.h"
-#include "lib/jxl/base/compiler_specific.h"
-#include "lib/jxl/base/status.h"
-#include "lib/jxl/field_encodings.h"
 #include "lib/jxl/fields.h"
 #include "lib/jxl/image_ops.h"
 #include "lib/jxl/modular/modular_image.h"
@@ -71,7 +63,7 @@ struct State {
   pixel_type_w pred = 0;  // *before* removing the added bits.
   std::vector<uint32_t> pred_errors[kNumPredictors];
   std::vector<int32_t> error;
-  const Header &header;
+  const Header header;
 
   // Allows to approximate division by a number from 1 to 64.
   //  for (int i = 0; i < 64; i++) divlookup[i] = (1 << 24) / (i + 1);
@@ -90,7 +82,7 @@ struct State {
     return static_cast<uint64_t>(x) << kPredExtraBits;
   }
 
-  State(const Header &header, size_t xsize, size_t ysize) : header(header) {
+  State(Header header, size_t xsize, size_t ysize) : header(header) {
     // Extra margin to avoid out-of-bounds writes.
     // All have space for two rows of data.
     for (auto &pred_error : pred_errors) {

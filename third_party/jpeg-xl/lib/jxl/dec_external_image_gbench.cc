@@ -3,20 +3,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include <jxl/memory_manager.h>
-
 #include "benchmark/benchmark.h"
 #include "lib/jxl/dec_external_image.h"
 #include "lib/jxl/image.h"
 #include "lib/jxl/image_ops.h"
-#include "tools/no_memory_manager.h"
 
 namespace jxl {
 namespace {
 
 // Decoder case, interleaves an internal float image.
 void BM_DecExternalImage_ConvertImageRGBA(benchmark::State& state) {
-  JxlMemoryManager* memory_manager = jpegxl::tools::NoMemoryManager();
   const size_t kNumIter = 5;
   size_t xsize = state.range();
   size_t ysize = state.range();
@@ -24,12 +20,11 @@ void BM_DecExternalImage_ConvertImageRGBA(benchmark::State& state) {
 
   ImageMetadata im;
   im.SetAlphaBits(8);
-  ImageBundle ib(memory_manager, &im);
-  JXL_ASSIGN_OR_DIE(Image3F color,
-                    Image3F::Create(memory_manager, xsize, ysize));
+  ImageBundle ib(&im);
+  JXL_ASSIGN_OR_DIE(Image3F color, Image3F::Create(xsize, ysize));
   ZeroFillImage(&color);
   ib.SetFromImage(std::move(color), ColorEncoding::SRGB());
-  JXL_ASSIGN_OR_DIE(ImageF alpha, ImageF::Create(memory_manager, xsize, ysize));
+  JXL_ASSIGN_OR_DIE(ImageF alpha, ImageF::Create(xsize, ysize));
   ZeroFillImage(&alpha);
   ib.SetAlpha(std::move(alpha));
 
@@ -37,7 +32,6 @@ void BM_DecExternalImage_ConvertImageRGBA(benchmark::State& state) {
   std::vector<uint8_t> interleaved(bytes_per_row * ysize);
 
   for (auto _ : state) {
-    (void)_;
     for (size_t i = 0; i < kNumIter; ++i) {
       JXL_CHECK(ConvertToExternal(
           ib,

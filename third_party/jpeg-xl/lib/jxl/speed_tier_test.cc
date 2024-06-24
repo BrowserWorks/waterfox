@@ -15,7 +15,7 @@
 
 #include "lib/extras/dec/jxl.h"
 #include "lib/extras/enc/jxl.h"
-#include "lib/jxl/common.h"
+#include "lib/jxl/enc_params.h"
 #include "lib/jxl/test_image.h"
 #include "lib/jxl/test_utils.h"
 #include "lib/jxl/testing.h"
@@ -82,6 +82,7 @@ JXL_GTEST_INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(SpeedTierTest, Roundtrip) {
   const SpeedTierTestParams& params = GetParam();
+  test::ThreadPoolForTests pool(8);
   const std::vector<uint8_t> orig = jxl::test::ReadTestData(
       "external/wesaturate/500px/u76c0g_bliznaca_srgb8.png");
   test::TestImage t;

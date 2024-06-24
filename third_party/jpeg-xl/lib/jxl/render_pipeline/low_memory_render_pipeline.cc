@@ -6,16 +6,9 @@
 #include "lib/jxl/render_pipeline/low_memory_render_pipeline.h"
 
 #include <algorithm>
-#include <cstddef>
-#include <cstdint>
-#include <utility>
-#include <vector>
 
 #include "lib/jxl/base/arch_macros.h"
-#include "lib/jxl/base/common.h"
-#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
-#include "lib/jxl/image.h"
 #include "lib/jxl/image_ops.h"
 
 namespace jxl {
@@ -200,15 +193,14 @@ Status LowMemoryRenderPipeline::EnsureBordersStorage() {
                                        1 << shifts[c].second);
     Rect horizontal = Rect(0, 0, downsampled_xsize, bordery * num_yborders);
     if (!SameSize(horizontal, borders_horizontal_[c])) {
-      JXL_ASSIGN_OR_RETURN(borders_horizontal_[c],
-                           ImageF::Create(memory_manager_, horizontal.xsize(),
-                                          horizontal.ysize()));
+      JXL_ASSIGN_OR_RETURN(
+          borders_horizontal_[c],
+          ImageF::Create(horizontal.xsize(), horizontal.ysize()));
     }
     Rect vertical = Rect(0, 0, borderx * num_xborders, downsampled_ysize);
     if (!SameSize(vertical, borders_vertical_[c])) {
-      JXL_ASSIGN_OR_RETURN(
-          borders_vertical_[c],
-          ImageF::Create(memory_manager_, vertical.xsize(), vertical.ysize()));
+      JXL_ASSIGN_OR_RETURN(borders_vertical_[c],
+                           ImageF::Create(vertical.xsize(), vertical.ysize()));
     }
   }
   return true;
@@ -305,8 +297,7 @@ Status LowMemoryRenderPipeline::Init() {
   }
   for (size_t i = first_image_dim_stage_; i < stages_.size(); i++) {
     if (stages_[i]->SwitchToImageDimensions()) {
-      return JXL_UNREACHABLE(
-          "cannot switch to image dimensions multiple times");
+      JXL_UNREACHABLE("Cannot switch to image dimensions multiple times");
     }
     std::vector<std::pair<size_t, size_t>> input_sizes(shifts.size());
     for (size_t c = 0; c < shifts.size(); c++) {
@@ -381,8 +372,7 @@ Status LowMemoryRenderPipeline::PrepareForThreadsInternal(size_t num,
     for (size_t c = 0; c < shifts.size(); c++) {
       JXL_ASSIGN_OR_RETURN(
           group_data_[t][c],
-          ImageF::Create(memory_manager_,
-                         GroupInputXSize(c) + group_data_x_border_ * 2,
+          ImageF::Create(GroupInputXSize(c) + group_data_x_border_ * 2,
                          GroupInputYSize(c) + group_data_y_border_ * 2));
     }
   }
@@ -408,8 +398,7 @@ Status LowMemoryRenderPipeline::PrepareForThreadsInternal(size_t num,
           next_y_border = stages_[i]->settings_.border_y;
           JXL_ASSIGN_OR_RETURN(
               stage_data_[t][c][i],
-              ImageF::Create(memory_manager_, stage_buffer_xsize,
-                             stage_buffer_ysize));
+              ImageF::Create(stage_buffer_xsize, stage_buffer_ysize));
         }
       }
     }
@@ -431,9 +420,8 @@ Status LowMemoryRenderPipeline::PrepareForThreadsInternal(size_t num,
         std::max(left_padding, std::max(middle_padding, right_padding));
     out_of_frame_data_.resize(num);
     for (size_t t = 0; t < num; t++) {
-      JXL_ASSIGN_OR_RETURN(
-          out_of_frame_data_[t],
-          ImageF::Create(memory_manager_, out_of_frame_xsize, shifts.size()));
+      JXL_ASSIGN_OR_RETURN(out_of_frame_data_[t],
+                           ImageF::Create(out_of_frame_xsize, shifts.size()));
     }
   }
   return true;

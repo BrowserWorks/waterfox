@@ -6,18 +6,13 @@
 #include "lib/jxl/jpeg/enc_jpeg_data.h"
 
 #include <brotli/encode.h>
-#include <jxl/memory_manager.h>
-#include <jxl/types.h>
 
-#include <cstdint>
-
-#include "lib/jxl/base/sanitizers.h"
 #include "lib/jxl/codec_in_out.h"
-#include "lib/jxl/enc_aux_out.h"
 #include "lib/jxl/enc_bit_writer.h"
 #include "lib/jxl/image_bundle.h"
 #include "lib/jxl/jpeg/enc_jpeg_data_reader.h"
 #include "lib/jxl/luminance.h"
+#include "lib/jxl/sanitizers.h"
 
 namespace jxl {
 namespace jpeg {
@@ -93,7 +88,7 @@ Status DetectBlobs(jpeg::JPEGData& jpeg_data) {
       // Something is wrong with this marker; does not care.
       continue;
     }
-    if (!have_exif && payload.size() > sizeof kExifTag &&
+    if (!have_exif && payload.size() >= sizeof kExifTag &&
         !memcmp(payload.data(), kExifTag, sizeof kExifTag)) {
       jpeg_data.app_marker_type[i] = AppMarkerType::kExif;
       have_exif = true;
@@ -178,7 +173,8 @@ Status ParseChunkedMarker(const jpeg::JPEGData& src, uint8_t marker_type,
 }
 
 Status SetBlobsFromJpegData(const jpeg::JPEGData& jpeg_data, Blobs* blobs) {
-  for (const auto& marker : jpeg_data.app_data) {
+  for (size_t i = 0; i < jpeg_data.app_data.size(); i++) {
+    const auto& marker = jpeg_data.app_data[i];
     if (marker.empty() || marker[0] != kApp1) {
       continue;
     }
@@ -307,8 +303,7 @@ Status SetColorTransformFromJpegData(const JPEGData& jpg,
   return true;
 }
 
-Status EncodeJPEGData(JxlMemoryManager* memory_manager, JPEGData& jpeg_data,
-                      std::vector<uint8_t>* bytes,
+Status EncodeJPEGData(JPEGData& jpeg_data, std::vector<uint8_t>* bytes,
                       const CompressParams& cparams) {
   bytes->clear();
   jpeg_data.app_marker_type.resize(jpeg_data.app_data.size(),
@@ -323,18 +318,17 @@ Status EncodeJPEGData(JxlMemoryManager* memory_manager, JPEGData& jpeg_data,
     }
     total_data += jpeg_data.app_data[i].size();
   }
-  for (const auto& data : jpeg_data.com_data) {
-    total_data += data.size();
+  for (size_t i = 0; i < jpeg_data.com_data.size(); i++) {
+    total_data += jpeg_data.com_data[i].size();
   }
-  for (const auto& data : jpeg_data.inter_marker_data) {
-    total_data += data.size();
+  for (size_t i = 0; i < jpeg_data.inter_marker_data.size(); i++) {
+    total_data += jpeg_data.inter_marker_data[i].size();
   }
   total_data += jpeg_data.tail_data.size();
   size_t brotli_capacity = BrotliEncoderMaxCompressedSize(total_data);
 
-  BitWriter writer{memory_manager};
-  JXL_RETURN_IF_ERROR(
-      Bundle::Write(jpeg_data, &writer, LayerType::Header, nullptr));
+  BitWriter writer;
+  JXL_RETURN_IF_ERROR(Bundle::Write(jpeg_data, &writer, 0, nullptr));
   writer.ZeroPadToByte();
   {
     PaddedBytes serialized_jpeg_data = std::move(writer).TakeBytes();
@@ -362,8 +356,7 @@ Status EncodeJPEGData(JxlMemoryManager* memory_manager, JPEGData& jpeg_data,
           brotli_enc, last ? BROTLI_OPERATION_FINISH : BROTLI_OPERATION_PROCESS,
           &available_in, &in, &brotli_capacity, &out, &enc_size));
       msan::UnpoisonMemory(out_before, out - out_before);
-    } while (FROM_JXL_BOOL(BrotliEncoderHasMoreOutput(brotli_enc)) ||
-             available_in > 0);
+    } while (BrotliEncoderHasMoreOutput(brotli_enc) || available_in > 0);
   };
 
   for (size_t i = 0; i < jpeg_data.app_data.size(); i++) {
@@ -372,11 +365,11 @@ Status EncodeJPEGData(JxlMemoryManager* memory_manager, JPEGData& jpeg_data,
     }
     br_append(jpeg_data.app_data[i], /*last=*/false);
   }
-  for (const auto& data : jpeg_data.com_data) {
-    br_append(data, /*last=*/false);
+  for (size_t i = 0; i < jpeg_data.com_data.size(); i++) {
+    br_append(jpeg_data.com_data[i], /*last=*/false);
   }
-  for (const auto& data : jpeg_data.inter_marker_data) {
-    br_append(data, /*last=*/false);
+  for (size_t i = 0; i < jpeg_data.inter_marker_data.size(); i++) {
+    br_append(jpeg_data.inter_marker_data[i], /*last=*/false);
   }
   br_append(jpeg_data.tail_data, /*last=*/true);
   BrotliEncoderDestroyInstance(brotli_enc);
@@ -386,10 +379,9 @@ Status EncodeJPEGData(JxlMemoryManager* memory_manager, JPEGData& jpeg_data,
 
 Status DecodeImageJPG(const Span<const uint8_t> bytes, CodecInOut* io) {
   if (!IsJPG(bytes)) return false;
-  JxlMemoryManager* memory_manager = io->memory_manager;
   io->frames.clear();
   io->frames.reserve(1);
-  io->frames.emplace_back(memory_manager, &io->metadata.m);
+  io->frames.emplace_back(&io->metadata.m);
   io->Main().jpeg_data = make_unique<jpeg::JPEGData>();
   jpeg::JPEGData* jpeg_data = io->Main().jpeg_data.get();
   if (!jpeg::ReadJpeg(bytes.data(), bytes.size(), jpeg::JpegReadMode::kReadAll,
@@ -405,9 +397,8 @@ Status DecodeImageJPG(const Span<const uint8_t> bytes, CodecInOut* io) {
 
   io->metadata.m.SetIntensityTarget(kDefaultIntensityTarget);
   io->metadata.m.SetUintSamples(BITS_IN_JSAMPLE);
-  JXL_ASSIGN_OR_RETURN(
-      Image3F tmp,
-      Image3F::Create(memory_manager, jpeg_data->width, jpeg_data->height));
+  JXL_ASSIGN_OR_RETURN(Image3F tmp,
+                       Image3F::Create(jpeg_data->width, jpeg_data->height));
   io->SetFromImage(std::move(tmp), io->metadata.m.color_encoding);
   SetIntensityTarget(&io->metadata.m);
   return true;

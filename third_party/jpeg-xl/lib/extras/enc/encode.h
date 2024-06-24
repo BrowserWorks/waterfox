@@ -82,8 +82,6 @@ class Encoder {
   std::unordered_map<std::string, std::string> options_;
 };
 
-std::string ListOfEncodeCodecs();
-
 }  // namespace extras
 }  // namespace jxl
 

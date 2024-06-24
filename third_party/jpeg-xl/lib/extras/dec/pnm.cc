@@ -5,18 +5,17 @@
 
 #include "lib/extras/dec/pnm.h"
 
-#include <jxl/encode.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <cmath>
-#include <cstddef>
 #include <cstdint>
-#include <cstdlib>
-#include <cstring>
+#include <mutex>
 
+#include "jxl/encode.h"
 #include "lib/extras/size_constraints.h"
 #include "lib/jxl/base/bits.h"
-#include "lib/jxl/base/c_callback_support.h"
-#include "lib/jxl/base/span.h"
+#include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/status.h"
 
 namespace jxl {
@@ -333,7 +332,7 @@ struct PNMChunkedInputFrame {
         METHOD_TO_C_CALLBACK(&PNMChunkedInputFrame::ReleaseCurrentData)};
   }
 
-  void /* NOLINT */ GetColorChannelsPixelFormat(JxlPixelFormat* pixel_format) {
+  void GetColorChannelsPixelFormat(JxlPixelFormat* pixel_format) {
     *pixel_format = format;
   }
 
@@ -350,14 +349,12 @@ struct PNMChunkedInputFrame {
 
   void GetExtraChannelPixelFormat(size_t ec_index,
                                   JxlPixelFormat* pixel_format) {
-    (void)this;
     JXL_ABORT("Not implemented");
   }
 
   const void* GetExtraChannelDataAt(size_t ec_index, size_t xpos, size_t ypos,
                                     size_t xsize, size_t ysize,
                                     size_t* row_offset) {
-    (void)this;
     JXL_ABORT("Not implemented");
   }
 
@@ -394,8 +391,8 @@ StatusOr<ChunkedPNMDecoder> ChunkedPNMDecoder::Init(const char* path) {
   const size_t num_channels = dec.header_.is_gray ? 1 : 3;
   const size_t bytes_per_pixel = num_channels * bytes_per_channel;
   size_t row_size = dec.header_.xsize * bytes_per_pixel;
-  if (size < header.ysize * row_size + dec.data_start_) {
-    return JXL_FAILURE("PNM file too small");
+  if (header.ysize * row_size + dec.data_start_ < size) {
+    return JXL_FAILURE("Invalid ppm");
   }
   return dec;
 }
@@ -476,7 +473,7 @@ Status DecodeImagePNM(const Span<const uint8_t> bytes,
   ppf->info.num_extra_channels = num_alpha_channels + header.ec_types.size();
 
   for (auto type : header.ec_types) {
-    PackedExtraChannel pec = {};
+    PackedExtraChannel pec;
     pec.ec_info.bits_per_sample = ppf->info.bits_per_sample;
     pec.ec_info.type = type;
     ppf->extra_channels_info.emplace_back(std::move(pec));
@@ -502,18 +499,10 @@ Status DecodeImagePNM(const Span<const uint8_t> bytes,
   };
   const JxlPixelFormat ec_format{1, format.data_type, format.endianness, 0};
   ppf->frames.clear();
-  {
-    JXL_ASSIGN_OR_RETURN(
-        PackedFrame frame,
-        PackedFrame::Create(header.xsize, header.ysize, format));
-    ppf->frames.emplace_back(std::move(frame));
-  }
+  ppf->frames.emplace_back(header.xsize, header.ysize, format);
   auto* frame = &ppf->frames.back();
   for (size_t i = 0; i < header.ec_types.size(); ++i) {
-    JXL_ASSIGN_OR_RETURN(
-        PackedImage ec,
-        PackedImage::Create(header.xsize, header.ysize, ec_format));
-    frame->extra_channels.emplace_back(std::move(ec));
+    frame->extra_channels.emplace_back(header.xsize, header.ysize, ec_format);
   }
   size_t pnm_remaining_size = bytes.data() + bytes.size() - pos;
   if (pnm_remaining_size < frame->color.pixels_size) {
@@ -547,9 +536,6 @@ Status DecodeImagePNM(const Span<const uint8_t> bytes,
         }
       }
     }
-  }
-  if (ppf->info.exponent_bits_per_sample == 0) {
-    ppf->input_bitdepth.type = JXL_BIT_DEPTH_FROM_CODESTREAM;
   }
   return true;
 }

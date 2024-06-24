@@ -6,12 +6,9 @@
 #ifndef LIB_JXL_DCT_UTIL_H_
 #define LIB_JXL_DCT_UTIL_H_
 
-#include <jxl/memory_manager.h>
+#include <stddef.h>
 
-#include <cstddef>
-#include <cstdint>
 #include <memory>
-#include <type_traits>
 
 #include "lib/jxl/base/common.h"
 #include "lib/jxl/base/status.h"
@@ -55,14 +52,12 @@ class ACImageT final : public ACImage {
  public:
   ACImageT() = default;
 
-  static StatusOr<std::unique_ptr<ACImageT>> Make(
-      JxlMemoryManager* memory_manager, size_t xsize, size_t ysize) {
+  static StatusOr<std::unique_ptr<ACImageT>> Make(size_t xsize, size_t ysize) {
     static_assert(
         std::is_same<T, int16_t>::value || std::is_same<T, int32_t>::value,
         "ACImage must be either 32- or 16- bit");
     std::unique_ptr<ACImageT> result = jxl::make_unique<ACImageT>();
-    JXL_ASSIGN_OR_RETURN(result->img_,
-                         Image3<T>::Create(memory_manager, xsize, ysize));
+    JXL_ASSIGN_OR_RETURN(result->img_, Image3<T>::Create(xsize, ysize));
     return result;
   }
 

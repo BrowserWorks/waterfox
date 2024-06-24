@@ -5,12 +5,11 @@
 
 #include "lib/jxl/enc_chroma_from_luma.h"
 
-#include <jxl/memory_manager.h>
+#include <float.h>
+#include <stdlib.h>
 
 #include <algorithm>
-#include <cfloat>
 #include <cmath>
-#include <cstdlib>
 
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "lib/jxl/enc_chroma_from_luma.cc"
@@ -19,7 +18,6 @@
 #include <hwy/highway.h>
 
 #include "lib/jxl/base/common.h"
-#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/cms/opsin_params.h"
 #include "lib/jxl/dec_transforms-inl.h"
@@ -172,15 +170,13 @@ int32_t FindBestMultiplier(const float* values_m, const float* values_s,
   return std::max(-128.0f, std::min(127.0f, roundf(x)));
 }
 
-Status InitDCStorage(JxlMemoryManager* memory_manager, size_t num_blocks,
-                     ImageF* dc_values) {
+Status InitDCStorage(size_t num_blocks, ImageF* dc_values) {
   // First row: Y channel
   // Second row: X channel
   // Third row: Y channel
   // Fourth row: B channel
-  JXL_ASSIGN_OR_RETURN(
-      *dc_values,
-      ImageF::Create(memory_manager, RoundUpTo(num_blocks, Lanes(df)), 4));
+  JXL_ASSIGN_OR_RETURN(*dc_values,
+                       ImageF::Create(RoundUpTo(num_blocks, Lanes(df)), 4));
 
   JXL_ASSERT(dc_values->xsize() != 0);
   // Zero-fill the last lanes
@@ -256,7 +252,7 @@ void ComputeTile(const Image3F& opsin, const Rect& opsin_rect,
 
     for (size_t x = x0; x < x1; x++) {
       AcStrategy acs = use_dct8
-                           ? AcStrategy::FromRawStrategy(AcStrategyType::DCT)
+                           ? AcStrategy::FromRawStrategy(AcStrategy::Type::DCT)
                            : ac_strategy->ConstRow(y)[x];
       if (!acs.IsFirstBlock()) continue;
       size_t xs = acs.covered_blocks_x();
@@ -353,11 +349,11 @@ namespace jxl {
 HWY_EXPORT(InitDCStorage);
 HWY_EXPORT(ComputeTile);
 
-Status CfLHeuristics::Init(JxlMemoryManager* memory_manager, const Rect& rect) {
+Status CfLHeuristics::Init(const Rect& rect) {
   size_t xsize_blocks = rect.xsize() / kBlockDim;
   size_t ysize_blocks = rect.ysize() / kBlockDim;
-  return HWY_DYNAMIC_DISPATCH(InitDCStorage)(
-      memory_manager, xsize_blocks * ysize_blocks, &dc_values);
+  return HWY_DYNAMIC_DISPATCH(InitDCStorage)(xsize_blocks * ysize_blocks,
+                                             &dc_values);
 }
 
 void CfLHeuristics::ComputeTile(const Rect& r, const Image3F& opsin,
@@ -374,14 +370,14 @@ void CfLHeuristics::ComputeTile(const Rect& r, const Image3F& opsin,
    mem.get() + thread * ItemsPerThread());
 }
 
-void ColorCorrelationEncodeDC(const ColorCorrelation& color_correlation,
-                              BitWriter* writer, LayerType layer,
-                              AuxOut* aux_out) {
-  float color_factor = color_correlation.GetColorFactor();
-  float base_correlation_x = color_correlation.GetBaseCorrelationX();
-  float base_correlation_b = color_correlation.GetBaseCorrelationB();
-  int32_t ytox_dc = color_correlation.GetYToXDC();
-  int32_t ytob_dc = color_correlation.GetYToBDC();
+void ColorCorrelationMapEncodeDC(const ColorCorrelationMap& map,
+                                 BitWriter* writer, size_t layer,
+                                 AuxOut* aux_out) {
+  float color_factor = map.GetColorFactor();
+  float base_correlation_x = map.GetBaseCorrelationX();
+  float base_correlation_b = map.GetBaseCorrelationB();
+  int32_t ytox_dc = map.GetYToXDC();
+  int32_t ytob_dc = map.GetYToBDC();
 
   BitWriter::Allotment allotment(writer, 1 + 2 * kBitsPerByte + 12 + 32);
   if (ytox_dc == 0 && ytob_dc == 0 && color_factor == kDefaultColorFactor &&

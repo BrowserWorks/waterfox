@@ -66,11 +66,9 @@ static void DoDownsampleImage(const ImageF& input, size_t factor,
 StatusOr<ImageF> DownsampleImage(const ImageF& image, size_t factor) {
   ImageF downsampled;
   // Allocate extra space to avoid a reallocation when padding.
-  JxlMemoryManager* memory_manager = image.memory_manager();
   JXL_ASSIGN_OR_RETURN(
-      downsampled,
-      ImageF::Create(memory_manager, DivCeil(image.xsize(), factor) + kBlockDim,
-                     DivCeil(image.ysize(), factor) + kBlockDim));
+      downsampled, ImageF::Create(DivCeil(image.xsize(), factor) + kBlockDim,
+                                  DivCeil(image.ysize(), factor) + kBlockDim));
   DoDownsampleImage(image, factor, &downsampled);
   return downsampled;
 }
@@ -79,10 +77,8 @@ StatusOr<Image3F> DownsampleImage(const Image3F& opsin, size_t factor) {
   JXL_ASSERT(factor != 1);
   // Allocate extra space to avoid a reallocation when padding.
   Image3F downsampled;
-  JxlMemoryManager* memory_manager = opsin.memory_manager();
   JXL_ASSIGN_OR_RETURN(
-      downsampled, Image3F::Create(memory_manager,
-                                   DivCeil(opsin.xsize(), factor) + kBlockDim,
+      downsampled, Image3F::Create(DivCeil(opsin.xsize(), factor) + kBlockDim,
                                    DivCeil(opsin.ysize(), factor) + kBlockDim));
   downsampled.ShrinkTo(downsampled.xsize() - kBlockDim,
                        downsampled.ysize() - kBlockDim);

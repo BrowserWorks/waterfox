@@ -20,6 +20,8 @@
 namespace jxl {
 namespace {
 
+using ::testing::SizeIs;
+
 TEST(BlendingTest, Crops) {
   const std::vector<uint8_t> compressed =
       jxl::test::ReadTestData("jxl/blending/cropped_traffic_light.jxl");
@@ -28,7 +30,7 @@ TEST(BlendingTest, Crops) {
   extras::PackedPixelFile decoded;
   ASSERT_TRUE(DecodeImageJXL(compressed.data(), compressed.size(), dparams,
                              /*decoded_bytes=*/nullptr, &decoded));
-  ASSERT_EQ(decoded.frames.size(), 4);
+  ASSERT_THAT(decoded.frames, SizeIs(4));
 
   int i = 0;
   for (auto&& decoded_frame : decoded.frames) {

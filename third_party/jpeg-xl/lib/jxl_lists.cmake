@@ -17,16 +17,13 @@ set(JPEGXL_INTERNAL_BASE_SOURCES
   jxl/base/fast_math-inl.h
   jxl/base/float.h
   jxl/base/iaca.h
-  jxl/base/include_jpeglib.h
   jxl/base/matrix_ops.h
   jxl/base/os_macros.h
   jxl/base/override.h
   jxl/base/printf_macros.h
   jxl/base/random.h
   jxl/base/rational_polynomial-inl.h
-  jxl/base/rect.h
   jxl/base/sanitizer_definitions.h
-  jxl/base/sanitizers.h
   jxl/base/scope_guard.h
   jxl/base/span.h
   jxl/base/status.h
@@ -131,6 +128,8 @@ set(JPEGXL_INTERNAL_DEC_SOURCES
   jxl/ans_params.h
   jxl/blending.cc
   jxl/blending.h
+  jxl/cache_aligned.cc
+  jxl/cache_aligned.h
   jxl/chroma_from_luma.cc
   jxl/chroma_from_luma.h
   jxl/codec_in_out.h
@@ -291,6 +290,7 @@ set(JPEGXL_INTERNAL_DEC_SOURCES
   jxl/render_pipeline/stage_xyb.h
   jxl/render_pipeline/stage_ycbcr.cc
   jxl/render_pipeline/stage_ycbcr.h
+  jxl/sanitizers.h
   jxl/simd_util-inl.h
   jxl/simd_util.cc
   jxl/simd_util.h
@@ -312,6 +312,8 @@ set(JPEGXL_INTERNAL_ENC_SOURCES
   jxl/enc_ans.cc
   jxl/enc_ans.h
   jxl/enc_ans_params.h
+  jxl/enc_ar_control_field.cc
+  jxl/enc_ar_control_field.h
   jxl/enc_aux_out.cc
   jxl/enc_aux_out.h
   jxl/enc_bit_writer.cc
@@ -429,7 +431,6 @@ set(JPEGXL_INTERNAL_EXTRAS_SOURCES
   extras/alpha_blend.h
   extras/common.cc
   extras/common.h
-  extras/compressed_icc.cc
   extras/dec/color_description.cc
   extras/dec/color_description.h
   extras/dec/color_hints.cc
@@ -440,7 +441,6 @@ set(JPEGXL_INTERNAL_EXTRAS_SOURCES
   extras/enc/encode.h
   extras/exif.cc
   extras/exif.h
-  extras/gain_map.cc
   extras/mmap.cc
   extras/mmap.h
   extras/packed_image.h
@@ -521,7 +521,6 @@ set(JPEGXL_INTERNAL_JPEGLI_SOURCES
 )
 
 set(JPEGXL_INTERNAL_JPEGLI_TESTLIB_FILES
-  jpegli/fuzztest.h
   jpegli/test_params.h
   jpegli/test_utils-inl.h
   jpegli/test_utils.cc
@@ -548,12 +547,10 @@ set(JPEGXL_INTERNAL_PUBLIC_HEADERS
   include/jxl/cms_interface.h
   include/jxl/codestream_header.h
   include/jxl/color_encoding.h
-  include/jxl/compressed_icc.h
   include/jxl/decode.h
   include/jxl/decode_cxx.h
   include/jxl/encode.h
   include/jxl/encode_cxx.h
-  include/jxl/gain_map.h
   include/jxl/memory_manager.h
   include/jxl/parallel_runner.h
   include/jxl/stats.h
@@ -565,23 +562,18 @@ set(JPEGXL_INTERNAL_TESTLIB_FILES
   jxl/dec_transforms_testonly.cc
   jxl/dec_transforms_testonly.h
   jxl/fake_parallel_runner_testonly.h
-  jxl/fuzztest.h
   jxl/image_test_utils.h
   jxl/render_pipeline/test_render_pipeline_stages.h
   jxl/test_image.cc
   jxl/test_image.h
-  jxl/test_memory_manager.cc
-  jxl/test_memory_manager.h
   jxl/test_utils.cc
   jxl/test_utils.h
 )
 
 set(JPEGXL_INTERNAL_TESTS
   extras/codec_test.cc
-  extras/compressed_icc_test.cc
   extras/dec/color_description_test.cc
   extras/dec/pgx_test.cc
-  extras/gain_map_test.cc
   extras/jpegli_test.cc
   jxl/ac_strategy_test.cc
   jxl/alpha_test.cc

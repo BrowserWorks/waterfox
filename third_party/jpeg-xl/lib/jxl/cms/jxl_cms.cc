@@ -27,6 +27,7 @@
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/matrix_ops.h"
 #include "lib/jxl/base/printf_macros.h"
+#include "lib/jxl/base/span.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/cms/jxl_cms_internal.h"
 #include "lib/jxl/cms/transfer_functions-inl.h"
@@ -36,7 +37,6 @@
 #else  // JPEGXL_ENABLE_SKCMS
 #include "lcms2.h"
 #include "lcms2_plugin.h"
-#include "lib/jxl/base/span.h"
 #endif  // JPEGXL_ENABLE_SKCMS
 
 #define JXL_CMS_VERBOSE 0
@@ -307,7 +307,7 @@ int DoColorSpaceTransform(void* t, size_t thread, const float* buf_src,
 
 #if JPEGXL_ENABLE_SKCMS
 
-JXL_MUST_USE_RESULT CIExy CIExyFromXYZ(const Color& XYZ) {
+JXL_MUST_USE_RESULT CIExy CIExyFromXYZ(const float XYZ[3]) {
   const float factor = 1.f / (XYZ[0] + XYZ[1] + XYZ[2]);
   CIExy xy;
   xy.x = XYZ[0] * factor;
@@ -405,8 +405,8 @@ ColorSpace ColorSpaceFromProfile(const skcms_ICCProfile& profile) {
 }
 
 // vector_out := matmul(matrix, vector_in)
-void MatrixProduct(const skcms_Matrix3x3& matrix, const Color& vector_in,
-                   Color& vector_out) {
+void MatrixProduct(const skcms_Matrix3x3& matrix, const float vector_in[3],
+                   float vector_out[3]) {
   for (int i = 0; i < 3; ++i) {
     vector_out[i] = 0;
     for (int j = 0; j < 3; ++j) {
@@ -418,8 +418,8 @@ void MatrixProduct(const skcms_Matrix3x3& matrix, const Color& vector_in,
 // Returns white point that was specified when creating the profile.
 JXL_MUST_USE_RESULT Status UnadaptedWhitePoint(const skcms_ICCProfile& profile,
                                                CIExy* out) {
-  Color media_white_point_XYZ;
-  if (!skcms_GetWTPT(&profile, media_white_point_XYZ.data())) {
+  float media_white_point_XYZ[3];
+  if (!skcms_GetWTPT(&profile, media_white_point_XYZ)) {
     return JXL_FAILURE("ICC profile does not contain WhitePoint tag");
   }
   skcms_Matrix3x3 CHAD;
@@ -435,7 +435,7 @@ JXL_MUST_USE_RESULT Status UnadaptedWhitePoint(const skcms_ICCProfile& profile,
   if (!skcms_Matrix3x3_invert(&CHAD, &inverse_CHAD)) {
     return JXL_FAILURE("Non-invertible ChromaticAdaptation matrix");
   }
-  Color unadapted_white_point_XYZ;
+  float unadapted_white_point_XYZ[3];
   MatrixProduct(inverse_CHAD, media_white_point_XYZ, unadapted_white_point_XYZ);
   *out = CIExyFromXYZ(unadapted_white_point_XYZ);
   return true;
@@ -458,12 +458,12 @@ Status IdentifyPrimaries(const skcms_ICCProfile& profile,
         {{0.9869929, -0.1470543, 0.1599627},
          {0.4323053, 0.5183603, 0.0492912},
          {-0.0085287, 0.0400428, 0.9684867}}};
-    static constexpr Color kWpD50XYZ{0.96420288, 1.0, 0.82490540};
-    Color wp_unadapted_XYZ;
+    static constexpr float kWpD50XYZ[3] = {0.96420288, 1.0, 0.82490540};
+    float wp_unadapted_XYZ[3];
     JXL_RETURN_IF_ERROR(
         CIEXYZFromWhiteCIExy(wp_unadapted.x, wp_unadapted.y, wp_unadapted_XYZ));
-    Color wp_D50_LMS;
-    Color wp_unadapted_LMS;
+    float wp_D50_LMS[3];
+    float wp_unadapted_LMS[3];
     MatrixProduct(kLMSFromXYZ, kWpD50XYZ, wp_D50_LMS);
     MatrixProduct(kLMSFromXYZ, wp_unadapted_XYZ, wp_unadapted_LMS);
     inverse_CHAD = {{{wp_unadapted_LMS[0] / wp_D50_LMS[0], 0, 0},
@@ -473,16 +473,16 @@ Status IdentifyPrimaries(const skcms_ICCProfile& profile,
     inverse_CHAD = skcms_Matrix3x3_concat(&inverse_CHAD, &kLMSFromXYZ);
   }
 
-  Color XYZ;
+  float XYZ[3];
   PrimariesCIExy primaries;
   CIExy* const chromaticities[] = {&primaries.r, &primaries.g, &primaries.b};
   for (int i = 0; i < 3; ++i) {
     float RGB[3] = {};
     RGB[i] = 1;
     skcms_Transform(RGB, skcms_PixelFormat_RGB_fff, skcms_AlphaFormat_Opaque,
-                    &profile, XYZ.data(), skcms_PixelFormat_RGB_fff,
+                    &profile, XYZ, skcms_PixelFormat_RGB_fff,
                     skcms_AlphaFormat_Opaque, skcms_XYZD50_profile(), 1);
-    Color unadapted_XYZ;
+    float unadapted_XYZ[3];
     MatrixProduct(inverse_CHAD, XYZ, unadapted_XYZ);
     *chromaticities[i] = CIExyFromXYZ(unadapted_XYZ);
   }
@@ -831,17 +831,17 @@ Status GetPrimariesLuminances(const ColorEncoding& encoding,
   // From there, by multiplying each total by its corresponding y, we get Y for
   // that primary.
 
-  Color white_XYZ;
+  float white_XYZ[3];
   CIExy wp = encoding.GetWhitePoint();
   JXL_RETURN_IF_ERROR(CIEXYZFromWhiteCIExy(wp.x, wp.y, white_XYZ));
 
   const PrimariesCIExy primaries = encoding.GetPrimaries();
-  Matrix3x3d chromaticities{
-      {{primaries.r.x, primaries.g.x, primaries.b.x},
-       {primaries.r.y, primaries.g.y, primaries.b.y},
-       {1 - primaries.r.x - primaries.r.y, 1 - primaries.g.x - primaries.g.y,
-        1 - primaries.b.x - primaries.b.y}}};
-  JXL_RETURN_IF_ERROR(Inv3x3Matrix(chromaticities));
+  double chromaticities[3][3] = {
+      {primaries.r.x, primaries.g.x, primaries.b.x},
+      {primaries.r.y, primaries.g.y, primaries.b.y},
+      {1 - primaries.r.x - primaries.r.y, 1 - primaries.g.x - primaries.g.y,
+       1 - primaries.b.x - primaries.b.y}};
+  JXL_RETURN_IF_ERROR(Inv3x3Matrix(&chromaticities[0][0]));
   const double ys[3] = {primaries.r.y, primaries.g.y, primaries.b.y};
   for (size_t i = 0; i < 3; ++i) {
     luminances[i] = ys[i] * (chromaticities[i][0] * white_XYZ[0] +
@@ -1279,6 +1279,8 @@ void* JxlCmsInit(void* init_data, size_t num_threads, size_t xsize,
   // Not including alpha channel (copied separately).
   const size_t channels_src = (c_src.cmyk ? 4 : c_src.Channels());
   const size_t channels_dst = c_dst.Channels();
+  JXL_CHECK(channels_src == channels_dst ||
+            (channels_src == 4 && channels_dst == 3));
 #if JXL_CMS_VERBOSE
   printf("Channels: %" PRIuS "; Threads: %" PRIuS "\n", channels_src,
          num_threads);

@@ -197,7 +197,7 @@ void FindBestSplit(TreeSamples &tree_samples, float threshold,
       float rcost = std::numeric_limits<float>::max();
       Predictor lpred = Predictor::Zero;
       Predictor rpred = Predictor::Zero;
-      float Cost() const { return lcost + rcost; }
+      float Cost() { return lcost + rcost; }
     };
 
     SplitInfo best_split_static_constant;
@@ -242,14 +242,14 @@ void FindBestSplit(TreeSamples &tree_samples, float threshold,
     // The multiplier ranges cut halfway through the current ranges of static
     // properties. We do this even if the current node is not a leaf, to
     // minimize the number of nodes in the resulting tree.
-    for (const auto &mmi : mul_info) {
+    for (size_t i = 0; i < mul_info.size(); i++) {
       uint32_t axis;
       uint32_t val;
       IntersectionType t =
-          BoxIntersects(static_prop_range, mmi.range, axis, val);
+          BoxIntersects(static_prop_range, mul_info[i].range, axis, val);
       if (t == IntersectionType::kNone) continue;
       if (t == IntersectionType::kInside) {
-        (*tree)[pos].multiplier = mmi.multiplier;
+        (*tree)[pos].multiplier = mul_info[i].multiplier;
         break;
       }
       if (t == IntersectionType::kPartial) {
@@ -499,10 +499,8 @@ void ComputeBestTree(TreeSamples &tree_samples, float threshold,
    tree);
 }
 
-#if JXL_CXX_LANG < JXL_CXX_17
 constexpr int32_t TreeSamples::kPropertyRange;
 constexpr uint32_t TreeSamples::kDedupEntryUnused;
-#endif
 
 Status TreeSamples::SetPredictor(Predictor predictor,
                                  ModularOptions::TreeMode wp_tree_mode) {
@@ -818,38 +816,37 @@ void TreeSamples::PreQuantizeProperties(
     }
     return quantized;
   };
-  std::vector<int32_t> abs_pixel_thresholds;
-  std::vector<int32_t> pixel_thresholds;
+  std::vector<int32_t> abs_pixel_thr;
+  std::vector<int32_t> pixel_thr;
   auto quantize_pixel_property = [&]() {
-    if (pixel_thresholds.empty()) {
-      pixel_thresholds = QuantizeSamples(pixel_samples, max_property_values);
+    if (pixel_thr.empty()) {
+      pixel_thr = QuantizeSamples(pixel_samples, max_property_values);
     }
-    return pixel_thresholds;
+    return pixel_thr;
   };
   auto quantize_abs_pixel_property = [&]() {
-    if (abs_pixel_thresholds.empty()) {
+    if (abs_pixel_thr.empty()) {
       quantize_pixel_property();  // Compute the non-abs thresholds.
       for (auto &v : pixel_samples) v = std::abs(v);
-      abs_pixel_thresholds =
-          QuantizeSamples(pixel_samples, max_property_values);
+      abs_pixel_thr = QuantizeSamples(pixel_samples, max_property_values);
     }
-    return abs_pixel_thresholds;
+    return abs_pixel_thr;
   };
-  std::vector<int32_t> abs_diff_thresholds;
-  std::vector<int32_t> diff_thresholds;
+  std::vector<int32_t> abs_diff_thr;
+  std::vector<int32_t> diff_thr;
   auto quantize_diff_property = [&]() {
-    if (diff_thresholds.empty()) {
-      diff_thresholds = QuantizeSamples(diff_samples, max_property_values);
+    if (diff_thr.empty()) {
+      diff_thr = QuantizeSamples(diff_samples, max_property_values);
     }
-    return diff_thresholds;
+    return diff_thr;
   };
   auto quantize_abs_diff_property = [&]() {
-    if (abs_diff_thresholds.empty()) {
+    if (abs_diff_thr.empty()) {
       quantize_diff_property();  // Compute the non-abs thresholds.
       for (auto &v : diff_samples) v = std::abs(v);
-      abs_diff_thresholds = QuantizeSamples(diff_samples, max_property_values);
+      abs_diff_thr = QuantizeSamples(diff_samples, max_property_values);
     }
-    return abs_diff_thresholds;
+    return abs_diff_thr;
   };
   auto quantize_wp = [&]() {
     if (max_property_values < 32) {

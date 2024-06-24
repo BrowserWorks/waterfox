@@ -5,14 +5,12 @@
 
 #include "lib/jxl/ac_strategy.h"
 
-#include <jxl/memory_manager.h>
+#include <string.h>
 
 #include <algorithm>
-#include <cstring>
 #include <utility>
 
 #include "lib/jxl/base/bits.h"
-#include "lib/jxl/base/compiler_specific.h"
 
 namespace jxl {
 
@@ -80,23 +78,20 @@ void AcStrategy::ComputeNaturalCoeffOrderLut(coeff_order_t* lut) const {
   CoeffOrderAndLut</*is_lut=*/true>(*this, lut);
 }
 
-#if JXL_CXX_LANG < JXL_CXX_17
+// These definitions are needed before C++17.
 constexpr size_t AcStrategy::kMaxCoeffBlocks;
 constexpr size_t AcStrategy::kMaxBlockDim;
 constexpr size_t AcStrategy::kMaxCoeffArea;
-#endif
 
-StatusOr<AcStrategyImage> AcStrategyImage::Create(
-    JxlMemoryManager* memory_manager, size_t xsize, size_t ysize) {
+StatusOr<AcStrategyImage> AcStrategyImage::Create(size_t xsize, size_t ysize) {
   AcStrategyImage img;
-  JXL_ASSIGN_OR_RETURN(img.layers_,
-                       ImageB::Create(memory_manager, xsize, ysize));
+  JXL_ASSIGN_OR_RETURN(img.layers_, ImageB::Create(xsize, ysize));
   img.row_ = img.layers_.Row(0);
   img.stride_ = img.layers_.PixelsPerRow();
   return img;
 }
 
-size_t AcStrategyImage::CountBlocks(AcStrategyType type) const {
+size_t AcStrategyImage::CountBlocks(AcStrategy::Type type) const {
   size_t ret = 0;
   for (size_t y = 0; y < layers_.ysize(); y++) {
     const uint8_t* JXL_RESTRICT row = layers_.ConstRow(y);

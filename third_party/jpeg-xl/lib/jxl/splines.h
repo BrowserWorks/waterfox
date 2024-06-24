@@ -6,9 +6,6 @@
 #ifndef LIB_JXL_SPLINES_H_
 #define LIB_JXL_SPLINES_H_
 
-#include <jxl/memory_manager.h>
-
-#include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -16,7 +13,6 @@
 #include <vector>
 
 #include "lib/jxl/base/compiler_specific.h"
-#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/chroma_from_luma.h"
 #include "lib/jxl/image.h"
@@ -27,8 +23,6 @@ class ANSSymbolReader;
 class BitReader;
 
 static constexpr float kDesiredRenderingDistance = 1.f;
-
-typedef std::array<float, 32> Dct32;
 
 enum SplineEntropyContexts : size_t {
   kQuantizationAdjustmentContext = 0,
@@ -51,10 +45,10 @@ struct Spline {
   };
   std::vector<Point> control_points;
   // X, Y, B.
-  std::array<Dct32, 3> color_dct;
+  float color_dct[3][32];
   // Splines are draws by normalized Gaussian splatting. This controls the
   // Gaussian's parameter along the spline.
-  Dct32 sigma_dct;
+  float sigma_dct[32];
 };
 
 class QuantizedSplineEncoder;
@@ -110,8 +104,7 @@ class Splines {
 
   void Clear();
 
-  Status Decode(JxlMemoryManager* memory_manager, BitReader* br,
-                size_t num_pixels);
+  Status Decode(BitReader* br, size_t num_pixels);
 
   void AddTo(Image3F* opsin, const Rect& opsin_rect,
              const Rect& image_rect) const;
@@ -129,7 +122,7 @@ class Splines {
   int32_t GetQuantizationAdjustment() const { return quantization_adjustment_; }
 
   Status InitializeDrawCache(size_t image_xsize, size_t image_ysize,
-                             const ColorCorrelation& color_correlation);
+                             const ColorCorrelationMap& cmap);
 
  private:
   template <bool>

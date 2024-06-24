@@ -5,17 +5,16 @@
 
 #include "lib/jxl/render_pipeline/stage_xyb.h"
 
-#include "lib/jxl/base/common.h"
-#include "lib/jxl/base/sanitizers.h"
-
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_xyb.cc"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 
+#include "lib/jxl/base/common.h"
 #include "lib/jxl/cms/opsin_params.h"
 #include "lib/jxl/common.h"  // JXL_HIGH_PRECISION
 #include "lib/jxl/dec_xyb-inl.h"
+#include "lib/jxl/sanitizers.h"
 
 HWY_BEFORE_NAMESPACE();
 namespace jxl {
@@ -144,8 +143,9 @@ class FastXYBStage : public RenderPipelineStage {
         GetInputRow(input_rows, 2, 0),
         has_alpha_ ? GetInputRow(input_rows, alpha_c_, 0) : nullptr};
     uint8_t* out_buf = rgb_ + stride_ * ypos + (rgba_ ? 4 : 3) * xpos;
-    return FastXYBTosRGB8(xyba, out_buf, rgba_,
-                          xsize + xpos <= width_ ? xsize : width_ - xpos);
+    FastXYBTosRGB8(xyba, out_buf, rgba_,
+                   xsize + xpos <= width_ ? xsize : width_ - xpos);
+    return true;
   }
 
   RenderPipelineChannelMode GetChannelMode(size_t c) const final {
@@ -172,7 +172,7 @@ class FastXYBStage : public RenderPipelineStage {
 std::unique_ptr<RenderPipelineStage> GetFastXYBTosRGB8Stage(
     uint8_t* rgb, size_t stride, size_t width, size_t height, bool rgba,
     bool has_alpha, size_t alpha_c) {
-  if (!HasFastXYBTosRGB8()) return nullptr;
+  JXL_ASSERT(HasFastXYBTosRGB8());
   return make_unique<FastXYBStage>(rgb, stride, width, height, rgba, has_alpha,
                                    alpha_c);
 }

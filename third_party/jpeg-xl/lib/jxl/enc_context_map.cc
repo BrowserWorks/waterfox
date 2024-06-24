@@ -7,12 +7,11 @@
 
 #include "lib/jxl/enc_context_map.h"
 
-#include <jxl/memory_manager.h>
 #include <jxl/types.h>
+#include <stdint.h>
 
 #include <algorithm>
 #include <cstddef>
-#include <cstdint>
 #include <vector>
 
 #include "lib/jxl/base/bits.h"
@@ -61,7 +60,7 @@ std::vector<uint8_t> MoveToFrontTransform(const std::vector<uint8_t>& v) {
 }  // namespace
 
 void EncodeContextMap(const std::vector<uint8_t>& context_map,
-                      size_t num_histograms, BitWriter* writer, LayerType layer,
+                      size_t num_histograms, BitWriter* writer, size_t layer,
                       AuxOut* aux_out) {
   if (num_histograms == 1) {
     // Simple code
@@ -71,7 +70,6 @@ void EncodeContextMap(const std::vector<uint8_t>& context_map,
     return;
   }
 
-  JxlMemoryManager* memory_manager = writer->memory_manager();
   std::vector<uint8_t> transformed_symbols = MoveToFrontTransform(context_map);
   std::vector<std::vector<Token>> tokens(1);
   std::vector<std::vector<Token>> mtf_tokens(1);
@@ -88,16 +86,14 @@ void EncodeContextMap(const std::vector<uint8_t>& context_map,
   {
     EntropyEncodingData codes;
     std::vector<uint8_t> sink_context_map;
-    ans_cost = BuildAndEncodeHistograms(memory_manager, params, 1, tokens,
-                                        &codes, &sink_context_map, nullptr,
-                                        LayerType::Header, nullptr);
+    ans_cost = BuildAndEncodeHistograms(params, 1, tokens, &codes,
+                                        &sink_context_map, nullptr, 0, nullptr);
   }
   {
     EntropyEncodingData codes;
     std::vector<uint8_t> sink_context_map;
-    mtf_cost = BuildAndEncodeHistograms(memory_manager, params, 1, mtf_tokens,
-                                        &codes, &sink_context_map, nullptr,
-                                        LayerType::Header, nullptr);
+    mtf_cost = BuildAndEncodeHistograms(params, 1, mtf_tokens, &codes,
+                                        &sink_context_map, nullptr, 0, nullptr);
   }
   bool use_mtf = mtf_cost < ans_cost;
   // Rebuild token list.
@@ -122,8 +118,8 @@ void EncodeContextMap(const std::vector<uint8_t>& context_map,
     writer->Write(1, TO_JXL_BOOL(use_mtf));  // Use/don't use MTF.
     EntropyEncodingData codes;
     std::vector<uint8_t> sink_context_map;
-    BuildAndEncodeHistograms(memory_manager, params, 1, tokens, &codes,
-                             &sink_context_map, writer, layer, aux_out);
+    BuildAndEncodeHistograms(params, 1, tokens, &codes, &sink_context_map,
+                             writer, layer, aux_out);
     WriteTokens(tokens[0], codes, sink_context_map, 0, writer);
     allotment.ReclaimAndCharge(writer, layer, aux_out);
   }
@@ -142,7 +138,7 @@ void EncodeBlockCtxMap(const BlockCtxMap& block_ctx_map, BitWriter* writer,
       ctx_map.size() == 21 &&
       std::equal(ctx_map.begin(), ctx_map.end(), BlockCtxMap::kDefaultCtxMap)) {
     writer->Write(1, 1);  // default
-    allotment.ReclaimAndCharge(writer, LayerType::Ac, aux_out);
+    allotment.ReclaimAndCharge(writer, kLayerAC, aux_out);
     return;
   }
   writer->Write(1, 0);
@@ -156,9 +152,8 @@ void EncodeBlockCtxMap(const BlockCtxMap& block_ctx_map, BitWriter* writer,
   for (uint32_t i : qft) {
     JXL_CHECK(U32Coder::Write(kQFThresholdDist, i - 1, writer));
   }
-  EncodeContextMap(ctx_map, block_ctx_map.num_ctxs, writer, LayerType::Ac,
-                   aux_out);
-  allotment.ReclaimAndCharge(writer, LayerType::Ac, aux_out);
+  EncodeContextMap(ctx_map, block_ctx_map.num_ctxs, writer, kLayerAC, aux_out);
+  allotment.ReclaimAndCharge(writer, kLayerAC, aux_out);
 }
 
 }  // namespace jxl

@@ -5,8 +5,11 @@
 
 #include "lib/jxl/enc_entropy_coder.h"
 
-#include <cstddef>
-#include <cstdint>
+#include <stddef.h>
+#include <stdint.h>
+
+#include <algorithm>
+#include <utility>
 #include <vector>
 
 #undef HWY_TARGET_INCLUDE
@@ -21,8 +24,13 @@
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/coeff_order.h"
 #include "lib/jxl/coeff_order_fwd.h"
+#include "lib/jxl/dec_ans.h"
+#include "lib/jxl/dec_bit_reader.h"
+#include "lib/jxl/dec_context_map.h"
 #include "lib/jxl/entropy_coder.h"
+#include "lib/jxl/epf.h"
 #include "lib/jxl/image.h"
+#include "lib/jxl/image_ops.h"
 #include "lib/jxl/pack_signed.h"
 
 HWY_BEFORE_NAMESPACE();

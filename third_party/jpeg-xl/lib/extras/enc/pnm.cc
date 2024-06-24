@@ -26,7 +26,7 @@ namespace jxl {
 namespace extras {
 namespace {
 
-constexpr size_t kMaxHeaderSize = 2000;
+constexpr size_t kMaxHeaderSize = 200;
 
 class BasePNMEncoder : public Encoder {
  public:
@@ -87,8 +87,8 @@ class PNMEncoder : public BasePNMEncoder {
   }
 
  private:
-  static Status EncodeImage(const PackedImage& image, size_t bits_per_sample,
-                            std::vector<uint8_t>* bytes) {
+  Status EncodeImage(const PackedImage& image, size_t bits_per_sample,
+                     std::vector<uint8_t>* bytes) const {
     uint32_t maxval = (1u << bits_per_sample) - 1;
     char type = image.format.num_channels == 1 ? '5' : '6';
     char header[kMaxHeaderSize];
@@ -161,8 +161,8 @@ class PFMEncoder : public BasePNMEncoder {
   }
 
  private:
-  static Status EncodeImage(const PackedImage& image,
-                            std::vector<uint8_t>* bytes) {
+  Status EncodeImage(const PackedImage& image,
+                     std::vector<uint8_t>* bytes) const {
     char type = image.format.num_channels == 1 ? 'f' : 'F';
     double scale = image.format.endianness == JXL_LITTLE_ENDIAN ? -1.0 : 1.0;
     char header[kMaxHeaderSize];
