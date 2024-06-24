@@ -10,7 +10,6 @@
 #include <stdint.h>
 
 #include "lib/jpegli/common.h"
-#include "lib/jxl/base/status.h"
 
 namespace jpegli {
 
@@ -18,12 +17,10 @@ bool FormatString(char* buffer, const char* format, ...);
 
 }  // namespace jpegli
 
-// `error_exit` should be no-return; but let's add some guarantees on our side.
 #define JPEGLI_ERROR(format, ...)                                            \
   jpegli::FormatString(cinfo->err->msg_parm.s, ("%s:%d: " format), __FILE__, \
                        __LINE__, ##__VA_ARGS__),                             \
-      (*cinfo->err->error_exit)(reinterpret_cast<j_common_ptr>(cinfo)),      \
-      (void)jxl::Abort()
+      (*cinfo->err->error_exit)(reinterpret_cast<j_common_ptr>(cinfo))
 
 #define JPEGLI_WARN(format, ...)                                             \
   jpegli::FormatString(cinfo->err->msg_parm.s, ("%s:%d: " format), __FILE__, \

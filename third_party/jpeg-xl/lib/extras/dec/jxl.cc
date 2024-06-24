@@ -6,21 +6,14 @@
 #include "lib/extras/dec/jxl.h"
 
 #include <jxl/cms.h>
-#include <jxl/codestream_header.h>
 #include <jxl/decode.h>
 #include <jxl/decode_cxx.h>
 #include <jxl/types.h>
 
-#include <cinttypes>  // PRIu32
-#include <cstddef>
-#include <cstdint>
-#include <cstdio>
-#include <limits>
-#include <vector>
+#include <cinttypes>
 
 #include "lib/extras/common.h"
 #include "lib/extras/dec/color_description.h"
-#include "lib/jxl/base/common.h"
 #include "lib/jxl/base/exif.h"
 #include "lib/jxl/base/printf_macros.h"
 #include "lib/jxl/base/status.h"
@@ -125,7 +118,7 @@ bool DecodeImageJXL(const uint8_t* bytes, size_t bytes_size,
   // silently return false if this is not a JXL file
   if (sig == JXL_SIG_INVALID) return false;
 
-  auto decoder = JxlDecoderMake(dparams.memory_manager);
+  auto decoder = JxlDecoderMake(/*memory_manager=*/nullptr);
   JxlDecoder* dec = decoder.get();
   ppf->frames.clear();
 
@@ -218,7 +211,7 @@ bool DecodeImageJXL(const uint8_t* bytes, size_t bytes_size,
     return false;
   }
   uint32_t progression_index = 0;
-  bool codestream_done = jpeg_bytes == nullptr && accepted_formats.empty();
+  bool codestream_done = accepted_formats.empty();
   BoxProcessor boxes(dec);
   for (;;) {
     JxlDecoderStatus status = JxlDecoderProcessInput(dec);
@@ -259,8 +252,6 @@ bool DecodeImageJXL(const uint8_t* bytes, size_t bytes_size,
         box_data = &ppf->metadata.iptc;
       } else if (memcmp(box_type, "jumb", 4) == 0) {
         box_data = &ppf->metadata.jumbf;
-      } else if (memcmp(box_type, "jhgm", 4) == 0) {
-        box_data = &ppf->metadata.jhgm;
       } else if (memcmp(box_type, "xml ", 4) == 0) {
         box_data = &ppf->metadata.xmp;
       }
@@ -401,13 +392,7 @@ bool DecodeImageJXL(const uint8_t* bytes, size_t bytes_size,
         }
       }
     } else if (status == JXL_DEC_FRAME) {
-      auto frame_or = jxl::extras::PackedFrame::Create(ppf->info.xsize,
-                                                       ppf->info.ysize, format);
-      if (!frame_or.status()) {
-        fprintf(stderr, "Failed to create image frame.");
-        return false;
-      }
-      jxl::extras::PackedFrame frame = std::move(frame_or).value();
+      jxl::extras::PackedFrame frame(ppf->info.xsize, ppf->info.ysize, format);
       if (JXL_DEC_SUCCESS != JxlDecoderGetFrameHeader(dec, &frame.frame_info)) {
         fprintf(stderr, "JxlDecoderGetFrameHeader failed\n");
         return false;
@@ -446,16 +431,9 @@ bool DecodeImageJXL(const uint8_t* bytes, size_t bytes_size,
         fprintf(stderr, "JxlDecoderPreviewOutBufferSize failed\n");
         return false;
       }
-      auto preview_image_or = jxl::extras::PackedImage::Create(
-          ppf->info.preview.xsize, ppf->info.preview.ysize, format);
-      if (!preview_image_or.status()) {
-        fprintf(stderr, "Failed to create preview image\n");
-        return false;
-      }
-      jxl::extras::PackedImage preview_image =
-          std::move(preview_image_or).value();
-      ppf->preview_frame =
-          jxl::make_unique<jxl::extras::PackedFrame>(std::move(preview_image));
+      ppf->preview_frame = std::unique_ptr<jxl::extras::PackedFrame>(
+          new jxl::extras::PackedFrame(ppf->info.preview.xsize,
+                                       ppf->info.preview.ysize, format));
       if (buffer_size != ppf->preview_frame->color.pixels_size) {
         fprintf(stderr, "Invalid out buffer size %" PRIuS " %" PRIuS "\n",
                 buffer_size, ppf->preview_frame->color.pixels_size);
@@ -522,13 +500,8 @@ bool DecodeImageJXL(const uint8_t* bytes, size_t bytes_size,
       JxlPixelFormat ec_format = format;
       ec_format.num_channels = 1;
       for (auto& eci : ppf->extra_channels_info) {
-        auto image = jxl::extras::PackedImage::Create(
-            ppf->info.xsize, ppf->info.ysize, ec_format);
-        if (!image.status()) {
-          fprintf(stderr, "Failed to create extra channel image\n");
-          return false;
-        }
-        frame.extra_channels.emplace_back(std::move(image).value());
+        frame.extra_channels.emplace_back(ppf->info.xsize, ppf->info.ysize,
+                                          ec_format);
         auto& ec = frame.extra_channels.back();
         size_t buffer_size;
         if (JXL_DEC_SUCCESS != JxlDecoderExtraChannelBufferSize(

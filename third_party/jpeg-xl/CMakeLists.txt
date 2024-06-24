@@ -21,10 +21,6 @@ check_cxx_compiler_flag("-fsanitize=fuzzer-no-link" CXX_FUZZERS_SUPPORTED)
 check_cxx_compiler_flag("-fmacro-prefix-map=OLD=NEW" CXX_MACRO_PREFIX_MAP)
 check_cxx_compiler_flag("-fno-rtti" CXX_NO_RTTI_SUPPORTED)
 
-# Add "DebugOpt" CMake build type. Unlike builtin DEBUG it is optimized.
-string(REGEX REPLACE "-DNDEBUG " "" CMAKE_CXX_FLAGS_DEBUGOPT "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -DDEBUG" )
-string(REGEX REPLACE "-DNDEBUG " "" CMAKE_C_FLAGS_DEBUGOPT "${CMAKE_C_FLAGS_RELWITHDEBINFO} -DDEBUG" )
-
 # Enabled PIE binaries by default if supported.
 include(CheckPIESupported OPTIONAL RESULT_VARIABLE CHECK_PIE_SUPPORTED)
 if(CHECK_PIE_SUPPORTED)
@@ -164,14 +160,14 @@ set(JPEGXL_ENABLE_AVX512_SPR false CACHE BOOL
     "Build with AVX-512FP16 support (faster on CPUs that support it, but larger binary size).")
 set(JPEGXL_ENABLE_AVX512_ZEN4 false CACHE BOOL
 "Build with Zen4-optimized AVX512 support (faster on CPUs that support it, but larger binary size).")
-set(JPEGXL_ENABLE_WASM_THREADS true CACHE BOOL
+set(JPEGXL_ENABLE_WASM_TRHEADS true CACHE BOOL
     "Builds WASM modules with threads support")
 
 # Force system dependencies.
 set(JPEGXL_FORCE_SYSTEM_BROTLI false CACHE BOOL
     "Force using system installed brotli instead of third_party/brotli source.")
 set(JPEGXL_FORCE_SYSTEM_GTEST false CACHE BOOL
-    "Force using system installed googletest (gtest) instead of third_party/googletest source.")
+    "Force using system installed googletest (gtest/gmock) instead of third_party/googletest source.")
 set(JPEGXL_FORCE_SYSTEM_LCMS2 false CACHE BOOL
     "Force using system installed lcms2 instead of third_party/lcms source.")
 set(JPEGXL_FORCE_SYSTEM_HWY false CACHE BOOL
@@ -215,12 +211,10 @@ if(JPEGXL_STATIC)
   # Clang developers say that in case to use "static" we have to build stdlib
   # ourselves; for real use case we don't care about stdlib, as it is "granted",
   # so just linking all other libraries is fine.
-  if (NOT MSVC)
-    string(APPEND CMAKE_EXE_LINKER_FLAGS " -static")
-  endif()
-  if ((NOT WIN32 AND NOT APPLE) OR CYGWIN OR MINGW)
+  if (NOT MSVC AND NOT APPLE)
     set(CMAKE_FIND_LIBRARY_SUFFIXES .a)
-    string(APPEND CMAKE_EXE_LINKER_FLAGS " -static-libgcc -static-libstdc++")
+    set(CMAKE_EXE_LINKER_FLAGS
+        "${CMAKE_EXE_LINKER_FLAGS} -static -static-libgcc -static-libstdc++")
   endif()
 endif()  # JPEGXL_STATIC
 
@@ -230,16 +224,7 @@ find_package(Threads REQUIRED)
 
 # These settings are important to drive check_cxx_source_compiles
 # See CMP0067 (min cmake version is 3.10 anyway)
-
-if ("cxx_std_17" IN_LIST CMAKE_CXX_COMPILE_FEATURES)
-  set(CMAKE_CXX_STANDARD 17)
-else()
-  if ("cxx_std_14" IN_LIST CMAKE_CXX_COMPILE_FEATURES)
-    set(CMAKE_CXX_STANDARD 14)
-  else()
-    set(CMAKE_CXX_STANDARD 11)
-  endif()
-endif()
+set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 
@@ -280,7 +265,7 @@ if(JPEGXL_STATIC)
   endif()
 endif()  # JPEGXL_STATIC
 
-if (EMSCRIPTEN AND JPEGXL_ENABLE_WASM_THREADS)
+if (EMSCRIPTEN AND JPEGXL_ENABLE_WASM_TRHEADS)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pthread")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
@@ -446,7 +431,7 @@ if(JPEGXL_ENABLE_MANPAGES)
   find_program(ASCIIDOC a2x)
   if(ASCIIDOC)
     file(STRINGS "${ASCIIDOC}" ASCIIDOC_SHEBANG LIMIT_COUNT 1)
-    if(ASCIIDOC_SHEBANG MATCHES "sh$" OR MINGW)
+    if(ASCIIDOC_SHEBANG MATCHES "/sh|/bash" OR MINGW)
       set(ASCIIDOC_PY_FOUND ON)
       # Run the program directly and set ASCIIDOC as empty.
       set(ASCIIDOC_PY "${ASCIIDOC}")

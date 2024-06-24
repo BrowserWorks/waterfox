@@ -4,12 +4,12 @@
 // license that can be found in the LICENSE file.
 
 #include <jxl/cms.h>
-#include <jxl/memory_manager.h>
+#include <math.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include <algorithm>
 #include <cmath>
-#include <cstddef>
-#include <cstdint>
 #include <utility>
 #include <vector>
 
@@ -17,15 +17,12 @@
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/data_parallel.h"
 #include "lib/jxl/base/span.h"
-#include "lib/jxl/base/status.h"
 #include "lib/jxl/codec_in_out.h"
 #include "lib/jxl/color_encoding_internal.h"
-#include "lib/jxl/common.h"  // SpeedTier
 #include "lib/jxl/enc_params.h"
 #include "lib/jxl/image.h"
 #include "lib/jxl/image_bundle.h"
 #include "lib/jxl/image_ops.h"
-#include "lib/jxl/test_memory_manager.h"
 #include "lib/jxl/test_utils.h"
 #include "lib/jxl/testing.h"
 
@@ -47,8 +44,7 @@ double PointLineDist(double x0, double y0, double x1, double y1, double x,
 // angle in which the change direction happens.
 Image3F GenerateTestGradient(uint32_t color0, uint32_t color1, double angle,
                              size_t xsize, size_t ysize) {
-  JXL_ASSIGN_OR_DIE(Image3F image,
-                    Image3F::Create(jxl::test::MemoryManager(), xsize, ysize));
+  JXL_ASSIGN_OR_DIE(Image3F image, Image3F::Create(xsize, ysize));
 
   double x0 = xsize / 2.0;
   double y0 = ysize / 2.0;
@@ -82,11 +78,9 @@ Image3F GenerateTestGradient(uint32_t color0, uint32_t color1, double angle,
 // The radius over which the derivative is computed is only 1 pixel and it only
 // checks two angles (hor and ver), but this approximation works well enough.
 Image3F Gradient2(const Image3F& image) {
-  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   size_t xsize = image.xsize();
   size_t ysize = image.ysize();
-  JXL_ASSIGN_OR_DIE(Image3F image2,
-                    Image3F::Create(memory_manager, xsize, ysize));
+  JXL_ASSIGN_OR_DIE(Image3F image2, Image3F::Create(xsize, ysize));
   for (size_t c = 0; c < 3; ++c) {
     for (size_t y = 1; y + 1 < ysize; y++) {
       const auto* JXL_RESTRICT row0 = image.ConstPlaneRow(c, y - 1);
@@ -146,7 +140,6 @@ Angle in degrees, colors can be given in hex as 0xRRGGBB.
 void TestGradient(ThreadPool* pool, uint32_t color0, uint32_t color1,
                   size_t xsize, size_t ysize, float angle, bool fast_mode,
                   float butteraugli_distance, bool use_gradient = true) {
-  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   CompressParams cparams;
   cparams.butteraugli_distance = butteraugli_distance;
   if (fast_mode) {
@@ -154,12 +147,12 @@ void TestGradient(ThreadPool* pool, uint32_t color0, uint32_t color1,
   }
   Image3F gradient = GenerateTestGradient(color0, color1, angle, xsize, ysize);
 
-  CodecInOut io{memory_manager};
+  CodecInOut io;
   io.metadata.m.SetUintSamples(8);
   io.metadata.m.color_encoding = ColorEncoding::SRGB();
   io.SetFromImage(std::move(gradient), io.metadata.m.color_encoding);
 
-  CodecInOut io2{memory_manager};
+  CodecInOut io2;
 
   std::vector<uint8_t> compressed;
   EXPECT_TRUE(test::EncodeFile(cparams, &io, &compressed, pool));
@@ -193,13 +186,13 @@ constexpr bool fast_mode = true;
 TEST(GradientTest, SteepGradient) {
   test::ThreadPoolForTests pool(8);
   // Relatively steep gradients, colors from the sky of stp.png
-  TestGradient(pool.get(), 0xd99d58, 0x889ab1, 512, 512, 90, fast_mode, 3.0);
+  TestGradient(&pool, 0xd99d58, 0x889ab1, 512, 512, 90, fast_mode, 3.0);
 }
 
 TEST(GradientTest, SubtleGradient) {
   test::ThreadPoolForTests pool(8);
   // Very subtle gradient
-  TestGradient(pool.get(), 0xb89b7b, 0xa89b8d, 512, 512, 90, fast_mode, 4.0);
+  TestGradient(&pool, 0xb89b7b, 0xa89b8d, 512, 512, 90, fast_mode, 4.0);
 }
 
 }  // namespace

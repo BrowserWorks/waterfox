@@ -27,7 +27,7 @@ TEST(EntropyCoderTest, PackUnpack) {
 struct MockBitReader {
   uint32_t nbits, bits;
   void Consume(uint32_t nbits) {}
-  uint32_t PeekBits(uint32_t n) const {
+  uint32_t PeekBits(uint32_t n) {
     EXPECT_EQ(n, nbits);
     return bits;
   }

@@ -39,14 +39,14 @@ bool LoadJpegXlImage(const gchar *const filename, gint32 *const image_id) {
   GimpColorProfile *profile_icc = nullptr;
   GimpColorProfile *profile_int = nullptr;
   bool is_linear = false;
-  uint32_t xsize = 0;
-  uint32_t ysize = 0;
-  int32_t crop_x0 = 0;
-  int32_t crop_y0 = 0;
+  unsigned long xsize = 0;
+  unsigned long ysize = 0;
+  long crop_x0 = 0;
+  long crop_y0 = 0;
   size_t layer_idx = 0;
   uint32_t frame_duration = 0;
   double tps_denom = 1.f;
-  double tps_numerator = 1.f;
+  double tps_numer = 1.f;
 
   gint32 layer;
 
@@ -134,7 +134,7 @@ bool LoadJpegXlImage(const gchar *const filename, gint32 *const image_id) {
       if (info.have_animation) {
         animation = info.animation;
         tps_denom = animation.tps_denominator;
-        tps_numerator = animation.tps_numerator;
+        tps_numer = animation.tps_numerator;
       }
 
       JxlResizableParallelRunnerSetThreads(
@@ -375,7 +375,7 @@ bool LoadJpegXlImage(const gchar *const filename, gint32 *const image_id) {
         } else {
           temp_frame_name = frame_name;
         }
-        double fduration = frame_duration * 1000.f * tps_denom / tps_numerator;
+        double fduration = frame_duration * 1000.f * tps_denom / tps_numer;
         layer_name = g_strdup_printf("%s (%.15gms)%s", temp_frame_name,
                                      fduration, blend->str);
         if (must_free_frame_name) free(temp_frame_name);

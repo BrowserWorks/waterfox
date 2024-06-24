@@ -21,7 +21,7 @@
 
 #include <memory>
 
-#ifndef __cplusplus
+#if !(defined(__cplusplus) || defined(c_plusplus))
 #error \
     "This a C++ only header. Use jxl/jxl_resizable_parallel_runner.h from C" \
     "sources."

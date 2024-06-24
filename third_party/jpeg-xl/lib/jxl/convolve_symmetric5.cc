@@ -11,7 +11,6 @@
 #include <hwy/highway.h>
 
 #include "lib/jxl/base/common.h"
-#include "lib/jxl/base/rect.h"
 #include "lib/jxl/convolve-inl.h"
 
 HWY_BEFORE_NAMESPACE();

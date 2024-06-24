@@ -6,9 +6,8 @@
 #ifndef LIB_JXL_ENC_GROUP_H_
 #define LIB_JXL_ENC_GROUP_H_
 
-#include <cstddef>
+#include <stddef.h>
 
-#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/enc_bit_writer.h"
 #include "lib/jxl/image.h"

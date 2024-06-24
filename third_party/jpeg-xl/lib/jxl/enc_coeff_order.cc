@@ -3,33 +3,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include <jxl/memory_manager.h>
-
-// Suppress any -Wdeprecated-declarations warning that might be emitted by
-// GCC or Clang by std::stable_sort in C++17 or later mode
-#ifdef __clang__
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-#endif
+#include <stdint.h>
 
 #include <algorithm>
-
-#ifdef __clang__
-#pragma clang diagnostic pop
-#elif defined(__GNUC__)
-#pragma GCC pop_options
-#endif
-
 #include <cmath>
-#include <cstdint>
 #include <hwy/aligned_allocator.h>
 #include <vector>
 
-#include "lib/jxl/ac_strategy.h"
-#include "lib/jxl/base/rect.h"
 #include "lib/jxl/coeff_order.h"
 #include "lib/jxl/coeff_order_fwd.h"
 #include "lib/jxl/dct_util.h"
@@ -40,7 +20,6 @@
 namespace jxl {
 
 struct AuxOut;
-enum class LayerType : uint8_t;
 
 std::pair<uint32_t, uint32_t> ComputeUsedOrders(
     const SpeedTier speed, const AcStrategyImage& ac_strategy,
@@ -253,16 +232,14 @@ void TokenizePermutation(const coeff_order_t* JXL_RESTRICT order, size_t skip,
 }  // namespace
 
 void EncodePermutation(const coeff_order_t* JXL_RESTRICT order, size_t skip,
-                       size_t size, BitWriter* writer, LayerType layer,
+                       size_t size, BitWriter* writer, int layer,
                        AuxOut* aux_out) {
-  JxlMemoryManager* memory_manager = writer->memory_manager();
   std::vector<std::vector<Token>> tokens(1);
   TokenizePermutation(order, skip, size, tokens.data());
   std::vector<uint8_t> context_map;
   EntropyEncodingData codes;
-  BuildAndEncodeHistograms(memory_manager, HistogramParams(),
-                           kPermutationContexts, tokens, &codes, &context_map,
-                           writer, layer, aux_out);
+  BuildAndEncodeHistograms(HistogramParams(), kPermutationContexts, tokens,
+                           &codes, &context_map, writer, layer, aux_out);
   WriteTokens(tokens[0], codes, context_map, 0, writer, layer, aux_out);
 }
 
@@ -281,9 +258,8 @@ void EncodeCoeffOrder(const coeff_order_t* JXL_RESTRICT order, AcStrategy acs,
 
 void EncodeCoeffOrders(uint16_t used_orders,
                        const coeff_order_t* JXL_RESTRICT order,
-                       BitWriter* writer, LayerType layer,
+                       BitWriter* writer, size_t layer,
                        AuxOut* JXL_RESTRICT aux_out) {
-  JxlMemoryManager* memory_manager = writer->memory_manager();
   auto mem = hwy::AllocateAligned<coeff_order_t>(AcStrategy::kMaxCoeffArea);
   uint16_t computed = 0;
   std::vector<std::vector<Token>> tokens(1);
@@ -307,9 +283,8 @@ void EncodeCoeffOrders(uint16_t used_orders,
   if (used_orders != 0) {
     std::vector<uint8_t> context_map;
     EntropyEncodingData codes;
-    BuildAndEncodeHistograms(memory_manager, HistogramParams(),
-                             kPermutationContexts, tokens, &codes, &context_map,
-                             writer, layer, aux_out);
+    BuildAndEncodeHistograms(HistogramParams(), kPermutationContexts, tokens,
+                             &codes, &context_map, writer, layer, aux_out);
     WriteTokens(tokens[0], codes, context_map, 0, writer, layer, aux_out);
   }
 }

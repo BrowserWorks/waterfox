@@ -8,10 +8,11 @@
 
 // Decodes APNG images in memory.
 
-#include <cstdint>
+#include <stdint.h>
 
 #include "lib/extras/dec/color_hints.h"
 #include "lib/extras/packed_image.h"
+#include "lib/jxl/base/data_parallel.h"
 #include "lib/jxl/base/span.h"
 #include "lib/jxl/base/status.h"
 

@@ -5,14 +5,13 @@
 
 #include "lib/jxl/enc_frame.h"
 
-#include <jxl/memory_manager.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <cmath>
-#include <cstddef>
-#include <cstdint>
 #include <memory>
 #include <numeric>
 #include <utility>
@@ -26,7 +25,6 @@
 #include "lib/jxl/base/data_parallel.h"
 #include "lib/jxl/base/override.h"
 #include "lib/jxl/base/printf_macros.h"
-#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/chroma_from_luma.h"
 #include "lib/jxl/coeff_order.h"
@@ -38,6 +36,7 @@
 #include "lib/jxl/enc_ac_strategy.h"
 #include "lib/jxl/enc_adaptive_quantization.h"
 #include "lib/jxl/enc_ans.h"
+#include "lib/jxl/enc_ar_control_field.h"
 #include "lib/jxl/enc_aux_out.h"
 #include "lib/jxl/enc_bit_writer.h"
 #include "lib/jxl/enc_cache.h"
@@ -261,15 +260,10 @@ Status LoopFilterFromParams(const CompressParams& cparams, bool streaming_mode,
   loop_filter->gab = ApplyOverride(
       cparams.gaborish, cparams.speed_tier <= SpeedTier::kHare &&
                             frame_header->encoding == FrameEncoding::kVarDCT &&
-                            cparams.decoding_speed_tier < 4 &&
-                            cparams.butteraugli_distance > 0.5f &&
-                            !cparams.disable_perceptual_optimizations);
+                            cparams.decoding_speed_tier < 4);
 
   if (cparams.epf != -1) {
     loop_filter->epf_iters = cparams.epf;
-  } else if (cparams.disable_perceptual_optimizations) {
-    loop_filter->epf_iters = 0;
-    return true;
   } else {
     if (frame_header->encoding == FrameEncoding::kModular) {
       loop_filter->epf_iters = 0;
@@ -589,13 +583,10 @@ struct PixelStatsForChromacityAdjustment {
     CalcExposedBlue(&opsin->Plane(1), &opsin->Plane(2), rect);
   }
   int HowMuchIsXChannelPixelized() const {
-    if (dx >= 0.026) {
-      return 3;
-    }
-    if (dx >= 0.022) {
+    if (dx >= 0.03) {
       return 2;
     }
-    if (dx >= 0.015) {
+    if (dx >= 0.017) {
       return 1;
     }
     return 0;
@@ -623,12 +614,17 @@ void ComputeChromacityAdjustments(const CompressParams& cparams,
     return;
   }
   // 1) Distance based approach for chromacity adjustment:
-  float x_qm_scale_steps[3] = {2.5f, 5.5f, 9.5f};
-  frame_header->x_qm_scale = 3;
+  float x_qm_scale_steps[4] = {1.25f, 7.0f, 15.0f, 24.0f};
+  frame_header->x_qm_scale = 2;
   for (float x_qm_scale_step : x_qm_scale_steps) {
     if (cparams.original_butteraugli_distance > x_qm_scale_step) {
       frame_header->x_qm_scale++;
     }
+  }
+  if (cparams.butteraugli_distance < 0.299f) {
+    // Favor chromacity preservation for making images appear more
+    // faithful to original even with extreme (5-10x) zooming.
+    frame_header->x_qm_scale++;
   }
   // 2) Pixel-based approach for chromacity adjustment:
   // look at the individual pixels and make a guess how difficult
@@ -738,7 +734,6 @@ Status ComputeJPEGTranscodingData(const jpeg::JPEGData& jpeg_data,
                                   ModularFrameEncoder* enc_modular,
                                   PassesEncoderState* enc_state) {
   PassesSharedState& shared = enc_state->shared;
-  JxlMemoryManager* memory_manager = enc_state->memory_manager();
   const FrameDimensions& frame_dim = shared.frame_dim;
 
   const size_t xsize = frame_dim.xsize_padded;
@@ -747,8 +742,8 @@ Status ComputeJPEGTranscodingData(const jpeg::JPEGData& jpeg_data,
   const size_t ysize_blocks = frame_dim.ysize_blocks;
 
   // no-op chroma from luma
-  JXL_ASSIGN_OR_RETURN(shared.cmap, ColorCorrelationMap::Create(
-                                        memory_manager, xsize, ysize, false));
+  JXL_ASSIGN_OR_RETURN(shared.cmap,
+                       ColorCorrelationMap::Create(xsize, ysize, false));
   shared.ac_strategy.FillDCT8();
   FillImage(static_cast<uint8_t>(0), &shared.epf_sharpness);
 
@@ -756,14 +751,14 @@ Status ComputeJPEGTranscodingData(const jpeg::JPEGData& jpeg_data,
   while (enc_state->coeffs.size() < enc_state->passes.size()) {
     JXL_ASSIGN_OR_RETURN(
         std::unique_ptr<ACImageT<int32_t>> coeffs,
-        ACImageT<int32_t>::Make(memory_manager, kGroupDim * kGroupDim,
-                                frame_dim.num_groups));
+        ACImageT<int32_t>::Make(kGroupDim * kGroupDim, frame_dim.num_groups));
     enc_state->coeffs.emplace_back(std::move(coeffs));
   }
 
   // convert JPEG quantization table to a Quantizer object
   float dcquantization[3];
-  std::vector<QuantEncoding> qe(kNumQuantTables, QuantEncoding::Library(0));
+  std::vector<QuantEncoding> qe(DequantMatrices::kNum,
+                                QuantEncoding::Library(0));
 
   auto jpeg_c_map =
       JpegOrder(frame_header.color_transform, jpeg_data.components.size() == 1);
@@ -782,21 +777,12 @@ Status ComputeJPEGTranscodingData(const jpeg::JPEGData& jpeg_data,
       }
     }
   }
-  DequantMatricesSetCustomDC(memory_manager, &shared.matrices, dcquantization);
+  DequantMatricesSetCustomDC(&shared.matrices, dcquantization);
   float dcquantization_r[3] = {1.0f / dcquantization[0],
                                1.0f / dcquantization[1],
                                1.0f / dcquantization[2]};
 
-  std::vector<int32_t> scaled_qtable(192);
-  for (size_t c = 0; c < 3; c++) {
-    for (size_t i = 0; i < 64; i++) {
-      scaled_qtable[64 * c + i] =
-          (1 << kCFLFixedPointPrecision) * qt[64 + i] / qt[64 * c + i];
-    }
-  }
-
-  qe[static_cast<size_t>(AcStrategyType::DCT)] =
-      QuantEncoding::RAW(std::move(qt));
+  qe[AcStrategy::Type::DCT] = QuantEncoding::RAW(qt);
   JXL_RETURN_IF_ERROR(
       DequantMatricesSetCustom(&shared.matrices, qe, enc_modular));
 
@@ -808,6 +794,14 @@ Status ComputeJPEGTranscodingData(const jpeg::JPEGData& jpeg_data,
   // Per-block dequant scaling should be 1.
   FillImage(static_cast<int32_t>(shared.quantizer.InvGlobalScale()),
             &shared.raw_quant_field);
+
+  std::vector<int32_t> scaled_qtable(192);
+  for (size_t c = 0; c < 3; c++) {
+    for (size_t i = 0; i < 64; i++) {
+      scaled_qtable[64 * c + i] =
+          (1 << kCFLFixedPointPrecision) * qt[64 + i] / qt[64 * c + i];
+    }
+  }
 
   auto jpeg_row = [&](size_t c, size_t y) {
     return jpeg_data.components[jpeg_c_map[c]].coeffs.data() +
@@ -824,8 +818,8 @@ Status ComputeJPEGTranscodingData(const jpeg::JPEGData& jpeg_data,
       ImageSB* map = (c == 0 ? &shared.cmap.ytox_map : &shared.cmap.ytob_map);
       const float kScale = kDefaultColorFactor;
       const int kOffset = 127;
-      const float kBase = c == 0 ? shared.cmap.base().YtoXRatio(0)
-                                 : shared.cmap.base().YtoBRatio(0);
+      const float kBase =
+          c == 0 ? shared.cmap.YtoXRatio(0) : shared.cmap.YtoBRatio(0);
       const float kZeroThresh =
           kScale * kZeroBiasDefault[c] *
           0.9999f;  // just epsilon less for better rounding
@@ -901,8 +895,7 @@ Status ComputeJPEGTranscodingData(const jpeg::JPEGData& jpeg_data,
     }
   }
 
-  JXL_ASSIGN_OR_RETURN(
-      Image3F dc, Image3F::Create(memory_manager, xsize_blocks, ysize_blocks));
+  JXL_ASSIGN_OR_RETURN(Image3F dc, Image3F::Create(xsize_blocks, ysize_blocks));
   if (!frame_header.chroma_subsampling.Is444()) {
     ZeroFillImage(&dc);
     for (auto& coeff : enc_state->coeffs) {
@@ -969,7 +962,7 @@ Status ComputeJPEGTranscodingData(const jpeg::JPEGData& jpeg_data,
             }
           } else {
             const int32_t scale =
-                ColorCorrelation::RatioJPEG(cm[bx / kColorTileDimInBlocks]);
+                shared.cmap.RatioJPEG(cm[bx / kColorTileDimInBlocks]);
 
             for (size_t y = 0; y < 8; y++) {
               for (size_t x = 0; x < 8; x++) {
@@ -989,7 +982,7 @@ Status ComputeJPEGTranscodingData(const jpeg::JPEGData& jpeg_data,
             }
           }
           enc_state->progressive_splitter.SplitACCoefficients(
-              block, AcStrategy::FromRawStrategy(AcStrategyType::DCT), bx, by,
+              block, AcStrategy::FromRawStrategy(AcStrategy::Type::DCT), bx, by,
               coeffs);
           for (size_t i = 0; i < enc_state->coeffs.size(); i++) {
             coeffs[i] += kDCTBlockSize;
@@ -1071,27 +1064,12 @@ Status ComputeVarDCTEncodingData(const FrameHeader& frame_header,
                                  AuxOut* aux_out) {
   JXL_ASSERT((rect.xsize() % kBlockDim) == 0 &&
              (rect.ysize() % kBlockDim) == 0);
-  JxlMemoryManager* memory_manager = enc_state->memory_manager();
-  // Save pre-Gaborish opsin for AR control field heuristics computation.
-  Image3F orig_opsin;
-  JXL_ASSIGN_OR_RETURN(
-      orig_opsin, Image3F::Create(memory_manager, rect.xsize(), rect.ysize()));
-  CopyImageTo(rect, *opsin, Rect(orig_opsin), &orig_opsin);
-  orig_opsin.ShrinkTo(enc_state->shared.frame_dim.xsize,
-                      enc_state->shared.frame_dim.ysize);
-
   JXL_RETURN_IF_ERROR(LossyFrameHeuristics(frame_header, enc_state, enc_modular,
                                            linear, opsin, rect, cms, pool,
                                            aux_out));
 
   JXL_RETURN_IF_ERROR(InitializePassesEncoder(
       frame_header, *opsin, rect, cms, pool, enc_state, enc_modular, aux_out));
-
-  JXL_RETURN_IF_ERROR(
-      ComputeARHeuristics(frame_header, enc_state, orig_opsin, rect, pool));
-
-  JXL_RETURN_IF_ERROR(ComputeACMetadata(pool, enc_state, enc_modular));
-
   return true;
 }
 
@@ -1114,11 +1092,10 @@ void ComputeAllCoeffOrders(PassesEncoderState& enc_state,
 // Working area for TokenizeCoefficients (per-group!)
 struct EncCache {
   // Allocates memory when first called.
-  Status InitOnce(JxlMemoryManager* memory_manager) {
+  Status InitOnce() {
     if (num_nzeroes.xsize() == 0) {
-      JXL_ASSIGN_OR_RETURN(num_nzeroes,
-                           Image3I::Create(memory_manager, kGroupDimInBlocks,
-                                           kGroupDimInBlocks));
+      JXL_ASSIGN_OR_RETURN(
+          num_nzeroes, Image3I::Create(kGroupDimInBlocks, kGroupDimInBlocks));
     }
     return true;
   }
@@ -1131,7 +1108,6 @@ Status TokenizeAllCoefficients(const FrameHeader& frame_header,
                                PassesEncoderState* enc_state) {
   PassesSharedState& shared = enc_state->shared;
   std::vector<EncCache> group_caches;
-  JxlMemoryManager* memory_manager = enc_state->memory_manager();
   const auto tokenize_group_init = [&](const size_t num_threads) {
     group_caches.resize(num_threads);
     return true;
@@ -1150,7 +1126,7 @@ Status TokenizeAllCoefficients(const FrameHeader& frame_header,
           enc_state->coeffs[idx_pass]->PlaneRow(2, group_index, 0).ptr32,
       };
       // Ensure group cache is initialized.
-      if (!group_caches[thread].InitOnce(memory_manager)) {
+      if (!group_caches[thread].InitOnce()) {
         has_error = true;
         return;
       }
@@ -1174,9 +1150,9 @@ Status EncodeGlobalDCInfo(const PassesSharedState& shared, BitWriter* writer,
   // Encode quantizer DC and global scale.
   QuantizerParams params = shared.quantizer.GetParams();
   JXL_RETURN_IF_ERROR(
-      WriteQuantizerParams(params, writer, LayerType::Quant, aux_out));
+      WriteQuantizerParams(params, writer, kLayerQuant, aux_out));
   EncodeBlockCtxMap(shared.block_ctx_map, writer, aux_out);
-  ColorCorrelationEncodeDC(shared.cmap.base(), writer, LayerType::Dc, aux_out);
+  ColorCorrelationMapEncodeDC(shared.cmap, writer, kLayerDC, aux_out);
   return true;
 }
 
@@ -1186,15 +1162,13 @@ Status EncodeGlobalDCInfo(const PassesSharedState& shared, BitWriter* writer,
 Status EncodeGlobalACInfo(PassesEncoderState* enc_state, BitWriter* writer,
                           ModularFrameEncoder* enc_modular, AuxOut* aux_out) {
   PassesSharedState& shared = enc_state->shared;
-  JxlMemoryManager* memory_manager = enc_state->memory_manager();
-  JXL_RETURN_IF_ERROR(DequantMatricesEncode(memory_manager, shared.matrices,
-                                            writer, LayerType::Quant, aux_out,
-                                            enc_modular));
+  JXL_RETURN_IF_ERROR(DequantMatricesEncode(shared.matrices, writer,
+                                            kLayerQuant, aux_out, enc_modular));
   size_t num_histo_bits = CeilLog2Nonzero(shared.frame_dim.num_groups);
   if (!enc_state->streaming_mode && num_histo_bits != 0) {
     BitWriter::Allotment allotment(writer, num_histo_bits);
     writer->Write(num_histo_bits, shared.num_histograms - 1);
-    allotment.ReclaimAndCharge(writer, LayerType::Ac, aux_out);
+    allotment.ReclaimAndCharge(writer, kLayerAC, aux_out);
   }
 
   for (size_t i = 0; i < enc_state->progressive_splitter.GetNumPasses(); i++) {
@@ -1205,10 +1179,10 @@ Status EncodeGlobalACInfo(PassesEncoderState* enc_state, BitWriter* writer,
           kOrderEnc, enc_state->used_orders[i], &order_bits));
       BitWriter::Allotment allotment(writer, order_bits);
       JXL_CHECK(U32Coder::Write(kOrderEnc, enc_state->used_orders[i], writer));
-      allotment.ReclaimAndCharge(writer, LayerType::Order, aux_out);
+      allotment.ReclaimAndCharge(writer, kLayerOrder, aux_out);
       EncodeCoeffOrders(enc_state->used_orders[i],
                         &shared.coeff_orders[i * shared.coeff_order_size],
-                        writer, LayerType::Order, aux_out);
+                        writer, kLayerOrder, aux_out);
     }
 
     // Encode histograms.
@@ -1241,10 +1215,10 @@ Status EncodeGlobalACInfo(PassesEncoderState* enc_state, BitWriter* writer,
     hist_params.streaming_mode = enc_state->streaming_mode;
     hist_params.initialize_global_state = enc_state->initialize_global_state;
     BuildAndEncodeHistograms(
-        memory_manager, hist_params,
+        hist_params,
         num_histogram_groups * shared.block_ctx_map.NumACContexts(),
         enc_state->passes[i].ac_tokens, &enc_state->passes[i].codes,
-        &enc_state->passes[i].context_map, writer, LayerType::Ac, aux_out);
+        &enc_state->passes[i].context_map, writer, kLayerAC, aux_out);
   }
 
   return true;
@@ -1253,10 +1227,8 @@ Status EncodeGlobalACInfo(PassesEncoderState* enc_state, BitWriter* writer,
 Status EncodeGroups(const FrameHeader& frame_header,
                     PassesEncoderState* enc_state,
                     ModularFrameEncoder* enc_modular, ThreadPool* pool,
-                    std::vector<std::unique_ptr<BitWriter>>* group_codes,
-                    AuxOut* aux_out) {
+                    std::vector<BitWriter>* group_codes, AuxOut* aux_out) {
   const PassesSharedState& shared = enc_state->shared;
-  JxlMemoryManager* memory_manager = shared.memory_manager;
   const FrameDimensions& frame_dim = shared.frame_dim;
   const size_t num_groups = frame_dim.num_groups;
   const size_t num_passes = enc_state->progressive_splitter.GetNumPasses();
@@ -1267,14 +1239,10 @@ Status EncodeGroups(const FrameHeader& frame_header,
       is_small_image ? 1
                      : AcGroupIndex(0, 0, num_groups, frame_dim.num_dc_groups) +
                            num_groups * num_passes;
-  JXL_ASSERT(group_codes->empty());
-  group_codes->reserve(num_toc_entries);
-  for (size_t i = 0; i < num_toc_entries; ++i) {
-    group_codes->emplace_back(jxl::make_unique<BitWriter>(memory_manager));
-  }
+  group_codes->resize(num_toc_entries);
 
-  const auto get_output = [&](const size_t index) -> BitWriter* {
-    return (*group_codes)[is_small_image ? 0 : index].get();
+  const auto get_output = [&](const size_t index) {
+    return &(*group_codes)[is_small_image ? 0 : index];
   };
   auto ac_group_code = [&](size_t pass, size_t group) {
     return get_output(AcGroupIndex(pass, group, frame_dim.num_groups,
@@ -1284,27 +1252,26 @@ Status EncodeGroups(const FrameHeader& frame_header,
   if (enc_state->initialize_global_state) {
     if (frame_header.flags & FrameHeader::kPatches) {
       PatchDictionaryEncoder::Encode(shared.image_features.patches,
-                                     get_output(0), LayerType::Dictionary,
-                                     aux_out);
+                                     get_output(0), kLayerDictionary, aux_out);
     }
     if (frame_header.flags & FrameHeader::kSplines) {
-      EncodeSplines(shared.image_features.splines, get_output(0),
-                    LayerType::Splines, HistogramParams(), aux_out);
+      EncodeSplines(shared.image_features.splines, get_output(0), kLayerSplines,
+                    HistogramParams(), aux_out);
     }
     if (frame_header.flags & FrameHeader::kNoise) {
       EncodeNoise(shared.image_features.noise_params, get_output(0),
-                  LayerType::Noise, aux_out);
+                  kLayerNoise, aux_out);
     }
 
     JXL_RETURN_IF_ERROR(DequantMatricesEncodeDC(shared.matrices, get_output(0),
-                                                LayerType::Quant, aux_out));
+                                                kLayerQuant, aux_out));
     if (frame_header.encoding == FrameEncoding::kVarDCT) {
       JXL_RETURN_IF_ERROR(EncodeGlobalDCInfo(shared, get_output(0), aux_out));
     }
     JXL_RETURN_IF_ERROR(enc_modular->EncodeGlobalInfo(enc_state->streaming_mode,
                                                       get_output(0), aux_out));
     JXL_RETURN_IF_ERROR(enc_modular->EncodeStream(get_output(0), aux_out,
-                                                  LayerType::ModularGlobal,
+                                                  kLayerModularGlobal,
                                                   ModularStreamId::Global()));
   }
 
@@ -1338,13 +1305,13 @@ Status EncodeGroups(const FrameHeader& frame_header,
         !(frame_header.flags & FrameHeader::kUseDcFrame)) {
       BitWriter::Allotment allotment(output, 2);
       output->Write(2, enc_modular->extra_dc_precision[modular_group_index]);
-      allotment.ReclaimAndCharge(output, LayerType::Dc, my_aux_out);
+      allotment.ReclaimAndCharge(output, kLayerDC, my_aux_out);
       JXL_CHECK(enc_modular->EncodeStream(
-          output, my_aux_out, LayerType::Dc,
+          output, my_aux_out, kLayerDC,
           ModularStreamId::VarDCTDC(modular_group_index)));
     }
     JXL_CHECK(enc_modular->EncodeStream(
-        output, my_aux_out, LayerType::ModularDcGroup,
+        output, my_aux_out, kLayerModularDcGroup,
         ModularStreamId::ModularDC(modular_group_index)));
     if (frame_header.encoding == FrameEncoding::kVarDCT) {
       const Rect& rect = enc_state->shared.frame_dim.DCGroupRect(group_index);
@@ -1353,11 +1320,10 @@ Status EncodeGroups(const FrameHeader& frame_header,
         BitWriter::Allotment allotment(output, nb_bits);
         output->Write(nb_bits,
                       enc_modular->ac_metadata_size[modular_group_index] - 1);
-        allotment.ReclaimAndCharge(output, LayerType::ControlFields,
-                                   my_aux_out);
+        allotment.ReclaimAndCharge(output, kLayerControlFields, my_aux_out);
       }
       JXL_CHECK(enc_modular->EncodeStream(
-          output, my_aux_out, LayerType::ControlFields,
+          output, my_aux_out, kLayerControlFields,
           ModularStreamId::ACMetadata(modular_group_index)));
     }
   };
@@ -1395,8 +1361,7 @@ Status EncodeGroups(const FrameHeader& frame_header,
       }
       // Write all modular encoded data (color?, alpha, depth, extra channels)
       if (!enc_modular->EncodeStream(
-              ac_group_code(i, group_index), my_aux_out,
-              LayerType::ModularAcGroup,
+              ac_group_code(i, group_index), my_aux_out, kLayerModularAcGroup,
               ModularStreamId::ModularAC(ac_group_id, i))) {
         has_error = true;
         return;
@@ -1414,10 +1379,10 @@ Status EncodeGroups(const FrameHeader& frame_header,
   // Resizing aux_outs to 0 also Assimilates the array.
   static_cast<void>(resize_aux_outs(0));
 
-  for (std::unique_ptr<BitWriter>& bw : *group_codes) {
-    BitWriter::Allotment allotment(bw.get(), 8);
-    bw->ZeroPadToByte();  // end of group.
-    allotment.ReclaimAndCharge(bw.get(), LayerType::Ac, aux_out);
+  for (BitWriter& bw : *group_codes) {
+    BitWriter::Allotment allotment(&bw, 8);
+    bw.ZeroPadToByte();  // end of group.
+    allotment.ReclaimAndCharge(&bw, kLayerAC, aux_out);
   }
   return true;
 }
@@ -1428,11 +1393,10 @@ Status ComputeEncodingData(
     const jpeg::JPEGData* jpeg_data, size_t x0, size_t y0, size_t xsize,
     size_t ysize, const JxlCmsInterface& cms, ThreadPool* pool,
     FrameHeader& mutable_frame_header, ModularFrameEncoder& enc_modular,
-    PassesEncoderState& enc_state,
-    std::vector<std::unique_ptr<BitWriter>>* group_codes, AuxOut* aux_out) {
+    PassesEncoderState& enc_state, std::vector<BitWriter>* group_codes,
+    AuxOut* aux_out) {
   JXL_ASSERT(x0 + xsize <= frame_data.xsize);
   JXL_ASSERT(y0 + ysize <= frame_data.ysize);
-  JxlMemoryManager* memory_manager = enc_state.memory_manager();
   const FrameHeader& frame_header = mutable_frame_header;
   PassesSharedState& shared = enc_state.shared;
   shared.metadata = metadata;
@@ -1446,33 +1410,30 @@ Status ComputeEncodingData(
     shared.frame_dim = frame_header.ToFrameDimensions();
   }
 
-  shared.image_features.patches.SetShared(&shared.reference_frames);
+  shared.image_features.patches.SetPassesSharedState(&shared);
   const FrameDimensions& frame_dim = shared.frame_dim;
   JXL_ASSIGN_OR_RETURN(
       shared.ac_strategy,
-      AcStrategyImage::Create(memory_manager, frame_dim.xsize_blocks,
-                              frame_dim.ysize_blocks));
-  JXL_ASSIGN_OR_RETURN(shared.raw_quant_field,
-                       ImageI::Create(memory_manager, frame_dim.xsize_blocks,
-                                      frame_dim.ysize_blocks));
-  JXL_ASSIGN_OR_RETURN(shared.epf_sharpness,
-                       ImageB::Create(memory_manager, frame_dim.xsize_blocks,
-                                      frame_dim.ysize_blocks));
+      AcStrategyImage::Create(frame_dim.xsize_blocks, frame_dim.ysize_blocks));
   JXL_ASSIGN_OR_RETURN(
-      shared.cmap, ColorCorrelationMap::Create(memory_manager, frame_dim.xsize,
-                                               frame_dim.ysize));
+      shared.raw_quant_field,
+      ImageI::Create(frame_dim.xsize_blocks, frame_dim.ysize_blocks));
+  JXL_ASSIGN_OR_RETURN(
+      shared.epf_sharpness,
+      ImageB::Create(frame_dim.xsize_blocks, frame_dim.ysize_blocks));
+  JXL_ASSIGN_OR_RETURN(shared.cmap, ColorCorrelationMap::Create(
+                                        frame_dim.xsize, frame_dim.ysize));
   shared.coeff_order_size = kCoeffOrderMaxSize;
   if (frame_header.encoding == FrameEncoding::kVarDCT) {
     shared.coeff_orders.resize(frame_header.passes.num_passes *
                                kCoeffOrderMaxSize);
   }
 
-  JXL_ASSIGN_OR_RETURN(shared.quant_dc,
-                       ImageB::Create(memory_manager, frame_dim.xsize_blocks,
-                                      frame_dim.ysize_blocks));
-  JXL_ASSIGN_OR_RETURN(shared.dc_storage,
-                       Image3F::Create(memory_manager, frame_dim.xsize_blocks,
-                                       frame_dim.ysize_blocks));
+  JXL_ASSIGN_OR_RETURN(shared.quant_dc, ImageB::Create(frame_dim.xsize_blocks,
+                                                       frame_dim.ysize_blocks));
+  JXL_ASSIGN_OR_RETURN(
+      shared.dc_storage,
+      Image3F::Create(frame_dim.xsize_blocks, frame_dim.ysize_blocks));
   shared.dc = &shared.dc_storage;
 
   const size_t num_extra_channels = metadata->m.num_extra_channels;
@@ -1492,16 +1453,14 @@ Status ComputeEncodingData(
   JXL_ASSERT(patch_rect.IsInside(frame_rect));
 
   // Allocating a large enough image avoids a copy when padding.
-  JXL_ASSIGN_OR_RETURN(
-      Image3F color,
-      Image3F::Create(memory_manager, RoundUpToBlockDim(patch_rect.xsize()),
-                      RoundUpToBlockDim(patch_rect.ysize())));
+  JXL_ASSIGN_OR_RETURN(Image3F color,
+                       Image3F::Create(RoundUpToBlockDim(patch_rect.xsize()),
+                                       RoundUpToBlockDim(patch_rect.ysize())));
   color.ShrinkTo(patch_rect.xsize(), patch_rect.ysize());
   std::vector<ImageF> extra_channels(num_extra_channels);
   for (auto& extra_channel : extra_channels) {
     JXL_ASSIGN_OR_RETURN(
-        extra_channel,
-        ImageF::Create(memory_manager, patch_rect.xsize(), patch_rect.ysize()));
+        extra_channel, ImageF::Create(patch_rect.xsize(), patch_rect.ysize()));
   }
   ImageF* alpha = alpha_eci ? &extra_channels[alpha_idx] : nullptr;
   ImageF* black = black_eci ? &extra_channels[black_idx] : nullptr;
@@ -1516,6 +1475,7 @@ Status ComputeEncodingData(
                                         metadata->m, has_interleaved_alpha,
                                         pool, &extra_channels));
 
+  shared.image_features.patches.SetPassesSharedState(&shared);
   enc_state.cparams = cparams;
 
   Image3F linear_storage;
@@ -1526,9 +1486,9 @@ Status ComputeEncodingData(
         frame_info.ib_needs_color_transform) {
       if (frame_header.encoding == FrameEncoding::kVarDCT &&
           cparams.speed_tier <= SpeedTier::kKitten) {
-        JXL_ASSIGN_OR_RETURN(linear_storage,
-                             Image3F::Create(memory_manager, patch_rect.xsize(),
-                                             patch_rect.ysize()));
+        JXL_ASSIGN_OR_RETURN(
+            linear_storage,
+            Image3F::Create(patch_rect.xsize(), patch_rect.ysize()));
         linear = &linear_storage;
       }
       ToXYB(c_enc, metadata->m.IntensityTarget(), black, pool, &color, cms,
@@ -1542,9 +1502,8 @@ Status ComputeEncodingData(
     bool lossless = cparams.IsLossless();
     if (alpha && !alpha_eci->alpha_associated &&
         frame_header.frame_type == FrameType::kRegularFrame &&
-        !ApplyOverride(cparams.keep_invisible, cparams.IsLossless()) &&
-        cparams.ec_resampling == cparams.resampling &&
-        !cparams.disable_perceptual_optimizations) {
+        !ApplyOverride(cparams.keep_invisible, true) &&
+        cparams.ec_resampling == cparams.resampling) {
       // simplify invisible pixels
       SimplifyInvisible(&color, *alpha, lossless);
       if (linear) {
@@ -1639,7 +1598,7 @@ Status ComputeEncodingData(
 Status PermuteGroups(const CompressParams& cparams,
                      const FrameDimensions& frame_dim, size_t num_passes,
                      std::vector<coeff_order_t>* permutation,
-                     std::vector<std::unique_ptr<BitWriter>>* group_codes) {
+                     std::vector<BitWriter>* group_codes) {
   const size_t num_groups = frame_dim.num_groups;
   if (!cparams.centerfirst || (num_passes == 1 && num_groups == 1)) {
     return true;
@@ -1708,11 +1667,11 @@ Status PermuteGroups(const CompressParams& cparams,
       permutation->push_back(pass_start + v);
     }
   }
-  std::vector<std::unique_ptr<BitWriter>> new_group_codes(group_codes->size());
+  std::vector<BitWriter> new_group_codes(group_codes->size());
   for (size_t i = 0; i < permutation->size(); i++) {
     new_group_codes[(*permutation)[i]] = std::move((*group_codes)[i]);
   }
-  group_codes->swap(new_group_codes);
+  *group_codes = std::move(new_group_codes);
   return true;
 }
 
@@ -1827,21 +1786,20 @@ size_t TOCBucket(size_t group_size) {
 
 size_t TOCSize(const std::vector<size_t>& group_sizes) {
   size_t toc_bits = 0;
-  for (size_t group_size : group_sizes) {
-    toc_bits += kTOCBits[TOCBucket(group_size)];
+  for (size_t i = 0; i < group_sizes.size(); i++) {
+    toc_bits += kTOCBits[TOCBucket(group_sizes[i])];
   }
   return (toc_bits + 7) / 8;
 }
 
-PaddedBytes EncodeTOC(JxlMemoryManager* memory_manager,
-                      const std::vector<size_t>& group_sizes, AuxOut* aux_out) {
-  BitWriter writer{memory_manager};
+PaddedBytes EncodeTOC(const std::vector<size_t>& group_sizes, AuxOut* aux_out) {
+  BitWriter writer;
   BitWriter::Allotment allotment(&writer, 32 * group_sizes.size());
-  for (size_t group_size : group_sizes) {
-    JXL_CHECK(U32Coder::Write(kTocDist, group_size, &writer));
+  for (size_t i = 0; i < group_sizes.size(); i++) {
+    JXL_CHECK(U32Coder::Write(kTocDist, group_sizes[i], &writer));
   }
   writer.ZeroPadToByte();  // before first group
-  allotment.ReclaimAndCharge(&writer, LayerType::Toc, aux_out);
+  allotment.ReclaimAndCharge(&writer, kLayerTOC, aux_out);
   return std::move(writer).TakeBytes();
 }
 
@@ -1875,17 +1833,17 @@ size_t ComputeDcGlobalPadding(const std::vector<size_t>& group_sizes,
   return group_data_offset - actual_offset;
 }
 
-Status OutputGroups(std::vector<std::unique_ptr<BitWriter>>&& group_codes,
+Status OutputGroups(std::vector<BitWriter>&& group_codes,
                     std::vector<size_t>* group_sizes,
                     JxlEncoderOutputProcessorWrapper* output_processor) {
   JXL_ASSERT(group_codes.size() >= 4);
   {
-    PaddedBytes dc_group = std::move(*group_codes[1]).TakeBytes();
+    PaddedBytes dc_group = std::move(group_codes[1]).TakeBytes();
     group_sizes->push_back(dc_group.size());
     JXL_RETURN_IF_ERROR(AppendData(*output_processor, dc_group));
   }
   for (size_t i = 3; i < group_codes.size(); ++i) {
-    PaddedBytes ac_group = std::move(*group_codes[i]).TakeBytes();
+    PaddedBytes ac_group = std::move(group_codes[i]).TakeBytes();
     group_sizes->push_back(ac_group.size());
     JXL_RETURN_IF_ERROR(AppendData(*output_processor, ac_group));
   }
@@ -1896,13 +1854,13 @@ void RemoveUnusedHistograms(std::vector<uint8_t>& context_map,
                             EntropyEncodingData& codes) {
   std::vector<int> remap(256, -1);
   std::vector<uint8_t> inv_remap;
-  for (uint8_t& context : context_map) {
-    const uint8_t histo_ix = context;
+  for (size_t i = 0; i < context_map.size(); ++i) {
+    const uint8_t histo_ix = context_map[i];
     if (remap[histo_ix] == -1) {
       remap[histo_ix] = inv_remap.size();
       inv_remap.push_back(histo_ix);
     }
-    context = remap[histo_ix];
+    context_map[i] = remap[histo_ix];
   }
   EntropyEncodingData new_codes;
   new_codes.use_prefix_code = codes.use_prefix_code;
@@ -1923,14 +1881,13 @@ Status OutputAcGlobal(PassesEncoderState& enc_state,
                       JxlEncoderOutputProcessorWrapper* output_processor,
                       AuxOut* aux_out) {
   JXL_ASSERT(frame_dim.num_groups > 1);
-  JxlMemoryManager* memory_manager = enc_state.memory_manager();
-  BitWriter writer{memory_manager};
+  BitWriter writer;
   {
     size_t num_histo_bits = CeilLog2Nonzero(frame_dim.num_groups);
     BitWriter::Allotment allotment(&writer, num_histo_bits + 1);
     writer.Write(1, 1);  // default dequant matrices
     writer.Write(num_histo_bits, frame_dim.num_dc_groups - 1);
-    allotment.ReclaimAndCharge(&writer, LayerType::Ac, aux_out);
+    allotment.ReclaimAndCharge(&writer, kLayerAC, aux_out);
   }
   const PassesSharedState& shared = enc_state.shared;
   for (size_t i = 0; i < enc_state.progressive_splitter.GetNumPasses(); i++) {
@@ -1940,21 +1897,21 @@ Status OutputAcGlobal(PassesEncoderState& enc_state,
         U32Coder::CanEncode(kOrderEnc, enc_state.used_orders[i], &order_bits));
     BitWriter::Allotment allotment(&writer, order_bits);
     JXL_CHECK(U32Coder::Write(kOrderEnc, enc_state.used_orders[i], &writer));
-    allotment.ReclaimAndCharge(&writer, LayerType::Order, aux_out);
+    allotment.ReclaimAndCharge(&writer, kLayerOrder, aux_out);
     EncodeCoeffOrders(enc_state.used_orders[i],
                       &shared.coeff_orders[i * shared.coeff_order_size],
-                      &writer, LayerType::Order, aux_out);
+                      &writer, kLayerOrder, aux_out);
     // Fix up context map and entropy codes to remove any fix histograms that
     // were not selected by clustering.
     RemoveUnusedHistograms(enc_state.passes[i].context_map,
                            enc_state.passes[i].codes);
     EncodeHistograms(enc_state.passes[i].context_map, enc_state.passes[i].codes,
-                     &writer, LayerType::Ac, aux_out);
+                     &writer, kLayerAC, aux_out);
   }
   {
     BitWriter::Allotment allotment(&writer, 8);
     writer.ZeroPadToByte();  // end of group.
-    allotment.ReclaimAndCharge(&writer, LayerType::Ac, aux_out);
+    allotment.ReclaimAndCharge(&writer, kLayerAC, aux_out);
   }
   PaddedBytes ac_global = std::move(writer).TakeBytes();
   group_sizes->push_back(ac_global.size());
@@ -1962,15 +1919,14 @@ Status OutputAcGlobal(PassesEncoderState& enc_state,
   return true;
 }
 
-Status EncodeFrameStreaming(JxlMemoryManager* memory_manager,
-                            const CompressParams& cparams,
+Status EncodeFrameStreaming(const CompressParams& cparams,
                             const FrameInfo& frame_info,
                             const CodecMetadata* metadata,
                             JxlEncoderChunkedFrameAdapter& frame_data,
                             const JxlCmsInterface& cms, ThreadPool* pool,
                             JxlEncoderOutputProcessorWrapper* output_processor,
                             AuxOut* aux_out) {
-  PassesEncoderState enc_state{memory_manager};
+  PassesEncoderState enc_state;
   SetProgressiveMode(cparams, &enc_state.progressive_splitter);
   FrameHeader frame_header(metadata);
   std::unique_ptr<jpeg::JPEGData> jpeg_data;
@@ -1982,7 +1938,7 @@ Status EncodeFrameStreaming(JxlMemoryManager* memory_manager,
                                       frame_info, jpeg_data.get(), true,
                                       &frame_header));
   const size_t num_passes = enc_state.progressive_splitter.GetNumPasses();
-  ModularFrameEncoder enc_modular(memory_manager, frame_header, cparams, true);
+  ModularFrameEncoder enc_modular(frame_header, cparams, true);
   std::vector<coeff_order_t> permutation;
   std::vector<size_t> dc_group_order;
   size_t group_size = frame_header.ToFrameDimensions().group_dim;
@@ -1993,8 +1949,8 @@ Status EncodeFrameStreaming(JxlMemoryManager* memory_manager,
   size_t dc_group_xsize = DivCeil(frame_data.xsize, dc_group_size);
   size_t min_dc_global_size = 0;
   size_t group_data_offset = 0;
-  PaddedBytes frame_header_bytes{memory_manager};
-  PaddedBytes dc_global_bytes{memory_manager};
+  PaddedBytes frame_header_bytes;
+  PaddedBytes dc_global_bytes;
   std::vector<size_t> group_sizes;
   size_t start_pos = output_processor->CurrentPosition();
   for (size_t i = 0; i < dc_group_order.size(); ++i) {
@@ -2016,23 +1972,23 @@ Status EncodeFrameStreaming(JxlMemoryManager* memory_manager,
     enc_state.initialize_global_state = (i == 0);
     enc_state.dc_group_index = dc_ix;
     enc_state.histogram_idx = std::vector<size_t>(group_xsize * group_ysize, i);
-    std::vector<std::unique_ptr<BitWriter>> group_codes;
+    std::vector<BitWriter> group_codes;
     JXL_RETURN_IF_ERROR(ComputeEncodingData(
         cparams, frame_info, metadata, frame_data, jpeg_data.get(), x0, y0,
         xsize, ysize, cms, pool, frame_header, enc_modular, enc_state,
         &group_codes, aux_out));
     JXL_ASSERT(enc_state.special_frames.empty());
     if (i == 0) {
-      BitWriter writer{memory_manager};
+      BitWriter writer;
       JXL_RETURN_IF_ERROR(WriteFrameHeader(frame_header, &writer, aux_out));
       BitWriter::Allotment allotment(&writer, 8);
       writer.Write(1, 1);  // write permutation
       EncodePermutation(permutation.data(), /*skip=*/0, permutation.size(),
-                        &writer, LayerType::Header, aux_out);
+                        &writer, kLayerHeader, aux_out);
       writer.ZeroPadToByte();
-      allotment.ReclaimAndCharge(&writer, LayerType::Header, aux_out);
+      allotment.ReclaimAndCharge(&writer, kLayerHeader, aux_out);
       frame_header_bytes = std::move(writer).TakeBytes();
-      dc_global_bytes = std::move(*group_codes[0]).TakeBytes();
+      dc_global_bytes = std::move(group_codes[0]).TakeBytes();
       ComputeGroupDataOffset(frame_header_bytes.size(), dc_global_bytes.size(),
                              permutation.size(), min_dc_global_size,
                              group_data_offset);
@@ -2061,7 +2017,7 @@ Status EncodeFrameStreaming(JxlMemoryManager* memory_manager,
       ComputeDcGlobalPadding(group_sizes, frame_header_bytes.size(),
                              group_data_offset, min_dc_global_size);
   group_sizes[0] += padding_size;
-  PaddedBytes toc_bytes = EncodeTOC(memory_manager, group_sizes, aux_out);
+  PaddedBytes toc_bytes = EncodeTOC(group_sizes, aux_out);
   std::vector<uint8_t> padding_bytes(padding_size);
   JXL_RETURN_IF_ERROR(AppendData(*output_processor, frame_header_bytes));
   JXL_RETURN_IF_ERROR(AppendData(*output_processor, toc_bytes));
@@ -2075,16 +2031,16 @@ Status EncodeFrameStreaming(JxlMemoryManager* memory_manager,
   return true;
 }
 
-Status EncodeFrameOneShot(JxlMemoryManager* memory_manager,
-                          const CompressParams& cparams,
+Status EncodeFrameOneShot(const CompressParams& cparams,
                           const FrameInfo& frame_info,
                           const CodecMetadata* metadata,
                           JxlEncoderChunkedFrameAdapter& frame_data,
                           const JxlCmsInterface& cms, ThreadPool* pool,
                           JxlEncoderOutputProcessorWrapper* output_processor,
                           AuxOut* aux_out) {
-  PassesEncoderState enc_state{memory_manager};
+  PassesEncoderState enc_state;
   SetProgressiveMode(cparams, &enc_state.progressive_splitter);
+  std::vector<BitWriter> group_codes;
   FrameHeader frame_header(metadata);
   std::unique_ptr<jpeg::JPEGData> jpeg_data;
   if (frame_data.IsJPEG()) {
@@ -2095,14 +2051,13 @@ Status EncodeFrameOneShot(JxlMemoryManager* memory_manager,
                                       frame_info, jpeg_data.get(), false,
                                       &frame_header));
   const size_t num_passes = enc_state.progressive_splitter.GetNumPasses();
-  ModularFrameEncoder enc_modular(memory_manager, frame_header, cparams, false);
-  std::vector<std::unique_ptr<BitWriter>> group_codes;
+  ModularFrameEncoder enc_modular(frame_header, cparams, false);
   JXL_RETURN_IF_ERROR(ComputeEncodingData(
       cparams, frame_info, metadata, frame_data, jpeg_data.get(), 0, 0,
       frame_data.xsize, frame_data.ysize, cms, pool, frame_header, enc_modular,
       enc_state, &group_codes, aux_out));
 
-  BitWriter writer{memory_manager};
+  BitWriter writer;
   writer.AppendByteAligned(enc_state.special_frames);
   JXL_RETURN_IF_ERROR(WriteFrameHeader(frame_header, &writer, aux_out));
 
@@ -2122,8 +2077,7 @@ Status EncodeFrameOneShot(JxlMemoryManager* memory_manager,
 
 }  // namespace
 
-Status EncodeFrame(JxlMemoryManager* memory_manager,
-                   const CompressParams& cparams_orig,
+Status EncodeFrame(const CompressParams& cparams_orig,
                    const FrameInfo& frame_info, const CodecMetadata* metadata,
                    JxlEncoderChunkedFrameAdapter& frame_data,
                    const JxlCmsInterface& cms, ThreadPool* pool,
@@ -2192,11 +2146,10 @@ Status EncodeFrame(JxlMemoryManager* memory_manager,
           std::vector<uint8_t> output(64);
           uint8_t* next_out = output.data();
           size_t avail_out = output.size();
-          JxlEncoderOutputProcessorWrapper local_output(memory_manager);
+          JxlEncoderOutputProcessorWrapper local_output;
           local_output.SetAvailOut(&next_out, &avail_out);
-          if (!EncodeFrame(memory_manager, all_params[task], frame_info,
-                           metadata, frame_data, cms, nullptr, &local_output,
-                           aux_out)) {
+          if (!EncodeFrame(all_params[task], frame_info, metadata, frame_data,
+                           cms, nullptr, &local_output, aux_out)) {
             has_error = true;
             return;
           }
@@ -2264,17 +2217,15 @@ Status EncodeFrame(JxlMemoryManager* memory_manager,
   }
 
   if (CanDoStreamingEncoding(cparams, frame_info, *metadata, frame_data)) {
-    return EncodeFrameStreaming(memory_manager, cparams, frame_info, metadata,
-                                frame_data, cms, pool, output_processor,
-                                aux_out);
+    return EncodeFrameStreaming(cparams, frame_info, metadata, frame_data, cms,
+                                pool, output_processor, aux_out);
   } else {
-    return EncodeFrameOneShot(memory_manager, cparams, frame_info, metadata,
-                              frame_data, cms, pool, output_processor, aux_out);
+    return EncodeFrameOneShot(cparams, frame_info, metadata, frame_data, cms,
+                              pool, output_processor, aux_out);
   }
 }
 
-Status EncodeFrame(JxlMemoryManager* memory_manager,
-                   const CompressParams& cparams_orig,
+Status EncodeFrame(const CompressParams& cparams_orig,
                    const FrameInfo& frame_info, const CodecMetadata* metadata,
                    const ImageBundle& ib, const JxlCmsInterface& cms,
                    ThreadPool* pool, BitWriter* writer, AuxOut* aux_out) {
@@ -2317,11 +2268,10 @@ Status EncodeFrame(JxlMemoryManager* memory_manager,
   std::vector<uint8_t> output(64);
   uint8_t* next_out = output.data();
   size_t avail_out = output.size();
-  JxlEncoderOutputProcessorWrapper output_processor(memory_manager);
+  JxlEncoderOutputProcessorWrapper output_processor;
   output_processor.SetAvailOut(&next_out, &avail_out);
-  JXL_RETURN_IF_ERROR(EncodeFrame(memory_manager, cparams_orig, fi, metadata,
-                                  frame_data, cms, pool, &output_processor,
-                                  aux_out));
+  JXL_RETURN_IF_ERROR(EncodeFrame(cparams_orig, fi, metadata, frame_data, cms,
+                                  pool, &output_processor, aux_out));
   output_processor.SetFinalizedPosition();
   output_processor.CopyOutput(output, next_out, avail_out);
   writer->AppendByteAligned(Bytes(output));

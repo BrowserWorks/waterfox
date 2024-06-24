@@ -5,13 +5,13 @@
 
 #include "lib/jxl/enc_cache.h"
 
-#include <cstddef>
-#include <cstdint>
+#include <stddef.h>
+#include <stdint.h>
+
 #include <memory>
 
 #include "lib/jxl/base/common.h"
 #include "lib/jxl/base/compiler_specific.h"
-#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/span.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/color_encoding_internal.h"
@@ -33,31 +33,6 @@
 
 namespace jxl {
 
-Status ComputeACMetadata(ThreadPool* pool, PassesEncoderState* enc_state,
-                         ModularFrameEncoder* modular_frame_encoder) {
-  PassesSharedState& shared = enc_state->shared;
-  std::atomic<bool> has_error{false};
-  auto compute_ac_meta = [&](int group_index, int /* thread */) {
-    const Rect r = shared.frame_dim.DCGroupRect(group_index);
-    int modular_group_index = group_index;
-    if (enc_state->streaming_mode) {
-      JXL_ASSERT(group_index == 0);
-      modular_group_index = enc_state->dc_group_index;
-    }
-    if (!modular_frame_encoder->AddACMetadata(r, modular_group_index,
-                                              /*jpeg_transcode=*/false,
-                                              enc_state)) {
-      has_error = true;
-      return;
-    }
-  };
-  JXL_RETURN_IF_ERROR(RunOnPool(pool, 0, shared.frame_dim.num_dc_groups,
-                                ThreadPool::NoInit, compute_ac_meta,
-                                "Compute AC Metadata"));
-  if (has_error) return JXL_FAILURE("Compute AC Metadata failed");
-  return true;
-}
-
 Status InitializePassesEncoder(const FrameHeader& frame_header,
                                const Image3F& opsin, const Rect& rect,
                                const JxlCmsInterface& cms, ThreadPool* pool,
@@ -65,7 +40,6 @@ Status InitializePassesEncoder(const FrameHeader& frame_header,
                                ModularFrameEncoder* modular_frame_encoder,
                                AuxOut* aux_out) {
   PassesSharedState& JXL_RESTRICT shared = enc_state->shared;
-  JxlMemoryManager* memory_manager = enc_state->memory_manager();
 
   enc_state->x_qm_multiplier = std::pow(1.25f, frame_header.x_qm_scale - 2.0f);
   enc_state->b_qm_multiplier = std::pow(1.25f, frame_header.b_qm_scale - 2.0f);
@@ -77,7 +51,7 @@ Status InitializePassesEncoder(const FrameHeader& frame_header,
       // Allocate enough coefficients for each group on every row.
       JXL_ASSIGN_OR_RETURN(
           std::unique_ptr<ACImageT<int32_t>> coeffs,
-          ACImageT<int32_t>::Make(memory_manager, kGroupDim * kGroupDim,
+          ACImageT<int32_t>::Make(kGroupDim * kGroupDim,
                                   shared.frame_dim.num_groups));
       enc_state->coeffs.emplace_back(std::move(coeffs));
     }
@@ -89,13 +63,13 @@ Status InitializePassesEncoder(const FrameHeader& frame_header,
   if (enc_state->initialize_global_state) {
     float scale =
         shared.quantizer.ScaleGlobalScale(enc_state->cparams.quant_ac_rescale);
-    DequantMatricesScaleDC(memory_manager, &shared.matrices, scale);
+    DequantMatricesScaleDC(&shared.matrices, scale);
     shared.quantizer.RecomputeFromGlobalScale();
   }
 
-  JXL_ASSIGN_OR_RETURN(
-      Image3F dc, Image3F::Create(memory_manager, shared.frame_dim.xsize_blocks,
-                                  shared.frame_dim.ysize_blocks));
+  JXL_ASSIGN_OR_RETURN(Image3F dc,
+                       Image3F::Create(shared.frame_dim.xsize_blocks,
+                                       shared.frame_dim.ysize_blocks));
   JXL_RETURN_IF_ERROR(RunOnPool(
       pool, 0, shared.frame_dim.num_groups, ThreadPool::NoInit,
       [&](size_t group_idx, size_t _) {
@@ -136,7 +110,7 @@ Status InitializePassesEncoder(const FrameHeader& frame_header,
           std::max(kMinButteraugliDistance,
                    enc_state->cparams.butteraugli_distance * 0.1f);
     }
-    ImageBundle ib(memory_manager, &shared.metadata->m);
+    ImageBundle ib(&shared.metadata->m);
     // This is a lie - dc is in XYB
     // (but EncodeFrame will skip RGB->XYB conversion anyway)
     ib.SetFromImage(
@@ -150,8 +124,7 @@ Status InitializePassesEncoder(const FrameHeader& frame_header,
       std::vector<ImageF> extra_channels;
       extra_channels.reserve(ib.metadata()->extra_channel_info.size());
       for (size_t i = 0; i < ib.metadata()->extra_channel_info.size(); i++) {
-        JXL_ASSIGN_OR_RETURN(
-            ImageF ch, ImageF::Create(memory_manager, ib.xsize(), ib.ysize()));
+        JXL_ASSIGN_OR_RETURN(ImageF ch, ImageF::Create(ib.xsize(), ib.ysize()));
         extra_channels.emplace_back(std::move(ch));
         // Must initialize the image with data to not affect blending with
         // uninitialized memory.
@@ -161,27 +134,27 @@ Status InitializePassesEncoder(const FrameHeader& frame_header,
       }
       ib.SetExtraChannels(std::move(extra_channels));
     }
-    auto special_frame = jxl::make_unique<BitWriter>(memory_manager);
+    auto special_frame = std::unique_ptr<BitWriter>(new BitWriter());
     FrameInfo dc_frame_info;
     dc_frame_info.frame_type = FrameType::kDCFrame;
     dc_frame_info.dc_level = frame_header.dc_level + 1;
     dc_frame_info.ib_needs_color_transform = false;
     dc_frame_info.save_before_color_transform = true;  // Implicitly true
     AuxOut dc_aux_out;
-    JXL_CHECK(EncodeFrame(memory_manager, cparams, dc_frame_info,
-                          shared.metadata, ib, cms, pool, special_frame.get(),
+    JXL_CHECK(EncodeFrame(cparams, dc_frame_info, shared.metadata, ib, cms,
+                          pool, special_frame.get(),
                           aux_out ? &dc_aux_out : nullptr));
     if (aux_out) {
       for (const auto& l : dc_aux_out.layers) {
-        aux_out->layer(LayerType::Dc).Assimilate(l);
+        aux_out->layers[kLayerDC].Assimilate(l);
       }
     }
     const Span<const uint8_t> encoded = special_frame->GetSpan();
     enc_state->special_frames.emplace_back(std::move(special_frame));
 
-    ImageBundle decoded(memory_manager, &shared.metadata->m);
+    ImageBundle decoded(&shared.metadata->m);
     std::unique_ptr<PassesDecoderState> dec_state =
-        jxl::make_unique<PassesDecoderState>(memory_manager);
+        jxl::make_unique<PassesDecoderState>();
     JXL_CHECK(
         dec_state->output_encoding_info.SetFromMetadata(*shared.metadata));
     const uint8_t* frame_start = encoded.data();
@@ -200,9 +173,8 @@ Status InitializePassesEncoder(const FrameHeader& frame_header,
     // outputs multiple frames, this assumption could be wrong.
     const Image3F& dc_frame =
         dec_state->shared->dc_frames[frame_header.dc_level];
-    JXL_ASSIGN_OR_RETURN(
-        shared.dc_storage,
-        Image3F::Create(memory_manager, dc_frame.xsize(), dc_frame.ysize()));
+    JXL_ASSIGN_OR_RETURN(shared.dc_storage,
+                         Image3F::Create(dc_frame.xsize(), dc_frame.ysize()));
     CopyImageTo(dc_frame, &shared.dc_storage);
     ZeroFillImage(&shared.quant_dc);
     shared.dc = &shared.dc_storage;
@@ -231,10 +203,29 @@ Status InitializePassesEncoder(const FrameHeader& frame_header,
     if (has_error) return JXL_FAILURE("Compute DC coeffs failed");
     // TODO(veluca): this is only useful in tests and if inspection is enabled.
     if (!(frame_header.flags & FrameHeader::kSkipAdaptiveDCSmoothing)) {
-      JXL_RETURN_IF_ERROR(AdaptiveDCSmoothing(
-          memory_manager, shared.quantizer.MulDC(), &shared.dc_storage, pool));
+      JXL_RETURN_IF_ERROR(AdaptiveDCSmoothing(shared.quantizer.MulDC(),
+                                              &shared.dc_storage, pool));
     }
   }
+  std::atomic<bool> has_error{false};
+  auto compute_ac_meta = [&](int group_index, int /* thread */) {
+    const Rect r = enc_state->shared.frame_dim.DCGroupRect(group_index);
+    int modular_group_index = group_index;
+    if (enc_state->streaming_mode) {
+      JXL_ASSERT(group_index == 0);
+      modular_group_index = enc_state->dc_group_index;
+    }
+    if (!modular_frame_encoder->AddACMetadata(r, modular_group_index,
+                                              /*jpeg_transcode=*/false,
+                                              enc_state)) {
+      has_error = true;
+      return;
+    }
+  };
+  JXL_RETURN_IF_ERROR(RunOnPool(pool, 0, shared.frame_dim.num_dc_groups,
+                                ThreadPool::NoInit, compute_ac_meta,
+                                "Compute AC Metadata"));
+  if (has_error) return JXL_FAILURE("Compute AC Metadata failed");
   return true;
 }
 
