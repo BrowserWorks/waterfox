@@ -70,8 +70,6 @@ std::unique_ptr<T> make_unique(Args&&... args) {
 using std::make_unique;
 #endif
 
-typedef std::array<float, 3> Color;
-
 // Backported std::experimental::to_array
 
 template <typename T>

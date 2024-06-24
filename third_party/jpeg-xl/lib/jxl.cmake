@@ -80,10 +80,10 @@ foreach(path ${JPEGXL_INTERNAL_PUBLIC_HEADERS})
 endforeach()
 
 add_library(jxl_base INTERFACE)
-target_include_directories(jxl_base SYSTEM BEFORE INTERFACE
+target_include_directories(jxl_base SYSTEM INTERFACE
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>"
 )
-target_include_directories(jxl_base BEFORE INTERFACE
+target_include_directories(jxl_base INTERFACE
   ${PROJECT_SOURCE_DIR}
   ${JXL_HWY_INCLUDE_DIRS}
 )
@@ -104,7 +104,7 @@ add_library(jxl_dec-obj OBJECT ${JPEGXL_INTERNAL_DEC_SOURCES})
 target_compile_options(jxl_dec-obj PRIVATE ${JPEGXL_INTERNAL_FLAGS})
 target_compile_options(jxl_dec-obj PUBLIC ${JPEGXL_COVERAGE_FLAGS})
 set_property(TARGET jxl_dec-obj PROPERTY POSITION_INDEPENDENT_CODE ON)
-target_include_directories(jxl_dec-obj BEFORE PUBLIC
+target_include_directories(jxl_dec-obj PUBLIC
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>"
   "${JXL_HWY_INCLUDE_DIRS}"
   "$<BUILD_INTERFACE:$<TARGET_PROPERTY:brotlicommon,INTERFACE_INCLUDE_DIRECTORIES>>"
@@ -119,7 +119,7 @@ add_library(jxl_enc-obj OBJECT ${JPEGXL_INTERNAL_ENC_SOURCES})
 target_compile_options(jxl_enc-obj PRIVATE ${JPEGXL_INTERNAL_FLAGS})
 target_compile_options(jxl_enc-obj PUBLIC ${JPEGXL_COVERAGE_FLAGS})
 set_property(TARGET jxl_enc-obj PROPERTY POSITION_INDEPENDENT_CODE ON)
-target_include_directories(jxl_enc-obj BEFORE PUBLIC
+target_include_directories(jxl_enc-obj PUBLIC
   ${PROJECT_SOURCE_DIR}
   ${JXL_HWY_INCLUDE_DIRS}
   $<TARGET_PROPERTY:brotlicommon,INTERFACE_INCLUDE_DIRECTORIES>
@@ -172,7 +172,7 @@ target_link_libraries(jxl-internal PUBLIC
   jxl_cms
   jxl_base
 )
-target_include_directories(jxl-internal BEFORE PUBLIC
+target_include_directories(jxl-internal PUBLIC
   "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>")
 
 target_compile_definitions(jxl-internal INTERFACE -DJXL_STATIC_DEFINE)

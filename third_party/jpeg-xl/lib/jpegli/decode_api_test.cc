@@ -3,27 +3,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include <jxl/types.h>
-
-#include <algorithm>
+#include <cmath>
 #include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <ostream>
-#include <sstream>
-#include <string>
-#include <utility>
 #include <vector>
 
 #include "lib/jpegli/decode.h"
 #include "lib/jpegli/encode.h"
-#include "lib/jpegli/libjpeg_test_util.h"
-#include "lib/jpegli/test_params.h"
 #include "lib/jpegli/test_utils.h"
 #include "lib/jpegli/testing.h"
-#include "lib/jpegli/types.h"
+#include "lib/jxl/base/byte_order.h"
 #include "lib/jxl/base/status.h"
+#include "lib/jxl/sanitizers.h"
 
 namespace jpegli {
 namespace {
@@ -88,8 +78,7 @@ class SourceManager {
     return TRUE;
   }
 
-  static void skip_input_data(j_decompress_ptr cinfo,
-                              long num_bytes /* NOLINT */) {
+  static void skip_input_data(j_decompress_ptr cinfo, long num_bytes) {
     auto* src = reinterpret_cast<SourceManager*>(cinfo->src);
     if (num_bytes <= 0) {
       return;
@@ -308,10 +297,10 @@ void TestAPIBuffered(const CompressParams& jparams,
   SetDecompressParams(dparams, cinfo);
   jpegli_set_output_format(cinfo, dparams.data_type, dparams.endianness);
   VerifyHeader(jparams, cinfo);
-  bool has_multiple_scans = FROM_JXL_BOOL(jpegli_has_multiple_scans(cinfo));
   EXPECT_TRUE(jpegli_start_decompress(cinfo));
   // start decompress should not read the whole input in buffered image mode
   EXPECT_FALSE(jpegli_input_complete(cinfo));
+  bool has_multiple_scans = FROM_JXL_BOOL(jpegli_has_multiple_scans(cinfo));
   EXPECT_EQ(0, cinfo->output_scan_number);
   int sos_marker_cnt = 1;  // read_header reads the first SOS marker
   while (!jpegli_input_complete(cinfo)) {
@@ -458,7 +447,7 @@ std::vector<TestConfig> GenerateBasicConfigs() {
 TEST(DecodeAPITest, ReuseCinfoSameMemSource) {
   std::vector<TestConfig> all_configs = GenerateBasicConfigs();
   uint8_t* buffer = nullptr;
-  unsigned long buffer_size = 0;  // NOLINT
+  unsigned long buffer_size = 0;
   {
     jpeg_compress_struct cinfo;
     const auto try_catch_block = [&]() -> bool {
@@ -513,7 +502,7 @@ TEST(DecodeAPITest, ReuseCinfoSameStdSource) {
     EXPECT_TRUE(try_catch_block());
     jpegli_destroy_compress(&cinfo);
   }
-  fseek(tmpf, 0, SEEK_SET);
+  rewind(tmpf);
   std::vector<TestImage> all_outputs(all_configs.size());
   {
     jpeg_decompress_struct cinfo;
@@ -538,9 +527,9 @@ TEST(DecodeAPITest, ReuseCinfoSameStdSource) {
 
 TEST(DecodeAPITest, AbbreviatedStreams) {
   uint8_t* table_stream = nullptr;
-  unsigned long table_stream_size = 0;  // NOLINT
+  unsigned long table_stream_size = 0;
   uint8_t* data_stream = nullptr;
-  unsigned long data_stream_size = 0;  // NOLINT
+  unsigned long data_stream_size = 0;
   {
     jpeg_compress_struct cinfo;
     const auto try_catch_block = [&]() -> bool {
@@ -904,9 +893,7 @@ std::vector<TestConfig> GenerateTests(bool buffered) {
     all_tests.push_back(config);
   }
   // Tests for color transforms.
-  for (J_COLOR_SPACE out_color_space :
-       {JCS_RGB, JCS_GRAYSCALE, JCS_EXT_RGB, JCS_EXT_BGR, JCS_EXT_RGBA,
-        JCS_EXT_BGRA, JCS_EXT_ARGB, JCS_EXT_ABGR}) {
+  for (J_COLOR_SPACE out_color_space : {JCS_RGB, JCS_GRAYSCALE}) {
     TestConfig config;
     config.input.xsize = config.input.ysize = 256;
     config.input.color_space = JCS_GRAYSCALE;
@@ -915,9 +902,7 @@ std::vector<TestConfig> GenerateTests(bool buffered) {
     all_tests.push_back(config);
   }
   for (J_COLOR_SPACE jpeg_color_space : {JCS_RGB, JCS_YCbCr}) {
-    for (J_COLOR_SPACE out_color_space :
-         {JCS_RGB, JCS_YCbCr, JCS_GRAYSCALE, JCS_EXT_RGB, JCS_EXT_BGR,
-          JCS_EXT_RGBA, JCS_EXT_BGRA, JCS_EXT_ARGB, JCS_EXT_ABGR}) {
+    for (J_COLOR_SPACE out_color_space : {JCS_RGB, JCS_YCbCr, JCS_GRAYSCALE}) {
       if (jpeg_color_space == JCS_RGB && out_color_space == JCS_YCbCr) continue;
       TestConfig config;
       config.input.xsize = config.input.ysize = 256;
@@ -1122,8 +1107,6 @@ std::vector<TestConfig> GenerateTests(bool buffered) {
       TestConfig config;
       config.input.xsize = xsize;
       config.input.ysize = ysize;
-      config.jparams.h_sampling = {1, 1, 1};
-      config.jparams.v_sampling = {1, 1, 1};
       all_tests.push_back(config);
     }
   }

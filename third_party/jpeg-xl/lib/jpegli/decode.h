@@ -21,9 +21,8 @@
 #define LIB_JPEGLI_DECODE_H_
 
 #include "lib/jpegli/common.h"
-#include "lib/jpegli/types.h"
 
-#ifdef __cplusplus
+#if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
@@ -37,7 +36,7 @@ void jpegli_CreateDecompress(j_decompress_ptr cinfo, int version,
 void jpegli_stdio_src(j_decompress_ptr cinfo, FILE *infile);
 
 void jpegli_mem_src(j_decompress_ptr cinfo, const unsigned char *inbuffer,
-                    unsigned long insize /* NOLINT */);
+                    unsigned long insize);
 
 int jpegli_read_header(j_decompress_ptr cinfo, boolean require_image);
 
@@ -100,7 +99,7 @@ void jpegli_new_colormap(j_decompress_ptr cinfo);
 void jpegli_set_output_format(j_decompress_ptr cinfo, JpegliDataType data_type,
                               JpegliEndianness endianness);
 
-#ifdef __cplusplus
+#if defined(__cplusplus) || defined(c_plusplus)
 }  // extern "C"
 #endif
 

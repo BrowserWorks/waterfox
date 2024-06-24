@@ -3,24 +3,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include <jxl/types.h>
-
-#include <algorithm>
-#include <cstddef>
+#include <cmath>
 #include <cstdint>
-#include <cstring>
-#include <ostream>
-#include <sstream>
-#include <string>
-#include <utility>
 #include <vector>
 
 #include "lib/jpegli/decode.h"
-#include "lib/jpegli/libjpeg_test_util.h"
-#include "lib/jpegli/test_params.h"
 #include "lib/jpegli/test_utils.h"
 #include "lib/jpegli/testing.h"
+#include "lib/jxl/base/byte_order.h"
 #include "lib/jxl/base/status.h"
+#include "lib/jxl/sanitizers.h"
 
 namespace jpegli {
 namespace {
@@ -88,8 +80,7 @@ struct SourceManager {
 
   static boolean fill_input_buffer(j_decompress_ptr cinfo) { return FALSE; }
 
-  static void skip_input_data(j_decompress_ptr cinfo,
-                              long num_bytes /* NOLINT*/) {
+  static void skip_input_data(j_decompress_ptr cinfo, long num_bytes) {
     auto* src = reinterpret_cast<SourceManager*>(cinfo->src);
     if (num_bytes <= 0) {
       return;

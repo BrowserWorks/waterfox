@@ -6,9 +6,7 @@
 #ifndef LIB_JXL_RENDER_PIPELINE_RENDER_PIPELINE_STAGE_H_
 #define LIB_JXL_RENDER_PIPELINE_RENDER_PIPELINE_STAGE_H_
 
-#include <cstddef>
-#include <utility>
-#include <vector>
+#include <stdint.h>
 
 #include "lib/jxl/base/arch_macros.h"
 #include "lib/jxl/base/status.h"

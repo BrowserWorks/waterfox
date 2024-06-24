@@ -21,9 +21,8 @@
 #define LIB_JPEGLI_ENCODE_H_
 
 #include "lib/jpegli/common.h"
-#include "lib/jpegli/types.h"
 
-#ifdef __cplusplus
+#if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
@@ -36,7 +35,7 @@ void jpegli_CreateCompress(j_compress_ptr cinfo, int version,
 void jpegli_stdio_dest(j_compress_ptr cinfo, FILE* outfile);
 
 void jpegli_mem_dest(j_compress_ptr cinfo, unsigned char** outbuffer,
-                     unsigned long* outsize /* NOLINT */);
+                     unsigned long* outsize);
 
 void jpegli_set_defaults(j_compress_ptr cinfo);
 
@@ -152,7 +151,7 @@ void jpegli_set_progressive_level(j_compress_ptr cinfo, int level);
 // AC coefficients. Must be called before jpegli_set_defaults().
 void jpegli_use_standard_quant_tables(j_compress_ptr cinfo);
 
-#ifdef __cplusplus
+#if defined(__cplusplus) || defined(c_plusplus)
 }  // extern "C"
 #endif
 

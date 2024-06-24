@@ -5,24 +5,22 @@
 
 #include "lib/jxl/coeff_order.h"
 
-#include <jxl/memory_manager.h>
+#include <stdint.h>
 
 #include <algorithm>
-#include <cstdint>
 #include <vector>
 
-#include "lib/jxl/ac_strategy.h"
-#include "lib/jxl/base/status.h"
+#include "lib/jxl/ans_params.h"
+#include "lib/jxl/base/span.h"
 #include "lib/jxl/coeff_order_fwd.h"
 #include "lib/jxl/dec_ans.h"
 #include "lib/jxl/dec_bit_reader.h"
+#include "lib/jxl/entropy_coder.h"
 #include "lib/jxl/lehmer_code.h"
 #include "lib/jxl/modular/encoding/encoding.h"
+#include "lib/jxl/modular/modular_image.h"
 
 namespace jxl {
-
-static_assert(AcStrategy::kNumValidStrategies == kStrategyOrder.size(),
-              "Update this array when adding or removing AC strategies.");
 
 uint32_t CoeffOrderContext(uint32_t val) {
   uint32_t token, nbits, bits;
@@ -59,14 +57,13 @@ Status ReadPermutation(size_t skip, size_t size, coeff_order_t* order,
 
 }  // namespace
 
-Status DecodePermutation(JxlMemoryManager* memory_manager, size_t skip,
-                         size_t size, coeff_order_t* order, BitReader* br) {
+Status DecodePermutation(size_t skip, size_t size, coeff_order_t* order,
+                         BitReader* br) {
   std::vector<uint8_t> context_map;
   ANSCode code;
-  JXL_RETURN_IF_ERROR(DecodeHistograms(memory_manager, br, kPermutationContexts,
-                                       &code, &context_map));
-  JXL_ASSIGN_OR_RETURN(ANSSymbolReader reader,
-                       ANSSymbolReader::Create(&code, br));
+  JXL_RETURN_IF_ERROR(
+      DecodeHistograms(br, kPermutationContexts, &code, &context_map));
+  ANSSymbolReader reader(&code, br);
   JXL_RETURN_IF_ERROR(
       ReadPermutation(skip, size, order, br, &reader, context_map));
   if (!reader.CheckANSFinalState()) {
@@ -95,19 +92,18 @@ Status DecodeCoeffOrder(AcStrategy acs, coeff_order_t* order, BitReader* br,
 
 }  // namespace
 
-Status DecodeCoeffOrders(JxlMemoryManager* memory_manager, uint16_t used_orders,
-                         uint32_t used_acs, coeff_order_t* order,
-                         BitReader* br) {
+Status DecodeCoeffOrders(uint16_t used_orders, uint32_t used_acs,
+                         coeff_order_t* order, BitReader* br) {
   uint16_t computed = 0;
   std::vector<uint8_t> context_map;
   ANSCode code;
-  ANSSymbolReader reader;
+  std::unique_ptr<ANSSymbolReader> reader;
   std::vector<coeff_order_t> natural_order;
   // Bitstream does not have histograms if no coefficient order is used.
   if (used_orders != 0) {
-    JXL_RETURN_IF_ERROR(DecodeHistograms(
-        memory_manager, br, kPermutationContexts, &code, &context_map));
-    JXL_ASSIGN_OR_RETURN(reader, ANSSymbolReader::Create(&code, br));
+    JXL_RETURN_IF_ERROR(
+        DecodeHistograms(br, kPermutationContexts, &code, &context_map));
+    reader = make_unique<ANSSymbolReader>(&code, br);
   }
   uint32_t acs_mask = 0;
   for (uint8_t o = 0; o < AcStrategy::kNumValidStrategies; ++o) {
@@ -140,12 +136,12 @@ Status DecodeCoeffOrders(JxlMemoryManager* memory_manager, uint16_t used_orders,
     } else {
       for (size_t c = 0; c < 3; c++) {
         coeff_order_t* dest = used ? &order[CoeffOrderOffset(ord, c)] : nullptr;
-        JXL_RETURN_IF_ERROR(DecodeCoeffOrder(acs, dest, br, &reader,
+        JXL_RETURN_IF_ERROR(DecodeCoeffOrder(acs, dest, br, reader.get(),
                                              natural_order, context_map));
       }
     }
   }
-  if (used_orders && !reader.CheckANSFinalState()) {
+  if (used_orders && !reader->CheckANSFinalState()) {
     return JXL_FAILURE("Invalid ANS stream");
   }
   return true;

@@ -6,23 +6,26 @@
 #include "lib/extras/enc/jpg.h"
 
 #if JPEGXL_ENABLE_JPEG
-#include "lib/jxl/base/include_jpeglib.h"  // NOLINT
+#include <jpeglib.h>
+#include <setjmp.h>
 #endif
+#include <stdint.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
-#include <cstdint>
 #include <fstream>
+#include <iterator>
 #include <memory>
+#include <numeric>
 #include <sstream>
 #include <utility>
 #include <vector>
 
 #include "lib/extras/exif.h"
 #include "lib/jxl/base/common.h"
-#include "lib/jxl/base/sanitizers.h"
 #include "lib/jxl/base/status.h"
+#include "lib/jxl/sanitizers.h"
 #if JPEGXL_ENABLE_SJPEG
 #include "sjpeg.h"
 #include "sjpegi.h"
@@ -273,7 +276,7 @@ Status EncodeWithLibJpeg(const PackedImage& image, const JxlBasicInfo& info,
   cinfo.err = jpeg_std_error(&jerr);
   jpeg_create_compress(&cinfo);
   unsigned char* buffer = nullptr;
-  unsigned long size = 0;  // NOLINT
+  unsigned long size = 0;
   jpeg_mem_dest(&cinfo, &buffer, &size);
   cinfo.image_width = image.xsize;
   cinfo.image_height = image.ysize;
@@ -473,7 +476,7 @@ Status EncodeWithSJpeg(const PackedImage& image, const JxlBasicInfo& info,
     param.tolerance = params.search_tolerance;
     param.qmin = params.search_q_min;
     param.qmax = params.search_q_max;
-    hook = jxl::make_unique<MySearchHook>();
+    hook.reset(new MySearchHook());
     hook->ReadBaseTables(params.custom_base_quant_fn);
     hook->q_start = params.search_q_start;
     hook->q_precision = params.search_q_precision;

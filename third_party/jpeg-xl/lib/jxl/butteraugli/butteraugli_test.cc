@@ -5,11 +5,10 @@
 
 #include "lib/jxl/butteraugli/butteraugli.h"
 
-#include <jxl/memory_manager.h>
 #include <jxl/types.h>
+#include <stddef.h>
 
 #include <algorithm>
-#include <cstddef>
 #include <cstdint>
 #include <utility>
 
@@ -21,7 +20,6 @@
 #include "lib/jxl/image.h"
 #include "lib/jxl/image_ops.h"
 #include "lib/jxl/test_image.h"
-#include "lib/jxl/test_memory_manager.h"
 #include "lib/jxl/testing.h"
 
 namespace jxl {
@@ -32,8 +30,7 @@ using extras::PackedPixelFile;
 using test::TestImage;
 
 Image3F SinglePixelImage(float red, float green, float blue) {
-  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
-  JXL_ASSIGN_OR_DIE(Image3F img, Image3F::Create(memory_manager, 1, 1));
+  JXL_ASSIGN_OR_DIE(Image3F img, Image3F::Create(1, 1));
   img.PlaneRow(0, 0)[0] = red;
   img.PlaneRow(1, 0)[0] = green;
   img.PlaneRow(2, 0)[0] = blue;
@@ -41,13 +38,11 @@ Image3F SinglePixelImage(float red, float green, float blue) {
 }
 
 Image3F GetColorImage(const PackedPixelFile& ppf) {
-  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   JXL_CHECK(!ppf.frames.empty());
   const PackedImage& image = ppf.frames[0].color;
   const JxlPixelFormat& format = image.format;
   const uint8_t* pixels = reinterpret_cast<const uint8_t*>(image.pixels());
-  JXL_ASSIGN_OR_DIE(Image3F color,
-                    Image3F::Create(memory_manager, image.xsize, image.ysize));
+  JXL_ASSIGN_OR_DIE(Image3F color, Image3F::Create(image.xsize, image.ysize));
   for (size_t c = 0; c < format.num_channels; ++c) {
     JXL_CHECK(ConvertFromExternal(pixels, image.pixels_size, image.xsize,
                                   image.ysize, ppf.info.bits_per_sample, format,
@@ -80,46 +75,40 @@ void AddEdge(Image3F* img, float d, size_t x0, size_t y0) {
 TEST(ButteraugliInPlaceTest, SinglePixel) {
   Image3F rgb0 = SinglePixelImage(0.5f, 0.5f, 0.5f);
   Image3F rgb1 = SinglePixelImage(0.5f, 0.49f, 0.5f);
-  ButteraugliParams butteraugli_params;
+  ButteraugliParams ba;
   ImageF diffmap;
   double diffval;
-  EXPECT_TRUE(
-      ButteraugliInterface(rgb0, rgb1, butteraugli_params, diffmap, diffval));
+  EXPECT_TRUE(ButteraugliInterface(rgb0, rgb1, ba, diffmap, diffval));
   EXPECT_NEAR(diffval, 2.5, 0.5);
   ImageF diffmap2;
   double diffval2;
-  EXPECT_TRUE(ButteraugliInterfaceInPlace(std::move(rgb0), std::move(rgb1),
-                                          butteraugli_params, diffmap2,
-                                          diffval2));
+  EXPECT_TRUE(ButteraugliInterfaceInPlace(std::move(rgb0), std::move(rgb1), ba,
+                                          diffmap2, diffval2));
   EXPECT_NEAR(diffval, diffval2, 1e-10);
 }
 
 TEST(ButteraugliInPlaceTest, LargeImage) {
-  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   const size_t xsize = 1024;
   const size_t ysize = 1024;
   TestImage img;
   img.SetDimensions(xsize, ysize).AddFrame().RandomFill(777);
   Image3F rgb0 = GetColorImage(img.ppf());
-  JXL_ASSIGN_OR_DIE(Image3F rgb1,
-                    Image3F::Create(memory_manager, xsize, ysize));
+  JXL_ASSIGN_OR_DIE(Image3F rgb1, Image3F::Create(xsize, ysize));
   CopyImageTo(rgb0, &rgb1);
   AddUniformNoise(&rgb1, 0.02f, 7777);
   AddEdge(&rgb1, 0.1f, xsize / 2, xsize / 2);
-  ButteraugliParams butteraugli_params;
+  ButteraugliParams ba;
   ImageF diffmap;
   double diffval;
-  EXPECT_TRUE(
-      ButteraugliInterface(rgb0, rgb1, butteraugli_params, diffmap, diffval));
-  double distp = ComputeDistanceP(diffmap, butteraugli_params, 3.0);
+  EXPECT_TRUE(ButteraugliInterface(rgb0, rgb1, ba, diffmap, diffval));
+  double distp = ComputeDistanceP(diffmap, ba, 3.0);
   EXPECT_NEAR(diffval, 4.0, 0.5);
   EXPECT_NEAR(distp, 1.5, 0.5);
   ImageF diffmap2;
   double diffval2;
-  EXPECT_TRUE(ButteraugliInterfaceInPlace(std::move(rgb0), std::move(rgb1),
-                                          butteraugli_params, diffmap2,
-                                          diffval2));
-  double distp2 = ComputeDistanceP(diffmap2, butteraugli_params, 3.0);
+  EXPECT_TRUE(ButteraugliInterfaceInPlace(std::move(rgb0), std::move(rgb1), ba,
+                                          diffmap2, diffval2));
+  double distp2 = ComputeDistanceP(diffmap2, ba, 3.0);
   EXPECT_NEAR(diffval, diffval2, 5e-7);
   EXPECT_NEAR(distp, distp2, 1e-7);
 }

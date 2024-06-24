@@ -26,7 +26,9 @@
 #if JPEGXL_ENABLE_BOXES || JPEGXL_ENABLE_TRANSCODE_JPEG
 #include "lib/jxl/box_content_decoder.h"
 #endif
+#include "lib/jxl/dec_external_image.h"
 #include "lib/jxl/dec_frame.h"
+#include "lib/jxl/dec_modular.h"
 #if JPEGXL_ENABLE_TRANSCODE_JPEG
 #include "lib/jxl/decode_to_jpeg.h"
 #endif
@@ -36,7 +38,10 @@
 #include "lib/jxl/headers.h"
 #include "lib/jxl/icc_codec.h"
 #include "lib/jxl/image_bundle.h"
+#include "lib/jxl/loop_filter.h"
 #include "lib/jxl/memory_manager_internal.h"
+#include "lib/jxl/sanitizers.h"
+#include "lib/jxl/toc.h"
 
 namespace {
 
@@ -359,7 +364,7 @@ struct JxlDecoderStruct {
   bool got_transform_data;  // To skip everything before ICC.
   bool got_all_headers;     // Codestream metadata headers.
   bool post_headers;        // Already decoding pixels.
-  std::unique_ptr<jxl::ICCReader> icc_reader;
+  jxl::ICCReader icc_reader;
   jxl::JxlDecoderFrameIndexBox frame_index_box;
   // This means either we actually got the preview image, or determined we
   // cannot get it or there is none.
@@ -682,7 +687,7 @@ void JxlDecoderRewindDecodingState(JxlDecoder* dec) {
   dec->got_transform_data = false;
   dec->got_all_headers = false;
   dec->post_headers = false;
-  if (dec->icc_reader) dec->icc_reader->Reset();
+  dec->icc_reader.Reset();
   dec->got_preview_image = false;
   dec->preview_frame = false;
   dec->file_pos = 0;
@@ -732,15 +737,15 @@ void JxlDecoderRewindDecodingState(JxlDecoder* dec) {
   dec->avail_in = 0;
   dec->input_closed = false;
 
-  dec->passes_state.reset();
-  dec->frame_dec.reset();
+  dec->passes_state.reset(nullptr);
+  dec->frame_dec.reset(nullptr);
   dec->next_section = 0;
   dec->section_processed.clear();
 
   dec->ib.reset();
   dec->metadata = jxl::CodecMetadata();
   dec->image_metadata = dec->metadata.m;
-  dec->frame_header = jxl::make_unique<jxl::FrameHeader>(&dec->metadata);
+  dec->frame_header.reset(new jxl::FrameHeader(&dec->metadata));
 
   dec->codestream_copy.clear();
   dec->codestream_unconsumed = 0;
@@ -862,8 +867,8 @@ JxlDecoderSetParallelRunner(JxlDecoder* dec, JxlParallelRunner parallel_runner,
     return JXL_API_ERROR(
         "JxlDecoderSetParallelRunner must be called before starting");
   }
-  dec->thread_pool = jxl::make_unique<jxl::ThreadPool>(parallel_runner,
-                                                       parallel_runner_opaque);
+  dec->thread_pool.reset(
+      new jxl::ThreadPool(parallel_runner, parallel_runner_opaque));
   return JXL_DEC_SUCCESS;
 }
 
@@ -1045,7 +1050,7 @@ JxlDecoderStatus JxlDecoderReadAllHeaders(JxlDecoder* dec) {
 
   if (dec->metadata.m.color_encoding.WantICC()) {
     jxl::Status status =
-        dec->icc_reader->Init(reader.get(), dec->memory_limit_base);
+        dec->icc_reader.Init(reader.get(), dec->memory_limit_base);
     // Always check AllReadsWithinBounds, not all the C++ decoder implementation
     // handles reader out of bounds correctly  yet (e.g. context map). Not
     // checking AllReadsWithinBounds can cause reader->Close() to trigger an
@@ -1058,8 +1063,8 @@ JxlDecoderStatus JxlDecoderReadAllHeaders(JxlDecoder* dec) {
       // Other non-successful status is an error
       return JXL_DEC_ERROR;
     }
-    PaddedBytes decoded_icc{&dec->memory_manager};
-    status = dec->icc_reader->Process(reader.get(), &decoded_icc);
+    PaddedBytes decoded_icc;
+    status = dec->icc_reader.Process(reader.get(), &decoded_icc);
     if (status.code() == StatusCode::kNotEnoughBytes) {
       return dec->RequestMoreInput();
     }
@@ -1082,8 +1087,7 @@ JxlDecoderStatus JxlDecoderReadAllHeaders(JxlDecoder* dec) {
   dec->codestream_bits_ahead = 0;
 
   if (!dec->passes_state) {
-    dec->passes_state =
-        jxl::make_unique<jxl::PassesDecoderState>(&dec->memory_manager);
+    dec->passes_state.reset(new jxl::PassesDecoderState());
   }
 
   JXL_API_RETURN_IF_ERROR(
@@ -1165,7 +1169,7 @@ JxlDecoderStatus JxlDecoderProcessCodestream(JxlDecoder* dec) {
   // TODO(lode): move this initialization to an appropriate location once the
   // runner is used to decode pixels.
   if (!dec->thread_pool) {
-    dec->thread_pool = jxl::make_unique<jxl::ThreadPool>(nullptr, nullptr);
+    dec->thread_pool.reset(new jxl::ThreadPool(nullptr, nullptr));
   }
 
   // No matter what events are wanted, the basic info is always required.
@@ -1182,10 +1186,6 @@ JxlDecoderStatus JxlDecoderProcessCodestream(JxlDecoder* dec) {
   if (!dec->events_wanted) {
     dec->stage = DecoderStage::kCodestreamFinished;
     return JXL_DEC_SUCCESS;
-  }
-
-  if (!dec->icc_reader) {
-    dec->icc_reader = jxl::make_unique<ICCReader>(&dec->memory_manager);
   }
 
   if (!dec->got_all_headers) {
@@ -1233,8 +1233,7 @@ JxlDecoderStatus JxlDecoderProcessCodestream(JxlDecoder* dec) {
       }
 #endif
       if (!dec->ib) {
-        dec->ib = jxl::make_unique<jxl::ImageBundle>(&dec->memory_manager,
-                                                     &dec->image_metadata);
+        dec->ib.reset(new jxl::ImageBundle(&dec->image_metadata));
       }
 #if JPEGXL_ENABLE_TRANSCODE_JPEG
       // If JPEG reconstruction is wanted and possible, set the jpeg_data of
@@ -1242,10 +1241,10 @@ JxlDecoderStatus JxlDecoderProcessCodestream(JxlDecoder* dec) {
       if (!dec->jpeg_decoder.SetImageBundleJpegData(dec->ib.get()))
         return JXL_DEC_ERROR;
 #endif
-      dec->frame_dec = jxl::make_unique<FrameDecoder>(
+      dec->frame_dec.reset(new FrameDecoder(
           dec->passes_state.get(), dec->metadata, dec->thread_pool.get(),
-          /*use_slow_rendering_pipeline=*/false);
-      dec->frame_header = jxl::make_unique<FrameHeader>(&dec->metadata);
+          /*use_slow_rendering_pipeline=*/false));
+      dec->frame_header.reset(new FrameHeader(&dec->metadata));
       Span<const uint8_t> span;
       JXL_API_RETURN_IF_ERROR(dec->GetCodestreamInput(&span));
       auto reader = GetBitReader(span);
@@ -2346,8 +2345,7 @@ JxlDecoderStatus JxlDecoderFlushImage(JxlDecoder* dec) {
 JXL_EXPORT JxlDecoderStatus JxlDecoderSetCms(JxlDecoder* dec,
                                              const JxlCmsInterface cms) {
   if (!dec->passes_state) {
-    dec->passes_state =
-        jxl::make_unique<jxl::PassesDecoderState>(&dec->memory_manager);
+    dec->passes_state.reset(new jxl::PassesDecoderState());
   }
   dec->passes_state->output_encoding_info.color_management_system = cms;
   dec->passes_state->output_encoding_info.cms_set = true;

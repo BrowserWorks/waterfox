@@ -5,7 +5,7 @@
 
 #include "lib/jxl/dec_xyb.h"
 
-#include <cstring>
+#include <string.h>
 
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "lib/jxl/dec_xyb.cc"
@@ -14,16 +14,17 @@
 
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/matrix_ops.h"
-#include "lib/jxl/base/rect.h"
-#include "lib/jxl/base/sanitizers.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/cms/jxl_cms_internal.h"
 #include "lib/jxl/cms/opsin_params.h"
 #include "lib/jxl/color_encoding_internal.h"
+#include "lib/jxl/dec_group_border.h"
 #include "lib/jxl/dec_xyb-inl.h"
+#include "lib/jxl/fields.h"
 #include "lib/jxl/image.h"
 #include "lib/jxl/opsin_params.h"
 #include "lib/jxl/quantizer.h"
+#include "lib/jxl/sanitizers.h"
 HWY_BEFORE_NAMESPACE();
 namespace jxl {
 namespace HWY_NAMESPACE {
@@ -178,9 +179,9 @@ HWY_EXPORT(HasFastXYBTosRGB8);
 bool HasFastXYBTosRGB8() { return HWY_DYNAMIC_DISPATCH(HasFastXYBTosRGB8)(); }
 
 HWY_EXPORT(FastXYBTosRGB8);
-Status FastXYBTosRGB8(const float* input[4], uint8_t* output, bool is_rgba,
-                      size_t xsize) {
-  return HWY_DYNAMIC_DISPATCH(FastXYBTosRGB8)(input, output, is_rgba, xsize);
+void FastXYBTosRGB8(const float* input[4], uint8_t* output, bool is_rgba,
+                    size_t xsize) {
+  HWY_DYNAMIC_DISPATCH(FastXYBTosRGB8)(input, output, is_rgba, xsize);
 }
 
 void OpsinParams::Init(float intensity_target) {
@@ -216,7 +217,7 @@ Status OutputEncodingInfo::SetFromMetadata(const CodecMetadata& metadata) {
   orig_intensity_target = metadata.m.IntensityTarget();
   desired_intensity_target = orig_intensity_target;
   const auto& im = metadata.transform_data.opsin_inverse_matrix;
-  orig_inverse_matrix = im.inverse_matrix;
+  memcpy(orig_inverse_matrix, im.inverse_matrix, sizeof(orig_inverse_matrix));
   default_transform = im.all_default;
   xyb_encoded = metadata.m.xyb_encoded;
   std::copy(std::begin(im.opsin_biases), std::end(im.opsin_biases),
@@ -256,38 +257,38 @@ Status OutputEncodingInfo::SetColorEncoding(const ColorEncoding& c_desired) {
 
   // Compute the opsin inverse matrix and luminances based on primaries and
   // white point.
-  Matrix3x3 inverse_matrix;
+  float inverse_matrix[9];
   bool inverse_matrix_is_default = default_transform;
-  inverse_matrix = orig_inverse_matrix;
-  constexpr Vector3 kSRGBLuminances{0.2126, 0.7152, 0.0722};
-  luminances = kSRGBLuminances;
+  memcpy(inverse_matrix, orig_inverse_matrix, sizeof(inverse_matrix));
+  constexpr float kSRGBLuminances[3] = {0.2126, 0.7152, 0.0722};
+  memcpy(luminances, kSRGBLuminances, sizeof(luminances));
   if ((c_desired.GetPrimariesType() != Primaries::kSRGB ||
        c_desired.GetWhitePointType() != WhitePoint::kD65) &&
       !c_desired.IsGray()) {
-    Matrix3x3 srgb_to_xyzd50;
+    float srgb_to_xyzd50[9];
     const auto& srgb = ColorEncoding::SRGB(/*is_gray=*/false);
     PrimariesCIExy p = srgb.GetPrimaries();
     CIExy w = srgb.GetWhitePoint();
     JXL_CHECK(PrimariesToXYZD50(p.r.x, p.r.y, p.g.x, p.g.y, p.b.x, p.b.y, w.x,
                                 w.y, srgb_to_xyzd50));
-    Matrix3x3 original_to_xyz;
+    float original_to_xyz[3][3];
     p = c_desired.GetPrimaries();
     w = c_desired.GetWhitePoint();
     if (!PrimariesToXYZ(p.r.x, p.r.y, p.g.x, p.g.y, p.b.x, p.b.y, w.x, w.y,
-                        original_to_xyz)) {
+                        &original_to_xyz[0][0])) {
       return JXL_FAILURE("PrimariesToXYZ failed");
     }
-    luminances = original_to_xyz[1];
+    memcpy(luminances, original_to_xyz[1], sizeof luminances);
     if (xyb_encoded) {
-      Matrix3x3 adapt_to_d50;
+      float adapt_to_d50[9];
       if (!AdaptToXYZD50(c_desired.GetWhitePoint().x,
                          c_desired.GetWhitePoint().y, adapt_to_d50)) {
         return JXL_FAILURE("AdaptToXYZD50 failed");
       }
-      Matrix3x3 xyzd50_to_original;
-      Mul3x3Matrix(adapt_to_d50, original_to_xyz, xyzd50_to_original);
+      float xyzd50_to_original[9];
+      Mul3x3Matrix(adapt_to_d50, &original_to_xyz[0][0], xyzd50_to_original);
       JXL_RETURN_IF_ERROR(Inv3x3Matrix(xyzd50_to_original));
-      Matrix3x3 srgb_to_original;
+      float srgb_to_original[9];
       Mul3x3Matrix(xyzd50_to_original, srgb_to_xyzd50, srgb_to_original);
       Mul3x3Matrix(srgb_to_original, orig_inverse_matrix, inverse_matrix);
       inverse_matrix_is_default = false;
@@ -295,8 +296,12 @@ Status OutputEncodingInfo::SetColorEncoding(const ColorEncoding& c_desired) {
   }
 
   if (c_desired.IsGray()) {
-    Matrix3x3 tmp_inv_matrix = inverse_matrix;
-    Matrix3x3 srgb_to_luma{luminances, luminances, luminances};
+    float tmp_inv_matrix[9];
+    memcpy(tmp_inv_matrix, inverse_matrix, sizeof(inverse_matrix));
+    float srgb_to_luma[9];
+    memcpy(&srgb_to_luma[0], luminances, sizeof(luminances));
+    memcpy(&srgb_to_luma[3], luminances, sizeof(luminances));
+    memcpy(&srgb_to_luma[6], luminances, sizeof(luminances));
     Mul3x3Matrix(srgb_to_luma, tmp_inv_matrix, inverse_matrix);
   }
 

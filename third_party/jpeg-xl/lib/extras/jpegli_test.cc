@@ -156,8 +156,8 @@ TEST(JpegliTest, JpegliXYBEncodeTest) {
 
   PackedPixelFile ppf_out;
   ASSERT_TRUE(DecodeWithLibjpeg(compressed, &ppf_out));
-  EXPECT_SLIGHTLY_BELOW(BitsPerPixel(ppf_in, compressed), 1.45f);
-  EXPECT_SLIGHTLY_BELOW(ButteraugliDistance(ppf_in, ppf_out), 1.32f);
+  EXPECT_THAT(BitsPerPixel(ppf_in, compressed), IsSlightlyBelow(1.45f));
+  EXPECT_THAT(ButteraugliDistance(ppf_in, ppf_out), IsSlightlyBelow(1.32f));
 }
 
 TEST(JpegliTest, JpegliDecodeTestLargeSmoothArea) {
@@ -205,8 +205,8 @@ TEST(JpegliTest, JpegliYUVEncodeTest) {
 
   PackedPixelFile ppf_out;
   ASSERT_TRUE(DecodeWithLibjpeg(compressed, &ppf_out));
-  EXPECT_SLIGHTLY_BELOW(BitsPerPixel(ppf_in, compressed), 1.7f);
-  EXPECT_SLIGHTLY_BELOW(ButteraugliDistance(ppf_in, ppf_out), 1.32f);
+  EXPECT_THAT(BitsPerPixel(ppf_in, compressed), IsSlightlyBelow(1.7f));
+  EXPECT_THAT(ButteraugliDistance(ppf_in, ppf_out), IsSlightlyBelow(1.32f));
 }
 
 TEST(JpegliTest, JpegliYUVChromaSubsamplingEncodeTest) {
@@ -247,15 +247,15 @@ TEST(JpegliTest, JpegliYUVEncodeTestNoAq) {
 
   PackedPixelFile ppf_out;
   ASSERT_TRUE(DecodeWithLibjpeg(compressed, &ppf_out));
-  EXPECT_SLIGHTLY_BELOW(BitsPerPixel(ppf_in, compressed), 1.85f);
-  EXPECT_SLIGHTLY_BELOW(ButteraugliDistance(ppf_in, ppf_out), 1.25f);
+  EXPECT_THAT(BitsPerPixel(ppf_in, compressed), IsSlightlyBelow(1.85f));
+  EXPECT_THAT(ButteraugliDistance(ppf_in, ppf_out), IsSlightlyBelow(1.25f));
 }
 
 TEST(JpegliTest, JpegliHDRRoundtripTest) {
   std::string testimage = "jxl/hdr_room.png";
   PackedPixelFile ppf_in;
   ASSERT_TRUE(ReadTestImage(testimage, &ppf_in));
-  EXPECT_EQ("Rec2100HLG", Description(ppf_in.color_encoding));
+  EXPECT_EQ("RGB_D65_202_Rel_HLG", Description(ppf_in.color_encoding));
   EXPECT_EQ(16, ppf_in.info.bits_per_sample);
 
   std::vector<uint8_t> compressed;
@@ -267,8 +267,8 @@ TEST(JpegliTest, JpegliHDRRoundtripTest) {
   JpegDecompressParams dparams;
   dparams.output_data_type = JXL_TYPE_UINT16;
   ASSERT_TRUE(DecodeJpeg(compressed, dparams, nullptr, &ppf_out));
-  EXPECT_SLIGHTLY_BELOW(BitsPerPixel(ppf_in, compressed), 2.95f);
-  EXPECT_SLIGHTLY_BELOW(ButteraugliDistance(ppf_in, ppf_out), 1.05f);
+  EXPECT_THAT(BitsPerPixel(ppf_in, compressed), IsSlightlyBelow(2.95f));
+  EXPECT_THAT(ButteraugliDistance(ppf_in, ppf_out), IsSlightlyBelow(1.05f));
 }
 
 TEST(JpegliTest, JpegliSetAppData) {

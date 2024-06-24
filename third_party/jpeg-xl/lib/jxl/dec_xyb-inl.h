@@ -91,9 +91,9 @@ inline HWY_MAYBE_UNUSED bool HasFastXYBTosRGB8() {
 #endif
 }
 
-inline HWY_MAYBE_UNUSED Status FastXYBTosRGB8(const float* input[4],
-                                              uint8_t* output, bool is_rgba,
-                                              size_t xsize) {
+inline HWY_MAYBE_UNUSED void FastXYBTosRGB8(const float* input[4],
+                                            uint8_t* output, bool is_rgba,
+                                            size_t xsize) {
   // This function is very NEON-specific. As such, it uses intrinsics directly.
 #if HWY_TARGET == HWY_NEON
   // WARNING: doing fixed point arithmetic correctly is very complicated.
@@ -328,13 +328,12 @@ inline HWY_MAYBE_UNUSED Status FastXYBTosRGB8(const float* input[4],
       }
     }
   }
-  return true;
 #else
   (void)input;
   (void)output;
   (void)is_rgba;
   (void)xsize;
-  return JXL_UNREACHABLE("unsupported platform");
+  JXL_UNREACHABLE("Unreachable");
 #endif
 }
 

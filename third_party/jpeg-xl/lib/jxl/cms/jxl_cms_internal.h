@@ -41,7 +41,7 @@ enum class ExtraTF {
 };
 
 static Status PrimariesToXYZ(float rx, float ry, float gx, float gy, float bx,
-                             float by, float wx, float wy, Matrix3x3& matrix) {
+                             float by, float wx, float wy, float matrix[9]) {
   bool ok = (wx >= 0) && (wx <= 1) && (wy > 0) && (wy <= 1);
   if (!ok) {
     return JXL_FAILURE("Invalid white point");
@@ -49,48 +49,51 @@ static Status PrimariesToXYZ(float rx, float ry, float gx, float gy, float bx,
   // TODO(lode): also require rx, ry, gx, gy, bx, to be in range 0-1? ICC
   // profiles in theory forbid negative XYZ values, but in practice the ACES P0
   // color space uses a negative y for the blue primary.
-  Matrix3x3 primaries{{{rx, gx, bx},
-                       {ry, gy, by},
-                       {1.0f - rx - ry, 1.0f - gx - gy, 1.0f - bx - by}}};
-  Matrix3x3 primaries_inv;
-  primaries_inv = primaries;
+  float primaries[9] = {
+      rx, gx, bx, ry, gy, by, 1.0f - rx - ry, 1.0f - gx - gy, 1.0f - bx - by};
+  float primaries_inv[9];
+  memcpy(primaries_inv, primaries, sizeof(float) * 9);
   JXL_RETURN_IF_ERROR(Inv3x3Matrix(primaries_inv));
 
-  Vector3 w{wx / wy, 1.0f, (1.0f - wx - wy) / wy};
+  float w[3] = {wx / wy, 1.0f, (1.0f - wx - wy) / wy};
   // 1 / tiny float can still overflow
   JXL_RETURN_IF_ERROR(std::isfinite(w[0]) && std::isfinite(w[2]));
-  Vector3 xyz;
+  float xyz[3];
   Mul3x3Vector(primaries_inv, w, xyz);
 
-  Matrix3x3 a{{{xyz[0], 0, 0}, {0, xyz[1], 0}, {0, 0, xyz[2]}}};
+  float a[9] = {
+      xyz[0], 0, 0, 0, xyz[1], 0, 0, 0, xyz[2],
+  };
 
   Mul3x3Matrix(primaries, a, matrix);
   return true;
 }
 
 /* Chromatic adaptation matrices*/
-constexpr Matrix3x3 kBradford{{{0.8951f, 0.2664f, -0.1614f},
-                               {-0.7502f, 1.7135f, 0.0367f},
-                               {0.0389f, -0.0685f, 1.0296f}}};
-constexpr Matrix3x3 kBradfordInv{{{0.9869929f, -0.1470543f, 0.1599627f},
-                                  {0.4323053f, 0.5183603f, 0.0492912f},
-                                  {-0.0085287f, 0.0400428f, 0.9684867f}}};
+constexpr float kBradford[9] = {
+    0.8951f, 0.2664f, -0.1614f, -0.7502f, 1.7135f,
+    0.0367f, 0.0389f, -0.0685f, 1.0296f,
+};
+constexpr float kBradfordInv[9] = {
+    0.9869929f, -0.1470543f, 0.1599627f, 0.4323053f, 0.5183603f,
+    0.0492912f, -0.0085287f, 0.0400428f, 0.9684867f,
+};
 
-// Adapts white point x, y to D50
-static Status AdaptToXYZD50(float wx, float wy, Matrix3x3& matrix) {
+// Adapts whitepoint x, y to D50
+static Status AdaptToXYZD50(float wx, float wy, float matrix[9]) {
   bool ok = (wx >= 0) && (wx <= 1) && (wy > 0) && (wy <= 1);
   if (!ok) {
     // Out of range values can cause division through zero
     // further down with the bradford adaptation too.
     return JXL_FAILURE("Invalid white point");
   }
-  Vector3 w{wx / wy, 1.0f, (1.0f - wx - wy) / wy};
+  float w[3] = {wx / wy, 1.0f, (1.0f - wx - wy) / wy};
   // 1 / tiny float can still overflow
   JXL_RETURN_IF_ERROR(std::isfinite(w[0]) && std::isfinite(w[2]));
-  Vector3 w50{0.96422f, 1.0f, 0.82521f};
+  float w50[3] = {0.96422f, 1.0f, 0.82521f};
 
-  Vector3 lms;
-  Vector3 lms50;
+  float lms[3];
+  float lms50[3];
 
   Mul3x3Vector(kBradford, w, lms);
   Mul3x3Vector(kBradford, w50, lms50);
@@ -98,15 +101,15 @@ static Status AdaptToXYZD50(float wx, float wy, Matrix3x3& matrix) {
   if (lms[0] == 0 || lms[1] == 0 || lms[2] == 0) {
     return JXL_FAILURE("Invalid white point");
   }
-  Matrix3x3 a{{{lms50[0] / lms[0], 0, 0},
-               {0, lms50[1] / lms[1], 0},
-               {0, 0, lms50[2] / lms[2]}}};
-  if (!std::isfinite(a[0][0]) || !std::isfinite(a[1][1]) ||
-      !std::isfinite(a[2][2])) {
+  float a[9] = {
+      //       /----> 0, 1, 2, 3,          /----> 4, 5, 6, 7,          /----> 8,
+      lms50[0] / lms[0], 0, 0, 0, lms50[1] / lms[1], 0, 0, 0, lms50[2] / lms[2],
+  };
+  if (!std::isfinite(a[0]) || !std::isfinite(a[4]) || !std::isfinite(a[8])) {
     return JXL_FAILURE("Invalid white point");
   }
 
-  Matrix3x3 b;
+  float b[9];
   Mul3x3Matrix(a, kBradford, b);
   Mul3x3Matrix(kBradfordInv, b, matrix);
 
@@ -115,10 +118,10 @@ static Status AdaptToXYZD50(float wx, float wy, Matrix3x3& matrix) {
 
 static Status PrimariesToXYZD50(float rx, float ry, float gx, float gy,
                                 float bx, float by, float wx, float wy,
-                                Matrix3x3& matrix) {
-  Matrix3x3 toXYZ;
+                                float matrix[9]) {
+  float toXYZ[9];
   JXL_RETURN_IF_ERROR(PrimariesToXYZ(rx, ry, gx, gy, bx, by, wx, wy, toXYZ));
-  Matrix3x3 d50;
+  float d50[9];
   JXL_RETURN_IF_ERROR(AdaptToXYZD50(wx, wy, d50));
 
   Mul3x3Matrix(d50, toXYZ, matrix);
@@ -127,13 +130,14 @@ static Status PrimariesToXYZD50(float rx, float ry, float gx, float gy,
 
 static Status ToneMapPixel(const JxlColorEncoding& c, const float in[3],
                            uint8_t pcslab_out[3]) {
-  Matrix3x3 primaries_XYZ;
+  float primaries_XYZ[9];
   JXL_RETURN_IF_ERROR(PrimariesToXYZ(
       c.primaries_red_xy[0], c.primaries_red_xy[1], c.primaries_green_xy[0],
       c.primaries_green_xy[1], c.primaries_blue_xy[0], c.primaries_blue_xy[1],
       c.white_point_xy[0], c.white_point_xy[1], primaries_XYZ));
-  const Vector3 luminances = primaries_XYZ[1];
-  Color linear;
+  const float luminances[3] = {primaries_XYZ[3], primaries_XYZ[4],
+                               primaries_XYZ[5]};
+  float linear[3];
   JxlTransferFunction tf = c.transfer_function;
   if (tf == JXL_TRANSFER_FUNCTION_PQ) {
     for (size_t i = 0; i < 3; ++i) {
@@ -146,27 +150,26 @@ static Status ToneMapPixel(const JxlColorEncoding& c, const float in[3],
     }
   }
   if (tf == JXL_TRANSFER_FUNCTION_PQ) {
-    Rec2408ToneMapperBase tone_mapper({0.0f, 10000.0f}, {0.0f, 250.0f},
-                                      luminances);
-    tone_mapper.ToneMap(linear);
+    Rec2408ToneMapperBase tone_mapper({0, 10000}, {0, 250}, luminances);
+    tone_mapper.ToneMap(&linear[0], &linear[1], &linear[2]);
   } else {
     HlgOOTF_Base ootf(/*source_luminance=*/300, /*target_luminance=*/80,
                       luminances);
-    ootf.Apply(linear);
+    ootf.Apply(&linear[0], &linear[1], &linear[2]);
   }
-  GamutMapScalar(linear, luminances,
+  GamutMapScalar(&linear[0], &linear[1], &linear[2], luminances,
                  /*preserve_saturation=*/0.3f);
 
-  Matrix3x3 chad;
+  float chad[9];
   JXL_RETURN_IF_ERROR(
       AdaptToXYZD50(c.white_point_xy[0], c.white_point_xy[1], chad));
-  Matrix3x3 to_xyzd50;
+  float to_xyzd50[9];
   Mul3x3Matrix(chad, primaries_XYZ, to_xyzd50);
 
-  Vector3 xyz{0, 0, 0};
+  float xyz[3] = {0, 0, 0};
   for (size_t xyz_c = 0; xyz_c < 3; ++xyz_c) {
     for (size_t rgb_c = 0; rgb_c < 3; ++rgb_c) {
-      xyz[xyz_c] += linear[rgb_c] * to_xyzd50[xyz_c][rgb_c];
+      xyz[xyz_c] += linear[rgb_c] * to_xyzd50[3 * xyz_c + rgb_c];
     }
   }
 
@@ -184,12 +187,12 @@ static Status ToneMapPixel(const JxlColorEncoding& c, const float in[3],
   const float f_y = lab_f(xyz[1] / kYn);
   const float f_z = lab_f(xyz[2] / kZn);
 
-  pcslab_out[0] = static_cast<uint8_t>(
-      std::lroundf(255.f * Clamp1(1.16f * f_y - .16f, 0.f, 1.f)));
+  pcslab_out[0] =
+      static_cast<uint8_t>(.5f + 255.f * Clamp1(1.16f * f_y - .16f, 0.f, 1.f));
   pcslab_out[1] = static_cast<uint8_t>(
-      std::lroundf(128.f + Clamp1(500 * (f_x - f_y), -128.f, 127.f)));
+      .5f + 128.f + Clamp1(500 * (f_x - f_y), -128.f, 127.f));
   pcslab_out[2] = static_cast<uint8_t>(
-      std::lroundf(128.f + Clamp1(200 * (f_y - f_z), -128.f, 127.f)));
+      .5f + 128.f + Clamp1(200 * (f_y - f_z), -128.f, 127.f));
 
   return true;
 }
@@ -203,9 +206,9 @@ static std::vector<uint16_t> CreateTableCurve(uint32_t N, const ExtraTF tf,
   JXL_ASSERT(N <= 4096);  // ICC MFT2 only allows 4K entries
   JXL_ASSERT(tf == ExtraTF::kPQ || tf == ExtraTF::kHLG);
 
-  static constexpr Vector3 kLuminances{1.f / 3, 1.f / 3, 1.f / 3};
-  Rec2408ToneMapperBase tone_mapper(
-      {0.0f, kPQIntensityTarget}, {0.0f, kDefaultIntensityTarget}, kLuminances);
+  static constexpr float kLuminances[] = {1.f / 3, 1.f / 3, 1.f / 3};
+  Rec2408ToneMapperBase tone_mapper({0, kPQIntensityTarget},
+                                    {0, kDefaultIntensityTarget}, kLuminances);
   // No point using float - LCMS converts to 16-bit for A2B/MFT.
   std::vector<uint16_t> table(N);
   for (uint32_t i = 0; i < N; ++i) {
@@ -217,10 +220,11 @@ static std::vector<uint16_t> CreateTableCurve(uint32_t N, const ExtraTF tf,
                    : TF_PQ_Base::DisplayFromEncoded(kPQIntensityTarget, dx);
     if (tone_map && tf == ExtraTF::kPQ &&
         kPQIntensityTarget > kDefaultIntensityTarget) {
-      float l = y * 10000 / kPQIntensityTarget;
-      Color gray{l, l, l};
-      tone_mapper.ToneMap(gray);
-      y = gray[0];
+      float r = y * 10000 / kPQIntensityTarget;
+      float g = r;
+      float b = r;
+      tone_mapper.ToneMap(&r, &g, &b);
+      y = r;
     }
     JXL_ASSERT(y >= 0.0);
     // Clamp to table range - necessary for HLG.
@@ -231,7 +235,7 @@ static std::vector<uint16_t> CreateTableCurve(uint32_t N, const ExtraTF tf,
   return table;
 }
 
-static Status CIEXYZFromWhiteCIExy(double wx, double wy, Color& XYZ) {
+static Status CIEXYZFromWhiteCIExy(double wx, double wy, float XYZ[3]) {
   // Target Y = 1.
   if (std::abs(wy) < 1e-12) return JXL_FAILURE("Y value is too small");
   const float factor = 1 / wy;
@@ -350,23 +354,23 @@ static void ICCComputeMD5(const std::vector<uint8_t>& data, uint8_t sum[16])
   sum[15] = d0 >> 24u;
 }
 
-static Status CreateICCChadMatrix(double wx, double wy, Matrix3x3& result) {
-  Matrix3x3 m;
+static Status CreateICCChadMatrix(double wx, double wy, float result[9]) {
+  float m[9];
   if (wy == 0) {  // WhitePoint can not be pitch-black.
     return JXL_FAILURE("Invalid WhitePoint");
   }
   JXL_RETURN_IF_ERROR(AdaptToXYZD50(wx, wy, m));
-  result = m;
+  memcpy(result, m, sizeof(float) * 9);
   return true;
 }
 
-// Creates RGB to XYZ matrix given RGB primaries and white point in xy.
+// Creates RGB to XYZ matrix given RGB primaries and whitepoint in xy.
 static Status CreateICCRGBMatrix(double rx, double ry, double gx, double gy,
                                  double bx, double by, double wx, double wy,
-                                 Matrix3x3& result) {
-  Matrix3x3 m;
+                                 float result[9]) {
+  float m[9];
   JXL_RETURN_IF_ERROR(PrimariesToXYZD50(rx, ry, gx, gy, bx, by, wx, wy, m));
-  result = m;
+  memcpy(result, m, sizeof(float) * 9);
   return true;
 }
 
@@ -406,7 +410,7 @@ static Status WriteICCS15Fixed16(float value, size_t pos,
   // Even the first value works well,...
   bool ok = (-32767.995f <= value) && (value <= 32767.995f);
   if (!ok) return JXL_FAILURE("ICC value is out of range / NaN");
-  int32_t i = static_cast<int32_t>(std::lround(value * 65536.0f));
+  int32_t i = value * 65536.0f + 0.5f;
   // Use two's complement
   uint32_t u = static_cast<uint32_t>(i);
   WriteICCUint32(u, pos, icc);
@@ -509,7 +513,7 @@ static void CreateICCMlucTag(const std::string& text,
   }
 }
 
-static Status CreateICCXYZTag(const Color& xyz, std::vector<uint8_t>* tags) {
+static Status CreateICCXYZTag(float xyz[3], std::vector<uint8_t>* tags) {
   WriteICCTag("XYZ ", tags->size(), tags);
   WriteICCUint32(0, tags->size(), tags);
   for (size_t i = 0; i < 3; ++i) {
@@ -518,14 +522,11 @@ static Status CreateICCXYZTag(const Color& xyz, std::vector<uint8_t>* tags) {
   return true;
 }
 
-static Status CreateICCChadTag(const Matrix3x3& chad,
-                               std::vector<uint8_t>* tags) {
+static Status CreateICCChadTag(float chad[9], std::vector<uint8_t>* tags) {
   WriteICCTag("sf32", tags->size(), tags);
   WriteICCUint32(0, tags->size(), tags);
-  for (size_t j = 0; j < 3; j++) {
-    for (size_t i = 0; i < 3; i++) {
-      JXL_RETURN_IF_ERROR(WriteICCS15Fixed16(chad[j][i], tags->size(), tags));
-    }
+  for (size_t i = 0; i < 9; i++) {
+    JXL_RETURN_IF_ERROR(WriteICCS15Fixed16(chad[i], tags->size(), tags));
   }
   return true;
 }
@@ -582,8 +583,7 @@ static void CreateICCCurvCurvTag(const std::vector<uint16_t>& curve,
 }
 
 // Writes 12 + 4*params.size() bytes
-static Status CreateICCCurvParaTag(const std::vector<float>& params,
-                                   size_t curve_type,
+static Status CreateICCCurvParaTag(std::vector<float> params, size_t curve_type,
                                    std::vector<uint8_t>* tags) {
   WriteICCTag("para", tags->size(), tags);
   WriteICCUint32(0, tags->size(), tags);
@@ -639,7 +639,7 @@ static Status CreateICCLutAtoBTagForXYB(std::vector<uint8_t>* tags) {
       for (size_t ib = 0; ib < 2; ++ib) {
         const jxl::cms::ColorCube0D& out_f = cube[ix][iy][ib];
         for (int i = 0; i < 3; ++i) {
-          int32_t val = static_cast<int32_t>(std::lroundf(65535 * out_f[i]));
+          int32_t val = static_cast<int32_t>(0.5f + 65535 * out_f[i]);
           JXL_DASSERT(val >= 0 && val <= 65535);
           WriteICCUint16(val, tags->size(), tags);
         }
@@ -735,7 +735,7 @@ static Status CreateICCLutAtoBTagForHDR(JxlColorEncoding c,
 
 // Some software (Apple Safari, Preview) requires this.
 static Status CreateICCNoOpBToATag(std::vector<uint8_t>* tags) {
-  WriteICCTag("mBA ", tags->size(), tags);  // notypo
+  WriteICCTag("mBA ", tags->size(), tags);
   // 4 reserved bytes set to 0
   WriteICCUint32(0, tags->size(), tags);
   // number of input channels
@@ -774,12 +774,9 @@ static std::string ToString(JxlColorSpace color_space) {
       return "XYB";
     case JXL_COLOR_SPACE_UNKNOWN:
       return "CS?";
-    default:
-      // Should not happen - visitor fails if enum is invalid.
-      JXL_DEBUG_ABORT("Invalid ColorSpace %u",
-                      static_cast<uint32_t>(color_space));
-      return "Invalid";
   }
+  // Should not happen - visitor fails if enum is invalid.
+  JXL_UNREACHABLE("Invalid ColorSpace %u", static_cast<uint32_t>(color_space));
 }
 
 static std::string ToString(JxlWhitePoint white_point) {
@@ -792,12 +789,9 @@ static std::string ToString(JxlWhitePoint white_point) {
       return "EER";
     case JXL_WHITE_POINT_DCI:
       return "DCI";
-    default:
-      // Should not happen - visitor fails if enum is invalid.
-      JXL_DEBUG_ABORT("Invalid WhitePoint %u",
-                      static_cast<uint32_t>(white_point));
-      return "Invalid";
   }
+  // Should not happen - visitor fails if enum is invalid.
+  JXL_UNREACHABLE("Invalid WhitePoint %u", static_cast<uint32_t>(white_point));
 }
 
 static std::string ToString(JxlPrimaries primaries) {
@@ -810,11 +804,9 @@ static std::string ToString(JxlPrimaries primaries) {
       return "DCI";
     case JXL_PRIMARIES_CUSTOM:
       return "Cst";
-    default:
-      // Should not happen - visitor fails if enum is invalid.
-      JXL_DEBUG_ABORT("Invalid Primaries %u", static_cast<uint32_t>(primaries));
-      return "Invalid";
   }
+  // Should not happen - visitor fails if enum is invalid.
+  JXL_UNREACHABLE("Invalid Primaries %u", static_cast<uint32_t>(primaries));
 }
 
 static std::string ToString(JxlTransferFunction transfer_function) {
@@ -834,14 +826,11 @@ static std::string ToString(JxlTransferFunction transfer_function) {
     case JXL_TRANSFER_FUNCTION_UNKNOWN:
       return "TF?";
     case JXL_TRANSFER_FUNCTION_GAMMA:
-      JXL_DEBUG_ABORT("Invalid TransferFunction: gamma");
-      return "Invalid";
-    default:
-      // Should not happen - visitor fails if enum is invalid.
-      JXL_DEBUG_ABORT("Invalid TransferFunction %u",
-                      static_cast<uint32_t>(transfer_function));
-      return "Invalid";
+      JXL_UNREACHABLE("Invalid TransferFunction: gamma");
   }
+  // Should not happen - visitor fails if enum is invalid.
+  JXL_UNREACHABLE("Invalid TransferFunction %u",
+                  static_cast<uint32_t>(transfer_function));
 }
 
 static std::string ToString(JxlRenderingIntent rendering_intent) {
@@ -856,26 +845,11 @@ static std::string ToString(JxlRenderingIntent rendering_intent) {
       return "Abs";
   }
   // Should not happen - visitor fails if enum is invalid.
-  JXL_DEBUG_ABORT("Invalid RenderingIntent %u",
+  JXL_UNREACHABLE("Invalid RenderingIntent %u",
                   static_cast<uint32_t>(rendering_intent));
-  return "Invalid";
 }
 
 static std::string ColorEncodingDescriptionImpl(const JxlColorEncoding& c) {
-  if (c.color_space == JXL_COLOR_SPACE_RGB &&
-      c.white_point == JXL_WHITE_POINT_D65) {
-    if (c.rendering_intent == JXL_RENDERING_INTENT_PERCEPTUAL &&
-        c.transfer_function == JXL_TRANSFER_FUNCTION_SRGB) {
-      if (c.primaries == JXL_PRIMARIES_SRGB) return "sRGB";
-      if (c.primaries == JXL_PRIMARIES_P3) return "DisplayP3";
-    }
-    if (c.rendering_intent == JXL_RENDERING_INTENT_RELATIVE &&
-        c.primaries == JXL_PRIMARIES_2100) {
-      if (c.transfer_function == JXL_TRANSFER_FUNCTION_PQ) return "Rec2100PQ";
-      if (c.transfer_function == JXL_TRANSFER_FUNCTION_HLG) return "Rec2100HLG";
-    }
-  }
-
   std::string d = ToString(c.color_space);
 
   bool explicit_wp_tf = (c.color_space != JXL_COLOR_SPACE_XYB);
@@ -968,12 +942,12 @@ static Status MaybeCreateProfileImpl(const JxlColorEncoding& c,
 
   // TODO(eustas): isn't it the other way round: gray image has d50 WhitePoint?
   if (c.color_space == JXL_COLOR_SPACE_GRAY) {
-    Color wtpt;
+    float wtpt[3];
     JXL_RETURN_IF_ERROR(
         CIEXYZFromWhiteCIExy(c.white_point_xy[0], c.white_point_xy[1], wtpt));
     JXL_RETURN_IF_ERROR(CreateICCXYZTag(wtpt, &tags));
   } else {
-    Color d50{0.964203, 1.0, 0.824905};
+    float d50[3] = {0.964203, 1.0, 0.824905};
     JXL_RETURN_IF_ERROR(CreateICCXYZTag(d50, &tags));
   }
   FinalizeICCTag(&tags, &tag_offset, &tag_size);
@@ -981,7 +955,7 @@ static Status MaybeCreateProfileImpl(const JxlColorEncoding& c,
 
   if (c.color_space != JXL_COLOR_SPACE_GRAY) {
     // Chromatic adaptation matrix
-    Matrix3x3 chad;
+    float chad[9];
     JXL_RETURN_IF_ERROR(
         CreateICCChadMatrix(c.white_point_xy[0], c.white_point_xy[1], chad));
 
@@ -994,14 +968,14 @@ static Status MaybeCreateProfileImpl(const JxlColorEncoding& c,
     MaybeCreateICCCICPTag(c, &tags, &tag_offset, &tag_size, &tagtable,
                           &offsets);
 
-    Matrix3x3 m;
+    float m[9];
     JXL_RETURN_IF_ERROR(CreateICCRGBMatrix(
         c.primaries_red_xy[0], c.primaries_red_xy[1], c.primaries_green_xy[0],
         c.primaries_green_xy[1], c.primaries_blue_xy[0], c.primaries_blue_xy[1],
         c.white_point_xy[0], c.white_point_xy[1], m));
-    Color r{m[0][0], m[1][0], m[2][0]};
-    Color g{m[0][1], m[1][1], m[2][1]};
-    Color b{m[0][2], m[1][2], m[2][2]};
+    float r[3] = {m[0], m[3], m[6]};
+    float g[3] = {m[1], m[4], m[7]};
+    float b[3] = {m[2], m[5], m[8]};
 
     JXL_RETURN_IF_ERROR(CreateICCXYZTag(r, &tags));
     FinalizeICCTag(&tags, &tag_offset, &tag_size);
@@ -1063,8 +1037,7 @@ static Status MaybeCreateProfileImpl(const JxlColorEncoding& c,
               CreateICCCurvParaTag({2.6, 1.0, 0.0, 1.0, 0.0}, 3, &tags));
           break;
         default:
-          return JXL_UNREACHABLE("unknown TF %u",
-                                 static_cast<unsigned int>(tf));
+          JXL_UNREACHABLE("Unknown TF %u", static_cast<unsigned int>(tf));
       }
     }
     FinalizeICCTag(&tags, &tag_offset, &tag_size);

@@ -8,22 +8,20 @@
 #ifndef LIB_JXL_BUTTERAUGLI_BUTTERAUGLI_H_
 #define LIB_JXL_BUTTERAUGLI_BUTTERAUGLI_H_
 
-#include <jxl/memory_manager.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include <atomic>
+#include <cmath>
 #include <cstddef>
-#include <cstdlib>
-#include <cstring>
 #include <memory>
 
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/image.h"
 
-#if !defined(BUTTERAUGLI_ENABLE_CHECKS)
 #define BUTTERAUGLI_ENABLE_CHECKS 0
-#endif
-
 #define BUTTERAUGLI_RESTRICT JXL_RESTRICT
 
 // This is the main interface to butteraugli image similarity
@@ -150,11 +148,9 @@ struct PsychoImage {
 // Hold it here and only allocate on demand to reduce memory usage.
 struct BlurTemp {
   Status GetTransposed(const ImageF &in, ImageF **out) {
-    JxlMemoryManager *memory_manager = in.memory_manager();
     if (transposed_temp.xsize() == 0) {
-      JXL_ASSIGN_OR_RETURN(
-          transposed_temp,
-          ImageF::Create(memory_manager, in.ysize(), in.xsize()));
+      JXL_ASSIGN_OR_RETURN(transposed_temp,
+                           ImageF::Create(in.ysize(), in.xsize()));
     }
     *out = &transposed_temp;
     return true;

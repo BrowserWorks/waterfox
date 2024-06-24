@@ -23,7 +23,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#ifdef __cplusplus
+#if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
 #endif
 
@@ -246,7 +246,7 @@ typedef struct {
   jpegxl_cms_destroy_func destroy;
 } JxlCmsInterface;
 
-#ifdef __cplusplus
+#if defined(__cplusplus) || defined(c_plusplus)
 }
 #endif
 

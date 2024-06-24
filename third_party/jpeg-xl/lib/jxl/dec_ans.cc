@@ -5,9 +5,8 @@
 
 #include "lib/jxl/dec_ans.h"
 
-#include <jxl/memory_manager.h>
+#include <stdint.h>
 
-#include <cstdint>
 #include <vector>
 
 #include "lib/jxl/ans_common.h"
@@ -17,7 +16,6 @@
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/dec_context_map.h"
 #include "lib/jxl/fields.h"
-#include "lib/jxl/memory_manager_internal.h"
 
 namespace jxl {
 namespace {
@@ -184,11 +182,9 @@ Status ReadHistogram(int precision_bits, std::vector<int32_t>* counts,
 
 }  // namespace
 
-Status DecodeANSCodes(JxlMemoryManager* memory_manager,
-                      const size_t num_histograms,
+Status DecodeANSCodes(const size_t num_histograms,
                       const size_t max_alphabet_size, BitReader* in,
                       ANSCode* result) {
-  result->memory_manager = memory_manager;
   result->degenerate_symbols.resize(num_histograms, -1);
   if (result->use_prefix_code) {
     JXL_ASSERT(max_alphabet_size <= 1 << PREFIX_MAX_BITS);
@@ -224,12 +220,11 @@ Status DecodeANSCodes(JxlMemoryManager* memory_manager,
     }
   } else {
     JXL_ASSERT(max_alphabet_size <= ANS_MAX_ALPHABET_SIZE);
-    size_t alloc_size = num_histograms * (1 << result->log_alpha_size) *
-                        sizeof(AliasTable::Entry);
-    JXL_ASSIGN_OR_RETURN(result->alias_tables,
-                         AlignedMemory::Create(memory_manager, alloc_size));
+    result->alias_tables =
+        AllocateArray(num_histograms * (1 << result->log_alpha_size) *
+                      sizeof(AliasTable::Entry));
     AliasTable::Entry* alias_tables =
-        result->alias_tables.address<AliasTable::Entry>();
+        reinterpret_cast<AliasTable::Entry*>(result->alias_tables.get());
     for (size_t c = 0; c < num_histograms; ++c) {
       std::vector<int32_t> counts;
       if (!ReadHistogram(ANS_LOG_TAB_SIZE, &counts, in)) {
@@ -330,8 +325,7 @@ void ANSCode::UpdateMaxNumBits(size_t ctx, size_t symbol) {
   max_num_bits = std::max(max_num_bits, total_bits);
 }
 
-Status DecodeHistograms(JxlMemoryManager* memory_manager, BitReader* br,
-                        size_t num_contexts, ANSCode* code,
+Status DecodeHistograms(BitReader* br, size_t num_contexts, ANSCode* code,
                         std::vector<uint8_t>* context_map, bool disallow_lz77) {
   JXL_RETURN_IF_ERROR(Bundle::Read(br, &code->lz77));
   if (code->lz77.enabled) {
@@ -345,8 +339,7 @@ Status DecodeHistograms(JxlMemoryManager* memory_manager, BitReader* br,
   size_t num_histograms = 1;
   context_map->resize(num_contexts);
   if (num_contexts > 1) {
-    JXL_RETURN_IF_ERROR(
-        DecodeContextMap(memory_manager, context_map, &num_histograms, br));
+    JXL_RETURN_IF_ERROR(DecodeContextMap(context_map, &num_histograms, br));
   }
   JXL_DEBUG_V(
       4, "Decoded context map of size %" PRIuS " and %" PRIuS " histograms",
@@ -362,52 +355,9 @@ Status DecodeHistograms(JxlMemoryManager* memory_manager, BitReader* br,
   JXL_RETURN_IF_ERROR(
       DecodeUintConfigs(code->log_alpha_size, &code->uint_config, br));
   const size_t max_alphabet_size = 1 << code->log_alpha_size;
-  JXL_RETURN_IF_ERROR(DecodeANSCodes(memory_manager, num_histograms,
-                                     max_alphabet_size, br, code));
+  JXL_RETURN_IF_ERROR(
+      DecodeANSCodes(num_histograms, max_alphabet_size, br, code));
   return true;
-}
-
-StatusOr<ANSSymbolReader> ANSSymbolReader::Create(const ANSCode* code,
-                                                  BitReader* JXL_RESTRICT br,
-                                                  size_t distance_multiplier) {
-  AlignedMemory lz77_window_storage;
-  if (code->lz77.enabled) {
-    JxlMemoryManager* memory_manager = code->memory_manager;
-    JXL_ASSIGN_OR_RETURN(
-        lz77_window_storage,
-        AlignedMemory::Create(memory_manager, kWindowSize * sizeof(uint32_t)));
-  }
-  return ANSSymbolReader(code, br, distance_multiplier,
-                         std::move(lz77_window_storage));
-}
-
-ANSSymbolReader::ANSSymbolReader(const ANSCode* code,
-                                 BitReader* JXL_RESTRICT br,
-                                 size_t distance_multiplier,
-                                 AlignedMemory&& lz77_window_storage)
-    : alias_tables_(code->alias_tables.address<AliasTable::Entry>()),
-      huffman_data_(code->huffman_data.data()),
-      use_prefix_code_(code->use_prefix_code),
-      configs(code->uint_config.data()),
-      lz77_window_storage_(std::move(lz77_window_storage)) {
-  if (!use_prefix_code_) {
-    state_ = static_cast<uint32_t>(br->ReadFixedBits<32>());
-    log_alpha_size_ = code->log_alpha_size;
-    log_entry_size_ = ANS_LOG_TAB_SIZE - code->log_alpha_size;
-    entry_size_minus_1_ = (1 << log_entry_size_) - 1;
-  } else {
-    state_ = (ANS_SIGNATURE << 16u);
-  }
-  if (!code->lz77.enabled) return;
-  lz77_window_ = lz77_window_storage_.address<uint32_t>();
-  lz77_ctx_ = code->lz77.nonserialized_distance_context;
-  lz77_length_uint_ = code->lz77.length_uint_config;
-  lz77_threshold_ = code->lz77.min_symbol;
-  lz77_min_length_ = code->lz77.min_length;
-  num_special_distances_ = distance_multiplier == 0 ? 0 : kNumSpecialDistances;
-  for (size_t i = 0; i < num_special_distances_; i++) {
-    special_distances_[i] = SpecialDistance(i, distance_multiplier);
-  }
 }
 
 }  // namespace jxl

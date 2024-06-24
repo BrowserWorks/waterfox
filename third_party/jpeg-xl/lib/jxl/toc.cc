@@ -5,7 +5,6 @@
 
 #include "lib/jxl/toc.h"
 
-#include <jxl/memory_manager.h>
 #include <stdint.h>
 
 #include "lib/jxl/base/common.h"
@@ -20,8 +19,7 @@ size_t MaxBits(const size_t num_sizes) {
   return 1 + kBitsPerByte + entry_bits + kBitsPerByte;
 }
 
-Status ReadToc(JxlMemoryManager* memory_manager, size_t toc_entries,
-               BitReader* JXL_RESTRICT reader,
+Status ReadToc(size_t toc_entries, BitReader* JXL_RESTRICT reader,
                std::vector<uint32_t>* JXL_RESTRICT sizes,
                std::vector<coeff_order_t>* JXL_RESTRICT permutation) {
   if (toc_entries > 65536) {
@@ -53,8 +51,8 @@ Status ReadToc(JxlMemoryManager* memory_manager, size_t toc_entries,
   if (reader->ReadFixedBits<1>() == 1) {
     JXL_RETURN_IF_ERROR(check_bit_budget(toc_entries));
     permutation->resize(toc_entries);
-    JXL_RETURN_IF_ERROR(DecodePermutation(
-        memory_manager, /*skip=*/0, toc_entries, permutation->data(), reader));
+    JXL_RETURN_IF_ERROR(DecodePermutation(/*skip=*/0, toc_entries,
+                                          permutation->data(), reader));
   }
   JXL_RETURN_IF_ERROR(reader->JumpToByteBoundary());
   JXL_RETURN_IF_ERROR(check_bit_budget(toc_entries));
@@ -66,14 +64,12 @@ Status ReadToc(JxlMemoryManager* memory_manager, size_t toc_entries,
   return true;
 }
 
-Status ReadGroupOffsets(JxlMemoryManager* memory_manager, size_t toc_entries,
-                        BitReader* JXL_RESTRICT reader,
+Status ReadGroupOffsets(size_t toc_entries, BitReader* JXL_RESTRICT reader,
                         std::vector<uint64_t>* JXL_RESTRICT offsets,
                         std::vector<uint32_t>* JXL_RESTRICT sizes,
                         uint64_t* total_size) {
   std::vector<coeff_order_t> permutation;
-  JXL_RETURN_IF_ERROR(
-      ReadToc(memory_manager, toc_entries, reader, sizes, &permutation));
+  JXL_RETURN_IF_ERROR(ReadToc(toc_entries, reader, sizes, &permutation));
 
   offsets->clear();
   offsets->resize(toc_entries);
