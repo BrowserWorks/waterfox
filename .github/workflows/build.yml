@@ -90,7 +90,7 @@ jobs:
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         env:
           LINK: https://github.com/mozilla/sccache/releases/download
-          SCCACHE_VERSION: "v0.7.7"
+          SCCACHE_VERSION: "v0.8.1"
         run: |
           SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
           mkdir -p $HOME/.local/bin
@@ -245,7 +245,7 @@ jobs:
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         env:
           LINK: https://github.com/mozilla/sccache/releases/download
-          SCCACHE_VERSION: "v0.7.7"
+          SCCACHE_VERSION: "v0.8.1"
         run: |
           SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
           mkdir -p $HOME/.local/bin
@@ -331,7 +331,7 @@ jobs:
           client-id: "${{ secrets.AZURE_CLIENT_ID }}"
           tenant-id: "${{ secrets.AZURE_TENANT_ID }}"
           subscription-id: "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
-      - name: ✍️ Sign
+      - name: ✍ Sign
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         run: >
           jsign --storetype AZUREKEYVAULT -s ${{ secrets.AZURE_VAULT_ID }} -a
@@ -497,7 +497,7 @@ jobs:
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         env:
           LINK: https://github.com/mozilla/sccache/releases/download
-          SCCACHE_VERSION: "v0.7.7"
+          SCCACHE_VERSION: "v0.8.1"
         run: |
           SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
           mkdir -p $HOME/.local/bin
@@ -610,7 +610,7 @@ jobs:
           path: obj-${{ matrix.arch }}/dist/
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11' 
+          python-version: '3.11'
       - name: "\U0001F3D7 Run PGO"
         run: |
           python --version
@@ -674,7 +674,7 @@ jobs:
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         env:
           LINK: https://github.com/mozilla/sccache/releases/download
-          SCCACHE_VERSION: "v0.7.7"
+          SCCACHE_VERSION: "v0.8.1"
         run: |
           SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
           mkdir -p $HOME/.local/bin
@@ -802,7 +802,7 @@ jobs:
           path: "./obj-${{ env.ARCH-ARM64 }}/dist/"
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11' 
+          python-version: '3.11'
       - name: "\U0001D33B Unify .app(s)"
         run: |
           MOZCONFIG=.mozconfig-${{ env.ARCH-X64 }} ./mach python toolkit/mozapps/installer/unify.py obj-${{ env.ARCH-X64 }}/dist/waterfox/*.app obj-${{ env.ARCH-ARM64 }}/dist/waterfox/*.app
@@ -816,7 +816,7 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.MACOS_CI_KEYCHAIN_PWD }}" build.keychain
           echo "Create keychain profile"
           xcrun notarytool store-credentials "notarytool-profile" --apple-id "${{ secrets.MACOS_NOTARIZATION_APPLE_ID }}" --team-id "${{ secrets.MACOS_NOTARIZATION_TEAM_ID }}" --password "${{ secrets.MACOS_NOTARIZATION_PWD }}"
-      - name: ✍️ Sign .app(s)
+      - name: ✍ Sign .app(s)
         run: |
           sudo chmod -R 755 ./obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app
           sudo xattr -dr com.apple.quarantine ./obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app
@@ -835,7 +835,7 @@ jobs:
           xcrun notarytool submit "notarization.zip" --keychain-profile "notarytool-profile" --wait
           echo "Attach staple"
           xcrun stapler staple "./obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app"
-      - name: "\U0001F4E6 Create and ✍️ Sign .dmg"
+      - name: "\U0001F4E6 Create and ✍ Sign .dmg"
         run: |
           npm install --global create-dmg
           create-dmg "obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app" ./
@@ -934,7 +934,7 @@ jobs:
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         env:
           LINK: https://github.com/mozilla/sccache/releases/download
-          SCCACHE_VERSION: "v0.7.7"
+          SCCACHE_VERSION: "v0.8.1"
         run: |
           SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
           mkdir -p $HOME/.local/bin
@@ -1002,7 +1002,7 @@ jobs:
             echo "WFX_PRE_RELEASE should be 0. ${WFX_PRE_RELEASE}"
           fi
           export USE_PGO=1
-          ./mach build          
+          ./mach build
       - name: Stop sccache
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         run: |
@@ -1055,9 +1055,9 @@ jobs:
           | cut -d'=' -f2)
 
           SHA512=$(shasum -a 512 waterfox-${{ env.VERSION_DISPLAY }}.complete.mar | awk '{print $1}')
-          
+
           SIZE=$(ls -l waterfox-${{ env.VERSION_DISPLAY }}.complete.mar | awk '{print $5}')
-          
+
           echo "Display Version: ${{ env.VERSION_DISPLAY }}, Version: $VERSION,
           Build ID: $BUILDID, File Size: $SIZE, SHA512: $SHA512"
 
