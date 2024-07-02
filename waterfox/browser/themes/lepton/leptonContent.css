@@ -12,6 +12,14 @@
     min-height: 27px !important;
     padding-inline-start: 35px !important;
   }
+  .translations-manage-language:first-child {
+    padding-block: 4px !important;
+    margin-bottom: 4px !important;
+  }
+  .translations-manage-language button {
+    min-height: var(--size-item-medium, 28px) !important;
+    max-height: var(--size-item-medium, 28px) !important;
+  }
   #firefoxExperimentalCategory:not([hidden="true"]) {
     display: inline-block;
   }
@@ -20,6 +28,9 @@
   }
   #firefoxExperimentalCategory > hbox {
     transform: translateY(5px);
+  }
+  #firefoxExperimentalCategory .description-deemphasized {
+    display: none;
   }
   #pane-experimental-featureGates > html|p[data-l10n-id="pane-experimental-description2"] {
     border-bottom: 1px solid var(--in-content-border-color);
@@ -30,6 +41,14 @@
   #updates-message + .page-options-menu > .more-options-button {
     box-sizing: content-box;
     padding: 0 !important;
+  }
+  #categories {
+    padding-inline-end: 1px !important; /* Original: 4px */
+  }
+}
+@-moz-document url-prefix("about:policies") {
+  #categories > .category {
+    box-sizing: border-box;
   }
 }
 /** Video player **************************************************************/
@@ -1009,6 +1028,7 @@
       .MetadataCard-content a,
       .CollectionSort-label,
       .SearchResult-summary,
+      .SearchResult-note,
       .AddonMeta .MetadataCard-content a.AddonMeta-reviews-content-link,
       .AddonMeta .MetadataCard-title a.AddonMeta-reviews-content-link,
       .PermissionsCard-subhead--optional,
@@ -1500,6 +1520,7 @@
         --color-moz-inverse-bg: var(red) !important;
         --focus-shadow: 0 0 0 4px color-mix(in srgb, var(--in-content-primary-button-background) 30%, transparent),
           0 0 0 2px var(--in-content-primary-button-background-active);
+        --color-dark-gray-10: var(--in-content-deemphasized-text) !important;
       }
       .warning {
         --color-link: rgb(55, 255, 255) !important;
@@ -1608,7 +1629,9 @@
       details .is-summary button::before,
       summary::before,
       .icon-button > button,
-      .search-button {
+      .search-button,
+      img:is(.pencil, .thumbsup, .syncing.icon),
+      #step-indicator li:not([status="done"])::before {
         filter: invert(95%) !important;
       }
       button.markup-toolbar-button {
@@ -1674,6 +1697,7 @@
         color: var(--in-content-page-color) !important;
       }
       #main-content.panel a,
+      .nav-active,
       .links a,
       .link-blue,
       .text-blue-500 {
@@ -1718,6 +1742,7 @@
       .input-text,
       header,
       .card,
+      .card-base,
       .bg-white:not(nav) {
         background: var(--in-content-box-background) !important;
       }
@@ -1730,6 +1755,7 @@
       .hover\:bg-grey-100:hover {
         background: var(--in-content-button-background-hover) !important;
       }
+      .nav-active,
       .text-blue-500 .cta-neutral,
       .text-blue-500 .bg-grey-50,
       .text-blue-500 .hover\:bg-grey-100 {
@@ -1757,6 +1783,14 @@
       footer a[data-testid="link-mozilla"] {
         filter: invert(95%) !important;
       }
+      div[data-testid="settings-connected-service"]
+        svg:is(
+          [data-testid="mobile-icon"],
+          [data-testid="desktop-icon"],
+          [data-testid="tablet-icon"],
+          [data-testid="vr-icon"],
+          [data-testid="addon-icon"]
+        ),
       header button svg,
       header .rounded svg,
       #service svg {
@@ -1767,6 +1801,7 @@
         filter: brightness(2) !important;
       }
       /* Others */
+      .border-grey-100,
       .input-row input[type="email"],
       .input-row input[type="number"],
       .input-row input[type="password"],
@@ -1775,6 +1810,7 @@
       .unit-row-hr .border-grey-100 {
         border-color: var(--in-content-border-color) !important;
       }
+      .border-grey-100:hover,
       .input-row input[type="email"]:hover,
       .input-row input[type="number"]:hover,
       .input-row input[type="password"]:hover,
@@ -2216,6 +2252,21 @@
       > richlistitem:nth-child(even):not([selected="true"], :hover),
     #translations-manage-install-list > .translations-manage-language:nth-child(even):not([selected="true"], :hover) {
       background-color: var(--in-content-box-background-odd);
+    }
+  }
+  /*= about:processes ==========================================================*/
+  @-moz-document url-prefix("about:processes") {
+    td.type.favicon[style*='background-image: url("chrome://global/skin/icons/link.svg");']
+    {
+      background-image: url("chrome://browser/skin/lepton/link.svg") !important;
+    }
+    .profiler-icon {
+      background: url("chrome://browser/skin/lepton/performance.svg") no-repeat center !important;
+    }
+  }
+  @-moz-document url-prefix("about:profiling") {
+    .perf-intro-icon {
+      background-image: url("chrome://browser/skin/lepton/performance.svg") !important;
     }
   }
   /*= chrome://browser/content/places/places.xhtml =============================*/
