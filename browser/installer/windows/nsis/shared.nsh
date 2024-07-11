@@ -512,6 +512,7 @@ ${RemoveDefaultBrowserAgentShortcut}
   ${AddAssociationIfNoneExist} ".svg" "WaterfoxHTML$5"
   ${AddAssociationIfNoneExist} ".webp"  "WaterfoxHTML$5"
   ${AddAssociationIfNoneExist} ".avif" "WaterfoxHTML$5"
+  ${AddAssociationIfNoneExist} ".jxl" "WaterfoxHTML$5"
 
   ${AddAssociationIfNoneExist} ".pdf" "WaterfoxPDF$5"
 
