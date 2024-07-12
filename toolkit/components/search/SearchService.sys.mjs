@@ -2614,10 +2614,20 @@ export class SearchService {
       this._settings.setMetaDataAttribute(key, value);
     }
 
-    let { engines, privateDefault } =
-      await this.#engineSelector.fetchEngineConfiguration(
-        searchEngineSelectorProperties
-      );
+    const engines = [
+      { webExtension: { id: "bing@search.waterfox.net" }, orderHint: 100 },
+      { webExtension: { id: "startpage@search.waterfox.net" }, orderHint: 90 },
+      { webExtension: { id: "mojeek@search.waterfox.net" }, orderHint: 80 },
+      { webExtension: { id: "yahoo@search.waterfox.net" }, orderHint: 70 },
+      { webExtension: { id: "google@search.waterfox.net" }, orderHint: 60 },
+      { webExtension: { id: "ddg@search.waterfox.net" }, orderHint: 50 },
+      { webExtension: { id: "qwant@search.waterfox.net" }, orderHint: 40 },
+      { webExtension: { id: "ecosia@search.waterfox.net" }, orderHint: 30 },
+    ]
+
+    const privateDefault = {
+      webExtension: { id: "startpage@search.waterfox.net" },
+    };
 
     for (let e of engines) {
       if (!e.webExtension) {
@@ -2645,7 +2655,7 @@ export class SearchService {
 
         let locale = identifierComponents.slice(1).join("-") || "default";
 
-        e.webExtension.id = identifierComponents[0] + "@search.mozilla.org";
+        e.webExtension.id = identifierComponents[0] + "@search.waterfox.net";
         e.webExtension.locale = locale;
       }
     }
