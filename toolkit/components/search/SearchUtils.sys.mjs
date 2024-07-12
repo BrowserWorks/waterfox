@@ -106,14 +106,14 @@ class LoadListener {
   }
 
   // nsIProgressEventSink
-  onProgress() {}
-  onStatus() {}
+  onProgress() { }
+  onStatus() { }
 }
 
 export var SearchUtils = {
   // Permanently enable the new search configuration until we remove the old
   // code as part of bug 1870686.
-  newSearchConfigEnabled: true,
+  newSearchConfigEnabled: false,
 
   BROWSER_SEARCH_PREF,
 
@@ -249,14 +249,14 @@ export var SearchUtils = {
   // however this needs more definition on the "vertical" search terms, and the
   // effects before we enable it.
   GENERAL_SEARCH_ENGINE_IDS: new Set([
-    "google@search.mozilla.org",
-    "ddg@search.mozilla.org",
-    "bing@search.mozilla.org",
-    "baidu@search.mozilla.org",
-    "ecosia@search.mozilla.org",
-    "qwant@search.mozilla.org",
-    "yahoo-jp@search.mozilla.org",
-    "yandex@search.mozilla.org",
+    "bing@search.waterfox.net",
+    "ddg@search.waterfox.net",
+    "ecosia@search.waterfox.net",
+    "google@search.waterfox.net",
+    "mojeek@search.waterfox.net",
+    "qwant@search.waterfox.net",
+    "startpage@search.waterfox.net",
+    "yahoo@search.waterfox.net"
   ]),
 
   /**
