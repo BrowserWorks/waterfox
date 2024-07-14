@@ -6,12 +6,7 @@
  * Helper functions for use by extensions that should ease them plug
  * into the application.
  */
-
 import { AddonManager } from "resource://gre/modules/AddonManager.sys.mjs";
-
-const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
-
-// ChromeUtils.import("resource://gre/modules/Deprecated.jsm") - needed for warning.
 import { NetUtil } from "resource://gre/modules/NetUtil.sys.mjs";
 
 import { fixIterator } from "resource:///modules/iteratorUtils.sys.mjs";
