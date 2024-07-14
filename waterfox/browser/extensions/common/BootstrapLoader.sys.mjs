@@ -3,7 +3,6 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { AddonManager } from "resource://gre/modules/AddonManager.sys.mjs";
-
 import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 
 const lazy = {};
@@ -71,7 +70,7 @@ Services.obs.addObserver(doc => {
   }
 }, "chrome-document-loaded");
 
-XPCOMUtils.defineLazyGetter(lazy, "BOOTSTRAP_REASONS", () => {
+ChromeUtils.defineLazyGetter(lazy, "BOOTSTRAP_REASONS", () => {
   const { XPIProvider } = ChromeUtils.import(
     "resource://gre/modules/addons/XPIProvider.jsm"
   );
@@ -393,7 +392,7 @@ export var BootstrapLoader = {
     try {
       Object.assign(sandbox, lazy.BOOTSTRAP_REASONS);
 
-      XPCOMUtils.defineLazyGetter(
+      ChromeUtils.defineLazyGetter(
         sandbox,
         "console",
         () => new lazy.ConsoleAPI({ consoleID: `addon/${addon.id}` })

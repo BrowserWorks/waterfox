@@ -4,15 +4,13 @@
 
 const CRX_CONTENT_TYPE = "application/x-chrome-extension";
 
-const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
-
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
   StoreHandler: "resource:///modules/StoreHandler.sys.mjs",
 });
 
-export function ExtensionCompatibilityHandler() {}
+export function ExtensionCompatibilityHandler() { }
 
 ExtensionCompatibilityHandler.prototype = {
   /**
