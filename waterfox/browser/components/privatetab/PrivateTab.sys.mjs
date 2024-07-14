@@ -110,7 +110,7 @@ export const PrivateTab = {
 
   async updatePrivateMaskId(aWindow) {
     let privateMask = aWindow.document.getElementsByClassName(
-      "private-browsing-indicator"
+      "private-browsing-indicator-icon"
     )[0];
     privateMask.id = "private-mask";
   },
