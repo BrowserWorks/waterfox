@@ -61,12 +61,12 @@ export const WaterfoxGlue = {
     this.startupManifest = await this.getChromeManifest("startup");
     this.privateManifest = await this.getChromeManifest("private");
 
+    // Observe final-ui-startup to launch browser window dependant tasks
+    Services.obs.addObserver(this, "final-ui-startup");
     // Observe chrome-document-loaded topic to detect window open
     Services.obs.addObserver(this, "chrome-document-loaded");
     // Observe main-pane-loaded topic to detect about:preferences open
     Services.obs.addObserver(this, "main-pane-loaded");
-    // Observe browser-delayed-startup-finished to launch delayed tasks
-    Services.obs.addObserver(this, "browser-delayed-startup-finished");
     // Observe browser shutdown
     Services.obs.addObserver(this, "quit-application-granted");
     // Listen for addon events
@@ -218,7 +218,6 @@ export const WaterfoxGlue = {
   async _monitorSidebarPref() {
     const COMPONENT_PREF = "browser.sidebar.disabled";
     const ID = "sidebar@waterfox.net";
-
     let addon = await lazy.AddonManager.getAddonByID(ID);
 
     // first time install of addon and install on update
@@ -258,7 +257,7 @@ export const WaterfoxGlue = {
       Services.prefs.setIntPref("browser.migration.waterfox_version", waterfoxUIVersion);
       return;
     }
-    
+
     async function enableTheme(id) {
       const addon = await lazy.AddonManager.getAddonByID(id);
       // If we found it, enable it.
