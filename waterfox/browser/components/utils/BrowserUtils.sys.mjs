@@ -5,9 +5,6 @@
 /* global */
 
 import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
-
-const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
-
 import { CustomizableUI } from "resource:///modules/CustomizableUI.sys.mjs";
 import { PanelMultiView } from "resource:///modules/PanelMultiView.sys.mjs";
 

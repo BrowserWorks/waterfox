@@ -2,8 +2,6 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
-
 import { ContextualIdentityService } from "resource://gre/modules/ContextualIdentityService.sys.mjs";
 import { PlacesUIUtils } from "resource:///modules/PlacesUIUtils.sys.mjs";
 import { TabStateCache } from "resource:///modules/sessionstore/TabStateCache.sys.mjs";
