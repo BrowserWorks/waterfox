@@ -4,8 +4,6 @@
 
 import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 
-const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
-
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
@@ -18,7 +16,7 @@ XPCOMUtils.defineLazyModuleGetters(lazy, {
   BrowserWindowTracker: "resource:///modules/BrowserWindowTracker.jsm",
 });
 
-XPCOMUtils.defineLazyGetter(lazy, "PopupNotifications", () => {
+ChromeUtils.defineLazyGetter(lazy, "PopupNotifications", () => {
   // eslint-disable-next-line no-shadow
   let { PopupNotifications } = ChromeUtils.importESModule(
     "resource://gre/modules/PopupNotifications.sys.mjs"
@@ -69,7 +67,7 @@ export class StoreHandler {
   // init vars
   constructor() {
     this.uuidString = this._getUUID().slice(1, -1);
-    const profileDir = Services.dirsvc.get("ProfD", Ci.nsIFile).path;    
+    const profileDir = Services.dirsvc.get("ProfD", Ci.nsIFile).path;
     this.xpiPath = PathUtils.join(
       profileDir,
       "extensions",
@@ -147,7 +145,7 @@ export class StoreHandler {
     let action = {
       label: "OK",
       accessKey: "failed_accessKey",
-      callback: () => {},
+      callback: () => { },
     };
     var options = {
       persistent: true,
@@ -417,7 +415,7 @@ export class StoreHandler {
       } else if (
         Object.keys(unsupported).includes(arr[0]) &&
         Object.prototype.toString.call(unsupported[arr[0]]) ==
-          "[object Array]" &&
+        "[object Array]" &&
         Object.prototype.toString.call(arr[1]) == "[object Array]"
       ) {
         // if value in unsupported is an array, we know
