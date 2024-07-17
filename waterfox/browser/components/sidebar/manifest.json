@@ -1,7 +1,7 @@
 {
-  "manifest_version": 3,
+  "manifest_version": 2,
   "name": "__MSG_extensionName__",
-  "version": "1.0.2",
+  "version": "1.0.2.1",
   "author": "Waterfox",
   "hidden": true,
   "description": "__MSG_extensionDescription__",
@@ -21,7 +21,7 @@
     "tabs",
     "theme"
   ],
-  "host_permissions": [
+  "optional_permissions": [
     "<all_urls>"
   ],
   "background": {
@@ -228,14 +228,7 @@
     }
   },
   "web_accessible_resources": [
-    {
-      "resources": [
-        "/resources/group-tab.html*"
-      ],
-      "matches": [
-        "<all_urls>"
-      ]
-    }
+    "/resources/group-tab.html*"
   ],
   "protocol_handlers": [
     {
