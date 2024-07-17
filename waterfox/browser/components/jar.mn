@@ -1,3 +1,5 @@
 browser.jar:
 %   resource waterfox %waterfox/ contentaccessible=yes
     waterfox/overlays/chrome.overlay                      (chrome.overlay)
+%   resource builtin-addons %builtin-addons/  contentaccessible=yes
+    builtin-addons/sidebar/ (sidebar/**)
