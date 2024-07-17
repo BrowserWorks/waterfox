@@ -2,26 +2,29 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { CustomizableUI } from "resource:///modules/CustomizableUI.sys.mjs";
+const lazy = {}
 
-import { setTimeout } from "resource://gre/modules/Timer.sys.mjs";
-import { PrefUtils } from "resource:///modules/PrefUtils.sys.mjs";
-import { BrowserUtils } from "resource:///modules/BrowserUtils.sys.mjs";
+ChromeUtils.defineESModuleGetters(lazy, {
+  CustomizableUI: 'resource:///modules/CustomizableUI.sys.mjs',
+  BrowserUtils: 'resource:///modules/BrowserUtils.sys.mjs',
+  PrefUtils: 'resource:///modules/PrefUtils.sys.mjs',
+  setTimeout: 'resource://gre/modules/Timer.sys.mjs',
+})
 
 export const StatusBar = {
-  PREF_ENABLED: "browser.statusbar.enabled",
-  PREF_STATUSTEXT: "browser.statusbar.appendStatusText",
+  PREF_ENABLED: 'browser.statusbar.enabled',
+  PREF_STATUSTEXT: 'browser.statusbar.appendStatusText',
 
   get enabled() {
-    return PrefUtils.get(this.PREF_ENABLED);
+    return lazy.PrefUtils.get(this.PREF_ENABLED)
   },
 
   get showLinks() {
-    return PrefUtils.get(this.PREF_STATUSTEXT);
+    return lazy.PrefUtils.get(this.PREF_STATUSTEXT)
   },
 
   get textInBar() {
-    return this.enabled && this.showLinks;
+    return this.enabled && this.showLinks
   },
 
   get style() {
@@ -75,146 +78,150 @@ export const StatusBar = {
            color: var(--toolbarbutton-icon-fill) !important;
          }
        }
-           `;
+           `
   },
 
   init(window) {
-    if (!window.document.getElementById("status-dummybar")) {
-      setTimeout(() => {
-        this.init(window);
-      }, 25);
+    if (!window.document.getElementById('status-dummybar')) {
+      lazy.setTimeout(() => {
+        this.init(window)
+      }, 25)
     } else if (!window.statusbar.node) {
-      this.configureDummyBar(window, "status-dummybar");
-      this.configureStatusBar(window);
-      this.overrideStatusPanelLabel(window);
-      this.configureBottomBox(window);
-      this.initPrefListeners();
-      this.registerArea(window, "status-bar");
-      BrowserUtils.setStyle(this.style);
+      this.configureDummyBar(window, 'status-dummybar')
+      this.configureStatusBar(window)
+      this.overrideStatusPanelLabel(window)
+      this.configureBottomBox(window)
+      this.initPrefListeners()
+      this.registerArea(window, 'status-bar')
+      lazy.BrowserUtils.setStyle(this.style)
     }
   },
 
   async initPrefListeners() {
-    this.enabledListener = PrefUtils.addObserver(
+    this.enabledListener = lazy.PrefUtils.addObserver(
       this.PREF_ENABLED,
       isEnabled => {
-        this.setStatusBarVisibility(isEnabled);
-        this.setStatusTextVisibility();
+        this.setStatusBarVisibility(isEnabled)
+        this.setStatusTextVisibility()
       }
-    );
-    this.textListener = PrefUtils.addObserver(
+    )
+    this.textListener = lazy.PrefUtils.addObserver(
       this.PREF_STATUSTEXT,
       isEnabled => {
-        this.setStatusTextVisibility();
+        this.setStatusTextVisibility()
       }
-    );
+    )
   },
 
   async setStatusBarVisibility(isEnabled) {
-    CustomizableUI.getWidget("status-dummybar").instances.forEach(dummyBar => {
-      dummyBar.node.setAttribute("collapsed", !isEnabled);
-    });
+    const instances = lazy.CustomizableUI.getWidget('status-dummybar').instances
+    for (const dummyBar of instances) {
+      dummyBar.node.setAttribute('collapsed', !isEnabled)
+    }
   },
-
   async setStatusTextVisibility() {
     if (this.enabled && this.showLinks) {
       // Status bar enabled and want to display links in it
       this.executeInAllWindows(window => {
-        let StatusPanel = window.StatusPanel;
-        window.statusbar.textNode.appendChild(StatusPanel._labelElement);
-      });
+        const StatusPanel = window.StatusPanel
+        window.statusbar.textNode.appendChild(StatusPanel._labelElement)
+      })
     } else if (!this.enabled && this.showLinks) {
       // Status bar disabled so display links in StatusPanel
       this.executeInAllWindows(window => {
-        let StatusPanel = window.StatusPanel;
-        StatusPanel.panel.appendChild(StatusPanel._labelElement);
-        StatusPanel.panel.firstChild.hidden = false;
-      });
+        const StatusPanel = window.StatusPanel
+        StatusPanel.panel.appendChild(StatusPanel._labelElement)
+        StatusPanel.panel.firstChild.hidden = false
+      })
     } else {
       // Don't display links
       this.executeInAllWindows(window => {
-        let StatusPanel = window.StatusPanel;
-        StatusPanel.panel.appendChild(StatusPanel._labelElement);
-        StatusPanel.panel.firstChild.hidden = true;
-      });
+        const StatusPanel = window.StatusPanel
+        StatusPanel.panel.appendChild(StatusPanel._labelElement)
+        StatusPanel.panel.firstChild.hidden = true
+      })
     }
   },
 
   async registerArea(aWindow, aArea) {
-    if (!CustomizableUI.areas.includes("status-bar")) {
-      CustomizableUI.registerArea(aArea, {
-        type: CustomizableUI.TYPE_TOOLBAR,
-        defaultPlacements: ["screenshot-button", "fullscreen-button"],
-      });
-      let tb = aWindow.document.getElementById("status-dummybar");
-      CustomizableUI.registerToolbarNode(tb);
+    if (!lazy.CustomizableUI.areas.includes('status-bar')) {
+      lazy.CustomizableUI.registerArea(aArea, {
+        type: lazy.CustomizableUI.TYPE_TOOLBAR,
+        defaultPlacements: ['screenshot-button', 'fullscreen-button'],
+      })
+      const tb = aWindow.document.getElementById('status-dummybar')
+      lazy.CustomizableUI.registerToolbarNode(tb)
     }
   },
 
   async configureDummyBar(aWindow, aId) {
-    let { document } = aWindow;
-    let el = document.getElementById(aId);
-    el.collapsed = !this.enabled;
-    el.setAttribute = function (att, value) {
-      let result = Element.prototype.setAttribute.apply(this, arguments);
+    const { document } = aWindow
+    const el = document.getElementById(aId)
+    el.collapsed = !this.enabled
+    el.setAttribute = function (att, value, ...rest) {
+      const result = Element.prototype.setAttribute.apply(this, [
+        att,
+        value,
+        ...rest,
+      ])
 
-      if (att == "collapsed") {
-        let StatusPanel = aWindow.StatusPanel;
+      if (att === 'collapsed') {
+        const StatusPanel = aWindow.StatusPanel
         if (value === true) {
-          PrefUtils.set(StatusBar.PREF_ENABLED, false);
-          aWindow.statusbar.node.setAttribute("collapsed", true);
-          StatusPanel.panel.appendChild(StatusPanel._labelElement);
+          lazy.PrefUtils.set(StatusBar.PREF_ENABLED, false)
+          aWindow.statusbar.node.setAttribute('collapsed', true)
+          StatusPanel.panel.appendChild(StatusPanel._labelElement)
         } else {
-          PrefUtils.set(StatusBar.PREF_ENABLED, true);
-          aWindow.statusbar.node.setAttribute("collapsed", false);
+          lazy.PrefUtils.set(StatusBar.PREF_ENABLED, true)
+          aWindow.statusbar.node.setAttribute('collapsed', false)
           if (StatusBar.textInBar) {
-            aWindow.statusbar.textNode.appendChild(StatusPanel._labelElement);
+            aWindow.statusbar.textNode.appendChild(StatusPanel._labelElement)
           }
         }
       }
 
-      return result;
-    };
+      return result
+    }
   },
 
   configureStatusBar(aWindow) {
-    let StatusPanel = aWindow.StatusPanel;
-    aWindow.statusbar.node = aWindow.document.getElementById("status-bar");
-    aWindow.statusbar.textNode = aWindow.document.getElementById("status-text");
+    const StatusPanel = aWindow.StatusPanel
+    aWindow.statusbar.node = aWindow.document.getElementById('status-bar')
+    aWindow.statusbar.textNode = aWindow.document.getElementById('status-text')
     if (this.textInBar) {
-      aWindow.statusbar.textNode.appendChild(StatusPanel._labelElement);
+      aWindow.statusbar.textNode.appendChild(StatusPanel._labelElement)
     }
-    aWindow.statusbar.node.appendChild(aWindow.statusbar.textNode);
-    aWindow.statusbar.node.setAttribute("collapsed", !this.enabled);
+    aWindow.statusbar.node.appendChild(aWindow.statusbar.textNode)
+    aWindow.statusbar.node.setAttribute('collapsed', !this.enabled)
   },
 
   async overrideStatusPanelLabel(aWindow) {
-    // eslint-disable-next-line no-unused-vars
-    let { StatusPanel, MousePosTracker } = aWindow;
-    // eslint-disable-next-line no-unused-vars
-    let window = aWindow;
-    // TODO: Should be able to do this with a WrappedJSObject instead
-    // eslint-disable-next-line no-eval
-    eval(
-      'Object.defineProperty(StatusPanel, "_label", {' +
-        Object.getOwnPropertyDescriptor(StatusPanel, "_label")
-          .set.toString()
-          .replace(/^set _label/, "set")
-          .replace(
-            /((\s+)this\.panel\.setAttribute\("inactive", "true"\);)/,
-            "$2this._labelElement.value = val;$1"
-          ) +
-        ", enumerable: true, configurable: true});"
-    );
+    const { StatusPanel } = aWindow.wrappedJSObject
+
+    const originalSetter = Object.getOwnPropertyDescriptor(
+      StatusPanel,
+      '_label'
+    ).set
+
+    Object.defineProperty(StatusPanel, '_label', {
+      set(val) {
+        if (this._labelElement) {
+          this._labelElement.value = val
+        }
+        originalSetter.call(this, val)
+      },
+      enumerable: true,
+      configurable: true,
+    })
   },
 
   async configureBottomBox(aWindow) {
-    let { document } = aWindow;
-    let bottomBox = document.getElementById("browser-bottombox");
-    CustomizableUI.registerToolbarNode(aWindow.statusbar.node);
-    bottomBox.appendChild(aWindow.statusbar.node);
+    const { document } = aWindow
+    const bottomBox = document.getElementById('browser-bottombox')
+    lazy.CustomizableUI.registerToolbarNode(aWindow.statusbar.node)
+    bottomBox.appendChild(aWindow.statusbar.node)
   },
-};
+}
 
 // Inherited props
-StatusBar.executeInAllWindows = BrowserUtils.executeInAllWindows;
+StatusBar.executeInAllWindows = lazy.BrowserUtils.executeInAllWindows
