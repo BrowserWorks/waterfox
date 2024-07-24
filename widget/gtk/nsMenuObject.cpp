@@ -234,7 +234,7 @@ nsMenuObjectIconLoader::LoadIcon(const ComputedStyle *aComputedStyle)
                           nullptr, 0, loadGroup, this, nullptr, nullptr,
                           nsIRequest::LOAD_NORMAL, nullptr,
                           nsIContentPolicy::TYPE_IMAGE, EmptyString(),
-                          false, false, 0, getter_AddRefs(mImageRequest));
+                          false, false, 0, dom::FetchPriority::Auto, getter_AddRefs(mImageRequest));
     }
 }
 
