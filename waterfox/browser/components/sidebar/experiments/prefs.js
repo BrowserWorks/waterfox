@@ -36,7 +36,7 @@ function initSidebarCategory(document, { locale, BASE_URL, BASE_PREF }) {
   if (document.querySelector('#category-tabsSidebar'))
     return true;
 
-  const generalItem = document.querySelector('#category-general');
+  const generalItem = document.querySelector('#category-search');
   if (!generalItem)
     return false;
 
