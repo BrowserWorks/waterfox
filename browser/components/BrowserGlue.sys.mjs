@@ -1267,14 +1267,14 @@ BrowserGlue.prototype = {
             let { BackgroundUpdate } = ChromeUtils.importESModule(
               "resource://gre/modules/BackgroundUpdate.sys.mjs"
             );
-            try {
-              await BackgroundUpdate.scheduleFirefoxMessagingSystemTargetingSnapshotting();
-            } catch (e) {
-              console.error(
-                "There was an error scheduling Firefox Messaging System targeting snapshotting: ",
-                e
-              );
-            }
+            // try {
+            //   await BackgroundUpdate.scheduleFirefoxMessagingSystemTargetingSnapshotting();
+            // } catch (e) {
+            //   console.error(
+            //     "There was an error scheduling Firefox Messaging System targeting snapshotting: ",
+            //     e
+            //   );
+            // }
             await BackgroundUpdate.maybeScheduleBackgroundUpdateTask();
           }
         },
