@@ -329,7 +329,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - runs-on: macos-15-intel
+          - runs-on: macos-14-large
             arch: x86_64-apple-darwin
             clang_url: https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.macosx64-clang-20.latest/artifacts/public/build/clang.tar.zst
           - runs-on: warp-macos-13-arm64-6x
