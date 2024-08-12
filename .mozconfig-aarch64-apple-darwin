@@ -1,22 +1,6 @@
 #!/bin/sh
 # Targetting ARM64 builds. Expected to be run on Linux.
 
-POLLY="-mllvm -polly -mllvm -polly-2nd-level-tiling -mllvm -polly-loopfusion-greedy -mllvm -polly-pattern-matching-based-opts -mllvm -polly-position=before-vectorizer -mllvm -polly-vectorizer=stripmine"
-TOOLS=$HOME/macos-cross
-export CC="$HOME"/macos-cross/clang/bin/clang
-export CXX="$HOME"/macos-cross/clang/bin/clang++
-export DMG_TOOL="$TOOLS"/dmg/dmg
-export DSYMUTIL="$HOME"/macos-cross/clang/bin/dsymutil
-export HFS_TOOL="$TOOLS"/dmg/hfsplus
-export HOST_CFLAGS="-g"
-export HOST_CXXFLAGS="-g"
-export HOST_LDFLAGS="-g"
-export MACOS_SDK_DIR="$CROSS_SYSROOT"
-export MKFSHFS="$TOOLS"/hfsplus-tools/newfs_hfs
-mk_add_options "export LD_LIBRARY_PATH=$HOME/macos-cross/clang/lib"
-mk_add_options "export PATH=$TOOLS/cctools/bin:$HOME/macos-cross/clang/bin:$PATH"
-unset MOZ_STDCXX_COMPAT
-
 if test "$WFX_RELEASE" || test "$WFX_PRE_RELEASE"; then
     ac_add_options --enable-lto=cross,full
     ac_add_options --enable-optimize="-mcpu=apple-m1 -O3 -w"
@@ -36,7 +20,7 @@ ac_add_options --disable-profiling
 ac_add_options --disable-tests
 
 ac_add_options --enable-application=browser
-ac_add_options --enable-bootstrap=-clang,-sccache
+ac_add_options --enable-bootstrap=-sccache
 if test -x "$(command -v sccache)"; then
     ac_add_options --with-ccache=sccache
 elif test -f "$HOME/.mozbuild/sccache/sccache"; then
@@ -70,7 +54,6 @@ if [ -d "$PWD"/waterfox/browser/locales/en-GB ]; then
     ac_add_options --with-l10n-base="$PWD"/waterfox/browser/locales
 fi
 
-mk_add_options AUTOCLOBBER=1
 export MOZ_INCLUDE_SOURCE_INFO=1
 export MOZ_REQUIRE_SIGNING=
 export MOZ_TELEMETRY_REPORTING=
