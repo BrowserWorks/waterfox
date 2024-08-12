@@ -49,7 +49,7 @@ ac_add_options --disable-profiling
 ac_add_options --disable-updater
 
 ac_add_options --enable-application=browser
-ac_add_options --disable-bootstrap
+ac_add_options --enable-bootstrap
 ac_add_options --enable-jxl
 ac_add_options --enable-optimize="-Os -w"
 ac_add_options --enable-tests
