@@ -78,12 +78,97 @@ const gMainPaneOverlay = {
       this.setEventListener("dynamicThemeGroup", "command", event => {
         this.updateDynamicThemePref(event.target.value);
       });
-      document.initialized = true;
+      if (document.readyState === "complete") {
+        this.tocGenerate();
+      } else {
+        document.addEventListener("readystatechange", () => {
+          if (document.readyState === "complete") {
+            this.tocGenerate();
+          }
+        });
+      }
+      document.initialized = true;  
     }
     this.setEventListener("enableObliviousDns", "click", function () {
       let value = document.getElementById("enableObliviousDns").checked ? 2 : 0;
       Services.prefs.setIntPref("network.trr.mode", value);
     });
+  },
+
+  tocGenerate() {
+    const contentSelector = "#mainPrefPane";
+    const headingSelector = "#mainPrefPane > hbox:not([hidden]) > h1, #mainPrefPane > groupbox:not([hidden]) > h2, #mainPrefPane > groupbox:not([hidden]) label:not([hidden]) > h2";
+    const headerTarget = headingSelector.replaceAll(":not([hidden])", "");
+    const specialCharRegex = /[\!\@\#\$\%\^\&\*\(\):]/ig;
+    const createHeadingId = () => {
+      const content = document.querySelector(contentSelector);
+      const headings = content?.querySelectorAll(headerTarget);
+      const headingMap = {};
+
+      let count = 0;
+      /**
+        * @param {Element} heading
+        * @returns {string}
+      */
+      const getHeadingId = (heading) => {
+        const id = heading.id;
+        if (id) {
+          return id;
+        }
+
+        if (heading instanceof HTMLElement) {
+          const i18nId = heading.dataset.l10nId;
+          if (i18nId) {
+            return i18nId;
+          }
+        }
+
+        return heading.textContent?.trim().toLowerCase().split(" ").join("-").replace(specialCharRegex, "") ?? `${count++}`;
+      }
+      /**
+        * @param {string} headingText
+        * @param {number} count
+        * @returns {string}
+      */
+      const createId = (headingText, count) => `${headingText}${count > 0 ? `-${count}` : ""}`;
+      headings?.forEach((heading) => {
+        const id = getHeadingId(heading);
+        headingMap[id] = !isNaN(headingMap[id]) ? ++headingMap[id] : 0;
+        heading.id = createId(id, headingMap[id]);
+      });
+    }
+
+    createHeadingId();
+    tocbot.init({
+      tocSelector: ".toc",
+      contentSelector,
+      headingSelector,
+      scrollContainer: ".main-content",
+      headingsOffset: 100, // 90 + margins
+      hasInnerContainers: false,
+
+      /**
+        * @param {MouseEvent} e
+      */
+      onClick(e) {
+        e.preventDefault();
+
+        /** @type {HTMLLinkElement} */
+        const link = e.target;
+        const targetSelector = link?.getAttribute("href");
+        if (targetSelector) {
+          const target = document.querySelector(targetSelector);
+          if (target) {
+            target.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }
+      }
+    });
+    const tocRefresh = () => {
+      createHeadingId();
+      tocbot.refresh();
+    }
+    window.addEventListener("hashchange", tocRefresh);
   },
 
   showRelevantElements() {
