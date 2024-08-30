@@ -3103,14 +3103,14 @@ BrowserGlue.prototype = {
             AppConstants.MOZ_UPDATER &&
             !lazy.UpdateServiceStub.updateDisabledForTesting
           ) {
-            try {
-              await lazy.BackgroundUpdate.scheduleFirefoxMessagingSystemTargetingSnapshotting();
-            } catch (e) {
-              console.error(
-                "There was an error scheduling Firefox Messaging System targeting snapshotting: ",
-                e
-              );
-            }
+            // try {
+            //   await lazy.BackgroundUpdate.scheduleFirefoxMessagingSystemTargetingSnapshotting();
+            // } catch (e) {
+            //   console.error(
+            //     "There was an error scheduling Firefox Messaging System targeting snapshotting: ",
+            //     e
+            //   );
+            // }
             await lazy.BackgroundUpdate.maybeScheduleBackgroundUpdateTask();
           }
         },
