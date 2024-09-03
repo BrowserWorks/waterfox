@@ -26,7 +26,16 @@
     </hbox>
 
     <groupbox id="themeGroup" data-category="paneTheme" hidden="true">
-        <checkbox id="enableWaterfoxTheme" preference="userChrome.theme.enable" data-l10n-id="enable-waterfox-theme" />
+        <!-- <checkbox id="enableWaterfoxTheme" preference="userChrome.theme.enable" data-l10n-id="enable-waterfox-theme" /> -->
+        <hbox>
+            <menulist id="enableWaterfoxTheme" preference="browser.theme.enableWaterfoxCustomizations">
+                <menupopup>
+                    <menuitem data-l10n-id="enable-waterfox-theme-0" value="0" />
+                    <menuitem data-l10n-id="enable-waterfox-theme-1" value="1" />
+                    <menuitem data-l10n-id="enable-waterfox-theme-2" value="2" />
+                </menupopup>
+            </menulist>
+        </hbox>
         <hbox>
             <vbox id="waterfoxUserChromeCustomizations">
                 <!-- Tab Bar -->
