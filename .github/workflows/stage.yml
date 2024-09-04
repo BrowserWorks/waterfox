@@ -30,7 +30,7 @@ env:
 jobs:
   stage:
     name: Multi-platform
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     outputs:
       versionout: '${{ steps.versionexport.outputs.version }}'
     steps:
