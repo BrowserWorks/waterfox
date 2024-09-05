@@ -650,7 +650,7 @@ jobs:
           chmod +x ./sign/sign.sh
           ./sign/sign.sh -k "$PWD"/sign/1 -p ${{ secrets.ONE_PEM }} -c "$PWD"/sign/2 -i "$PWD"/obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app -t macos
           rm -rf ./sign/
-          python3 ./security/mac/hardenedruntime/codesign.py -v -m ./security/mac/hardenedruntime/codesign-map.json -r ./obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app -d ./security/mac/hardenedruntime -s '${{ secrets.MACOS_CERTIFICATE_NAME }}'
+          ./mach macos-sign -a ./obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app -s ${{ secrets.MACOS_NOTARIZATION_TEAM_ID }}
           echo "Creating temp notarization archive"
           ditto -c -k --keepParent "./obj-${{ env.ARCH-X64 }}/dist/waterfox/Waterfox.app" "notarization.zip"
           echo "Notarize app"
