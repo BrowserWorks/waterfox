@@ -84,6 +84,7 @@ function initSidebarCategory(document, { locale, BASE_URL, BASE_PREF }) {
       id:              'tabsSidebarCategory',
       'class':         'subcategory',
       'data-category': 'paneTabsSidebar',
+      'hidden':        'true',
     }, [
       element(document, HTML, 'h1', [locale.get('preferencesCategoryName')]),
     ]));
@@ -91,6 +92,7 @@ function initSidebarCategory(document, { locale, BASE_URL, BASE_PREF }) {
     preferenceItems.appendChild(element(document, XUL, 'groupbox', {
       id:              'tabsSidebar_appearanceGroup',
       'data-category': 'paneTabsSidebar',
+      'hidden':        'true',
     }, [
       element(document, XUL, 'label', [
         element(document, HTML, 'h2', [locale.get('preferences_appearanceGroup_caption')]),
@@ -124,6 +126,7 @@ function initSidebarCategory(document, { locale, BASE_URL, BASE_PREF }) {
     preferenceItems.appendChild(element(document, XUL, 'groupbox', {
       id:              'tabsSidebar_autoStickyTabsBox',
       'data-category': 'paneTabsSidebar',
+      'hidden':        'true',
     }, [
       element(document, XUL, 'label', { id: 'tabsSidebar_stickyActiveTabBox_caption' }, [
         element(document, HTML, 'h2', [locale.get('config_autoStickyTab_caption')]),
@@ -157,6 +160,7 @@ function initSidebarCategory(document, { locale, BASE_URL, BASE_PREF }) {
     preferenceItems.appendChild(element(document, XUL, 'groupbox', {
       id:              'tabsSidebar_treeBehaviorGroup',
       'data-category': 'paneTabsSidebar',
+      'hidden':        'true',
     }, [
       element(document, XUL, 'label', [
         element(document, HTML, 'h2', [locale.get('preferences_treeBehaviorGroup_caption')]),
@@ -294,6 +298,7 @@ function initSidebarCategory(document, { locale, BASE_URL, BASE_PREF }) {
     preferenceItems.appendChild(element(document, XUL, 'groupbox', {
       id:              'tabsSidebar_autoAttachGroup',
       'data-category': 'paneTabsSidebar',
+      'hidden':        'true',
     }, [
       element(document, XUL, 'label', [
         element(document, HTML, 'h2', [locale.get('preferences_autoAttachGroup_caption')]),
