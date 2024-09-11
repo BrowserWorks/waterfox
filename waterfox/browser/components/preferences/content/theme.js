@@ -27,57 +27,18 @@ const gThemePane = {
 
   get preferences() {
     return [
-      // Waterfox Customizations
+      // == Theme ==============================================================
       { id: 'browser.theme.enableWaterfoxCustomizations', type: 'int' },
 
-      // Tab Bar
-      { id: 'userChrome.autohide.tab', type: 'bool' },
-      { id: 'userChrome.autohide.tab.blur', type: 'bool' },
-      { id: 'userChrome.autohide.tabbar', type: 'bool' },
-      { id: 'userChrome.centered.tab', type: 'bool' },
-      { id: 'userChrome.centered.tab.label', type: 'bool' },
-      { id: 'userChrome.rounding.square_tab', type: 'bool' },
-      { id: 'userChrome.tab.bottom_rounded_corner', type: 'bool' },
-      { id: 'userChrome.tab.photon_like_contextline', type: 'bool' },
-      { id: 'userChrome.tab.squareTabCorners', type: 'bool' },
-      { id: 'userChrome.padding.drag_space', type: 'bool' },
-      { id: 'userChrome.tab.close_button_at_hover', type: 'bool' },
+      // Appearance
+      { id: 'userChrome.theme.proton_color.dark_blue_accent', type: 'bool' },
+      { id: 'userContent.page.proton_color.dark_blue_accent', type: 'bool' },
 
-      // Nav Bar
-      { id: 'userChrome.autohide.back_button', type: 'bool' },
-      { id: 'userChrome.autohide.forward_button', type: 'bool' },
-      { id: 'userChrome.autohide.page_action', type: 'bool' },
-      { id: 'userChrome.hidden.urlbar_iconbox', type: 'bool' },
-      { id: 'userChrome.centered.urlbar', type: 'bool' },
-      { id: 'userChrome.rounding.square_button', type: 'bool' },
-      { id: 'userChrome.padding.urlView_expanding', type: 'bool' },
+      { id: 'userContent.page.proton_color.system_accent', type: 'bool' },
+      { id: 'widget.non-native-theme.use-theme-accent', type: 'bool' },
 
-      // Bookmarks Bar
-      { id: 'userChrome.autohide.bookmarkbar', type: 'bool' },
-      { id: 'userChrome.hidden.bookmarkbar_icon', type: 'bool' },
-      { id: 'userChrome.hidden.bookmarkbar_label', type: 'bool' },
-
-      // Panels
       { id: 'userChrome.theme.transparent.panel', type: 'bool' },
       { id: 'userChrome.theme.transparent.menu', type: 'bool' },
-      { id: 'userChrome.decoration.disable_panel_animate', type: 'bool' },
-      { id: 'userChrome.hidden.disabled_menu', type: 'bool' },
-      { id: 'userChrome.rounding.square_panel', type: 'bool' },
-      { id: 'userChrome.rounding.square_panelitem', type: 'bool' },
-      { id: 'userChrome.rounding.square_menupopup', type: 'bool' },
-      { id: 'userChrome.rounding.square_menuitem', type: 'bool' },
-      { id: 'userChrome.rounding.square_field', type: 'bool' },
-      { id: 'userChrome.rounding.square_checklabel', type: 'bool' },
-      { id: 'userChrome.padding.menu_compact', type: 'bool' },
-      { id: 'userChrome.padding.bookmark_menu.compact', type: 'bool' },
-      { id: 'userChrome.padding.panel_header', type: 'bool' },
-      { id: 'userChrome.panel.remove_strip', type: 'bool' },
-      { id: 'userChrome.panel.full_width_separator', type: 'bool' },
-
-      // Sidebar
-      { id: 'userChrome.decoration.disable_sidebar_animate', type: 'bool' },
-      { id: 'userChrome.autohide.sidebar', type: 'bool' },
-      { id: 'userChrome.hidden.sidebar_header', type: 'bool' },
 
       // Icons
       { id: 'userChrome.icon.disabled', type: 'bool' },
@@ -85,9 +46,78 @@ const gThemePane = {
       { id: 'userChrome.icon.menu.full', type: 'bool' },
       { id: 'userChrome.icon.global_menu.mac', type: 'bool' },
 
-      // Font
+      // Fonts
       { id: 'userContent.page.monospace', type: 'bool' },
       { id: 'userChrome.theme.monospace', type: 'bool' },
+
+      // Animations
+      { id: 'userChrome.decoration.disable_panel_animate', type: 'bool' },
+      { id: 'userChrome.decoration.disable_sidebar_animate', type: 'bool' },
+      
+      // == Interface Components ===============================================
+      // Tab Bar
+      { id: 'userChrome.tab.photon_like_contextline', type: 'bool' },
+      { id: 'userChrome.padding.drag_space', type: 'bool' },
+      { id: 'userChrome.tab.close_button_at_hover', type: 'bool' },
+
+      // Nav Bar
+      { id: 'userChrome.padding.urlView_expanding', type: 'bool' },
+
+      // Panels
+      { id: 'userChrome.padding.menu_compact', type: 'bool' },
+      { id: 'userChrome.padding.bookmark_menu.compact', type: 'bool' },
+      { id: 'userChrome.padding.panel_header', type: 'bool' },
+      { id: 'userChrome.panel.remove_strip', type: 'bool' },
+      { id: 'userChrome.panel.full_width_separator', type: 'bool' },
+
+      // == Rounding ===========================================================
+      // Tab Bar
+      { id: 'userChrome.rounding.square_tab', type: 'bool' },
+      { id: 'userChrome.tab.bottom_rounded_corner', type: 'bool' },
+      { id: 'userChrome.tab.squareTabCorners', type: 'bool' },
+      
+      // Nav Bar
+      { id: 'userChrome.rounding.square_button', type: 'bool' },
+      
+      // Panels
+      { id: 'userChrome.rounding.square_panel', type: 'bool' },
+      { id: 'userChrome.rounding.square_panelitem', type: 'bool' },
+      { id: 'userChrome.rounding.square_menupopup', type: 'bool' },
+      { id: 'userChrome.rounding.square_menuitem', type: 'bool' },
+      { id: 'userChrome.rounding.square_field', type: 'bool' },
+      { id: 'userChrome.rounding.square_checklabel', type: 'bool' },
+      
+      // == Autohide & Hidden ==================================================
+      // Tab Bar
+      { id: 'userChrome.autohide.tab', type: 'bool' },
+      { id: 'userChrome.autohide.tab.blur', type: 'bool' },
+      { id: 'userChrome.autohide.tabbar', type: 'bool' },
+
+      // Nav Bar
+      { id: 'userChrome.autohide.back_button', type: 'bool' },
+      { id: 'userChrome.autohide.forward_button', type: 'bool' },
+      { id: 'userChrome.autohide.page_action', type: 'bool' },
+      { id: 'userChrome.hidden.urlbar_iconbox', type: 'bool' },
+
+      // Bookmarks Bar
+      { id: 'userChrome.autohide.bookmarkbar', type: 'bool' },
+      { id: 'userChrome.hidden.bookmarkbar_icon', type: 'bool' },
+      { id: 'userChrome.hidden.bookmarkbar_label', type: 'bool' },
+      
+      // Panels
+      { id: 'userChrome.hidden.disabled_menu', type: 'bool' },
+
+      // Sidebar
+      { id: 'userChrome.autohide.sidebar', type: 'bool' },
+      { id: 'userChrome.hidden.sidebar_header', type: 'bool' },
+      
+      // == Center =============================================================
+      // Tab Bar
+      { id: 'userChrome.centered.tab', type: 'bool' },
+      { id: 'userChrome.centered.tab.label', type: 'bool' },
+      
+      // Nav Bar
+      { id: 'userChrome.centered.urlbar', type: 'bool' },
     ]
   },
 
@@ -102,90 +132,124 @@ const gThemePane = {
         pref: 'userChrome.centered.tab',
       },
     ]
-  },
+  },  
 
   get presets() {
     return [
       {
-        id: 'roundedCorners',
+        id: 'waterfoxDefaults',
         on: [
-          { id: 'userChrome.tab.squareTabCorners', value: false },
-          { id: 'userChrome.rounding.square_button', value: false },
-          { id: 'userChrome.rounding.square_panel', value: false },
-          { id: 'userChrome.rounding.square_panelitem', value: false },
-          { id: 'userChrome.rounding.square_menupopup', value: false },
-          { id: 'userChrome.rounding.square_menuitem', value: false },
-          { id: 'userChrome.rounding.square_field', value: false },
-          { id: 'userChrome.rounding.square_checklabel', value: false },
-        ],
-        off: [
-          { id: 'userChrome.tab.squareTabCorners', value: true },
-          { id: 'userChrome.rounding.square_button', value: true },
-          { id: 'userChrome.rounding.square_panel', value: true },
-          { id: 'userChrome.rounding.square_panelitem', value: true },
-          { id: 'userChrome.rounding.square_menupopup', value: true },
-          { id: 'userChrome.rounding.square_menuitem', value: true },
-          { id: 'userChrome.rounding.square_field', value: true },
-          { id: 'userChrome.rounding.square_checklabel', value: true },
-        ],
+          { id: 'userChrome.tab.connect_to_window', value: true },
+          { id: 'userChrome.tab.color_like_toolbar', value: true },
+          
+          { id: 'userChrome.tab.lepton_like_padding', value: false },
+          { id: 'userChrome.tab.photon_like_padding', value: true },
+
+          { id: 'userChrome.tab.dynamic_separator', value: false },
+          { id: 'userChrome.tab.static_separator', value: true },
+          { id: 'userChrome.tab.static_separator.selected_accent', value: false },
+          { id: 'userChrome.tab.bar_separator', value: false },
+
+          { id: 'userChrome.tab.newtab_button_like_tab', value: false },
+          { id: 'userChrome.tab.newtab_button_smaller', value: true },
+          { id: 'userChrome.tab.newtab_button_proton', value: false },
+
+          { id: 'userChrome.icon.panel_full', value: false },
+          { id: 'userChrome.icon.panel_photon', value: true },
+
+          { id: 'userChrome.tab.box_shadow', value: false },
+          { id: 'userChrome.tab.bottom_rounded_corner', value: false },
+
+          { id: 'userChrome.tab.photon_like_contextline', value: true },
+          { id: 'userChrome.rounding.square_tab', value: true },
+        ]
       },
       {
-        id: 'autohideElements',
+        id: 'leptonStyle',
         on: [
-          { id: 'userChrome.autohide.tab', value: true },
-          { id: 'userChrome.autohide.tab.blur', value: true },
-          { id: 'userChrome.autohide.tabbar', value: true },
-          { id: 'userChrome.autohide.back_button', value: true },
-          { id: 'userChrome.autohide.forward_button', value: true },
-          { id: 'userChrome.autohide.page_action', value: true },
-          { id: 'userChrome.autohide.bookmarkbar', value: true },
-          { id: 'userChrome.autohide.sidebar', value: true },
-          { id: 'userChrome.hidden.urlbar_iconbox', value: true },
-        ],
-        off: [
-          { id: 'userChrome.autohide.tab', value: false },
-          { id: 'userChrome.autohide.tab.blur', value: false },
-          { id: 'userChrome.autohide.tabbar', value: false },
-          { id: 'userChrome.autohide.back_button', value: false },
-          { id: 'userChrome.autohide.forward_button', value: false },
-          { id: 'userChrome.autohide.page_action', value: false },
-          { id: 'userChrome.autohide.bookmarkbar', value: false },
-          { id: 'userChrome.autohide.sidebar', value: false },
-          { id: 'userChrome.hidden.urlbar_iconbox', value: false },
-        ],
+          { id: 'userChrome.tab.connect_to_window', value: true },
+          { id: 'userChrome.tab.color_like_toolbar', value: true },
+          
+          { id: 'userChrome.tab.lepton_like_padding', value: true },
+          { id: 'userChrome.tab.photon_like_padding', value: false },
+
+          { id: 'userChrome.tab.dynamic_separator', value: true },
+          { id: 'userChrome.tab.static_separator', value: false },
+          { id: 'userChrome.tab.static_separator.selected_accent', value: false },
+          { id: 'userChrome.tab.bar_separator', value: false },
+
+          { id: 'userChrome.tab.newtab_button_like_tab', value: true },
+          { id: 'userChrome.tab.newtab_button_smaller', value: false },
+          { id: 'userChrome.tab.newtab_button_proton', value: false },
+
+          { id: 'userChrome.icon.panel_full', value: true },
+          { id: 'userChrome.icon.panel_photon', value: false },
+
+          { id: 'userChrome.tab.box_shadow', value: true },
+          { id: 'userChrome.tab.bottom_rounded_corner', value: true },
+
+          { id: 'userChrome.tab.photon_like_contextline', value: false },
+          { id: 'userChrome.rounding.square_tab', value: false },
+        ]
       },
       {
-        id: 'centerElements',
+        id: 'protonStyle',
         on: [
-          { id: 'userChrome.centered.tab', value: true },
-          { id: 'userChrome.centered.tab.label', value: true },
-          { id: 'userChrome.centered.urlbar', value: true },
-        ],
-        off: [
-          { id: 'userChrome.centered.tab', value: false },
-          { id: 'userChrome.centered.tab.label', value: false },
-          { id: 'userChrome.centered.urlbar', value: false },
-        ],
-      },
-      {
-        id: 'padElements',
-        on: [
-          { id: 'userChrome.padding.drag_space', value: false },
-          { id: 'userChrome.padding.urlView_expanding', value: true },
-          { id: 'userChrome.padding.menu_compact', value: true },
-          { id: 'userChrome.padding.bookmark_menu.compact', value: true },
-          { id: 'userChrome.padding.panel_header', value: true },
-        ],
-        off: [
-          { id: 'userChrome.padding.drag_space', value: true },
-          { id: 'userChrome.padding.urlView_expanding', value: false },
-          { id: 'userChrome.padding.menu_compact', value: false },
-          { id: 'userChrome.padding.bookmark_menu.compact', value: false },
-          { id: 'userChrome.padding.panel_header', value: false },
-        ],
-      },
+          { id: 'userChrome.tab.connect_to_window', value: false },
+          { id: 'userChrome.tab.color_like_toolbar', value: false },
+          
+          { id: 'userChrome.tab.lepton_like_padding', value: false },
+          { id: 'userChrome.tab.photon_like_padding', value: false },
+
+          { id: 'userChrome.tab.dynamic_separator', value: true },
+          { id: 'userChrome.tab.static_separator', value: false },
+          { id: 'userChrome.tab.static_separator.selected_accent', value: false },
+          { id: 'userChrome.tab.bar_separator', value: false },
+
+          { id: 'userChrome.tab.newtab_button_like_tab', value: false },
+          { id: 'userChrome.tab.newtab_button_smaller', value: false },
+          { id: 'userChrome.tab.newtab_button_proton', value: true },
+
+          { id: 'userChrome.icon.panel_full', value: true },
+          { id: 'userChrome.icon.panel_photon', value: false },
+
+          { id: 'userChrome.tab.box_shadow', value: false },
+          { id: 'userChrome.tab.bottom_rounded_corner', value: false },
+
+          { id: 'userChrome.tab.photon_like_contextline', value: false },
+          { id: 'userChrome.rounding.square_tab', value: false },
+        ]
+      }
     ]
   },
+
+  get accentPrefs() {
+    return {
+      '0': [
+        { id: 'userChrome.theme.proton_color.dark_blue_accent', value: true },
+        { id: 'userContent.page.proton_color.dark_blue_accent', value: true },
+
+        { id: 'userContent.page.proton_color.system_accent', value: false },
+        { id: 'widget.non-native-theme.use-theme-accent', value: false },
+      ],
+      
+      '1': [
+        { id: 'userChrome.theme.proton_color.dark_blue_accent', value: false },
+        { id: 'userContent.page.proton_color.dark_blue_accent', value: false },
+
+        { id: 'userContent.page.proton_color.system_accent', value: false },
+        { id: 'widget.non-native-theme.use-theme-accent', value: false },
+      ],
+
+      '2': [
+        { id: 'userChrome.theme.proton_color.dark_blue_accent', value: false },
+        { id: 'userContent.page.proton_color.dark_blue_accent', value: false },
+
+        { id: 'userContent.page.proton_color.system_accent', value: true },
+        { id: 'widget.non-native-theme.use-theme-accent', value: true },
+      ]
+    }
+  },  
 
   init() {
     // Initialize prefs
@@ -204,22 +268,7 @@ const gThemePane = {
       const button = document.getElementById(preset.id)
       if (button) {
         button.addEventListener('click', event => {
-          const target = event.target.getAttribute('data-l10n-args')
-          if (!target) {
-            // Something has gone wrong as all our event targets should
-            // have a data-l10n-args attr.
-            return
-          }
-
-          const [presetKey, presetValue] = Object.entries(JSON.parse(target))[0]
-          event.target.setAttribute(
-            'data-l10n-args',
-            JSON.stringify({ [presetKey]: !presetValue })
-          )
-
-          // If the button is initially true, we want to set the
-          // false preset values.
-          for (const pref of preset[presetValue ? 'off' : 'on']) {
+          for (const pref of preset['on']) {
             PrefUtils.set(pref.id, pref.value)
           }
         })
@@ -258,6 +307,9 @@ const gThemePane = {
         })
       )
     }
+    
+    // Init AccentColor
+    this.initAccentColor()
 
     // Init Tab Rounding
     this.initTabRounding()
@@ -330,6 +382,24 @@ const gThemePane = {
     const url = Services.io.newURI(uri)
     const type = styleSheetService.USER_SHEET
     styleSheetService.unregisterSheet(url, type)
+  },
+
+  async initAccentColor() {
+    let menulist = document.getElementById('accentColor')
+    // If it doesn't exist yet, try again.
+    while (!menulist) {
+      const wait = ms => new Promise(res => setTimeout(res, ms, {}))
+      await wait(500)
+      menulist = document.getElementById('accentColor')
+    }
+
+    menulist?.addEventListener("command", () => {
+      if (['0', '1', '2'].includes(menulist.value)) {
+        for (const pref of this.accentPrefs[menulist.value]) {
+          PrefUtils.set(pref.id, pref.value)
+        }
+      } 
+    })
   },
 
   async initTabRounding() {
