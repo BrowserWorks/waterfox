@@ -10,12 +10,10 @@
 #define LIB_JXL_DEC_TRANSFORMS_INL_H_
 #endif
 
-#include <stddef.h>
-
+#include <cstddef>
 #include <hwy/highway.h>
 
 #include "lib/jxl/ac_strategy.h"
-#include "lib/jxl/coeff_order_fwd.h"
 #include "lib/jxl/dct-inl.h"
 #include "lib/jxl/dct_scales.h"
 HWY_BEFORE_NAMESPACE();
@@ -450,12 +448,12 @@ void AFVTransformToPixels(const float* JXL_RESTRICT coefficients,
       scratch_space);
 }
 
-HWY_MAYBE_UNUSED void TransformToPixels(const AcStrategy::Type strategy,
+HWY_MAYBE_UNUSED void TransformToPixels(const AcStrategyType strategy,
                                         float* JXL_RESTRICT coefficients,
                                         float* JXL_RESTRICT pixels,
                                         size_t pixels_stride,
                                         float* scratch_space) {
-  using Type = AcStrategy::Type;
+  using Type = AcStrategyType;
   switch (strategy) {
     case Type::IDENTITY: {
       float dcs[4] = {};
@@ -682,16 +680,14 @@ HWY_MAYBE_UNUSED void TransformToPixels(const AcStrategy::Type strategy,
                                     scratch_space);
       break;
     }
-    case Type::kNumValidStrategies:
-      JXL_UNREACHABLE("Invalid strategy");
   }
 }
 
-HWY_MAYBE_UNUSED void LowestFrequenciesFromDC(const AcStrategy::Type strategy,
+HWY_MAYBE_UNUSED void LowestFrequenciesFromDC(const AcStrategyType strategy,
                                               const float* dc, size_t dc_stride,
                                               float* llf,
                                               float* JXL_RESTRICT scratch) {
-  using Type = AcStrategy::Type;
+  using Type = AcStrategyType;
   HWY_ALIGN float warm_block[4 * 4];
   HWY_ALIGN float warm_scratch_space[4 * 4 * 4];
   switch (strategy) {
@@ -813,8 +809,6 @@ HWY_MAYBE_UNUSED void LowestFrequenciesFromDC(const AcStrategy::Type strategy,
     case Type::IDENTITY:
       llf[0] = dc[0];
       break;
-    case Type::kNumValidStrategies:
-      JXL_UNREACHABLE("Invalid strategy");
   };
 }
 

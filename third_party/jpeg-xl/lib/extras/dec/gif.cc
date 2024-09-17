@@ -5,19 +5,22 @@
 
 #include "lib/extras/dec/gif.h"
 
+#include "lib/jxl/base/status.h"
+
 #if JPEGXL_ENABLE_GIF
 #include <gif_lib.h>
 #endif
 #include <jxl/codestream_header.h>
-#include <string.h>
 
+#include <cstring>
 #include <memory>
 #include <utility>
 #include <vector>
 
 #include "lib/extras/size_constraints.h"
 #include "lib/jxl/base/compiler_specific.h"
-#include "lib/jxl/sanitizers.h"
+#include "lib/jxl/base/rect.h"
+#include "lib/jxl/base/sanitizers.h"
 
 namespace jxl {
 namespace extras {
@@ -42,19 +45,22 @@ struct PackedRgb {
   uint8_t r, g, b;
 };
 
-void ensure_have_alpha(PackedFrame* frame) {
-  if (!frame->extra_channels.empty()) return;
+Status ensure_have_alpha(PackedFrame* frame) {
+  if (!frame->extra_channels.empty()) return true;
   const JxlPixelFormat alpha_format{
       /*num_channels=*/1u,
       /*data_type=*/JXL_TYPE_UINT8,
       /*endianness=*/JXL_NATIVE_ENDIAN,
       /*align=*/0,
   };
-  frame->extra_channels.emplace_back(frame->color.xsize, frame->color.ysize,
-                                     alpha_format);
+  JXL_ASSIGN_OR_RETURN(PackedImage image,
+                       PackedImage::Create(frame->color.xsize,
+                                           frame->color.ysize, alpha_format));
+  frame->extra_channels.emplace_back(std::move(image));
   // We need to set opaque-by-default.
   std::fill_n(static_cast<uint8_t*>(frame->extra_channels[0].pixels()),
               frame->color.xsize * frame->color.ysize, 255u);
+  return true;
 }
 }  // namespace
 #endif
@@ -81,7 +87,7 @@ Status DecodeImageGIF(Span<const uint8_t> bytes, const ColorHints& color_hints,
       n = state->bytes.size();
     }
     memcpy(bytes, state->bytes.data(), n);
-    state->bytes.remove_prefix(n);
+    if (!state->bytes.remove_prefix(n)) return 0;
     return n;
   };
   GifUniquePtr gif(DGifOpen(&state, ReadFromSpan, &error));
@@ -137,7 +143,7 @@ Status DecodeImageGIF(Span<const uint8_t> bytes, const ColorHints& color_hints,
 
   if (gif->ImageCount > 1) {
     ppf->info.have_animation = JXL_TRUE;
-    // Delays in GIF are specified in 100ths of a second.
+    // Delays in GIF are specified in censiseconds.
     ppf->info.animation.tps_numerator = 100;
     ppf->info.animation.tps_denominator = 1;
   }
@@ -186,7 +192,9 @@ Status DecodeImageGIF(Span<const uint8_t> bytes, const ColorHints& color_hints,
   }
   const PackedRgba background_rgba{background_color.Red, background_color.Green,
                                    background_color.Blue, 0};
-  PackedFrame canvas(gif->SWidth, gif->SHeight, canvas_format);
+  JXL_ASSIGN_OR_RETURN(
+      PackedFrame canvas,
+      PackedFrame::Create(gif->SWidth, gif->SHeight, canvas_format));
   std::fill_n(static_cast<PackedRgba*>(canvas.color.pixels()),
               canvas.color.xsize * canvas.color.ysize, background_rgba);
   Rect canvas_rect{0, 0, canvas.color.xsize, canvas.color.ysize};
@@ -230,26 +238,33 @@ Status DecodeImageGIF(Span<const uint8_t> bytes, const ColorHints& color_hints,
     }
 
     // Allocates the frame buffer.
-    ppf->frames.emplace_back(total_rect.xsize(), total_rect.ysize(),
-                             packed_frame_format);
+    {
+      JXL_ASSIGN_OR_RETURN(
+          PackedFrame frame,
+          PackedFrame::Create(total_rect.xsize(), total_rect.ysize(),
+                              packed_frame_format));
+      ppf->frames.emplace_back(std::move(frame));
+    }
+
     PackedFrame* frame = &ppf->frames.back();
 
     // We cannot tell right from the start whether there will be a
     // need for an alpha channel. This is discovered only as soon as
     // we see a transparent pixel. We hence initialize alpha lazily.
-    auto set_pixel_alpha = [&frame](size_t x, size_t y, uint8_t a) {
+    auto set_pixel_alpha = [&frame](size_t x, size_t y, uint8_t a) -> Status {
       // If we do not have an alpha-channel and a==255 (fully opaque),
       // we can skip setting this pixel-value and rely on
       // "no alpha channel = no transparency".
-      if (a == 255 && !frame->extra_channels.empty()) return;
-      ensure_have_alpha(frame);
+      if (a == 255 && !frame->extra_channels.empty()) return true;
+      JXL_RETURN_IF_ERROR(ensure_have_alpha(frame));
       static_cast<uint8_t*>(
           frame->extra_channels[0].pixels())[y * frame->color.xsize + x] = a;
+      return true;
     };
 
     const ColorMapObject* const color_map =
         image.ImageDesc.ColorMap ? image.ImageDesc.ColorMap : gif->SColorMap;
-    JXL_CHECK(color_map);
+    JXL_ENSURE(color_map);
     msan::UnpoisonMemory(color_map, sizeof(*color_map));
     msan::UnpoisonMemory(color_map->Colors,
                          sizeof(*color_map->Colors) * color_map->ColorCount);
@@ -301,8 +316,10 @@ Status DecodeImageGIF(Span<const uint8_t> bytes, const ColorHints& color_hints,
     }
 
     // Update the canvas by creating a copy first.
-    PackedImage new_canvas_image(canvas.color.xsize, canvas.color.ysize,
-                                 canvas.color.format);
+    JXL_ASSIGN_OR_RETURN(
+        PackedImage new_canvas_image,
+        PackedImage::Create(canvas.color.xsize, canvas.color.ysize,
+                            canvas.color.format));
     memcpy(new_canvas_image.pixels(), canvas.color.pixels(),
            new_canvas_image.pixels_size);
     for (size_t y = 0, byte_index = 0; y < image_rect.ysize(); ++y) {
@@ -338,7 +355,7 @@ Status DecodeImageGIF(Span<const uint8_t> bytes, const ColorHints& color_hints,
           row_out[x].r = row_in[x].r;
           row_out[x].g = row_in[x].g;
           row_out[x].b = row_in[x].b;
-          set_pixel_alpha(x, y, row_in[x].a);
+          JXL_RETURN_IF_ERROR(set_pixel_alpha(x, y, row_in[x].a));
         }
       }
     } else {
@@ -355,14 +372,14 @@ Status DecodeImageGIF(Span<const uint8_t> bytes, const ColorHints& color_hints,
             row[x].r = 0;
             row[x].g = 0;
             row[x].b = 0;
-            set_pixel_alpha(x, y, 0);
+            JXL_RETURN_IF_ERROR(set_pixel_alpha(x, y, 0));
             continue;
           }
           GifColorType color = color_map->Colors[byte];
           row[x].r = color.Red;
           row[x].g = color.Green;
           row[x].b = color.Blue;
-          set_pixel_alpha(x, y, 255);
+          JXL_RETURN_IF_ERROR(set_pixel_alpha(x, y, 255));
         }
       }
     }
@@ -402,7 +419,7 @@ Status DecodeImageGIF(Span<const uint8_t> bytes, const ColorHints& color_hints,
   }
   if (seen_alpha) {
     for (PackedFrame& frame : ppf->frames) {
-      ensure_have_alpha(&frame);
+      JXL_RETURN_IF_ERROR(ensure_have_alpha(&frame));
     }
   }
   return true;

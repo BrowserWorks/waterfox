@@ -34,12 +34,12 @@
 
 #include <jxl/memory_manager.h>
 #include <jxl/parallel_runner.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
 
 #include <atomic>
 #include <condition_variable>  //NOLINT
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
 #include <mutex>               //NOLINT
 #include <thread>              //NOLINT
 #include <vector>

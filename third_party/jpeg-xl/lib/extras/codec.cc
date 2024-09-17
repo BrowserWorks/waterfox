@@ -17,7 +17,6 @@
 #include "lib/extras/packed_image.h"
 #include "lib/extras/packed_image_convert.h"
 #include "lib/jxl/base/status.h"
-#include "lib/jxl/image_bundle.h"
 
 namespace jxl {
 namespace {
@@ -95,7 +94,7 @@ Status Encode(const extras::PackedPixelFile& ppf, const extras::Codec codec,
   }
   extras::EncodedImage encoded_image;
   JXL_RETURN_IF_ERROR(encoder->Encode(ppf, &encoded_image, pool));
-  JXL_ASSERT(encoded_image.bitstreams.size() == 1);
+  JXL_ENSURE(encoded_image.bitstreams.size() == 1);
   *bytes = encoded_image.bitstreams[0];
 
   return true;

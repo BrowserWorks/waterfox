@@ -3,6 +3,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "lib/jxl/base/status.h"
 #ifndef FJXL_SELF_INCLUDE
 
 #include "lib/jxl/enc_fast_lossless.h"
@@ -17,20 +18,44 @@
 #include <memory>
 #include <vector>
 
-#if !FJXL_STANDALONE
-#include "lib/jxl/encode_internal.h"
+#if FJXL_STANDALONE
+#if defined(_MSC_VER)
+using ssize_t = intptr_t;
 #endif
+#else  // FJXL_STANDALONE
+#include "lib/jxl/encode_internal.h"
+#endif  // FJXL_STANDALONE
+
+#if defined(__x86_64__) || defined(_M_X64)
+#define FJXL_ARCH_IS_X86_64 1
+#else
+#define FJXL_ARCH_IS_X86_64 0
+#endif
+
+#if defined(__i386__) || defined(_M_IX86) || FJXL_ARCH_IS_X86_64
+#define FJXL_ARCH_IS_X86 1
+#else
+#define FJXL_ARCH_IS_X86 0
+#endif
+
+#if FJXL_ARCH_IS_X86
+#if defined(_MSC_VER)
+#include <intrin.h>
+#else  // _MSC_VER
+#include <cpuid.h>
+#endif  // _MSC_VER
+#endif  // FJXL_ARCH_IS_X86
 
 // Enable NEON and AVX2/AVX512 if not asked to do otherwise and the compilers
 // support it.
-#if defined(__aarch64__) || defined(_M_ARM64)
+#if defined(__aarch64__) || defined(_M_ARM64)  // ARCH
 #include <arm_neon.h>
 
-#ifndef FJXL_ENABLE_NEON
+#if !defined(FJXL_ENABLE_NEON)
 #define FJXL_ENABLE_NEON 1
-#endif
+#endif  // !defined(FJXL_ENABLE_NEON)
 
-#elif (defined(__x86_64__) || defined(_M_X64)) && !defined(_MSC_VER)
+#elif FJXL_ARCH_IS_X86_64 && !defined(_MSC_VER)  // ARCH
 #include <immintrin.h>
 
 // manually add _mm512_cvtsi512_si32 definition if missing
@@ -46,14 +71,11 @@ _mm512_cvtsi512_si32(__m512i __A) {
 }
 #endif
 
-// TODO(veluca): MSVC support for dynamic dispatch.
-#if defined(__clang__) || defined(__GNUC__)
-
-#ifndef FJXL_ENABLE_AVX2
+#if !defined(FJXL_ENABLE_AVX2)
 #define FJXL_ENABLE_AVX2 1
-#endif
+#endif  // !defined(FJXL_ENABLE_AVX2)
 
-#ifndef FJXL_ENABLE_AVX512
+#if !defined(FJXL_ENABLE_AVX512)
 // On clang-7 or earlier, and gcc-10 or earlier, AVX512 seems broken.
 #if (defined(__clang__) &&                                             \
          (!defined(__apple_build_version__) && __clang_major__ > 7) || \
@@ -62,11 +84,9 @@ _mm512_cvtsi512_si32(__m512i __A) {
     (defined(__GNUC__) && __GNUC__ > 10)
 #define FJXL_ENABLE_AVX512 1
 #endif
-#endif
+#endif  // !defined(FJXL_ENABLE_AVX512)
 
-#endif
-
-#endif
+#endif  // ARCH
 
 #ifndef FJXL_ENABLE_NEON
 #define FJXL_ENABLE_NEON 0
@@ -81,6 +101,109 @@ _mm512_cvtsi512_si32(__m512i __A) {
 #endif
 
 namespace {
+
+enum class CpuFeature : uint32_t {
+  kAVX2 = 0,
+
+  kAVX512F,
+  kAVX512VL,
+  kAVX512CD,
+  kAVX512BW,
+
+  kVBMI,
+  kVBMI2
+};
+
+constexpr uint32_t CpuFeatureBit(CpuFeature feature) {
+  return 1u << static_cast<uint32_t>(feature);
+}
+
+#if FJXL_ARCH_IS_X86
+#if defined(_MSC_VER)
+void Cpuid(const uint32_t level, const uint32_t count,
+           std::array<uint32_t, 4>& abcd) {
+  int regs[4];
+  __cpuidex(regs, level, count);
+  for (int i = 0; i < 4; ++i) {
+    abcd[i] = regs[i];
+  }
+}
+uint32_t ReadXCR0() { return static_cast<uint32_t>(_xgetbv(0)); }
+#else   // _MSC_VER
+void Cpuid(const uint32_t level, const uint32_t count,
+           std::array<uint32_t, 4>& abcd) {
+  uint32_t a;
+  uint32_t b;
+  uint32_t c;
+  uint32_t d;
+  __cpuid_count(level, count, a, b, c, d);
+  abcd[0] = a;
+  abcd[1] = b;
+  abcd[2] = c;
+  abcd[3] = d;
+}
+uint32_t ReadXCR0() {
+  uint32_t xcr0;
+  uint32_t xcr0_high;
+  const uint32_t index = 0;
+  asm volatile(".byte 0x0F, 0x01, 0xD0"
+               : "=a"(xcr0), "=d"(xcr0_high)
+               : "c"(index));
+  return xcr0;
+}
+#endif  // _MSC_VER
+
+uint32_t DetectCpuFeatures() {
+  uint32_t flags = 0;  // return value
+  std::array<uint32_t, 4> abcd;
+  Cpuid(0, 0, abcd);
+  const uint32_t max_level = abcd[0];
+
+  const auto check_bit = [](uint32_t v, uint32_t idx) -> bool {
+    return (v & (1U << idx)) != 0;
+  };
+
+  // Extended features
+  if (max_level >= 7) {
+    Cpuid(7, 0, abcd);
+    flags |= check_bit(abcd[1], 5) ? CpuFeatureBit(CpuFeature::kAVX2) : 0;
+
+    flags |= check_bit(abcd[1], 16) ? CpuFeatureBit(CpuFeature::kAVX512F) : 0;
+    flags |= check_bit(abcd[1], 28) ? CpuFeatureBit(CpuFeature::kAVX512CD) : 0;
+    flags |= check_bit(abcd[1], 30) ? CpuFeatureBit(CpuFeature::kAVX512BW) : 0;
+    flags |= check_bit(abcd[1], 31) ? CpuFeatureBit(CpuFeature::kAVX512VL) : 0;
+
+    flags |= check_bit(abcd[2], 1) ? CpuFeatureBit(CpuFeature::kVBMI) : 0;
+    flags |= check_bit(abcd[2], 6) ? CpuFeatureBit(CpuFeature::kVBMI2) : 0;
+  }
+
+  Cpuid(1, 0, abcd);
+  const bool os_has_xsave = check_bit(abcd[2], 27);
+  if (os_has_xsave) {
+    const uint32_t xcr0 = ReadXCR0();
+    if (!check_bit(xcr0, 1) || !check_bit(xcr0, 2) || !check_bit(xcr0, 5) ||
+        !check_bit(xcr0, 6) || !check_bit(xcr0, 7)) {
+      flags = 0;  // TODO(eustas): be more selective?
+    }
+  }
+
+  return flags;
+}
+#else   // FJXL_ARCH_IS_X86
+uint32_t DetectCpuFeatures() { return 0; }
+#endif  // FJXL_ARCH_IS_X86
+
+#if defined(_MSC_VER)
+#define FJXL_UNUSED
+#else
+#define FJXL_UNUSED __attribute__((unused))
+#endif
+
+FJXL_UNUSED bool HasCpuFeature(CpuFeature feature) {
+  static uint32_t cpu_features = DetectCpuFeatures();
+  return (cpu_features & CpuFeatureBit(feature)) != 0;
+}
+
 #if defined(_MSC_VER) && !defined(__clang__)
 #define FJXL_INLINE __forceinline
 FJXL_INLINE uint32_t FloorLog2(uint32_t v) {
@@ -98,7 +221,9 @@ FJXL_INLINE uint32_t CtzNonZero(uint64_t v) {
 FJXL_INLINE uint32_t FloorLog2(uint32_t v) {
   return v ? 31 - __builtin_clz(v) : 0;
 }
-FJXL_INLINE uint32_t CtzNonZero(uint64_t v) { return __builtin_ctzll(v); }
+FJXL_UNUSED FJXL_INLINE uint32_t CtzNonZero(uint64_t v) {
+  return __builtin_ctzll(v);
+}
 #endif
 
 // Compiles to a memcpy on little-endian systems.
@@ -200,10 +325,11 @@ size_t TOCBucket(size_t group_size) {
   return bucket;
 }
 
+#if !FJXL_STANDALONE
 size_t TOCSize(const std::vector<size_t>& group_sizes) {
   size_t toc_bits = 0;
-  for (size_t i = 0; i < group_sizes.size(); i++) {
-    toc_bits += kTOCBits[TOCBucket(group_sizes[i])];
+  for (size_t group_size : group_sizes) {
+    toc_bits += kTOCBits[TOCBucket(group_size)];
   }
   return (toc_bits + 7) / 8;
 }
@@ -212,6 +338,7 @@ size_t FrameHeaderSize(bool have_alpha, bool is_last) {
   size_t nbits = 28 + (have_alpha ? 4 : 0) + (is_last ? 0 : 2);
   return (nbits + 7) / 8;
 }
+#endif
 
 void ComputeAcGroupDataOffset(size_t dc_global_size, size_t num_dc_groups,
                               size_t num_ac_groups, size_t& min_dc_global_size,
@@ -234,6 +361,7 @@ void ComputeAcGroupDataOffset(size_t dc_global_size, size_t num_dc_groups,
   ac_group_offset = kMaxFrameHeaderSize + max_toc_size + min_dc_global_size;
 }
 
+#if !FJXL_STANDALONE
 size_t ComputeDcGlobalPadding(const std::vector<size_t>& group_sizes,
                               size_t ac_group_data_offset,
                               size_t min_dc_global_size, bool have_alpha,
@@ -245,6 +373,7 @@ size_t ComputeDcGlobalPadding(const std::vector<size_t>& group_sizes,
       FrameHeaderSize(have_alpha, is_last) + toc_size + group_sizes[0];
   return ac_group_data_offset - actual_offset;
 }
+#endif
 
 constexpr size_t kNumRawSymbols = 19;
 constexpr size_t kNumLZ77 = 33;
@@ -328,8 +457,8 @@ struct PrefixCode {
   template <typename T>
   static void ComputeCodeLengthsNonZeroImpl(const uint64_t* freqs, size_t n,
                                             size_t precision, T infty,
-                                            uint8_t* min_limit,
-                                            uint8_t* max_limit,
+                                            const uint8_t* min_limit,
+                                            const uint8_t* max_limit,
                                             uint8_t* nbits) {
     assert(precision < 15);
     assert(n <= kMaxNumSymbols);
@@ -454,8 +583,8 @@ struct PrefixCode {
     uint8_t min_lengths[kNumLZ77] = {};
     uint8_t l = 15 - level1_nbits[numraw];
     uint8_t max_lengths[kNumLZ77];
-    for (size_t i = 0; i < kNumLZ77; i++) {
-      max_lengths[i] = l;
+    for (uint8_t& max_length : max_lengths) {
+      max_length = l;
     }
     size_t num_lz77 = kNumLZ77;
     while (num_lz77 > 0 && lz77_counts[num_lz77 - 1] == 0) num_lz77--;
@@ -487,11 +616,11 @@ struct PrefixCode {
   void WriteTo(BitWriter* writer) const {
     uint64_t code_length_counts[18] = {};
     code_length_counts[17] = 3 + 2 * (kNumLZ77 - 1);
-    for (size_t i = 0; i < kNumRawSymbols; i++) {
-      code_length_counts[raw_nbits[i]]++;
+    for (uint8_t raw_nbit : raw_nbits) {
+      code_length_counts[raw_nbit]++;
     }
-    for (size_t i = 0; i < kNumLZ77; i++) {
-      code_length_counts[lz77_nbits[i]]++;
+    for (uint8_t lz77_nbit : lz77_nbits) {
+      code_length_counts[lz77_nbit]++;
     }
     uint8_t code_length_nbits[18] = {};
     uint8_t code_length_nbits_min[18] = {};
@@ -527,9 +656,8 @@ struct PrefixCode {
                          code_length_bits, 18);
     // Encode raw bit code lengths.
     // Max bits written in this loop: 19 * 5 = 95
-    for (size_t i = 0; i < kNumRawSymbols; i++) {
-      writer->Write(code_length_nbits[raw_nbits[i]],
-                    code_length_bits[raw_nbits[i]]);
+    for (uint8_t raw_nbit : raw_nbits) {
+      writer->Write(code_length_nbits[raw_nbit], code_length_bits[raw_nbit]);
     }
     size_t num_lz77 = kNumLZ77;
     while (lz77_nbits[num_lz77 - 1] == 0) {
@@ -537,8 +665,8 @@ struct PrefixCode {
     }
     // Encode 0s until 224 (start of LZ77 symbols). This is in total 224-19 =
     // 205.
-    static_assert(kLZ77Offset == 224, "");
-    static_assert(kNumRawSymbols == 19, "");
+    static_assert(kLZ77Offset == 224);
+    static_assert(kNumRawSymbols == 19);
     {
       // Max bits in this block: 24
       writer->Write(code_length_nbits[17], code_length_bits[17]);
@@ -590,8 +718,8 @@ struct JxlFastLosslessFrameState {
 
 size_t JxlFastLosslessOutputSize(const JxlFastLosslessFrameState* frame) {
   size_t total_size_groups = 0;
-  for (size_t i = 0; i < frame->group_data.size(); i++) {
-    total_size_groups += SectionSize(frame->group_data[i]);
+  for (const auto& section : frame->group_data) {
+    total_size_groups += SectionSize(section);
   }
   return frame->header.bytes_written + total_size_groups;
 }
@@ -682,7 +810,7 @@ void JxlFastLosslessPrepareHeader(JxlFastLosslessFrameState* frame,
 
     output->Write(1, 1);  // all_default transform data
 
-    // No ICC, no preview. Frame should start at byte boundery.
+    // No ICC, no preview. Frame should start at byte boundary.
     output->ZeroPadToByte();
   }
 #else
@@ -719,40 +847,41 @@ void JxlFastLosslessPrepareHeader(JxlFastLosslessFrameState* frame,
   output->Write(1, 0);      // No TOC permutation
   output->ZeroPadToByte();  // TOC is byte-aligned.
   assert(add_image_header || output->bytes_written <= kMaxFrameHeaderSize);
-  for (size_t i = 0; i < frame->group_sizes.size(); i++) {
-    size_t sz = frame->group_sizes[i];
-    size_t bucket = TOCBucket(sz);
+  for (size_t group_size : frame->group_sizes) {
+    size_t bucket = TOCBucket(group_size);
     output->Write(2, bucket);
-    output->Write(kTOCBits[bucket] - 2, sz - kGroupSizeOffset[bucket]);
+    output->Write(kTOCBits[bucket] - 2, group_size - kGroupSizeOffset[bucket]);
   }
   output->ZeroPadToByte();  // Groups are byte-aligned.
 }
 
 #if !FJXL_STANDALONE
-void JxlFastLosslessOutputAlignedSection(
+bool JxlFastLosslessOutputAlignedSection(
     const BitWriter& bw, JxlEncoderOutputProcessorWrapper* output_processor) {
   assert(bw.bits_in_buffer == 0);
   const uint8_t* data = bw.data.get();
   size_t remaining_len = bw.bytes_written;
   while (remaining_len > 0) {
-    auto retval = output_processor->GetBuffer(1, remaining_len);
-    assert(retval.status());
-    auto buffer = std::move(retval).value();
+    JXL_ASSIGN_OR_RETURN(auto buffer,
+                         output_processor->GetBuffer(1, remaining_len));
     size_t n = std::min(buffer.size(), remaining_len);
     if (n == 0) break;
     memcpy(buffer.data(), data, n);
-    buffer.advance(n);
+    JXL_RETURN_IF_ERROR(buffer.advance(n));
     data += n;
     remaining_len -= n;
   };
+  return true;
 }
 
-void JxlFastLosslessOutputHeaders(
+bool JxlFastLosslessOutputHeaders(
     JxlFastLosslessFrameState* frame_state,
     JxlEncoderOutputProcessorWrapper* output_processor) {
-  JxlFastLosslessOutputAlignedSection(frame_state->header, output_processor);
-  JxlFastLosslessOutputAlignedSection(frame_state->group_data[0][0],
-                                      output_processor);
+  JXL_RETURN_IF_ERROR(JxlFastLosslessOutputAlignedSection(frame_state->header,
+                                                          output_processor));
+  JXL_RETURN_IF_ERROR(JxlFastLosslessOutputAlignedSection(
+      frame_state->group_data[0][0], output_processor));
+  return true;
 }
 #endif
 
@@ -790,7 +919,7 @@ size_t JxlFastLosslessWriteOutput(JxlFastLosslessFrameState* frame,
                                          unsigned char*, uint64_t&) = nullptr;
 
 #if FJXL_ENABLE_AVX512
-  if (__builtin_cpu_supports("avx512vbmi2")) {
+  if (HasCpuFeature(CpuFeature::kVBMI2)) {
     append_bytes_with_bit_offset = AppendBytesWithBitOffset;
   }
 #endif
@@ -1132,13 +1261,13 @@ struct SIMDVec16 {
     __m512i rg = _mm512_permutexvar_epi64(
         permuteidx, _mm512_packus_epi32(_mm512_and_si512(bytes1, rg_mask),
                                         _mm512_and_si512(bytes2, rg_mask)));
-    __m512i ba = _mm512_permutexvar_epi64(
+    __m512i b_a = _mm512_permutexvar_epi64(
         permuteidx, _mm512_packus_epi32(_mm512_srli_epi32(bytes1, 16),
                                         _mm512_srli_epi32(bytes2, 16)));
     __m512i r = _mm512_and_si512(rg, _mm512_set1_epi16(0xFF));
     __m512i g = _mm512_srli_epi16(rg, 8);
-    __m512i b = _mm512_and_si512(ba, _mm512_set1_epi16(0xFF));
-    __m512i a = _mm512_srli_epi16(ba, 8);
+    __m512i b = _mm512_and_si512(b_a, _mm512_set1_epi16(0xFF));
+    __m512i a = _mm512_srli_epi16(b_a, 8);
     return {SIMDVec16{r}, SIMDVec16{g}, SIMDVec16{b}, SIMDVec16{a}};
   }
   static std::array<SIMDVec16, 4> LoadRGBA16(const unsigned char* data) {
@@ -1671,14 +1800,14 @@ struct SIMDVec16 {
         _mm256_packus_epi32(_mm256_and_si256(bytes1, rg_mask),
                             _mm256_and_si256(bytes2, rg_mask)),
         0b11011000);
-    __m256i ba = _mm256_permute4x64_epi64(
+    __m256i b_a = _mm256_permute4x64_epi64(
         _mm256_packus_epi32(_mm256_srli_epi32(bytes1, 16),
                             _mm256_srli_epi32(bytes2, 16)),
         0b11011000);
     __m256i r = _mm256_and_si256(rg, _mm256_set1_epi16(0xFF));
     __m256i g = _mm256_srli_epi16(rg, 8);
-    __m256i b = _mm256_and_si256(ba, _mm256_set1_epi16(0xFF));
-    __m256i a = _mm256_srli_epi16(ba, 8);
+    __m256i b = _mm256_and_si256(b_a, _mm256_set1_epi16(0xFF));
+    __m256i a = _mm256_srli_epi16(b_a, 8);
     return {SIMDVec16{r}, SIMDVec16{g}, SIMDVec16{b}, SIMDVec16{a}};
   }
   static std::array<SIMDVec16, 4> LoadRGBA16(const unsigned char* data) {
@@ -2347,9 +2476,10 @@ FJXL_INLINE void StoreToWriterAVX512(const Bits32& bits32, BitWriter& output) {
   auto sh4 = [zero](__m512i vec) { return _mm512_alignr_epi64(vec, zero, 4); };
 
   // Compute first-past-end-bit-position.
-  __m512i end_interm0 = _mm512_add_epi64(nbits, sh1(nbits));
-  __m512i end_interm1 = _mm512_add_epi64(end_interm0, sh2(end_interm0));
-  __m512i end = _mm512_add_epi64(end_interm1, sh4(end_interm1));
+  __m512i end_intermediate0 = _mm512_add_epi64(nbits, sh1(nbits));
+  __m512i end_intermediate1 =
+      _mm512_add_epi64(end_intermediate0, sh2(end_intermediate0));
+  __m512i end = _mm512_add_epi64(end_intermediate1, sh4(end_intermediate1));
 
   uint64_t simd_nbits = _mm512_cvtsi512_si32(_mm512_alignr_epi64(end, end, 7));
 
@@ -3425,7 +3555,9 @@ void FillRowPalette(const unsigned char* inrow, size_t xs,
                     const int16_t* lookup, int16_t* out) {
   for (size_t x = 0; x < xs; x++) {
     uint32_t p = 0;
-    memcpy(&p, inrow + x * nb_chans, nb_chans);
+    for (size_t i = 0; i < nb_chans; ++i) {
+      p |= inrow[x * nb_chans + i] << (8 * i);
+    }
     out[x] = lookup[pixel_hash(p)];
   }
 }
@@ -3574,15 +3706,13 @@ void PrepareDCGlobalPalette(bool is_single_group, size_t width, size_t height,
   encoder.code = &code[0];
   encoder.PrepareForSimd();
   int16_t p[4][32 + 1024] = {};
-  uint8_t prgba[4];
   size_t i = 0;
   size_t have_zero = 1;
   for (; i < pcolors; i++) {
-    memcpy(prgba, &palette[i], 4);
-    p[0][16 + i + have_zero] = prgba[0];
-    p[1][16 + i + have_zero] = prgba[1];
-    p[2][16 + i + have_zero] = prgba[2];
-    p[3][16 + i + have_zero] = prgba[3];
+    p[0][16 + i + have_zero] = palette[i] & 0xFF;
+    p[1][16 + i + have_zero] = (palette[i] >> 8) & 0xFF;
+    p[2][16 + i + have_zero] = (palette[i] >> 16) & 0xFF;
+    p[3][16 + i + have_zero] = (palette[i] >> 24) & 0xFF;
   }
   p[0][15] = 0;
   row_encoder.ProcessRow(p[0] + 16, p[0] + 15, p[0] + 15, p[0] + 15, pcolors);
@@ -3614,9 +3744,14 @@ bool detect_palette(const unsigned char* r, size_t width,
   size_t x = 0;
   bool collided = false;
   // this is just an unrolling of the next loop
-  for (; x + 7 < width; x += 8) {
+  size_t look_ahead = 7 + ((nb_chans == 1) ? 3 : ((nb_chans < 4) ? 1 : 0));
+  for (; x + look_ahead < width; x += 8) {
     uint32_t p[8] = {}, index[8];
-    for (int i = 0; i < 8; i++) memcpy(&p[i], r + (x + i) * nb_chans, 4);
+    for (int i = 0; i < 8; i++) {
+      for (int j = 0; j < 4; ++j) {
+        p[i] |= r[(x + i) * nb_chans + j] << (8 * j);
+      }
+    }
     for (int i = 0; i < 8; i++) p[i] &= ((1llu << (8 * nb_chans)) - 1);
     for (int i = 0; i < 8; i++) index[i] = pixel_hash(p[i]);
     for (int i = 0; i < 8; i++) {
@@ -3626,7 +3761,9 @@ bool detect_palette(const unsigned char* r, size_t width,
   }
   for (; x < width; x++) {
     uint32_t p = 0;
-    memcpy(&p, r + x * nb_chans, nb_chans);
+    for (size_t i = 0; i < nb_chans; ++i) {
+      p |= r[x * nb_chans + i] << (8 * i);
+    }
     uint32_t index = pixel_hash(p);
     collided |= (palette[index] != 0 && p != palette[index]);
     palette[index] = p;
@@ -3675,7 +3812,9 @@ JxlFastLosslessFrameState* LLPrepare(JxlChunkedFrameInputSource input,
     for (uint32_t k = 0; k < kHashSize; k++) {
       if (palette[k] == 0) continue;
       uint8_t p[4];
-      memcpy(p, &palette[k], 4);
+      for (int i = 0; i < 4; ++i) {
+        p[i] = (palette[k] >> (8 * i)) & 0xFF;
+      }
       // move entries to front so sort has less work
       palette[nb_entries] = palette[k];
       if (p[0] != p[1] || p[0] != p[2]) have_color = true;
@@ -3700,8 +3839,10 @@ JxlFastLosslessFrameState* LLPrepare(JxlChunkedFrameInputSource input,
           if (ap == 0) return false;
           if (bp == 0) return true;
           uint8_t a[4], b[4];
-          memcpy(a, &ap, 4);
-          memcpy(b, &bp, 4);
+          for (int i = 0; i < 4; ++i) {
+            a[i] = (ap >> (8 * i)) & 0xFF;
+            b[i] = (bp >> (8 * i)) & 0xFF;
+          }
           float ay, by;
           if (nb_chans == 4) {
             ay = (0.299f * a[0] + 0.587f * a[1] + 0.114f * a[2] + 0.01f) * a[3];
@@ -3851,17 +3992,18 @@ JxlFastLosslessFrameState* LLPrepare(JxlChunkedFrameInputSource input,
 }
 
 template <typename BitDepth>
-void LLProcess(JxlFastLosslessFrameState* frame_state, bool is_last,
-               BitDepth bitdepth, void* runner_opaque,
-               FJxlParallelRunner runner,
-               JxlEncoderOutputProcessorWrapper* output_processor) {
+jxl::Status LLProcess(JxlFastLosslessFrameState* frame_state, bool is_last,
+                      BitDepth bitdepth, void* runner_opaque,
+                      FJxlParallelRunner runner,
+                      JxlEncoderOutputProcessorWrapper* output_processor) {
 #if !FJXL_STANDALONE
   if (frame_state->process_done) {
     JxlFastLosslessPrepareHeader(frame_state, /*add_image_header=*/0, is_last);
     if (output_processor) {
-      JxlFastLosslessOutputFrame(frame_state, output_processor);
+      JXL_RETURN_IF_ERROR(
+          JxlFastLosslessOutputFrame(frame_state, output_processor));
     }
-    return;
+    return true;
   }
 #endif
   // The maximum number of groups that we process concurrently here.
@@ -3876,7 +4018,8 @@ void LLProcess(JxlFastLosslessFrameState* frame_state, bool is_last,
   size_t start_pos = 0;
   if (streaming) {
     start_pos = output_processor->CurrentPosition();
-    output_processor->Seek(start_pos + frame_state->ac_group_data_offset);
+    JXL_RETURN_IF_ERROR(
+        output_processor->Seek(start_pos + frame_state->ac_group_data_offset));
   }
 #endif
   for (size_t offset = 0; offset < total_groups; offset += max_groups) {
@@ -3928,14 +4071,15 @@ void LLProcess(JxlFastLosslessFrameState* frame_state, bool is_last,
     if (streaming) {
       local_frame_state.nb_chans = frame_state->nb_chans;
       local_frame_state.current_bit_writer = 1;
-      JxlFastLosslessOutputFrame(&local_frame_state, output_processor);
+      JXL_RETURN_IF_ERROR(
+          JxlFastLosslessOutputFrame(&local_frame_state, output_processor));
     }
 #endif
   }
 #if !FJXL_STANDALONE
   if (streaming) {
     size_t end_pos = output_processor->CurrentPosition();
-    output_processor->Seek(start_pos);
+    JXL_RETURN_IF_ERROR(output_processor->Seek(start_pos));
     frame_state->group_data.resize(1);
     bool have_alpha = frame_state->nb_chans == 2 || frame_state->nb_chans == 4;
     size_t padding = ComputeDcGlobalPadding(
@@ -3949,17 +4093,20 @@ void LLProcess(JxlFastLosslessFrameState* frame_state, bool is_last,
     JxlFastLosslessPrepareHeader(frame_state, /*add_image_header=*/0, is_last);
     assert(frame_state->ac_group_data_offset ==
            JxlFastLosslessOutputSize(frame_state));
-    JxlFastLosslessOutputHeaders(frame_state, output_processor);
-    output_processor->Seek(end_pos);
+    JXL_RETURN_IF_ERROR(
+        JxlFastLosslessOutputHeaders(frame_state, output_processor));
+    JXL_RETURN_IF_ERROR(output_processor->Seek(end_pos));
   } else if (output_processor) {
     assert(onegroup);
     JxlFastLosslessPrepareHeader(frame_state, /*add_image_header=*/0, is_last);
     if (output_processor) {
-      JxlFastLosslessOutputFrame(frame_state, output_processor);
+      JXL_RETURN_IF_ERROR(
+          JxlFastLosslessOutputFrame(frame_state, output_processor));
     }
   }
   frame_state->process_done = true;
 #endif
+  return true;
 }
 
 JxlFastLosslessFrameState* JxlFastLosslessPrepareImpl(
@@ -3985,24 +4132,26 @@ JxlFastLosslessFrameState* JxlFastLosslessPrepareImpl(
                    big_endian, effort, oneshot);
 }
 
-void JxlFastLosslessProcessFrameImpl(
+jxl::Status JxlFastLosslessProcessFrameImpl(
     JxlFastLosslessFrameState* frame_state, bool is_last, void* runner_opaque,
     FJxlParallelRunner runner,
     JxlEncoderOutputProcessorWrapper* output_processor) {
   const size_t bitdepth = frame_state->bitdepth;
   if (bitdepth <= 8) {
-    LLProcess(frame_state, is_last, UpTo8Bits(bitdepth), runner_opaque, runner,
-              output_processor);
+    JXL_RETURN_IF_ERROR(LLProcess(frame_state, is_last, UpTo8Bits(bitdepth),
+                                  runner_opaque, runner, output_processor));
   } else if (bitdepth <= 13) {
-    LLProcess(frame_state, is_last, From9To13Bits(bitdepth), runner_opaque,
-              runner, output_processor);
+    JXL_RETURN_IF_ERROR(LLProcess(frame_state, is_last, From9To13Bits(bitdepth),
+                                  runner_opaque, runner, output_processor));
   } else if (bitdepth == 14) {
-    LLProcess(frame_state, is_last, Exactly14Bits(bitdepth), runner_opaque,
-              runner, output_processor);
+    JXL_RETURN_IF_ERROR(LLProcess(frame_state, is_last, Exactly14Bits(bitdepth),
+                                  runner_opaque, runner, output_processor));
   } else {
-    LLProcess(frame_state, is_last, MoreThan14Bits(bitdepth), runner_opaque,
-              runner, output_processor);
+    JXL_RETURN_IF_ERROR(LLProcess(frame_state, is_last,
+                                  MoreThan14Bits(bitdepth), runner_opaque,
+                                  runner, output_processor));
   }
+  return true;
 }
 
 }  // namespace
@@ -4112,15 +4261,17 @@ class FJxlFrameInput {
 
 size_t JxlFastLosslessEncode(const unsigned char* rgba, size_t width,
                              size_t row_stride, size_t height, size_t nb_chans,
-                             size_t bitdepth, int big_endian, int effort,
+                             size_t bitdepth, bool big_endian, int effort,
                              unsigned char** output, void* runner_opaque,
                              FJxlParallelRunner runner) {
   FJxlFrameInput input(rgba, row_stride, nb_chans, bitdepth);
   auto frame_state = JxlFastLosslessPrepareFrame(
       input.GetInputSource(), width, height, nb_chans, bitdepth, big_endian,
       effort, /*oneshot=*/true);
-  JxlFastLosslessProcessFrame(frame_state, /*is_last=*/true, runner_opaque,
-                              runner, nullptr);
+  if (!JxlFastLosslessProcessFrame(frame_state, /*is_last=*/true, runner_opaque,
+                                   runner, nullptr)) {
+    return 0;
+  }
   JxlFastLosslessPrepareHeader(frame_state, /*add_image_header=*/1,
                                /*is_last=*/1);
   size_t output_size = JxlFastLosslessMaxRequiredOutput(frame_state);
@@ -4138,18 +4289,20 @@ size_t JxlFastLosslessEncode(const unsigned char* rgba, size_t width,
 
 JxlFastLosslessFrameState* JxlFastLosslessPrepareFrame(
     JxlChunkedFrameInputSource input, size_t width, size_t height,
-    size_t nb_chans, size_t bitdepth, int big_endian, int effort, int oneshot) {
+    size_t nb_chans, size_t bitdepth, bool big_endian, int effort,
+    int oneshot) {
 #if FJXL_ENABLE_AVX512
-  if (__builtin_cpu_supports("avx512cd") &&
-      __builtin_cpu_supports("avx512vbmi") &&
-      __builtin_cpu_supports("avx512bw") && __builtin_cpu_supports("avx512f") &&
-      __builtin_cpu_supports("avx512vl")) {
+  if (HasCpuFeature(CpuFeature::kAVX512CD) &&
+      HasCpuFeature(CpuFeature::kVBMI) &&
+      HasCpuFeature(CpuFeature::kAVX512BW) &&
+      HasCpuFeature(CpuFeature::kAVX512F) &&
+      HasCpuFeature(CpuFeature::kAVX512VL)) {
     return AVX512::JxlFastLosslessPrepareImpl(
         input, width, height, nb_chans, bitdepth, big_endian, effort, oneshot);
   }
 #endif
 #if FJXL_ENABLE_AVX2
-  if (__builtin_cpu_supports("avx2")) {
+  if (HasCpuFeature(CpuFeature::kAVX2)) {
     return AVX2::JxlFastLosslessPrepareImpl(
         input, width, height, nb_chans, bitdepth, big_endian, effort, oneshot);
   }
@@ -4159,7 +4312,7 @@ JxlFastLosslessFrameState* JxlFastLosslessPrepareFrame(
       input, width, height, nb_chans, bitdepth, big_endian, effort, oneshot);
 }
 
-void JxlFastLosslessProcessFrame(
+bool JxlFastLosslessProcessFrame(
     JxlFastLosslessFrameState* frame_state, bool is_last, void* runner_opaque,
     FJxlParallelRunner runner,
     JxlEncoderOutputProcessorWrapper* output_processor) {
@@ -4175,45 +4328,47 @@ void JxlFastLosslessProcessFrame(
   }
 
 #if FJXL_ENABLE_AVX512
-  if (__builtin_cpu_supports("avx512cd") &&
-      __builtin_cpu_supports("avx512vbmi") &&
-      __builtin_cpu_supports("avx512bw") && __builtin_cpu_supports("avx512f") &&
-      __builtin_cpu_supports("avx512vl")) {
-    AVX512::JxlFastLosslessProcessFrameImpl(frame_state, is_last, runner_opaque,
-                                            runner, output_processor);
-    return;
+  if (HasCpuFeature(CpuFeature::kAVX512CD) &&
+      HasCpuFeature(CpuFeature::kVBMI) &&
+      HasCpuFeature(CpuFeature::kAVX512BW) &&
+      HasCpuFeature(CpuFeature::kAVX512F) &&
+      HasCpuFeature(CpuFeature::kAVX512VL)) {
+    JXL_RETURN_IF_ERROR(AVX512::JxlFastLosslessProcessFrameImpl(
+        frame_state, is_last, runner_opaque, runner, output_processor));
+    return true;
   }
 #endif
 #if FJXL_ENABLE_AVX2
-  if (__builtin_cpu_supports("avx2")) {
-    AVX2::JxlFastLosslessProcessFrameImpl(frame_state, is_last, runner_opaque,
-                                          runner, output_processor);
-    return;
+  if (HasCpuFeature(CpuFeature::kAVX2)) {
+    JXL_RETURN_IF_ERROR(AVX2::JxlFastLosslessProcessFrameImpl(
+        frame_state, is_last, runner_opaque, runner, output_processor));
+    return true;
   }
 #endif
 
-  default_implementation::JxlFastLosslessProcessFrameImpl(
-      frame_state, is_last, runner_opaque, runner, output_processor);
+  JXL_RETURN_IF_ERROR(default_implementation::JxlFastLosslessProcessFrameImpl(
+      frame_state, is_last, runner_opaque, runner, output_processor));
+  return true;
 }
 
 }  // extern "C"
 
 #if !FJXL_STANDALONE
-void JxlFastLosslessOutputFrame(
+bool JxlFastLosslessOutputFrame(
     JxlFastLosslessFrameState* frame_state,
     JxlEncoderOutputProcessorWrapper* output_processor) {
   size_t fl_size = JxlFastLosslessOutputSize(frame_state);
   size_t written = 0;
   while (written < fl_size) {
-    auto retval = output_processor->GetBuffer(32, fl_size - written);
-    assert(retval.status());
-    auto buffer = std::move(retval).value();
+    JXL_ASSIGN_OR_RETURN(auto buffer,
+                         output_processor->GetBuffer(32, fl_size - written));
     size_t n =
         JxlFastLosslessWriteOutput(frame_state, buffer.data(), buffer.size());
     if (n == 0) break;
-    buffer.advance(n);
+    JXL_RETURN_IF_ERROR(buffer.advance(n));
     written += n;
   };
+  return true;
 }
 #endif
 

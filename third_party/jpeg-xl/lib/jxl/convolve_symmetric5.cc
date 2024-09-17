@@ -3,6 +3,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "lib/jxl/base/status.h"
 #include "lib/jxl/convolve.h"
 
 #undef HWY_TARGET_INCLUDE
@@ -11,6 +12,7 @@
 #include <hwy/highway.h>
 
 #include "lib/jxl/base/common.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/convolve-inl.h"
 
 HWY_BEFORE_NAMESPACE();
@@ -140,27 +142,30 @@ static void Symmetric5Row(const ImageF& in, const Rect& rect, const int64_t iy,
 
 // Semi-vectorized (interior pixels Fonly); called directly like slow::, unlike
 // the fully vectorized strategies below.
-void Symmetric5(const ImageF& in, const Rect& in_rect,
-                const WeightsSymmetric5& weights, ThreadPool* pool,
-                ImageF* JXL_RESTRICT out, const Rect& out_rect) {
-  JXL_ASSERT(in_rect.xsize() == out_rect.xsize());
-  JXL_ASSERT(in_rect.ysize() == out_rect.ysize());
+Status Symmetric5(const ImageF& in, const Rect& in_rect,
+                  const WeightsSymmetric5& weights, ThreadPool* pool,
+                  ImageF* JXL_RESTRICT out, const Rect& out_rect) {
+  JXL_ENSURE(in_rect.xsize() == out_rect.xsize());
+  JXL_ENSURE(in_rect.ysize() == out_rect.ysize());
   const size_t ysize = in_rect.ysize();
-  JXL_CHECK(RunOnPool(
-      pool, 0, static_cast<uint32_t>(ysize), ThreadPool::NoInit,
-      [&](const uint32_t task, size_t /*thread*/) {
-        const int64_t riy = task;
-        const int64_t iy = in_rect.y0() + riy;
+  const auto process_row = [&](const uint32_t task,
+                               size_t /*thread*/) -> Status {
+    const int64_t riy = task;
+    const int64_t iy = in_rect.y0() + riy;
 
-        if (iy < 2 || iy >= static_cast<ssize_t>(in.ysize()) - 2) {
-          Symmetric5Row<WrapMirror>(in, in_rect, iy, weights,
-                                    out_rect.Row(out, riy));
-        } else {
-          Symmetric5Row<WrapUnchanged>(in, in_rect, iy, weights,
-                                       out_rect.Row(out, riy));
-        }
-      },
-      "Symmetric5x5Convolution"));
+    if (iy < 2 || iy >= static_cast<ssize_t>(in.ysize()) - 2) {
+      Symmetric5Row<WrapMirror>(in, in_rect, iy, weights,
+                                out_rect.Row(out, riy));
+    } else {
+      Symmetric5Row<WrapUnchanged>(in, in_rect, iy, weights,
+                                   out_rect.Row(out, riy));
+    }
+    return true;
+  };
+  JXL_RETURN_IF_ERROR(RunOnPool(pool, 0, static_cast<uint32_t>(ysize),
+                                ThreadPool::NoInit, process_row,
+                                "Symmetric5x5Convolution"));
+  return true;
 }
 
 // NOLINTNEXTLINE(google-readability-namespace-comments)
@@ -172,16 +177,17 @@ HWY_AFTER_NAMESPACE();
 namespace jxl {
 
 HWY_EXPORT(Symmetric5);
-void Symmetric5(const ImageF& in, const Rect& in_rect,
-                const WeightsSymmetric5& weights, ThreadPool* pool,
-                ImageF* JXL_RESTRICT out, const Rect& out_rect) {
-  HWY_DYNAMIC_DISPATCH(Symmetric5)(in, in_rect, weights, pool, out, out_rect);
+Status Symmetric5(const ImageF& in, const Rect& in_rect,
+                  const WeightsSymmetric5& weights, ThreadPool* pool,
+                  ImageF* JXL_RESTRICT out, const Rect& out_rect) {
+  return HWY_DYNAMIC_DISPATCH(Symmetric5)(in, in_rect, weights, pool, out,
+                                          out_rect);
 }
 
-void Symmetric5(const ImageF& in, const Rect& rect,
-                const WeightsSymmetric5& weights, ThreadPool* pool,
-                ImageF* JXL_RESTRICT out) {
-  Symmetric5(in, rect, weights, pool, out, Rect(*out));
+Status Symmetric5(const ImageF& in, const Rect& rect,
+                  const WeightsSymmetric5& weights, ThreadPool* pool,
+                  ImageF* JXL_RESTRICT out) {
+  return Symmetric5(in, rect, weights, pool, out, Rect(*out));
 }
 
 }  // namespace jxl

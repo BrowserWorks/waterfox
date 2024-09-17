@@ -279,8 +279,8 @@ V GammaModulation(const D d, const size_t x, const size_t y,
   // ideally -1.0, but likely optimal correction adds some entropy, so slightly
   // less than that.
   // ln(2) constant folded in because we want std::log but have FastLog2f.
-  const auto kGam = Set(d, -0.15526878023684174f * 0.693147180559945f);
-  return MulAdd(kGam, FastLog2f(d, overall_ratio), out_val);
+  const auto kGamma = Set(d, -0.15526878023684174f * 0.693147180559945f);
+  return MulAdd(kGamma, FastLog2f(d, overall_ratio), out_val);
 }
 
 // Change precision in 8x8 blocks that have high frequency content.
@@ -478,11 +478,11 @@ void ComputePreErosion(const RowBuffer<float>& input, const size_t xsize,
     }
     if (iy % 4 == 3) {
       size_t y_out = y0_out + iy / 4;
-      float* row_dout = pre_erosion->Row(y_out);
+      float* row_d_out = pre_erosion->Row(y_out);
       for (size_t x = 0; x < xsize_out; x++) {
-        row_dout[x] = (row_out[x * 4] + row_out[x * 4 + 1] +
-                       row_out[x * 4 + 2] + row_out[x * 4 + 3]) *
-                      0.25f;
+        row_d_out[x] = (row_out[x * 4] + row_out[x * 4 + 1] +
+                        row_out[x * 4 + 2] + row_out[x * 4 + 3]) *
+                       0.25f;
       }
       pre_erosion->PadRow(y_out, xsize_out, border);
     }

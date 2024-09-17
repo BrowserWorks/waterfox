@@ -8,11 +8,9 @@
 
 // Facade for image decoders (PNG, PNM, ...).
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <string>
-#include <vector>
 
 #include "lib/extras/dec/color_hints.h"
 #include "lib/jxl/base/span.h"
@@ -37,6 +35,8 @@ enum class Codec : uint32_t {
 };
 
 bool CanDecode(Codec codec);
+
+std::string ListOfDecodeCodecs();
 
 // If and only if extension is ".pfm", *bits_per_sample is updated to 32 so
 // that Encode() would encode to PFM instead of PPM.

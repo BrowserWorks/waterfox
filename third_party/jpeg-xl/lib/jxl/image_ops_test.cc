@@ -5,44 +5,20 @@
 
 #include "lib/jxl/image_ops.h"
 
-#include <stdint.h>
-#include <stdlib.h>
-
+#include <cstdint>
+#include <cstdlib>
 #include <cstring>
 
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/printf_macros.h"
-#include "lib/jxl/base/random.h"
-#include "lib/jxl/base/status.h"
-#include "lib/jxl/cache_aligned.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/image.h"
+#include "lib/jxl/test_memory_manager.h"
+#include "lib/jxl/test_utils.h"
 #include "lib/jxl/testing.h"
 
 namespace jxl {
 namespace {
-
-// Ensure entire payload is readable/writable for various size/offset combos.
-TEST(ImageTest, TestAllocator) {
-  Rng rng(0);
-  const size_t k32 = 32;
-  const size_t kAlign = CacheAligned::kAlignment;
-  for (size_t size : {k32 * 1, k32 * 2, k32 * 3, k32 * 4, k32 * 5,
-                      CacheAligned::kAlias, 2 * CacheAligned::kAlias + 4}) {
-    for (size_t offset = 0; offset <= CacheAligned::kAlias; offset += kAlign) {
-      uint8_t* bytes =
-          static_cast<uint8_t*>(CacheAligned::Allocate(size, offset));
-      JXL_CHECK(reinterpret_cast<uintptr_t>(bytes) % kAlign == 0);
-      // Ensure we can write/read the last byte. Use RNG to fool the compiler
-      // into thinking the write is necessary.
-      memset(bytes, 0, size);
-      bytes[size - 1] = 1;                       // greatest element
-      uint32_t pos = rng.UniformU(0, size - 1);  // random but != greatest
-      JXL_CHECK(bytes[pos] < bytes[size - 1]);
-
-      CacheAligned::Free(bytes);
-    }
-  }
-}
 
 template <typename T>
 void TestFillImpl(Image3<T>* img, const char* layout) {
@@ -84,7 +60,9 @@ template <typename T>
 void TestFillT() {
   for (uint32_t xsize : {0, 1, 15, 16, 31, 32}) {
     for (uint32_t ysize : {0, 1, 15, 16, 31, 32}) {
-      JXL_ASSIGN_OR_DIE(Image3<T> image, Image3<T>::Create(xsize, ysize));
+      JXL_TEST_ASSIGN_OR_DIE(
+          Image3<T> image,
+          Image3<T>::Create(jxl::test::MemoryManager(), xsize, ysize));
       TestFillImpl(&image, "size ctor");
     }
   }
@@ -99,7 +77,9 @@ TEST(ImageTest, TestFill) {
 }
 
 TEST(ImageTest, CopyImageToWithPaddingTest) {
-  JXL_ASSIGN_OR_DIE(Plane<uint32_t> src, Plane<uint32_t>::Create(100, 61));
+  JXL_TEST_ASSIGN_OR_DIE(
+      Plane<uint32_t> src,
+      Plane<uint32_t>::Create(jxl::test::MemoryManager(), 100, 61));
   for (size_t y = 0; y < src.ysize(); y++) {
     for (size_t x = 0; x < src.xsize(); x++) {
       src.Row(y)[x] = x * 1000 + y;
@@ -108,12 +88,15 @@ TEST(ImageTest, CopyImageToWithPaddingTest) {
   Rect src_rect(10, 20, 30, 40);
   EXPECT_TRUE(src_rect.IsInside(src));
 
-  JXL_ASSIGN_OR_DIE(Plane<uint32_t> dst, Plane<uint32_t>::Create(60, 50));
+  JXL_TEST_ASSIGN_OR_DIE(
+      Plane<uint32_t> dst,
+      Plane<uint32_t>::Create(jxl::test::MemoryManager(), 60, 50));
   FillImage(0u, &dst);
   Rect dst_rect(20, 5, 30, 40);
   EXPECT_TRUE(dst_rect.IsInside(dst));
 
-  CopyImageToWithPadding(src_rect, src, /*padding=*/2, dst_rect, &dst);
+  ASSERT_TRUE(
+      CopyImageToWithPadding(src_rect, src, /*padding=*/2, dst_rect, &dst));
 
   // ysize is + 3 instead of + 4 because we are at the y image boundary on the
   // source image.

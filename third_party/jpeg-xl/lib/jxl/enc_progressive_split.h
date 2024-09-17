@@ -6,28 +6,21 @@
 #ifndef LIB_JXL_PROGRESSIVE_SPLIT_H_
 #define LIB_JXL_PROGRESSIVE_SPLIT_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <limits>
-#include <memory>
-#include <vector>
 
-#include "lib/jxl/ac_strategy.h"
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/status.h"
-#include "lib/jxl/chroma_from_luma.h"
 #include "lib/jxl/common.h"  // kMaxNumPasses
-#include "lib/jxl/dct_util.h"
 #include "lib/jxl/frame_header.h"
-#include "lib/jxl/image.h"
-#include "lib/jxl/image_ops.h"
-#include "lib/jxl/splines.h"
 
 // Functions to split DCT coefficients in multiple passes. All the passes of a
 // single frame are added together.
 
 namespace jxl {
+
+class AcStrategy;
 
 constexpr size_t kNoDownsamplingFactor = std::numeric_limits<size_t>::max();
 
@@ -56,20 +49,20 @@ struct ProgressiveMode {
 
   template <size_t nump>
   explicit ProgressiveMode(const PassDefinition (&p)[nump]) {
-    JXL_ASSERT(nump <= kMaxNumPasses);
+    static_assert(nump <= kMaxNumPasses);
     num_passes = nump;
     PassDefinition previous_pass{
         /*num_coefficients=*/1, /*shift=*/0,
         /*suitable_for_downsampling_of_at_least=*/kNoDownsamplingFactor};
     size_t last_downsampling_factor = kNoDownsamplingFactor;
     for (size_t i = 0; i < nump; i++) {
-      JXL_ASSERT(p[i].num_coefficients > previous_pass.num_coefficients ||
-                 (p[i].num_coefficients == previous_pass.num_coefficients &&
-                  p[i].shift < previous_pass.shift));
-      JXL_ASSERT(p[i].suitable_for_downsampling_of_at_least ==
-                     kNoDownsamplingFactor ||
-                 p[i].suitable_for_downsampling_of_at_least <=
-                     last_downsampling_factor);
+      JXL_DASSERT(p[i].num_coefficients > previous_pass.num_coefficients ||
+                  (p[i].num_coefficients == previous_pass.num_coefficients &&
+                   p[i].shift < previous_pass.shift));
+      JXL_DASSERT(p[i].suitable_for_downsampling_of_at_least ==
+                      kNoDownsamplingFactor ||
+                  p[i].suitable_for_downsampling_of_at_least <=
+                      last_downsampling_factor);
       // Only used inside assert.
       (void)last_downsampling_factor;
       if (p[i].suitable_for_downsampling_of_at_least != kNoDownsamplingFactor) {
@@ -86,12 +79,12 @@ class ProgressiveSplitter {
 
   size_t GetNumPasses() const { return mode_.num_passes; }
 
-  void InitPasses(Passes* JXL_RESTRICT passes) const {
+  Status InitPasses(Passes* JXL_RESTRICT passes) const {
     passes->num_passes = static_cast<uint32_t>(GetNumPasses());
     passes->num_downsample = 0;
-    JXL_ASSERT(passes->num_passes != 0);
+    JXL_ENSURE(passes->num_passes != 0);
     passes->shift[passes->num_passes - 1] = 0;
-    if (passes->num_passes == 1) return;  // Done, arrays are empty
+    if (passes->num_passes == 1) return true;  // Done, arrays are empty
 
     for (uint32_t i = 0; i < mode_.num_passes - 1; ++i) {
       const size_t min_downsampling_factor =
@@ -107,6 +100,7 @@ class ProgressiveSplitter {
         }
       }
     }
+    return true;
   }
 
   template <typename T>

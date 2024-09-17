@@ -5,52 +5,49 @@
 
 #include "lib/jxl/enc_aux_out.h"
 
-#include <inttypes.h>
-#include <stddef.h>
-#include <stdint.h>
-
-#include <sstream>
+#include <cstddef>
 
 #include "lib/jxl/base/printf_macros.h"
 #include "lib/jxl/base/status.h"
 
 namespace jxl {
 
-const char* LayerName(size_t layer) {
+const char* LayerName(LayerType layer) {
   switch (layer) {
-    case kLayerHeader:
+    case LayerType::Header:
       return "Headers";
-    case kLayerTOC:
+    case LayerType::Toc:
       return "TOC";
-    case kLayerDictionary:
+    case LayerType::Dictionary:
       return "Patches";
-    case kLayerSplines:
+    case LayerType::Splines:
       return "Splines";
-    case kLayerNoise:
+    case LayerType::Noise:
       return "Noise";
-    case kLayerQuant:
+    case LayerType::Quant:
       return "Quantizer";
-    case kLayerModularTree:
+    case LayerType::ModularTree:
       return "ModularTree";
-    case kLayerModularGlobal:
+    case LayerType::ModularGlobal:
       return "ModularGlobal";
-    case kLayerDC:
+    case LayerType::Dc:
       return "DC";
-    case kLayerModularDcGroup:
+    case LayerType::ModularDcGroup:
       return "ModularDcGroup";
-    case kLayerControlFields:
+    case LayerType::ControlFields:
       return "ControlFields";
-    case kLayerOrder:
+    case LayerType::Order:
       return "CoeffOrder";
-    case kLayerAC:
+    case LayerType::Ac:
       return "ACHistograms";
-    case kLayerACTokens:
+    case LayerType::AcTokens:
       return "ACTokens";
-    case kLayerModularAcGroup:
+    case LayerType::ModularAcGroup:
       return "ModularAcGroup";
-    default:
-      JXL_UNREACHABLE("Invalid layer %d\n", static_cast<int>(layer));
   }
+  JXL_DEBUG_ABORT("internal: unexpected LayerType: %d",
+                  static_cast<int>(layer));
+  return "Invalid";
 }
 
 void AuxOut::LayerTotals::Print(size_t num_inputs) const {
@@ -68,8 +65,9 @@ void AuxOut::LayerTotals::Print(size_t num_inputs) const {
 }
 
 void AuxOut::Assimilate(const AuxOut& victim) {
-  for (size_t i = 0; i < layers.size(); ++i) {
-    layers[i].Assimilate(victim.layers[i]);
+  for (size_t i = 0; i < kNumImageLayers; ++i) {
+    LayerType l = static_cast<LayerType>(i);
+    layer(l).Assimilate(victim.layer(l));
   }
   num_blocks += victim.num_blocks;
   num_small_blocks += victim.num_small_blocks;
@@ -98,11 +96,12 @@ void AuxOut::Print(size_t num_inputs) const {
     printf("Average butteraugli iters: %10.2f\n",
            num_butteraugli_iters * 1.0 / num_inputs);
 
-    for (size_t i = 0; i < layers.size(); ++i) {
-      if (layers[i].total_bits != 0) {
-        printf("Total layer bits %-10s\t", LayerName(i));
-        printf("%10f%%", 100.0 * layers[i].total_bits / all_layers.total_bits);
-        layers[i].Print(num_inputs);
+    for (size_t i = 0; i < kNumImageLayers; ++i) {
+      LayerType l = static_cast<LayerType>(i);
+      if (layer(l).total_bits != 0) {
+        printf("Total layer bits %-10s\t", LayerName(l));
+        printf("%10f%%", 100.0 * layer(l).total_bits / all_layers.total_bits);
+        layer(l).Print(num_inputs);
       }
     }
     printf("Total image size           ");

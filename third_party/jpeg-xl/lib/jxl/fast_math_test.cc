@@ -13,6 +13,8 @@
 #include "lib/jxl/cms/transfer_functions-inl.h"
 #include "lib/jxl/dec_xyb-inl.h"
 #include "lib/jxl/enc_xyb.h"
+#include "lib/jxl/test_memory_manager.h"
+#include "lib/jxl/test_utils.h"
 #include "lib/jxl/testing.h"
 
 // Test utils
@@ -158,7 +160,7 @@ HWY_NOINLINE void TestFast709EFD() {
 HWY_NOINLINE void TestFastXYB() {
   if (!HasFastXYBTosRGB8()) return;
   ImageMetadata metadata;
-  ImageBundle ib(&metadata);
+  ImageBundle ib(jxl::test::MemoryManager(), &metadata);
   int scaling = 1;
   int n = 256 * scaling;
   float inv_scaling = 1.0f / scaling;
@@ -167,8 +169,9 @@ HWY_NOINLINE void TestFastXYB() {
   for (int cr = 0; cr < n; cr += kChunk) {
     for (int cg = 0; cg < n; cg += kChunk) {
       for (int cb = 0; cb < n; cb += kChunk) {
-        JXL_ASSIGN_OR_DIE(Image3F chunk,
-                          Image3F::Create(kChunk * kChunk, kChunk));
+        JXL_TEST_ASSIGN_OR_DIE(Image3F chunk,
+                               Image3F::Create(jxl::test::MemoryManager(),
+                                               kChunk * kChunk, kChunk));
         for (int ir = 0; ir < kChunk; ir++) {
           for (int ig = 0; ig < kChunk; ig++) {
             for (int ib = 0; ib < kChunk; ib++) {
@@ -181,16 +184,18 @@ HWY_NOINLINE void TestFastXYB() {
             }
           }
         }
-        ib.SetFromImage(std::move(chunk), ColorEncoding::SRGB());
-        JXL_ASSIGN_OR_DIE(Image3F xyb,
-                          Image3F::Create(kChunk * kChunk, kChunk));
+        ASSERT_TRUE(ib.SetFromImage(std::move(chunk), ColorEncoding::SRGB()));
+        JXL_TEST_ASSIGN_OR_DIE(Image3F xyb,
+                               Image3F::Create(jxl::test::MemoryManager(),
+                                               kChunk * kChunk, kChunk));
         std::vector<uint8_t> roundtrip(kChunk * kChunk * kChunk * 3);
-        JXL_CHECK(ToXYB(ib, nullptr, &xyb, *JxlGetDefaultCms()));
+        ASSERT_TRUE(ToXYB(ib, nullptr, &xyb, *JxlGetDefaultCms()));
         for (int y = 0; y < kChunk; y++) {
           const float* xyba[4] = {xyb.PlaneRow(0, y), xyb.PlaneRow(1, y),
                                   xyb.PlaneRow(2, y), nullptr};
-          jxl::HWY_NAMESPACE::FastXYBTosRGB8(
-              xyba, roundtrip.data() + 3 * xyb.xsize() * y, false, xyb.xsize());
+          ASSERT_TRUE(jxl::HWY_NAMESPACE::FastXYBTosRGB8(
+              xyba, roundtrip.data() + 3 * xyb.xsize() * y, false,
+              xyb.xsize()));
         }
         for (int ir = 0; ir < kChunk; ir++) {
           for (int ig = 0; ig < kChunk; ig++) {

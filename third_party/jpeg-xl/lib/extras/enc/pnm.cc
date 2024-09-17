@@ -5,28 +5,23 @@
 
 #include "lib/extras/enc/pnm.h"
 
-#include <string.h>
-
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "lib/extras/packed_image.h"
-#include "lib/jxl/base/byte_order.h"
-#include "lib/jxl/base/compiler_specific.h"
+#include "lib/jxl/base/common.h"
 #include "lib/jxl/base/printf_macros.h"
 #include "lib/jxl/base/status.h"
-#include "lib/jxl/dec_external_image.h"
-#include "lib/jxl/enc_external_image.h"
-#include "lib/jxl/enc_image_bundle.h"
-#include "lib/jxl/fields.h"  // AllDefault
-#include "lib/jxl/image.h"
-#include "lib/jxl/image_bundle.h"
 
 namespace jxl {
 namespace extras {
 namespace {
 
-constexpr size_t kMaxHeaderSize = 200;
+constexpr size_t kMaxHeaderSize = 2000;
 
 class BasePNMEncoder : public Encoder {
  public:
@@ -87,8 +82,8 @@ class PNMEncoder : public BasePNMEncoder {
   }
 
  private:
-  Status EncodeImage(const PackedImage& image, size_t bits_per_sample,
-                     std::vector<uint8_t>* bytes) const {
+  static Status EncodeImage(const PackedImage& image, size_t bits_per_sample,
+                            std::vector<uint8_t>* bytes) {
     uint32_t maxval = (1u << bits_per_sample) - 1;
     char type = image.format.num_channels == 1 ? '5' : '6';
     char header[kMaxHeaderSize];
@@ -161,8 +156,8 @@ class PFMEncoder : public BasePNMEncoder {
   }
 
  private:
-  Status EncodeImage(const PackedImage& image,
-                     std::vector<uint8_t>* bytes) const {
+  static Status EncodeImage(const PackedImage& image,
+                            std::vector<uint8_t>* bytes) {
     char type = image.format.num_channels == 1 ? 'f' : 'F';
     double scale = image.format.endianness == JXL_LITTLE_ENDIAN ? -1.0 : 1.0;
     char header[kMaxHeaderSize];
@@ -262,6 +257,7 @@ class PAMEncoder : public BasePNMEncoder {
           reinterpret_cast<const uint8_t*>(frame.extra_channels[i].pixels());
     }
     uint8_t* out = bytes->data() + pos;
+    JXL_RETURN_IF_ERROR(PackedImage::ValidateDataType(color.format.data_type));
     size_t pwidth = PackedImage::BitsPerChannel(color.format.data_type) / 8;
     for (size_t y = 0; y < color.ysize; ++y) {
       for (size_t x = 0; x < color.xsize; ++x) {
@@ -299,6 +295,10 @@ class PAMEncoder : public BasePNMEncoder {
         return std::string("CFA");
       case JXL_CHANNEL_THERMAL:
         return std::string("Thermal");
+      case JXL_CHANNEL_UNKNOWN:
+        return std::string("Unknown");
+      case JXL_CHANNEL_OPTIONAL:
+        return std::string("Optional");
       default:
         return std::string("UNKNOWN");
     }

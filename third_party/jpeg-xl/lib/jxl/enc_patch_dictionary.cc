@@ -5,13 +5,14 @@
 
 #include "lib/jxl/enc_patch_dictionary.h"
 
+#include <jxl/memory_manager.h>
 #include <jxl/types.h>
-#include <stdint.h>
-#include <stdlib.h>
 #include <sys/types.h>
 
 #include <algorithm>
 #include <atomic>
+#include <cstdint>
+#include <cstdlib>
 #include <utility>
 #include <vector>
 
@@ -20,6 +21,7 @@
 #include "lib/jxl/base/override.h"
 #include "lib/jxl/base/printf_macros.h"
 #include "lib/jxl/base/random.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/dec_cache.h"
 #include "lib/jxl/dec_frame.h"
@@ -41,12 +43,12 @@ namespace jxl {
 static constexpr size_t kPatchFrameReferenceId = 3;
 
 // static
-void PatchDictionaryEncoder::Encode(const PatchDictionary& pdic,
-                                    BitWriter* writer, size_t layer,
-                                    AuxOut* aux_out) {
-  JXL_ASSERT(pdic.HasAny());
+Status PatchDictionaryEncoder::Encode(const PatchDictionary& pdic,
+                                      BitWriter* writer, LayerType layer,
+                                      AuxOut* aux_out) {
+  JXL_ENSURE(pdic.HasAny());
+  JxlMemoryManager* memory_manager = writer->memory_manager();
   std::vector<std::vector<Token>> tokens(1);
-  size_t num_ec = pdic.shared_->metadata->m.num_extra_channels;
 
   auto add_num = [&](int context, size_t num) {
     tokens[0].emplace_back(context, num);
@@ -62,6 +64,9 @@ void PatchDictionaryEncoder::Encode(const PatchDictionary& pdic,
   }
   add_num(kNumRefPatchContext, num_ref_patch);
   size_t blend_pos = 0;
+  size_t blending_stride = pdic.blendings_stride_;
+  // blending_stride == num_ec + 1; num_ec > 1 =>
+  bool choose_alpha = (blending_stride > 1 + 1);
   for (size_t i = 0; i < pdic.positions_.size();) {
     size_t i_start = i;
     size_t ref_pos_idx = pdic.positions_[i].ref_pos_idx;
@@ -71,7 +76,7 @@ void PatchDictionaryEncoder::Encode(const PatchDictionary& pdic,
       i++;
     }
     size_t num = i - i_start;
-    JXL_ASSERT(num > 0);
+    JXL_ENSURE(num > 0);
     add_num(kReferenceFrameContext, ref_pos.ref);
     add_num(kPatchReferencePositionContext, ref_pos.x0);
     add_num(kPatchReferencePositionContext, ref_pos.y0);
@@ -89,11 +94,10 @@ void PatchDictionaryEncoder::Encode(const PatchDictionary& pdic,
         add_num(kPatchOffsetContext,
                 PackSigned(pos.y - pdic.positions_[j - 1].y));
       }
-      for (size_t j = 0; j < num_ec + 1; ++j, ++blend_pos) {
+      for (size_t j = 0; j < blending_stride; ++j, ++blend_pos) {
         const PatchBlending& info = pdic.blendings_[blend_pos];
         add_num(kPatchBlendModeContext, static_cast<uint32_t>(info.mode));
-        if (UsesAlpha(info.mode) &&
-            pdic.shared_->metadata->m.extra_channel_info.size() > 1) {
+        if (UsesAlpha(info.mode) && choose_alpha) {
           add_num(kPatchAlphaChannelContext, info.alpha_channel);
         }
         if (UsesClamp(info.mode)) {
@@ -105,16 +109,20 @@ void PatchDictionaryEncoder::Encode(const PatchDictionary& pdic,
 
   EntropyEncodingData codes;
   std::vector<uint8_t> context_map;
-  BuildAndEncodeHistograms(HistogramParams(), kNumPatchDictionaryContexts,
-                           tokens, &codes, &context_map, writer, layer,
-                           aux_out);
-  WriteTokens(tokens[0], codes, context_map, 0, writer, layer, aux_out);
+  JXL_ASSIGN_OR_RETURN(
+      size_t cost,
+      BuildAndEncodeHistograms(memory_manager, HistogramParams(),
+                               kNumPatchDictionaryContexts, tokens, &codes,
+                               &context_map, writer, layer, aux_out));
+  (void)cost;
+  JXL_RETURN_IF_ERROR(
+      WriteTokens(tokens[0], codes, context_map, 0, writer, layer, aux_out));
+  return true;
 }
 
 // static
-void PatchDictionaryEncoder::SubtractFrom(const PatchDictionary& pdic,
-                                          Image3F* opsin) {
-  size_t num_ec = pdic.shared_->metadata->m.num_extra_channels;
+Status PatchDictionaryEncoder::SubtractFrom(const PatchDictionary& pdic,
+                                            Image3F* opsin) {
   // TODO(veluca): this can likely be optimized knowing it runs on full images.
   for (size_t y = 0; y < opsin->ysize(); y++) {
     float* JXL_RESTRICT rows[3] = {
@@ -122,8 +130,9 @@ void PatchDictionaryEncoder::SubtractFrom(const PatchDictionary& pdic,
         opsin->PlaneRow(1, y),
         opsin->PlaneRow(2, y),
     };
+    size_t blending_stride = pdic.blendings_stride_;
     for (size_t pos_idx : pdic.GetPatchesForRow(y)) {
-      const size_t blending_idx = pos_idx * (num_ec + 1);
+      const size_t blending_idx = pos_idx * blending_stride;
       const PatchPosition& pos = pdic.positions_[pos_idx];
       const PatchReferencePosition& ref_pos =
           pdic.ref_positions_[pos.ref_pos_idx];
@@ -131,18 +140,18 @@ void PatchDictionaryEncoder::SubtractFrom(const PatchDictionary& pdic,
       size_t by = pos.y;
       size_t bx = pos.x;
       size_t xsize = ref_pos.xsize;
-      JXL_DASSERT(y >= by);
-      JXL_DASSERT(y < by + ref_pos.ysize);
+      JXL_ENSURE(y >= by);
+      JXL_ENSURE(y < by + ref_pos.ysize);
       size_t iy = y - by;
       size_t ref = ref_pos.ref;
       const float* JXL_RESTRICT ref_rows[3] = {
-          pdic.shared_->reference_frames[ref].frame.color().ConstPlaneRow(
+          pdic.reference_frames_->at(ref).frame->color()->ConstPlaneRow(
               0, ref_pos.y0 + iy) +
               ref_pos.x0,
-          pdic.shared_->reference_frames[ref].frame.color().ConstPlaneRow(
+          pdic.reference_frames_->at(ref).frame->color()->ConstPlaneRow(
               1, ref_pos.y0 + iy) +
               ref_pos.x0,
-          pdic.shared_->reference_frames[ref].frame.color().ConstPlaneRow(
+          pdic.reference_frames_->at(ref).frame->color()->ConstPlaneRow(
               2, ref_pos.y0 + iy) +
               ref_pos.x0,
       };
@@ -155,13 +164,14 @@ void PatchDictionaryEncoder::SubtractFrom(const PatchDictionary& pdic,
           } else if (mode == PatchBlendMode::kNone) {
             // Nothing to do.
           } else {
-            JXL_UNREACHABLE("Blending mode %u not yet implemented",
-                            static_cast<uint32_t>(mode));
+            return JXL_UNREACHABLE("blending mode %u not yet implemented",
+                                   static_cast<uint32_t>(mode));
           }
         }
       }
     }
   }
+  return true;
 }
 
 namespace {
@@ -212,6 +222,7 @@ StatusOr<std::vector<PatchInfo>> FindTextLikePatches(
   std::vector<PatchInfo> info;
   if (state->cparams.patches == Override::kOff) return info;
   const auto& frame_dim = state->shared.frame_dim;
+  JxlMemoryManager* memory_manager = opsin.memory_manager();
 
   PatchColorspaceInfo pci(is_xyb);
   float kSimilarThreshold = 0.8f;
@@ -237,9 +248,9 @@ StatusOr<std::vector<PatchInfo>> FindTextLikePatches(
 
   auto is_same = [&opsin_rows, opsin_stride](std::pair<uint32_t, uint32_t> p1,
                                              std::pair<uint32_t, uint32_t> p2) {
-    for (size_t c = 0; c < 3; c++) {
-      float v1 = opsin_rows[c][p1.second * opsin_stride + p1.first];
-      float v2 = opsin_rows[c][p2.second * opsin_stride + p2.first];
+    for (auto& opsin_row : opsin_rows) {
+      float v1 = opsin_row[p1.second * opsin_stride + p1.first];
+      float v2 = opsin_row[p2.second * opsin_stride + p2.first];
       if (std::fabs(v1 - v2) > 1e-4) {
         return false;
       }
@@ -257,13 +268,15 @@ StatusOr<std::vector<PatchInfo>> FindTextLikePatches(
 
   // Look for kPatchSide size squares, naturally aligned, that all have the same
   // pixel values.
-  JXL_ASSIGN_OR_RETURN(ImageB is_screenshot_like,
-                       ImageB::Create(DivCeil(frame_dim.xsize, kPatchSide),
-                                      DivCeil(frame_dim.ysize, kPatchSide)));
+  JXL_ASSIGN_OR_RETURN(
+      ImageB is_screenshot_like,
+      ImageB::Create(memory_manager, DivCeil(frame_dim.xsize, kPatchSide),
+                     DivCeil(frame_dim.ysize, kPatchSide)));
   ZeroFillImage(&is_screenshot_like);
   uint8_t* JXL_RESTRICT screenshot_row = is_screenshot_like.Row(0);
   const size_t screenshot_stride = is_screenshot_like.PixelsPerRow();
-  const auto process_row = [&](const uint32_t y, size_t /* thread */) {
+  const auto process_row = [&](const uint32_t y,
+                               size_t /* thread */) -> Status {
     for (uint64_t x = 0; x < frame_dim.xsize / kPatchSide; x++) {
       bool all_same = true;
       for (size_t iy = 0; iy < static_cast<size_t>(kPatchSide); iy++) {
@@ -296,9 +309,11 @@ StatusOr<std::vector<PatchInfo>> FindTextLikePatches(
       screenshot_row[y * screenshot_stride + x] = 1;
       has_screenshot_areas = true;
     }
+    return true;
   };
-  JXL_CHECK(RunOnPool(pool, 0, frame_dim.ysize / kPatchSide, ThreadPool::NoInit,
-                      process_row, "IsScreenshotLike"));
+  JXL_RETURN_IF_ERROR(RunOnPool(pool, 0, frame_dim.ysize / kPatchSide,
+                                ThreadPool::NoInit, process_row,
+                                "IsScreenshotLike"));
 
   // TODO(veluca): also parallelize the rest of this function.
   if (WantDebugOutput(cparams)) {
@@ -313,11 +328,13 @@ StatusOr<std::vector<PatchInfo>> FindTextLikePatches(
   }
 
   // Search for "similar enough" pixels near the screenshot-like areas.
-  JXL_ASSIGN_OR_RETURN(ImageB is_background,
-                       ImageB::Create(frame_dim.xsize, frame_dim.ysize));
+  JXL_ASSIGN_OR_RETURN(
+      ImageB is_background,
+      ImageB::Create(memory_manager, frame_dim.xsize, frame_dim.ysize));
   ZeroFillImage(&is_background);
-  JXL_ASSIGN_OR_RETURN(Image3F background,
-                       Image3F::Create(frame_dim.xsize, frame_dim.ysize));
+  JXL_ASSIGN_OR_RETURN(
+      Image3F background,
+      Image3F::Create(memory_manager, frame_dim.xsize, frame_dim.ysize));
   ZeroFillImage(&background);
   constexpr size_t kDistanceLimit = 50;
   float* JXL_RESTRICT background_rows[3] = {
@@ -393,7 +410,8 @@ StatusOr<std::vector<PatchInfo>> FindTextLikePatches(
     } else {
       JXL_RETURN_IF_ERROR(DumpImage(cparams, "background", background));
     }
-    JXL_ASSIGN_OR_RETURN(ccs, ImageF::Create(frame_dim.xsize, frame_dim.ysize));
+    JXL_ASSIGN_OR_RETURN(
+        ccs, ImageF::Create(memory_manager, frame_dim.xsize, frame_dim.ysize));
     ZeroFillImage(&ccs);
     paint_ccs = true;
   }
@@ -413,8 +431,9 @@ StatusOr<std::vector<PatchInfo>> FindTextLikePatches(
 
   // Find small CC outside the "similar enough" areas, compute bounding boxes,
   // and run heuristics to exclude some patches.
-  JXL_ASSIGN_OR_RETURN(ImageB visited,
-                       ImageB::Create(frame_dim.xsize, frame_dim.ysize));
+  JXL_ASSIGN_OR_RETURN(
+      ImageB visited,
+      ImageB::Create(memory_manager, frame_dim.xsize, frame_dim.ysize));
   ZeroFillImage(&visited);
   uint8_t* JXL_RESTRICT visited_row = visited.Row(0);
   const size_t visited_stride = visited.PixelsPerRow();
@@ -527,7 +546,7 @@ StatusOr<std::vector<PatchInfo>> FindTextLikePatches(
   }
 
   if (paint_ccs) {
-    JXL_ASSERT(WantDebugOutput(cparams));
+    JXL_ENSURE(WantDebugOutput(cparams));
     JXL_RETURN_IF_ERROR(DumpPlaneNormalized(cparams, "ccs", ccs));
   }
   if (info.empty()) {
@@ -556,8 +575,8 @@ StatusOr<std::vector<PatchInfo>> FindTextLikePatches(
 
   size_t max_patch_size = 0;
 
-  for (size_t i = 0; i < info.size(); i++) {
-    size_t pixels = info[i].first.xsize * info[i].first.ysize;
+  for (const auto& patch : info) {
+    size_t pixels = patch.first.xsize * patch.first.ysize;
     if (pixels > max_patch_size) max_patch_size = pixels;
   }
 
@@ -579,6 +598,7 @@ Status FindBestPatchDictionary(const Image3F& opsin,
   JXL_ASSIGN_OR_RETURN(
       std::vector<PatchInfo> info,
       FindTextLikePatches(state->cparams, opsin, state, pool, aux_out, is_xyb));
+  JxlMemoryManager* memory_manager = opsin.memory_manager();
 
   // TODO(veluca): this doesn't work if both dots and patches are enabled.
   // For now, since dots and patches are not likely to occur in the same kind of
@@ -587,11 +607,13 @@ Status FindBestPatchDictionary(const Image3F& opsin,
       ApplyOverride(
           state->cparams.dots,
           state->cparams.speed_tier <= SpeedTier::kSquirrel &&
-              state->cparams.butteraugli_distance >= kMinButteraugliForDots)) {
+              state->cparams.butteraugli_distance >= kMinButteraugliForDots &&
+              !state->cparams.disable_perceptual_optimizations)) {
     Rect rect(0, 0, state->shared.frame_dim.xsize,
               state->shared.frame_dim.ysize);
-    JXL_ASSIGN_OR_RETURN(info, FindDotDictionary(state->cparams, opsin, rect,
-                                                 state->shared.cmap, pool));
+    JXL_ASSIGN_OR_RETURN(info,
+                         FindDotDictionary(state->cparams, opsin, rect,
+                                           state->shared.cmap.base(), pool));
   }
 
   if (info.empty()) return true;
@@ -605,10 +627,10 @@ Status FindBestPatchDictionary(const Image3F& opsin,
   size_t max_y_size = 0;
   size_t total_pixels = 0;
 
-  for (size_t i = 0; i < info.size(); i++) {
-    size_t pixels = info[i].first.xsize * info[i].first.ysize;
-    if (max_x_size < info[i].first.xsize) max_x_size = info[i].first.xsize;
-    if (max_y_size < info[i].first.ysize) max_y_size = info[i].first.ysize;
+  for (const auto& patch : info) {
+    size_t pixels = patch.first.xsize * patch.first.ysize;
+    if (max_x_size < patch.first.xsize) max_x_size = patch.first.xsize;
+    if (max_y_size < patch.first.ysize) max_y_size = patch.first.ysize;
     total_pixels += pixels;
   }
 
@@ -625,7 +647,8 @@ Status FindBestPatchDictionary(const Image3F& opsin,
     ref_xsize = ref_xsize * kBinPackingSlackness + 1;
     ref_ysize = ref_ysize * kBinPackingSlackness + 1;
 
-    JXL_ASSIGN_OR_RETURN(ImageB occupied, ImageB::Create(ref_xsize, ref_ysize));
+    JXL_ASSIGN_OR_RETURN(ImageB occupied,
+                         ImageB::Create(memory_manager, ref_xsize, ref_ysize));
     ZeroFillImage(&occupied);
     uint8_t* JXL_RESTRICT occupied_rows = occupied.Row(0);
     size_t occupied_stride = occupied.PixelsPerRow();
@@ -685,12 +708,12 @@ Status FindBestPatchDictionary(const Image3F& opsin,
     if (success) break;
   } while (true);
 
-  JXL_ASSERT(ref_ysize >= max_y);
+  JXL_ENSURE(ref_ysize >= max_y);
 
   ref_ysize = max_y;
 
   JXL_ASSIGN_OR_RETURN(Image3F reference_frame,
-                       Image3F::Create(ref_xsize, ref_ysize));
+                       Image3F::Create(memory_manager, ref_xsize, ref_ysize));
   // TODO(veluca): figure out a better way to fill the image.
   ZeroFillImage(&reference_frame);
   std::vector<PatchPosition> positions;
@@ -746,7 +769,7 @@ Status FindBestPatchDictionary(const Image3F& opsin,
   // this works out.
   PatchDictionaryEncoder::SetPositions(
       &state->shared.image_features.patches, std::move(positions),
-      std::move(pref_positions), std::move(blendings));
+      std::move(pref_positions), std::move(blendings), num_ec + 1);
   return true;
 }
 
@@ -754,6 +777,7 @@ Status RoundtripPatchFrame(Image3F* reference_frame,
                            PassesEncoderState* JXL_RESTRICT state, int idx,
                            CompressParams& cparams, const JxlCmsInterface& cms,
                            ThreadPool* pool, AuxOut* aux_out, bool subtract) {
+  JxlMemoryManager* memory_manager = state->memory_manager();
   FrameInfo patch_frame_info;
   cparams.resampling = 1;
   cparams.ec_resampling = 1;
@@ -769,12 +793,12 @@ Status RoundtripPatchFrame(Image3F* reference_frame,
   patch_frame_info.save_as_reference = idx;  // always saved.
   patch_frame_info.frame_type = FrameType::kReferenceOnly;
   patch_frame_info.save_before_color_transform = true;
-  ImageBundle ib(&state->shared.metadata->m);
+  ImageBundle ib(memory_manager, &state->shared.metadata->m);
   // TODO(veluca): metadata.color_encoding is a lie: ib is in XYB, but there is
   // no simple way to express that yet.
   patch_frame_info.ib_needs_color_transform = false;
-  ib.SetFromImage(std::move(*reference_frame),
-                  state->shared.metadata->m.color_encoding);
+  JXL_RETURN_IF_ERROR(ib.SetFromImage(
+      std::move(*reference_frame), state->shared.metadata->m.color_encoding));
   if (!ib.metadata()->extra_channel_info.empty()) {
     // Add placeholder extra channels to the patch image: patch encoding does
     // not yet support extra channels, but the codec expects that the amount of
@@ -782,52 +806,53 @@ Status RoundtripPatchFrame(Image3F* reference_frame,
     std::vector<ImageF> extra_channels;
     extra_channels.reserve(ib.metadata()->extra_channel_info.size());
     for (size_t i = 0; i < ib.metadata()->extra_channel_info.size(); i++) {
-      JXL_ASSIGN_OR_RETURN(ImageF ch, ImageF::Create(ib.xsize(), ib.ysize()));
+      JXL_ASSIGN_OR_RETURN(
+          ImageF ch, ImageF::Create(memory_manager, ib.xsize(), ib.ysize()));
       extra_channels.emplace_back(std::move(ch));
       // Must initialize the image with data to not affect blending with
       // uninitialized memory.
       // TODO(lode): patches must copy and use the real extra channels instead.
       ZeroFillImage(&extra_channels.back());
     }
-    ib.SetExtraChannels(std::move(extra_channels));
+    JXL_RETURN_IF_ERROR(ib.SetExtraChannels(std::move(extra_channels)));
   }
-  auto special_frame = std::unique_ptr<BitWriter>(new BitWriter());
+  auto special_frame = jxl::make_unique<BitWriter>(memory_manager);
   AuxOut patch_aux_out;
-  JXL_CHECK(EncodeFrame(cparams, patch_frame_info, state->shared.metadata, ib,
-                        cms, pool, special_frame.get(),
-                        aux_out ? &patch_aux_out : nullptr));
+  JXL_RETURN_IF_ERROR(EncodeFrame(
+      memory_manager, cparams, patch_frame_info, state->shared.metadata, ib,
+      cms, pool, special_frame.get(), aux_out ? &patch_aux_out : nullptr));
   if (aux_out) {
     for (const auto& l : patch_aux_out.layers) {
-      aux_out->layers[kLayerDictionary].Assimilate(l);
+      aux_out->layer(LayerType::Dictionary).Assimilate(l);
     }
   }
   const Span<const uint8_t> encoded = special_frame->GetSpan();
   state->special_frames.emplace_back(std::move(special_frame));
   if (subtract) {
-    ImageBundle decoded(&state->shared.metadata->m);
-    PassesDecoderState dec_state;
-    JXL_CHECK(dec_state.output_encoding_info.SetFromMetadata(
+    ImageBundle decoded(memory_manager, &state->shared.metadata->m);
+    PassesDecoderState dec_state(memory_manager);
+    JXL_RETURN_IF_ERROR(dec_state.output_encoding_info.SetFromMetadata(
         *state->shared.metadata));
     const uint8_t* frame_start = encoded.data();
     size_t encoded_size = encoded.size();
-    JXL_CHECK(DecodeFrame(&dec_state, pool, frame_start, encoded_size,
-                          /*frame_header=*/nullptr, &decoded,
-                          *state->shared.metadata));
+    JXL_RETURN_IF_ERROR(DecodeFrame(&dec_state, pool, frame_start, encoded_size,
+                                    /*frame_header=*/nullptr, &decoded,
+                                    *state->shared.metadata));
     frame_start += decoded.decoded_bytes();
     encoded_size -= decoded.decoded_bytes();
     size_t ref_xsize =
-        dec_state.shared_storage.reference_frames[idx].frame.color()->xsize();
+        dec_state.shared_storage.reference_frames[idx].frame->color()->xsize();
     // if the frame itself uses patches, we need to decode another frame
     if (!ref_xsize) {
-      JXL_CHECK(DecodeFrame(&dec_state, pool, frame_start, encoded_size,
-                            /*frame_header=*/nullptr, &decoded,
-                            *state->shared.metadata));
+      JXL_RETURN_IF_ERROR(DecodeFrame(
+          &dec_state, pool, frame_start, encoded_size,
+          /*frame_header=*/nullptr, &decoded, *state->shared.metadata));
     }
-    JXL_CHECK(encoded_size == 0);
+    JXL_ENSURE(encoded_size == 0);
     state->shared.reference_frames[idx] =
         std::move(dec_state.shared_storage.reference_frames[idx]);
   } else {
-    state->shared.reference_frames[idx].frame = std::move(ib);
+    *state->shared.reference_frames[idx].frame = std::move(ib);
   }
   return true;
 }

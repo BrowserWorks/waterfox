@@ -9,6 +9,7 @@
 
 #include <cstdlib>  // rand
 
+#include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/cms/color_encoding_cms.h"
 #include "lib/jxl/test_utils.h"
 #include "lib/jxl/testing.h"
@@ -16,7 +17,7 @@
 namespace jxl {
 namespace {
 
-using jxl::cms::ColorEncoding;
+using ::jxl::cms::ColorEncoding;
 
 TEST(ColorEncodingTest, RoundTripAll) {
   for (const test::ColorEncodingDescriptor& cdesc : test::AllEncodings()) {
@@ -29,7 +30,9 @@ TEST(ColorEncodingTest, RoundTripAll) {
     }
     {
       ColorEncoding c;
-      EXPECT_TRUE(c.SetPrimaries(c_original.GetPrimaries()));
+      PrimariesCIExy p;
+      ASSERT_TRUE(c_original.GetPrimaries(p));
+      EXPECT_TRUE(c.SetPrimaries(p));
       EXPECT_EQ(c_original.primaries, c.primaries);
     }
     if (c_original.tf.have_gamma) {
@@ -65,7 +68,8 @@ TEST(ColorEncodingTest, CustomPrimaries) {
   xy_in.b.x = 1.1;
   xy_in.b.y = -1.2;
   EXPECT_TRUE(c.SetPrimaries(xy_in));
-  const PrimariesCIExy xy = c.GetPrimaries();
+  PrimariesCIExy xy;
+  ASSERT_TRUE(c.GetPrimaries(xy));
 
   ColorEncoding c2;
   EXPECT_TRUE(c2.SetPrimaries(xy));
@@ -74,11 +78,12 @@ TEST(ColorEncodingTest, CustomPrimaries) {
 
 TEST(ColorEncodingTest, CustomGamma) {
   ColorEncoding c;
-#ifndef JXL_CRASH_ON_ERROR
-  EXPECT_FALSE(c.tf.SetGamma(0.0));
-  EXPECT_FALSE(c.tf.SetGamma(-1E-6));
-  EXPECT_FALSE(c.tf.SetGamma(1.001));
-#endif
+  if (!JXL_CRASH_ON_ERROR) {
+    EXPECT_FALSE(c.tf.SetGamma(0.0));
+    EXPECT_FALSE(c.tf.SetGamma(-1E-6));
+    EXPECT_FALSE(c.tf.SetGamma(1.001));
+  }
+
   EXPECT_TRUE(c.tf.SetGamma(1.0));
   EXPECT_FALSE(c.tf.have_gamma);
   EXPECT_TRUE(c.tf.IsLinear());
@@ -133,8 +138,10 @@ TEST(ColorEncodingTest, InternalExternalConversion) {
     EXPECT_EQ(src_wp.x, dst_wp.x);
     EXPECT_EQ(src_wp.y, dst_wp.y);
     if (source_internal.HasPrimaries()) {
-      PrimariesCIExy src_p = source_internal.GetPrimaries();
-      PrimariesCIExy dst_p = destination_internal.GetPrimaries();
+      PrimariesCIExy src_p;
+      ASSERT_TRUE(source_internal.GetPrimaries(src_p));
+      PrimariesCIExy dst_p;
+      ASSERT_TRUE(destination_internal.GetPrimaries(dst_p));
       EXPECT_EQ(src_p.r.x, dst_p.r.x);
       EXPECT_EQ(src_p.r.y, dst_p.r.y);
       EXPECT_EQ(src_p.g.x, dst_p.g.x);

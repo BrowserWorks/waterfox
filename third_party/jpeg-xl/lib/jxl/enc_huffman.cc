@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "lib/jxl/base/status.h"
 #include "lib/jxl/enc_huffman_tree.h"
 
 namespace jxl {
@@ -61,16 +62,16 @@ void StoreHuffmanTreeOfHuffmanTreeToBitMask(const int num_codes,
   }
 }
 
-void StoreHuffmanTreeToBitMask(const size_t huffman_tree_size,
-                               const uint8_t* huffman_tree,
-                               const uint8_t* huffman_tree_extra_bits,
-                               const uint8_t* code_length_bitdepth,
-                               const uint16_t* code_length_bitdepth_symbols,
-                               BitWriter* writer) {
+Status StoreHuffmanTreeToBitMask(const size_t huffman_tree_size,
+                                 const uint8_t* huffman_tree,
+                                 const uint8_t* huffman_tree_extra_bits,
+                                 const uint8_t* code_length_bitdepth,
+                                 const uint16_t* code_length_bitdepth_symbols,
+                                 BitWriter* writer) {
   for (size_t i = 0; i < huffman_tree_size; ++i) {
     size_t ix = huffman_tree[i];
     writer->Write(code_length_bitdepth[ix], code_length_bitdepth_symbols[ix]);
-    JXL_ASSERT(ix <= 17);
+    JXL_ENSURE(ix <= 17);
     // Extra bits
     switch (ix) {
       case 16:
@@ -84,6 +85,7 @@ void StoreHuffmanTreeToBitMask(const size_t huffman_tree_size,
         break;
     }
   }
+  return true;
 }
 
 void StoreSimpleHuffmanTree(const uint8_t* depths, size_t symbols[4],
@@ -121,7 +123,7 @@ void StoreSimpleHuffmanTree(const uint8_t* depths, size_t symbols[4],
 
 // num = alphabet size
 // depths = symbol depths
-void StoreHuffmanTree(const uint8_t* depths, size_t num, BitWriter* writer) {
+Status StoreHuffmanTree(const uint8_t* depths, size_t num, BitWriter* writer) {
   // Write the Huffman tree into the compact representation.
   std::unique_ptr<uint8_t[]> arena(new uint8_t[2 * num]);
   uint8_t* huffman_tree = arena.get();
@@ -168,16 +170,17 @@ void StoreHuffmanTree(const uint8_t* depths, size_t num, BitWriter* writer) {
   }
 
   // Store the real huffman tree now.
-  StoreHuffmanTreeToBitMask(huffman_tree_size, huffman_tree,
-                            huffman_tree_extra_bits, &code_length_bitdepth[0],
-                            code_length_bitdepth_symbols, writer);
+  JXL_RETURN_IF_ERROR(StoreHuffmanTreeToBitMask(
+      huffman_tree_size, huffman_tree, huffman_tree_extra_bits,
+      &code_length_bitdepth[0], code_length_bitdepth_symbols, writer));
+  return true;
 }
 
 }  // namespace
 
-void BuildAndStoreHuffmanTree(const uint32_t* histogram, const size_t length,
-                              uint8_t* depth, uint16_t* bits,
-                              BitWriter* writer) {
+Status BuildAndStoreHuffmanTree(const uint32_t* histogram, const size_t length,
+                                uint8_t* depth, uint16_t* bits,
+                                BitWriter* writer) {
   size_t count = 0;
   size_t s4[4] = {0};
   for (size_t i = 0; i < length; i++) {
@@ -202,7 +205,7 @@ void BuildAndStoreHuffmanTree(const uint32_t* histogram, const size_t length,
     // Output symbol bits and depths are initialized with 0, nothing to do.
     writer->Write(4, 1);
     writer->Write(max_bits, s4[0]);
-    return;
+    return true;
   }
 
   CreateHuffmanTree(histogram, length, 15, depth);
@@ -211,8 +214,9 @@ void BuildAndStoreHuffmanTree(const uint32_t* histogram, const size_t length,
   if (count <= 4) {
     StoreSimpleHuffmanTree(depth, s4, count, max_bits, writer);
   } else {
-    StoreHuffmanTree(depth, length, writer);
+    JXL_RETURN_IF_ERROR(StoreHuffmanTree(depth, length, writer));
   }
+  return true;
 }
 
 }  // namespace jxl

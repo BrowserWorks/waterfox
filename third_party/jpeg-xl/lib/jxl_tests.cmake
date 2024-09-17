@@ -46,7 +46,7 @@ if (EMSCRIPTEN)
     -s EXIT_RUNTIME=1 \
     -s NODERAWFS=1 \
   ")
-  if (JPEGXL_ENABLE_WASM_TRHEADS)
+  if (JPEGXL_ENABLE_WASM_THREADS)
     set(JXL_WASM_TEST_LINK_FLAGS "${JXL_WASM_TEST_LINK_FLAGS} \
       -s PROXY_TO_PTHREAD \
       -s USE_PTHREADS=1 \
@@ -61,6 +61,7 @@ foreach (TESTFILE IN LISTS JPEGXL_INTERNAL_TESTS)
   get_filename_component(TESTNAME ${TESTFILE} NAME_WE)
   if(TESTFILE STREQUAL ../tools/djxl_fuzzer_test.cc)
     add_executable(${TESTNAME} ${TESTFILE} ../tools/djxl_fuzzer.cc)
+    target_link_libraries(${TESTNAME} jxl_tool)
   else()
     add_executable(${TESTNAME} ${TESTFILE})
   endif()
@@ -76,7 +77,6 @@ foreach (TESTFILE IN LISTS JPEGXL_INTERNAL_TESTS)
     ${JPEGXL_COVERAGE_FLAGS}
   )
   target_link_libraries(${TESTNAME}
-    gmock
     GTest::GTest
     GTest::Main
     jxl_testlib-internal
