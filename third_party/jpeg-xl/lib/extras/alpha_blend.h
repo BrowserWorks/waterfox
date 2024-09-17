@@ -7,11 +7,12 @@
 #define LIB_EXTRAS_ALPHA_BLEND_H_
 
 #include "lib/extras/packed_image.h"
+#include "lib/jxl/base/status.h"
 
 namespace jxl {
 namespace extras {
 
-void AlphaBlend(PackedPixelFile* ppf, const float background[3]);
+Status AlphaBlend(PackedPixelFile* ppf, const float background[3]);
 
 }  // namespace extras
 }  // namespace jxl

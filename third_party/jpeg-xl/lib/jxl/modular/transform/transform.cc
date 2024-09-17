@@ -5,7 +5,7 @@
 
 #include "lib/jxl/modular/transform/transform.h"
 
-#include <cinttypes>
+#include <cinttypes>  // PRIu32
 
 #include "lib/jxl/base/printf_macros.h"
 #include "lib/jxl/fields.h"
@@ -23,7 +23,7 @@ Transform::Transform(TransformId id) {
 }
 
 Status Transform::Inverse(Image &input, const weighted::Header &wp_header,
-                          ThreadPool *pool) {
+                          ThreadPool *pool) const {
   JXL_DEBUG_V(6, "Input channels (%" PRIuS ", %" PRIuS " meta): ",
               input.channel.size(), input.nb_meta_channels);
   switch (id) {

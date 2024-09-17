@@ -1,3 +1,6 @@
+:warning: **Important Update:** Development continues at https://github.com/google/jpegli
+
+
 # Improved JPEG encoder and decoder implementation
 
 This subdirectory contains a JPEG encoder and decoder implementation that is

@@ -10,21 +10,20 @@
 
 #if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
     defined(THREAD_SANITIZER)
-#include <inttypes.h>
+#include <cinttypes>  // PRIu64
 #endif
 
-#include <stddef.h>
-#include <stdint.h>
-#include <string.h>
+#include <jxl/memory_manager.h>
 
 #include <algorithm>
-#include <sstream>
-#include <string>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <utility>  // std::move
 
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/status.h"
-#include "lib/jxl/cache_aligned.h"
+#include "lib/jxl/memory_manager_internal.h"
 
 namespace jxl {
 
@@ -40,7 +39,6 @@ struct PlaneBase {
         orig_xsize_(0),
         orig_ysize_(0),
         bytes_per_row_(0),
-        bytes_(nullptr),
         sizeof_t_(0) {}
 
   // Copy construction/assignment is forbidden to avoid inadvertent copies,
@@ -54,19 +52,22 @@ struct PlaneBase {
   // Move assignment (required for std::vector)
   PlaneBase& operator=(PlaneBase&& other) noexcept = default;
 
+  ~PlaneBase() = default;
+
   void Swap(PlaneBase& other);
 
   // Useful for pre-allocating image with some padding for alignment purposes
   // and later reporting the actual valid dimensions. May also be used to
   // un-shrink the image. Caller is responsible for ensuring xsize/ysize are <=
   // the original dimensions.
-  void ShrinkTo(const size_t xsize, const size_t ysize) {
-    JXL_CHECK(xsize <= orig_xsize_);
-    JXL_CHECK(ysize <= orig_ysize_);
+  Status ShrinkTo(const size_t xsize, const size_t ysize) {
+    JXL_ENSURE(xsize <= orig_xsize_);
+    JXL_ENSURE(ysize <= orig_ysize_);
     xsize_ = static_cast<uint32_t>(xsize);
     ysize_ = static_cast<uint32_t>(ysize);
     // NOTE: we can't recompute bytes_per_row for more compact storage and
     // better locality because that would invalidate the image contents.
+    return true;
   }
 
   // How many pixels.
@@ -76,32 +77,29 @@ struct PlaneBase {
   // NOTE: do not use this for copying rows - the valid xsize may be much less.
   JXL_INLINE size_t bytes_per_row() const { return bytes_per_row_; }
 
+  JXL_INLINE JxlMemoryManager* memory_manager() const {
+    return bytes_.memory_manager();
+  }
+
   // Raw access to byte contents, for interfacing with other libraries.
   // Unsigned char instead of char to avoid surprises (sign extension).
   JXL_INLINE uint8_t* bytes() {
-    void* p = bytes_.get();
+    uint8_t* p = bytes_.address<uint8_t>();
     return static_cast<uint8_t * JXL_RESTRICT>(JXL_ASSUME_ALIGNED(p, 64));
   }
   JXL_INLINE const uint8_t* bytes() const {
-    const void* p = bytes_.get();
+    const uint8_t* p = bytes_.address<uint8_t>();
     return static_cast<const uint8_t * JXL_RESTRICT>(JXL_ASSUME_ALIGNED(p, 64));
   }
 
  protected:
-  PlaneBase(size_t xsize, size_t ysize, size_t sizeof_t);
-  Status Allocate();
+  PlaneBase(uint32_t xsize, uint32_t ysize, size_t sizeof_t);
+  Status Allocate(JxlMemoryManager* memory_manager, size_t pre_padding);
 
   // Returns pointer to the start of a row.
   JXL_INLINE void* VoidRow(const size_t y) const {
-#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
-    defined(THREAD_SANITIZER)
-    if (y >= ysize_) {
-      JXL_ABORT("Row(%" PRIu64 ") in (%u x %u) image\n",
-                static_cast<uint64_t>(y), xsize_, ysize_);
-    }
-#endif
-
-    void* row = bytes_.get() + y * bytes_per_row_;
+    JXL_DASSERT(y < ysize_);
+    uint8_t* row = bytes_.address<uint8_t>() + y * bytes_per_row_;
     return JXL_ASSUME_ALIGNED(row, 64);
   }
 
@@ -111,7 +109,7 @@ struct PlaneBase {
   uint32_t orig_xsize_;
   uint32_t orig_ysize_;
   size_t bytes_per_row_;  // Includes padding.
-  CacheAlignedUniquePtr bytes_;
+  AlignedMemory bytes_;
   size_t sizeof_t_;
 };
 
@@ -146,9 +144,17 @@ class Plane : public detail::PlaneBase {
 
   Plane() = default;
 
-  static StatusOr<Plane> Create(const size_t xsize, const size_t ysize) {
-    Plane plane(xsize, ysize, sizeof(T));
-    JXL_RETURN_IF_ERROR(plane.Allocate());
+  static StatusOr<Plane> Create(JxlMemoryManager* memory_manager,
+                                const size_t xsize, const size_t ysize,
+                                const size_t pre_padding = 0) {
+    static_assert(sizeof(T) == 1 || sizeof(T) == 2 || sizeof(T) == 4 ||
+                  sizeof(T) == 8);
+    uint32_t xsize32 = static_cast<uint32_t>(xsize);
+    uint32_t ysize32 = static_cast<uint32_t>(ysize);
+    JXL_ENSURE(xsize32 == xsize);
+    JXL_ENSURE(ysize32 == ysize);
+    Plane plane(xsize32, ysize32, sizeof(T));
+    JXL_RETURN_IF_ERROR(plane.Allocate(memory_manager, pre_padding));
     return plane;
   }
 
@@ -172,7 +178,7 @@ class Plane : public detail::PlaneBase {
   }
 
  private:
-  Plane(size_t xsize, size_t ysize, size_t sizeof_t)
+  Plane(uint32_t xsize, uint32_t ysize, size_t sizeof_t)
       : detail::PlaneBase(xsize, ysize, sizeof_t) {}
 };
 
@@ -183,179 +189,6 @@ using ImageU = Plane<uint16_t>;
 using ImageI = Plane<int32_t>;
 using ImageF = Plane<float>;
 using ImageD = Plane<double>;
-
-template <typename T>
-class Image3;
-
-// Rectangular region in image(s). Factoring this out of Image instead of
-// shifting the pointer by x0/y0 allows this to apply to multiple images with
-// different resolutions (e.g. color transform and quantization field).
-// Can compare using SameSize(rect1, rect2).
-template <typename T>
-class RectT {
- public:
-  // Most windows are xsize_max * ysize_max, except those on the borders where
-  // begin + size_max > end.
-  constexpr RectT(T xbegin, T ybegin, size_t xsize_max, size_t ysize_max,
-                  T xend, T yend)
-      : x0_(xbegin),
-        y0_(ybegin),
-        xsize_(ClampedSize(xbegin, xsize_max, xend)),
-        ysize_(ClampedSize(ybegin, ysize_max, yend)) {}
-
-  // Construct with origin and known size (typically from another Rect).
-  constexpr RectT(T xbegin, T ybegin, size_t xsize, size_t ysize)
-      : x0_(xbegin), y0_(ybegin), xsize_(xsize), ysize_(ysize) {}
-
-  // Construct a rect that covers a whole image/plane/ImageBundle etc.
-  template <typename ImageT>
-  explicit RectT(const ImageT& image)
-      : RectT(0, 0, image.xsize(), image.ysize()) {}
-
-  RectT() : RectT(0, 0, 0, 0) {}
-
-  RectT(const RectT&) = default;
-  RectT& operator=(const RectT&) = default;
-
-  // Construct a subrect that resides in an image/plane/ImageBundle etc.
-  template <typename ImageT>
-  RectT Crop(const ImageT& image) const {
-    return Intersection(RectT(image));
-  }
-
-  // Construct a subrect that resides in the [0, ysize) x [0, xsize) region of
-  // the current rect.
-  RectT Crop(size_t area_xsize, size_t area_ysize) const {
-    return Intersection(RectT(0, 0, area_xsize, area_ysize));
-  }
-
-  // Returns a rect that only contains `num` lines with offset `y` from `y0()`.
-  RectT Lines(size_t y, size_t num) const {
-    JXL_DASSERT(y + num <= ysize_);
-    return RectT(x0_, y0_ + y, xsize_, num);
-  }
-
-  RectT Line(size_t y) const { return Lines(y, 1); }
-
-  JXL_MUST_USE_RESULT RectT Intersection(const RectT& other) const {
-    return RectT(std::max(x0_, other.x0_), std::max(y0_, other.y0_), xsize_,
-                 ysize_, std::min(x1(), other.x1()),
-                 std::min(y1(), other.y1()));
-  }
-
-  JXL_MUST_USE_RESULT RectT Translate(int64_t x_offset,
-                                      int64_t y_offset) const {
-    return RectT(x0_ + x_offset, y0_ + y_offset, xsize_, ysize_);
-  }
-
-  template <typename V>
-  V* Row(Plane<V>* image, size_t y) const {
-    JXL_DASSERT(y + y0_ >= 0);
-    return image->Row(y + y0_) + x0_;
-  }
-
-  template <typename V>
-  const V* Row(const Plane<V>* image, size_t y) const {
-    JXL_DASSERT(y + y0_ >= 0);
-    return image->Row(y + y0_) + x0_;
-  }
-
-  template <typename V>
-  V* PlaneRow(Image3<V>* image, const size_t c, size_t y) const {
-    JXL_DASSERT(y + y0_ >= 0);
-    return image->PlaneRow(c, y + y0_) + x0_;
-  }
-
-  template <typename V>
-  const V* ConstRow(const Plane<V>& image, size_t y) const {
-    JXL_DASSERT(y + y0_ >= 0);
-    return image.ConstRow(y + y0_) + x0_;
-  }
-
-  template <typename V>
-  const V* ConstPlaneRow(const Image3<V>& image, size_t c, size_t y) const {
-    JXL_DASSERT(y + y0_ >= 0);
-    return image.ConstPlaneRow(c, y + y0_) + x0_;
-  }
-
-  bool IsInside(const RectT& other) const {
-    return x0_ >= other.x0() && x1() <= other.x1() && y0_ >= other.y0() &&
-           y1() <= other.y1();
-  }
-
-  // Returns true if this Rect fully resides in the given image. ImageT could be
-  // Plane<T> or Image3<T>; however if ImageT is Rect, results are nonsensical.
-  template <class ImageT>
-  bool IsInside(const ImageT& image) const {
-    return IsInside(RectT(image));
-  }
-
-  T x0() const { return x0_; }
-  T y0() const { return y0_; }
-  size_t xsize() const { return xsize_; }
-  size_t ysize() const { return ysize_; }
-  T x1() const { return x0_ + xsize_; }
-  T y1() const { return y0_ + ysize_; }
-
-  RectT<T> ShiftLeft(size_t shiftx, size_t shifty) const {
-    return RectT<T>(x0_ * (1 << shiftx), y0_ * (1 << shifty), xsize_ << shiftx,
-                    ysize_ << shifty);
-  }
-  RectT<T> ShiftLeft(size_t shift) const { return ShiftLeft(shift, shift); }
-
-  // Requires x0(), y0() to be multiples of 1<<shiftx, 1<<shifty.
-  RectT<T> CeilShiftRight(size_t shiftx, size_t shifty) const {
-    JXL_ASSERT(x0_ % (1 << shiftx) == 0);
-    JXL_ASSERT(y0_ % (1 << shifty) == 0);
-    return RectT<T>(x0_ / (1 << shiftx), y0_ / (1 << shifty),
-                    DivCeil(xsize_, T{1} << shiftx),
-                    DivCeil(ysize_, T{1} << shifty));
-  }
-  RectT<T> CeilShiftRight(std::pair<size_t, size_t> shift) const {
-    return CeilShiftRight(shift.first, shift.second);
-  }
-  RectT<T> CeilShiftRight(size_t shift) const {
-    return CeilShiftRight(shift, shift);
-  }
-
-  RectT<T> Extend(T border, RectT<T> parent) const {
-    T new_x0 = x0() > parent.x0() + border ? x0() - border : parent.x0();
-    T new_y0 = y0() > parent.y0() + border ? y0() - border : parent.y0();
-    T new_x1 = x1() + border > parent.x1() ? parent.x1() : x1() + border;
-    T new_y1 = y1() + border > parent.y1() ? parent.y1() : y1() + border;
-    return RectT<T>(new_x0, new_y0, new_x1 - new_x0, new_y1 - new_y0);
-  }
-
-  template <typename U>
-  RectT<U> As() const {
-    return RectT<U>(static_cast<U>(x0_), static_cast<U>(y0_),
-                    static_cast<U>(xsize_), static_cast<U>(ysize_));
-  }
-
- private:
-  // Returns size_max, or whatever is left in [begin, end).
-  static constexpr size_t ClampedSize(T begin, size_t size_max, T end) {
-    return (static_cast<T>(begin + size_max) <= end)
-               ? size_max
-               : (end > begin ? end - begin : 0);
-  }
-
-  T x0_;
-  T y0_;
-
-  size_t xsize_;
-  size_t ysize_;
-};
-
-template <typename T>
-std::string Description(RectT<T> r) {
-  std::ostringstream os;
-  os << "[" << r.x0() << ".." << r.x1() << ")x"
-     << "[" << r.y0() << ".." << r.y1() << ")";
-  return os.str();
-}
-
-using Rect = RectT<size_t>;
 
 // Currently, we abuse Image to either refer to an image that owns its storage
 // or one that doesn't. In similar vein, we abuse Image* function parameters to
@@ -384,17 +217,16 @@ class Image3 {
 
   Image3() : planes_{PlaneT(), PlaneT(), PlaneT()} {}
 
-  Image3(Image3&& other) noexcept {
-    for (size_t i = 0; i < kNumPlanes; i++) {
-      planes_[i] = std::move(other.planes_[i]);
-    }
-  }
-
   // Copy construction/assignment is forbidden to avoid inadvertent copies,
   // which can be very expensive. Use CopyImageTo instead.
   Image3(const Image3& other) = delete;
   Image3& operator=(const Image3& other) = delete;
 
+  Image3(Image3&& other) noexcept {
+    for (size_t i = 0; i < kNumPlanes; i++) {
+      planes_[i] = std::move(other.planes_[i]);
+    }
+  }
   Image3& operator=(Image3&& other) noexcept {
     for (size_t i = 0; i < kNumPlanes; i++) {
       planes_[i] = std::move(other.planes_[i]);
@@ -402,15 +234,15 @@ class Image3 {
     return *this;
   }
 
-  static StatusOr<Image3> Create(const size_t xsize, const size_t ysize) {
-    StatusOr<PlaneT> plane0 = PlaneT::Create(xsize, ysize);
-    JXL_RETURN_IF_ERROR(plane0.status());
-    StatusOr<PlaneT> plane1 = PlaneT::Create(xsize, ysize);
-    JXL_RETURN_IF_ERROR(plane1.status());
-    StatusOr<PlaneT> plane2 = PlaneT::Create(xsize, ysize);
-    JXL_RETURN_IF_ERROR(plane2.status());
-    return Image3(std::move(plane0).value(), std::move(plane1).value(),
-                  std::move(plane2).value());
+  static StatusOr<Image3> Create(JxlMemoryManager* memory_manager,
+                                 const size_t xsize, const size_t ysize) {
+    JXL_ASSIGN_OR_RETURN(PlaneT plane0,
+                         PlaneT::Create(memory_manager, xsize, ysize));
+    JXL_ASSIGN_OR_RETURN(PlaneT plane1,
+                         PlaneT::Create(memory_manager, xsize, ysize));
+    JXL_ASSIGN_OR_RETURN(PlaneT plane2,
+                         PlaneT::Create(memory_manager, xsize, ysize));
+    return Image3(std::move(plane0), std::move(plane1), std::move(plane2));
   }
 
   // Returns row pointer; usage: PlaneRow(idx_plane, y)[x] = val.
@@ -451,13 +283,17 @@ class Image3 {
   // and later reporting the actual valid dimensions. May also be used to
   // un-shrink the image. Caller is responsible for ensuring xsize/ysize are <=
   // the original dimensions.
-  void ShrinkTo(const size_t xsize, const size_t ysize) {
+  Status ShrinkTo(const size_t xsize, const size_t ysize) {
     for (PlaneT& plane : planes_) {
-      plane.ShrinkTo(xsize, ysize);
+      JXL_RETURN_IF_ERROR(plane.ShrinkTo(xsize, ysize));
     }
+    return true;
   }
 
   // Sizes of all three images are guaranteed to be equal.
+  JXL_INLINE JxlMemoryManager* memory_manager() const {
+    return planes_[0].memory_manager();
+  }
   JXL_INLINE size_t xsize() const { return planes_[0].xsize(); }
   JXL_INLINE size_t ysize() const { return planes_[0].ysize(); }
   // Returns offset [bytes] from one row to the next row of the same plane.
@@ -477,15 +313,7 @@ class Image3 {
   }
 
   void PlaneRowBoundsCheck(const size_t c, const size_t y) const {
-#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
-    defined(THREAD_SANITIZER)
-    if (c >= kNumPlanes || y >= ysize()) {
-      JXL_ABORT("PlaneRow(%" PRIu64 ", %" PRIu64 ") in (%" PRIu64 " x %" PRIu64
-                ") image\n",
-                static_cast<uint64_t>(c), static_cast<uint64_t>(y),
-                static_cast<uint64_t>(xsize()), static_cast<uint64_t>(ysize()));
-    }
-#endif
+    JXL_DASSERT(c < kNumPlanes && y < ysize());
   }
 
   PlaneT planes_[kNumPlanes];

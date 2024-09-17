@@ -10,6 +10,7 @@
 
 #include "lib/jpegli/common.h"
 #include "lib/jpegli/error.h"
+#include "lib/jxl/base/status.h"
 
 namespace jpegli {
 

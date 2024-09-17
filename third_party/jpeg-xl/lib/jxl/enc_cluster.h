@@ -8,14 +8,13 @@
 #ifndef LIB_JXL_ENC_CLUSTER_H_
 #define LIB_JXL_ENC_CLUSTER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-#include <string.h>
-
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <vector>
 
-#include "lib/jxl/ans_params.h"
 #include "lib/jxl/base/common.h"
+#include "lib/jxl/base/status.h"
 #include "lib/jxl/enc_ans_params.h"
 
 namespace jxl {
@@ -53,7 +52,7 @@ struct Histogram {
     }
     return 1;
   }
-  float PopulationCost() const;
+  StatusOr<float> PopulationCost() const;
   float ShannonEntropy() const;
 
   std::vector<ANSHistBin> data_;
@@ -62,10 +61,10 @@ struct Histogram {
   static constexpr size_t kRounding = 8;
 };
 
-void ClusterHistograms(const HistogramParams& params,
-                       const std::vector<Histogram>& in, size_t max_histograms,
-                       std::vector<Histogram>* out,
-                       std::vector<uint32_t>* histogram_symbols);
+Status ClusterHistograms(const HistogramParams& params,
+                         const std::vector<Histogram>& in,
+                         size_t max_histograms, std::vector<Histogram>* out,
+                         std::vector<uint32_t>* histogram_symbols);
 }  // namespace jxl
 
 #endif  // LIB_JXL_ENC_CLUSTER_H_

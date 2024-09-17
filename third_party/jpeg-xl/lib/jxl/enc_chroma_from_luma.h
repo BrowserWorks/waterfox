@@ -9,40 +9,52 @@
 // Chroma-from-luma, computed using heuristics to determine the best linear
 // model for the X and B channels from the Y channel.
 
+#include <jxl/memory_manager.h>
+
 #include <cstddef>
-#include <hwy/aligned_allocator.h>
+#include <cstdint>
 
 #include "lib/jxl/ac_strategy.h"
+#include "lib/jxl/base/rect.h"
+#include "lib/jxl/base/status.h"
 #include "lib/jxl/chroma_from_luma.h"
 #include "lib/jxl/enc_bit_writer.h"
 #include "lib/jxl/image.h"
+#include "lib/jxl/memory_manager_internal.h"
 #include "lib/jxl/quant_weights.h"
 #include "lib/jxl/simd_util.h"
 
 namespace jxl {
 
 struct AuxOut;
+enum class LayerType : uint8_t;
 class Quantizer;
 
-void ColorCorrelationMapEncodeDC(const ColorCorrelationMap& map,
-                                 BitWriter* writer, size_t layer,
-                                 AuxOut* aux_out);
+Status ColorCorrelationEncodeDC(const ColorCorrelation& color_correlation,
+                                BitWriter* writer, LayerType layer,
+                                AuxOut* aux_out);
 
 struct CfLHeuristics {
+  explicit CfLHeuristics(JxlMemoryManager* memory_manager)
+      : memory_manager(memory_manager) {}
+
   Status Init(const Rect& rect);
 
-  void PrepareForThreads(size_t num_threads) {
-    mem = hwy::AllocateAligned<float>(num_threads * ItemsPerThread());
+  Status PrepareForThreads(size_t num_threads) {
+    size_t mem_bytes = num_threads * ItemsPerThread() * sizeof(float);
+    JXL_ASSIGN_OR_RETURN(mem, AlignedMemory::Create(memory_manager, mem_bytes));
+    return true;
   }
 
-  void ComputeTile(const Rect& r, const Image3F& opsin, const Rect& opsin_rect,
-                   const DequantMatrices& dequant,
-                   const AcStrategyImage* ac_strategy,
-                   const ImageI* raw_quant_field, const Quantizer* quantizer,
-                   bool fast, size_t thread, ColorCorrelationMap* cmap);
+  Status ComputeTile(const Rect& r, const Image3F& opsin,
+                     const Rect& opsin_rect, const DequantMatrices& dequant,
+                     const AcStrategyImage* ac_strategy,
+                     const ImageI* raw_quant_field, const Quantizer* quantizer,
+                     bool fast, size_t thread, ColorCorrelationMap* cmap);
 
+  JxlMemoryManager* memory_manager;
   ImageF dc_values;
-  hwy::AlignedFreeUniquePtr<float[]> mem;
+  AlignedMemory mem;
 
   // Working set is too large for stack; allocate dynamically.
   static size_t ItemsPerThread() {

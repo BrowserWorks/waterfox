@@ -6,16 +6,19 @@
 #ifndef LIB_JXL_ENC_AC_STRATEGY_H_
 #define LIB_JXL_ENC_AC_STRATEGY_H_
 
+#include <jxl/memory_manager.h>
+
 #include <cstddef>
 
-#include "lib/jxl/ac_strategy.h"
 #include "lib/jxl/base/compiler_specific.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/chroma_from_luma.h"
 #include "lib/jxl/enc_cache.h"
 #include "lib/jxl/enc_params.h"
 #include "lib/jxl/frame_dimensions.h"
 #include "lib/jxl/image.h"
+#include "lib/jxl/memory_manager_internal.h"
 #include "lib/jxl/quant_weights.h"
 
 // `FindBestAcStrategy` uses heuristics to choose which AC strategy should be
@@ -24,6 +27,7 @@
 namespace jxl {
 
 struct AuxOut;
+class AcStrategyImage;
 
 // AC strategy selection: utility struct.
 
@@ -35,6 +39,7 @@ struct ACSConfig {
   size_t masking_field_stride;
   const float* JXL_RESTRICT masking1x1_field_row;
   size_t masking1x1_field_stride;
+  size_t mask1x1_xsize;
   const float* JXL_RESTRICT src_rows[3];
   size_t src_stride;
   float info_loss_multiplier;
@@ -58,22 +63,27 @@ struct ACSConfig {
 };
 
 struct AcStrategyHeuristics {
-  explicit AcStrategyHeuristics(const CompressParams& cparams)
-      : cparams(cparams), mem_per_thread(0), qmem_per_thread(0) {}
-  void Init(const Image3F& src, const Rect& rect_in, const ImageF& quant_field,
-            const ImageF& mask, const ImageF& mask1x1,
-            DequantMatrices* matrices);
-  void PrepareForThreads(std::size_t num_threads);
-  void ProcessRect(const Rect& rect, const ColorCorrelationMap& cmap,
-                   AcStrategyImage* ac_strategy, size_t thread);
+  explicit AcStrategyHeuristics(JxlMemoryManager* memory_manager,
+                                const CompressParams& cparams)
+      : memory_manager(memory_manager),
+        cparams(cparams),
+        mem_per_thread(0),
+        qmem_per_thread(0) {}
+  Status Init(const Image3F& src, const Rect& rect_in,
+              const ImageF& quant_field, const ImageF& mask,
+              const ImageF& mask1x1, DequantMatrices* matrices);
+  Status PrepareForThreads(std::size_t num_threads);
+  Status ProcessRect(const Rect& rect, const ColorCorrelationMap& cmap,
+                     AcStrategyImage* ac_strategy, size_t thread);
   Status Finalize(const FrameDimensions& frame_dim,
                   const AcStrategyImage& ac_strategy, AuxOut* aux_out);
+  JxlMemoryManager* memory_manager;
   const CompressParams& cparams;
   ACSConfig config = {};
   size_t mem_per_thread;
-  hwy::AlignedFreeUniquePtr<float[]> mem;
+  AlignedMemory mem;
   size_t qmem_per_thread;
-  hwy::AlignedFreeUniquePtr<uint32_t[]> qmem;
+  AlignedMemory qmem;
 };
 
 }  // namespace jxl

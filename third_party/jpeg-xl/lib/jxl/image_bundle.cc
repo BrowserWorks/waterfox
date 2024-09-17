@@ -5,60 +5,68 @@
 
 #include "lib/jxl/image_bundle.h"
 
-#include <limits>
 #include <utility>
 
-#include "lib/jxl/base/byte_order.h"
 #include "lib/jxl/base/printf_macros.h"
-#include "lib/jxl/fields.h"
+#include "lib/jxl/base/status.h"
+#include "lib/jxl/image.h"
 
 namespace jxl {
 
-void ImageBundle::ShrinkTo(size_t xsize, size_t ysize) {
-  if (HasColor()) color_.ShrinkTo(xsize, ysize);
-  for (ImageF& ec : extra_channels_) {
-    ec.ShrinkTo(xsize, ysize);
+Status ImageBundle::ShrinkTo(size_t xsize, size_t ysize) {
+  if (HasColor()) {
+    JXL_RETURN_IF_ERROR(color_.ShrinkTo(xsize, ysize));
   }
+  for (ImageF& ec : extra_channels_) {
+    JXL_RETURN_IF_ERROR(ec.ShrinkTo(xsize, ysize));
+  }
+  return true;
 }
 
 // Called by all other SetFrom*.
-void ImageBundle::SetFromImage(Image3F&& color,
-                               const ColorEncoding& c_current) {
-  JXL_CHECK(color.xsize() != 0 && color.ysize() != 0);
-  JXL_CHECK(metadata_->color_encoding.IsGray() == c_current.IsGray());
+Status ImageBundle::SetFromImage(Image3F&& color,
+                                 const ColorEncoding& c_current) {
+  JXL_ENSURE(color.xsize() != 0 && color.ysize() != 0);
+  JXL_ENSURE(metadata_->color_encoding.IsGray() == c_current.IsGray());
   color_ = std::move(color);
   c_current_ = c_current;
-  VerifySizes();
+  JXL_RETURN_IF_ERROR(VerifySizes());
+  return true;
 }
 
-void ImageBundle::VerifyMetadata() const {
-  JXL_CHECK(!c_current_.ICC().empty());
-  JXL_CHECK(metadata_->color_encoding.IsGray() == IsGray());
+Status ImageBundle::VerifyMetadata() const {
+  JXL_ENSURE(!c_current_.ICC().empty());
+  JXL_ENSURE(metadata_->color_encoding.IsGray() == IsGray());
 
-  if (metadata_->HasAlpha() && alpha().xsize() == 0) {
-    JXL_UNREACHABLE("MD alpha_bits %u IB alpha %" PRIuS " x %" PRIuS "\n",
-                    metadata_->GetAlphaBits(), alpha().xsize(),
-                    alpha().ysize());
+  if (metadata_->HasAlpha()) {
+    const ImageF* a = alpha();
+    if (a->xsize() == 0) {
+      return JXL_UNREACHABLE("MD alpha_bits %u IB alpha %" PRIuS " x %" PRIuS
+                             "\n",
+                             metadata_->GetAlphaBits(), a->xsize(), a->ysize());
+    }
   }
   const uint32_t alpha_bits = metadata_->GetAlphaBits();
-  JXL_CHECK(alpha_bits <= 32);
+  JXL_ENSURE(alpha_bits <= 32);
 
   // metadata_->num_extra_channels may temporarily differ from
   // extra_channels_.size(), e.g. after SetAlpha. They are synced by the next
   // call to VisitFields.
+  return true;
 }
 
-void ImageBundle::VerifySizes() const {
+Status ImageBundle::VerifySizes() const {
   const size_t xs = xsize();
   const size_t ys = ysize();
 
   if (HasExtraChannels()) {
-    JXL_CHECK(xs != 0 && ys != 0);
+    JXL_ENSURE(xs != 0 && ys != 0);
     for (const ImageF& ec : extra_channels_) {
-      JXL_CHECK(ec.xsize() == xs);
-      JXL_CHECK(ec.ysize() == ys);
+      JXL_ENSURE(ec.xsize() == xs);
+      JXL_ENSURE(ec.ysize() == ys);
     }
   }
+  return true;
 }
 
 size_t ImageBundle::DetectRealBitdepth() const {
@@ -73,33 +81,33 @@ size_t ImageBundle::DetectRealBitdepth() const {
   // and there may be slight imprecisions in the floating point image.
 }
 
-const ImageF& ImageBundle::black() const {
-  JXL_ASSERT(HasBlack());
+const ImageF* ImageBundle::black() const {
+  if (!HasBlack()) return nullptr;
   const size_t ec = metadata_->Find(ExtraChannel::kBlack) -
                     metadata_->extra_channel_info.data();
-  JXL_ASSERT(ec < extra_channels_.size());
-  return extra_channels_[ec];
+  JXL_DASSERT(ec < extra_channels_.size());
+  return &extra_channels_[ec];
 }
-const ImageF& ImageBundle::alpha() const {
-  JXL_ASSERT(HasAlpha());
+const ImageF* ImageBundle::alpha() const {
+  if (!HasAlpha()) return nullptr;
   const size_t ec = metadata_->Find(ExtraChannel::kAlpha) -
                     metadata_->extra_channel_info.data();
-  JXL_ASSERT(ec < extra_channels_.size());
-  return extra_channels_[ec];
+  JXL_DASSERT(ec < extra_channels_.size());
+  return &extra_channels_[ec];
 }
 ImageF* ImageBundle::alpha() {
-  JXL_ASSERT(HasAlpha());
+  if (!HasAlpha()) return nullptr;
   const size_t ec = metadata_->Find(ExtraChannel::kAlpha) -
                     metadata_->extra_channel_info.data();
-  JXL_ASSERT(ec < extra_channels_.size());
+  JXL_DASSERT(ec < extra_channels_.size());
   return &extra_channels_[ec];
 }
 
-void ImageBundle::SetAlpha(ImageF&& alpha) {
+Status ImageBundle::SetAlpha(ImageF&& alpha) {
   const ExtraChannelInfo* eci = metadata_->Find(ExtraChannel::kAlpha);
   // Must call SetAlphaBits first, otherwise we don't know which channel index
-  JXL_CHECK(eci != nullptr);
-  JXL_CHECK(alpha.xsize() != 0 && alpha.ysize() != 0);
+  JXL_ENSURE(eci != nullptr);
+  JXL_ENSURE(alpha.xsize() != 0 && alpha.ysize() != 0);
   if (extra_channels_.size() < metadata_->extra_channel_info.size()) {
     // TODO(jon): get rid of this case
     extra_channels_.insert(
@@ -110,14 +118,16 @@ void ImageBundle::SetAlpha(ImageF&& alpha) {
         std::move(alpha);
   }
   // num_extra_channels is automatically set in visitor
-  VerifySizes();
+  JXL_RETURN_IF_ERROR(VerifySizes());
+  return true;
 }
 
-void ImageBundle::SetExtraChannels(std::vector<ImageF>&& extra_channels) {
+Status ImageBundle::SetExtraChannels(std::vector<ImageF>&& extra_channels) {
   for (const ImageF& plane : extra_channels) {
-    JXL_CHECK(plane.xsize() != 0 && plane.ysize() != 0);
+    JXL_ENSURE(plane.xsize() != 0 && plane.ysize() != 0);
   }
   extra_channels_ = std::move(extra_channels);
-  VerifySizes();
+  JXL_RETURN_IF_ERROR(VerifySizes());
+  return true;
 }
 }  // namespace jxl

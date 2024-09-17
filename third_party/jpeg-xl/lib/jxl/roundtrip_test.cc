@@ -31,13 +31,14 @@
 #include "lib/jxl/image.h"
 #include "lib/jxl/image_ops.h"
 #include "lib/jxl/image_test_utils.h"
+#include "lib/jxl/test_memory_manager.h"
 #include "lib/jxl/test_utils.h"
 #include "lib/jxl/testing.h"
 
 namespace {
 
-using jxl::ImageF;
-using jxl::test::ButteraugliDistance;
+using ::jxl::ImageF;
+using ::jxl::test::ButteraugliDistance;
 
 // Converts a test image to a CodecInOut.
 // icc_profile can be empty to automatically deduce profile from the pixel
@@ -46,8 +47,8 @@ jxl::CodecInOut ConvertTestImage(const std::vector<uint8_t>& buf,
                                  const size_t xsize, const size_t ysize,
                                  const JxlPixelFormat& pixel_format,
                                  const jxl::Bytes& icc_profile) {
-  jxl::CodecInOut io;
-  io.SetSize(xsize, ysize);
+  jxl::CodecInOut io{jxl::test::MemoryManager()};
+  jxl::test::Check(io.SetSize(xsize, ysize));
 
   bool is_gray = pixel_format.num_channels < 3;
   bool has_alpha =
@@ -236,14 +237,16 @@ void VerifyRoundtripCompression(
     }
   }
   if (alpha_in_extra_channels_vector && !has_interleaved_alpha) {
-    JXL_ASSIGN_OR_DIE(ImageF alpha_channel, ImageF::Create(xsize, ysize));
+    JXL_TEST_ASSIGN_OR_DIE(
+        ImageF alpha_channel,
+        ImageF::Create(jxl::test::MemoryManager(), xsize, ysize));
     EXPECT_TRUE(jxl::ConvertFromExternal(
         extra_channel_bytes.data(), extra_channel_bytes.size(), xsize, ysize,
         basic_info.bits_per_sample, extra_channel_pixel_format, 0,
         /*pool=*/nullptr, &alpha_channel));
 
     original_io.metadata.m.SetAlphaBits(basic_info.bits_per_sample);
-    original_io.Main().SetAlpha(std::move(alpha_channel));
+    ASSERT_TRUE(original_io.Main().SetAlpha(std::move(alpha_channel)));
     output_pixel_format_with_extra_channel_alpha.num_channels++;
   }
   // Those are the num_extra_channels including a potential alpha channel.
@@ -416,23 +419,24 @@ void VerifyRoundtripCompression(
 
   if (already_downsampled) {
     jxl::Image3F* color = decoded_io.Main().color();
-    JXL_ASSIGN_OR_DIE(*color, jxl::DownsampleImage(*color, resampling));
+    JXL_TEST_ASSIGN_OR_DIE(*color, jxl::DownsampleImage(*color, resampling));
     if (decoded_io.Main().HasAlpha()) {
       ImageF* alpha = decoded_io.Main().alpha();
-      JXL_ASSIGN_OR_DIE(*alpha, jxl::DownsampleImage(*alpha, resampling));
+      JXL_TEST_ASSIGN_OR_DIE(*alpha, jxl::DownsampleImage(*alpha, resampling));
     }
-    decoded_io.SetSize(color->xsize(), color->ysize());
+    EXPECT_TRUE(decoded_io.SetSize(color->xsize(), color->ysize()));
   }
 
   if (lossless && !already_downsampled) {
     JXL_EXPECT_OK(jxl::SamePixels(*original_io.Main().color(),
                                   *decoded_io.Main().color(), _));
   } else {
-    jxl::ButteraugliParams ba;
-    float butteraugli_score = ButteraugliDistance(
-        original_io.frames, decoded_io.frames, ba, *JxlGetDefaultCms(),
-        /*distmap=*/nullptr, nullptr);
-    float target_score = 1.3f;
+    jxl::ButteraugliParams butteraugli_params;
+    float butteraugli_score =
+        ButteraugliDistance(original_io.frames, decoded_io.frames,
+                            butteraugli_params, *JxlGetDefaultCms(),
+                            /*distmap=*/nullptr, nullptr);
+    float target_score = 1.5f;
     // upsampling mode 1 (unlike default and NN) does not downscale back to the
     // already downsampled image
     if (upsampling_mode == 1 && resampling >= 4 && already_downsampled)
@@ -669,10 +673,11 @@ TEST(RoundtripTest, ExtraBoxesTest) {
   jxl::CodecInOut decoded_io = ConvertTestImage(
       decoded_bytes, xsize, ysize, pixel_format, jxl::Bytes(icc_profile));
 
-  jxl::ButteraugliParams ba;
-  float butteraugli_score = ButteraugliDistance(
-      original_io.frames, decoded_io.frames, ba, *JxlGetDefaultCms(),
-      /*distmap=*/nullptr, nullptr);
+  jxl::ButteraugliParams butteraugli_params;
+  float butteraugli_score =
+      ButteraugliDistance(original_io.frames, decoded_io.frames,
+                          butteraugli_params, *JxlGetDefaultCms(),
+                          /*distmap=*/nullptr, nullptr);
   EXPECT_LE(butteraugli_score, 1.0f);
 }
 
@@ -805,10 +810,11 @@ TEST(RoundtripTest, MultiFrameTest) {
         ConvertTestImage(decoded_bytes, xsize, ysize * nb_frames, pixel_format,
                          jxl::Bytes(icc_profile));
 
-    jxl::ButteraugliParams ba;
-    float butteraugli_score = ButteraugliDistance(
-        original_io.frames, decoded_io.frames, ba, *JxlGetDefaultCms(),
-        /*distmap=*/nullptr, nullptr);
+    jxl::ButteraugliParams butteraugli_params;
+    float butteraugli_score =
+        ButteraugliDistance(original_io.frames, decoded_io.frames,
+                            butteraugli_params, *JxlGetDefaultCms(),
+                            /*distmap=*/nullptr, nullptr);
     EXPECT_LE(butteraugli_score, 1.0f);
   }
 }
@@ -941,11 +947,11 @@ TEST(RoundtripTest, TestICCProfile) {
   JxlDecoderDestroy(dec);
 }
 
-TEST(RoundtripTest, JXL_TRANSCODE_JPEG_TEST(TestJPEGReconstruction)) {
+JXL_TRANSCODE_JPEG_TEST(RoundtripTest, TestJPEGReconstruction) {
   TEST_LIBJPEG_SUPPORT();
   const std::string jpeg_path = "jxl/flower/flower.png.im_q85_420.jpg";
   const std::vector<uint8_t> orig = jxl::test::ReadTestData(jpeg_path);
-  jxl::CodecInOut orig_io;
+  jxl::CodecInOut orig_io{jxl::test::MemoryManager()};
   ASSERT_TRUE(SetFromBytes(jxl::Bytes(orig), &orig_io, /*pool=*/nullptr));
 
   JxlEncoderPtr enc = JxlEncoderMake(nullptr);

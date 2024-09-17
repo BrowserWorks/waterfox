@@ -5,35 +5,41 @@
 
 #include "lib/jxl/render_pipeline/render_pipeline.h"
 
+#include <jxl/memory_manager.h>
+
+#include <memory>
+#include <utility>
+
+#include "lib/jxl/base/rect.h"
+#include "lib/jxl/base/sanitizers.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/render_pipeline/low_memory_render_pipeline.h"
 #include "lib/jxl/render_pipeline/simple_render_pipeline.h"
-#include "lib/jxl/sanitizers.h"
 
 namespace jxl {
 
-void RenderPipeline::Builder::AddStage(
+Status RenderPipeline::Builder::AddStage(
     std::unique_ptr<RenderPipelineStage> stage) {
+  if (!stage) return JXL_FAILURE("internal: no stage to add");
   stages_.push_back(std::move(stage));
+  return true;
 }
 
 StatusOr<std::unique_ptr<RenderPipeline>> RenderPipeline::Builder::Finalize(
     FrameDimensions frame_dimensions) && {
-#if JXL_ENABLE_ASSERT
-  // Check that the last stage is not an kInOut stage for any channel, and that
+  // Check that the last stage is not a kInOut stage for any channel, and that
   // there is at least one stage.
-  JXL_ASSERT(!stages_.empty());
+  JXL_ENSURE(!stages_.empty());
   for (size_t c = 0; c < num_c_; c++) {
-    JXL_ASSERT(stages_.back()->GetChannelMode(c) !=
+    JXL_ENSURE(stages_.back()->GetChannelMode(c) !=
                RenderPipelineChannelMode::kInOut);
   }
-#endif
 
   std::unique_ptr<RenderPipeline> res;
   if (use_simple_implementation_) {
-    res = jxl::make_unique<SimpleRenderPipeline>();
+    res = jxl::make_unique<SimpleRenderPipeline>(memory_manager_);
   } else {
-    res = jxl::make_unique<LowMemoryRenderPipeline>();
+    res = jxl::make_unique<LowMemoryRenderPipeline>(memory_manager_);
   }
 
   res->padding_.resize(stages_.size());
@@ -105,7 +111,7 @@ RenderPipelineInput RenderPipeline::GetInputBuffers(size_t group_id,
 Status RenderPipeline::InputReady(
     size_t group_id, size_t thread_id,
     const std::vector<std::pair<ImageF*, Rect>>& buffers) {
-  JXL_DASSERT(group_id < group_completed_passes_.size());
+  JXL_ENSURE(group_id < group_completed_passes_.size());
   group_completed_passes_[group_id]++;
   for (size_t i = 0; i < buffers.size(); ++i) {
     (void)i;
@@ -125,7 +131,7 @@ Status RenderPipeline::PrepareForThreads(size_t num, bool use_group_ids) {
 }
 
 Status RenderPipelineInput::Done() {
-  JXL_ASSERT(pipeline_);
+  JXL_ENSURE(pipeline_);
   JXL_RETURN_IF_ERROR(pipeline_->InputReady(group_id_, thread_id_, buffers_));
   return true;
 }

@@ -31,10 +31,9 @@ Status ConvertCodecInOutToPackedPixelFile(const CodecInOut& io,
                                           ThreadPool* pool,
                                           PackedPixelFile* ppf);
 
-PackedPixelFile ConvertImage3FToPackedPixelFile(const Image3F& image,
-                                                const ColorEncoding& c_enc,
-                                                JxlPixelFormat format,
-                                                ThreadPool* pool);
+StatusOr<PackedPixelFile> ConvertImage3FToPackedPixelFile(
+    const Image3F& image, const ColorEncoding& c_enc, JxlPixelFormat format,
+    ThreadPool* pool);
 }  // namespace extras
 }  // namespace jxl
 

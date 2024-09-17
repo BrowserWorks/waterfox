@@ -9,18 +9,20 @@
 // Frame header with backward and forward-compatible extension capability and
 // compressed integer fields.
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cstdint>
 #include <string>
+#include <vector>
 
+#include "lib/jxl/base/common.h"
 #include "lib/jxl/base/compiler_specific.h"
-#include "lib/jxl/base/override.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/coeff_order_fwd.h"
 #include "lib/jxl/common.h"  // kMaxNumPasses
 #include "lib/jxl/dec_bit_reader.h"
+#include "lib/jxl/field_encodings.h"
 #include "lib/jxl/fields.h"
 #include "lib/jxl/frame_dimensions.h"
 #include "lib/jxl/image_metadata.h"
@@ -66,10 +68,12 @@ inline std::array<int, 3> JpegOrder(ColorTransform ct, bool is_gray) {
   if (is_gray) {
     return {{0, 0, 0}};
   }
-  JXL_ASSERT(ct != ColorTransform::kXYB);
   if (ct == ColorTransform::kYCbCr) {
     return {{1, 0, 2}};
+  } else if (ct == ColorTransform::kNone) {
+    return {{0, 1, 2}};
   } else {
+    JXL_DEBUG_ABORT("Internal logic error");
     return {{0, 1, 2}};
   }
 }

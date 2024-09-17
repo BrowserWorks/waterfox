@@ -7,7 +7,8 @@
 # Tests implemented in bash. These typically will run checks about the source
 # code rather than the compiled one.
 
-MYDIR=$(dirname $(realpath "$0"))
+SELF=$(realpath "$0")
+MYDIR=$(dirname "${SELF}")
 
 set -u
 
@@ -103,12 +104,6 @@ test_printf_size_t() {
   if grep -n -E '[^_]gtest\.h' \
       $(git ls-files | grep -E '(\.c|\.cc|\.cpp|\.h)$' | grep -v -F /testing.h); then
     echo "Don't include gtest directly, instead include 'testing.h'. " >&2
-    ret=1
-  fi
-
-  if grep -n -E 'gmock\.h' \
-      $(git ls-files | grep -E '(\.c|\.cc|\.cpp|\.h)$' | grep -v -F /testing.h); then
-    echo "Don't include gmock directly, instead include 'testing.h'. " >&2
     ret=1
   fi
 

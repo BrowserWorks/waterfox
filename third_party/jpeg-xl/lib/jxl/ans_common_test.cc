@@ -14,10 +14,11 @@ namespace jxl {
 namespace {
 
 void VerifyAliasDistribution(const std::vector<int>& distribution,
-                             uint32_t range) {
+                             uint32_t log_range) {
   constexpr size_t log_alpha_size = 8;
   AliasTable::Entry table[1 << log_alpha_size];
-  InitAliasTable(distribution, range, log_alpha_size, table);
+  ASSERT_TRUE(InitAliasTable(distribution, log_range, log_alpha_size, table));
+  uint32_t range = 1 << log_range;
   std::vector<std::vector<uint32_t>> offsets(distribution.size());
   for (uint32_t i = 0; i < range; i++) {
     AliasTable::Symbol s = AliasTable::Lookup(
@@ -34,9 +35,10 @@ void VerifyAliasDistribution(const std::vector<int>& distribution,
 }
 
 TEST(ANSCommonTest, AliasDistributionSmoke) {
-  VerifyAliasDistribution({ANS_TAB_SIZE / 2, ANS_TAB_SIZE / 2}, ANS_TAB_SIZE);
-  VerifyAliasDistribution({ANS_TAB_SIZE}, ANS_TAB_SIZE);
-  VerifyAliasDistribution({0, 0, 0, ANS_TAB_SIZE, 0}, ANS_TAB_SIZE);
+  VerifyAliasDistribution({ANS_TAB_SIZE / 2, ANS_TAB_SIZE / 2},
+                          ANS_LOG_TAB_SIZE);
+  VerifyAliasDistribution({ANS_TAB_SIZE}, ANS_LOG_TAB_SIZE);
+  VerifyAliasDistribution({0, 0, 0, ANS_TAB_SIZE, 0}, ANS_LOG_TAB_SIZE);
 }
 
 }  // namespace

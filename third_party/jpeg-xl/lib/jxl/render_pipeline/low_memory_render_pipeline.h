@@ -6,9 +6,18 @@
 #ifndef LIB_JXL_RENDER_PIPELINE_LOW_MEMORY_RENDER_PIPELINE_H_
 #define LIB_JXL_RENDER_PIPELINE_LOW_MEMORY_RENDER_PIPELINE_H_
 
-#include <stdint.h>
+#include <jxl/memory_manager.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <utility>
+#include <vector>
+
+#include "lib/jxl/base/rect.h"
+#include "lib/jxl/base/status.h"
 #include "lib/jxl/dec_group_border.h"
+#include "lib/jxl/frame_header.h"
+#include "lib/jxl/image.h"
 #include "lib/jxl/render_pipeline/render_pipeline.h"
 
 namespace jxl {
@@ -16,6 +25,10 @@ namespace jxl {
 // A multithreaded, low-memory rendering pipeline that only allocates a minimal
 // amount of buffers.
 class LowMemoryRenderPipeline final : public RenderPipeline {
+ public:
+  explicit LowMemoryRenderPipeline(JxlMemoryManager* memory_manager)
+      : RenderPipeline(memory_manager) {}
+
  private:
   std::vector<std::pair<ImageF*, Rect>> PrepareBuffers(
       size_t group_id, size_t thread_id) override;
@@ -36,8 +49,8 @@ class LowMemoryRenderPipeline final : public RenderPipeline {
                     Rect image_max_color_channel_rect);
   Status RenderPadding(size_t thread_id, Rect rect);
 
-  void SaveBorders(size_t group_id, size_t c, const ImageF& in);
-  void LoadBorders(size_t group_id, size_t c, const Rect& r, ImageF* out);
+  Status SaveBorders(size_t group_id, size_t c, const ImageF& in);
+  Status LoadBorders(size_t group_id, size_t c, const Rect& r, ImageF* out);
 
   std::pair<size_t, size_t> ColorDimensionsToChannelDimensions(
       std::pair<size_t, size_t> in, size_t c, size_t stage) const;

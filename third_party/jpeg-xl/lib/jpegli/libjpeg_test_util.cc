@@ -5,17 +5,21 @@
 
 #include "lib/jpegli/libjpeg_test_util.h"
 
-/* clang-format off */
-#include <stdio.h>
-#include <jpeglib.h>
-#include <setjmp.h>
-/* clang-format on */
+#include <cstring>
 
-#include "lib/jxl/sanitizers.h"
+#include "lib/jxl/base/compiler_specific.h"
+#include "lib/jxl/base/include_jpeglib.h"  // NOLINT
+#include "lib/jxl/base/sanitizers.h"
 
 namespace jpegli {
 
 namespace {
+
+void Check(bool ok) {
+  if (!ok) {
+    JXL_CRASH();
+  }
+}
 
 #define JPEG_API_FN(name) jpeg_##name
 #include "lib/jpegli/test_utils-inl.h"
@@ -31,7 +35,7 @@ void ReadOutputPass(j_decompress_ptr cinfo, const DecompressParams& dparams,
     xoffset = xsize_cropped = cinfo->output_width / 3;
     yoffset = ysize_cropped = cinfo->output_height / 3;
     jpeg_crop_scanline(cinfo, &xoffset, &xsize_cropped);
-    JXL_CHECK(xsize_cropped == cinfo->output_width);
+    Check(xsize_cropped == cinfo->output_width);
   }
   output->xsize = xsize_cropped;
   output->ysize = ysize_cropped;
@@ -56,7 +60,7 @@ void ReadOutputPass(j_decompress_ptr cinfo, const DecompressParams& dparams,
     for (size_t y = 0; y < output->ysize; ++y) {
       JSAMPROW rows[] = {
           reinterpret_cast<JSAMPLE*>(&output->pixels[y * stride])};
-      JXL_CHECK(1 == jpeg_read_scanlines(cinfo, rows, 1));
+      Check(1 == jpeg_read_scanlines(cinfo, rows, 1));
       jxl::msan::UnpoisonMemory(
           rows[0], sizeof(JSAMPLE) * cinfo->output_components * output->xsize);
       if (cinfo->quantize_colors) {
@@ -77,7 +81,7 @@ void ReadOutputPass(j_decompress_ptr cinfo, const DecompressParams& dparams,
     }
     while (cinfo->output_scanline < cinfo->output_height) {
       size_t iMCU_height = cinfo->max_v_samp_factor * DCTSIZE;
-      JXL_CHECK(cinfo->output_scanline == cinfo->output_iMCU_row * iMCU_height);
+      Check(cinfo->output_scanline == cinfo->output_iMCU_row * iMCU_height);
       std::vector<std::vector<JSAMPROW>> rowdata(cinfo->num_components);
       std::vector<JSAMPARRAY> data(cinfo->num_components);
       for (int c = 0; c < cinfo->num_components; ++c) {
@@ -92,12 +96,11 @@ void ReadOutputPass(j_decompress_ptr cinfo, const DecompressParams& dparams,
         }
         data[c] = rowdata[c].data();
       }
-      JXL_CHECK(iMCU_height ==
-                jpeg_read_raw_data(cinfo, data.data(), iMCU_height));
+      Check(iMCU_height == jpeg_read_raw_data(cinfo, data.data(), iMCU_height));
     }
   }
-  JXL_CHECK(cinfo->total_iMCU_rows ==
-            DivCeil(cinfo->image_height, cinfo->max_v_samp_factor * DCTSIZE));
+  Check(cinfo->total_iMCU_rows ==
+        DivCeil(cinfo->image_height, cinfo->max_v_samp_factor * DCTSIZE));
 }
 
 void DecodeWithLibjpeg(const CompressParams& jparams,
@@ -110,29 +113,30 @@ void DecodeWithLibjpeg(const CompressParams& jparams,
   if (!jparams.icc.empty()) {
     jpeg_save_markers(cinfo, JPEG_APP0 + 2, 0xffff);
   }
-  JXL_CHECK(JPEG_REACHED_SOS ==
-            jpeg_read_header(cinfo, /*require_image=*/TRUE));
+  Check(JPEG_REACHED_SOS == jpeg_read_header(cinfo, /*require_image=*/TRUE));
   if (!jparams.icc.empty()) {
     uint8_t* icc_data = nullptr;
     unsigned int icc_len = 0;  // "unpoison" via initialization
-    JXL_CHECK(jpeg_read_icc_profile(cinfo, &icc_data, &icc_len));
-    JXL_CHECK(icc_data);
+    Check(jpeg_read_icc_profile(cinfo, &icc_data, &icc_len));
+    Check(icc_data);
     jxl::msan::UnpoisonMemory(icc_data, icc_len);
-    JXL_CHECK(0 == memcmp(jparams.icc.data(), icc_data, icc_len));
+    Check(0 == memcmp(jparams.icc.data(), icc_data, icc_len));
     free(icc_data);
   }
   SetDecompressParams(dparams, cinfo);
   VerifyHeader(jparams, cinfo);
   if (dparams.output_mode == COEFFICIENTS) {
     jvirt_barray_ptr* coef_arrays = jpeg_read_coefficients(cinfo);
-    JXL_CHECK(coef_arrays != nullptr);
+    Check(coef_arrays != nullptr);
+    jxl::msan::UnpoisonMemory(coef_arrays,
+                              cinfo->num_components * sizeof(jvirt_barray_ptr));
     CopyCoefficients(cinfo, coef_arrays, output);
   } else {
-    JXL_CHECK(jpeg_start_decompress(cinfo));
+    Check(jpeg_start_decompress(cinfo));
     VerifyScanHeader(jparams, cinfo);
     ReadOutputPass(cinfo, dparams, output);
   }
-  JXL_CHECK(jpeg_finish_decompress(cinfo));
+  Check(jpeg_finish_decompress(cinfo));
 }
 
 }  // namespace
@@ -164,18 +168,17 @@ void DecodeAllScansWithLibjpeg(const CompressParams& jparams,
       jpeg_save_markers(&cinfo, kSpecialMarker0, 0xffff);
       jpeg_save_markers(&cinfo, kSpecialMarker1, 0xffff);
     }
-    JXL_CHECK(JPEG_REACHED_SOS ==
-              jpeg_read_header(&cinfo, /*require_image=*/TRUE));
+    Check(JPEG_REACHED_SOS == jpeg_read_header(&cinfo, /*require_image=*/TRUE));
     cinfo.buffered_image = TRUE;
     SetDecompressParams(dparams, &cinfo);
     VerifyHeader(jparams, &cinfo);
-    JXL_CHECK(jpeg_start_decompress(&cinfo));
+    Check(jpeg_start_decompress(&cinfo));
     // start decompress should not read the whole input in buffered image mode
-    JXL_CHECK(!jpeg_input_complete(&cinfo));
-    JXL_CHECK(cinfo.output_scan_number == 0);
+    Check(!jpeg_input_complete(&cinfo));
+    Check(cinfo.output_scan_number == 0);
     int sos_marker_cnt = 1;  // read header reads the first SOS marker
     while (!jpeg_input_complete(&cinfo)) {
-      JXL_CHECK(cinfo.input_scan_number == sos_marker_cnt);
+      Check(cinfo.input_scan_number == sos_marker_cnt);
       if (dparams.skip_scans && (cinfo.input_scan_number % 2) != 1) {
         int result = JPEG_SUSPENDED;
         while (result != JPEG_REACHED_SOS && result != JPEG_REACHED_EOI) {
@@ -185,32 +188,34 @@ void DecodeAllScansWithLibjpeg(const CompressParams& jparams,
         continue;
       }
       SetScanDecompressParams(dparams, &cinfo, cinfo.input_scan_number);
-      JXL_CHECK(jpeg_start_output(&cinfo, cinfo.input_scan_number));
+      Check(jpeg_start_output(&cinfo, cinfo.input_scan_number));
       // start output sets output_scan_number, but does not change
       // input_scan_number
-      JXL_CHECK(cinfo.output_scan_number == cinfo.input_scan_number);
-      JXL_CHECK(cinfo.input_scan_number == sos_marker_cnt);
+      Check(cinfo.output_scan_number == cinfo.input_scan_number);
+      Check(cinfo.input_scan_number == sos_marker_cnt);
       VerifyScanHeader(jparams, &cinfo);
       TestImage output;
       ReadOutputPass(&cinfo, dparams, &output);
       output_progression->emplace_back(std::move(output));
       // read scanlines/read raw data does not change input/output scan number
       if (!cinfo.progressive_mode) {
-        JXL_CHECK(cinfo.input_scan_number == sos_marker_cnt);
-        JXL_CHECK(cinfo.output_scan_number == cinfo.input_scan_number);
+        Check(cinfo.input_scan_number == sos_marker_cnt);
+        Check(cinfo.output_scan_number == cinfo.input_scan_number);
       }
-      JXL_CHECK(jpeg_finish_output(&cinfo));
+      Check(jpeg_finish_output(&cinfo));
       ++sos_marker_cnt;  // finish output reads the next SOS marker or EOI
       if (dparams.output_mode == COEFFICIENTS) {
         jvirt_barray_ptr* coef_arrays = jpeg_read_coefficients(&cinfo);
-        JXL_CHECK(coef_arrays != nullptr);
+        Check(coef_arrays != nullptr);
+        jxl::msan::UnpoisonMemory(
+            coef_arrays, cinfo.num_components * sizeof(jvirt_barray_ptr));
         CopyCoefficients(&cinfo, coef_arrays, &output_progression->back());
       }
     }
-    JXL_CHECK(jpeg_finish_decompress(&cinfo));
+    Check(jpeg_finish_decompress(&cinfo));
     return true;
   };
-  JXL_CHECK(try_catch_block());
+  Check(try_catch_block());
   jpeg_destroy_decompress(&cinfo);
 }
 
@@ -243,10 +248,11 @@ size_t DecodeWithLibjpeg(const CompressParams& jparams,
     }
     jpeg_mem_src(&cinfo, compressed, len);
     DecodeWithLibjpeg(jparams, dparams, &cinfo, output);
+    jxl::msan::UnpoisonMemory(cinfo.src, sizeof(jpeg_source_mgr));
     bytes_read = len - cinfo.src->bytes_in_buffer;
     return true;
   };
-  JXL_CHECK(try_catch_block());
+  Check(try_catch_block());
   jpeg_destroy_decompress(&cinfo);
   return bytes_read;
 }

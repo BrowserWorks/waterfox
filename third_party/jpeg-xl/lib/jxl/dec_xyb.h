@@ -15,6 +15,8 @@
 
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/data_parallel.h"
+#include "lib/jxl/base/matrix_ops.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/color_encoding_internal.h"
 #include "lib/jxl/image.h"
@@ -39,7 +41,7 @@ struct OutputEncodingInfo {
   // Used for the HLG OOTF and PQ tone mapping.
   float orig_intensity_target;
   // Opsin inverse matrix taken from the metadata.
-  float orig_inverse_matrix[9];
+  Matrix3x3 orig_inverse_matrix;
   bool default_transform;
   bool xyb_encoded;
   //
@@ -60,7 +62,7 @@ struct OutputEncodingInfo {
   // Luminances of color_encoding's primaries, used for the HLG inverse OOTF and
   // for PQ tone mapping.
   // Default to sRGB's.
-  float luminances[3];
+  Vector3 luminances;
   // Used for the HLG inverse OOTF and PQ tone mapping.
   float desired_intensity_target;
   bool cms_set = false;
@@ -75,14 +77,14 @@ struct OutputEncodingInfo {
 
 // Converts `inout` (not padded) from opsin to linear sRGB in-place. Called from
 // per-pass postprocessing, hence parallelized.
-void OpsinToLinearInplace(Image3F* JXL_RESTRICT inout, ThreadPool* pool,
-                          const OpsinParams& opsin_params);
+Status OpsinToLinearInplace(Image3F* JXL_RESTRICT inout, ThreadPool* pool,
+                            const OpsinParams& opsin_params);
 
 // Converts `opsin:rect` (opsin may be padded, rect.x0 must be vector-aligned)
 // to linear sRGB. Called from whole-frame encoder, hence parallelized.
-void OpsinToLinear(const Image3F& opsin, const Rect& rect, ThreadPool* pool,
-                   Image3F* JXL_RESTRICT linear,
-                   const OpsinParams& opsin_params);
+Status OpsinToLinear(const Image3F& opsin, const Rect& rect, ThreadPool* pool,
+                     Image3F* JXL_RESTRICT linear,
+                     const OpsinParams& opsin_params);
 
 // Bt.601 to match JPEG/JFIF. Inputs are _signed_ YCbCr values suitable for DCT,
 // see F.1.1.3 of T.81 (because our data type is float, there is no need to add
@@ -90,8 +92,8 @@ void OpsinToLinear(const Image3F& opsin, const Rect& rect, ThreadPool* pool,
 void YcbcrToRgb(const Image3F& ycbcr, Image3F* rgb, const Rect& rect);
 
 bool HasFastXYBTosRGB8();
-void FastXYBTosRGB8(const float* input[4], uint8_t* output, bool is_rgba,
-                    size_t xsize);
+Status FastXYBTosRGB8(const float* input[4], uint8_t* output, bool is_rgba,
+                      size_t xsize);
 
 }  // namespace jxl
 

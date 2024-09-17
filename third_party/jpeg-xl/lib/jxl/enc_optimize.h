@@ -10,8 +10,6 @@
 
 #include <cmath>
 #include <cstdio>
-#include <functional>
-#include <vector>
 
 #include "lib/jxl/base/status.h"
 
@@ -79,27 +77,6 @@ T operator*(const Array<T, N>& x, const Array<T, N>& y) {
   }
   return r;
 }
-
-// Runs Nelder-Mead like optimization. Runs for max_iterations times,
-// fun gets called with a vector of size dim as argument, and returns the score
-// based on those parameters (lower is better). Returns a vector of dim+1
-// dimensions, where the first value is the optimal value of the function and
-// the rest is the argmin value. Use init to pass an initial guess or where
-// the optimal value is.
-//
-// Usage example:
-//
-// RunSimplex(2, 0.1, 100, [](const vector<float>& v) {
-//   return (v[0] - 5) * (v[0] - 5) + (v[1] - 7) * (v[1] - 7);
-// });
-//
-// Returns (0.0, 5, 7)
-std::vector<double> RunSimplex(
-    int dim, double amount, int max_iterations,
-    const std::function<double(const std::vector<double>&)>& fun);
-std::vector<double> RunSimplex(
-    int dim, double amount, int max_iterations, const std::vector<double>& init,
-    const std::function<double(const std::vector<double>&)>& fun);
 
 // Implementation of the Scaled Conjugate Gradient method described in the
 // following paper:
