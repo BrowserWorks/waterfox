@@ -30,7 +30,6 @@
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/data_parallel.h"
 #include "lib/jxl/base/status.h"
-#include "lib/jxl/enc_aux_out.h"
 #include "lib/jxl/enc_fast_lossless.h"
 #include "lib/jxl/enc_params.h"
 #include "lib/jxl/image_metadata.h"
@@ -213,15 +212,14 @@ class JxlEncoderChunkedFrameAdapter {
     return true;
   }
 
-  // TODO(szabadka) Move instead of copy.
-  void SetJPEGData(const jpeg::JPEGData jpeg_data) {
-    jpeg_data_ = jpeg_data;
-    has_jpeg_data_ = true;
+  void SetJPEGData(std::unique_ptr<jpeg::JPEGData> jpeg_data) {
+    jpeg_data_ = std::move(jpeg_data);
   }
-  bool IsJPEG() const { return has_jpeg_data_; }
 
-  jpeg::JPEGData&& TakeJPEGData() {
-    JXL_ASSERT(has_jpeg_data_);
+  // NB: after TakeJPEGData it will return false!
+  bool IsJPEG() const { return jpeg_data_ != nullptr; }
+
+  std::unique_ptr<jpeg::JPEGData> TakeJPEGData() {
     return std::move(jpeg_data_);
   }
 
@@ -289,14 +287,14 @@ class JxlEncoderChunkedFrameAdapter {
 
   void GetExtraChannelPixelFormat(size_t ec_index,
                                   JxlPixelFormat* pixel_format) {
-    JXL_ASSERT(1 + ec_index < channels_.size());
+    JXL_DASSERT(1 + ec_index < channels_.size());
     *pixel_format = channels_[1 + ec_index].format_;
   }
 
   const void* GetExtraChannelDataAt(size_t ec_index, size_t xpos, size_t ypos,
                                     size_t xsize, size_t ysize,
                                     size_t* row_offset) {
-    JXL_ASSERT(1 + ec_index < channels_.size());
+    JXL_DASSERT(1 + ec_index < channels_.size());
     return channels_[1 + ec_index].GetDataAt(xpos, ypos, xsize, ysize,
                                              row_offset);
   }
@@ -308,8 +306,7 @@ class JxlEncoderChunkedFrameAdapter {
 
   JxlChunkedFrameInputSource input_source_ = {};
   bool has_input_source_ = false;
-  jpeg::JPEGData jpeg_data_;
-  bool has_jpeg_data_ = false;
+  std::unique_ptr<jpeg::JPEGData> jpeg_data_;
   struct Channel {
     const uint8_t* buffer_ = nullptr;
     size_t buffer_size_;
@@ -364,9 +361,9 @@ class JxlEncoderChunkedFrameAdapter {
     const void* GetDataAt(size_t xpos, size_t ypos, size_t xsize, size_t ysize,
                           size_t* row_offset) const {
       const uint8_t* buffer = copy_.empty() ? buffer_ : copy_.data();
-      JXL_ASSERT(ypos + ysize <= ysize_);
-      JXL_ASSERT(xpos + xsize <= xsize_);
-      JXL_ASSERT(buffer);
+      JXL_DASSERT(ypos + ysize <= ysize_);
+      JXL_DASSERT(xpos + xsize <= xsize_);
+      JXL_DASSERT(buffer);
       *row_offset = stride_;
       return buffer + ypos * stride_ + xpos * bytes_per_pixel_;
     }
@@ -431,9 +428,12 @@ class JxlEncoderOutputProcessorWrapper {
   friend class JxlOutputProcessorBuffer;
 
  public:
-  JxlEncoderOutputProcessorWrapper() = default;
-  explicit JxlEncoderOutputProcessorWrapper(JxlEncoderOutputProcessor processor)
-      : external_output_processor_(
+  explicit JxlEncoderOutputProcessorWrapper(JxlMemoryManager* memory_manager)
+      : memory_manager_(memory_manager) {}
+  JxlEncoderOutputProcessorWrapper(JxlMemoryManager* memory_manager,
+                                   JxlEncoderOutputProcessor processor)
+      : memory_manager_(memory_manager),
+        external_output_processor_(
             jxl::make_unique<JxlEncoderOutputProcessor>(processor)) {}
 
   bool HasAvailOut() const { return avail_out_ != nullptr; }
@@ -444,13 +444,13 @@ class JxlEncoderOutputProcessorWrapper {
   jxl::StatusOr<JxlOutputProcessorBuffer> GetBuffer(size_t min_size,
                                                     size_t requested_size = 0);
 
-  void Seek(size_t pos);
+  jxl::Status Seek(size_t pos);
 
-  void SetFinalizedPosition();
+  jxl::Status SetFinalizedPosition();
 
   size_t CurrentPosition() const { return position_; }
 
-  bool SetAvailOut(uint8_t** next_out, size_t* avail_out);
+  jxl::Status SetAvailOut(uint8_t** next_out, size_t* avail_out);
 
   bool WasStopRequested() const { return stop_requested_; }
   bool OutputProcessorSet() const {
@@ -460,18 +460,22 @@ class JxlEncoderOutputProcessorWrapper {
     return output_position_ < finalized_position_;
   }
 
-  void CopyOutput(std::vector<uint8_t>& output, uint8_t* next_out,
-                  size_t& avail_out);
+  jxl::Status CopyOutput(std::vector<uint8_t>& output, uint8_t* next_out,
+                         size_t& avail_out);
 
  private:
-  void ReleaseBuffer(size_t bytes_used);
+  jxl::Status ReleaseBuffer(size_t bytes_used);
 
   // Tries to write all the bytes up to the finalized position.
-  void FlushOutput();
+  jxl::Status FlushOutput();
 
   bool AppendBufferToExternalProcessor(void* data, size_t count);
 
   struct InternalBuffer {
+    explicit InternalBuffer(JxlMemoryManager* memory_manager)
+        : owned_data(memory_manager) {
+      JXL_DASSERT(memory_manager != nullptr);
+    }
     // Bytes in the range `[output_position_ - start_of_the_buffer,
     // written_bytes)` need to be flushed out.
     size_t written_bytes = 0;
@@ -496,6 +500,7 @@ class JxlEncoderOutputProcessorWrapper {
   bool stop_requested_ = false;
   bool has_buffer_ = false;
 
+  JxlMemoryManager* memory_manager_;
   std::unique_ptr<JxlEncoderOutputProcessor> external_output_processor_;
 };
 
@@ -510,7 +515,11 @@ class JxlOutputProcessorBuffer {
         size_(size),
         bytes_used_(bytes_used),
         wrapper_(wrapper) {}
-  ~JxlOutputProcessorBuffer() { release(); }
+  ~JxlOutputProcessorBuffer() {
+    jxl::Status result = release();
+    (void)result;
+    JXL_DASSERT(result);
+  }
 
   JxlOutputProcessorBuffer(const JxlOutputProcessorBuffer&) = delete;
   JxlOutputProcessorBuffer(JxlOutputProcessorBuffer&& other) noexcept
@@ -520,30 +529,36 @@ class JxlOutputProcessorBuffer {
     other.size_ = 0;
   }
 
-  void advance(size_t count) {
-    JXL_ASSERT(count <= size_);
+  jxl::Status advance(size_t count) {
+    JXL_ENSURE(count <= size_);
     data_ += count;
     size_ -= count;
     bytes_used_ += count;
+    return true;
   }
 
-  void release() {
+  jxl::Status release() {
+    jxl::Status result = jxl::OkStatus();
     if (this->data_) {
-      wrapper_->ReleaseBuffer(bytes_used_);
+      result = wrapper_->ReleaseBuffer(bytes_used_);
     }
     data_ = nullptr;
     size_ = 0;
+    return result;
   }
 
-  void append(const void* data, size_t count) {
+  jxl::Status append(const void* data, size_t count) {
     memcpy(data_, data, count);
-    advance(count);
+    JXL_RETURN_IF_ERROR(advance(count));
+    return true;
   }
 
   template <typename T>
-  void append(const T& data) {
+  jxl::Status append(const T& data) {
     static_assert(sizeof(*std::begin(data)) == 1, "Cannot append non-bytes");
-    append(&*std::begin(data), std::end(data) - std::begin(data));
+    JXL_RETURN_IF_ERROR(
+        append(&*std::begin(data), std::end(data) - std::begin(data)));
+    return true;
   }
 
   JxlOutputProcessorBuffer& operator=(const JxlOutputProcessorBuffer&) = delete;
@@ -571,7 +586,7 @@ jxl::Status AppendData(JxlEncoderOutputProcessorWrapper& output_processor,
     JXL_ASSIGN_OR_RETURN(auto buffer,
                          output_processor.GetBuffer(1, size - written));
     size_t n = std::min(size - written, buffer.size());
-    buffer.append(data.data() + written, n);
+    JXL_RETURN_IF_ERROR(buffer.append(data.data() + written, n));
     written += n;
   }
   return jxl::OkStatus();
@@ -580,6 +595,7 @@ jxl::Status AppendData(JxlEncoderOutputProcessorWrapper& output_processor,
 // Internal use only struct, can only be initialized correctly by
 // JxlEncoderCreate.
 struct JxlEncoderStruct {
+  JxlEncoderStruct() : output_processor(&memory_manager) {}
   JxlMemoryManager memory_manager;
   jxl::MemoryManagerUniquePtr<jxl::ThreadPool> thread_pool{
       nullptr, jxl::MemoryManagerDeleteHelper(&memory_manager)};
@@ -666,7 +682,7 @@ struct JxlEncoderFrameSettingsStruct {
 };
 
 struct JxlEncoderStatsStruct {
-  jxl::AuxOut aux_out;
+  std::unique_ptr<jxl::AuxOut> aux_out;
 };
 
 #endif  // LIB_JXL_ENCODE_INTERNAL_H_

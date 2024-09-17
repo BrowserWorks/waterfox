@@ -124,7 +124,7 @@ dirent* readdir(DIR* d) {
     if (d->numCalls++ != 0)  // (skip first call to FindNextFile - see opendir)
     {
       if (!FindNextFile(d->hFind, &d->findData)) {
-        JXL_ASSERT(GetLastError() == ERROR_NO_MORE_FILES);
+        JXL_DASSERT(GetLastError() == ERROR_NO_MORE_FILES);
         SetLastError(0);
         return nullptr;  // end of directory or error
       }

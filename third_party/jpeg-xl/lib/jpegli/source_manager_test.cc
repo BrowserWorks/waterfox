@@ -3,11 +3,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include <cmath>
+#include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <ostream>
+#include <sstream>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "lib/jpegli/decode.h"
+#include "lib/jpegli/libjpeg_test_util.h"
+#include "lib/jpegli/test_params.h"
 #include "lib/jpegli/test_utils.h"
 #include "lib/jpegli/testing.h"
 #include "lib/jxl/base/status.h"
@@ -43,14 +50,15 @@ FILE* MemOpen(const std::vector<uint8_t>& data) {
   FILE* src = tmpfile();
   if (!src) return nullptr;
   fwrite(data.data(), 1, data.size(), src);
-  rewind(src);
+  fseek(src, 0, SEEK_SET);
   return src;
 }
 }  // namespace
 
 TEST_P(SourceManagerTestParam, TestStdioSourceManager) {
   TestConfig config = GetParam();
-  std::vector<uint8_t> compressed = ReadTestData(config.fn);
+  JXL_ASSIGN_OR_QUIT(std::vector<uint8_t> compressed, ReadTestData(config.fn),
+                     "Failed to read test data.");
   if (config.dparams.size_factor < 1.0) {
     compressed.resize(compressed.size() * config.dparams.size_factor);
   }
@@ -77,7 +85,8 @@ TEST_P(SourceManagerTestParam, TestStdioSourceManager) {
 
 TEST_P(SourceManagerTestParam, TestMemSourceManager) {
   TestConfig config = GetParam();
-  std::vector<uint8_t> compressed = ReadTestData(config.fn);
+  JXL_ASSIGN_OR_QUIT(std::vector<uint8_t> compressed, ReadTestData(config.fn),
+                     "Failed to read test data.");
   if (config.dparams.size_factor < 1.0f) {
     compressed.resize(compressed.size() * config.dparams.size_factor);
   }

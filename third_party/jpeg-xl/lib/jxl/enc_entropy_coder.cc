@@ -5,11 +5,8 @@
 
 #include "lib/jxl/enc_entropy_coder.h"
 
-#include <stddef.h>
-#include <stdint.h>
-
-#include <algorithm>
-#include <utility>
+#include <cstddef>
+#include <cstdint>
 #include <vector>
 
 #undef HWY_TARGET_INCLUDE
@@ -24,13 +21,8 @@
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/coeff_order.h"
 #include "lib/jxl/coeff_order_fwd.h"
-#include "lib/jxl/dec_ans.h"
-#include "lib/jxl/dec_bit_reader.h"
-#include "lib/jxl/dec_context_map.h"
 #include "lib/jxl/entropy_coder.h"
-#include "lib/jxl/epf.h"
 #include "lib/jxl/image.h"
-#include "lib/jxl/image_ops.h"
 #include "lib/jxl/pack_signed.h"
 
 HWY_BEFORE_NAMESPACE();
@@ -153,15 +145,15 @@ int32_t NumNonZero8x8ExceptDC(const int32_t* JXL_RESTRICT block,
 // context; if this number is above 63, a specific context is used.  If the
 // number of nonzeros of a strategy is above 63, it is written directly using a
 // fixed number of bits (that depends on the size of the strategy).
-void TokenizeCoefficients(const coeff_order_t* JXL_RESTRICT orders,
-                          const Rect& rect,
-                          const int32_t* JXL_RESTRICT* JXL_RESTRICT ac_rows,
-                          const AcStrategyImage& ac_strategy,
-                          const YCbCrChromaSubsampling& cs,
-                          Image3I* JXL_RESTRICT tmp_num_nzeroes,
-                          std::vector<Token>* JXL_RESTRICT output,
-                          const ImageB& qdc, const ImageI& qf,
-                          const BlockCtxMap& block_ctx_map) {
+Status TokenizeCoefficients(const coeff_order_t* JXL_RESTRICT orders,
+                            const Rect& rect,
+                            const int32_t* JXL_RESTRICT* JXL_RESTRICT ac_rows,
+                            const AcStrategyImage& ac_strategy,
+                            const YCbCrChromaSubsampling& cs,
+                            Image3I* JXL_RESTRICT tmp_num_nzeroes,
+                            std::vector<Token>* JXL_RESTRICT output,
+                            const ImageB& qdc, const ImageI& qf,
+                            const BlockCtxMap& block_ctx_map) {
   const size_t xsize_blocks = rect.xsize();
   const size_t ysize_blocks = rect.ysize();
   output->clear();
@@ -239,11 +231,12 @@ void TokenizeCoefficients(const coeff_order_t* JXL_RESTRICT orders,
           prev = (coeff != 0) ? 1 : 0;
           nzeros -= prev;
         }
-        JXL_DASSERT(nzeros == 0);
+        JXL_ENSURE(nzeros == 0);
         offset[c] += size;
       }
     }
   }
+  return true;
 }
 
 // NOLINTNEXTLINE(google-readability-namespace-comments)
@@ -254,18 +247,18 @@ HWY_AFTER_NAMESPACE();
 #if HWY_ONCE
 namespace jxl {
 HWY_EXPORT(TokenizeCoefficients);
-void TokenizeCoefficients(const coeff_order_t* JXL_RESTRICT orders,
-                          const Rect& rect,
-                          const int32_t* JXL_RESTRICT* JXL_RESTRICT ac_rows,
-                          const AcStrategyImage& ac_strategy,
-                          const YCbCrChromaSubsampling& cs,
-                          Image3I* JXL_RESTRICT tmp_num_nzeroes,
-                          std::vector<Token>* JXL_RESTRICT output,
-                          const ImageB& qdc, const ImageI& qf,
-                          const BlockCtxMap& block_ctx_map) {
-  HWY_DYNAMIC_DISPATCH(TokenizeCoefficients)
-  (orders, rect, ac_rows, ac_strategy, cs, tmp_num_nzeroes, output, qdc, qf,
-   block_ctx_map);
+Status TokenizeCoefficients(const coeff_order_t* JXL_RESTRICT orders,
+                            const Rect& rect,
+                            const int32_t* JXL_RESTRICT* JXL_RESTRICT ac_rows,
+                            const AcStrategyImage& ac_strategy,
+                            const YCbCrChromaSubsampling& cs,
+                            Image3I* JXL_RESTRICT tmp_num_nzeroes,
+                            std::vector<Token>* JXL_RESTRICT output,
+                            const ImageB& qdc, const ImageI& qf,
+                            const BlockCtxMap& block_ctx_map) {
+  return HWY_DYNAMIC_DISPATCH(TokenizeCoefficients)(
+      orders, rect, ac_rows, ac_strategy, cs, tmp_num_nzeroes, output, qdc, qf,
+      block_ctx_map);
 }
 
 }  // namespace jxl

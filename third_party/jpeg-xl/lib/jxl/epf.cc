@@ -7,27 +7,17 @@
 
 #include "lib/jxl/epf.h"
 
-#include <math.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-
 #include <algorithm>
-#include <atomic>
-#include <numeric>  // std::accumulate
-#include <vector>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 
 #include "lib/jxl/ac_strategy.h"
 #include "lib/jxl/base/compiler_specific.h"
-#include "lib/jxl/base/data_parallel.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
-#include "lib/jxl/convolve.h"
 #include "lib/jxl/dec_cache.h"
-#include "lib/jxl/image.h"
-#include "lib/jxl/image_bundle.h"
-#include "lib/jxl/image_ops.h"
 #include "lib/jxl/loop_filter.h"
-#include "lib/jxl/quant_weights.h"
 #include "lib/jxl/quantizer.h"
 
 namespace jxl {
@@ -46,9 +36,9 @@ JXL_INLINE void RightMirror(float* p, size_t n) {
   }
 }
 
-void ComputeSigma(const LoopFilter& lf, const Rect& block_rect,
-                  PassesDecoderState* state) {
-  JXL_CHECK(lf.epf_iters > 0);
+Status ComputeSigma(const LoopFilter& lf, const Rect& block_rect,
+                    PassesDecoderState* state) {
+  JXL_ENSURE(lf.epf_iters > 0);
   const AcStrategyImage& ac_strategy = state->shared->ac_strategy;
   const float quant_scale = state->shared->quantizer.Scale();
 
@@ -139,6 +129,7 @@ void ComputeSigma(const LoopFilter& lf, const Rect& block_rect,
       }
     }
   }
+  return true;
 }
 
 }  // namespace jxl

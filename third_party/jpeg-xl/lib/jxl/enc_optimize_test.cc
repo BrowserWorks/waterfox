@@ -5,6 +5,10 @@
 
 #include "lib/jxl/enc_optimize.h"
 
+#include <cmath>
+#include <cstddef>
+#include <vector>
+
 #include "lib/jxl/testing.h"
 
 namespace jxl {
@@ -85,21 +89,6 @@ TEST(OptimizeTest, PowerFunction) {
   EXPECT_NEAR(w[0], 2.0, kPrecision);
   EXPECT_NEAR(w[1], 3.0, kPrecision);
   EXPECT_NEAR(w[2], 5.0, kPrecision);
-}
-
-TEST(OptimizeTest, SimplexOptTest) {
-  auto f = [](const std::vector<double>& x) -> double {
-    double t1 = x[0] - 1.0;
-    double t2 = x[1] + 1.5;
-    return 2.0 + t1 * t1 + t2 * t2;
-  };
-  auto opt = RunSimplex(2, 0.01, 100, f);
-  EXPECT_EQ(opt.size(), 3u);
-
-  static const double kPrecision = 0.01;
-  EXPECT_NEAR(opt[0], 2.0, kPrecision);
-  EXPECT_NEAR(opt[1], 1.0, kPrecision);
-  EXPECT_NEAR(opt[2], -1.5, kPrecision);
 }
 
 }  // namespace

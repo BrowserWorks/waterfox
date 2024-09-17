@@ -11,11 +11,13 @@
 
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/data_parallel.h"
-#include "lib/jxl/base/status.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/convolve.h"
 #include "lib/jxl/image.h"
 #include "lib/jxl/image_ops.h"
 #include "lib/jxl/image_test_utils.h"
+#include "lib/jxl/test_memory_manager.h"
+#include "lib/jxl/test_utils.h"
 #include "lib/jxl/testing.h"
 
 namespace jxl {
@@ -37,12 +39,15 @@ WeightsSymmetric3 GaborishKernel(float weight1, float weight2) {
 
 void ConvolveGaborish(const ImageF& in, float weight1, float weight2,
                       ThreadPool* pool, ImageF* JXL_RESTRICT out) {
-  JXL_CHECK(SameSize(in, *out));
-  Symmetric3(in, Rect(in), GaborishKernel(weight1, weight2), pool, out);
+  ASSERT_TRUE(SameSize(in, *out));
+  ASSERT_TRUE(
+      Symmetric3(in, Rect(in), GaborishKernel(weight1, weight2), pool, out));
 }
 
 void TestRoundTrip(const Image3F& in, float max_l1) {
-  JXL_ASSIGN_OR_DIE(Image3F fwd, Image3F::Create(in.xsize(), in.ysize()));
+  JXL_TEST_ASSIGN_OR_DIE(
+      Image3F fwd,
+      Image3F::Create(jxl::test::MemoryManager(), in.xsize(), in.ysize()));
   ThreadPool* null_pool = nullptr;
   ConvolveGaborish(in.Plane(0), 0, 0, null_pool, &fwd.Plane(0));
   ConvolveGaborish(in.Plane(1), 0, 0, null_pool, &fwd.Plane(1));
@@ -53,12 +58,13 @@ void TestRoundTrip(const Image3F& in, float max_l1) {
       w,
       w,
   };
-  JXL_CHECK(GaborishInverse(&fwd, Rect(fwd), weights, null_pool));
-  JXL_ASSERT_OK(VerifyRelativeError(in, fwd, max_l1, 1E-4f, _));
+  ASSERT_TRUE(GaborishInverse(&fwd, Rect(fwd), weights, null_pool));
+  JXL_TEST_ASSERT_OK(VerifyRelativeError(in, fwd, max_l1, 1E-4f, _));
 }
 
 TEST(GaborishTest, TestZero) {
-  JXL_ASSIGN_OR_DIE(Image3F in, Image3F::Create(20, 20));
+  JXL_TEST_ASSIGN_OR_DIE(Image3F in,
+                         Image3F::Create(jxl::test::MemoryManager(), 20, 20));
   ZeroFillImage(&in);
   TestRoundTrip(in, 0.0f);
 }
@@ -66,7 +72,8 @@ TEST(GaborishTest, TestZero) {
 // Disabled: large difference.
 #if JXL_FALSE
 TEST(GaborishTest, TestDirac) {
-  JXL_ASSIGN_OR_DIE(Image3F in, Image3F::Create(20, 20));
+  JXL_TEST_ASSIGN_OR_DIE(Image3F in,
+                         Image3F::Create(jxl::test::MemoryManager(), 20, 20));
   ZeroFillImage(&in);
   in.PlaneRow(1, 10)[10] = 10.0f;
   TestRoundTrip(in, 0.26f);
@@ -74,7 +81,8 @@ TEST(GaborishTest, TestDirac) {
 #endif
 
 TEST(GaborishTest, TestFlat) {
-  JXL_ASSIGN_OR_DIE(Image3F in, Image3F::Create(20, 20));
+  JXL_TEST_ASSIGN_OR_DIE(Image3F in,
+                         Image3F::Create(jxl::test::MemoryManager(), 20, 20));
   FillImage(1.0f, &in);
   TestRoundTrip(in, 1E-5f);
 }

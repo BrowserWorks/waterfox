@@ -7,6 +7,7 @@
 #define LIB_JXL_ENC_MODULAR_H_
 
 #include <jxl/cms_interface.h>
+#include <jxl/memory_manager.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -14,6 +15,7 @@
 
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/data_parallel.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/dec_modular.h"
 #include "lib/jxl/enc_ans.h"
@@ -33,11 +35,13 @@
 namespace jxl {
 
 struct AuxOut;
+enum class LayerType : uint8_t;
 
 class ModularFrameEncoder {
  public:
-  ModularFrameEncoder(const FrameHeader& frame_header,
-                      const CompressParams& cparams_orig, bool streaming_mode);
+  static StatusOr<ModularFrameEncoder> Create(
+      JxlMemoryManager* memory_manager, const FrameHeader& frame_header,
+      const CompressParams& cparams_orig, bool streaming_mode);
   Status ComputeEncodingData(
       const FrameHeader& frame_header, const ImageMetadata& metadata,
       Image3F* JXL_RESTRICT color, const std::vector<ImageF>& extra_channels,
@@ -52,7 +56,7 @@ class ModularFrameEncoder {
                           AuxOut* aux_out);
   // Encodes a specific modular image (identified by `stream`) in the `writer`,
   // assigning bits to the provided `layer`.
-  Status EncodeStream(BitWriter* writer, AuxOut* aux_out, size_t layer,
+  Status EncodeStream(BitWriter* writer, AuxOut* aux_out, LayerType layer,
                       const ModularStreamId& stream);
 
   void ClearStreamData(const ModularStreamId& stream);
@@ -76,7 +80,8 @@ class ModularFrameEncoder {
   // null, the quantization table in `encoding` is used, with dimensions `size_x
   // x size_y`. Otherwise, the table with ID `idx` is encoded from the given
   // `modular_frame_encoder`.
-  static Status EncodeQuantTable(size_t size_x, size_t size_y,
+  static Status EncodeQuantTable(JxlMemoryManager* memory_manager,
+                                 size_t size_x, size_t size_y,
                                  BitWriter* writer,
                                  const QuantEncoding& encoding, size_t idx,
                                  ModularFrameEncoder* modular_frame_encoder);
@@ -87,11 +92,18 @@ class ModularFrameEncoder {
   std::vector<size_t> ac_metadata_size;
   std::vector<uint8_t> extra_dc_precision;
 
+  JxlMemoryManager* memory_manager() const { return memory_manager_; }
+
  private:
+  explicit ModularFrameEncoder(JxlMemoryManager* memory_manager);
+  Status Init(const FrameHeader& frame_header,
+              const CompressParams& cparams_orig, bool streaming_mode);
+
   Status PrepareStreamParams(const Rect& rect, const CompressParams& cparams,
                              int minShift, int maxShift,
                              const ModularStreamId& stream, bool do_color,
                              bool groupwise);
+  JxlMemoryManager* memory_manager_;
   std::vector<Image> stream_images_;
   std::vector<ModularOptions> stream_options_;
   std::vector<uint32_t> quants_;
@@ -107,7 +119,6 @@ class ModularFrameEncoder {
   std::vector<size_t> tree_splits_;
   std::vector<std::vector<uint32_t>> gi_channel_;
   std::vector<size_t> image_widths_;
-  Predictor delta_pred_ = Predictor::Average4;
 
   struct GroupParams {
     Rect rect;

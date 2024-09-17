@@ -6,13 +6,17 @@
 #ifndef LIB_JXL_MODULAR_TRANSFORM_PALETTE_H_
 #define LIB_JXL_MODULAR_TRANSFORM_PALETTE_H_
 
-#include <atomic>
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cstdint>
 
+#include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/data_parallel.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/modular/encoding/context_predict.h"
 #include "lib/jxl/modular/modular_image.h"
-#include "lib/jxl/modular/transform/transform.h"  // CheckEqualChannels
+#include "lib/jxl/modular/options.h"
 
 namespace jxl {
 
@@ -30,13 +34,15 @@ static constexpr int kSmallCube = 4;
 static constexpr int kSmallCubeBits = 2;
 // kSmallCube ** 3
 static constexpr int kLargeCubeOffset = kSmallCube * kSmallCube * kSmallCube;
+static constexpr int kImplicitPaletteSize =
+    kLargeCubeOffset + kLargeCube * kLargeCube * kLargeCube;
 
-static inline pixel_type Scale(uint64_t value, uint64_t bit_depth,
-                               uint64_t denom) {
+template <int denom>
+static inline pixel_type Scale(uint64_t value, uint64_t bit_depth) {
   // return (value * ((static_cast<pixel_type_w>(1) << bit_depth) - 1)) / denom;
   // We only call this function with kSmallCube or kLargeCube - 1 as denom,
   // allowing us to avoid a division here.
-  JXL_ASSERT(denom == 4);
+  static_assert(denom == 4);
   return (value * ((static_cast<uint64_t>(1) << bit_depth) - 1)) >> 2;
 }
 
@@ -92,7 +98,7 @@ GetPaletteValue(const pixel_type *const palette, int index, const size_t c,
     if (c >= kRgbChannels) return 0;
     index -= palette_size;
     index >>= c * kSmallCubeBits;
-    return Scale(index % kSmallCube, bit_depth, kSmallCube) +
+    return Scale<kSmallCube>(index % kSmallCube, bit_depth) +
            (1 << (std::max(0, bit_depth - 3)));
   } else if (palette_size + kLargeCubeOffset <= index) {
     if (c >= kRgbChannels) return 0;
@@ -110,7 +116,7 @@ GetPaletteValue(const pixel_type *const palette, int index, const size_t c,
         index /= kLargeCube * kLargeCube;
         break;
     }
-    return Scale(index % kLargeCube, bit_depth, kLargeCube - 1);
+    return Scale<kLargeCube - 1>(index % kLargeCube, bit_depth);
   }
   return palette[c * onerow + static_cast<size_t>(index)];
 }

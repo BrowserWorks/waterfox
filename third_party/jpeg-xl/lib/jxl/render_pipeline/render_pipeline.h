@@ -6,8 +6,18 @@
 #ifndef LIB_JXL_RENDER_PIPELINE_RENDER_PIPELINE_H_
 #define LIB_JXL_RENDER_PIPELINE_RENDER_PIPELINE_H_
 
-#include <stdint.h>
+#include <jxl/memory_manager.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <utility>
+#include <vector>
+
+#include "lib/jxl/base/rect.h"
+#include "lib/jxl/base/status.h"
+#include "lib/jxl/frame_dimensions.h"
 #include "lib/jxl/image.h"
 #include "lib/jxl/render_pipeline/render_pipeline_stage.h"
 
@@ -35,7 +45,7 @@ class RenderPipelineInput {
   Status Done();
 
   const std::pair<ImageF*, Rect>& GetBuffer(size_t c) const {
-    JXL_ASSERT(c < buffers_.size());
+    JXL_DASSERT(c < buffers_.size());
     return buffers_[c];
   }
 
@@ -51,11 +61,14 @@ class RenderPipeline {
  public:
   class Builder {
    public:
-    explicit Builder(size_t num_c) : num_c_(num_c) { JXL_ASSERT(num_c > 0); }
+    explicit Builder(JxlMemoryManager* memory_manager, size_t num_c)
+        : memory_manager_(memory_manager), num_c_(num_c) {
+      JXL_DASSERT(num_c > 0);
+    }
 
     // Adds a stage to the pipeline. Must be called at least once; the last
     // added stage cannot have kInOut channels.
-    void AddStage(std::unique_ptr<RenderPipelineStage> stage);
+    Status AddStage(std::unique_ptr<RenderPipelineStage> stage);
 
     // Enables using the simple (i.e. non-memory-efficient) implementation of
     // the pipeline.
@@ -67,6 +80,7 @@ class RenderPipeline {
         FrameDimensions frame_dimensions) &&;
 
    private:
+    JxlMemoryManager* memory_manager_;
     std::vector<std::unique_ptr<RenderPipelineStage>> stages_;
     size_t num_c_;
     bool use_simple_implementation_ = false;
@@ -103,6 +117,10 @@ class RenderPipeline {
   virtual void ClearDone(size_t i) {}
 
  protected:
+  explicit RenderPipeline(JxlMemoryManager* memory_manager)
+      : memory_manager_(memory_manager) {}
+  JxlMemoryManager* memory_manager_;
+
   std::vector<std::unique_ptr<RenderPipelineStage>> stages_;
   // Shifts for every channel at the input of each stage.
   std::vector<std::vector<std::pair<size_t, size_t>>> channel_shifts_;

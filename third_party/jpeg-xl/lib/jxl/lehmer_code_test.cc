@@ -5,16 +5,15 @@
 
 #include "lib/jxl/lehmer_code.h"
 
-#include <stdint.h>
-#include <string.h>
-
-#include <algorithm>
+#include <cstdint>
+#include <cstring>
 #include <numeric>
 #include <vector>
 
 #include "lib/jxl/base/bits.h"
 #include "lib/jxl/base/data_parallel.h"
 #include "lib/jxl/base/random.h"
+#include "lib/jxl/base/status.h"
 #include "lib/jxl/test_utils.h"
 #include "lib/jxl/testing.h"
 
@@ -38,11 +37,11 @@ struct WorkingSet {
 };
 
 template <typename PermutationT>
-void Roundtrip(size_t n, WorkingSet<PermutationT>* ws) {
-  JXL_ASSERT(n != 0);
+void Roundtrip(uint32_t n, WorkingSet<PermutationT>* ws) {
+  EXPECT_TRUE(n != 0);
   const size_t padded_n = 1ull << CeilLog2Nonzero(n);
 
-  Rng rng(n * 65537 + 13);
+  Rng rng(static_cast<uint64_t>(n) * 65537 + 13);
 
   // Ensure indices fit into PermutationT
   EXPECT_LE(n, 1ULL << (sizeof(PermutationT) * 8));
@@ -54,10 +53,11 @@ void Roundtrip(size_t n, WorkingSet<PermutationT>* ws) {
     rng.Shuffle(ws->permutation.data(), n);
 
     // Must decode to the same permutation
-    ComputeLehmerCode(ws->permutation.data(), ws->temp.data(), n,
-                      ws->lehmer.data());
+    EXPECT_TRUE(ComputeLehmerCode(ws->permutation.data(), ws->temp.data(), n,
+                                  ws->lehmer.data()));
     memset(ws->temp.data(), 0, padded_n * 4);
-    DecodeLehmerCode(ws->lehmer.data(), ws->temp.data(), n, ws->decoded.data());
+    EXPECT_TRUE(DecodeLehmerCode(ws->lehmer.data(), ws->temp.data(), n,
+                                 ws->decoded.data()));
 
     for (size_t i = 0; i < n; ++i) {
       EXPECT_EQ(ws->permutation[i], ws->decoded[i]);
@@ -71,27 +71,27 @@ void RoundtripSizeRange(ThreadPool* pool, uint32_t begin, uint32_t end) {
   ASSERT_NE(0u, begin);  // n = 0 not allowed.
   std::vector<WorkingSet<PermutationT>> working_sets;
 
-  JXL_CHECK(RunOnPool(
-      pool, begin, end,
-      [&working_sets, end](const size_t num_threads) {
-        for (size_t i = 0; i < num_threads; i++) {
-          working_sets.emplace_back(end - 1);
-        }
-        return true;
-      },
-      [&working_sets](const uint32_t n, const size_t thread) {
-        Roundtrip(n, &working_sets[thread]);
-      },
-      "lehmer test"));
+  const auto init = [&working_sets, end](const size_t num_threads) -> Status {
+    for (size_t i = 0; i < num_threads; i++) {
+      working_sets.emplace_back(end - 1);
+    }
+    return true;
+  };
+  const auto do_roundtrip = [&working_sets](const uint32_t n,
+                                            const size_t thread) -> Status {
+    Roundtrip(n, &working_sets[thread]);
+    return true;
+  };
+  ASSERT_TRUE(RunOnPool(pool, begin, end, init, do_roundtrip, "lehmer test"));
 }
 
 TEST(LehmerCodeTest, TestRoundtrips) {
   test::ThreadPoolForTests pool(8);
 
-  RoundtripSizeRange<uint16_t>(&pool, 1, 1026);
+  RoundtripSizeRange<uint16_t>(pool.get(), 1, 1026);
 
   // Ensures PermutationT can fit > 16 bit values.
-  RoundtripSizeRange<uint32_t>(&pool, 65536, 65540);
+  RoundtripSizeRange<uint32_t>(pool.get(), 65536, 65540);
 }
 
 }  // namespace

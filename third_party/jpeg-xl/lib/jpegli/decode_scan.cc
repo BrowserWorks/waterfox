@@ -7,7 +7,7 @@
 
 #include <string.h>
 
-#include <hwy/base.h>
+#include <hwy/base.h>  // HWY_ALIGN_MAX
 
 #include "lib/jpegli/decode_internal.h"
 #include "lib/jpegli/error.h"
@@ -159,7 +159,7 @@ int ReadSymbol(const HuffmanTableEntry* table, BitReaderState* br) {
  * The lower half represents the negative DIFFs with an offset.
  */
 int HuffExtend(int x, int s) {
-  JXL_DASSERT(s >= 1);
+  JXL_DASSERT(s > 0);
   int half = 1 << (s - 1);
   if (x >= half) {
     JXL_DASSERT(x < (1 << s));

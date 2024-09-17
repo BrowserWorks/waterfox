@@ -15,7 +15,7 @@
 
 #include <stddef.h>
 
-#if defined(__cplusplus) || defined(c_plusplus)
+#ifdef __cplusplus
 extern "C" {
 #endif
 
@@ -55,7 +55,8 @@ typedef struct JxlMemoryManagerStruct {
 
   /** Memory allocation function. This can be NULL if and only if also the
    * free() member in this class is NULL. All dynamic memory will be allocated
-   * and freed with these functions if they are not NULL. */
+   * and freed with these functions if they are not NULL, otherwise with the
+   * standard malloc/free. */
   jpegxl_alloc_func alloc;
   /** Free function matching the alloc() member. */
   jpegxl_free_func free;
@@ -63,7 +64,7 @@ typedef struct JxlMemoryManagerStruct {
   /* TODO(deymo): Add cache-aligned alloc/free functions here. */
 } JxlMemoryManager;
 
-#if defined(__cplusplus) || defined(c_plusplus)
+#ifdef __cplusplus
 }
 #endif
 

@@ -9,11 +9,11 @@
 #include <jxl/codestream_header.h>
 #include <jxl/types.h>
 #include <setjmp.h>
-#include <stdint.h>
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <hwy/aligned_allocator.h>
@@ -33,7 +33,6 @@
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/color_encoding_internal.h"
 #include "lib/jxl/enc_xyb.h"
-#include "lib/jxl/image.h"
 #include "lib/jxl/simd_util.h"
 
 namespace jxl {
@@ -53,6 +52,10 @@ Status VerifyInput(const PackedPixelFile& ppf) {
   JXL_RETURN_IF_ERROR(Encoder::VerifyBasicInfo(info));
   if (ppf.frames.size() != 1) {
     return JXL_FAILURE("JPEG input must have exactly one frame.");
+  }
+  if (info.num_color_channels != 1 && info.num_color_channels != 3) {
+    return JXL_FAILURE("Invalid number of color channels %d",
+                       info.num_color_channels);
   }
   const PackedImage& image = ppf.frames[0].color;
   JXL_RETURN_IF_ERROR(Encoder::VerifyImageSize(image, info));
@@ -249,32 +252,48 @@ JpegliEndianness ConvertEndianness(JxlEndianness endianness) {
   }
 }
 
-void ToFloatRow(const uint8_t* row_in, JxlPixelFormat format, size_t len,
-                float* row_out) {
+void ToFloatRow(const uint8_t* row_in, JxlPixelFormat format, size_t xsize,
+                size_t c_out, float* row_out) {
   bool is_little_endian =
       (format.endianness == JXL_LITTLE_ENDIAN ||
        (format.endianness == JXL_NATIVE_ENDIAN && IsLittleEndian()));
   static constexpr double kMul8 = 1.0 / 255.0;
   static constexpr double kMul16 = 1.0 / 65535.0;
+  const size_t c_in = format.num_channels;
   if (format.data_type == JXL_TYPE_UINT8) {
-    for (size_t x = 0; x < len; ++x) {
-      row_out[x] = row_in[x] * kMul8;
+    for (size_t x = 0; x < xsize; ++x) {
+      for (size_t c = 0; c < c_out; ++c) {
+        const size_t ix = c_in * x + c;
+        row_out[c_out * x + c] = row_in[ix] * kMul8;
+      }
     }
   } else if (format.data_type == JXL_TYPE_UINT16 && is_little_endian) {
-    for (size_t x = 0; x < len; ++x) {
-      row_out[x] = LoadLE16(&row_in[2 * x]) * kMul16;
+    for (size_t x = 0; x < xsize; ++x) {
+      for (size_t c = 0; c < c_out; ++c) {
+        const size_t ix = c_in * x + c;
+        row_out[c_out * x + c] = LoadLE16(&row_in[2 * ix]) * kMul16;
+      }
     }
   } else if (format.data_type == JXL_TYPE_UINT16 && !is_little_endian) {
-    for (size_t x = 0; x < len; ++x) {
-      row_out[x] = LoadBE16(&row_in[2 * x]) * kMul16;
+    for (size_t x = 0; x < xsize; ++x) {
+      for (size_t c = 0; c < c_out; ++c) {
+        const size_t ix = c_in * x + c;
+        row_out[c_out * x + c] = LoadBE16(&row_in[2 * ix]) * kMul16;
+      }
     }
   } else if (format.data_type == JXL_TYPE_FLOAT && is_little_endian) {
-    for (size_t x = 0; x < len; ++x) {
-      row_out[x] = LoadLEFloat(&row_in[4 * x]);
+    for (size_t x = 0; x < xsize; ++x) {
+      for (size_t c = 0; c < c_out; ++c) {
+        const size_t ix = c_in * x + c;
+        row_out[c_out * x + c] = LoadLEFloat(&row_in[4 * ix]);
+      }
     }
   } else if (format.data_type == JXL_TYPE_FLOAT && !is_little_endian) {
-    for (size_t x = 0; x < len; ++x) {
-      row_out[x] = LoadBEFloat(&row_in[4 * x]);
+    for (size_t x = 0; x < xsize; ++x) {
+      for (size_t c = 0; c < c_out; ++c) {
+        const size_t ix = c_in * x + c;
+        row_out[c_out * x + c] = LoadBEFloat(&row_in[4 * ix]);
+      }
     }
   }
 }
@@ -353,9 +372,6 @@ Status EncodeJpeg(const PackedPixelFile& ppf, const JpegSettings& jpeg_settings,
   ColorSpaceTransform c_transform(*JxlGetDefaultCms());
   ColorEncoding xyb_encoding;
   if (jpeg_settings.xyb) {
-    if (ppf.info.num_color_channels != 3) {
-      return JXL_FAILURE("Only RGB input is supported in XYB mode.");
-    }
     if (HasICCProfile(jpeg_settings.app_data)) {
       return JXL_FAILURE("APP data ICC profile is not supported in XYB mode.");
     }
@@ -373,13 +389,14 @@ Status EncodeJpeg(const PackedPixelFile& ppf, const JpegSettings& jpeg_settings,
   // before the call to setjmp().
   std::vector<uint8_t> pixels;
   unsigned char* output_buffer = nullptr;
-  unsigned long output_size = 0;
+  unsigned long output_size = 0;  // NOLINT
   std::vector<uint8_t> row_bytes;
-  size_t rowlen = RoundUpTo(ppf.info.xsize, MaxVectorSize());
+  const size_t max_vector_size = MaxVectorSize();
+  size_t rowlen = RoundUpTo(ppf.info.xsize, max_vector_size);
   hwy::AlignedFreeUniquePtr<float[]> xyb_tmp =
       hwy::AllocateAligned<float>(6 * rowlen);
   hwy::AlignedFreeUniquePtr<float[]> premul_absorb =
-      hwy::AllocateAligned<float>(MaxVectorSize() * 12);
+      hwy::AllocateAligned<float>(max_vector_size * 12);
   ComputePremulAbsorb(255.0f, premul_absorb.get());
 
   jpeg_compress_struct cinfo;
@@ -402,6 +419,8 @@ Status EncodeJpeg(const PackedPixelFile& ppf, const JpegSettings& jpeg_settings,
         cinfo.input_components == 1 ? JCS_GRAYSCALE : JCS_RGB;
     if (jpeg_settings.xyb) {
       jpegli_set_xyb_mode(&cinfo);
+      cinfo.input_components = 3;
+      cinfo.in_color_space = JCS_RGB;
     } else if (jpeg_settings.use_std_quant_tables) {
       jpegli_use_standard_quant_tables(&cinfo);
     }
@@ -435,6 +454,10 @@ Status EncodeJpeg(const PackedPixelFile& ppf, const JpegSettings& jpeg_settings,
         cinfo.comp_info[i].h_samp_factor = 1;
         cinfo.comp_info[i].v_samp_factor = 1;
       }
+    } else if (!jpeg_settings.xyb) {
+      // Default is no chroma subsampling.
+      cinfo.comp_info[0].h_samp_factor = 1;
+      cinfo.comp_info[0].v_samp_factor = 1;
     }
     jpegli_enable_adaptive_quantization(
         &cinfo, TO_JXL_BOOL(jpeg_settings.use_adaptive_quantization));
@@ -477,8 +500,8 @@ Status EncodeJpeg(const PackedPixelFile& ppf, const JpegSettings& jpeg_settings,
       float* dst_buf = c_transform.BufDst(0);
       for (size_t y = 0; y < image.ysize; ++y) {
         // convert to float
-        ToFloatRow(&pixels[y * image.stride], image.format, 3 * image.xsize,
-                   src_buf);
+        ToFloatRow(&pixels[y * image.stride], image.format, image.xsize,
+                   info.num_color_channels, src_buf);
         // convert to linear srgb
         if (!c_transform.Run(0, src_buf, dst_buf, image.xsize)) {
           return false;
@@ -517,6 +540,8 @@ Status EncodeJpeg(const PackedPixelFile& ppf, const JpegSettings& jpeg_settings,
         }
       } else {
         for (size_t y = 0; y < info.ysize; ++y) {
+          JXL_RETURN_IF_ERROR(
+              PackedImage::ValidateDataType(image.format.data_type));
           int bytes_per_channel =
               PackedImage::BitsPerChannel(image.format.data_type) / 8;
           int bytes_per_pixel = cinfo.num_components * bytes_per_channel;

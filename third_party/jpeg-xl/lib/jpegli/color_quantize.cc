@@ -11,7 +11,6 @@
 
 #include "lib/jpegli/decode_internal.h"
 #include "lib/jpegli/error.h"
-#include "lib/jxl/base/status.h"
 
 namespace jpegli {
 
@@ -438,8 +437,8 @@ void FindCandidatesForCell(j_decompress_ptr cinfo, int ncomp, const int cell[],
 void CreateInverseColorMap(j_decompress_ptr cinfo) {
   jpeg_decomp_master* m = cinfo->master;
   int ncomp = cinfo->out_color_components;
-  JXL_ASSERT(ncomp > 0);
-  JXL_ASSERT(ncomp <= kMaxComponents);
+  JPEGLI_CHECK(ncomp > 0);
+  JPEGLI_CHECK(ncomp <= kMaxComponents);
   int num_cells = 1;
   for (int c = 0; c < ncomp; ++c) {
     num_cells *= (1 << kNumColorCellBits[c]);
@@ -474,7 +473,7 @@ int LookupColorIndex(j_decompress_ptr cinfo, const JSAMPLE* pixel) {
       cell_idx += (pixel[c] >> (8 - kNumColorCellBits[c])) * stride;
       stride <<= kNumColorCellBits[c];
     }
-    JXL_ASSERT(cell_idx < m->candidate_lists_.size());
+    JPEGLI_CHECK(cell_idx < m->candidate_lists_.size());
     int mindist = std::numeric_limits<int>::max();
     const auto& candidates = m->candidate_lists_[cell_idx];
     for (uint8_t i : candidates) {
@@ -489,7 +488,7 @@ int LookupColorIndex(j_decompress_ptr cinfo, const JSAMPLE* pixel) {
       }
     }
   }
-  JXL_ASSERT(index < cinfo->actual_number_of_colors);
+  JPEGLI_CHECK(index < cinfo->actual_number_of_colors);
   return index;
 }
 

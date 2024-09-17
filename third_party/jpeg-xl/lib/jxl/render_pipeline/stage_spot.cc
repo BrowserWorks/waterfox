@@ -5,15 +5,20 @@
 
 #include "lib/jxl/render_pipeline/stage_spot.h"
 
+#include <cstddef>
+#include <memory>
+
+#include "lib/jxl/base/common.h"
+#include "lib/jxl/base/compiler_specific.h"
+#include "lib/jxl/render_pipeline/render_pipeline_stage.h"
+
 namespace jxl {
 class SpotColorStage : public RenderPipelineStage {
  public:
-  explicit SpotColorStage(size_t spot_c, const float* spot_color)
+  explicit SpotColorStage(size_t spot_c_offset, const float* spot_color)
       : RenderPipelineStage(RenderPipelineStage::Settings()),
-        spot_c_(spot_c),
-        spot_color_(spot_color) {
-    JXL_ASSERT(spot_c_ >= 3);
-  }
+        spot_c_(3 + spot_c_offset),
+        spot_color_(spot_color) {}
 
   Status ProcessRow(const RowInfo& input_rows, const RowInfo& output_rows,
                     size_t xextra, size_t xsize, size_t xpos, size_t ypos,
@@ -45,8 +50,8 @@ class SpotColorStage : public RenderPipelineStage {
 };
 
 std::unique_ptr<RenderPipelineStage> GetSpotColorStage(
-    size_t spot_c, const float* spot_color) {
-  return jxl::make_unique<SpotColorStage>(spot_c, spot_color);
+    size_t spot_c_offset, const float* spot_color) {
+  return jxl::make_unique<SpotColorStage>(spot_c_offset, spot_color);
 }
 
 }  // namespace jxl

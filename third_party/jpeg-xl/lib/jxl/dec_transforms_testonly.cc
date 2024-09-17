@@ -10,14 +10,13 @@
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 
-#include "lib/jxl/dct_scales.h"
 #include "lib/jxl/dec_transforms-inl.h"
 
 namespace jxl {
 
 #if HWY_ONCE
 HWY_EXPORT(TransformToPixels);
-void TransformToPixels(AcStrategy::Type strategy,
+void TransformToPixels(AcStrategyType strategy,
                        float* JXL_RESTRICT coefficients,
                        float* JXL_RESTRICT pixels, size_t pixels_stride,
                        float* scratch_space) {
@@ -26,7 +25,7 @@ void TransformToPixels(AcStrategy::Type strategy,
 }
 
 HWY_EXPORT(LowestFrequenciesFromDC);
-void LowestFrequenciesFromDC(const jxl::AcStrategy::Type strategy,
+void LowestFrequenciesFromDC(const jxl::AcStrategyType strategy,
                              const float* dc, size_t dc_stride, float* llf,
                              float* JXL_RESTRICT scratch) {
   HWY_DYNAMIC_DISPATCH(LowestFrequenciesFromDC)

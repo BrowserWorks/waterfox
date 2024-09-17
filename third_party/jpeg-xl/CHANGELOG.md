@@ -5,10 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.10.3] - 2024-06-27
+## [0.11.0] - 2024-09-13
 
-### Fixed
-  - fix decoding of some special images (#3662)
+### Added
+  - Gain Map API (#3552 and #3628):  `JxlGainMapBundle` struct and API functions
+    to read and write gain map bundles`JxlGainMapWriteBundle` and
+    `JxlGainMapReadBundle` as well as handling compressed ICC profiles:
+    `JxlICCProfileEncode` and `JxlICCProfileDecode`.
+  - decoder API: added `JXL_DEC_BOX_COMPLETE` event to signal that the output
+    buffer for the current box has received all contents. Previously, this was
+    to be determined from the fact that the decoder had moved on either to
+    `JXL_DEC_SUCCESS` or to another subsequent `JXL_DEC_BOX`. This change is
+    made backward-compatible by the fact that the new event must be explicitly
+    subscribed to, and that `JXL_DEC_SUCCESS` / `JXL_DEC_BOX` still occur
+    afterwards and still imply that the previous box must be complete.
+
+### Changed / clarified
+  - avoiding abort in release build (#3631 and #3639)
 
 ## [0.10.2] - 2024-03-08
 

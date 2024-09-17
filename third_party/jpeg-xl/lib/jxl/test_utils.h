@@ -11,6 +11,7 @@
 // Macros and functions useful for tests.
 
 #include <jxl/codestream_header.h>
+#include <jxl/memory_manager.h>
 #include <jxl/thread_parallel_runner_cxx.h>
 
 #include <cstddef>
@@ -21,6 +22,7 @@
 #include "lib/extras/dec/jxl.h"
 #include "lib/extras/enc/jxl.h"
 #include "lib/extras/packed_image.h"
+#include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/data_parallel.h"
 #include "lib/jxl/base/span.h"
 #include "lib/jxl/base/status.h"
@@ -47,7 +49,29 @@ class ThreadPool;
 
 namespace test {
 
+void Check(bool ok);
+
+#define JXL_TEST_ASSIGN_OR_DIE(lhs, statusor) \
+  PRIVATE_JXL_TEST_ASSIGN_OR_DIE_IMPL(        \
+      JXL_JOIN(assign_or_die_temporary_variable, __LINE__), lhs, statusor)
+
+// NOLINTBEGIN(bugprone-macro-parentheses)
+#define PRIVATE_JXL_TEST_ASSIGN_OR_DIE_IMPL(name, lhs, statusor) \
+  auto name = statusor;                                          \
+  ::jxl::test::Check(name.ok());                                 \
+  lhs = std::move(name).value_();
+// NOLINTEND(bugprone-macro-parentheses)
+
 std::string GetTestDataPath(const std::string& filename);
+
+// Returns an ICC profile output by the JPEG XL decoder for RGB_D65_SRG_Rel_Lin,
+// but with, on purpose, rXYZ, bXYZ and gXYZ (the RGB primaries) switched to a
+// different order to ensure the profile does not match any known profile, so
+// the encoder cannot encode it in a compact struct instead.
+jxl::IccBytes GetIccTestProfile();
+
+std::vector<uint8_t> GetCompressedIccTestProfile();
+
 std::vector<uint8_t> ReadTestData(const std::string& filename);
 
 void JxlBasicInfoSetFromPixelFormat(JxlBasicInfo* basic_info,
@@ -66,7 +90,7 @@ void SetThreadParallelRunner(Params params, ThreadPool* pool) {
 Status DecodeFile(extras::JXLDecompressParams dparams, Span<const uint8_t> file,
                   CodecInOut* JXL_RESTRICT io, ThreadPool* pool = nullptr);
 
-bool Roundtrip(const CodecInOut* io, const CompressParams& cparams,
+bool Roundtrip(CodecInOut* io, const CompressParams& cparams,
                extras::JXLDecompressParams dparams,
                CodecInOut* JXL_RESTRICT io2, std::stringstream& failures,
                size_t* compressed_size = nullptr, ThreadPool* pool = nullptr);
@@ -180,8 +204,7 @@ class ThreadPoolForTests {
   }
   ThreadPoolForTests(const ThreadPoolForTests&) = delete;
   ThreadPoolForTests& operator&(const ThreadPoolForTests&) = delete;
-  // TODO(eustas): avoid unary `&` overload?
-  ThreadPool* operator&() { return pool_.get(); }
+  ThreadPool* get() { return pool_.get(); }
 
  private:
   JxlThreadParallelRunnerPtr runner_;
@@ -193,11 +216,11 @@ class ThreadPoolForTests {
 // If `output_limit` is not 0, then returns error if resulting profile would be
 // longer than `output_limit`
 Status ReadICC(BitReader* JXL_RESTRICT reader,
-               std::vector<uint8_t>* JXL_RESTRICT icc, size_t output_limit = 0);
+               std::vector<uint8_t>* JXL_RESTRICT icc);
 
 // Compresses pixels from `io` (given in any ColorEncoding).
 // `io->metadata.m.original` must be set.
-Status EncodeFile(const CompressParams& params, const CodecInOut* io,
+Status EncodeFile(const CompressParams& params, CodecInOut* io,
                   std::vector<uint8_t>* compressed, ThreadPool* pool = nullptr);
 
 constexpr const char* BoolToCStr(bool b) { return b ? "true" : "false"; }

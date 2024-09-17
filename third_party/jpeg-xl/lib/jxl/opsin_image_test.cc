@@ -4,12 +4,14 @@
 // license that can be found in the LICENSE file.
 
 #include <jxl/cms.h>
+#include <jxl/memory_manager.h>
 
 #include <cstddef>
 #include <utility>
 
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/matrix_ops.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/cms/opsin_params.h"
 #include "lib/jxl/dec_xyb.h"
 #include "lib/jxl/enc_xyb.h"
@@ -17,6 +19,8 @@
 #include "lib/jxl/image_bundle.h"
 #include "lib/jxl/image_metadata.h"
 #include "lib/jxl/opsin_params.h"
+#include "lib/jxl/test_memory_manager.h"
+#include "lib/jxl/test_utils.h"
 #include "lib/jxl/testing.h"
 
 namespace jxl {
@@ -27,7 +31,8 @@ namespace {
 void LinearSrgbToOpsin(float rgb_r, float rgb_g, float rgb_b,
                        float* JXL_RESTRICT xyb_x, float* JXL_RESTRICT xyb_y,
                        float* JXL_RESTRICT xyb_b) {
-  JXL_ASSIGN_OR_DIE(Image3F linear, Image3F::Create(1, 1));
+  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
+  JXL_TEST_ASSIGN_OR_DIE(Image3F linear, Image3F::Create(memory_manager, 1, 1));
   linear.PlaneRow(0, 0)[0] = rgb_r;
   linear.PlaneRow(1, 0)[0] = rgb_g;
   linear.PlaneRow(2, 0)[0] = rgb_b;
@@ -35,9 +40,9 @@ void LinearSrgbToOpsin(float rgb_r, float rgb_g, float rgb_b,
   ImageMetadata metadata;
   metadata.SetFloat32Samples();
   metadata.color_encoding = ColorEncoding::LinearSRGB();
-  ImageBundle ib(&metadata);
-  ib.SetFromImage(std::move(linear), metadata.color_encoding);
-  JXL_ASSIGN_OR_DIE(Image3F opsin, Image3F::Create(1, 1));
+  ImageBundle ib(memory_manager, &metadata);
+  ASSERT_TRUE(ib.SetFromImage(std::move(linear), metadata.color_encoding));
+  JXL_TEST_ASSIGN_OR_DIE(Image3F opsin, Image3F::Create(memory_manager, 1, 1));
   (void)ToXYB(ib, /*pool=*/nullptr, &opsin, *JxlGetDefaultCms());
 
   *xyb_x = opsin.PlaneRow(0, 0)[0];
@@ -50,14 +55,16 @@ void LinearSrgbToOpsin(float rgb_r, float rgb_g, float rgb_b,
 void OpsinToLinearSrgb(float xyb_x, float xyb_y, float xyb_b,
                        float* JXL_RESTRICT rgb_r, float* JXL_RESTRICT rgb_g,
                        float* JXL_RESTRICT rgb_b) {
-  JXL_ASSIGN_OR_DIE(Image3F opsin, Image3F::Create(1, 1));
+  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
+  JXL_TEST_ASSIGN_OR_DIE(Image3F opsin, Image3F::Create(memory_manager, 1, 1));
   opsin.PlaneRow(0, 0)[0] = xyb_x;
   opsin.PlaneRow(1, 0)[0] = xyb_y;
   opsin.PlaneRow(2, 0)[0] = xyb_b;
-  JXL_ASSIGN_OR_DIE(Image3F linear, Image3F::Create(1, 1));
+  JXL_TEST_ASSIGN_OR_DIE(Image3F linear, Image3F::Create(memory_manager, 1, 1));
   OpsinParams opsin_params;
   opsin_params.Init(/*intensity_target=*/255.0f);
-  OpsinToLinear(opsin, Rect(opsin), nullptr, &linear, opsin_params);
+  ASSERT_TRUE(
+      OpsinToLinear(opsin, Rect(opsin), nullptr, &linear, opsin_params));
   *rgb_r = linear.PlaneRow(0, 0)[0];
   *rgb_g = linear.PlaneRow(1, 0)[0];
   *rgb_b = linear.PlaneRow(2, 0)[0];
@@ -78,13 +85,13 @@ void OpsinRoundtripTestRGB(float r, float g, float b) {
 }
 
 TEST(OpsinImageTest, VerifyOpsinAbsorbanceInverseMatrix) {
-  float matrix[9];  // writable copy
-  for (int i = 0; i < 9; i++) {
-    matrix[i] = GetOpsinAbsorbanceInverseMatrix()[i];
-  }
+  Matrix3x3 matrix;  // writable copy
+  matrix = GetOpsinAbsorbanceInverseMatrix();
   EXPECT_TRUE(Inv3x3Matrix(matrix));
-  for (int i = 0; i < 9; i++) {
-    EXPECT_NEAR(matrix[i], jxl::cms::kOpsinAbsorbanceMatrix[i], 1e-6);
+  for (int j = 0; j < 3; j++) {
+    for (int i = 0; i < 3; i++) {
+      EXPECT_NEAR(matrix[j][i], jxl::cms::kOpsinAbsorbanceMatrix[j][i], 1e-6);
+    }
   }
 }
 

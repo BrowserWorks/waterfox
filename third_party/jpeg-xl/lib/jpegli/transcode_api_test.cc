@@ -3,13 +3,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <ostream>
+#include <sstream>
+#include <string>
 #include <vector>
 
 #include "lib/jpegli/decode.h"
 #include "lib/jpegli/encode.h"
+#include "lib/jpegli/libjpeg_test_util.h"
+#include "lib/jpegli/test_params.h"
 #include "lib/jpegli/test_utils.h"
 #include "lib/jpegli/testing.h"
-#include "lib/jxl/base/status.h"
 
 namespace jpegli {
 namespace {
@@ -20,7 +28,7 @@ void TranscodeWithJpegli(const std::vector<uint8_t>& jpeg_input,
   jpeg_decompress_struct dinfo = {};
   jpeg_compress_struct cinfo = {};
   uint8_t* transcoded_data = nullptr;
-  unsigned long transcoded_size;
+  unsigned long transcoded_size;  // NOLINT
   const auto try_catch_block = [&]() -> bool {
     ERROR_HANDLER_SETUP(jpegli);
     dinfo.err = cinfo.err;
@@ -30,7 +38,7 @@ void TranscodeWithJpegli(const std::vector<uint8_t>& jpeg_input,
     EXPECT_EQ(JPEG_REACHED_SOS,
               jpegli_read_header(&dinfo, /*require_image=*/TRUE));
     jvirt_barray_ptr* coef_arrays = jpegli_read_coefficients(&dinfo);
-    JXL_CHECK(coef_arrays != nullptr);
+    JPEGLI_TEST_ENSURE_TRUE(coef_arrays != nullptr);
     jpegli_create_compress(&cinfo);
     jpegli_mem_dest(&cinfo, &transcoded_data, &transcoded_size);
     jpegli_copy_critical_parameters(&dinfo, &cinfo);

@@ -5,7 +5,10 @@
 
 #include "lib/jxl/ans_common.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <numeric>
+#include <vector>
 
 #include "lib/jxl/ans_params.h"
 #include "lib/jxl/base/status.h"
@@ -13,8 +16,8 @@
 namespace jxl {
 
 std::vector<int32_t> CreateFlatHistogram(int length, int total_count) {
-  JXL_ASSERT(length > 0);
-  JXL_ASSERT(length <= total_count);
+  JXL_DASSERT(length > 0);
+  JXL_DASSERT(length <= total_count);
   const int count = total_count / length;
   std::vector<int32_t> result(length, count);
   const int rem_counts = total_count % length;
@@ -48,8 +51,12 @@ std::vector<int32_t> CreateFlatHistogram(int length, int total_count) {
 // underfull nor overfull, and represents exactly two symbols. The overfull
 // entry might be either overfull or underfull, and is pushed into the
 // corresponding stack.
-void InitAliasTable(std::vector<int32_t> distribution, uint32_t range,
-                    size_t log_alpha_size, AliasTable::Entry* JXL_RESTRICT a) {
+Status InitAliasTable(std::vector<int32_t> distribution, uint32_t log_range,
+                      size_t log_alpha_size,
+                      AliasTable::Entry* JXL_RESTRICT a) {
+  const uint32_t range = 1 << log_range;
+  const size_t table_size = 1 << log_alpha_size;
+  JXL_ENSURE(table_size <= range);
   while (!distribution.empty() && distribution.back() == 0) {
     distribution.pop_back();
   }
@@ -59,32 +66,36 @@ void InitAliasTable(std::vector<int32_t> distribution, uint32_t range,
   if (distribution.empty()) {
     distribution.emplace_back(range);
   }
-  const size_t table_size = 1 << log_alpha_size;
-#if JXL_ENABLE_ASSERT
-  int sum = std::accumulate(distribution.begin(), distribution.end(), 0);
-#endif  // JXL_ENABLE_ASSERT
-  JXL_ASSERT(static_cast<uint32_t>(sum) == range);
-  // range must be a power of two
-  JXL_ASSERT((range & (range - 1)) == 0);
-  JXL_ASSERT(distribution.size() <= table_size);
-  JXL_ASSERT(table_size <= range);
+  JXL_ENSURE(distribution.size() <= table_size);
   const uint32_t entry_size = range >> log_alpha_size;  // this is exact
+  int single_symbol = -1;
+  int sum = 0;
   // Special case for single-symbol distributions, that ensures that the state
   // does not change when decoding from such a distribution. Note that, since we
   // hardcode offset0 == 0, it is not straightforward (if at all possible) to
   // fix the general case to produce this result.
   for (size_t sym = 0; sym < distribution.size(); sym++) {
-    if (distribution[sym] == ANS_TAB_SIZE) {
-      for (size_t i = 0; i < table_size; i++) {
-        a[i].right_value = sym;
-        a[i].cutoff = 0;
-        a[i].offsets1 = entry_size * i;
-        a[i].freq0 = 0;
-        a[i].freq1_xor_freq0 = ANS_TAB_SIZE;
-      }
-      return;
+    int32_t v = distribution[sym];
+    sum += v;
+    if (v == ANS_TAB_SIZE) {
+      JXL_ENSURE(single_symbol == -1);
+      single_symbol = sym;
     }
   }
+  JXL_ENSURE(static_cast<uint32_t>(sum) == range);
+  if (single_symbol != -1) {
+    uint8_t sym = single_symbol;
+    JXL_ENSURE(single_symbol == sym);
+    for (size_t i = 0; i < table_size; i++) {
+      a[i].right_value = sym;
+      a[i].cutoff = 0;
+      a[i].offsets1 = entry_size * i;
+      a[i].freq0 = 0;
+      a[i].freq1_xor_freq0 = ANS_TAB_SIZE;
+    }
+    return true;
+  }
+
   std::vector<uint32_t> underfull_posn;
   std::vector<uint32_t> overfull_posn;
   std::vector<uint32_t> cutoffs(1 << log_alpha_size);
@@ -105,7 +116,7 @@ void InitAliasTable(std::vector<int32_t> distribution, uint32_t range,
   while (!overfull_posn.empty()) {
     uint32_t overfull_i = overfull_posn.back();
     overfull_posn.pop_back();
-    JXL_ASSERT(!underfull_posn.empty());
+    JXL_ENSURE(!underfull_posn.empty());
     uint32_t underfull_i = underfull_posn.back();
     underfull_posn.pop_back();
     uint32_t underfull_by = entry_size - cutoffs[underfull_i];
@@ -143,6 +154,7 @@ void InitAliasTable(std::vector<int32_t> distribution, uint32_t range,
     a[i].freq0 = static_cast<uint16_t>(freq0);
     a[i].freq1_xor_freq0 = static_cast<uint16_t>(freq1 ^ freq0);
   }
+  return true;
 }
 
 }  // namespace jxl

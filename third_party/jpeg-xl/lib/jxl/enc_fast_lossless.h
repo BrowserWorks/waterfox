@@ -50,7 +50,7 @@ typedef void(FJxlParallelRunner)(void* runner_opaque, void* opaque,
 // You may pass `nullptr` as a runner: encoding will be sequential.
 size_t JxlFastLosslessEncode(const unsigned char* rgba, size_t width,
                              size_t row_stride, size_t height, size_t nb_chans,
-                             size_t bitdepth, int big_endian, int effort,
+                             size_t bitdepth, bool big_endian, int effort,
                              unsigned char** output, void* runner_opaque,
                              FJxlParallelRunner runner);
 #endif
@@ -65,13 +65,13 @@ struct JxlFastLosslessFrameState;
 // JxlFastLosslessFreeFrameState.
 JxlFastLosslessFrameState* JxlFastLosslessPrepareFrame(
     JxlChunkedFrameInputSource input, size_t width, size_t height,
-    size_t nb_chans, size_t bitdepth, int big_endian, int effort, int oneshot);
+    size_t nb_chans, size_t bitdepth, bool big_endian, int effort, int oneshot);
 
 #if !FJXL_STANDALONE
 class JxlEncoderOutputProcessorWrapper;
 #endif
 
-void JxlFastLosslessProcessFrame(
+bool JxlFastLosslessProcessFrame(
     JxlFastLosslessFrameState* frame_state, bool is_last, void* runner_opaque,
     FJxlParallelRunner runner,
     JxlEncoderOutputProcessorWrapper* output_processor);
@@ -109,7 +109,7 @@ void JxlFastLosslessFreeFrameState(JxlFastLosslessFrameState* frame);
 #endif
 
 #if !FJXL_STANDALONE
-void JxlFastLosslessOutputFrame(
+bool JxlFastLosslessOutputFrame(
     JxlFastLosslessFrameState* frame_state,
     JxlEncoderOutputProcessorWrapper* output_process);
 #endif
