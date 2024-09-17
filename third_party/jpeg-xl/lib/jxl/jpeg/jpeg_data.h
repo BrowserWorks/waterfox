@@ -8,13 +8,14 @@
 #ifndef LIB_JXL_JPEG_JPEG_DATA_H_
 #define LIB_JXL_JPEG_JPEG_DATA_H_
 
-#include <stddef.h>
-#include <stdint.h>
-
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <vector>
 
+#include "lib/jxl/base/status.h"
 #include "lib/jxl/common.h"  // JPEGXL_ENABLE_TRANSCODE_JPEG
+#include "lib/jxl/field_encodings.h"
 #include "lib/jxl/fields.h"
 #include "lib/jxl/frame_dimensions.h"
 
@@ -174,7 +175,7 @@ struct JPEGData : public Fields {
   Status VisitFields(Visitor* visitor) override;
 #else
   Status VisitFields(Visitor* /* visitor */) override {
-    JXL_UNREACHABLE("JPEG transcoding support not enabled");
+    return JXL_UNREACHABLE("JPEG transcoding support not enabled");
   }
 #endif  // JPEGXL_ENABLE_TRANSCODE_JPEG
 
@@ -208,7 +209,7 @@ Status SetJPEGDataFromICC(const std::vector<uint8_t>& icc,
 #else
 static JXL_INLINE Status SetJPEGDataFromICC(
     const std::vector<uint8_t>& /* icc */, jpeg::JPEGData* /* jpeg_data */) {
-  JXL_UNREACHABLE("JPEG transcoding support not enabled");
+  return JXL_UNREACHABLE("JPEG transcoding support not enabled");
 }
 #endif  // JPEGXL_ENABLE_TRANSCODE_JPEG
 

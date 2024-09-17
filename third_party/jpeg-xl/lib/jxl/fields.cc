@@ -6,7 +6,7 @@
 #include "lib/jxl/fields.h"
 
 #include <algorithm>
-#include <cinttypes>
+#include <cinttypes>  // PRIu64
 #include <cmath>
 #include <cstddef>
 #include <hwy/base.h>
@@ -215,7 +215,7 @@ class ReadVisitor : public VisitorBase {
     }
     // Used by EndExtensions to skip past any _remaining_ extensions.
     pos_after_ext_size_ = reader_->TotalBitsConsumed();
-    JXL_ASSERT(pos_after_ext_size_ != 0);
+    JXL_ENSURE(pos_after_ext_size_ != 0);
     return true;
   }
 
@@ -367,9 +367,9 @@ class CanEncodeVisitor : public VisitorBase {
     JXL_QUIET_RETURN_IF_ERROR(VisitorBase::BeginExtensions(extensions));
     extensions_ = *extensions;
     if (*extensions != 0) {
-      JXL_ASSERT(pos_after_ext_ == 0);
+      JXL_ENSURE(pos_after_ext_ == 0);
       pos_after_ext_ = encoded_bits_;
-      JXL_ASSERT(pos_after_ext_ != 0);  // visited "extensions"
+      JXL_ENSURE(pos_after_ext_ != 0);  // visited "extensions"
     }
     return true;
   }
@@ -382,7 +382,7 @@ class CanEncodeVisitor : public VisitorBase {
     *total_bits = encoded_bits_;
     // Only if extension field was nonzero will we encode their sizes.
     if (pos_after_ext_ != 0) {
-      JXL_ASSERT(encoded_bits_ >= pos_after_ext_);
+      JXL_ENSURE(encoded_bits_ >= pos_after_ext_);
       *extension_bits = encoded_bits_ - pos_after_ext_;
       // Also need to encode *extension_bits and bill it to *total_bits.
       size_t encoded_bits = 0;
@@ -414,31 +414,27 @@ class CanEncodeVisitor : public VisitorBase {
 void Bundle::Init(Fields* fields) {
   InitVisitor visitor;
   if (!visitor.Visit(fields)) {
-    JXL_UNREACHABLE("Init should never fail");
+    JXL_DEBUG_ABORT("Init should never fail");
   }
 }
 void Bundle::SetDefault(Fields* fields) {
   SetDefaultVisitor visitor;
   if (!visitor.Visit(fields)) {
-    JXL_UNREACHABLE("SetDefault should never fail");
+    JXL_DEBUG_ABORT("SetDefault should never fail");
   }
 }
 bool Bundle::AllDefault(const Fields& fields) {
   AllDefaultVisitor visitor;
   if (!visitor.VisitConst(fields)) {
-    JXL_UNREACHABLE("AllDefault should never fail");
+    JXL_DEBUG_ABORT("AllDefault should never fail");
   }
   return visitor.AllDefault();
 }
 size_t Bundle::MaxBits(const Fields& fields) {
   MaxBitsVisitor visitor;
-#if JXL_ENABLE_ASSERT
-  Status ret =
-#else
-  (void)
-#endif  // JXL_ENABLE_ASSERT
-      visitor.VisitConst(fields);
-  JXL_ASSERT(ret);
+  Status ret = visitor.VisitConst(fields);
+  (void)ret;
+  JXL_DASSERT(ret);
   return visitor.MaxBits();
 }
 Status Bundle::CanEncode(const Fields& fields, size_t* extension_bits,
@@ -513,10 +509,8 @@ uint32_t U32Coder::Read(const U32Enc enc, BitReader* JXL_RESTRICT reader) {
 Status U32Coder::ChooseSelector(const U32Enc enc, const uint32_t value,
                                 uint32_t* JXL_RESTRICT selector,
                                 size_t* JXL_RESTRICT total_bits) {
-#if JXL_ENABLE_ASSERT
   const size_t bits_required = 32 - Num0BitsAboveMS1Bit(value);
-#endif  // JXL_ENABLE_ASSERT
-  JXL_ASSERT(bits_required <= 32);
+  JXL_ENSURE(bits_required <= 32);
 
   *selector = 0;
   *total_bits = 0;

@@ -30,7 +30,7 @@ Status FwdRCT(Image& input, size_t begin_c, size_t rct_type, ThreadPool* pool) {
   size_t h = input.channel[m + 0].h;
   int second = (custom % 7) >> 1;
   int third = (custom % 7) & 1;
-  const auto do_rct = [&](const int y, const int thread) {
+  const auto do_rct = [&](const int y, const int thread) -> Status {
     const pixel_type* in0 = input.channel[m + (permutation % 3)].Row(y);
     const pixel_type* in1 =
         input.channel[m + ((permutation + 1 + permutation / 3) % 3)].Row(y);
@@ -65,8 +65,11 @@ Status FwdRCT(Image& input, size_t begin_c, size_t rct_type, ThreadPool* pool) {
         out2[x] = Third;
       }
     }
+    return true;
   };
-  return RunOnPool(pool, 0, h, ThreadPool::NoInit, do_rct, "FwdRCT");
+  JXL_RETURN_IF_ERROR(
+      RunOnPool(pool, 0, h, ThreadPool::NoInit, do_rct, "FwdRCT"));
+  return true;
 }
 
 }  // namespace jxl

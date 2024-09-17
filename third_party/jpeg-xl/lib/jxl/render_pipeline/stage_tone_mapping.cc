@@ -5,6 +5,8 @@
 
 #include "lib/jxl/render_pipeline/stage_tone_mapping.h"
 
+#include "lib/jxl/base/sanitizers.h"
+
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_tone_mapping.cc"
 #include <hwy/foreach_target.h>
@@ -12,7 +14,6 @@
 
 #include "lib/jxl/cms/tone_mapping-inl.h"
 #include "lib/jxl/dec_xyb-inl.h"
-#include "lib/jxl/sanitizers.h"
 
 HWY_BEFORE_NAMESPACE();
 namespace jxl {
@@ -34,10 +35,10 @@ class ToneMappingStage : public RenderPipelineStage {
                               output_encoding_info_.orig_intensity_target) {
       tone_mapper_ = jxl::make_unique<ToneMapper>(
           /*source_range=*/std::pair<float, float>(
-              0, output_encoding_info_.orig_intensity_target),
+              0.0f, output_encoding_info_.orig_intensity_target),
           /*target_range=*/
           std::pair<float, float>(
-              0, output_encoding_info_.desired_intensity_target),
+              0.0f, output_encoding_info_.desired_intensity_target),
           output_encoding_info_.luminances);
     } else if (orig_tf.IsHLG() && !dest_tf.IsHLG()) {
       hlg_ootf_ = jxl::make_unique<HlgOOTF>(
@@ -59,7 +60,9 @@ class ToneMappingStage : public RenderPipelineStage {
   Status ProcessRow(const RowInfo& input_rows, const RowInfo& output_rows,
                     size_t xextra, size_t xsize, size_t xpos, size_t ypos,
                     size_t thread_id) const final {
-    if (!(tone_mapper_ || hlg_ootf_)) return true;
+    if (!tone_mapper_ && !hlg_ootf_) return true;
+    // I.e. we have tone_mapper_ or hlg_ootf_ or both.
+    // Other inveriants: !tone_mapper_ means !!hlg_ootf_ and vice-versa.
 
     const HWY_FULL(float) d;
     const size_t xsize_v = RoundUpTo(xsize, Lanes(d));
@@ -77,23 +80,20 @@ class ToneMappingStage : public RenderPipelineStage {
       auto r = LoadU(d, row0 + x);
       auto g = LoadU(d, row1 + x);
       auto b = LoadU(d, row2 + x);
-      if (tone_mapper_ || hlg_ootf_) {
-        r = Mul(r, Set(d, to_intensity_target_));
-        g = Mul(g, Set(d, to_intensity_target_));
-        b = Mul(b, Set(d, to_intensity_target_));
-        if (tone_mapper_) {
-          tone_mapper_->ToneMap(&r, &g, &b);
-        } else {
-          JXL_ASSERT(hlg_ootf_);
-          hlg_ootf_->Apply(&r, &g, &b);
-        }
-        if (tone_mapper_ || hlg_ootf_->WarrantsGamutMapping()) {
-          GamutMap(&r, &g, &b, output_encoding_info_.luminances);
-        }
-        r = Mul(r, Set(d, from_desired_intensity_target_));
-        g = Mul(g, Set(d, from_desired_intensity_target_));
-        b = Mul(b, Set(d, from_desired_intensity_target_));
+      r = Mul(r, Set(d, to_intensity_target_));
+      g = Mul(g, Set(d, to_intensity_target_));
+      b = Mul(b, Set(d, to_intensity_target_));
+      if (tone_mapper_) {
+        tone_mapper_->ToneMap(&r, &g, &b);
+      } else {
+        hlg_ootf_->Apply(&r, &g, &b);
       }
+      if (tone_mapper_ || hlg_ootf_->WarrantsGamutMapping()) {
+        GamutMap(&r, &g, &b, output_encoding_info_.luminances);
+      }
+      r = Mul(r, Set(d, from_desired_intensity_target_));
+      g = Mul(g, Set(d, from_desired_intensity_target_));
+      b = Mul(b, Set(d, from_desired_intensity_target_));
       StoreU(r, d, row0 + x);
       StoreU(g, d, row1 + x);
       StoreU(b, d, row2 + x);

@@ -10,13 +10,14 @@
 #define LIB_JXL_IMAGE_METADATA_H_
 
 #include <jxl/codestream_header.h>
-#include <stddef.h>
-#include <stdint.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
 #include "lib/jxl/base/compiler_specific.h"
+#include "lib/jxl/base/matrix_ops.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/color_encoding_internal.h"
 #include "lib/jxl/dec_bit_reader.h"
@@ -27,6 +28,7 @@
 namespace jxl {
 
 struct AuxOut;
+enum class LayerType : uint8_t;
 
 // EXIF orientation of the image. This field overrides any field present in
 // actual EXIF metadata. The value tells which transformation the decoder must
@@ -138,7 +140,7 @@ struct OpsinInverseMatrix : public Fields {
 
   mutable bool all_default;
 
-  float inverse_matrix[9];
+  Matrix3x3 inverse_matrix;
   float opsin_biases[3];
   float quant_biases[4];
 };
@@ -208,7 +210,7 @@ struct ImageMetadata : public Fields {
   uint32_t GetAlphaBits() const {
     const ExtraChannelInfo* alpha = Find(ExtraChannel::kAlpha);
     if (alpha == nullptr) return 0;
-    JXL_ASSERT(alpha->bit_depth.bits_per_sample != 0);
+    JXL_DASSERT(alpha->bit_depth.bits_per_sample != 0);
     return alpha->bit_depth.bits_per_sample;
   }
 
@@ -259,7 +261,7 @@ struct ImageMetadata : public Fields {
     tone_mapping.intensity_target = intensity_target;
   }
   float IntensityTarget() const {
-    JXL_ASSERT(tone_mapping.intensity_target != 0);
+    JXL_DASSERT(tone_mapping.intensity_target != 0.0f);
     return tone_mapping.intensity_target;
   }
 
@@ -372,7 +374,7 @@ Status ReadImageMetadata(BitReader* JXL_RESTRICT reader,
                          ImageMetadata* JXL_RESTRICT metadata);
 
 Status WriteImageMetadata(const ImageMetadata& metadata,
-                          BitWriter* JXL_RESTRICT writer, size_t layer,
+                          BitWriter* JXL_RESTRICT writer, LayerType layer,
                           AuxOut* aux_out);
 
 // All metadata applicable to the entire codestream (dimensions, extra channels,

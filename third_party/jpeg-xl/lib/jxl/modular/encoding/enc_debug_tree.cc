@@ -5,25 +5,18 @@
 
 #include "lib/jxl/modular/encoding/enc_debug_tree.h"
 
-#include <cinttypes>
-#include <cstdint>
+#include <cinttypes>  // PRId64
 #include <cstdlib>
+#include <string>
 
-#include "lib/jxl/base/os_macros.h"
 #include "lib/jxl/base/printf_macros.h"
-#include "lib/jxl/base/status.h"
 #include "lib/jxl/modular/encoding/context_predict.h"
 #include "lib/jxl/modular/encoding/dec_ma.h"
 #include "lib/jxl/modular/options.h"
 
-#if JXL_OS_IOS
-#define JXL_ENABLE_DOT 0
-#else
-#define JXL_ENABLE_DOT 1  // iOS lacks C89 system()
-#endif
-
 namespace jxl {
 
+namespace {
 const char *PredictorName(Predictor p) {
   switch (p) {
     case Predictor::Zero:
@@ -99,6 +92,8 @@ std::string PropertyName(size_t i) {
   }
 }
 
+}  // namespace
+
 void PrintTree(const Tree &tree, const std::string &path) {
   FILE *f = fopen((path + ".dot").c_str(), "w");
   fprintf(f, "graph{\n");
@@ -117,8 +112,7 @@ void PrintTree(const Tree &tree, const std::string &path) {
   fprintf(f, "}\n");
   fclose(f);
 #if JXL_ENABLE_DOT
-  JXL_ASSERT(
-      system(("dot " + path + ".dot -T svg -o " + path + ".svg").c_str()) == 0);
+  system(("dot " + path + ".dot -T svg -o " + path + ".svg").c_str());
 #endif
 }
 

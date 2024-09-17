@@ -12,6 +12,8 @@
 
 #include <hwy/highway.h>
 
+#include "lib/jxl/base/data_parallel.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/image_ops.h"
 
@@ -71,7 +73,7 @@ class Neighbors {
     return TableLookupLanes(c, indices);  // NMLK'JIIJ
 #elif HWY_TARGET == HWY_SCALAR
     const D d;
-    JXL_ASSERT(false);  // unsupported, avoid calling this.
+    JXL_DEBUG_ABORT("Unsupported");
     return Zero(d);
 #else  // 128 bit
     // c = LKJI
@@ -97,7 +99,7 @@ class Neighbors {
     return TableLookupLanes(c, indices);  // MLKJ'IIJK
 #elif HWY_TARGET == HWY_SCALAR
     const D d;
-    JXL_ASSERT(false);  // unsupported, avoid calling this.
+    JXL_DEBUG_ABORT("Unsipported");
     return Zero(d);
 #else  // 128 bit
     // c = LKJI
@@ -121,7 +123,7 @@ class Neighbors {
 inline const int32_t* MirrorLanes(const size_t mod) {
   const HWY_CAPPED(float, 16) d;
   constexpr size_t kN = MaxLanes(d);
-
+  // typo:off
   // For mod = `image width mod 16` 0..15:
   // last full vec     mirrored (mem order)  loadedVec  mirrorVec  idxVec
   // 0123456789abcdef| fedcba9876543210      fed..210   012..def   012..def
@@ -140,6 +142,7 @@ inline const int32_t* MirrorLanes(const size_t mod) {
   // 0123456789abcdef|0123456789ABC CBA
   // 0123456789abcdef|0123456789ABCD DC
   // 0123456789abcdef|0123456789ABCDE E      EDC..10f   EED..210   ffe..321
+  // typo:on
 #if HWY_CAP_GE512
   HWY_ALIGN static constexpr int32_t idx_lanes[2 * kN - 1] = {
       1,  2,  3,  4,  5,  6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 15,  //
@@ -178,8 +181,8 @@ class ConvolveT {
   template <class Image, class Weights>
   static void Run(const Image& in, const Rect& rect, const Weights& weights,
                   ThreadPool* pool, Image* out) {
-    JXL_CHECK(SameSize(rect, *out));
-    JXL_CHECK(rect.xsize() >= MinWidth());
+    JXL_DASSERT(SameSize(rect, *out));
+    JXL_DASSERT(rect.xsize() >= MinWidth());
 
     static_assert(static_cast<int64_t>(kRadius) <= 3,
                   "Must handle [0, kRadius) and >= kRadius");
@@ -239,13 +242,15 @@ class ConvolveT {
                                          const Weights& weights,
                                          ThreadPool* pool, ImageF* out) {
     const int64_t stride = in.PixelsPerRow();
-    JXL_CHECK(RunOnPool(
-        pool, ybegin, yend, ThreadPool::NoInit,
-        [&](const uint32_t y, size_t /*thread*/) HWY_ATTR {
-          RunRow<kSizeModN>(rect.ConstRow(in, y), rect.xsize(), stride,
-                            WrapRowUnchanged(), weights, out->Row(y));
-        },
-        "Convolve"));
+    const auto process_row = [&](const uint32_t y, size_t /*thread*/) HWY_ATTR {
+      RunRow<kSizeModN>(rect.ConstRow(in, y), rect.xsize(), stride,
+                        WrapRowUnchanged(), weights, out->Row(y));
+      return true;
+    };
+    Status status = RunOnPool(pool, ybegin, yend, ThreadPool::NoInit,
+                              process_row, "Convolve");
+    (void)status;
+    JXL_DASSERT(status);
   }
 
   // Image3F.
@@ -256,16 +261,17 @@ class ConvolveT {
                                          const Weights& weights,
                                          ThreadPool* pool, Image3F* out) {
     const int64_t stride = in.PixelsPerRow();
-    JXL_CHECK(RunOnPool(
-        pool, ybegin, yend, ThreadPool::NoInit,
-        [&](const uint32_t y, size_t /*thread*/) HWY_ATTR {
-          for (size_t c = 0; c < 3; ++c) {
-            RunRow<kSizeModN>(rect.ConstPlaneRow(in, c, y), rect.xsize(),
-                              stride, WrapRowUnchanged(), weights,
-                              out->PlaneRow(c, y));
-          }
-        },
-        "Convolve3"));
+    const auto process_row = [&](const uint32_t y, size_t /*thread*/) HWY_ATTR {
+      for (size_t c = 0; c < 3; ++c) {
+        RunRow<kSizeModN>(rect.ConstPlaneRow(in, c, y), rect.xsize(), stride,
+                          WrapRowUnchanged(), weights, out->PlaneRow(c, y));
+      }
+      return true;
+    };
+    Status status = RunOnPool(pool, ybegin, yend, ThreadPool::NoInit,
+                              process_row, "Convolve3");
+    (void)status;
+    JXL_DASSERT(status);
   }
 
   template <size_t kSizeModN, class Image, class Weights>

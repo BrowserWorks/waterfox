@@ -11,6 +11,7 @@
 #include <stddef.h>
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <utility>
 
@@ -23,7 +24,9 @@ const float kNoisePrecision = 1 << 10;
 struct NoiseParams {
   // LUT index is an intensity of pixel / mean intensity of patch
   static constexpr size_t kNumNoisePoints = 8;
-  float lut[kNumNoisePoints];
+  using Lut = std::array<float, kNumNoisePoints>;
+
+  Lut lut;
 
   void Clear() {
     for (float& i : lut) i = 0.f;

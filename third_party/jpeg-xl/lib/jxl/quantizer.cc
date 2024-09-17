@@ -5,11 +5,11 @@
 
 #include "lib/jxl/quantizer.h"
 
-#include <string.h>
-
 #include <algorithm>
+#include <cstring>
 
 #include "lib/jxl/base/compiler_specific.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/field_encodings.h"
 #include "lib/jxl/fields.h"
 #include "lib/jxl/image.h"
@@ -20,15 +20,16 @@ namespace jxl {
 
 static const int32_t kDefaultQuant = 64;
 
+#if JXL_CXX_LANG < JXL_CXX_17
 constexpr int32_t Quantizer::kQuantMax;
+#endif
 
-Quantizer::Quantizer(const DequantMatrices* dequant)
+Quantizer::Quantizer(const DequantMatrices& dequant)
     : Quantizer(dequant, kDefaultQuant, kGlobalScaleDenom / kDefaultQuant) {}
 
-Quantizer::Quantizer(const DequantMatrices* dequant, int quant_dc,
+Quantizer::Quantizer(const DequantMatrices& dequant, int quant_dc,
                      int global_scale)
-    : global_scale_(global_scale), quant_dc_(quant_dc), dequant_(dequant) {
-  JXL_ASSERT(dequant_ != nullptr);
+    : global_scale_(global_scale), quant_dc_(quant_dc), dequant_(&dequant) {
   RecomputeFromGlobalScale();
   inv_quant_dc_ = inv_global_scale_ / quant_dc_;
 
@@ -80,8 +81,8 @@ void Quantizer::SetQuantFieldRect(const ImageF& qf, const Rect& rect,
   }
 }
 
-void Quantizer::SetQuantField(const float quant_dc, const ImageF& qf,
-                              ImageI* JXL_RESTRICT raw_quant_field) {
+Status Quantizer::SetQuantField(const float quant_dc, const ImageF& qf,
+                                ImageI* JXL_RESTRICT raw_quant_field) {
   std::vector<float> data(qf.xsize() * qf.ysize());
   for (size_t y = 0; y < qf.ysize(); ++y) {
     const float* JXL_RESTRICT row_qf = qf.Row(y);
@@ -102,9 +103,10 @@ void Quantizer::SetQuantField(const float quant_dc, const ImageF& qf,
   const float quant_median_absd = deviations[deviations.size() / 2];
   ComputeGlobalScaleAndQuant(quant_dc, quant_median, quant_median_absd);
   if (raw_quant_field) {
-    JXL_CHECK(SameSize(*raw_quant_field, qf));
+    JXL_ENSURE(SameSize(*raw_quant_field, qf));
     SetQuantFieldRect(qf, Rect(qf), raw_quant_field);
   }
+  return true;
 }
 
 void Quantizer::SetQuant(float quant_dc, float quant_ac,

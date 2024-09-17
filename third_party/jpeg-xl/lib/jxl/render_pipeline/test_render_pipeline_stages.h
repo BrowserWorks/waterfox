@@ -3,9 +3,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include <math.h>
-#include <stdint.h>
-#include <stdio.h>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
 
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/render_pipeline/render_pipeline_stage.h"
@@ -61,10 +61,10 @@ class UpsampleYSlowStage : public RenderPipelineStage {
         float xp = *(rowp + x);
         float xc = *(rowc + x);
         float xn = *(rown + x);
-        float yout0 = xp * 0.25f + xc * 0.75f;
-        float yout1 = xc * 0.75f + xn * 0.25f;
-        *(row_out0 + x) = yout0;
-        *(row_out1 + x) = yout1;
+        float y_out0 = xp * 0.25f + xc * 0.75f;
+        float y_out1 = xc * 0.75f + xn * 0.25f;
+        *(row_out0 + x) = y_out0;
+        *(row_out1 + x) = y_out1;
       }
     }
     return true;
@@ -86,7 +86,7 @@ class Check0FinalStage : public RenderPipelineStage {
                     size_t thread_id) const final {
     for (size_t c = 0; c < input_rows.size(); c++) {
       for (size_t x = 0; x < xsize; x++) {
-        JXL_CHECK(fabsf(GetInputRow(input_rows, c, 0)[x]) < 1e-8);
+        JXL_ENSURE(fabsf(GetInputRow(input_rows, c, 0)[x]) < 1e-8);
       }
     }
     return true;

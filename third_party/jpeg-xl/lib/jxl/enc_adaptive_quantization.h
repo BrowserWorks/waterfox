@@ -7,10 +7,10 @@
 #define LIB_JXL_ENC_ADAPTIVE_QUANTIZATION_H_
 
 #include <jxl/cms_interface.h>
-#include <stddef.h>
 
-#include "lib/jxl/ac_strategy.h"
 #include "lib/jxl/base/data_parallel.h"
+#include "lib/jxl/base/rect.h"
+#include "lib/jxl/base/status.h"
 #include "lib/jxl/enc_cache.h"
 #include "lib/jxl/frame_header.h"
 #include "lib/jxl/image.h"
@@ -24,6 +24,7 @@
 namespace jxl {
 
 struct AuxOut;
+class AcStrategyImage;
 
 // Returns an image subsampled by kBlockDim in each direction. If the value
 // at pixel (x,y) in the returned image is greater than 1.0, it means that
@@ -39,8 +40,8 @@ StatusOr<ImageF> InitialQuantField(float butteraugli_target,
 
 float InitialQuantDC(float butteraugli_target);
 
-void AdjustQuantField(const AcStrategyImage& ac_strategy, const Rect& rect,
-                      float butteraugli_target, ImageF* quant_field);
+Status AdjustQuantField(const AcStrategyImage& ac_strategy, const Rect& rect,
+                        float butteraugli_target, ImageF* quant_field);
 
 // Returns a quantizer that uses an adjusted version of the provided
 // quant_field. Also computes the dequant_map corresponding to the given

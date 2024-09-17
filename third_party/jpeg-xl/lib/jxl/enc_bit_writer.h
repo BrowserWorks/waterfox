@@ -8,9 +8,12 @@
 
 // BitWriter class: unbuffered writes using unaligned 64-bit stores.
 
-#include <stddef.h>
-#include <stdint.h>
+#include <jxl/memory_manager.h>
 
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -23,6 +26,7 @@
 namespace jxl {
 
 struct AuxOut;
+enum class LayerType : uint8_t;
 
 struct BitWriter {
   // Upper bound on `n_bits` in each call to Write. We shift a 64-bit word by
@@ -32,7 +36,8 @@ struct BitWriter {
   // yet zero-initialized).
   static constexpr size_t kMaxBitsPerCall = 56;
 
-  BitWriter() : bits_written_(0) {}
+  explicit BitWriter(JxlMemoryManager* memory_manager)
+      : bits_written_(0), storage_(memory_manager) {}
 
   // Disallow copying - may lead to bugs.
   BitWriter(const BitWriter&) = delete;
@@ -42,10 +47,12 @@ struct BitWriter {
 
   size_t BitsWritten() const { return bits_written_; }
 
+  JxlMemoryManager* memory_manager() const { return storage_.memory_manager(); }
+
   Span<const uint8_t> GetSpan() const {
     // Callers must ensure byte alignment to avoid uninitialized bits.
-    JXL_ASSERT(bits_written_ % kBitsPerByte == 0);
-    return Bytes(storage_.data(), bits_written_ / kBitsPerByte);
+    JXL_DASSERT(bits_written_ % kBitsPerByte == 0);
+    return Bytes(storage_.data(), DivCeil(bits_written_, kBitsPerByte));
   }
 
   // Example usage: bytes = std::move(writer).TakeBytes(); Useful for the
@@ -53,53 +60,22 @@ struct BitWriter {
   // *this must be an rvalue reference and is invalid afterwards.
   PaddedBytes&& TakeBytes() && {
     // Callers must ensure byte alignment to avoid uninitialized bits.
-    JXL_ASSERT(bits_written_ % kBitsPerByte == 0);
-    storage_.resize(bits_written_ / kBitsPerByte);
+    JXL_DASSERT(bits_written_ % kBitsPerByte == 0);
+    Status status = storage_.resize(DivCeil(bits_written_, kBitsPerByte));
+    JXL_DASSERT(status);
+    // Can never fail, because we are resizing to a lower size.
+    (void)status;
     return std::move(storage_);
   }
 
   // Must be byte-aligned before calling.
-  void AppendByteAligned(const Span<const uint8_t>& span);
+  Status AppendByteAligned(const Span<const uint8_t>& span);
 
   // NOTE: no allotment needed, the other BitWriters have already been charged.
-  void AppendByteAligned(const BitWriter& other);
-  void AppendByteAligned(const std::vector<std::unique_ptr<BitWriter>>& others);
-  void AppendByteAligned(const std::vector<BitWriter>& others);
+  Status AppendByteAligned(
+      const std::vector<std::unique_ptr<BitWriter>>& others);
 
-  void AppendUnaligned(const BitWriter& other);
-
-  class Allotment {
-   public:
-    // Expands a BitWriter's storage. Must happen before calling Write or
-    // ZeroPadToByte. Must call ReclaimUnused after writing to reclaim the
-    // unused storage so that BitWriter memory use remains tightly bounded.
-    Allotment(BitWriter* JXL_RESTRICT writer, size_t max_bits);
-    ~Allotment();
-
-    size_t MaxBits() const { return max_bits_; }
-
-    // Call after writing a histogram, but before ReclaimUnused.
-    void FinishedHistogram(BitWriter* JXL_RESTRICT writer);
-
-    size_t HistogramBits() const {
-      JXL_ASSERT(called_);
-      return histogram_bits_;
-    }
-
-    void ReclaimAndCharge(BitWriter* JXL_RESTRICT writer, size_t layer,
-                          AuxOut* JXL_RESTRICT aux_out);
-
-   private:
-    void PrivateReclaim(BitWriter* JXL_RESTRICT writer,
-                        size_t* JXL_RESTRICT used_bits,
-                        size_t* JXL_RESTRICT unused_bits);
-
-    size_t prev_bits_written_;
-    const size_t max_bits_;
-    size_t histogram_bits_ = 0;
-    bool called_ = false;
-    Allotment* parent_;
-  };
+  Status AppendUnaligned(const BitWriter& other);
 
   // Writes bits into bytes in increasing addresses, and within a byte
   // least-significant-bit first.
@@ -115,10 +91,55 @@ struct BitWriter {
         RoundUpBitsToByteMultiple(bits_written_) - bits_written_;
     if (remainder_bits == 0) return;
     Write(remainder_bits, 0);
-    JXL_ASSERT(bits_written_ % kBitsPerByte == 0);
+    JXL_DASSERT(bits_written_ % kBitsPerByte == 0);
   }
 
+  Status WithMaxBits(size_t max_bits, LayerType layer,
+                     AuxOut* JXL_RESTRICT aux_out,
+                     const std::function<Status()>& function,
+                     bool finished_histogram = false);
+
  private:
+  class Allotment {
+   public:
+    explicit Allotment(size_t max_bits);
+    ~Allotment();
+
+    Allotment(const Allotment& other) = delete;
+    Allotment(Allotment&& other) = delete;
+    Allotment& operator=(const Allotment&) = delete;
+    Allotment& operator=(Allotment&&) = delete;
+
+    // Call after writing a histogram, but before ReclaimUnused.
+    Status FinishedHistogram(BitWriter* JXL_RESTRICT writer);
+
+    size_t HistogramBits() const {
+      JXL_DASSERT(called_);
+      return histogram_bits_;
+    }
+
+    Status ReclaimAndCharge(BitWriter* JXL_RESTRICT writer, LayerType layer,
+                            AuxOut* JXL_RESTRICT aux_out);
+
+   private:
+    friend struct BitWriter;
+
+    // Expands a BitWriter's storage. Must happen before calling Write or
+    // ZeroPadToByte. Must call ReclaimUnused after writing to reclaim the
+    // unused storage so that BitWriter memory use remains tightly bounded.
+    Status Init(BitWriter* JXL_RESTRICT writer);
+
+    Status PrivateReclaim(BitWriter* JXL_RESTRICT writer,
+                          size_t* JXL_RESTRICT used_bits,
+                          size_t* JXL_RESTRICT unused_bits);
+
+    size_t prev_bits_written_;
+    const size_t max_bits_;
+    size_t histogram_bits_ = 0;
+    bool called_ = false;
+    Allotment* parent_;
+  };
+
   size_t bits_written_;
   PaddedBytes storage_;
   Allotment* current_allotment_ = nullptr;

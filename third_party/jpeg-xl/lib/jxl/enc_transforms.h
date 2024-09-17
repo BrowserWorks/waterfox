@@ -8,20 +8,22 @@
 
 // Facade for (non-inlined) integral transforms.
 
-#include <stddef.h>
+#include <cstddef>
+#include <cstdint>
 
-#include "lib/jxl/ac_strategy.h"
 #include "lib/jxl/base/compiler_specific.h"
 
 namespace jxl {
 
-void TransformFromPixels(AcStrategy::Type strategy,
+enum class AcStrategyType : uint32_t;
+
+void TransformFromPixels(AcStrategyType strategy,
                          const float* JXL_RESTRICT pixels, size_t pixels_stride,
                          float* JXL_RESTRICT coefficients,
                          float* JXL_RESTRICT scratch_space);
 
 // Equivalent of the above for DC image.
-void DCFromLowestFrequencies(AcStrategy::Type strategy, const float* block,
+void DCFromLowestFrequencies(AcStrategyType strategy, const float* block,
                              float* dc, size_t dc_stride);
 
 void AFVDCT4x4(const float* JXL_RESTRICT pixels, float* JXL_RESTRICT coeffs);

@@ -254,14 +254,14 @@ bool WriteFrameToNPYArray(size_t xsize, size_t ysize, const PackedFrame& frame,
         size_t sample_size = color.pixel_stride();
         size_t offset = y * color.stride + x * sample_size;
         uint8_t* pixels = reinterpret_cast<uint8_t*>(color.pixels());
-        JXL_ASSERT(offset + sample_size <= color.pixels_size);
+        JXL_ENSURE(offset + sample_size <= color.pixels_size);
         Append(out, pixels + offset, sample_size);
       }
       for (const auto& ec : frame.extra_channels) {
         size_t sample_size = ec.pixel_stride();
         size_t offset = y * ec.stride + x * sample_size;
         uint8_t* pixels = reinterpret_cast<uint8_t*>(ec.pixels());
-        JXL_ASSERT(offset + sample_size <= ec.pixels_size);
+        JXL_ENSURE(offset + sample_size <= ec.pixels_size);
         Append(out, pixels + offset, sample_size);
       }
     }

@@ -7,13 +7,15 @@
 #define LIB_JXL_ENC_CACHE_H_
 
 #include <jxl/cms_interface.h>
-#include <stddef.h>
-#include <stdint.h>
+#include <jxl/memory_manager.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
 #include "lib/jxl/base/data_parallel.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/dct_util.h"
 #include "lib/jxl/enc_ans.h"
@@ -31,6 +33,9 @@ struct AuxOut;
 
 // Contains encoder state.
 struct PassesEncoderState {
+  explicit PassesEncoderState(JxlMemoryManager* memory_manager)
+      : shared(memory_manager) {}
+
   PassesSharedState shared;
 
   bool streaming_mode = false;
@@ -65,6 +70,10 @@ struct PassesEncoderState {
   // Multiplier to be applied to the quant matrices of the x channel.
   float x_qm_multiplier = 1.0f;
   float b_qm_multiplier = 1.0f;
+
+  ImageF initial_quant_masking1x1;
+
+  JxlMemoryManager* memory_manager() const { return shared.memory_manager; }
 };
 
 // Initialize per-frame information.
@@ -75,6 +84,9 @@ Status InitializePassesEncoder(const FrameHeader& frame_header,
                                PassesEncoderState* passes_enc_state,
                                ModularFrameEncoder* modular_frame_encoder,
                                AuxOut* aux_out);
+
+Status ComputeACMetadata(ThreadPool* pool, PassesEncoderState* enc_state,
+                         ModularFrameEncoder* modular_frame_encoder);
 
 }  // namespace jxl
 

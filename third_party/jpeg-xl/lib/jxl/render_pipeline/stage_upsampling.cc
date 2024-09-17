@@ -5,6 +5,7 @@
 
 #include "lib/jxl/render_pipeline/stage_upsampling.h"
 
+#include "lib/jxl/base/sanitizers.h"
 #include "lib/jxl/base/status.h"
 
 #undef HWY_TARGET_INCLUDE
@@ -12,7 +13,6 @@
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 
-#include "lib/jxl/sanitizers.h"
 #include "lib/jxl/simd_util-inl.h"
 
 HWY_BEFORE_NAMESPACE();
@@ -57,7 +57,7 @@ class UpsamplingStage : public RenderPipelineStage {
       msan::UnpoisonMemory(GetInputRow(input_rows, c_, iy) + xsize + 2,
                            sizeof(float) * (xsize_v - xsize));
     }
-    JXL_ASSERT(xextra == 0);
+    JXL_ENSURE(xextra == 0);
     ssize_t x0 = 0;
     ssize_t x1 = xsize;
     if (N == 2) {
@@ -87,6 +87,7 @@ class UpsamplingStage : public RenderPipelineStage {
  private:
   template <size_t N>
   JXL_INLINE float Kernel(size_t x, size_t y, ssize_t ix, ssize_t iy) const {
+    static_assert(N == 2 || N == 4 || N == 8, "N must be 2, 4, or 8");
     ix += 2;
     iy += 2;
     if (N == 2) {
@@ -102,7 +103,6 @@ class UpsamplingStage : public RenderPipelineStage {
                     [x % 8 < 4 ? x % 4 : 3 - x % 4][y % 8 < 4 ? iy : 4 - iy]
                     [x % 8 < 4 ? ix : 4 - ix];
     }
-    JXL_UNREACHABLE("Invalid upsample");
   }
 
   template <ssize_t N>
@@ -110,7 +110,7 @@ class UpsamplingStage : public RenderPipelineStage {
                       ssize_t x0, ssize_t x1) const {
     static HWY_FULL(float) df;
     using V = hwy::HWY_NAMESPACE::Vec<HWY_FULL(float)>;
-    V ups0, ups1, ups2, ups3, ups4, ups5, ups6, ups7;
+    V ups0, ups1, ups2, ups3, ups4, ups5, ups6, ups7;  // NOLINT
     (void)ups2, (void)ups3, (void)ups4, (void)ups5, (void)ups6, (void)ups7;
     // Once we have C++17 available, change this back to `V* ups[N]` and
     // initialize using `if constexpr` below.
@@ -184,8 +184,10 @@ HWY_EXPORT(GetUpsamplingStage);
 
 std::unique_ptr<RenderPipelineStage> GetUpsamplingStage(
     const CustomTransformData& ups_factors, size_t c, size_t shift) {
-  JXL_ASSERT(shift != 0);
-  JXL_ASSERT(shift <= 3);
+  if ((shift < 1) || (shift > 3)) {
+    JXL_DEBUG_ABORT("internal: (shift != 0) && (shift <= 3)");
+    return nullptr;
+  }
   return HWY_DYNAMIC_DISPATCH(GetUpsamplingStage)(ups_factors, c, shift);
 }
 

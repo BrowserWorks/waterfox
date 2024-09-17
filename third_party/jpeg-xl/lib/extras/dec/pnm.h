@@ -13,12 +13,10 @@
 
 // TODO(janwas): workaround for incorrect Win64 codegen (cause unknown)
 #include <hwy/highway.h>
-#include <mutex>
 
 #include "lib/extras/dec/color_hints.h"
 #include "lib/extras/mmap.h"
 #include "lib/extras/packed_image.h"
-#include "lib/jxl/base/data_parallel.h"
 #include "lib/jxl/base/span.h"
 #include "lib/jxl/base/status.h"
 
@@ -33,8 +31,6 @@ namespace extras {
 Status DecodeImagePNM(Span<const uint8_t> bytes, const ColorHints& color_hints,
                       PackedPixelFile* ppf,
                       const SizeConstraints* constraints = nullptr);
-
-void TestCodecPNM();
 
 struct HeaderPNM {
   size_t xsize;

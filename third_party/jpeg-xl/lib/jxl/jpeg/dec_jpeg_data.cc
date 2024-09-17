@@ -7,10 +7,10 @@
 
 #include <brotli/decode.h>
 
+#include "lib/jxl/base/sanitizers.h"
 #include "lib/jxl/base/span.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/dec_bit_reader.h"
-#include "lib/jxl/sanitizers.h"
 
 namespace jxl {
 namespace jpeg {
@@ -20,7 +20,7 @@ Status DecodeJPEGData(Span<const uint8_t> encoded, JPEGData* jpeg_data) {
   size_t available_in = encoded.size();
   {
     BitReader br(encoded);
-    BitReaderScopedCloser br_closer(&br, &ret);
+    BitReaderScopedCloser br_closer(br, ret);
     JXL_RETURN_IF_ERROR(Bundle::Read(&br, jpeg_data));
     JXL_RETURN_IF_ERROR(br.JumpToByteBoundary());
     in += br.TotalBitsConsumed() / 8;
@@ -106,15 +106,14 @@ Status DecodeJPEGData(Span<const uint8_t> encoded, JPEGData* jpeg_data) {
     }
   }
   // TODO(eustas): actually inject ICC profile and check it fits perfectly.
-  for (size_t i = 0; i < jpeg_data->com_data.size(); i++) {
-    auto& marker = jpeg_data->com_data[i];
+  for (auto& marker : jpeg_data->com_data) {
     JXL_RETURN_IF_ERROR(br_read(marker));
     if (marker[1] * 256u + marker[2] + 1u != marker.size()) {
       return JXL_FAILURE("Incorrect marker size");
     }
   }
-  for (size_t i = 0; i < jpeg_data->inter_marker_data.size(); i++) {
-    JXL_RETURN_IF_ERROR(br_read(jpeg_data->inter_marker_data[i]));
+  for (auto& data : jpeg_data->inter_marker_data) {
+    JXL_RETURN_IF_ERROR(br_read(data));
   }
   JXL_RETURN_IF_ERROR(br_read(jpeg_data->tail_data));
 

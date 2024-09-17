@@ -5,8 +5,11 @@
 
 #include "lib/jxl/convolve.h"
 
+#include <jxl/memory_manager.h>
 #include <jxl/types.h>
-#include <time.h>
+
+#include <cinttypes>  // PRIx64
+#include <ctime>
 
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "lib/jxl/convolve_test.cc"
@@ -20,8 +23,10 @@
 #include "lib/jxl/base/data_parallel.h"
 #include "lib/jxl/base/printf_macros.h"
 #include "lib/jxl/base/random.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/image_ops.h"
 #include "lib/jxl/image_test_utils.h"
+#include "lib/jxl/test_memory_manager.h"
 #include "lib/jxl/test_utils.h"
 #include "lib/jxl/testing.h"
 
@@ -67,19 +72,24 @@ void TestNeighbors() {
 
 void VerifySymmetric3(const size_t xsize, const size_t ysize, ThreadPool* pool,
                       Rng* rng) {
+  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   const Rect rect(0, 0, xsize, ysize);
 
-  JXL_ASSIGN_OR_DIE(ImageF in, ImageF::Create(xsize, ysize));
+  JXL_TEST_ASSIGN_OR_DIE(ImageF in,
+                         ImageF::Create(memory_manager, xsize, ysize));
   GenerateImage(*rng, &in, 0.0f, 1.0f);
 
-  JXL_ASSIGN_OR_DIE(ImageF out_expected, ImageF::Create(xsize, ysize));
-  JXL_ASSIGN_OR_DIE(ImageF out_actual, ImageF::Create(xsize, ysize));
+  JXL_TEST_ASSIGN_OR_DIE(ImageF out_expected,
+                         ImageF::Create(memory_manager, xsize, ysize));
+  JXL_TEST_ASSIGN_OR_DIE(ImageF out_actual,
+                         ImageF::Create(memory_manager, xsize, ysize));
 
   const WeightsSymmetric3& weights = WeightsSymmetric3Lowpass();
-  Symmetric3(in, rect, weights, pool, &out_expected);
-  SlowSymmetric3(in, rect, weights, pool, &out_actual);
+  ASSERT_TRUE(Symmetric3(in, rect, weights, pool, &out_expected));
+  ASSERT_TRUE(SlowSymmetric3(in, rect, weights, pool, &out_actual));
 
-  JXL_ASSERT_OK(VerifyRelativeError(out_expected, out_actual, 1E-5f, 1E-5f, _));
+  JXL_TEST_ASSERT_OK(
+      VerifyRelativeError(out_expected, out_actual, 1E-5f, 1E-5f, _));
 }
 
 std::vector<Rect> GenerateTestRectangles(size_t xsize, size_t ysize) {
@@ -97,7 +107,9 @@ std::vector<Rect> GenerateTestRectangles(size_t xsize, size_t ysize) {
 // Ensures Symmetric and Separable give the same result.
 void VerifySymmetric5(const size_t xsize, const size_t ysize, ThreadPool* pool,
                       Rng* rng) {
-  JXL_ASSIGN_OR_DIE(ImageF in, ImageF::Create(xsize, ysize));
+  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
+  JXL_TEST_ASSIGN_OR_DIE(ImageF in,
+                         ImageF::Create(memory_manager, xsize, ysize));
   GenerateImage(*rng, &in, 0.0f, 1.0f);
 
   for (const Rect& in_rect : GenerateTestRectangles(xsize, ysize)) {
@@ -106,32 +118,36 @@ void VerifySymmetric5(const size_t xsize, const size_t ysize, ThreadPool* pool,
               in_rect.xsize(), in_rect.ysize(), in_rect.x0(), in_rect.y0());
     {
       Rect out_rect = in_rect;
-      JXL_ASSIGN_OR_DIE(ImageF out_expected, ImageF::Create(xsize, ysize));
-      JXL_ASSIGN_OR_DIE(ImageF out_actual, ImageF::Create(xsize, ysize));
+      JXL_TEST_ASSIGN_OR_DIE(ImageF out_expected,
+                             ImageF::Create(memory_manager, xsize, ysize));
+      JXL_TEST_ASSIGN_OR_DIE(ImageF out_actual,
+                             ImageF::Create(memory_manager, xsize, ysize));
       FillImage(-1.0f, &out_expected);
       FillImage(-1.0f, &out_actual);
 
-      SlowSeparable5(in, in_rect, WeightsSeparable5Lowpass(), pool,
-                     &out_expected, out_rect);
-      Symmetric5(in, in_rect, WeightsSymmetric5Lowpass(), pool, &out_actual,
-                 out_rect);
+      ASSERT_TRUE(SlowSeparable5(in, in_rect, WeightsSeparable5Lowpass(), pool,
+                                 &out_expected, out_rect));
+      ASSERT_TRUE(Symmetric5(in, in_rect, WeightsSymmetric5Lowpass(), pool,
+                             &out_actual, out_rect));
 
-      JXL_ASSERT_OK(
+      JXL_TEST_ASSERT_OK(
           VerifyRelativeError(out_expected, out_actual, 1E-5f, 1E-5f, _));
     }
     {
       Rect out_rect(0, 0, in_rect.xsize(), in_rect.ysize());
-      JXL_ASSIGN_OR_DIE(ImageF out_expected,
-                        ImageF::Create(out_rect.xsize(), out_rect.ysize()));
-      JXL_ASSIGN_OR_DIE(ImageF out_actual,
-                        ImageF::Create(out_rect.xsize(), out_rect.ysize()));
+      JXL_TEST_ASSIGN_OR_DIE(
+          ImageF out_expected,
+          ImageF::Create(memory_manager, out_rect.xsize(), out_rect.ysize()));
+      JXL_TEST_ASSIGN_OR_DIE(
+          ImageF out_actual,
+          ImageF::Create(memory_manager, out_rect.xsize(), out_rect.ysize()));
 
-      SlowSeparable5(in, in_rect, WeightsSeparable5Lowpass(), pool,
-                     &out_expected, out_rect);
-      Symmetric5(in, in_rect, WeightsSymmetric5Lowpass(), pool, &out_actual,
-                 out_rect);
+      ASSERT_TRUE(SlowSeparable5(in, in_rect, WeightsSeparable5Lowpass(), pool,
+                                 &out_expected, out_rect));
+      ASSERT_TRUE(Symmetric5(in, in_rect, WeightsSymmetric5Lowpass(), pool,
+                             &out_actual, out_rect));
 
-      JXL_ASSERT_OK(
+      JXL_TEST_ASSERT_OK(
           VerifyRelativeError(out_expected, out_actual, 1E-5f, 1E-5f, _));
     }
   }
@@ -139,19 +155,24 @@ void VerifySymmetric5(const size_t xsize, const size_t ysize, ThreadPool* pool,
 
 void VerifySeparable5(const size_t xsize, const size_t ysize, ThreadPool* pool,
                       Rng* rng) {
+  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   const Rect rect(0, 0, xsize, ysize);
 
-  JXL_ASSIGN_OR_DIE(ImageF in, ImageF::Create(xsize, ysize));
+  JXL_TEST_ASSIGN_OR_DIE(ImageF in,
+                         ImageF::Create(memory_manager, xsize, ysize));
   GenerateImage(*rng, &in, 0.0f, 1.0f);
 
-  JXL_ASSIGN_OR_DIE(ImageF out_expected, ImageF::Create(xsize, ysize));
-  JXL_ASSIGN_OR_DIE(ImageF out_actual, ImageF::Create(xsize, ysize));
+  JXL_TEST_ASSIGN_OR_DIE(ImageF out_expected,
+                         ImageF::Create(memory_manager, xsize, ysize));
+  JXL_TEST_ASSIGN_OR_DIE(ImageF out_actual,
+                         ImageF::Create(memory_manager, xsize, ysize));
 
   const WeightsSeparable5& weights = WeightsSeparable5Lowpass();
-  SlowSeparable5(in, rect, weights, pool, &out_expected, rect);
-  Separable5(in, rect, weights, pool, &out_actual);
+  ASSERT_TRUE(SlowSeparable5(in, rect, weights, pool, &out_expected, rect));
+  ASSERT_TRUE(Separable5(in, rect, weights, pool, &out_actual));
 
-  JXL_ASSERT_OK(VerifyRelativeError(out_expected, out_actual, 1E-5f, 1E-5f, _));
+  JXL_TEST_ASSERT_OK(
+      VerifyRelativeError(out_expected, out_actual, 1E-5f, 1E-5f, _));
 }
 
 // For all xsize/ysize and kernels:
@@ -159,35 +180,34 @@ void TestConvolve() {
   TestNeighbors();
 
   test::ThreadPoolForTests pool(4);
-  EXPECT_EQ(true,
-            RunOnPool(
-                &pool, kConvolveMaxRadius, 40, ThreadPool::NoInit,
-                [](const uint32_t task, size_t /*thread*/) {
-                  const size_t xsize = task;
-                  Rng rng(129 + 13 * xsize);
+  const auto do_test = [](const uint32_t task, size_t /*thread*/) -> Status {
+    const size_t xsize = task;
+    Rng rng(129 + 13 * xsize);
 
-                  ThreadPool* null_pool = nullptr;
-                  test::ThreadPoolForTests pool3(3);
-                  for (size_t ysize = kConvolveMaxRadius; ysize < 16; ++ysize) {
-                    JXL_DEBUG(JXL_DEBUG_CONVOLVE,
-                              "%" PRIuS " x %" PRIuS " (target %" PRIx64
-                              ")===============================",
-                              xsize, ysize, static_cast<int64_t>(HWY_TARGET));
+    ThreadPool* null_pool = nullptr;
+    test::ThreadPoolForTests pool3(3);
+    for (size_t ysize = kConvolveMaxRadius; ysize < 16; ++ysize) {
+      JXL_DEBUG(JXL_DEBUG_CONVOLVE,
+                "%" PRIuS " x %" PRIuS " (target %" PRIx64
+                ")===============================",
+                xsize, ysize, static_cast<int64_t>(HWY_TARGET));
 
-                    JXL_DEBUG(JXL_DEBUG_CONVOLVE, "Sym3------------------");
-                    VerifySymmetric3(xsize, ysize, null_pool, &rng);
-                    VerifySymmetric3(xsize, ysize, &pool3, &rng);
+      JXL_DEBUG(JXL_DEBUG_CONVOLVE, "Sym3------------------");
+      VerifySymmetric3(xsize, ysize, null_pool, &rng);
+      VerifySymmetric3(xsize, ysize, pool3.get(), &rng);
 
-                    JXL_DEBUG(JXL_DEBUG_CONVOLVE, "Sym5------------------");
-                    VerifySymmetric5(xsize, ysize, null_pool, &rng);
-                    VerifySymmetric5(xsize, ysize, &pool3, &rng);
+      JXL_DEBUG(JXL_DEBUG_CONVOLVE, "Sym5------------------");
+      VerifySymmetric5(xsize, ysize, null_pool, &rng);
+      VerifySymmetric5(xsize, ysize, pool3.get(), &rng);
 
-                    JXL_DEBUG(JXL_DEBUG_CONVOLVE, "Sep5------------------");
-                    VerifySeparable5(xsize, ysize, null_pool, &rng);
-                    VerifySeparable5(xsize, ysize, &pool3, &rng);
-                  }
-                },
-                "TestConvolve"));
+      JXL_DEBUG(JXL_DEBUG_CONVOLVE, "Sep5------------------");
+      VerifySeparable5(xsize, ysize, null_pool, &rng);
+      VerifySeparable5(xsize, ysize, pool3.get(), &rng);
+    }
+    return true;
+  };
+  EXPECT_EQ(true, RunOnPool(pool.get(), kConvolveMaxRadius, 40,
+                            ThreadPool::NoInit, do_test, "TestConvolve"));
 }
 
 // Measures durations, verifies results, prints timings. `unpredictable1`
@@ -195,15 +215,17 @@ void TestConvolve() {
 template <class Conv>
 void BenchmarkConv(const char* caption, const Conv& conv,
                    const hwy::FuncInput unpredictable1) {
+  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   const size_t kNumInputs = 1;
   const hwy::FuncInput inputs[kNumInputs] = {unpredictable1};
   hwy::Result results[kNumInputs];
 
   const size_t kDim = 160;  // in+out fit in L2
-  JXL_ASSIGN_OR_DIE(ImageF in, ImageF::Create(kDim, kDim));
+  JXL_TEST_ASSIGN_OR_DIE(ImageF in, ImageF::Create(memory_manager, kDim, kDim));
   ZeroFillImage(&in);
   in.Row(kDim / 2)[kDim / 2] = unpredictable1;
-  JXL_ASSIGN_OR_DIE(ImageF out, ImageF::Create(kDim, kDim));
+  JXL_TEST_ASSIGN_OR_DIE(ImageF out,
+                         ImageF::Create(memory_manager, kDim, kDim));
 
   hwy::Params p;
   p.verbose = false;
@@ -230,14 +252,16 @@ void BenchmarkConv(const char* caption, const Conv& conv,
 struct ConvSymmetric3 {
   void operator()(const ImageF& in, ImageF* JXL_RESTRICT out) const {
     ThreadPool* null_pool = nullptr;
-    Symmetric3(in, Rect(in), WeightsSymmetric3Lowpass(), null_pool, out);
+    ASSERT_TRUE(
+        Symmetric3(in, Rect(in), WeightsSymmetric3Lowpass(), null_pool, out));
   }
 };
 
 struct ConvSeparable5 {
   void operator()(const ImageF& in, ImageF* JXL_RESTRICT out) const {
     ThreadPool* null_pool = nullptr;
-    Separable5(in, Rect(in), WeightsSeparable5Lowpass(), null_pool, out);
+    ASSERT_TRUE(
+        Separable5(in, Rect(in), WeightsSeparable5Lowpass(), null_pool, out));
   }
 };
 

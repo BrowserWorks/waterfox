@@ -6,14 +6,21 @@
 #include "lib/extras/dec/jxl.h"
 
 #include <jxl/cms.h>
+#include <jxl/codestream_header.h>
 #include <jxl/decode.h>
 #include <jxl/decode_cxx.h>
 #include <jxl/types.h>
 
-#include <cinttypes>
+#include <cinttypes>  // PRIu32
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <limits>
+#include <vector>
 
 #include "lib/extras/common.h"
 #include "lib/extras/dec/color_description.h"
+#include "lib/jxl/base/common.h"
 #include "lib/jxl/base/exif.h"
 #include "lib/jxl/base/printf_macros.h"
 #include "lib/jxl/base/status.h"
@@ -22,17 +29,27 @@ namespace jxl {
 namespace extras {
 namespace {
 
+#define QUIT(M)               \
+  fprintf(stderr, "%s\n", M); \
+  return false;
+
 struct BoxProcessor {
   explicit BoxProcessor(JxlDecoder* dec) : dec_(dec) { Reset(); }
 
-  void InitializeOutput(std::vector<uint8_t>* out) {
-    JXL_ASSERT(out != nullptr);
+  bool InitializeOutput(std::vector<uint8_t>* out) {
+    if (out == nullptr) {
+      fprintf(stderr, "internal: out == nullptr\n");
+      return false;
+    }
     box_data_ = out;
-    AddMoreOutput();
+    return AddMoreOutput();
   }
 
   bool AddMoreOutput() {
-    JXL_ASSERT(box_data_ != nullptr);
+    if (box_data_ == nullptr) {
+      fprintf(stderr, "internal: box_data_ == nullptr\n");
+      return false;
+    }
     Flush();
     static const size_t kBoxOutputChunkSize = 1 << 16;
     box_data_->resize(box_data_->size() + kBoxOutputChunkSize);
@@ -118,7 +135,7 @@ bool DecodeImageJXL(const uint8_t* bytes, size_t bytes_size,
   // silently return false if this is not a JXL file
   if (sig == JXL_SIG_INVALID) return false;
 
-  auto decoder = JxlDecoderMake(/*memory_manager=*/nullptr);
+  auto decoder = JxlDecoderMake(dparams.memory_manager);
   JxlDecoder* dec = decoder.get();
   ppf->frames.clear();
 
@@ -211,7 +228,7 @@ bool DecodeImageJXL(const uint8_t* bytes, size_t bytes_size,
     return false;
   }
   uint32_t progression_index = 0;
-  bool codestream_done = accepted_formats.empty();
+  bool codestream_done = jpeg_bytes == nullptr && accepted_formats.empty();
   BoxProcessor boxes(dec);
   for (;;) {
     JxlDecoderStatus status = JxlDecoderProcessInput(dec);
@@ -252,14 +269,20 @@ bool DecodeImageJXL(const uint8_t* bytes, size_t bytes_size,
         box_data = &ppf->metadata.iptc;
       } else if (memcmp(box_type, "jumb", 4) == 0) {
         box_data = &ppf->metadata.jumbf;
+      } else if (memcmp(box_type, "jhgm", 4) == 0) {
+        box_data = &ppf->metadata.jhgm;
       } else if (memcmp(box_type, "xml ", 4) == 0) {
         box_data = &ppf->metadata.xmp;
       }
       if (box_data) {
-        boxes.InitializeOutput(box_data);
+        if (!boxes.InitializeOutput(box_data)) {
+          return false;
+        }
       }
     } else if (status == JXL_DEC_BOX_NEED_MORE_OUTPUT) {
-      boxes.AddMoreOutput();
+      if (!boxes.AddMoreOutput()) {
+        return false;
+      }
     } else if (status == JXL_DEC_JPEG_RECONSTRUCTION) {
       can_reconstruct_jpeg = true;
       // Decoding to JPEG.
@@ -270,7 +293,10 @@ bool DecodeImageJXL(const uint8_t* bytes, size_t bytes_size,
         return false;
       }
     } else if (status == JXL_DEC_JPEG_NEED_MORE_OUTPUT) {
-      JXL_ASSERT(jpeg_bytes != nullptr);  // Help clang-tidy.
+      if (jpeg_bytes == nullptr) {
+        fprintf(stderr, "internal: jpeg_bytes == nullptr\n");
+        return false;
+      }
       // Decoded a chunk to JPEG.
       size_t used_jpeg_output =
           jpeg_data_chunk.size() - JxlDecoderReleaseJPEGBuffer(dec);
@@ -392,7 +418,12 @@ bool DecodeImageJXL(const uint8_t* bytes, size_t bytes_size,
         }
       }
     } else if (status == JXL_DEC_FRAME) {
-      jxl::extras::PackedFrame frame(ppf->info.xsize, ppf->info.ysize, format);
+      auto frame_or = jxl::extras::PackedFrame::Create(ppf->info.xsize,
+                                                       ppf->info.ysize, format);
+      JXL_ASSIGN_OR_QUIT(jxl::extras::PackedFrame frame,
+                         jxl::extras::PackedFrame::Create(
+                             ppf->info.xsize, ppf->info.ysize, format),
+                         "Failed to create image frame.");
       if (JXL_DEC_SUCCESS != JxlDecoderGetFrameHeader(dec, &frame.frame_info)) {
         fprintf(stderr, "JxlDecoderGetFrameHeader failed\n");
         return false;
@@ -431,9 +462,13 @@ bool DecodeImageJXL(const uint8_t* bytes, size_t bytes_size,
         fprintf(stderr, "JxlDecoderPreviewOutBufferSize failed\n");
         return false;
       }
-      ppf->preview_frame = std::unique_ptr<jxl::extras::PackedFrame>(
-          new jxl::extras::PackedFrame(ppf->info.preview.xsize,
-                                       ppf->info.preview.ysize, format));
+      JXL_ASSIGN_OR_QUIT(
+          jxl::extras::PackedImage preview_image,
+          jxl::extras::PackedImage::Create(ppf->info.preview.xsize,
+                                           ppf->info.preview.ysize, format),
+          "Failed to create preview image.");
+      ppf->preview_frame =
+          jxl::make_unique<jxl::extras::PackedFrame>(std::move(preview_image));
       if (buffer_size != ppf->preview_frame->color.pixels_size) {
         fprintf(stderr, "Invalid out buffer size %" PRIuS " %" PRIuS "\n",
                 buffer_size, ppf->preview_frame->color.pixels_size);
@@ -500,8 +535,11 @@ bool DecodeImageJXL(const uint8_t* bytes, size_t bytes_size,
       JxlPixelFormat ec_format = format;
       ec_format.num_channels = 1;
       for (auto& eci : ppf->extra_channels_info) {
-        frame.extra_channels.emplace_back(ppf->info.xsize, ppf->info.ysize,
-                                          ec_format);
+        JXL_ASSIGN_OR_QUIT(jxl::extras::PackedImage image,
+                           jxl::extras::PackedImage::Create(
+                               ppf->info.xsize, ppf->info.ysize, ec_format),
+                           "Failed to create extra channel image.");
+        frame.extra_channels.emplace_back(std::move(image));
         auto& ec = frame.extra_channels.back();
         size_t buffer_size;
         if (JXL_DEC_SUCCESS != JxlDecoderExtraChannelBufferSize(

@@ -113,7 +113,7 @@ namespace jxl {
 HWY_EXPORT(GetGaborishStage);
 
 std::unique_ptr<RenderPipelineStage> GetGaborishStage(const LoopFilter& lf) {
-  JXL_ASSERT(lf.gab == 1);
+  if (lf.gab != 1) return nullptr;
   return HWY_DYNAMIC_DISPATCH(GetGaborishStage)(lf);
 }
 

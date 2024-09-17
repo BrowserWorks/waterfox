@@ -3,9 +3,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include <string.h>
-
 #include <cmath>
+#include <cstring>
 #include <numeric>
 
 #undef HWY_TARGET_INCLUDE
@@ -16,8 +15,6 @@
 
 #include "lib/jxl/dct-inl.h"
 #include "lib/jxl/dct_for_test.h"
-#include "lib/jxl/dct_scales.h"
-#include "lib/jxl/image.h"
 #include "lib/jxl/test_utils.h"
 #include "lib/jxl/testing.h"
 
@@ -159,22 +156,23 @@ template <size_t N>
 void TestInverseT(float accuracy) {
   test::ThreadPoolForTests pool(N < 32 ? 0 : 8);
   enum { kBlockSize = N * N };
-  EXPECT_TRUE(RunOnPool(
-      &pool, 0, kBlockSize, ThreadPool::NoInit,
-      [accuracy](const uint32_t task, size_t /*thread*/) {
-        const size_t i = static_cast<size_t>(task);
-        HWY_ALIGN float x[kBlockSize] = {0.0f};
-        x[i] = 1.0;
+  const auto process_block = [accuracy](const uint32_t task,
+                                        size_t /*thread*/) -> Status {
+    const size_t i = static_cast<size_t>(task);
+    HWY_ALIGN float x[kBlockSize] = {0.0f};
+    x[i] = 1.0;
 
-        ComputeIDCT<N>(x);
-        ComputeDCT<N>(x);
+    ComputeIDCT<N>(x);
+    ComputeDCT<N>(x);
 
-        for (size_t k = 0; k < kBlockSize; ++k) {
-          EXPECT_NEAR(x[k], (k == i) ? 1.0f : 0.0f, accuracy)
-              << "i = " << i << ", k = " << k;
-        }
-      },
-      "TestInverse"));
+    for (size_t k = 0; k < kBlockSize; ++k) {
+      EXPECT_NEAR(x[k], (k == i) ? 1.0f : 0.0f, accuracy)
+          << "i = " << i << ", k = " << k;
+    }
+    return true;
+  };
+  EXPECT_TRUE(RunOnPool(pool.get(), 0, kBlockSize, ThreadPool::NoInit,
+                        process_block, "TestInverse"));
 }
 
 void InverseTest() {
@@ -367,9 +365,10 @@ HWY_EXPORT_AND_TEST_P(TransposeTest, TestRectTranspose);
 // Tests in the DctShardedTest class are sharded for N=32.
 class DctShardedTest : public ::hwy::TestWithParamTargetAndT<uint32_t> {};
 
-std::vector<uint32_t> ShardRange(uint32_t n) {
+template <size_t n>
+std::vector<uint32_t> ShardRange() {
 #ifdef JXL_DISABLE_SLOW_TESTS
-  JXL_ASSERT(n > 6);
+  static_assert(n > 6);
   std::vector<uint32_t> ret = {0, 1, 3, 5, n - 1};
 #else
   std::vector<uint32_t> ret(n);
@@ -379,7 +378,7 @@ std::vector<uint32_t> ShardRange(uint32_t n) {
 }
 
 HWY_TARGET_INSTANTIATE_TEST_SUITE_P_T(DctShardedTest,
-                                      ::testing::ValuesIn(ShardRange(32)));
+                                      ::testing::ValuesIn(ShardRange<32>()));
 
 HWY_EXPORT_AND_TEST_P_T(DctShardedTest, TestDctAccuracyShard);
 HWY_EXPORT_AND_TEST_P_T(DctShardedTest, TestIdctAccuracyShard);

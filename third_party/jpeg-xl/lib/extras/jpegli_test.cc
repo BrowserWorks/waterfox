@@ -9,7 +9,6 @@
 
 #include <jxl/color_encoding.h>
 #include <jxl/types.h>
-#include <stdint.h>
 
 #include <cstddef>
 #include <cstdint>
@@ -40,9 +39,9 @@ namespace jxl {
 namespace extras {
 namespace {
 
-using test::Butteraugli3Norm;
-using test::ButteraugliDistance;
-using test::TestImage;
+using ::jxl::test::Butteraugli3Norm;
+using ::jxl::test::ButteraugliDistance;
+using ::jxl::test::TestImage;
 
 Status ReadTestImage(const std::string& pathname, PackedPixelFile* ppf) {
   const std::vector<uint8_t> encoded = jxl::test::ReadTestData(pathname);
@@ -93,7 +92,7 @@ Status EncodeWithLibjpeg(const PackedPixelFile& ppf, int quality,
 
 std::string Description(const JxlColorEncoding& color_encoding) {
   ColorEncoding c_enc;
-  JXL_CHECK(c_enc.FromExternal(color_encoding));
+  EXPECT_TRUE(c_enc.FromExternal(color_encoding));
   return Description(c_enc);
 }
 
@@ -156,8 +155,8 @@ TEST(JpegliTest, JpegliXYBEncodeTest) {
 
   PackedPixelFile ppf_out;
   ASSERT_TRUE(DecodeWithLibjpeg(compressed, &ppf_out));
-  EXPECT_THAT(BitsPerPixel(ppf_in, compressed), IsSlightlyBelow(1.45f));
-  EXPECT_THAT(ButteraugliDistance(ppf_in, ppf_out), IsSlightlyBelow(1.32f));
+  EXPECT_SLIGHTLY_BELOW(BitsPerPixel(ppf_in, compressed), 1.45f);
+  EXPECT_SLIGHTLY_BELOW(ButteraugliDistance(ppf_in, ppf_out), 1.32f);
 }
 
 TEST(JpegliTest, JpegliDecodeTestLargeSmoothArea) {
@@ -165,9 +164,10 @@ TEST(JpegliTest, JpegliDecodeTestLargeSmoothArea) {
   TestImage t;
   const size_t xsize = 2070;
   const size_t ysize = 1063;
-  t.SetDimensions(xsize, ysize).SetChannels(3);
+  ASSERT_TRUE(t.SetDimensions(xsize, ysize));
+  ASSERT_TRUE(t.SetChannels(3));
   t.SetAllBitDepths(8).SetEndianness(JXL_NATIVE_ENDIAN);
-  TestImage::Frame frame = t.AddFrame();
+  JXL_TEST_ASSIGN_OR_DIE(TestImage::Frame frame, t.AddFrame());
   frame.RandomFill();
   // Create a large smooth area in the top half of the image. This is to test
   // that the bias statistics calculation can handle many blocks with all-zero
@@ -175,7 +175,7 @@ TEST(JpegliTest, JpegliDecodeTestLargeSmoothArea) {
   for (size_t y = 0; y < ysize / 2; ++y) {
     for (size_t x = 0; x < xsize; ++x) {
       for (size_t c = 0; c < 3; ++c) {
-        frame.SetValue(y, x, c, 0.5f);
+        ASSERT_TRUE(frame.SetValue(y, x, c, 0.5f));
       }
     }
   }
@@ -205,8 +205,8 @@ TEST(JpegliTest, JpegliYUVEncodeTest) {
 
   PackedPixelFile ppf_out;
   ASSERT_TRUE(DecodeWithLibjpeg(compressed, &ppf_out));
-  EXPECT_THAT(BitsPerPixel(ppf_in, compressed), IsSlightlyBelow(1.7f));
-  EXPECT_THAT(ButteraugliDistance(ppf_in, ppf_out), IsSlightlyBelow(1.32f));
+  EXPECT_SLIGHTLY_BELOW(BitsPerPixel(ppf_in, compressed), 1.7f);
+  EXPECT_SLIGHTLY_BELOW(ButteraugliDistance(ppf_in, ppf_out), 1.32f);
 }
 
 TEST(JpegliTest, JpegliYUVChromaSubsamplingEncodeTest) {
@@ -247,15 +247,15 @@ TEST(JpegliTest, JpegliYUVEncodeTestNoAq) {
 
   PackedPixelFile ppf_out;
   ASSERT_TRUE(DecodeWithLibjpeg(compressed, &ppf_out));
-  EXPECT_THAT(BitsPerPixel(ppf_in, compressed), IsSlightlyBelow(1.85f));
-  EXPECT_THAT(ButteraugliDistance(ppf_in, ppf_out), IsSlightlyBelow(1.25f));
+  EXPECT_SLIGHTLY_BELOW(BitsPerPixel(ppf_in, compressed), 1.85f);
+  EXPECT_SLIGHTLY_BELOW(ButteraugliDistance(ppf_in, ppf_out), 1.25f);
 }
 
 TEST(JpegliTest, JpegliHDRRoundtripTest) {
   std::string testimage = "jxl/hdr_room.png";
   PackedPixelFile ppf_in;
   ASSERT_TRUE(ReadTestImage(testimage, &ppf_in));
-  EXPECT_EQ("RGB_D65_202_Rel_HLG", Description(ppf_in.color_encoding));
+  EXPECT_EQ("Rec2100HLG", Description(ppf_in.color_encoding));
   EXPECT_EQ(16, ppf_in.info.bits_per_sample);
 
   std::vector<uint8_t> compressed;
@@ -267,8 +267,8 @@ TEST(JpegliTest, JpegliHDRRoundtripTest) {
   JpegDecompressParams dparams;
   dparams.output_data_type = JXL_TYPE_UINT16;
   ASSERT_TRUE(DecodeJpeg(compressed, dparams, nullptr, &ppf_out));
-  EXPECT_THAT(BitsPerPixel(ppf_in, compressed), IsSlightlyBelow(2.95f));
-  EXPECT_THAT(ButteraugliDistance(ppf_in, ppf_out), IsSlightlyBelow(1.05f));
+  EXPECT_SLIGHTLY_BELOW(BitsPerPixel(ppf_in, compressed), 2.95f);
+  EXPECT_SLIGHTLY_BELOW(ButteraugliDistance(ppf_in, ppf_out), 1.05f);
 }
 
 TEST(JpegliTest, JpegliSetAppData) {
