@@ -9,9 +9,10 @@
 // The main image or frame consists of a bundle of associated images.
 
 #include <jxl/cms_interface.h>
-#include <stddef.h>
-#include <stdint.h>
+#include <jxl/memory_manager.h>
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
@@ -19,6 +20,7 @@
 
 #include "lib/jxl/base/common.h"
 #include "lib/jxl/base/data_parallel.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/color_encoding_internal.h"
 #include "lib/jxl/common.h"  // JPEGXL_ENABLE_TRANSCODE_JPEG
@@ -34,25 +36,30 @@ namespace jxl {
 class ImageBundle {
  public:
   // Uninitialized state for use as output parameter.
-  ImageBundle() : metadata_(nullptr) {}
+  explicit ImageBundle(JxlMemoryManager* memory_manager)
+      : memory_manager_(memory_manager), metadata_(nullptr) {}
   // Caller is responsible for setting metadata before calling Set*.
-  explicit ImageBundle(const ImageMetadata* metadata) : metadata_(metadata) {}
+  ImageBundle(JxlMemoryManager* memory_manager, const ImageMetadata* metadata)
+      : memory_manager_(memory_manager), metadata_(metadata) {}
 
   // Move-only (allows storing in std::vector).
   ImageBundle(ImageBundle&&) = default;
   ImageBundle& operator=(ImageBundle&&) = default;
 
   StatusOr<ImageBundle> Copy() const {
-    ImageBundle copy(metadata_);
-    JXL_ASSIGN_OR_RETURN(copy.color_,
-                         Image3F::Create(color_.xsize(), color_.ysize()));
-    CopyImageTo(color_, &copy.color_);
+    JxlMemoryManager* memory_manager = this->memory_manager();
+    ImageBundle copy(memory_manager, metadata_);
+    JXL_ASSIGN_OR_RETURN(
+        copy.color_,
+        Image3F::Create(memory_manager, color_.xsize(), color_.ysize()));
+    JXL_RETURN_IF_ERROR(CopyImageTo(color_, &copy.color_));
     copy.c_current_ = c_current_;
     copy.extra_channels_.reserve(extra_channels_.size());
     for (const ImageF& plane : extra_channels_) {
-      JXL_ASSIGN_OR_RETURN(ImageF ec,
-                           ImageF::Create(plane.xsize(), plane.ysize()));
-      CopyImageTo(plane, &ec);
+      JXL_ASSIGN_OR_RETURN(
+          ImageF ec,
+          ImageF::Create(memory_manager, plane.xsize(), plane.ysize()));
+      JXL_RETURN_IF_ERROR(CopyImageTo(plane, &ec));
       copy.extra_channels_.emplace_back(std::move(ec));
     }
 
@@ -76,7 +83,7 @@ class ImageBundle {
     if (color_.ysize() != 0) return color_.ysize();
     return extra_channels_.empty() ? 0 : extra_channels_[0].ysize();
   }
-  void ShrinkTo(size_t xsize, size_t ysize);
+  Status ShrinkTo(size_t xsize, size_t ysize);
 
   // sizes taking orientation into account
   size_t oriented_xsize() const {
@@ -94,7 +101,11 @@ class ImageBundle {
     }
   }
 
+  JxlMemoryManager* memory_manager_;
+
   // -- COLOR
+
+  JxlMemoryManager* memory_manager() const { return memory_manager_; }
 
   // Whether color() is valid/usable. Returns true in most cases. Even images
   // with spot colors (one example of when !planes().empty()) typically have a
@@ -122,7 +133,7 @@ class ImageBundle {
   // a decoder might return pixels in a different c_current.
   // This only sets the color channels, you must also make extra channels
   // match the amount that is in the metadata.
-  void SetFromImage(Image3F&& color, const ColorEncoding& c_current);
+  Status SetFromImage(Image3F&& color, const ColorEncoding& c_current);
 
   // -- COLOR ENCODING
 
@@ -160,7 +171,7 @@ class ImageBundle {
 
   // -- ALPHA
 
-  void SetAlpha(ImageF&& alpha);
+  Status SetAlpha(ImageF&& alpha);
   bool HasAlpha() const {
     return metadata_->Find(ExtraChannel::kAlpha) != nullptr;
   }
@@ -168,17 +179,17 @@ class ImageBundle {
     const ExtraChannelInfo* eci = metadata_->Find(ExtraChannel::kAlpha);
     return (eci == nullptr) ? false : eci->alpha_associated;
   }
-  const ImageF& alpha() const;
+  const ImageF* alpha() const;
   ImageF* alpha();
 
   // -- EXTRA CHANNELS
   bool HasBlack() const {
     return metadata_->Find(ExtraChannel::kBlack) != nullptr;
   }
-  const ImageF& black() const;
+  const ImageF* black() const;
 
   // Extra channels of unknown interpretation (e.g. spot colors).
-  void SetExtraChannels(std::vector<ImageF>&& extra_channels);
+  Status SetExtraChannels(std::vector<ImageF>&& extra_channels);
   void ClearExtraChannels() { extra_channels_.clear(); }
   bool HasExtraChannels() const { return !extra_channels_.empty(); }
   const std::vector<ImageF>& extra_channels() const { return extra_channels_; }
@@ -186,7 +197,7 @@ class ImageBundle {
 
   const ImageMetadata* metadata() const { return metadata_; }
 
-  void VerifyMetadata() const;
+  Status VerifyMetadata() const;
 
   void SetDecodedBytes(size_t decoded_bytes) { decoded_bytes_ = decoded_bytes; }
   size_t decoded_bytes() const { return decoded_bytes_; }
@@ -231,7 +242,7 @@ class ImageBundle {
 
  private:
   // Called after any Set* to ensure their sizes are compatible.
-  void VerifySizes() const;
+  Status VerifySizes() const;
 
   // Required for TransformTo so that an ImageBundle is self-sufficient. Always
   // points to the same thing, but cannot be const-pointer because that prevents

@@ -3,6 +3,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+#include "lib/jxl/base/status.h"
 #include "lib/jxl/convolve.h"
 
 #undef HWY_TARGET_INCLUDE
@@ -10,6 +11,7 @@
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/convolve-inl.h"
 
 HWY_BEFORE_NAMESPACE();
@@ -166,16 +168,19 @@ class Symmetric3Strategy {
   }
 };
 
-void Symmetric3(const ImageF& in, const Rect& rect,
-                const WeightsSymmetric3& weights, ThreadPool* pool,
-                ImageF* out) {
+Status Symmetric3(const ImageF& in, const Rect& rect,
+                  const WeightsSymmetric3& weights, ThreadPool* pool,
+                  ImageF* out) {
   using Conv = ConvolveT<Symmetric3Strategy>;
   if (rect.xsize() >= Conv::MinWidth()) {
+    JXL_ENSURE(SameSize(rect, *out));
+    JXL_ENSURE(rect.xsize() >= Conv::MinWidth());
     Conv::Run(in, rect, weights, pool, out);
-    return;
+    return true;
   }
 
-  SlowSymmetric3(in, rect, weights, pool, out);
+  JXL_RETURN_IF_ERROR(SlowSymmetric3(in, rect, weights, pool, out));
+  return true;
 }
 
 // NOLINTNEXTLINE(google-readability-namespace-comments)
@@ -187,10 +192,10 @@ HWY_AFTER_NAMESPACE();
 namespace jxl {
 
 HWY_EXPORT(Symmetric3);
-void Symmetric3(const ImageF& in, const Rect& rect,
-                const WeightsSymmetric3& weights, ThreadPool* pool,
-                ImageF* out) {
-  HWY_DYNAMIC_DISPATCH(Symmetric3)(in, rect, weights, pool, out);
+Status Symmetric3(const ImageF& in, const Rect& rect,
+                  const WeightsSymmetric3& weights, ThreadPool* pool,
+                  ImageF* out) {
+  return HWY_DYNAMIC_DISPATCH(Symmetric3)(in, rect, weights, pool, out);
 }
 
 }  // namespace jxl

@@ -6,21 +6,17 @@
 #ifndef LIB_JXL_QUANTIZER_H_
 #define LIB_JXL_QUANTIZER_H_
 
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
-
 #include <algorithm>
 #include <cmath>
-#include <utility>
-#include <vector>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
 
-#include "lib/jxl/ac_strategy.h"
-#include "lib/jxl/base/bits.h"
 #include "lib/jxl/base/compiler_specific.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
-#include "lib/jxl/dct_util.h"
 #include "lib/jxl/dec_bit_reader.h"
+#include "lib/jxl/field_encodings.h"
 #include "lib/jxl/fields.h"
 #include "lib/jxl/image.h"
 #include "lib/jxl/quant_weights.h"
@@ -30,6 +26,8 @@
 // block index inside that strategy).
 
 namespace jxl {
+
+enum class AcStrategyType : uint32_t;
 
 static constexpr int kGlobalScaleDenom = 1 << 16;
 static constexpr int kGlobalScaleNumerator = 4096;
@@ -62,8 +60,8 @@ struct QuantizerParams;
 
 class Quantizer {
  public:
-  explicit Quantizer(const DequantMatrices* dequant);
-  Quantizer(const DequantMatrices* dequant, int quant_dc, int global_scale);
+  explicit Quantizer(const DequantMatrices& dequant);
+  Quantizer(const DequantMatrices& dequant, int quant_dc, int global_scale);
 
   static constexpr int32_t kQuantMax = 256;
 
@@ -101,8 +99,8 @@ class Quantizer {
   void SetQuantFieldRect(const ImageF& qf, const Rect& rect,
                          ImageI* JXL_RESTRICT raw_quant_field) const;
 
-  void SetQuantField(float quant_dc, const ImageF& qf,
-                     ImageI* JXL_RESTRICT raw_quant_field);
+  Status SetQuantField(float quant_dc, const ImageF& qf,
+                       ImageI* JXL_RESTRICT raw_quant_field);
 
   void SetQuant(float quant_dc, float quant_ac,
                 ImageI* JXL_RESTRICT raw_quant_field);
@@ -121,11 +119,13 @@ class Quantizer {
 
   void DumpQuantizationMap(const ImageI& raw_quant_field) const;
 
-  JXL_INLINE const float* DequantMatrix(size_t quant_kind, size_t c) const {
+  JXL_INLINE const float* DequantMatrix(AcStrategyType quant_kind,
+                                        size_t c) const {
     return dequant_->Matrix(quant_kind, c);
   }
 
-  JXL_INLINE const float* InvDequantMatrix(size_t quant_kind, size_t c) const {
+  JXL_INLINE const float* InvDequantMatrix(AcStrategyType quant_kind,
+                                           size_t c) const {
     return dequant_->InvMatrix(quant_kind, c);
   }
 

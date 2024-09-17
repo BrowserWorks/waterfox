@@ -39,14 +39,14 @@ bool LoadJpegXlImage(const gchar *const filename, gint32 *const image_id) {
   GimpColorProfile *profile_icc = nullptr;
   GimpColorProfile *profile_int = nullptr;
   bool is_linear = false;
-  unsigned long xsize = 0;
-  unsigned long ysize = 0;
-  long crop_x0 = 0;
-  long crop_y0 = 0;
+  uint32_t xsize = 0;
+  uint32_t ysize = 0;
+  int32_t crop_x0 = 0;
+  int32_t crop_y0 = 0;
   size_t layer_idx = 0;
   uint32_t frame_duration = 0;
   double tps_denom = 1.f;
-  double tps_numer = 1.f;
+  double tps_numerator = 1.f;
 
   gint32 layer;
 
@@ -61,8 +61,7 @@ bool LoadJpegXlImage(const gchar *const filename, gint32 *const image_id) {
   JxlPixelFormat format = {};
   JxlAnimationHeader animation = {};
   JxlBlendMode blend_mode = JXL_BLEND_BLEND;
-  char *frame_name = nullptr;  // will be realloced
-  size_t frame_name_len = 0;
+  std::vector<char> frame_name;
 
   format.num_channels = 4;
   format.data_type = JXL_TYPE_FLOAT;
@@ -134,7 +133,7 @@ bool LoadJpegXlImage(const gchar *const filename, gint32 *const image_id) {
       if (info.have_animation) {
         animation = info.animation;
         tps_denom = animation.tps_denominator;
-        tps_numer = animation.tps_numerator;
+        tps_numerator = animation.tps_numerator;
       }
 
       JxlResizableParallelRunnerSetThreads(
@@ -356,28 +355,20 @@ bool LoadJpegXlImage(const gchar *const filename, gint32 *const image_id) {
       if (layer_idx == 0 && !info.have_animation) {
         layer_name = g_strdup_printf("Background");
       } else {
-        const GString *blend_null_flag = g_string_new("");
-        const GString *blend_replace_flag = g_string_new(" (replace)");
-        const GString *blend_combine_flag = g_string_new(" (combine)");
-        const GString *blend;
-        if (blend_mode == JXL_BLEND_REPLACE) {
-          blend = blend_replace_flag;
-        } else if (blend_mode == JXL_BLEND_BLEND) {
-          blend = blend_combine_flag;
-        } else {
-          blend = blend_null_flag;
-        }
+        const char *blend = (blend_mode == JXL_BLEND_REPLACE) ? " (replace)"
+                            : (blend_mode == JXL_BLEND_BLEND) ? " (combine)"
+                                                              : "";
         char *temp_frame_name = nullptr;
         bool must_free_frame_name = false;
-        if (frame_name_len == 0) {
+        if (frame_name.size() == 0) {
           temp_frame_name = g_strdup_printf("Frame %lu", layer_idx + 1);
           must_free_frame_name = true;
         } else {
-          temp_frame_name = frame_name;
+          temp_frame_name = frame_name.data();
         }
-        double fduration = frame_duration * 1000.f * tps_denom / tps_numer;
+        double fduration = frame_duration * 1000.f * tps_denom / tps_numerator;
         layer_name = g_strdup_printf("%s (%.15gms)%s", temp_frame_name,
-                                     fduration, blend->str);
+                                     fduration, blend);
         if (must_free_frame_name) free(temp_frame_name);
       }
       layer = gimp_layer_new(*image_id, layer_name, xsize, ysize, layer_type,
@@ -436,15 +427,16 @@ bool LoadJpegXlImage(const gchar *const filename, gint32 *const image_id) {
             " Warning: JxlDecoderGetFrameHeader: Unhandled blend mode: %d\n",
             blend_mode);
       }
-      frame_name_len = frame_header.name_length;
-      if (frame_name_len > 0) {
-        frame_name =
-            reinterpret_cast<char *>(realloc(frame_name, frame_name_len));
-        if (JXL_DEC_SUCCESS !=
-            JxlDecoderGetFrameName(dec.get(), frame_name, frame_name_len)) {
+      if (frame_header.name_length > 0) {
+        frame_name.resize(frame_header.name_length + 1);
+        if (JXL_DEC_SUCCESS != JxlDecoderGetFrameName(dec.get(),
+                                                      frame_name.data(),
+                                                      frame_name.size())) {
           g_printerr(LOAD_PROC "Error: JxlDecoderGetFrameName failed");
           return false;
-        };
+        }
+      } else {
+        frame_name.resize(0);
       }
     } else if (status == JXL_DEC_SUCCESS) {
       // All decoding successfully finished.

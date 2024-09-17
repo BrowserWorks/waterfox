@@ -9,11 +9,14 @@
 // Library to encode the ANS population counts to the bit-stream and encode
 // symbols based on the respective distributions.
 
+#include <jxl/memory_manager.h>
+
 #include <cstddef>
 #include <cstdint>
 #include <vector>
 
 #include "lib/jxl/ans_params.h"
+#include "lib/jxl/base/status.h"
 #include "lib/jxl/dec_ans.h"
 #include "lib/jxl/enc_ans_params.h"
 #include "lib/jxl/enc_bit_writer.h"
@@ -21,6 +24,7 @@
 namespace jxl {
 
 struct AuxOut;
+enum class LayerType : uint8_t;
 
 #define USE_MULT_BY_RECIPROCAL
 
@@ -94,31 +98,31 @@ struct Token {
 
 // Returns an estimate of the number of bits required to encode the given
 // histogram (header bits plus data bits).
-float ANSPopulationCost(const ANSHistBin* data, size_t alphabet_size);
+StatusOr<float> ANSPopulationCost(const ANSHistBin* data, size_t alphabet_size);
 
 // Writes the context map to the bitstream and concatenates the individual
 // histogram bistreams in codes.encoded_histograms. Used in streaming mode.
-void EncodeHistograms(const std::vector<uint8_t>& context_map,
-                      const EntropyEncodingData& codes, BitWriter* writer,
-                      size_t layer, AuxOut* aux_out);
+Status EncodeHistograms(const std::vector<uint8_t>& context_map,
+                        const EntropyEncodingData& codes, BitWriter* writer,
+                        LayerType layer, AuxOut* aux_out);
 
 // Apply context clustering, compute histograms and encode them. Returns an
 // estimate of the total bits used for encoding the stream. If `writer` ==
 // nullptr, the bit estimate will not take into account the context map (which
 // does not get written if `num_contexts` == 1).
-size_t BuildAndEncodeHistograms(const HistogramParams& params,
-                                size_t num_contexts,
-                                std::vector<std::vector<Token>>& tokens,
-                                EntropyEncodingData* codes,
-                                std::vector<uint8_t>* context_map,
-                                BitWriter* writer, size_t layer,
-                                AuxOut* aux_out);
+// Returns cost
+StatusOr<size_t> BuildAndEncodeHistograms(
+    JxlMemoryManager* memory_manager, const HistogramParams& params,
+    size_t num_contexts, std::vector<std::vector<Token>>& tokens,
+    EntropyEncodingData* codes, std::vector<uint8_t>* context_map,
+    BitWriter* writer, LayerType layer, AuxOut* aux_out);
 
 // Write the tokens to a string.
-void WriteTokens(const std::vector<Token>& tokens,
-                 const EntropyEncodingData& codes,
-                 const std::vector<uint8_t>& context_map, size_t context_offset,
-                 BitWriter* writer, size_t layer, AuxOut* aux_out);
+Status WriteTokens(const std::vector<Token>& tokens,
+                   const EntropyEncodingData& codes,
+                   const std::vector<uint8_t>& context_map,
+                   size_t context_offset, BitWriter* writer, LayerType layer,
+                   AuxOut* aux_out);
 
 // Same as above, but assumes allotment created by caller.
 size_t WriteTokens(const std::vector<Token>& tokens,

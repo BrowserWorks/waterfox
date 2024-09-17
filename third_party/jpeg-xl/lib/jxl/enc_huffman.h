@@ -6,6 +6,10 @@
 #ifndef LIB_JXL_ENC_HUFFMAN_H_
 #define LIB_JXL_ENC_HUFFMAN_H_
 
+#include <cstddef>
+#include <cstdint>
+
+#include "lib/jxl/base/status.h"
 #include "lib/jxl/enc_bit_writer.h"
 
 namespace jxl {
@@ -13,9 +17,9 @@ namespace jxl {
 // Builds a Huffman tree for the given histogram, and encodes it into writer
 // in a format that can be read by HuffmanDecodingData::ReadFromBitstream.
 // An allotment for `writer` must already have been created by the caller.
-void BuildAndStoreHuffmanTree(const uint32_t* histogram, size_t length,
-                              uint8_t* depth, uint16_t* bits,
-                              BitWriter* writer);
+Status BuildAndStoreHuffmanTree(const uint32_t* histogram, size_t length,
+                                uint8_t* depth, uint16_t* bits,
+                                BitWriter* writer);
 
 }  // namespace jxl
 

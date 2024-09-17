@@ -10,7 +10,7 @@ if (PkgConfig_FOUND)
 endif ()
 
 find_path(HWY_INCLUDE_DIR
-  NAMES hwy/highway.h
+  NAMES hwy/base.h hwy/highway.h
   HINTS ${PC_HWY_INCLUDEDIR} ${PC_HWY_INCLUDE_DIRS}
 )
 
@@ -19,21 +19,31 @@ find_library(HWY_LIBRARY
   HINTS ${PC_HWY_LIBDIR} ${PC_HWY_LIBRARY_DIRS}
 )
 
+# If version not found using pkg-config, try extracting it from header files
 if (HWY_INCLUDE_DIR AND NOT HWY_VERSION)
-  if (EXISTS "${HWY_INCLUDE_DIR}/hwy/highway.h")
-    file(READ "${HWY_INCLUDE_DIR}/hwy/highway.h" HWY_VERSION_CONTENT)
+  set(HWY_VERSION "")
+  set(HWY_POSSIBLE_HEADERS "${HWY_INCLUDE_DIR}/hwy/base.h" "${HWY_INCLUDE_DIR}/hwy/highway.h")
+  foreach(HWY_HEADER_FILE IN LISTS HWY_POSSIBLE_HEADERS)
+    if (EXISTS "${HWY_HEADER_FILE}")
+      file(READ  "${HWY_HEADER_FILE}" HWY_VERSION_CONTENT)
 
-    string(REGEX MATCH "#define HWY_MAJOR +([0-9]+)" _sink "${HWY_VERSION_CONTENT}")
-    set(HWY_VERSION_MAJOR "${CMAKE_MATCH_1}")
+      string(REGEX MATCH "#define HWY_MAJOR +([0-9]+)" _sink "${HWY_VERSION_CONTENT}")
+      set(HWY_VERSION_MAJOR "${CMAKE_MATCH_1}")
 
-    string(REGEX MATCH "#define +HWY_MINOR +([0-9]+)" _sink "${HWY_VERSION_CONTENT}")
-    set(HWY_VERSION_MINOR "${CMAKE_MATCH_1}")
+      string(REGEX MATCH "#define +HWY_MINOR +([0-9]+)" _sink "${HWY_VERSION_CONTENT}")
+      set(HWY_VERSION_MINOR "${CMAKE_MATCH_1}")
 
-    string(REGEX MATCH "#define +HWY_PATCH +([0-9]+)" _sink "${HWY_VERSION_CONTENT}")
-    set(HWY_VERSION_PATCH "${CMAKE_MATCH_1}")
-
-    set(HWY_VERSION "${HWY_VERSION_MAJOR}.${HWY_VERSION_MINOR}.${HWY_VERSION_PATCH}")
-  endif ()
+      string(REGEX MATCH "#define +HWY_PATCH +([0-9]+)" _sink "${HWY_VERSION_CONTENT}")
+      set(HWY_VERSION_PATCH "${CMAKE_MATCH_1}")
+      if (NOT HWY_VERSION_MAJOR STREQUAL "" AND NOT HWY_VERSION_MINOR STREQUAL "" AND NOT HWY_VERSION_PATCH STREQUAL "")
+        set(HWY_VERSION "${HWY_VERSION_MAJOR}.${HWY_VERSION_MINOR}.${HWY_VERSION_PATCH}")
+        break()
+      endif()
+    endif ()
+  endforeach ()
+  if (NOT HWY_VERSION)
+    message(WARNING "Highway version not found.")
+  endif()
 endif ()
 
 include(FindPackageHandleStandardArgs)

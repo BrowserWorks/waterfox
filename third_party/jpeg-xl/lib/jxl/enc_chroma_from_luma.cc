@@ -5,19 +5,21 @@
 
 #include "lib/jxl/enc_chroma_from_luma.h"
 
-#include <float.h>
-#include <stdlib.h>
+#include <jxl/memory_manager.h>
 
 #include <algorithm>
+#include <cfloat>
 #include <cmath>
+#include <cstdlib>
+#include <hwy/base.h>  // HWY_ALIGN_MAX
 
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "lib/jxl/enc_chroma_from_luma.cc"
-#include <hwy/aligned_allocator.h>
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 
 #include "lib/jxl/base/common.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/cms/opsin_params.h"
 #include "lib/jxl/dec_transforms-inl.h"
@@ -49,7 +51,9 @@ struct CFLFunction {
         values_s(values_s),
         num(num),
         base(base),
-        distance_mul(distance_mul) {}
+        distance_mul(distance_mul) {
+    JXL_DASSERT(num % Lanes(df) == 0);
+  }
 
   // Returns f'(x), where f is 1/3 * sum ((|color residual| + 1)^2-1) +
   // distance_mul * x^2 * num.
@@ -70,7 +74,6 @@ struct CFLFunction {
     auto fd_v = Zero(df);
     auto fdpe_v = Zero(df);
     auto fdme_v = Zero(df);
-    JXL_ASSERT(num % Lanes(df) == 0);
 
     for (size_t i = 0; i < num; i += Lanes(df)) {
       // color residual = ax + b
@@ -170,15 +173,17 @@ int32_t FindBestMultiplier(const float* values_m, const float* values_s,
   return std::max(-128.0f, std::min(127.0f, roundf(x)));
 }
 
-Status InitDCStorage(size_t num_blocks, ImageF* dc_values) {
+Status InitDCStorage(JxlMemoryManager* memory_manager, size_t num_blocks,
+                     ImageF* dc_values) {
   // First row: Y channel
   // Second row: X channel
   // Third row: Y channel
   // Fourth row: B channel
-  JXL_ASSIGN_OR_RETURN(*dc_values,
-                       ImageF::Create(RoundUpTo(num_blocks, Lanes(df)), 4));
+  JXL_ASSIGN_OR_RETURN(
+      *dc_values,
+      ImageF::Create(memory_manager, RoundUpTo(num_blocks, Lanes(df)), 4));
 
-  JXL_ASSERT(dc_values->xsize() != 0);
+  JXL_ENSURE(dc_values->xsize() != 0);
   // Zero-fill the last lanes
   for (size_t y = 0; y < 4; y++) {
     for (size_t x = dc_values->xsize() - Lanes(df); x < dc_values->xsize();
@@ -189,12 +194,12 @@ Status InitDCStorage(size_t num_blocks, ImageF* dc_values) {
   return true;
 }
 
-void ComputeTile(const Image3F& opsin, const Rect& opsin_rect,
-                 const DequantMatrices& dequant,
-                 const AcStrategyImage* ac_strategy,
-                 const ImageI* raw_quant_field, const Quantizer* quantizer,
-                 const Rect& rect, bool fast, bool use_dct8, ImageSB* map_x,
-                 ImageSB* map_b, ImageF* dc_values, float* mem) {
+Status ComputeTile(const Image3F& opsin, const Rect& opsin_rect,
+                   const DequantMatrices& dequant,
+                   const AcStrategyImage* ac_strategy,
+                   const ImageI* raw_quant_field, const Quantizer* quantizer,
+                   const Rect& rect, bool fast, bool use_dct8, ImageSB* map_x,
+                   ImageSB* map_b, ImageF* dc_values, float* mem) {
   static_assert(kEncTileDimInBlocks == kColorTileDimInBlocks,
                 "Invalid color tile dim");
   size_t xsize_blocks = opsin_rect.xsize() / kBlockDim;
@@ -229,7 +234,7 @@ void ComputeTile(const Image3F& opsin, const Rect& opsin_rect,
   float* HWY_RESTRICT scratch_space = coeffs_b + kColorTileDim * kColorTileDim;
   float* scratch_space_end =
       scratch_space + 2 * AcStrategy::kMaxCoeffArea + dct_scratch_size;
-  JXL_DASSERT(scratch_space_end == block_y + CfLHeuristics::ItemsPerThread());
+  JXL_ENSURE(scratch_space_end == block_y + CfLHeuristics::ItemsPerThread());
   (void)scratch_space_end;
 
   // Small (~256 bytes each)
@@ -252,7 +257,7 @@ void ComputeTile(const Image3F& opsin, const Rect& opsin_rect,
 
     for (size_t x = x0; x < x1; x++) {
       AcStrategy acs = use_dct8
-                           ? AcStrategy::FromRawStrategy(AcStrategy::Type::DCT)
+                           ? AcStrategy::FromRawStrategy(AcStrategyType::DCT)
                            : ac_strategy->ConstRow(y)[x];
       if (!acs.IsFirstBlock()) continue;
       size_t xs = acs.covered_blocks_x();
@@ -330,12 +335,13 @@ void ComputeTile(const Image3F& opsin, const Rect& opsin_rect,
       }
     }
   }
-  JXL_CHECK(num_ac % Lanes(df) == 0);
+  JXL_ENSURE(num_ac % Lanes(df) == 0);
   row_out_x[tx] = FindBestMultiplier(coeffs_yx, coeffs_x, num_ac, 0.0f,
                                      kDistanceMultiplierAC, fast);
   row_out_b[tx] =
       FindBestMultiplier(coeffs_yb, coeffs_b, num_ac, jxl::cms::kYToBRatio,
                          kDistanceMultiplierAC, fast);
+  return true;
 }
 
 // NOLINTNEXTLINE(google-readability-namespace-comments)
@@ -352,48 +358,52 @@ HWY_EXPORT(ComputeTile);
 Status CfLHeuristics::Init(const Rect& rect) {
   size_t xsize_blocks = rect.xsize() / kBlockDim;
   size_t ysize_blocks = rect.ysize() / kBlockDim;
-  return HWY_DYNAMIC_DISPATCH(InitDCStorage)(xsize_blocks * ysize_blocks,
-                                             &dc_values);
+  return HWY_DYNAMIC_DISPATCH(InitDCStorage)(
+      memory_manager, xsize_blocks * ysize_blocks, &dc_values);
 }
 
-void CfLHeuristics::ComputeTile(const Rect& r, const Image3F& opsin,
-                                const Rect& opsin_rect,
-                                const DequantMatrices& dequant,
-                                const AcStrategyImage* ac_strategy,
-                                const ImageI* raw_quant_field,
-                                const Quantizer* quantizer, bool fast,
-                                size_t thread, ColorCorrelationMap* cmap) {
+Status CfLHeuristics::ComputeTile(const Rect& r, const Image3F& opsin,
+                                  const Rect& opsin_rect,
+                                  const DequantMatrices& dequant,
+                                  const AcStrategyImage* ac_strategy,
+                                  const ImageI* raw_quant_field,
+                                  const Quantizer* quantizer, bool fast,
+                                  size_t thread, ColorCorrelationMap* cmap) {
   bool use_dct8 = ac_strategy == nullptr;
-  HWY_DYNAMIC_DISPATCH(ComputeTile)
-  (opsin, opsin_rect, dequant, ac_strategy, raw_quant_field, quantizer, r, fast,
-   use_dct8, &cmap->ytox_map, &cmap->ytob_map, &dc_values,
-   mem.get() + thread * ItemsPerThread());
+  return HWY_DYNAMIC_DISPATCH(ComputeTile)(
+      opsin, opsin_rect, dequant, ac_strategy, raw_quant_field, quantizer, r,
+      fast, use_dct8, &cmap->ytox_map, &cmap->ytob_map, &dc_values,
+      mem.address<float>() + thread * ItemsPerThread());
 }
 
-void ColorCorrelationMapEncodeDC(const ColorCorrelationMap& map,
-                                 BitWriter* writer, size_t layer,
-                                 AuxOut* aux_out) {
-  float color_factor = map.GetColorFactor();
-  float base_correlation_x = map.GetBaseCorrelationX();
-  float base_correlation_b = map.GetBaseCorrelationB();
-  int32_t ytox_dc = map.GetYToXDC();
-  int32_t ytob_dc = map.GetYToBDC();
+Status ColorCorrelationEncodeDC(const ColorCorrelation& color_correlation,
+                                BitWriter* writer, LayerType layer,
+                                AuxOut* aux_out) {
+  float color_factor = color_correlation.GetColorFactor();
+  float base_correlation_x = color_correlation.GetBaseCorrelationX();
+  float base_correlation_b = color_correlation.GetBaseCorrelationB();
+  int32_t ytox_dc = color_correlation.GetYToXDC();
+  int32_t ytob_dc = color_correlation.GetYToBDC();
 
-  BitWriter::Allotment allotment(writer, 1 + 2 * kBitsPerByte + 12 + 32);
-  if (ytox_dc == 0 && ytob_dc == 0 && color_factor == kDefaultColorFactor &&
-      base_correlation_x == 0.0f &&
-      base_correlation_b == jxl::cms::kYToBRatio) {
-    writer->Write(1, 1);
-    allotment.ReclaimAndCharge(writer, layer, aux_out);
-    return;
-  }
-  writer->Write(1, 0);
-  JXL_CHECK(U32Coder::Write(kColorFactorDist, color_factor, writer));
-  JXL_CHECK(F16Coder::Write(base_correlation_x, writer));
-  JXL_CHECK(F16Coder::Write(base_correlation_b, writer));
-  writer->Write(kBitsPerByte, ytox_dc - std::numeric_limits<int8_t>::min());
-  writer->Write(kBitsPerByte, ytob_dc - std::numeric_limits<int8_t>::min());
-  allotment.ReclaimAndCharge(writer, layer, aux_out);
+  return writer->WithMaxBits(
+      1 + 2 * kBitsPerByte + 12 + 32, layer, aux_out, [&]() -> Status {
+        if (ytox_dc == 0 && ytob_dc == 0 &&
+            color_factor == kDefaultColorFactor && base_correlation_x == 0.0f &&
+            base_correlation_b == jxl::cms::kYToBRatio) {
+          writer->Write(1, 1);
+          return true;
+        }
+        writer->Write(1, 0);
+        JXL_RETURN_IF_ERROR(
+            U32Coder::Write(kColorFactorDist, color_factor, writer));
+        JXL_RETURN_IF_ERROR(F16Coder::Write(base_correlation_x, writer));
+        JXL_RETURN_IF_ERROR(F16Coder::Write(base_correlation_b, writer));
+        writer->Write(kBitsPerByte,
+                      ytox_dc - std::numeric_limits<int8_t>::min());
+        writer->Write(kBitsPerByte,
+                      ytob_dc - std::numeric_limits<int8_t>::min());
+        return true;
+      });
 }
 
 }  // namespace jxl

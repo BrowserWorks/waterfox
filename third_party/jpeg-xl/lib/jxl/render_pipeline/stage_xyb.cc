@@ -5,16 +5,17 @@
 
 #include "lib/jxl/render_pipeline/stage_xyb.h"
 
+#include "lib/jxl/base/common.h"
+#include "lib/jxl/base/sanitizers.h"
+
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "lib/jxl/render_pipeline/stage_xyb.cc"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 
-#include "lib/jxl/base/common.h"
 #include "lib/jxl/cms/opsin_params.h"
 #include "lib/jxl/common.h"  // JXL_HIGH_PRECISION
 #include "lib/jxl/dec_xyb-inl.h"
-#include "lib/jxl/sanitizers.h"
 
 HWY_BEFORE_NAMESPACE();
 namespace jxl {
@@ -32,7 +33,7 @@ class XYBStage : public RenderPipelineStage {
                     size_t xextra, size_t xsize, size_t xpos, size_t ypos,
                     size_t thread_id) const final {
     const HWY_FULL(float) d;
-    JXL_ASSERT(xextra == 0);
+    JXL_ENSURE(xextra == 0);
     const size_t xsize_v = RoundUpTo(xsize, Lanes(d));
     float* JXL_RESTRICT row0 = GetInputRow(input_rows, 0, 0);
     float* JXL_RESTRICT row1 = GetInputRow(input_rows, 1, 0);
@@ -137,15 +138,14 @@ class FastXYBStage : public RenderPipelineStage {
                     size_t xextra, size_t xsize, size_t xpos, size_t ypos,
                     size_t thread_id) const final {
     if (ypos >= height_) return true;
-    JXL_ASSERT(xextra == 0);
+    JXL_ENSURE(xextra == 0);
     const float* xyba[4] = {
         GetInputRow(input_rows, 0, 0), GetInputRow(input_rows, 1, 0),
         GetInputRow(input_rows, 2, 0),
         has_alpha_ ? GetInputRow(input_rows, alpha_c_, 0) : nullptr};
     uint8_t* out_buf = rgb_ + stride_ * ypos + (rgba_ ? 4 : 3) * xpos;
-    FastXYBTosRGB8(xyba, out_buf, rgba_,
-                   xsize + xpos <= width_ ? xsize : width_ - xpos);
-    return true;
+    return FastXYBTosRGB8(xyba, out_buf, rgba_,
+                          xsize + xpos <= width_ ? xsize : width_ - xpos);
   }
 
   RenderPipelineChannelMode GetChannelMode(size_t c) const final {
@@ -172,7 +172,7 @@ class FastXYBStage : public RenderPipelineStage {
 std::unique_ptr<RenderPipelineStage> GetFastXYBTosRGB8Stage(
     uint8_t* rgb, size_t stride, size_t width, size_t height, bool rgba,
     bool has_alpha, size_t alpha_c) {
-  JXL_ASSERT(HasFastXYBTosRGB8());
+  if (!HasFastXYBTosRGB8()) return nullptr;
   return make_unique<FastXYBStage>(rgb, stride, width, height, rgba, has_alpha,
                                    alpha_c);
 }

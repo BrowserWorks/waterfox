@@ -6,14 +6,13 @@
 #ifndef LIB_JXL_DEC_GROUP_BORDER_H_
 #define LIB_JXL_DEC_GROUP_BORDER_H_
 
-#include <stddef.h>
-
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
+#include <vector>
 
-#include "lib/jxl/base/arch_macros.h"
-#include "lib/jxl/base/status.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/frame_dimensions.h"
-#include "lib/jxl/image.h"
 
 namespace jxl {
 
@@ -33,7 +32,7 @@ class GroupBorderAssigner {
 
  private:
   FrameDimensions frame_dim_;
-  std::unique_ptr<std::atomic<uint8_t>[]> counters_;
+  std::vector<std::atomic<uint8_t>> counters_;
 
   // Constants to identify group positions relative to the corners.
   static constexpr uint8_t kTopLeft = 0x01;

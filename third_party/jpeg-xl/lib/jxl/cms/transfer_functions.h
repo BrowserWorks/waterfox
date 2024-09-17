@@ -46,7 +46,7 @@ class TF_HLG_Base {
     if (s <= kDiv12) return copysignf(std::sqrt(3.0 * s), original_sign);
 
     const double e = kA * std::log(12 * s - kB) + kC;
-    JXL_ASSERT(e > 0.0);
+    JXL_DASSERT(e > 0.0);
     return copysignf(e, original_sign);
   }
 
@@ -59,7 +59,7 @@ class TF_HLG_Base {
     if (e <= 0.5) return copysignf(e * e * (1.0 / 3), original_sign);
 
     const double s = (std::exp((e - kC) * kRA) + kB) * kDiv12;
-    JXL_ASSERT(s >= 0);
+    JXL_DASSERT(s >= 0);
     return copysignf(s, original_sign);
   }
 

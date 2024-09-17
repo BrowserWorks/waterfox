@@ -9,17 +9,17 @@
 #include <cmath>
 #include <limits>
 #include <map>
-#include <memory>
 #include <numeric>
 #include <queue>
 #include <tuple>
+
+#include "lib/jxl/base/status.h"
 
 #undef HWY_TARGET_INCLUDE
 #define HWY_TARGET_INCLUDE "lib/jxl/enc_cluster.cc"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 
-#include "lib/jxl/ac_context.h"
 #include "lib/jxl/base/fast_math-inl.h"
 #include "lib/jxl/enc_ans.h"
 HWY_BEFORE_NAMESPACE();
@@ -112,9 +112,9 @@ float HistogramKLDivergence(const Histogram& actual, const Histogram& coding) {
 }
 
 // First step of a k-means clustering with a fancy distance metric.
-void FastClusterHistograms(const std::vector<Histogram>& in,
-                           size_t max_histograms, std::vector<Histogram>* out,
-                           std::vector<uint32_t>* histogram_symbols) {
+Status FastClusterHistograms(const std::vector<Histogram>& in,
+                             size_t max_histograms, std::vector<Histogram>* out,
+                             std::vector<uint32_t>* histogram_symbols) {
   const size_t prev_histograms = out->size();
   out->reserve(max_histograms);
   histogram_symbols->clear();
@@ -176,13 +176,14 @@ void FastClusterHistograms(const std::vector<Histogram>& in,
         best_dist = dist;
       }
     }
-    JXL_ASSERT(best_dist < std::numeric_limits<float>::max());
+    JXL_ENSURE(best_dist < std::numeric_limits<float>::max());
     if (best >= prev_histograms) {
       (*out)[best].AddHistogram(in[i]);
       HistogramEntropy((*out)[best]);
     }
     (*histogram_symbols)[i] = best;
   }
+  return true;
 }
 
 // NOLINTNEXTLINE(google-readability-namespace-comments)
@@ -195,7 +196,7 @@ namespace jxl {
 HWY_EXPORT(FastClusterHistograms);  // Local function
 HWY_EXPORT(HistogramEntropy);       // Local function
 
-float Histogram::PopulationCost() const {
+StatusOr<float> Histogram::PopulationCost() const {
   return ANSPopulationCost(data_.data(), data_.size());
 }
 
@@ -236,10 +237,10 @@ void HistogramReindex(std::vector<Histogram>* out, size_t prev_histograms,
 // Clusters similar histograms in 'in' together, the selected histograms are
 // placed in 'out', and for each index in 'in', *histogram_symbols will
 // indicate which of the 'out' histograms is the best approximation.
-void ClusterHistograms(const HistogramParams& params,
-                       const std::vector<Histogram>& in, size_t max_histograms,
-                       std::vector<Histogram>* out,
-                       std::vector<uint32_t>* histogram_symbols) {
+Status ClusterHistograms(const HistogramParams& params,
+                         const std::vector<Histogram>& in,
+                         size_t max_histograms, std::vector<Histogram>* out,
+                         std::vector<uint32_t>* histogram_symbols) {
   size_t prev_histograms = out->size();
   max_histograms = std::min(max_histograms, params.max_histograms);
   max_histograms = std::min(max_histograms, in.size());
@@ -247,14 +248,15 @@ void ClusterHistograms(const HistogramParams& params,
     max_histograms = std::min(max_histograms, static_cast<size_t>(4));
   }
 
-  HWY_DYNAMIC_DISPATCH(FastClusterHistograms)
-  (in, prev_histograms + max_histograms, out, histogram_symbols);
+  JXL_RETURN_IF_ERROR(HWY_DYNAMIC_DISPATCH(FastClusterHistograms)(
+      in, prev_histograms + max_histograms, out, histogram_symbols));
 
   if (prev_histograms == 0 &&
       params.clustering == HistogramParams::ClusteringType::kBest) {
     for (auto& histo : *out) {
-      histo.entropy_ =
-          ANSPopulationCost(histo.data_.data(), histo.data_.size());
+      JXL_ASSIGN_OR_RETURN(
+          histo.entropy_,
+          ANSPopulationCost(histo.data_.data(), histo.data_.size()));
     }
     uint32_t next_version = 2;
     std::vector<uint32_t> version(out->size(), 1);
@@ -285,8 +287,9 @@ void ClusterHistograms(const HistogramParams& params,
         Histogram histo;
         histo.AddHistogram((*out)[i]);
         histo.AddHistogram((*out)[j]);
-        float cost = ANSPopulationCost(histo.data_.data(), histo.data_.size()) -
-                     (*out)[i].entropy_ - (*out)[j].entropy_;
+        JXL_ASSIGN_OR_RETURN(float cost, ANSPopulationCost(histo.data_.data(),
+                                                           histo.data_.size()));
+        cost -= (*out)[i].entropy_ + (*out)[j].entropy_;
         // Avoid enqueueing pairs that are not advantageous to merge.
         if (cost >= 0) continue;
         pairs_to_merge.push(
@@ -306,8 +309,10 @@ void ClusterHistograms(const HistogramParams& params,
         continue;
       }
       (*out)[first].AddHistogram((*out)[second]);
-      (*out)[first].entropy_ = ANSPopulationCost((*out)[first].data_.data(),
-                                                 (*out)[first].data_.size());
+      JXL_ASSIGN_OR_RETURN(float cost,
+                           ANSPopulationCost((*out)[first].data_.data(),
+                                             (*out)[first].data_.size()));
+      (*out)[first].entropy_ = cost;
       for (uint32_t& item : renumbering) {
         if (item == second) {
           item = first;
@@ -321,8 +326,9 @@ void ClusterHistograms(const HistogramParams& params,
         Histogram histo;
         histo.AddHistogram((*out)[first]);
         histo.AddHistogram((*out)[j]);
-        float cost = ANSPopulationCost(histo.data_.data(), histo.data_.size()) -
-                     (*out)[first].entropy_ - (*out)[j].entropy_;
+        JXL_ASSIGN_OR_RETURN(float cost, ANSPopulationCost(histo.data_.data(),
+                                                           histo.data_.size()));
+        cost -= (*out)[first].entropy_ + (*out)[j].entropy_;
         // Avoid enqueueing pairs that are not advantageous to merge.
         if (cost >= 0) continue;
         pairs_to_merge.push(
@@ -345,6 +351,7 @@ void ClusterHistograms(const HistogramParams& params,
 
   // Convert the context map to a canonical form.
   HistogramReindex(out, prev_histograms, histogram_symbols);
+  return true;
 }
 
 }  // namespace jxl

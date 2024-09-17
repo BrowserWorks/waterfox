@@ -5,11 +5,12 @@
 
 #include "lib/jxl/enc_detect_dots.h"
 
-#include <stdint.h>
+#include <jxl/memory_manager.h>
 
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <utility>
 #include <vector>
@@ -23,6 +24,7 @@
 #include "lib/jxl/base/compiler_specific.h"
 #include "lib/jxl/base/data_parallel.h"
 #include "lib/jxl/base/printf_macros.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/convolve.h"
 #include "lib/jxl/enc_linalg.h"
@@ -50,34 +52,35 @@ StatusOr<ImageF> SumOfSquareDifferences(const Image3F& forig,
   const auto color_coef0 = Set(d, 0.0f);
   const auto color_coef1 = Set(d, 10.0f);
   const auto color_coef2 = Set(d, 0.0f);
+  JxlMemoryManager* memory_manager = forig.memory_manager();
 
-  JXL_ASSIGN_OR_RETURN(ImageF sum_of_squares,
-                       ImageF::Create(forig.xsize(), forig.ysize()));
-  JXL_CHECK(RunOnPool(
-      pool, 0, forig.ysize(), ThreadPool::NoInit,
-      [&](const uint32_t task, size_t thread) {
-        const size_t y = static_cast<size_t>(task);
-        const float* JXL_RESTRICT orig_row0 = forig.Plane(0).ConstRow(y);
-        const float* JXL_RESTRICT orig_row1 = forig.Plane(1).ConstRow(y);
-        const float* JXL_RESTRICT orig_row2 = forig.Plane(2).ConstRow(y);
-        const float* JXL_RESTRICT smooth_row0 = smooth.Plane(0).ConstRow(y);
-        const float* JXL_RESTRICT smooth_row1 = smooth.Plane(1).ConstRow(y);
-        const float* JXL_RESTRICT smooth_row2 = smooth.Plane(2).ConstRow(y);
-        float* JXL_RESTRICT sos_row = sum_of_squares.Row(y);
+  JXL_ASSIGN_OR_RETURN(
+      ImageF sum_of_squares,
+      ImageF::Create(memory_manager, forig.xsize(), forig.ysize()));
+  const auto process_row = [&](const uint32_t task, size_t thread) -> Status {
+    const size_t y = static_cast<size_t>(task);
+    const float* JXL_RESTRICT orig_row0 = forig.Plane(0).ConstRow(y);
+    const float* JXL_RESTRICT orig_row1 = forig.Plane(1).ConstRow(y);
+    const float* JXL_RESTRICT orig_row2 = forig.Plane(2).ConstRow(y);
+    const float* JXL_RESTRICT smooth_row0 = smooth.Plane(0).ConstRow(y);
+    const float* JXL_RESTRICT smooth_row1 = smooth.Plane(1).ConstRow(y);
+    const float* JXL_RESTRICT smooth_row2 = smooth.Plane(2).ConstRow(y);
+    float* JXL_RESTRICT sos_row = sum_of_squares.Row(y);
 
-        for (size_t x = 0; x < forig.xsize(); x += Lanes(d)) {
-          auto v0 = Sub(Load(d, orig_row0 + x), Load(d, smooth_row0 + x));
-          auto v1 = Sub(Load(d, orig_row1 + x), Load(d, smooth_row1 + x));
-          auto v2 = Sub(Load(d, orig_row2 + x), Load(d, smooth_row2 + x));
-          v0 = Mul(Mul(v0, v0), color_coef0);
-          v1 = Mul(Mul(v1, v1), color_coef1);
-          v2 = Mul(Mul(v2, v2), color_coef2);
-          const auto sos =
-              Add(v0, Add(v1, v2));  // weighted sum of square diffs
-          Store(sos, d, sos_row + x);
-        }
-      },
-      "ComputeEnergyImage"));
+    for (size_t x = 0; x < forig.xsize(); x += Lanes(d)) {
+      auto v0 = Sub(Load(d, orig_row0 + x), Load(d, smooth_row0 + x));
+      auto v1 = Sub(Load(d, orig_row1 + x), Load(d, smooth_row1 + x));
+      auto v2 = Sub(Load(d, orig_row2 + x), Load(d, smooth_row2 + x));
+      v0 = Mul(Mul(v0, v0), color_coef0);
+      v1 = Mul(Mul(v1, v1), color_coef1);
+      v2 = Mul(Mul(v2, v2), color_coef2);
+      const auto sos = Add(v0, Add(v1, v2));  // weighted sum of square diffs
+      Store(sos, d, sos_row + x);
+    }
+    return true;
+  };
+  JXL_RETURN_IF_ERROR(RunOnPool(pool, 0, forig.ysize(), ThreadPool::NoInit,
+                                process_row, "ComputeEnergyImage"));
   return sum_of_squares;
 }
 
@@ -145,10 +148,13 @@ const WeightsSeparable5& WeightsSeparable5Gaussian3() {
 
 StatusOr<ImageF> ComputeEnergyImage(const Image3F& orig, Image3F* smooth,
                                     ThreadPool* pool) {
+  JxlMemoryManager* memory_manager = orig.memory_manager();
   // Prepare guidance images for dot selection.
-  JXL_ASSIGN_OR_RETURN(Image3F forig,
-                       Image3F::Create(orig.xsize(), orig.ysize()));
-  JXL_ASSIGN_OR_RETURN(*smooth, Image3F::Create(orig.xsize(), orig.ysize()));
+  JXL_ASSIGN_OR_RETURN(
+      Image3F forig,
+      Image3F::Create(memory_manager, orig.xsize(), orig.ysize()));
+  JXL_ASSIGN_OR_RETURN(
+      *smooth, Image3F::Create(memory_manager, orig.xsize(), orig.ysize()));
   Rect rect(orig);
 
   const auto& weights1 = WeightsSeparable5Gaussian0_65();
@@ -156,9 +162,12 @@ StatusOr<ImageF> ComputeEnergyImage(const Image3F& orig, Image3F* smooth,
 
   for (size_t c = 0; c < 3; ++c) {
     // Use forig as temporary storage to reduce memory and keep it warmer.
-    Separable5(orig.Plane(c), rect, weights3, pool, &forig.Plane(c));
-    Separable5(forig.Plane(c), rect, weights3, pool, &smooth->Plane(c));
-    Separable5(orig.Plane(c), rect, weights1, pool, &forig.Plane(c));
+    JXL_RETURN_IF_ERROR(
+        Separable5(orig.Plane(c), rect, weights3, pool, &forig.Plane(c)));
+    JXL_RETURN_IF_ERROR(
+        Separable5(forig.Plane(c), rect, weights3, pool, &smooth->Plane(c)));
+    JXL_RETURN_IF_ERROR(
+        Separable5(orig.Plane(c), rect, weights1, pool, &forig.Plane(c)));
   }
 
   return HWY_DYNAMIC_DISPATCH(SumOfSquareDifferences)(forig, *smooth, pool);
@@ -267,7 +276,7 @@ struct ConnectedComponent {
 };
 
 Rect BoundingRectangle(const std::vector<Pixel>& pixels) {
-  JXL_ASSERT(!pixels.empty());
+  JXL_DASSERT(!pixels.empty());
   int low_x;
   int high_x;
   int low_y;
@@ -289,9 +298,11 @@ StatusOr<std::vector<ConnectedComponent>> FindCC(const ImageF& energy,
                                                  uint32_t maxWindow,
                                                  double minScore) {
   const int kExtraRect = 4;
-  JXL_ASSIGN_OR_RETURN(ImageF img,
-                       ImageF::Create(energy.xsize(), energy.ysize()));
-  CopyImageTo(energy, &img);
+  JxlMemoryManager* memory_manager = energy.memory_manager();
+  JXL_ASSIGN_OR_RETURN(
+      ImageF img,
+      ImageF::Create(memory_manager, energy.xsize(), energy.ysize()));
+  JXL_RETURN_IF_ERROR(CopyImageTo(energy, &img));
   std::vector<ConnectedComponent> ans;
   for (size_t y = 0; y < rect.ysize(); y++) {
     float* JXL_RESTRICT row = rect.Row(&img, y);
@@ -299,9 +310,8 @@ StatusOr<std::vector<ConnectedComponent>> FindCC(const ImageF& energy,
       if (row[x] > t_high) {
         std::vector<Pixel> pixels;
         row[x] = 0.0;
-        bool success = ExtractComponent(
-            rect, &img, &pixels,
-            Pixel{static_cast<int>(x), static_cast<int>(y)}, t_low);
+        Pixel seed = Pixel{static_cast<int>(x), static_cast<int>(y)};
+        bool success = ExtractComponent(rect, &img, &pixels, seed, t_low);
         if (!success) continue;
 #if JXL_DEBUG_DOT_DETECT
         for (size_t i = 0; i < pixels.size(); i++) {
@@ -395,8 +405,9 @@ void ComputeDotLosses(GaussianEllipse* ellipse, const ConnectedComponent& cc,
   ellipse->ridge_loss = ellipse->l2_loss + ridgeTerm;
 }
 
-GaussianEllipse FitGaussianFast(const ConnectedComponent& cc, const Rect& rect,
-                                const Image3F& img, const Image3F& background) {
+StatusOr<GaussianEllipse> FitGaussianFast(const ConnectedComponent& cc,
+                                          const Rect& rect, const Image3F& img,
+                                          const Image3F& background) {
   constexpr bool leastSqIntensity = true;
   constexpr double kEpsilon = 1e-6;
   GaussianEllipse ans;
@@ -440,7 +451,7 @@ GaussianEllipse FitGaussianFast(const ConnectedComponent& cc, const Rect& rect,
       N++;
     }
   }
-  JXL_CHECK(N > 0);
+  JXL_ENSURE(N > 0);
 
   for (int i = 0; i < 3; i++) {
     m1[i] /= sum;
@@ -506,9 +517,11 @@ GaussianEllipse FitGaussianFast(const ConnectedComponent& cc, const Rect& rect,
   return ans;
 }
 
-GaussianEllipse FitGaussian(const ConnectedComponent& cc, const Rect& rect,
-                            const Image3F& img, const Image3F& background) {
-  auto ellipse = FitGaussianFast(cc, rect, img, background);
+StatusOr<GaussianEllipse> FitGaussian(const ConnectedComponent& cc,
+                                      const Rect& rect, const Image3F& img,
+                                      const Image3F& background) {
+  JXL_ASSIGN_OR_RETURN(GaussianEllipse ellipse,
+                       FitGaussianFast(cc, rect, img, background));
   if (ellipse.sigma_x < ellipse.sigma_y) {
     std::swap(ellipse.sigma_x, ellipse.sigma_y);
     ellipse.angle += kPi / 2.0;
@@ -517,8 +530,8 @@ GaussianEllipse FitGaussian(const ConnectedComponent& cc, const Rect& rect,
   if (fabs(ellipse.angle - kPi) < 1e-6 || fabs(ellipse.angle) < 1e-6) {
     ellipse.angle = 0.0;
   }
-  JXL_CHECK(ellipse.angle >= 0 && ellipse.angle <= kPi &&
-            ellipse.sigma_x >= ellipse.sigma_y);
+  JXL_ENSURE(ellipse.angle >= 0 && ellipse.angle <= kPi &&
+             ellipse.sigma_x >= ellipse.sigma_y);
   JXL_DEBUG(JXL_DEBUG_DOT_DETECT,
             "Ellipse mu=(%lf,%lf) sigma=(%lf,%lf) angle=%lf "
             "intensity=(%lf,%lf,%lf) bg=(%lf,%lf,%lf) l2_loss=%lf "
@@ -537,9 +550,11 @@ GaussianEllipse FitGaussian(const ConnectedComponent& cc, const Rect& rect,
 StatusOr<std::vector<PatchInfo>> DetectGaussianEllipses(
     const Image3F& opsin, const Rect& rect, const GaussianDetectParams& params,
     const EllipseQuantParams& qParams, ThreadPool* pool) {
+  JxlMemoryManager* memory_manager = opsin.memory_manager();
   std::vector<PatchInfo> dots;
-  JXL_ASSIGN_OR_RETURN(Image3F smooth,
-                       Image3F::Create(opsin.xsize(), opsin.ysize()));
+  JXL_ASSIGN_OR_RETURN(
+      Image3F smooth,
+      Image3F::Create(memory_manager, opsin.xsize(), opsin.ysize()));
   JXL_ASSIGN_OR_RETURN(ImageF energy, ComputeEnergyImage(opsin, &smooth, pool));
   JXL_ASSIGN_OR_RETURN(std::vector<ConnectedComponent> components,
                        FindCC(energy, rect, params.t_low, params.t_high,
@@ -555,7 +570,8 @@ StatusOr<std::vector<PatchInfo>> DetectGaussianEllipses(
     components.erase(components.begin() + numCC, components.end());
   }
   for (const auto& cc : components) {
-    GaussianEllipse ellipse = FitGaussian(cc, rect, opsin, smooth);
+    JXL_ASSIGN_OR_RETURN(GaussianEllipse ellipse,
+                         FitGaussian(cc, rect, opsin, smooth));
     if (ellipse.x < 0.0 ||
         std::ceil(ellipse.x) >= static_cast<double>(rect.xsize()) ||
         ellipse.y < 0.0 ||

@@ -3,11 +3,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#include <stdint.h>
-#include <stdlib.h>
+#include <jxl/memory_manager.h>
 
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <cstdlib>
 #include <limits>
 #include <queue>
+#include <utility>
+#include <vector>
 
 #include "lib/jxl/base/common.h"
 #include "lib/jxl/base/printf_macros.h"
@@ -58,13 +64,15 @@ inline std::array<uint8_t, 3> PredictorColor(Predictor p) {
 
 // `cutoffs` must be sorted.
 Tree MakeFixedTree(int property, const std::vector<int32_t> &cutoffs,
-                   Predictor pred, size_t num_pixels) {
+                   Predictor pred, size_t num_pixels, int bitdepth) {
   size_t log_px = CeilLog2Nonzero(num_pixels);
   size_t min_gap = 0;
   // Reduce fixed tree height when encoding small images.
   if (log_px < 14) {
     min_gap = 8 * (14 - log_px);
   }
+  const int shift = bitdepth > 11 ? std::min(4, bitdepth - 11) : 0;
+  const int mul = 1 << shift;
   Tree tree;
   struct NodeInfo {
     size_t begin, end, pos;
@@ -78,8 +86,8 @@ Tree MakeFixedTree(int property, const std::vector<int32_t> &cutoffs,
     q.pop();
     if (info.begin + min_gap >= info.end) continue;
     uint32_t split = (info.begin + info.end) / 2;
-    tree[info.pos] =
-        PropertyDecisionNode::Split(property, cutoffs[split], tree.size());
+    int32_t cutoff = cutoffs[split] * mul;
+    tree[info.pos] = PropertyDecisionNode::Split(property, cutoff, tree.size());
     q.push(NodeInfo{split + 1, info.end, tree.size()});
     tree.push_back(PropertyDecisionNode::Leaf(pred));
     q.push(NodeInfo{info.begin, split, tree.size()});
@@ -95,6 +103,7 @@ Status GatherTreeData(const Image &image, pixel_type chan, size_t group_id,
                       const ModularOptions &options, TreeSamples &tree_samples,
                       size_t *total_pixels) {
   const Channel &channel = image.channel[chan];
+  JxlMemoryManager *memory_manager = channel.memory_manager();
 
   JXL_DEBUG_V(7, "Learning %" PRIuS "x%" PRIuS " channel %d", channel.w,
               channel.h, chan);
@@ -128,7 +137,8 @@ Status GatherTreeData(const Image &image, pixel_type chan, size_t group_id,
   const intptr_t onerow = channel.plane.PixelsPerRow();
   JXL_ASSIGN_OR_RETURN(
       Channel references,
-      Channel::Create(properties.size() - kNumNonrefProperties, channel.w));
+      Channel::Create(memory_manager, properties.size() - kNumNonrefProperties,
+                      channel.w));
   weighted::State wp_state(wp_header, channel.w, channel.h);
   tree_samples.PrepareForSamples(pixel_fraction * channel.h * channel.w + 64);
   const bool multiple_predictors = tree_samples.NumPredictors() != 1;
@@ -192,94 +202,106 @@ Status GatherTreeData(const Image &image, pixel_type chan, size_t group_id,
   return true;
 }
 
-Tree PredefinedTree(ModularOptions::TreeKind tree_kind, size_t total_pixels) {
-  if (tree_kind == ModularOptions::TreeKind::kJpegTranscodeACMeta ||
-      tree_kind == ModularOptions::TreeKind::kTrivialTreeNoPredictor) {
-    // All the data is 0, so no need for a fancy tree.
-    return {PropertyDecisionNode::Leaf(Predictor::Zero)};
-  }
-  if (tree_kind == ModularOptions::TreeKind::kFalconACMeta) {
-    // All the data is 0 except the quant field. TODO(veluca): make that 0 too.
-    return {PropertyDecisionNode::Leaf(Predictor::Left)};
-  }
-  if (tree_kind == ModularOptions::TreeKind::kACMeta) {
-    // Small image.
-    if (total_pixels < 1024) {
+Tree PredefinedTree(ModularOptions::TreeKind tree_kind, size_t total_pixels,
+                    int bitdepth, int prevprop) {
+  switch (tree_kind) {
+    case ModularOptions::TreeKind::kJpegTranscodeACMeta:
+      // All the data is 0, so no need for a fancy tree.
+      return {PropertyDecisionNode::Leaf(Predictor::Zero)};
+    case ModularOptions::TreeKind::kTrivialTreeNoPredictor:
+      // All the data is 0, so no need for a fancy tree.
+      return {PropertyDecisionNode::Leaf(Predictor::Zero)};
+    case ModularOptions::TreeKind::kFalconACMeta:
+      // All the data is 0 except the quant field. TODO(veluca): make that 0
+      // too.
       return {PropertyDecisionNode::Leaf(Predictor::Left)};
+    case ModularOptions::TreeKind::kACMeta: {
+      // Small image.
+      if (total_pixels < 1024) {
+        return {PropertyDecisionNode::Leaf(Predictor::Left)};
+      }
+      Tree tree;
+      // 0: c > 1
+      tree.push_back(PropertyDecisionNode::Split(0, 1, 1));
+      // 1: c > 2
+      tree.push_back(PropertyDecisionNode::Split(0, 2, 3));
+      // 2: c > 0
+      tree.push_back(PropertyDecisionNode::Split(0, 0, 5));
+      // 3: EPF control field (all 0 or 4), top > 3
+      tree.push_back(PropertyDecisionNode::Split(6, 3, 21));
+      // 4: ACS+QF, y > 0
+      tree.push_back(PropertyDecisionNode::Split(2, 0, 7));
+      // 5: CfL x
+      tree.push_back(PropertyDecisionNode::Leaf(Predictor::Gradient));
+      // 6: CfL b
+      tree.push_back(PropertyDecisionNode::Leaf(Predictor::Gradient));
+      // 7: QF: split according to the left quant value.
+      tree.push_back(PropertyDecisionNode::Split(7, 5, 9));
+      // 8: ACS: split in 4 segments (8x8 from 0 to 3, large square 4-5, large
+      // rectangular 6-11, 8x8 12+), according to previous ACS value.
+      tree.push_back(PropertyDecisionNode::Split(7, 5, 15));
+      // QF
+      tree.push_back(PropertyDecisionNode::Split(7, 11, 11));
+      tree.push_back(PropertyDecisionNode::Split(7, 3, 13));
+      tree.push_back(PropertyDecisionNode::Leaf(Predictor::Left));
+      tree.push_back(PropertyDecisionNode::Leaf(Predictor::Left));
+      tree.push_back(PropertyDecisionNode::Leaf(Predictor::Left));
+      tree.push_back(PropertyDecisionNode::Leaf(Predictor::Left));
+      // ACS
+      tree.push_back(PropertyDecisionNode::Split(7, 11, 17));
+      tree.push_back(PropertyDecisionNode::Split(7, 3, 19));
+      tree.push_back(PropertyDecisionNode::Leaf(Predictor::Zero));
+      tree.push_back(PropertyDecisionNode::Leaf(Predictor::Zero));
+      tree.push_back(PropertyDecisionNode::Leaf(Predictor::Zero));
+      tree.push_back(PropertyDecisionNode::Leaf(Predictor::Zero));
+      // EPF, left > 3
+      tree.push_back(PropertyDecisionNode::Split(7, 3, 23));
+      tree.push_back(PropertyDecisionNode::Split(7, 3, 25));
+      tree.push_back(PropertyDecisionNode::Leaf(Predictor::Zero));
+      tree.push_back(PropertyDecisionNode::Leaf(Predictor::Zero));
+      tree.push_back(PropertyDecisionNode::Leaf(Predictor::Zero));
+      tree.push_back(PropertyDecisionNode::Leaf(Predictor::Zero));
+      return tree;
     }
-    Tree tree;
-    // 0: c > 1
-    tree.push_back(PropertyDecisionNode::Split(0, 1, 1));
-    // 1: c > 2
-    tree.push_back(PropertyDecisionNode::Split(0, 2, 3));
-    // 2: c > 0
-    tree.push_back(PropertyDecisionNode::Split(0, 0, 5));
-    // 3: EPF control field (all 0 or 4), top > 0
-    tree.push_back(PropertyDecisionNode::Split(6, 0, 21));
-    // 4: ACS+QF, y > 0
-    tree.push_back(PropertyDecisionNode::Split(2, 0, 7));
-    // 5: CfL x
-    tree.push_back(PropertyDecisionNode::Leaf(Predictor::Gradient));
-    // 6: CfL b
-    tree.push_back(PropertyDecisionNode::Leaf(Predictor::Gradient));
-    // 7: QF: split according to the left quant value.
-    tree.push_back(PropertyDecisionNode::Split(7, 5, 9));
-    // 8: ACS: split in 4 segments (8x8 from 0 to 3, large square 4-5, large
-    // rectangular 6-11, 8x8 12+), according to previous ACS value.
-    tree.push_back(PropertyDecisionNode::Split(7, 5, 15));
-    // QF
-    tree.push_back(PropertyDecisionNode::Split(7, 11, 11));
-    tree.push_back(PropertyDecisionNode::Split(7, 3, 13));
-    tree.push_back(PropertyDecisionNode::Leaf(Predictor::Left));
-    tree.push_back(PropertyDecisionNode::Leaf(Predictor::Left));
-    tree.push_back(PropertyDecisionNode::Leaf(Predictor::Left));
-    tree.push_back(PropertyDecisionNode::Leaf(Predictor::Left));
-    // ACS
-    tree.push_back(PropertyDecisionNode::Split(7, 11, 17));
-    tree.push_back(PropertyDecisionNode::Split(7, 3, 19));
-    tree.push_back(PropertyDecisionNode::Leaf(Predictor::Zero));
-    tree.push_back(PropertyDecisionNode::Leaf(Predictor::Zero));
-    tree.push_back(PropertyDecisionNode::Leaf(Predictor::Zero));
-    tree.push_back(PropertyDecisionNode::Leaf(Predictor::Zero));
-    // EPF, left > 0
-    tree.push_back(PropertyDecisionNode::Split(7, 0, 23));
-    tree.push_back(PropertyDecisionNode::Split(7, 0, 25));
-    tree.push_back(PropertyDecisionNode::Leaf(Predictor::Zero));
-    tree.push_back(PropertyDecisionNode::Leaf(Predictor::Zero));
-    tree.push_back(PropertyDecisionNode::Leaf(Predictor::Zero));
-    tree.push_back(PropertyDecisionNode::Leaf(Predictor::Zero));
-    return tree;
+    case ModularOptions::TreeKind::kWPFixedDC: {
+      std::vector<int32_t> cutoffs = {
+          -500, -392, -255, -191, -127, -95, -63, -47, -31, -23, -15,
+          -11,  -7,   -4,   -3,   -1,   0,   1,   3,   5,   7,   11,
+          15,   23,   31,   47,   63,   95,  127, 191, 255, 392, 500};
+      return MakeFixedTree(kWPProp, cutoffs, Predictor::Weighted, total_pixels,
+                           bitdepth);
+    }
+    case ModularOptions::TreeKind::kGradientFixedDC: {
+      std::vector<int32_t> cutoffs = {
+          -500, -392, -255, -191, -127, -95, -63, -47, -31, -23, -15,
+          -11,  -7,   -4,   -3,   -1,   0,   1,   3,   5,   7,   11,
+          15,   23,   31,   47,   63,   95,  127, 191, 255, 392, 500};
+      return MakeFixedTree(
+          prevprop > 0 ? kNumNonrefProperties + 2 : kGradientProp, cutoffs,
+          Predictor::Gradient, total_pixels, bitdepth);
+    }
+    case ModularOptions::TreeKind::kLearn: {
+      JXL_DEBUG_ABORT("internal: kLearn is not predefined tree");
+      return {};
+    }
   }
-  if (tree_kind == ModularOptions::TreeKind::kWPFixedDC) {
-    std::vector<int32_t> cutoffs = {
-        -500, -392, -255, -191, -127, -95, -63, -47, -31, -23, -15,
-        -11,  -7,   -4,   -3,   -1,   0,   1,   3,   5,   7,   11,
-        15,   23,   31,   47,   63,   95,  127, 191, 255, 392, 500};
-    return MakeFixedTree(kWPProp, cutoffs, Predictor::Weighted, total_pixels);
-  }
-  if (tree_kind == ModularOptions::TreeKind::kGradientFixedDC) {
-    std::vector<int32_t> cutoffs = {
-        -500, -392, -255, -191, -127, -95, -63, -47, -31, -23, -15,
-        -11,  -7,   -4,   -3,   -1,   0,   1,   3,   5,   7,   11,
-        15,   23,   31,   47,   63,   95,  127, 191, 255, 392, 500};
-    return MakeFixedTree(kGradientProp, cutoffs, Predictor::Gradient,
-                         total_pixels);
-  }
-  JXL_UNREACHABLE("Unreachable");
+  JXL_DEBUG_ABORT("internal: unexpected TreeKind: %d",
+                  static_cast<int>(tree_kind));
   return {};
 }
 
-Tree LearnTree(TreeSamples &&tree_samples, size_t total_pixels,
-               const ModularOptions &options,
-               const std::vector<ModularMultiplierInfo> &multiplier_info = {},
-               StaticPropRange static_prop_range = {}) {
+StatusOr<Tree> LearnTree(
+    TreeSamples &&tree_samples, size_t total_pixels,
+    const ModularOptions &options,
+    const std::vector<ModularMultiplierInfo> &multiplier_info = {},
+    StaticPropRange static_prop_range = {}) {
+  Tree tree;
   for (size_t i = 0; i < kNumStaticProperties; i++) {
     if (static_prop_range[i][1] == 0) {
       static_prop_range[i][1] = std::numeric_limits<uint32_t>::max();
     }
   }
   if (!tree_samples.HasSamples()) {
-    Tree tree;
     tree.emplace_back();
     tree.back().predictor = tree_samples.PredictorFromIndex(0);
     tree.back().property = -1;
@@ -290,11 +312,10 @@ Tree LearnTree(TreeSamples &&tree_samples, size_t total_pixels,
   float pixel_fraction = tree_samples.NumSamples() * 1.0f / total_pixels;
   float required_cost = pixel_fraction * 0.9 + 0.1;
   tree_samples.AllSamplesDone();
-  Tree tree;
-  ComputeBestTree(tree_samples,
-                  options.splitting_heuristics_node_threshold * required_cost,
-                  multiplier_info, static_prop_range,
-                  options.fast_decode_multiplier, &tree);
+  JXL_RETURN_IF_ERROR(ComputeBestTree(
+      tree_samples, options.splitting_heuristics_node_threshold * required_cost,
+      multiplier_info, static_prop_range, options.fast_decode_multiplier,
+      &tree));
   return tree;
 }
 
@@ -304,12 +325,14 @@ Status EncodeModularChannelMAANS(const Image &image, pixel_type chan,
                                  AuxOut *aux_out, size_t group_id,
                                  bool skip_encoder_fast_path) {
   const Channel &channel = image.channel[chan];
+  JxlMemoryManager *memory_manager = channel.memory_manager();
   Token *tokenp = *tokenpp;
-  JXL_ASSERT(channel.w != 0 && channel.h != 0);
+  JXL_ENSURE(channel.w != 0 && channel.h != 0);
 
   Image3F predictor_img;
   if (kWantDebug) {
-    JXL_ASSIGN_OR_RETURN(predictor_img, Image3F::Create(channel.w, channel.h));
+    JXL_ASSIGN_OR_RETURN(predictor_img,
+                         Image3F::Create(memory_manager, channel.w, channel.h));
   }
 
   JXL_DEBUG_V(6,
@@ -333,7 +356,7 @@ Status EncodeModularChannelMAANS(const Image &image, pixel_type chan,
   // Check if this tree is a WP-only tree with a small enough property value
   // range.
   // Initialized to avoid clang-tidy complaining.
-  auto tree_lut = jxl::make_unique<TreeLut<uint16_t, false>>();
+  auto tree_lut = jxl::make_unique<TreeLut<uint16_t, false, false>>();
   if (is_wp_only) {
     is_wp_only = TreeToLookupTable(tree, *tree_lut);
   }
@@ -366,7 +389,7 @@ Status EncodeModularChannelMAANS(const Image &image, pixel_type chan,
             kPropRangeFast + std::min(std::max(-kPropRangeFast, properties[0]),
                                       kPropRangeFast - 1);
         uint32_t ctx_id = tree_lut->context_lookup[pos];
-        int32_t residual = r[x] - guess - tree_lut->offsets[pos];
+        int32_t residual = r[x] - guess;
         *tokenp++ = Token(ctx_id, PackSigned(residual));
         wp_state.UpdateErrors(r[x], x, y, channel.w);
       }
@@ -409,7 +432,7 @@ Status EncodeModularChannelMAANS(const Image &image, pixel_type chan,
                 std::max<pixel_type_w>(-kPropRangeFast, top + left - topleft),
                 kPropRangeFast - 1);
         uint32_t ctx_id = tree_lut->context_lookup[pos];
-        int32_t residual = r[x] - guess - tree_lut->offsets[pos];
+        int32_t residual = r[x] - guess;
         *tokenp++ = Token(ctx_id, PackSigned(residual));
       }
     }
@@ -452,7 +475,8 @@ Status EncodeModularChannelMAANS(const Image &image, pixel_type chan,
     const intptr_t onerow = channel.plane.PixelsPerRow();
     JXL_ASSIGN_OR_RETURN(
         Channel references,
-        Channel::Create(properties.size() - kNumNonrefProperties, channel.w));
+        Channel::Create(memory_manager,
+                        properties.size() - kNumNonrefProperties, channel.w));
     for (size_t y = 0; y < channel.h; y++) {
       const pixel_type *JXL_RESTRICT p = channel.Row(y);
       PrecomputeReferences(channel, y, image, chan, &references);
@@ -481,7 +505,8 @@ Status EncodeModularChannelMAANS(const Image &image, pixel_type chan,
     const intptr_t onerow = channel.plane.PixelsPerRow();
     JXL_ASSIGN_OR_RETURN(
         Channel references,
-        Channel::Create(properties.size() - kNumNonrefProperties, channel.w));
+        Channel::Create(memory_manager,
+                        properties.size() - kNumNonrefProperties, channel.w));
     weighted::State wp_state(wp_header, channel.w, channel.h);
     for (size_t y = 0; y < channel.h; y++) {
       const pixel_type *JXL_RESTRICT p = channel.Row(y);
@@ -522,12 +547,13 @@ Status EncodeModularChannelMAANS(const Image &image, pixel_type chan,
 }
 
 Status ModularEncode(const Image &image, const ModularOptions &options,
-                     BitWriter *writer, AuxOut *aux_out, size_t layer,
+                     BitWriter *writer, AuxOut *aux_out, LayerType layer,
                      size_t group_id, TreeSamples *tree_samples,
                      size_t *total_pixels, const Tree *tree,
                      GroupHeader *header, std::vector<Token> *tokens,
                      size_t *width) {
   if (image.error) return JXL_FAILURE("Invalid image");
+  JxlMemoryManager *memory_manager = image.memory_manager();
   size_t nb_channels = image.channel.size();
   JXL_DEBUG_V(
       2, "Encoding %" PRIuS "-channel, %i-bit, %" PRIuS "x%" PRIuS " image.",
@@ -605,7 +631,7 @@ Status ModularEncode(const Image &image, const ModularOptions &options,
     if (gather_data) return true;
   }
 
-  JXL_ASSERT((tree == nullptr) == (tokens == nullptr));
+  JXL_ENSURE((tree == nullptr) == (tokens == nullptr));
 
   Tree tree_storage;
   std::vector<std::vector<Token>> tokens_storage(1);
@@ -615,17 +641,20 @@ Status ModularEncode(const Image &image, const ModularOptions &options,
     std::vector<uint8_t> context_map;
 
     std::vector<std::vector<Token>> tree_tokens(1);
-
-    tree_storage =
-        options.tree_kind == ModularOptions::TreeKind::kLearn
-            ? LearnTree(std::move(tree_samples_storage), *total_pixels, options)
-            : PredefinedTree(options.tree_kind, *total_pixels);
+    if (options.tree_kind == ModularOptions::TreeKind::kLearn) {
+      JXL_ASSIGN_OR_RETURN(
+          tree_storage,
+          LearnTree(std::move(tree_samples_storage), *total_pixels, options));
+    } else {
+      tree_storage = PredefinedTree(options.tree_kind, *total_pixels,
+                                    image.bitdepth, options.max_properties);
+    }
     tree = &tree_storage;
     tokens = tokens_storage.data();
 
     Tree decoded_tree;
-    TokenizeTree(*tree, tree_tokens.data(), &decoded_tree);
-    JXL_ASSERT(tree->size() == decoded_tree.size());
+    JXL_RETURN_IF_ERROR(TokenizeTree(*tree, tree_tokens.data(), &decoded_tree));
+    JXL_ENSURE(tree->size() == decoded_tree.size());
     tree_storage = std::move(decoded_tree);
 
     /* TODO(szabadka) Add text output callback
@@ -634,11 +663,14 @@ Status ModularEncode(const Image &image, const ModularOptions &options,
     } */
 
     // Write tree
-    BuildAndEncodeHistograms(options.histogram_params, kNumTreeContexts,
-                             tree_tokens, &code, &context_map, writer,
-                             kLayerModularTree, aux_out);
-    WriteTokens(tree_tokens[0], code, context_map, 0, writer, kLayerModularTree,
-                aux_out);
+    JXL_ASSIGN_OR_RETURN(size_t cost,
+                         BuildAndEncodeHistograms(
+                             memory_manager, options.histogram_params,
+                             kNumTreeContexts, tree_tokens, &code, &context_map,
+                             writer, LayerType::ModularTree, aux_out));
+    (void)cost;
+    JXL_RETURN_IF_ERROR(WriteTokens(tree_tokens[0], code, context_map, 0,
+                                    writer, LayerType::ModularTree, aux_out));
   }
 
   size_t image_width = 0;
@@ -674,7 +706,7 @@ Status ModularEncode(const Image &image, const ModularOptions &options,
           options.skip_encoder_fast_path));
     }
     // Make sure we actually wrote all tokens
-    JXL_CHECK(tokenp == tokens->data() + tokens->size());
+    JXL_ENSURE(tokenp == tokens->data() + tokens->size());
   }
 
   // Write data if not using a global tree/ANS stream.
@@ -683,11 +715,14 @@ Status ModularEncode(const Image &image, const ModularOptions &options,
     std::vector<uint8_t> context_map;
     HistogramParams histo_params = options.histogram_params;
     histo_params.image_widths.push_back(image_width);
-    BuildAndEncodeHistograms(histo_params, (tree->size() + 1) / 2,
-                             tokens_storage, &code, &context_map, writer, layer,
-                             aux_out);
-    WriteTokens(tokens_storage[0], code, context_map, 0, writer, layer,
-                aux_out);
+    JXL_ASSIGN_OR_RETURN(
+        size_t cost,
+        BuildAndEncodeHistograms(memory_manager, histo_params,
+                                 (tree->size() + 1) / 2, tokens_storage, &code,
+                                 &context_map, writer, layer, aux_out));
+    (void)cost;
+    JXL_RETURN_IF_ERROR(WriteTokens(tokens_storage[0], code, context_map, 0,
+                                    writer, layer, aux_out));
   } else {
     *width = image_width;
   }
@@ -695,11 +730,11 @@ Status ModularEncode(const Image &image, const ModularOptions &options,
 }
 
 Status ModularGenericCompress(Image &image, const ModularOptions &opts,
-                              BitWriter *writer, AuxOut *aux_out, size_t layer,
-                              size_t group_id, TreeSamples *tree_samples,
-                              size_t *total_pixels, const Tree *tree,
-                              GroupHeader *header, std::vector<Token> *tokens,
-                              size_t *width) {
+                              BitWriter *writer, AuxOut *aux_out,
+                              LayerType layer, size_t group_id,
+                              TreeSamples *tree_samples, size_t *total_pixels,
+                              const Tree *tree, GroupHeader *header,
+                              std::vector<Token> *tokens, size_t *width) {
   if (image.w == 0 || image.h == 0) return true;
   ModularOptions options = opts;  // Make a copy to modify it.
 

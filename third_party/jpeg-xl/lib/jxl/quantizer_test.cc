@@ -5,9 +5,21 @@
 
 #include "lib/jxl/quantizer.h"
 
+#include <jxl/memory_manager.h>
+
+#include <cstddef>
+#include <cstdint>
+
 #include "lib/jxl/dec_bit_reader.h"
+#include "lib/jxl/enc_aux_out.h"
+#include "lib/jxl/enc_bit_writer.h"
 #include "lib/jxl/enc_fields.h"
+#include "lib/jxl/fields.h"
+#include "lib/jxl/image.h"
 #include "lib/jxl/image_test_utils.h"
+#include "lib/jxl/quant_weights.h"
+#include "lib/jxl/test_memory_manager.h"
+#include "lib/jxl/test_utils.h"
 #include "lib/jxl/testing.h"
 
 namespace jxl {
@@ -31,18 +43,22 @@ TEST(QuantizerTest, QuantizerParams) {
 }
 
 TEST(QuantizerTest, BitStreamRoundtripSameQuant) {
+  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   const int qxsize = 8;
   const int qysize = 8;
   DequantMatrices dequant;
-  Quantizer quantizer1(&dequant);
-  JXL_ASSIGN_OR_DIE(ImageI raw_quant_field, ImageI::Create(qxsize, qysize));
+  Quantizer quantizer1(dequant);
+  JXL_TEST_ASSIGN_OR_DIE(
+      ImageI raw_quant_field,
+      ImageI::Create(jxl::test::MemoryManager(), qxsize, qysize));
   quantizer1.SetQuant(0.17f, 0.17f, &raw_quant_field);
-  BitWriter writer;
+  BitWriter writer{memory_manager};
   QuantizerParams params = quantizer1.GetParams();
-  EXPECT_TRUE(WriteQuantizerParams(params, &writer, 0, nullptr));
+  EXPECT_TRUE(
+      WriteQuantizerParams(params, &writer, LayerType::Header, nullptr));
   writer.ZeroPadToByte();
   const size_t bits_written = writer.BitsWritten();
-  Quantizer quantizer2(&dequant);
+  Quantizer quantizer2(dequant);
   BitReader reader(writer.GetSpan());
   EXPECT_TRUE(quantizer2.Decode(&reader));
   EXPECT_TRUE(reader.JumpToByteBoundary());
@@ -52,22 +68,26 @@ TEST(QuantizerTest, BitStreamRoundtripSameQuant) {
 }
 
 TEST(QuantizerTest, BitStreamRoundtripRandomQuant) {
+  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   const int qxsize = 8;
   const int qysize = 8;
   DequantMatrices dequant;
-  Quantizer quantizer1(&dequant);
-  JXL_ASSIGN_OR_DIE(ImageI raw_quant_field, ImageI::Create(qxsize, qysize));
+  Quantizer quantizer1(dequant);
+  JXL_TEST_ASSIGN_OR_DIE(ImageI raw_quant_field,
+                         ImageI::Create(memory_manager, qxsize, qysize));
   quantizer1.SetQuant(0.17f, 0.17f, &raw_quant_field);
   float quant_dc = 0.17f;
-  JXL_ASSIGN_OR_DIE(ImageF qf, ImageF::Create(qxsize, qysize));
+  JXL_TEST_ASSIGN_OR_DIE(ImageF qf,
+                         ImageF::Create(memory_manager, qxsize, qysize));
   RandomFillImage(&qf, 0.0f, 1.0f);
-  quantizer1.SetQuantField(quant_dc, qf, &raw_quant_field);
-  BitWriter writer;
+  ASSERT_TRUE(quantizer1.SetQuantField(quant_dc, qf, &raw_quant_field));
+  BitWriter writer{memory_manager};
   QuantizerParams params = quantizer1.GetParams();
-  EXPECT_TRUE(WriteQuantizerParams(params, &writer, 0, nullptr));
+  EXPECT_TRUE(
+      WriteQuantizerParams(params, &writer, LayerType::Header, nullptr));
   writer.ZeroPadToByte();
   const size_t bits_written = writer.BitsWritten();
-  Quantizer quantizer2(&dequant);
+  Quantizer quantizer2(dequant);
   BitReader reader(writer.GetSpan());
   EXPECT_TRUE(quantizer2.Decode(&reader));
   EXPECT_TRUE(reader.JumpToByteBoundary());

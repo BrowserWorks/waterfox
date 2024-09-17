@@ -28,9 +28,9 @@ constexpr T ValueOfLowest1Bit(T t) {
 // unique indices in [0..n), and stores it in code[0..len). N*logN time.
 // temp must have n + 1 elements but need not be initialized.
 template <typename PermutationT>
-void ComputeLehmerCode(const PermutationT* JXL_RESTRICT permutation,
-                       uint32_t* JXL_RESTRICT temp, const size_t n,
-                       LehmerT* JXL_RESTRICT code) {
+Status ComputeLehmerCode(const PermutationT* JXL_RESTRICT permutation,
+                         uint32_t* JXL_RESTRICT temp, const size_t n,
+                         LehmerT* JXL_RESTRICT code) {
   for (size_t idx = 0; idx < n + 1; ++idx) temp[idx] = 0;
 
   for (size_t idx = 0; idx < n; ++idx) {
@@ -43,7 +43,7 @@ void ComputeLehmerCode(const PermutationT* JXL_RESTRICT permutation,
       penalty += temp[i];
       i &= i - 1;  // clear lowest bit
     }
-    JXL_DASSERT(s >= penalty);
+    JXL_ENSURE(s >= penalty);
     code[idx] = s - penalty;
     i = s + 1;
     // Add operation in Fenwick tree
@@ -52,15 +52,16 @@ void ComputeLehmerCode(const PermutationT* JXL_RESTRICT permutation,
       i += ValueOfLowest1Bit(i);
     }
   }
+  return true;
 }
 
 // Decodes the Lehmer code in code[0..n) into permutation[0..n).
 // temp must have 1 << CeilLog2(n) elements but need not be initialized.
 template <typename PermutationT>
-void DecodeLehmerCode(const LehmerT* JXL_RESTRICT code,
-                      uint32_t* JXL_RESTRICT temp, size_t n,
-                      PermutationT* JXL_RESTRICT permutation) {
-  JXL_DASSERT(n != 0);
+Status DecodeLehmerCode(const LehmerT* JXL_RESTRICT code,
+                        uint32_t* JXL_RESTRICT temp, size_t n,
+                        PermutationT* JXL_RESTRICT permutation) {
+  JXL_ENSURE(n != 0);
   const size_t log2n = CeilLog2Nonzero(n);
   const size_t padded_n = 1ull << log2n;
 
@@ -70,7 +71,7 @@ void DecodeLehmerCode(const LehmerT* JXL_RESTRICT code,
   }
 
   for (size_t i = 0; i < n; i++) {
-    JXL_DASSERT(code[i] + i < n);
+    JXL_ENSURE(code[i] + i < n);
     uint32_t rank = code[i] + 1;
 
     // Extract i-th unused element via implicit order-statistics tree.
@@ -78,7 +79,7 @@ void DecodeLehmerCode(const LehmerT* JXL_RESTRICT code,
     size_t next = 0;
     for (size_t i = 0; i <= log2n; i++) {
       const size_t cand = next + bit;
-      JXL_DASSERT(cand >= 1);
+      JXL_ENSURE(cand >= 1);
       bit >>= 1;
       if (temp[cand - 1] < rank) {
         next = cand;
@@ -95,6 +96,7 @@ void DecodeLehmerCode(const LehmerT* JXL_RESTRICT code,
       next += ValueOfLowest1Bit(next);
     }
   }
+  return true;
 }
 
 }  // namespace jxl

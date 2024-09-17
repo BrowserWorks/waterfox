@@ -5,6 +5,12 @@
 
 #include "lib/jxl/base/data_parallel.h"
 
+#include <jxl/parallel_runner.h>
+
+#include <cstddef>
+#include <cstdint>
+
+#include "lib/jxl/base/status.h"
 #include "lib/jxl/test_utils.h"
 #include "lib/jxl/testing.h"
 
@@ -51,8 +57,9 @@ typedef int (*JxlParallelRunInit)();
 
 TEST_F(DataParallelTest, RunnerCalledParameters) {
   EXPECT_TRUE(pool_.Run(
-      1234, 5678, [](size_t /* num_threads */) { return true; },
-      [](uint32_t /* task */, size_t /* thread */) { return; }));
+      1234, 5678, [](size_t /* num_threads */) -> Status { return true; },
+      [](uint32_t /* task */, size_t /* thread */) -> Status { return true; },
+      "Test"));
   EXPECT_EQ(1, runner_called_);
   EXPECT_NE(nullptr, init_);
   EXPECT_NE(nullptr, func_);
@@ -64,21 +71,29 @@ TEST_F(DataParallelTest, RunnerCalledParameters) {
 TEST_F(DataParallelTest, RunnerFailurePropagates) {
   runner_return_ = -1;  // FakeRunner return value.
   EXPECT_FALSE(pool_.Run(
-      1234, 5678, [](size_t /* num_threads */) { return false; },
-      [](uint32_t /* task */, size_t /* thread */) { return; }));
+      1234, 5678,
+      [](size_t /* num_threads */) -> Status { return JXL_FAILURE("init"); },
+      [](uint32_t /* task */, size_t /* thread */) -> Status { return true; },
+      "TestA"));
   EXPECT_FALSE(RunOnPool(
-      nullptr, 1234, 5678, [](size_t /* num_threads */) { return false; },
-      [](uint32_t /* task */, size_t /* thread */) { return; }, "Test"));
+      nullptr, 1234, 5678,
+      [](size_t /* num_threads */) -> Status { return JXL_FAILURE("init"); },
+      [](uint32_t /* task */, size_t /* thread */) -> Status { return true; },
+      "TestB"));
 }
 
 TEST_F(DataParallelTest, RunnerNotCalledOnEmptyRange) {
   runner_return_ = -1;  // FakeRunner return value.
   EXPECT_TRUE(pool_.Run(
-      123, 123, [](size_t /* num_threads */) { return false; },
-      [](uint32_t /* task */, size_t /* thread */) { return; }));
+      123, 123,
+      [](size_t /* num_threads */) -> Status { return JXL_FAILURE("init"); },
+      [](uint32_t /* task */, size_t /* thread */) -> Status { return true; },
+      "TestA"));
   EXPECT_TRUE(RunOnPool(
-      nullptr, 123, 123, [](size_t /* num_threads */) { return false; },
-      [](uint32_t /* task */, size_t /* thread */) { return; }, "Test"));
+      nullptr, 123, 123,
+      [](size_t /* num_threads */) -> Status { return JXL_FAILURE("init"); },
+      [](uint32_t /* task */, size_t /* thread */) -> Status { return true; },
+      "TestB"));
   // We don't call the external runner when the range is empty. We don't even
   // need to call the init function.
   EXPECT_EQ(0, runner_called_);

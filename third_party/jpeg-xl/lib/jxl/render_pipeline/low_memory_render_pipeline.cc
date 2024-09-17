@@ -6,9 +6,16 @@
 #include "lib/jxl/render_pipeline/low_memory_render_pipeline.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <utility>
+#include <vector>
 
 #include "lib/jxl/base/arch_macros.h"
+#include "lib/jxl/base/common.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
+#include "lib/jxl/image.h"
 #include "lib/jxl/image_ops.h"
 
 namespace jxl {
@@ -32,8 +39,8 @@ std::pair<size_t, size_t> LowMemoryRenderPipeline::BorderToStore(
   return ret;
 }
 
-void LowMemoryRenderPipeline::SaveBorders(size_t group_id, size_t c,
-                                          const ImageF& in) {
+Status LowMemoryRenderPipeline::SaveBorders(size_t group_id, size_t c,
+                                            const ImageF& in) {
   size_t gy = group_id / frame_dimensions_.xsize_groups;
   size_t gx = group_id % frame_dimensions_.xsize_groups;
   size_t hshift = channel_shifts_[0][c].first;
@@ -53,31 +60,32 @@ void LowMemoryRenderPipeline::SaveBorders(size_t group_id, size_t c,
     Rect from(group_data_x_border_, group_data_y_border_, x1 - x0,
               bordery_write);
     Rect to(x0, (gy * 2 - 1) * bordery_write, x1 - x0, bordery_write);
-    CopyImageTo(from, in, to, &borders_horizontal_[c]);
+    JXL_RETURN_IF_ERROR(CopyImageTo(from, in, to, &borders_horizontal_[c]));
   }
   if (gy + 1 < frame_dimensions_.ysize_groups) {
     Rect from(group_data_x_border_,
               group_data_y_border_ + y1 - y0 - bordery_write, x1 - x0,
               bordery_write);
     Rect to(x0, (gy * 2) * bordery_write, x1 - x0, bordery_write);
-    CopyImageTo(from, in, to, &borders_horizontal_[c]);
+    JXL_RETURN_IF_ERROR(CopyImageTo(from, in, to, &borders_horizontal_[c]));
   }
   if (gx > 0) {
     Rect from(group_data_x_border_, group_data_y_border_, borderx_write,
               y1 - y0);
     Rect to((gx * 2 - 1) * borderx_write, y0, borderx_write, y1 - y0);
-    CopyImageTo(from, in, to, &borders_vertical_[c]);
+    JXL_RETURN_IF_ERROR(CopyImageTo(from, in, to, &borders_vertical_[c]));
   }
   if (gx + 1 < frame_dimensions_.xsize_groups) {
     Rect from(group_data_x_border_ + x1 - x0 - borderx_write,
               group_data_y_border_, borderx_write, y1 - y0);
     Rect to((gx * 2) * borderx_write, y0, borderx_write, y1 - y0);
-    CopyImageTo(from, in, to, &borders_vertical_[c]);
+    JXL_RETURN_IF_ERROR(CopyImageTo(from, in, to, &borders_vertical_[c]));
   }
+  return true;
 }
 
-void LowMemoryRenderPipeline::LoadBorders(size_t group_id, size_t c,
-                                          const Rect& r, ImageF* out) {
+Status LowMemoryRenderPipeline::LoadBorders(size_t group_id, size_t c,
+                                            const Rect& r, ImageF* out) {
   size_t gy = group_id / frame_dimensions_.xsize_groups;
   size_t gx = group_id % frame_dimensions_.xsize_groups;
   size_t hshift = channel_shifts_[0][c].first;
@@ -98,7 +106,7 @@ void LowMemoryRenderPipeline::LoadBorders(size_t group_id, size_t c,
   size_t bordery_write = borders.second;
 
   // Limits of the area to copy from, in image coordinates.
-  JXL_DASSERT(r.x0() == 0 || (r.x0() << base_color_shift_) >= paddingx);
+  JXL_ENSURE(r.x0() == 0 || (r.x0() << base_color_shift_) >= paddingx);
   size_t x0src = DivCeil(r.x0() << base_color_shift_, 1 << hshift);
   if (x0src != 0) {
     x0src -= paddingx;
@@ -111,7 +119,7 @@ void LowMemoryRenderPipeline::LoadBorders(size_t group_id, size_t c,
                    DivCeil(frame_dimensions_.xsize_upsampled, 1 << hshift));
 
   // Similar computation for y.
-  JXL_DASSERT(r.y0() == 0 || (r.y0() << base_color_shift_) >= paddingy);
+  JXL_ENSURE(r.y0() == 0 || (r.y0() << base_color_shift_) >= paddingy);
   size_t y0src = DivCeil(r.y0() << base_color_shift_, 1 << vshift);
   if (y0src != 0) {
     y0src -= paddingy;
@@ -123,44 +131,45 @@ void LowMemoryRenderPipeline::LoadBorders(size_t group_id, size_t c,
 
   // Copy other groups' borders from the border storage.
   if (y0src < y0) {
-    JXL_DASSERT(gy > 0);
-    CopyImageTo(
+    JXL_ENSURE(gy > 0);
+    JXL_RETURN_IF_ERROR(CopyImageTo(
         Rect(x0src, (gy * 2 - 2) * bordery_write, x1src - x0src, bordery_write),
         borders_horizontal_[c],
         Rect(group_data_x_border_ + x0src - x0,
              group_data_y_border_ - bordery_write, x1src - x0src,
              bordery_write),
-        out);
+        out));
   }
   if (y1src > y1) {
     // When copying the bottom border we must not be on the bottom groups.
-    JXL_DASSERT(gy + 1 < frame_dimensions_.ysize_groups);
-    CopyImageTo(
+    JXL_ENSURE(gy + 1 < frame_dimensions_.ysize_groups);
+    JXL_RETURN_IF_ERROR(CopyImageTo(
         Rect(x0src, (gy * 2 + 1) * bordery_write, x1src - x0src, bordery_write),
         borders_horizontal_[c],
         Rect(group_data_x_border_ + x0src - x0, group_data_y_border_ + y1 - y0,
              x1src - x0src, bordery_write),
-        out);
+        out));
   }
   if (x0src < x0) {
-    JXL_DASSERT(gx > 0);
-    CopyImageTo(
+    JXL_ENSURE(gx > 0);
+    JXL_RETURN_IF_ERROR(CopyImageTo(
         Rect((gx * 2 - 2) * borderx_write, y0src, borderx_write, y1src - y0src),
         borders_vertical_[c],
         Rect(group_data_x_border_ - borderx_write,
              group_data_y_border_ + y0src - y0, borderx_write, y1src - y0src),
-        out);
+        out));
   }
   if (x1src > x1) {
     // When copying the right border we must not be on the rightmost groups.
-    JXL_DASSERT(gx + 1 < frame_dimensions_.xsize_groups);
-    CopyImageTo(
+    JXL_ENSURE(gx + 1 < frame_dimensions_.xsize_groups);
+    JXL_RETURN_IF_ERROR(CopyImageTo(
         Rect((gx * 2 + 1) * borderx_write, y0src, borderx_write, y1src - y0src),
         borders_vertical_[c],
         Rect(group_data_x_border_ + x1 - x0, group_data_y_border_ + y0src - y0,
              borderx_write, y1src - y0src),
-        out);
+        out));
   }
+  return true;
 }
 
 size_t LowMemoryRenderPipeline::GroupInputXSize(size_t c) const {
@@ -183,9 +192,9 @@ Status LowMemoryRenderPipeline::EnsureBordersStorage() {
     auto borders = BorderToStore(c);
     size_t borderx = borders.first;
     size_t bordery = borders.second;
-    JXL_DASSERT(frame_dimensions_.xsize_groups > 0);
+    JXL_ENSURE(frame_dimensions_.xsize_groups > 0);
     size_t num_xborders = (frame_dimensions_.xsize_groups - 1) * 2;
-    JXL_DASSERT(frame_dimensions_.ysize_groups > 0);
+    JXL_ENSURE(frame_dimensions_.ysize_groups > 0);
     size_t num_yborders = (frame_dimensions_.ysize_groups - 1) * 2;
     size_t downsampled_xsize =
         DivCeil(frame_dimensions_.xsize_upsampled_padded, 1 << shifts[c].first);
@@ -193,14 +202,15 @@ Status LowMemoryRenderPipeline::EnsureBordersStorage() {
                                        1 << shifts[c].second);
     Rect horizontal = Rect(0, 0, downsampled_xsize, bordery * num_yborders);
     if (!SameSize(horizontal, borders_horizontal_[c])) {
-      JXL_ASSIGN_OR_RETURN(
-          borders_horizontal_[c],
-          ImageF::Create(horizontal.xsize(), horizontal.ysize()));
+      JXL_ASSIGN_OR_RETURN(borders_horizontal_[c],
+                           ImageF::Create(memory_manager_, horizontal.xsize(),
+                                          horizontal.ysize()));
     }
     Rect vertical = Rect(0, 0, borderx * num_xborders, downsampled_ysize);
     if (!SameSize(vertical, borders_vertical_[c])) {
-      JXL_ASSIGN_OR_RETURN(borders_vertical_[c],
-                           ImageF::Create(vertical.xsize(), vertical.ysize()));
+      JXL_ASSIGN_OR_RETURN(
+          borders_vertical_[c],
+          ImageF::Create(memory_manager_, vertical.xsize(), vertical.ysize()));
     }
   }
   return true;
@@ -288,7 +298,7 @@ Status LowMemoryRenderPipeline::Init() {
     JXL_RETURN_IF_ERROR(stages_[i]->SetInputSizes(input_sizes));
     if (stages_[i]->SwitchToImageDimensions()) {
       // We don't allow kInOut after switching to image dimensions.
-      JXL_ASSERT(i >= first_trailing_stage_);
+      JXL_ENSURE(i >= first_trailing_stage_);
       first_image_dim_stage_ = i + 1;
       stages_[i]->GetImageDimensions(&full_image_xsize_, &full_image_ysize_,
                                      &frame_origin_);
@@ -297,7 +307,8 @@ Status LowMemoryRenderPipeline::Init() {
   }
   for (size_t i = first_image_dim_stage_; i < stages_.size(); i++) {
     if (stages_[i]->SwitchToImageDimensions()) {
-      JXL_UNREACHABLE("Cannot switch to image dimensions multiple times");
+      return JXL_UNREACHABLE(
+          "cannot switch to image dimensions multiple times");
     }
     std::vector<std::pair<size_t, size_t>> input_sizes(shifts.size());
     for (size_t c = 0; c < shifts.size(); c++) {
@@ -372,8 +383,10 @@ Status LowMemoryRenderPipeline::PrepareForThreadsInternal(size_t num,
     for (size_t c = 0; c < shifts.size(); c++) {
       JXL_ASSIGN_OR_RETURN(
           group_data_[t][c],
-          ImageF::Create(GroupInputXSize(c) + group_data_x_border_ * 2,
-                         GroupInputYSize(c) + group_data_y_border_ * 2));
+          ImageF::Create(memory_manager_,
+                         GroupInputXSize(c) + group_data_x_border_ * 2,
+                         GroupInputYSize(c) + group_data_y_border_ * 2,
+                         kRenderPipelineXOffset));
     }
   }
   // TODO(veluca): avoid reallocating buffers if not needed.
@@ -398,7 +411,8 @@ Status LowMemoryRenderPipeline::PrepareForThreadsInternal(size_t num,
           next_y_border = stages_[i]->settings_.border_y;
           JXL_ASSIGN_OR_RETURN(
               stage_data_[t][c][i],
-              ImageF::Create(stage_buffer_xsize, stage_buffer_ysize));
+              ImageF::Create(memory_manager_, stage_buffer_xsize,
+                             stage_buffer_ysize));
         }
       }
     }
@@ -420,8 +434,9 @@ Status LowMemoryRenderPipeline::PrepareForThreadsInternal(size_t num,
         std::max(left_padding, std::max(middle_padding, right_padding));
     out_of_frame_data_.resize(num);
     for (size_t t = 0; t < num; t++) {
-      JXL_ASSIGN_OR_RETURN(out_of_frame_data_[t],
-                           ImageF::Create(out_of_frame_xsize, shifts.size()));
+      JXL_ASSIGN_OR_RETURN(
+          out_of_frame_data_[t],
+          ImageF::Create(memory_manager_, out_of_frame_xsize, shifts.size()));
     }
   }
   return true;
@@ -494,49 +509,49 @@ JXL_INLINE void ApplyXMirroring(float* row, ssize_t borderx, ssize_t group_x0,
 // Information about where the *output* of each stage is stored.
 class Rows {
  public:
-  Rows(const std::vector<std::unique_ptr<RenderPipelineStage>>& stages,
-       const Rect data_max_color_channel_rect, int group_data_x_border,
-       int group_data_y_border,
-       const std::vector<std::pair<size_t, size_t>>& group_data_shift,
-       size_t base_color_shift, std::vector<std::vector<ImageF>>& thread_data,
-       std::vector<ImageF>& input_data) {
+  static StatusOr<Rows> Create(
+      const std::vector<std::unique_ptr<RenderPipelineStage>>& stages,
+      const Rect data_max_color_channel_rect, int group_data_x_border,
+      int group_data_y_border,
+      const std::vector<std::pair<size_t, size_t>>& group_data_shift,
+      size_t base_color_shift, std::vector<std::vector<ImageF>>& thread_data,
+      std::vector<ImageF>& input_data) {
     size_t num_stages = stages.size();
     size_t num_channels = input_data.size();
 
-    JXL_ASSERT(thread_data.size() == num_channels);
-    JXL_ASSERT(group_data_shift.size() == num_channels);
+    JXL_ENSURE(thread_data.size() == num_channels);
+    JXL_ENSURE(group_data_shift.size() == num_channels);
 
-#if JXL_ENABLE_ASSERT
     for (const auto& td : thread_data) {
-      JXL_ASSERT(td.size() == num_stages);
+      JXL_ENSURE(td.size() == num_stages);
     }
-#endif
 
-    rows_.resize(num_stages + 1, std::vector<RowInfo>(num_channels));
+    std::vector<std::vector<RowInfo>> rows;
+    rows.resize(num_stages + 1, std::vector<RowInfo>(num_channels));
 
     for (size_t i = 0; i < num_stages; i++) {
       for (size_t c = 0; c < input_data.size(); c++) {
         if (stages[i]->GetChannelMode(c) == RenderPipelineChannelMode::kInOut) {
-          rows_[i + 1][c].ymod_minus_1 = thread_data[c][i].ysize() - 1;
-          rows_[i + 1][c].base_ptr = thread_data[c][i].Row(0);
-          rows_[i + 1][c].stride = thread_data[c][i].PixelsPerRow();
+          rows[i + 1][c].ymod_minus_1 = thread_data[c][i].ysize() - 1;
+          rows[i + 1][c].base_ptr = thread_data[c][i].Row(0);
+          rows[i + 1][c].stride = thread_data[c][i].PixelsPerRow();
         }
       }
     }
 
     for (size_t c = 0; c < input_data.size(); c++) {
-      auto channel_group_data_rect =
-          data_max_color_channel_rect.As<ssize_t>()
-              .Translate(-group_data_x_border, -group_data_y_border)
-              .ShiftLeft(base_color_shift)
-              .CeilShiftRight(group_data_shift[c])
-              .Translate(group_data_x_border -
-                             static_cast<ssize_t>(kRenderPipelineXOffset),
-                         group_data_y_border);
-      rows_[0][c].base_ptr = channel_group_data_rect.Row(&input_data[c], 0);
-      rows_[0][c].stride = input_data[c].PixelsPerRow();
-      rows_[0][c].ymod_minus_1 = -1;
+      auto tmp = data_max_color_channel_rect.As<ssize_t>()
+                     .Translate(-group_data_x_border, -group_data_y_border)
+                     .ShiftLeft(base_color_shift);
+      JXL_ASSIGN_OR_RETURN(tmp, tmp.CeilShiftRight(group_data_shift[c]));
+      auto channel_group_data_rect = tmp.Translate(
+          group_data_x_border - static_cast<ssize_t>(kRenderPipelineXOffset),
+          group_data_y_border);
+      rows[0][c].base_ptr = channel_group_data_rect.Row(&input_data[c], 0);
+      rows[0][c].stride = input_data[c].PixelsPerRow();
+      rows[0][c].ymod_minus_1 = -1;
     }
+    return Rows(std::move(rows));
   }
 
   // Stage -1 refers to the input data; all other values must be nonnegative and
@@ -558,6 +573,10 @@ class Rows {
     // Number of floats per row.
     size_t stride;
   };
+
+  explicit Rows(std::vector<std::vector<RowInfo>>&& rows)
+      : rows_(std::move(rows)) {}
+
   std::vector<std::vector<RowInfo>> rows_;
 };
 
@@ -577,8 +596,8 @@ Status LowMemoryRenderPipeline::RenderRect(size_t thread_id,
           .Crop(frame_dimensions_.xsize_upsampled,
                 frame_dimensions_.ysize_upsampled);
   for (size_t i = 0; i < stages_.size(); i++) {
-    group_rect[i] =
-        image_area_rect.CeilShiftRight(channel_shifts_[i][anyc_[i]]);
+    JXL_ASSIGN_OR_RETURN(group_rect[i], image_area_rect.CeilShiftRight(
+                                            channel_shifts_[i][anyc_[i]]));
   }
 
   ssize_t frame_x0 =
@@ -615,9 +634,11 @@ Status LowMemoryRenderPipeline::RenderRect(size_t thread_id,
 
   // Data structures to hold information about input/output rows and their
   // buffers.
-  Rows rows(stages_, data_max_color_channel_rect, group_data_x_border_,
-            group_data_y_border_, channel_shifts_[0], base_color_shift_,
-            stage_data_[thread_id], input_data);
+  JXL_ASSIGN_OR_RETURN(
+      Rows rows,
+      Rows::Create(stages_, data_max_color_channel_rect, group_data_x_border_,
+                   group_data_y_border_, channel_shifts_[0], base_color_shift_,
+                   stage_data_[thread_id], input_data));
 
   std::vector<RenderPipelineStage::RowInfo> input_rows(first_trailing_stage_ +
                                                        1);
@@ -790,7 +811,7 @@ Status LowMemoryRenderPipeline::ProcessBuffers(size_t group_id,
 
   // Copy the group borders to the border storage.
   for (size_t c = 0; c < input_data.size(); c++) {
-    SaveBorders(group_id, c, input_data[c]);
+    JXL_RETURN_IF_ERROR(SaveBorders(group_id, c, input_data[c]));
   }
 
   size_t gy = group_id / frame_dimensions_.xsize_groups;
@@ -869,7 +890,8 @@ Status LowMemoryRenderPipeline::ProcessBuffers(size_t group_id,
   for (size_t i = 0; i < num_ready_rects; i++) {
     const Rect& image_max_color_channel_rect = ready_rects[i];
     for (size_t c = 0; c < input_data.size(); c++) {
-      LoadBorders(group_id, c, image_max_color_channel_rect, &input_data[c]);
+      JXL_RETURN_IF_ERROR(LoadBorders(group_id, c, image_max_color_channel_rect,
+                                      &input_data[c]));
     }
     Rect data_max_color_channel_rect(
         group_data_x_border_ + image_max_color_channel_rect.x0() -

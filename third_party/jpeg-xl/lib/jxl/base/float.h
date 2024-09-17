@@ -62,9 +62,7 @@ static Status JXL_INLINE LoadFloatRow(const uint8_t* src, size_t count,
 
     case JXL_TYPE_UINT8:
       for (size_t i = 0; i < count; ++i) {
-        // Integer multiply uint8 value before scaling so that the UINT8 value
-        // and the corresponding UINT16 value convert to the same float
-        callback(i, (src[stride * i] * 257) * scale);
+        callback(i, src[stride * i] * scale);
       }
       return true;
 

@@ -27,6 +27,7 @@ Status SelectFormat(const std::vector<JxlPixelFormat>& accepted_formats,
   for (;;) {
     for (const JxlPixelFormat& candidate : accepted_formats) {
       if (candidate.num_channels != num_channels) continue;
+      JXL_RETURN_IF_ERROR(PackedImage::ValidateDataType(candidate.data_type));
       const size_t candidate_bit_depth =
           PackedImage::BitsPerChannel(candidate.data_type);
       if (

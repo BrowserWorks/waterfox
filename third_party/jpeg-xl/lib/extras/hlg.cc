@@ -26,27 +26,27 @@ Status HlgOOTF(ImageBundle* ib, const float gamma, ThreadPool* pool) {
   JXL_RETURN_IF_ERROR(
       ib->TransformTo(linear_rec2020, *JxlGetDefaultCms(), pool));
 
-  JXL_RETURN_IF_ERROR(RunOnPool(
-      pool, 0, ib->ysize(), ThreadPool::NoInit,
-      [&](const int y, const int thread) {
-        float* const JXL_RESTRICT rows[3] = {ib->color()->PlaneRow(0, y),
-                                             ib->color()->PlaneRow(1, y),
-                                             ib->color()->PlaneRow(2, y)};
-        for (size_t x = 0; x < ib->xsize(); ++x) {
-          float& red = rows[0][x];
-          float& green = rows[1][x];
-          float& blue = rows[2][x];
-          const float luminance =
-              0.2627f * red + 0.6780f * green + 0.0593f * blue;
-          const float ratio = std::pow(luminance, gamma - 1);
-          if (std::isfinite(ratio)) {
-            red *= ratio;
-            green *= ratio;
-            blue *= ratio;
-          }
-        }
-      },
-      "HlgOOTF"));
+  const auto process_row = [&](const int y, const int thread) -> Status {
+    float* const JXL_RESTRICT rows[3] = {ib->color()->PlaneRow(0, y),
+                                         ib->color()->PlaneRow(1, y),
+                                         ib->color()->PlaneRow(2, y)};
+    for (size_t x = 0; x < ib->xsize(); ++x) {
+      float& red = rows[0][x];
+      float& green = rows[1][x];
+      float& blue = rows[2][x];
+      const float luminance = 0.2627f * red + 0.6780f * green + 0.0593f * blue;
+      const float ratio = std::pow(luminance, gamma - 1);
+      if (std::isfinite(ratio)) {
+        red *= ratio;
+        green *= ratio;
+        blue *= ratio;
+      }
+    }
+    return true;
+  };
+
+  JXL_RETURN_IF_ERROR(RunOnPool(pool, 0, ib->ysize(), ThreadPool::NoInit,
+                                process_row, "HlgOOTF"));
   return true;
 }
 

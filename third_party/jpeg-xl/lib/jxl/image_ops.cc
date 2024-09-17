@@ -16,14 +16,14 @@
 
 namespace jxl {
 
-void PadImageToBlockMultipleInPlace(Image3F* JXL_RESTRICT in,
-                                    size_t block_dim) {
+Status PadImageToBlockMultipleInPlace(Image3F* JXL_RESTRICT in,
+                                      size_t block_dim) {
   const size_t xsize_orig = in->xsize();
   const size_t ysize_orig = in->ysize();
   const size_t xsize = RoundUpTo(xsize_orig, block_dim);
   const size_t ysize = RoundUpTo(ysize_orig, block_dim);
   // Expands image size to the originally-allocated size.
-  in->ShrinkTo(xsize, ysize);
+  JXL_RETURN_IF_ERROR(in->ShrinkTo(xsize, ysize));
   for (size_t c = 0; c < 3; c++) {
     for (size_t y = 0; y < ysize_orig; y++) {
       float* JXL_RESTRICT row = in->PlaneRow(c, y);
@@ -36,13 +36,14 @@ void PadImageToBlockMultipleInPlace(Image3F* JXL_RESTRICT in,
       memcpy(in->PlaneRow(c, y), row_src, xsize * sizeof(float));
     }
   }
+  return true;
 }
 
-static void DoDownsampleImage(const ImageF& input, size_t factor,
-                              ImageF* output) {
-  JXL_ASSERT(factor != 1);
-  output->ShrinkTo(DivCeil(input.xsize(), factor),
-                   DivCeil(input.ysize(), factor));
+static Status DoDownsampleImage(const ImageF& input, size_t factor,
+                                ImageF* output) {
+  JXL_ENSURE(factor != 1);
+  JXL_RETURN_IF_ERROR(output->ShrinkTo(DivCeil(input.xsize(), factor),
+                                       DivCeil(input.ysize(), factor)));
   size_t in_stride = input.PixelsPerRow();
   for (size_t y = 0; y < output->ysize(); y++) {
     float* row_out = output->Row(y);
@@ -61,29 +62,35 @@ static void DoDownsampleImage(const ImageF& input, size_t factor,
       row_out[x] = sum / cnt;
     }
   }
+  return true;
 }
 
 StatusOr<ImageF> DownsampleImage(const ImageF& image, size_t factor) {
   ImageF downsampled;
   // Allocate extra space to avoid a reallocation when padding.
+  JxlMemoryManager* memory_manager = image.memory_manager();
   JXL_ASSIGN_OR_RETURN(
-      downsampled, ImageF::Create(DivCeil(image.xsize(), factor) + kBlockDim,
-                                  DivCeil(image.ysize(), factor) + kBlockDim));
-  DoDownsampleImage(image, factor, &downsampled);
+      downsampled,
+      ImageF::Create(memory_manager, DivCeil(image.xsize(), factor) + kBlockDim,
+                     DivCeil(image.ysize(), factor) + kBlockDim));
+  JXL_RETURN_IF_ERROR(DoDownsampleImage(image, factor, &downsampled));
   return downsampled;
 }
 
 StatusOr<Image3F> DownsampleImage(const Image3F& opsin, size_t factor) {
-  JXL_ASSERT(factor != 1);
+  JXL_ENSURE(factor != 1);
   // Allocate extra space to avoid a reallocation when padding.
   Image3F downsampled;
+  JxlMemoryManager* memory_manager = opsin.memory_manager();
   JXL_ASSIGN_OR_RETURN(
-      downsampled, Image3F::Create(DivCeil(opsin.xsize(), factor) + kBlockDim,
+      downsampled, Image3F::Create(memory_manager,
+                                   DivCeil(opsin.xsize(), factor) + kBlockDim,
                                    DivCeil(opsin.ysize(), factor) + kBlockDim));
-  downsampled.ShrinkTo(downsampled.xsize() - kBlockDim,
-                       downsampled.ysize() - kBlockDim);
+  JXL_RETURN_IF_ERROR(downsampled.ShrinkTo(downsampled.xsize() - kBlockDim,
+                                           downsampled.ysize() - kBlockDim));
   for (size_t c = 0; c < 3; c++) {
-    DoDownsampleImage(opsin.Plane(c), factor, &downsampled.Plane(c));
+    JXL_RETURN_IF_ERROR(
+        DoDownsampleImage(opsin.Plane(c), factor, &downsampled.Plane(c)));
   }
   return downsampled;
 }

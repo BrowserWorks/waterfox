@@ -8,12 +8,15 @@
 
 // Operations on images.
 
+#include <jxl/memory_manager.h>
+
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 
 #include "lib/jxl/base/compiler_specific.h"
+#include "lib/jxl/base/rect.h"
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/frame_dimensions.h"
 #include "lib/jxl/image.h"
@@ -27,45 +30,49 @@ bool SameSize(const Image1& image1, const Image2& image2) {
 }
 
 template <typename T>
-void CopyImageTo(const Plane<T>& from, Plane<T>* JXL_RESTRICT to) {
-  JXL_ASSERT(SameSize(from, *to));
-  if (from.ysize() == 0 || from.xsize() == 0) return;
+Status CopyImageTo(const Plane<T>& from, Plane<T>* JXL_RESTRICT to) {
+  JXL_ENSURE(SameSize(from, *to));
+  if (from.ysize() == 0 || from.xsize() == 0) return true;
   for (size_t y = 0; y < from.ysize(); ++y) {
     const T* JXL_RESTRICT row_from = from.ConstRow(y);
     T* JXL_RESTRICT row_to = to->Row(y);
     memcpy(row_to, row_from, from.xsize() * sizeof(T));
   }
+  return true;
 }
 
 // Copies `from:rect_from` to `to:rect_to`.
 template <typename T>
-void CopyImageTo(const Rect& rect_from, const Plane<T>& from,
-                 const Rect& rect_to, Plane<T>* JXL_RESTRICT to) {
-  JXL_DASSERT(SameSize(rect_from, rect_to));
-  JXL_DASSERT(rect_from.IsInside(from));
-  JXL_DASSERT(rect_to.IsInside(*to));
-  if (rect_from.xsize() == 0) return;
+Status CopyImageTo(const Rect& rect_from, const Plane<T>& from,
+                   const Rect& rect_to, Plane<T>* JXL_RESTRICT to) {
+  JXL_ENSURE(SameSize(rect_from, rect_to));
+  JXL_ENSURE(rect_from.IsInside(from));
+  JXL_ENSURE(rect_to.IsInside(*to));
+  if (rect_from.xsize() == 0) return true;
   for (size_t y = 0; y < rect_from.ysize(); ++y) {
     const T* JXL_RESTRICT row_from = rect_from.ConstRow(from, y);
     T* JXL_RESTRICT row_to = rect_to.Row(to, y);
     memcpy(row_to, row_from, rect_from.xsize() * sizeof(T));
   }
+  return true;
 }
 
 // Copies `from:rect_from` to `to:rect_to`.
 template <typename T>
-void CopyImageTo(const Rect& rect_from, const Image3<T>& from,
-                 const Rect& rect_to, Image3<T>* JXL_RESTRICT to) {
-  JXL_ASSERT(SameSize(rect_from, rect_to));
+Status CopyImageTo(const Rect& rect_from, const Image3<T>& from,
+                   const Rect& rect_to, Image3<T>* JXL_RESTRICT to) {
+  JXL_ENSURE(SameSize(rect_from, rect_to));
   for (size_t c = 0; c < 3; c++) {
-    CopyImageTo(rect_from, from.Plane(c), rect_to, &to->Plane(c));
+    JXL_RETURN_IF_ERROR(
+        CopyImageTo(rect_from, from.Plane(c), rect_to, &to->Plane(c)));
   }
+  return true;
 }
 
 template <typename T, typename U>
-void ConvertPlaneAndClamp(const Rect& rect_from, const Plane<T>& from,
-                          const Rect& rect_to, Plane<U>* JXL_RESTRICT to) {
-  JXL_ASSERT(SameSize(rect_from, rect_to));
+Status ConvertPlaneAndClamp(const Rect& rect_from, const Plane<T>& from,
+                            const Rect& rect_to, Plane<U>* JXL_RESTRICT to) {
+  JXL_ENSURE(SameSize(rect_from, rect_to));
   using M = decltype(T() + U());
   for (size_t y = 0; y < rect_to.ysize(); ++y) {
     const T* JXL_RESTRICT row_from = rect_from.ConstRow(from, y);
@@ -76,11 +83,12 @@ void ConvertPlaneAndClamp(const Rect& rect_from, const Plane<T>& from,
                       std::numeric_limits<U>::max());
     }
   }
+  return true;
 }
 
 // Copies `from` to `to`.
 template <typename T>
-void CopyImageTo(const T& from, T* JXL_RESTRICT to) {
+Status CopyImageTo(const T& from, T* JXL_RESTRICT to) {
   return CopyImageTo(Rect(from), from, Rect(*to), to);
 }
 
@@ -88,16 +96,16 @@ void CopyImageTo(const T& from, T* JXL_RESTRICT to) {
 // border around `from:rect_from`, in all directions, whenever they are inside
 // the first image.
 template <typename T>
-void CopyImageToWithPadding(const Rect& from_rect, const T& from,
-                            size_t padding, const Rect& to_rect, T* to) {
+Status CopyImageToWithPadding(const Rect& from_rect, const T& from,
+                              size_t padding, const Rect& to_rect, T* to) {
   size_t xextra0 = std::min(padding, from_rect.x0());
   size_t xextra1 =
       std::min(padding, from.xsize() - from_rect.x0() - from_rect.xsize());
   size_t yextra0 = std::min(padding, from_rect.y0());
   size_t yextra1 =
       std::min(padding, from.ysize() - from_rect.y0() - from_rect.ysize());
-  JXL_DASSERT(to_rect.x0() >= xextra0);
-  JXL_DASSERT(to_rect.y0() >= yextra0);
+  JXL_ENSURE(to_rect.x0() >= xextra0);
+  JXL_ENSURE(to_rect.y0() >= yextra0);
 
   return CopyImageTo(Rect(from_rect.x0() - xextra0, from_rect.y0() - yextra0,
                           from_rect.xsize() + xextra0 + xextra1,
@@ -115,9 +123,11 @@ StatusOr<Plane<T>> LinComb(const T lambda1, const Plane<T>& image1,
                            const T lambda2, const Plane<T>& image2) {
   const size_t xsize = image1.xsize();
   const size_t ysize = image1.ysize();
-  JXL_CHECK(xsize == image2.xsize());
-  JXL_CHECK(ysize == image2.ysize());
-  JXL_ASSIGN_OR_RETURN(Plane<T> out, Plane<T>::Create(xsize, ysize));
+  JXL_ENSURE(xsize == image2.xsize());
+  JXL_ENSURE(ysize == image2.ysize());
+  JxlMemoryManager* memory_manager = image1.memory_manager();
+  JXL_ASSIGN_OR_RETURN(Plane<T> out,
+                       Plane<T>::Create(memory_manager, xsize, ysize));
   for (size_t y = 0; y < ysize; ++y) {
     const T* const JXL_RESTRICT row1 = image1.Row(y);
     const T* const JXL_RESTRICT row2 = image2.Row(y);
@@ -287,8 +297,8 @@ void ZeroFillImage(Image3<T>* image) {
 
 // Same as above, but operates in-place. Assumes that the `in` image was
 // allocated large enough.
-void PadImageToBlockMultipleInPlace(Image3F* JXL_RESTRICT in,
-                                    size_t block_dim = kBlockDim);
+Status PadImageToBlockMultipleInPlace(Image3F* JXL_RESTRICT in,
+                                      size_t block_dim = kBlockDim);
 
 // Downsamples an image by a given factor.
 StatusOr<Image3F> DownsampleImage(const Image3F& opsin, size_t factor);
