@@ -13,7 +13,6 @@ import * as Constants from './constants.js';
 const WATERFOX_SPECIFIC_VALUES = {
   hideHorizontalTabsWhileActive: true,
   showTabPreview: true,
-  hoverTabPreviewDelayMs: 500,
 
   sidebarPosition: Constants.kTABBAR_POSITION_LEFT,
   suppressGapFromShownOrHiddenToolbarOnlyOnMouseOperation: false,
@@ -303,6 +302,8 @@ export const configs = new Configs({
   autoExpandOnLongHoverDelay: 500,
   autoExpandOnLongHoverRestoreIniitalState: true,
 
+  autoCreateFolderForBookmarksFromTree: true,
+
   accelKey: '',
 
   skipCollapsedTabsForTabSwitchingShortcuts: false,
@@ -341,11 +342,13 @@ export const configs = new Configs({
   groupTabTemporaryStateForChildrenOfPinned: Constants.kGROUP_TAB_TEMPORARY_STATE_PASSIVE,
   groupTabTemporaryStateForChildrenOfFirefoxView: Constants.kGROUP_TAB_TEMPORARY_STATE_PASSIVE,
   groupTabTemporaryStateForOrphanedTabs: Constants.kGROUP_TAB_TEMPORARY_STATE_AGGRESSIVE,
+  groupTabTemporaryStateForAPI: Constants.kGROUP_TAB_TEMPORARY_STATE_NOTHING,
   renderTreeInGroupTabs: true,
   warnOnAutoGroupNewTabs: true,
   warnOnAutoGroupNewTabsWithListing: true,
   warnOnAutoGroupNewTabsWithListingMaxRows: 5,
   showAutoGroupOptionHint: true,
+  showAutoGroupOptionHintWithOpener: true,
 
 
   // behavior around newly opened tabs
@@ -392,11 +395,13 @@ export const configs = new Configs({
   moveParentBehavior_outsideSidebar_expanded:   Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
   moveParentBehavior_noSidebar_collapsed:       Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
   moveParentBehavior_noSidebar_expanded:        Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
+  closeParentBehavior_replaceWithGroup_thresholdToPrevent: 1, // negative value means "never prevent"
   moveTabsToBottomWhenDetachedFromClosedParent: false,
   promoteAllChildrenWhenClosedParentIsLastChild: true,
   successorTabControlLevel: Constants.kSUCCESSOR_TAB_CONTROL_IN_TREE,
   simulateSelectOwnerOnClose: true,
   simulateLockTabSizing: true,
+  deferScrollingToOutOfViewportSuccessor: true,
   simulateTabsLoadInBackgroundInverted: false,
   supportTabsMultiselect: typeof browser.menus.overrideContext == 'function',
   warnOnCloseTabs: true,
@@ -847,6 +852,20 @@ export function nextFrame() {
   });
 }
 
+export async function asyncRunWithTimeout({ task, timeout, onTimedOut }) {
+  let succeeded = false;
+  return Promise.race([
+    task().then(result => {
+      succeeded = true;
+      return result;
+    }),
+    wait(timeout).then(() => {
+      if (!succeeded)
+        return onTimedOut();
+    }),
+  ]);
+}
+
 
 const mNotificationTasks = new Map();
 
@@ -1067,7 +1086,7 @@ export function watchOverflowStateChange({ target, moreResizeTargets, onOverflow
   };
 
   let resizeObserver/*, mutationObserver*/;
-  if (useLegacyOverflowEvents) {
+  if (!useLegacyOverflowEvents) {
     const resizeTargets = new Set([target, ...(moreResizeTargets || [])]);
     resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {

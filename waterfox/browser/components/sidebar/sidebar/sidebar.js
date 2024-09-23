@@ -582,6 +582,9 @@ async function rebuildAll(importedTabs) {
   }
   MetricsData.add('rebuildAll: end (from scratch)');
 
+  document.documentElement.classList.toggle(Constants.kTABBAR_STATE_MULTIPLE_HIGHLIGHTED, Tab.getHighlightedTabs(mTargetWindow).length > 1);
+  SidebarTabs.reserveToUpdateLoadingState();
+
   importedTabs = null; // wipe it out from the RAM.
   return false;
 }
@@ -793,12 +796,22 @@ function updateTabbarLayout({ reason, reasons, timeout, justNow } = {}) {
     Scroll.reserveToRenderVirtualScrollViewport({ trigger: 'resized' });
 
   if (SidebarTabs.normalContainer.classList.contains(Constants.kTABBAR_STATE_OVERFLOW)) {
+    const updatedAt = updateTabbarLayout.lastScrollbarAutohideUpdatedAt = Date.now();
     window.requestAnimationFrame(() => {
+      if (updatedAt != updateTabbarLayout.lastScrollbarAutohideUpdatedAt ||
+          !SidebarTabs.normalContainer.classList.contains(Constants.kTABBAR_STATE_OVERFLOW))
+        return;
+
       // scrollbar is shown only when hover on Windows 11, Linux, and macOS.
       const virtualScrollContainer = document.querySelector('.virtual-scroll-container');
       const scrollbarOffset = mTabBar.offsetWidth - virtualScrollContainer.offsetWidth;
-      mTabBar.classList.toggle(Constants.kTABBAR_STATE_SCROLLBAR_AUTOHIDE, scrollbarOffset == 0);
 
+      const lastState = mTabBar.classList.contains(Constants.kTABBAR_STATE_SCROLLBAR_AUTOHIDE);
+      const newState = scrollbarOffset == 0;
+      if (lastState == newState)
+        return;
+
+      mTabBar.classList.toggle(Constants.kTABBAR_STATE_SCROLLBAR_AUTOHIDE, newState);
       onLayoutUpdated.dispatch()
     });
   }
@@ -809,6 +822,7 @@ function updateTabbarLayout({ reason, reasons, timeout, justNow } = {}) {
     PinnedTabs.reserveToReposition({ reasons, timeout, justNow });
 }
 updateTabbarLayout.lastUpdateReasons = 0;
+updateTabbarLayout.lastScrollbarAutohideUpdatedAt = 0;
 
 
 Scroll.onNormalTabsOverflow.addListener(() => {

@@ -8,7 +8,9 @@
 import './index.js';
 
 import * as RetrieveURL from '/common/retrieve-url.js';
+import Tab from '/common/Tab.js';
 
+import * as Sidebar from './sidebar.js';
 import './tab-preview.js';
 import './workaround-for-bug-1875100.js';
 
@@ -36,3 +38,13 @@ window.addEventListener('contextmenu', event => {
   event.preventDefault();
   return false;
 }, { capture: true });
+
+// Deactivate tab tooltip for tab hover previews
+Tab.onCreated.addListener(tab => {
+  tab.$TST.registerTooltipText(browser.runtime.id, '', true);
+});
+Sidebar.onReady.addListener(() => {
+  for (const tab of Tab.getAllTabs()) {
+    tab.$TST.registerTooltipText(browser.runtime.id, '', true);
+  }
+});

@@ -30,7 +30,7 @@ function log(...args) {
   internalLogger('background/tabs-group', ...args);
 }
 
-export function makeGroupTabURI({ title, temporary, temporaryAggressive, openerTabId, aliasTabId } = {}) {
+export function makeGroupTabURI({ title, temporary, temporaryAggressive, openerTabId, aliasTabId, replacedParentCount } = {}) {
   const url = new URL(Constants.kGROUP_TAB_URI);
 
   if (title)
@@ -47,19 +47,31 @@ export function makeGroupTabURI({ title, temporary, temporaryAggressive, openerT
   if (aliasTabId)
     url.searchParams.set('aliasTabId', aliasTabId);
 
+  if (replacedParentCount)
+    url.searchParams.set('replacedParentCount', replacedParentCount);
+
   return url.href;
 }
 
 export function temporaryStateParams(state) {
   switch (state) {
     case Constants.kGROUP_TAB_TEMPORARY_STATE_PASSIVE:
-      return { temporary: true };
+      return {
+        temporary:           true,
+        temporaryAggressive: false,
+      };
     case Constants.kGROUP_TAB_TEMPORARY_STATE_AGGRESSIVE:
-      return { temporaryAggressive: true };
+      return {
+        temporary:           false,
+        temporaryAggressive: true,
+      };
     default:
       break;
   }
-  return {};
+  return {
+    temporary:           false,
+    temporaryAggressive: false,
+  };
 }
 
 export async function groupTabs(tabs, { broadcast, parent, withDescendants, ...groupTabOptions } = {}) {
@@ -67,7 +79,7 @@ export async function groupTabs(tabs, { broadcast, parent, withDescendants, ...g
   if (rootTabs.length <= 0)
     return null;
 
-  log('groupTabs: ', () => tabs.map(dumpTab));
+  log('groupTabs: ', () => tabs.map(dumpTab), { broadcast, parent, withDescendants });
 
   const uri = makeGroupTabURI({
     title:     browser.i18n.getMessage('groupTab_label', rootTabs[0].title),
@@ -81,10 +93,19 @@ export async function groupTabs(tabs, { broadcast, parent, withDescendants, ...g
     inBackground: true
   });
 
-  if (!withDescendants)
+  if (!withDescendants) {
+    const structure = TreeBehavior.getTreeStructureFromTabs(tabs);
+
     await Tree.detachTabsFromTree(tabs, {
-      broadcast: !!broadcast
+      broadcast: !!broadcast,
     });
+
+    log('structure: ', structure);
+    await Tree.applyTreeStructureToTabs(tabs, structure, {
+      broadcast: !!broadcast,
+    });
+  }
+
   await TabsMove.moveTabsAfter(tabs.slice(1), tabs[0], {
     broadcast: !!broadcast
   });
@@ -92,7 +113,7 @@ export async function groupTabs(tabs, { broadcast, parent, withDescendants, ...g
     await Tree.attachTabTo(tab, groupTab, {
       forceExpand: true, // this is required to avoid the group tab itself is active from active tab in collapsed tree
       dontMove:  true,
-      broadcast: !!broadcast
+      broadcast: !!broadcast,
     });
   }
   return groupTab;
@@ -163,7 +184,8 @@ export async function tryReplaceTabWithGroup(tab, { windowId, parent, children, 
   const firstChild = children[0];
   const uri = makeGroupTabURI({
     title:     browser.i18n.getMessage('groupTab_label', firstChild.title),
-    ...temporaryStateParams(configs.groupTabTemporaryStateForOrphanedTabs)
+    ...temporaryStateParams(configs.groupTabTemporaryStateForOrphanedTabs),
+    replacedParentCount: (tab?.$TST?.replacedParentGroupTabCount || 0) + 1,
   });
   const win = TabsStore.windows.get(windowId);
   win.toBeOpenedTabsWithPositions++;
