@@ -138,15 +138,12 @@ async function onActivated(activeInfo) {
   try {
     const win = Window.init(activeInfo.windowId);
 
-    const byInternalOperation = win.internalFocusCount > 0;
-    if (byInternalOperation)
-      win.internalFocusCount--;
-    const byMouseOperation = win.internalByMouseFocusCount > 0;
-    if (byMouseOperation)
-      win.internalByMouseFocusCount--;
-    const silently = win.internalSilentlyFocusCount > 0;
-    if (silently)
-      win.internalSilentlyFocusCount--;
+    const byInternalOperation = win.internallyFocusingTabs.has(activeInfo.tabId);
+    win.internallyFocusingTabs.delete(activeInfo.tabId);
+    const byMouseOperation = win.internallyFocusingByMouseTabs.has(activeInfo.tabId);
+    win.internallyFocusingByMouseTabs.delete(activeInfo.tabId);
+    const silently = win.internallyFocusingSilentlyTabs.has(activeInfo.tabId);
+    win.internallyFocusingSilentlyTabs.delete(activeInfo.tabId);
     const byTabDuplication = parseInt(win.duplicatingTabsCount) > 0;
 
     if (!Tab.isTracked(activeInfo.tabId))
@@ -272,6 +269,7 @@ async function onUpdated(tabId, changeInfo, tab) {
       }
     }
     /*
+      Workaround for Firefox 130 and olders.
       Updated openerTabId is not notified via tabs.onUpdated due to
       https://bugzilla.mozilla.org/show_bug.cgi?id=1409262 , so it can be
       notified with delay as a part of the complete tabs.Tab object,
@@ -284,8 +282,11 @@ async function onUpdated(tabId, changeInfo, tab) {
         continue;
       if ('key' in updatedTab)
         oldState[key] = updatedTab[key];
-      if (key == 'openerTabId')
+      if (key == 'openerTabId') {
+        if (changeInfo.openerTabId == updatedTab.openerTabId) // already processed
+          continue;
         log(`openerTabId of ${tabId} is changed by someone (notified via changeInfo)!: ${updatedTab.openerTabId} (original) => ${changeInfo[key]} (changed by someone)`, configs.debug && new Error().stack);
+      }
       updatedTab[key] = changeInfo[key];
     }
     if (changeInfo.url ||
@@ -788,10 +789,8 @@ async function onNewTabTracked(tab, info) {
     }
 
     tab.$TST.memorizeNeighbors('newly tracked');
-    if (tab.$TST.unsafePreviousTab)
-      tab.$TST.unsafePreviousTab.$TST.memorizeNeighbors('unsafePreviousTab');
-    if (tab.$TST.unsafeNextTab)
-      tab.$TST.unsafeNextTab.$TST.memorizeNeighbors('unsafeNextTab');
+    tab.$TST.unsafePreviousTab?.$TST?.memorizeNeighbors('unsafePreviousTab');
+    tab.$TST.unsafeNextTab?.$TST?.memorizeNeighbors('unsafeNextTab');
 
     Tree.onAttached.removeListener(onTreeModified);
     metric.add('Tree.onAttached proceeded');
@@ -839,11 +838,18 @@ async function onRemoved(tabId, removeInfo) {
   log('tabs.onRemoved: ', tabId, removeInfo);
   const win                 = Window.init(removeInfo.windowId);
   const byInternalOperation = win.internalClosingTabs.has(tabId);
-  if (byInternalOperation)
-    win.internalClosingTabs.delete(tabId);
   const preventEntireTreeBehavior = win.keepDescendantsTabs.has(tabId);
-  if (preventEntireTreeBehavior)
-    win.keepDescendantsTabs.delete(tabId);
+
+  win.internalMovingTabs.delete(tabId);
+  win.alreadyMovedTabs.delete(tabId);
+  win.internalClosingTabs.delete(tabId);
+  win.keepDescendantsTabs.delete(tabId);
+  win.highlightingTabs.delete(tabId);
+  win.tabsToBeHighlightedAlone.delete(tabId);
+
+  win.internallyFocusingTabs.delete(tabId);
+  win.internallyFocusingByMouseTabs.delete(tabId);
+  win.internallyFocusingSilentlyTabs.delete(tabId);
 
   if (Tab.needToWaitTracked(removeInfo.windowId))
     await Tab.waitUntilTrackedAll(removeInfo.windowId);
@@ -925,9 +931,7 @@ async function onRemoved(tabId, removeInfo) {
     oldTab.$TST.destroy();
 
     for (const tab of nearestTabs) {
-      if (!tab || !tab.$TST)
-        continue;
-      tab.$TST.memorizeNeighbors('neighbor of closed tab');
+      tab?.$TST?.memorizeNeighbors('neighbor of closed tab');
     }
 
     onCompleted();
@@ -956,7 +960,10 @@ async function onMoved(tabId, moveInfo) {
   // and other fixup operations around tabs moved by foreign triggers, on such
   // cases. Don't mind, the tab will be rearranged again by delayed
   // TabsMove.syncTabsPositionToApiTabs() anyway!
-  const maybeInternalOperation = win.internalMovingTabs.has(tabId);
+  const internalExpectedIndex = win.internalMovingTabs.get(tabId);
+  const maybeInternalOperation = internalExpectedIndex < 0 || internalExpectedIndex == moveInfo.toIndex;
+  if (maybeInternalOperation)
+    log(`tabs.onMoved: ${tabId} is detected as moved internally`);
 
   if (!Tab.isTracked(tabId))
     await Tab.waitUntilTracked(tabId);
@@ -979,7 +986,7 @@ async function onMoved(tabId, moveInfo) {
        do following processes after the tab is completely pinned. */
     const movedTab = Tab.get(tabId);
     if (!movedTab) {
-      if (maybeInternalOperation)
+      if (win.internalMovingTabs.has(tabId))
         win.internalMovingTabs.delete(tabId);
       completelyMoved();
       warnTabDestroyedWhileWaiting(tabId, movedTab);
@@ -989,22 +996,21 @@ async function onMoved(tabId, moveInfo) {
     let oldPreviousTab = movedTab.hidden ? movedTab.$TST.unsafePreviousTab : movedTab.$TST.previousTab;
     let oldNextTab     = movedTab.hidden ? movedTab.$TST.unsafeNextTab : movedTab.$TST.nextTab;
     if (movedTab.index != moveInfo.toIndex ||
-        (oldPreviousTab && oldPreviousTab.index == movedTab.index - 1) ||
-        (oldNextTab && oldNextTab.index == movedTab.index + 1)) {
+        (oldPreviousTab?.index == movedTab.index - 1) ||
+        (oldNextTab?.index == movedTab.index + 1)) {
       // already moved
       oldPreviousTab = Tab.getTabAt(moveInfo.windowId, moveInfo.toIndex < moveInfo.fromIndex ? moveInfo.fromIndex : moveInfo.fromIndex - 1);
       oldNextTab     = Tab.getTabAt(moveInfo.windowId, moveInfo.toIndex < moveInfo.fromIndex ? moveInfo.fromIndex + 1 : moveInfo.fromIndex);
-      if (oldPreviousTab && oldPreviousTab.id == movedTab.id)
+      if (oldPreviousTab?.id == movedTab.id)
         oldPreviousTab = Tab.getTabAt(moveInfo.windowId, moveInfo.toIndex < moveInfo.fromIndex ? moveInfo.fromIndex - 1 : moveInfo.fromIndex - 2);
-      if (oldNextTab && oldNextTab.id == movedTab.id)
+      if (oldNextTab?.id == movedTab.id)
         oldNextTab = Tab.getTabAt(moveInfo.windowId, moveInfo.toIndex < moveInfo.fromIndex ? moveInfo.fromIndex : moveInfo.fromIndex - 1);
     }
 
-    let alreadyMoved = false;
-    if (win.alreadyMovedTabs.has(tabId)) {
+    const expectedIndex = win.alreadyMovedTabs.get(tabId);
+    const alreadyMoved = expectedIndex < 0 || expectedIndex == moveInfo.toIndex;
+    if (win.alreadyMovedTabs.has(tabId))
       win.alreadyMovedTabs.delete(tabId);
-      alreadyMoved = true;
-    }
 
     const extendedMoveInfo = {
       ...moveInfo,
@@ -1012,7 +1018,10 @@ async function onMoved(tabId, moveInfo) {
       alreadyMoved,
       oldPreviousTab,
       oldNextTab,
-      isSubstantiallyMoved: movedTab.$TST.isSubstantiallyMoved
+      // Multiselected tabs can be moved together in bulk, by drag and drop
+      // in the horizontal tab bar, or addons like
+      // https://addons.mozilla.org/firefox/addon/move-tab-hotkeys/
+      movedInBulk: !maybeInternalOperation && (movedTab.$TST.multiselected || movedTab.$TST.movedInBulk),
     };
     log('tabs.onMoved: ', movedTab, extendedMoveInfo);
 
@@ -1060,20 +1069,16 @@ async function onMoved(tabId, moveInfo) {
           nextTabId: nextTab && nextTab.id
         });
     }
-    if (maybeInternalOperation)
+    if (win.internalMovingTabs.has(tabId))
       win.internalMovingTabs.delete(tabId);
     completelyMoved();
 
     movedTab.$TST.memorizeNeighbors('moved');
-    if (movedTab.$TST.unsafePreviousTab)
-      movedTab.$TST.unsafePreviousTab.$TST.memorizeNeighbors('unsafePreviousTab');
-    if (movedTab.$TST.unsafeNextTab)
-      movedTab.$TST.unsafeNextTab.$TST.memorizeNeighbors('unsafeNextTab');
+    movedTab.$TST.unsafePreviousTab?.$TST?.memorizeNeighbors('unsafePreviousTab');
+    movedTab.$TST.unsafeNextTab?.$TST?.memorizeNeighbors('unsafeNextTab');
 
-    if (oldPreviousTab)
-      oldPreviousTab.$TST.memorizeNeighbors('oldPreviousTab');
-    if (oldNextTab)
-      oldNextTab.$TST.memorizeNeighbors('oldNextTab');
+    oldPreviousTab?.$TST?.memorizeNeighbors('oldPreviousTab');
+    oldNextTab?.$TST?.memorizeNeighbors('oldNextTab');
   }
   catch(e) {
     console.log(e);

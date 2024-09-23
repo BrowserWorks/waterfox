@@ -614,6 +614,7 @@
   "config_groupTabTemporaryStateForNewTabsFromBookmarks_label": { "message": "For tabs opened from bookmarks:" },
   "config_groupTabTemporaryStateForNewTabsFromOthers_label": { "message": "For tabs opened at a time from non-bookmark triggers:" },
   "config_groupTabTemporaryStateForOrphanedTabs_label": { "message": "Opened to replace a closed parent tab:" },
+  "config_groupTabTemporaryStateForAPI_label": { "message": "Opened to group tabs from other addons via API:" },
 
   "config_inheritContextualIdentityToChildTabMode_label": { "message": "Container:" },
   "config_inheritContextualIdentityToChildTabMode_default": { "message": "(no control)" },
@@ -730,6 +731,7 @@
   "config_insertDroppedTabsAt_first": { "message": "The top of the tree (next to the parent)" },
   "config_insertDroppedTabsAt_end": { "message": "The end of the tree" },
 
+  "config_autoCreateFolderForBookmarksFromTree_label":  { "message": "Auto-group bookmark items under a folder when they are guessed to be created from multiple tree item tabs (ex. drag and drop of multiselected tabs)" },
   "config_autoExpandOnLongHoverDelay_before":  { "message": "Expand collapsed tree with hovering over " },
   "config_autoExpandOnLongHoverDelay_after":  { "message": "msec while dragging" },
   "config_autoExpandOnLongHoverRestoreIniitalState_label":  { "message": "Collapse such trees automatically after a drag action is finished" },
@@ -892,6 +894,7 @@
   "tabContextMenu_shareTabURL_more_label":   { "message": "More…" },
 
 
+  "tabContextMenu_closeDuplicatedTabs_label": { "message": "Close D&uplicate Tabs" },
   "tabContextMenu_closeMultipleTabs_label":  { "message": "Close &Multiple Tabs" },
   "tabContextMenu_closeTabsToTop_label":  { "message": "Close Tabs to the &Top" },
   "tabContextMenu_closeTabsToBottom_label":  { "message": "Close Tabs to the &Bottom" },

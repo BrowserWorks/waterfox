@@ -30,7 +30,8 @@ export const TabInvalidationTarget = Object.freeze({
   CloseBox:    1 << 2,
   Tooltip:     1 << 3,
   SharingState: 1 << 4,
-  All:         1 << 0 | 1 << 1 | 1 << 2 | 1 << 3 | 1 << 4,
+  Overflow:    1 << 5,
+  All:         1 << 0 | 1 << 1 | 1 << 2 | 1 << 3 | 1 << 4 | 1 << 5,
 });
 
 export const TabUpdateTarget = Object.freeze({
@@ -310,35 +311,25 @@ export class TabElement extends HTMLElement {
     if (!this.initialized)
       return;
 
-    if (targets & TabInvalidationTarget.Twisty) {
-      const twisty = this.twisty;
-      if (twisty)
-        twisty.invalidate();
-    }
+    if (targets & TabInvalidationTarget.Twisty)
+      this.twisty?.invalidate();
 
-    if (targets & TabInvalidationTarget.SharingState) {
-      const sharingState = this._sharingStateElement;
-      if (sharingState)
-        sharingState.invalidate();
-    }
+    if (targets & TabInvalidationTarget.SharingState)
+      this._sharingStateElement?.invalidate();
 
-    if (targets & TabInvalidationTarget.SoundButton) {
-      const soundButton = this._soundButtonElement;
-      if (soundButton)
-        soundButton.invalidate();
-    }
+    if (targets & TabInvalidationTarget.SoundButton)
+      this._soundButtonElement?.invalidate();
 
-    if (targets & TabInvalidationTarget.CloseBox) {
-      const closeBox = this.closeBox;
-      if (closeBox)
-        closeBox.invalidate();
-    }
+    if (targets & TabInvalidationTarget.CloseBox)
+      this.closeBox?.invalidate();
 
     if (targets & TabInvalidationTarget.Tooltip)
       this.invalidateTooltip();
 
-    if (targets & TabInvalidationTarget.Overflow)
+    if (targets & TabInvalidationTarget.Overflow) {
+      this._labelElement.invalidateOverflow();
       this._needToUpdateOverflow = true;
+    }
   }
 
   invalidateTooltip() {
@@ -356,11 +347,8 @@ export class TabElement extends HTMLElement {
     if (!this.initialized)
       return;
 
-    if (targets & TabUpdateTarget.Counter) {
-      const counter = this._counterElement;
-      if (counter)
-        counter.update();
-    }
+    if (targets & TabUpdateTarget.Counter)
+      this._counterElement?.update();
 
     if (targets & TabUpdateTarget.Overflow)
       this._updateOverflow();
@@ -376,16 +364,15 @@ export class TabElement extends HTMLElement {
   }
 
   updateOverflow() {
-    if (this._needToUpdateOverflow || configs.labelOverflowStyle == 'fade')
+    if (this._needToUpdateOverflow ||
+        configs.labelOverflowStyle == 'fade')
       this._updateOverflow();
     this.invalidateTooltip();
   }
 
   _updateOverflow() {
     this._needToUpdateOverflow = false;
-    const label = this._labelElement;
-    if (label)
-      label.updateOverflow();
+    this._labelElement?.updateOverflow();
   }
 
   _updateTooltip() {
@@ -424,7 +411,10 @@ windowId = ${tab.windowId}
 
     const highPriorityTooltipText = this.$TST.getHighPriorityTooltipText();
     if (typeof highPriorityTooltipText == 'string') {
-      this.$TST.setAttribute('title', this.tooltip);
+      if (highPriorityTooltipText)
+        this.$TST.setAttribute('title', this.tooltip);
+      else
+        this.$TST.removeAttribute('title');
       return;
     }
 
@@ -706,7 +696,9 @@ windowId = ${tab.windowId}
       return;
 
     this.invalidateTooltip();
-    if (this.$TST.collapsed)
+    if (this.$TST.collapsed) {
+      this._labelElement.invalidateOverflow();
       this._needToUpdateOverflow = true;
+    }
   }
 }

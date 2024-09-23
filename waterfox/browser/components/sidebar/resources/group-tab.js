@@ -73,6 +73,12 @@
     return url.searchParams.get('aliasTabId');
   }
 
+  function getReplacedParentCount() {
+    const url = new URL(location.href);
+    const count = parseInt(url.searchParams.get('replacedParentCount'));
+    return isNaN(count) ? 0 : count;
+  }
+
   function enterTitleEdit() {
     if (!gTitle)
       init();
@@ -125,6 +131,12 @@
       url.searchParams.set('aliasTabId', aliasTabId);
     else
       url.searchParams.delete('aliasTabId');
+
+    const replacedParentCount = getReplacedParentCount();
+    if (replacedParentCount > 0)
+      url.searchParams.set('replacedParentCount', replacedParentCount);
+    else
+      url.searchParams.delete('replacedParentCount');
 
     history.replaceState({}, document.title, url.href);
   }
@@ -272,7 +284,8 @@
         type: 'ws:get-config-value',
         keys: [
           'renderTreeInGroupTabs',
-          'showAutoGroupOptionHint'
+          'showAutoGroupOptionHint',
+          'showAutoGroupOptionHintWithOpener',
         ]
       }),
       browser.runtime.sendMessage({
@@ -294,7 +307,9 @@
     updateTree.enabled = configs.renderTreeInGroupTabs;
     updateTree();
 
-    let show = configs.showAutoGroupOptionHint;
+    const optionPageSection = getOpenerTabId() ? 'autoGroupNewTabsFromPinned' : 'autoGroupNewTabsSection';
+    const optionKey = getOpenerTabId() ? 'showAutoGroupOptionHintWithOpener' : 'showAutoGroupOptionHint';
+    let show = configs[optionKey];
     if (!isTemporary() && !isTemporaryAggressive())
       show = false;
 
@@ -302,12 +317,14 @@
     hint.style.display = show ? 'block' : 'none';
 
     if (show) {
+      const uri = `moz-extension://${location.host}/options/options.html#${optionPageSection}`;
       hint.firstChild.addEventListener('click', event => {
         if (event.button != 0)
           return;
         browser.runtime.sendMessage({
           type: 'ws:open-tab',
-          uri:  `moz-extension://${location.host}/options/options.html#autoGroupNewTabsSection`
+          uri,
+          active: true,
         });
       });
       hint.firstChild.addEventListener('keydown', event => {
@@ -316,7 +333,8 @@
           return;
         browser.runtime.sendMessage({
           type: 'ws:open-tab',
-          uri:  `moz-extension://${location.host}/options/options.html#autoGroupNewTabsSection`
+          uri,
+          active: true,
         });
       });
 
@@ -327,7 +345,7 @@
         hint.style.display = 'none';
         browser.runtime.sendMessage({
           type: 'ws:set-config-value',
-          key:  'showAutoGroupOptionHint',
+          key:  optionKey,
           value: false
         });
       });
@@ -338,7 +356,7 @@
         hint.style.display = 'none';
         browser.runtime.sendMessage({
           type: 'ws:set-config-value',
-          key:  'showAutoGroupOptionHint',
+          key:  optionKey,
           value: false
         });
       });
@@ -569,41 +587,41 @@
   function columnizeTree(aTree, options) {
     options = options || {};
     options.columnWidth = options.columnWidth || 'var(--column-width, 20em)';
+    const containerRect = options.containerRect || aTree.parentNode.getBoundingClientRect();
+
+    const uncolumnizedTree = aTree.cloneNode(true);
+    const uncolumnizedTreeStyle = uncolumnizedTree.style;
+    uncolumnizedTreeStyle.visibility = 'hidden';
+    uncolumnizedTreeStyle.position = 'absolute';
+    uncolumnizedTreeStyle.maxWidth = `${containerRect.width}px`;
+    uncolumnizedTreeStyle.height = uncolumnizedTreeStyle.maxHeight = '';
+    uncolumnizedTreeStyle.columnWidth = '';
+    aTree.parentNode.appendChild(uncolumnizedTree);
+    const totalContentsHeight = uncolumnizedTree.offsetHeight;
+    aTree.parentNode.removeChild(uncolumnizedTree);
 
     const style = aTree.style;
-    style.columnWidth = style.MozColumnWidth = `calc(${options.columnWidth})`;
-    const computedStyle = window.getComputedStyle(aTree, null);
-    aTree.columnWidth = Number((computedStyle.MozColumnWidth || computedStyle.columnWidth).replace(/px/, ''));
-    style.columnGap   = style.MozColumnGap = '1em';
-    style.columnFill  = style.MozColumnFill = 'auto';
-    style.columnCount = style.MozColumnCount = 'auto';
-
-    const containerRect = options.containerRect || aTree.parentNode.getBoundingClientRect();
-    const maxWidth = containerRect.width;
-    if (aTree.columnWidth * 2 <= maxWidth ||
-        options.calculateCount) {
+    if (totalContentsHeight > containerRect.height) {
+      style.columnWidth = style.MozColumnWidth = `calc(${options.columnWidth})`;
+      const computedStyle = window.getComputedStyle(aTree, null);
+      aTree.columnWidth = Number((computedStyle.MozColumnWidth || computedStyle.columnWidth).replace(/px/, ''));
+      style.columnGap   = style.MozColumnGap = '1em';
+      style.columnFill  = style.MozColumnFill = 'auto';
+      style.columnCount = style.MozColumnCount = 'auto';
       const treeContentsRange = document.createRange();
       treeContentsRange.selectNodeContents(aTree);
       const overflow = treeContentsRange.getBoundingClientRect().width > window.innerWidth;
       treeContentsRange.detach();
+      style.maxWidth = '';
       const blankSpace = overflow ? 2 : 1;
       style.height = style.maxHeight =
         `calc(${containerRect.height}px - ${blankSpace}em)`;
-
-      if (getActualColumnCount(aTree) <= 1)
-        style.columnWidth = style.MozColumnWidth = '';
     }
     else {
+      style.columnWidth = style.MozColumnWidth = '';
+      style.maxWidth = `calc(${containerRect.width}px - 1em /* right-padding of #tabs */ - 20px /* left-margin of the tree */)`;
       style.height = style.maxHeight = '';
     }
-  }
-
-  function getActualColumnCount(aTree) {
-    const range = document.createRange();
-    range.selectNodeContents(aTree);
-    const rect = range.getBoundingClientRect();
-    range.detach();
-    return Math.floor(rect.width / aTree.columnWidth);
   }
 
   init();
