@@ -1298,8 +1298,32 @@ const mItems = [
             type:  'radio'
           }
         ]
-      }
-    ]
+      },
+      {
+        title: indent() + browser.i18n.getMessage('config_groupTabTemporaryStateForAPI_label'),
+        expert: true,
+        children: [
+          {
+            title: browser.i18n.getMessage('config_groupTabTemporaryState_option_default'),
+            key:   'groupTabTemporaryStateForAPI',
+            value: Constants.kGROUP_TAB_TEMPORARY_STATE_NOTHING,
+            type:  'radio'
+          },
+          {
+            title: `${browser.i18n.getMessage('config_groupTabTemporaryState_option_checked_before')}${browser.i18n.getMessage('groupTab_temporary_label')}${browser.i18n.getMessage('config_groupTabTemporaryState_option_checked_after')}`,
+            key:   'groupTabTemporaryStateForAPI',
+            value: Constants.kGROUP_TAB_TEMPORARY_STATE_PASSIVE,
+            type:  'radio'
+          },
+          {
+            title: `${browser.i18n.getMessage('config_groupTabTemporaryState_option_checked_before')}${browser.i18n.getMessage('groupTab_temporaryAggressive_label')}${browser.i18n.getMessage('config_groupTabTemporaryState_option_checked_after')}`,
+            key:   'groupTabTemporaryStateForAPI',
+            value: Constants.kGROUP_TAB_TEMPORARY_STATE_AGGRESSIVE,
+            type:  'radio'
+          },
+        ],
+      },
+    ],
   },
   {
     title:    browser.i18n.getMessage('config_treeBehavior_caption'),
