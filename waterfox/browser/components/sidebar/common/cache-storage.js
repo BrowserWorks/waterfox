@@ -6,10 +6,14 @@
 'use strict';
 
 import * as UniqueId from '/common/unique-id.js';
+import {
+  asyncRunWithTimeout,
+} from '/common/common.js';
 
 const DB_NAME = 'PermanentStorage';
 const DB_VERSION = 3;
 const EXPIRATION_TIME_IN_MSEC = 7 * 24 * 60 * 60 * 1000; // 7 days
+const TIMEOUT_IN_MSEC = 1000 * 5; // 5 sec
 
 export const BACKGROUND = 'backgroundCaches';
 const SIDEBAR = 'sidebarCaches'; // obsolete, but left here to delete old storage
@@ -70,28 +74,42 @@ export async function setValue({ windowId, key, value } = {}) {
   const store = BACKGROUND;
 
   const cacheKey = `${windowUniqueId}-${key}`;
-  const timestamp = Date.now();
-  try {
-    const transaction = db.transaction([store], 'readwrite');
-    const cacheStore = transaction.objectStore(store);
+  asyncRunWithTimeout({
+    task: () => new Promise((resolve, reject) => {
+      const timestamp = Date.now();
+      try {
+        const transaction = db.transaction([store], 'readwrite');
+        const cacheStore = transaction.objectStore(store);
+        const cacheRequest = cacheStore.put({
+          key:      cacheKey,
+          windowId: windowUniqueId,
+          value,
+          timestamp,
+        });
 
-    cacheStore.put({
-      key:      cacheKey,
-      windowId: windowUniqueId,
-      value,
-      timestamp,
-    });
+        transaction.oncomplete = () => {
+          //db.close();
+          windowId = undefined;
+          key      = undefined;
+          value    = undefined;
+          resolve();
+        };
 
-    transaction.oncomplete = () => {
-      //db.close();
-      windowId = undefined;
-      key      = undefined;
-      value    = undefined;
-    };
-  }
-  catch(error) {
-    console.error(`Failed to store cache ${cacheKey} in the store ${store}`, error);
-  }
+        cacheRequest.onerror = event => {
+          console.error(`Failed to store cache ${cacheKey} in the store ${store}`, event);
+          reject(event);
+        };
+      }
+      catch(error) {
+        console.error(`Failed to store cache ${cacheKey} in the store ${store}`, error);
+        reject(error);
+      }
+    }),
+    timeout: TIMEOUT_IN_MSEC,
+    onTimedOut() {
+      throw new Error(`CacheStorage.setValue for {windowId}/key timed out`);
+    },
+  });
 }
 
 export async function deleteValue({ windowId, key } = {}) {
@@ -107,22 +125,47 @@ export async function deleteValue({ windowId, key } = {}) {
   const store = BACKGROUND;
 
   const cacheKey = `${windowUniqueId}-${key}`;
-  try {
-    const transaction = db.transaction([store], 'readwrite');
-    const cacheStore = transaction.objectStore(store);
-    cacheStore.delete(cacheKey);
-    transaction.oncomplete = () => {
-      //db.close();
-      windowId = undefined;
-      key      = undefined;
-    };
-  }
-  catch(error) {
-    console.error(`Failed to delete cache ${cacheKey} in the store ${store}`, error);
-  }
+  asyncRunWithTimeout({
+    task: () => new Promise((resolve, reject) => {
+      try {
+        const transaction = db.transaction([store], 'readwrite');
+        const cacheStore = transaction.objectStore(store);
+        const cacheRequest = cacheStore.delete(cacheKey);
+
+        transaction.oncomplete = () => {
+          //db.close();
+          windowId = undefined;
+          key      = undefined;
+          resolve();
+        };
+
+        cacheRequest.onerror = event => {
+          console.error(`Failed to delete cache ${cacheKey} in the store ${store}`, event);
+          reject(event);
+        };
+      }
+      catch(error) {
+        console.error(`Failed to delete cache ${cacheKey} in the store ${store}`, error);
+        reject(error);
+      }
+    }),
+    timeout: TIMEOUT_IN_MSEC,
+    onTimedOut() {
+      throw new Error(`CacheStorage.deleteValue for {windowId}/key timed out`);
+    },
+  });
 }
 
 export async function getValue({ windowId, key } = {}) {
+  return asyncRunWithTimeout({
+    task: () => getValueInternal({ windowId, key }),
+    timeout: TIMEOUT_IN_MSEC,
+    onTimedOut() {
+      throw new Error(`CacheStorage.getValue for {windowId}/${key} timed out`);
+    },
+  });
+}
+async function getValueInternal({ windowId, key } = {}) {
   return new Promise(async (resolve, _reject) => {
     const [db, windowUniqueId] = await Promise.all([
       openDB(),
@@ -163,6 +206,11 @@ export async function getValue({ windowId, key } = {}) {
         cache.value    = undefined;
       };
 
+      cacheRequest.onerror = event => {
+        console.error('Failed to get from cache:', event);
+        resolve(null);
+      };
+
       transaction.oncomplete = () => {
         //db.close();
         windowId = undefined;
@@ -177,6 +225,15 @@ export async function getValue({ windowId, key } = {}) {
 }
 
 export async function clearForWindow(windowId) {
+  return asyncRunWithTimeout({
+    task: () => clearForWindowInternal(windowId),
+    timeout: TIMEOUT_IN_MSEC,
+    onTimedOut() {
+      throw new Error(`CacheStorage.clearForWindow for {windowId} timed out`);
+    },
+  });
+}
+async function clearForWindowInternal(windowId) {
   reserveToExpireOldEntries();
   return new Promise(async (resolve, reject) => {
     const [db, windowUniqueId] = await Promise.all([

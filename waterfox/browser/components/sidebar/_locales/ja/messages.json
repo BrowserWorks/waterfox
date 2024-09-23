@@ -611,6 +611,7 @@
   "config_groupTabTemporaryStateForNewTabsFromBookmarks_label": { "message": "ブックマークから開かれたタブをグループ化した場合:" },
   "config_groupTabTemporaryStateForNewTabsFromOthers_label": { "message": "ブックマーク以外から連続して開かれたタブをグループ化した場合:" },
   "config_groupTabTemporaryStateForOrphanedTabs_label": { "message": "閉じられた親タブを置き換える形で開かれた場合:" },
+  "config_groupTabTemporaryStateForAPI_label": { "message": "他の拡張機能からAPI経由でタブをグループ化した場合:" },
 
   "config_inheritContextualIdentityToChildTabMode_label": { "message": "コンテナー:" },
   "config_inheritContextualIdentityToChildTabMode_default": { "message": "（制御しない）" },
@@ -727,6 +728,7 @@
   "config_insertDroppedTabsAt_first": { "message": "ツリーの先頭（親タブの隣）" },
   "config_insertDroppedTabsAt_end": { "message": "ツリーの末尾" },
 
+  "config_autoCreateFolderForBookmarksFromTree_label":  { "message": "ツリー構造を持ったタブを複数選択してのドラッグ＆ドロップなどの操作で複数のブックマークが作成されたと推測できる場合に、作成されたブックマークを自動的に1つのフォルダーにまとめる" },
   "config_autoExpandOnLongHoverDelay_before":  { "message": "ドラッグ操作中、折りたたまれたツリーの上で" },
   "config_autoExpandOnLongHoverDelay_after":  { "message": "ミリ秒以上経過したらツリーを展開する" },
   "config_autoExpandOnLongHoverRestoreIniitalState_label":  { "message": "ドラッグ操作の終了後、ツリーを折りたたんだ状態に自動的に戻す" },
@@ -888,6 +890,7 @@
   "tabContextMenu_shareTabURL_label":   { "message": "共有(&H)" },
   "tabContextMenu_shareTabURL_more_label":   { "message": "その他..." },
 
+  "tabContextMenu_closeDuplicatedTabs_label": { "message": "重複タブを閉じる(&U)" },
   "tabContextMenu_closeMultipleTabs_label":  { "message": "複数のタブを閉じる(&M)" },
   "tabContextMenu_closeTabsToTop_label":  { "message": "上のタブをすべて閉じる(&T)" },
   "tabContextMenu_closeTabsToBottom_label":  { "message": "下のタブをすべて閉じる(&B)" },
