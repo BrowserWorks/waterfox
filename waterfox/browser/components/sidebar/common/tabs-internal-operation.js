@@ -7,6 +7,8 @@
 
 // internal operations means operations bypassing WebExtensions' tabs APIs.
 
+import EventListenerManager from '/extlib/EventListenerManager.js';
+
 import {
   log as internalLogger,
   dumpTab,
@@ -26,6 +28,8 @@ function log(...args) {
   internalLogger('common/tabs-internal-operation', ...args);
 }
 
+export const onBeforeTabsRemove = new EventListenerManager();
+
 export async function activateTab(tab, { byMouseOperation, keepMultiselection, silently } = {}) {
   if (!Constants.IS_BACKGROUND)
     throw new Error('Error: TabsInternalOperation.activateTab is available only on the background page, use a `kCOMMAND_ACTIVATE_TAB` message instead.');
@@ -35,17 +39,15 @@ export async function activateTab(tab, { byMouseOperation, keepMultiselection, s
     return;
   log('activateTab: ', dumpTab(tab));
   const win = TabsStore.windows.get(tab.windowId);
-  win.internalFocusCount++;
+  win.internallyFocusingTabs.add(tab.id);
   if (byMouseOperation)
-    win.internalByMouseFocusCount++;
+    win.internallyFocusingByMouseTabs.add(tab.id);
   if (silently)
-    win.internalSilentlyFocusCount++;
+    win.internallyFocusingSilentlyTabs.add(tab.id);
   const onError = (e) => {
-    win.internalFocusCount--;
-    if (byMouseOperation)
-      win.internalByMouseFocusCount--;
-    if (silently)
-      win.internalSilentlyFocusCount--;
+    win.internallyFocusingTabs.delete(tab.id);
+    win.internallyFocusingByMouseTabs.delete(tab.id);
+    win.internallyFocusingSilentlyTabs.delete(tab.id);
     ApiTabs.handleMissingTabError(e);
   };
   if (configs.supportTabsMultiselect &&
@@ -77,36 +79,60 @@ export async function blurTab(bluredTabs, { windowId, silently } = {}) {
 
   const bluredTabIds = new Set(Array.from(bluredTabs || [], tab => tab.id || tab));
 
-  let bluredTabsFound = false;
-  let nextActiveTab  = null;
-  for (const tab of Tab.getVisibleTabs(windowId || bluredTabs[0].windowId)) {
-    const blured = bluredTabIds.has(tab.id);
-    if (blured)
-      bluredTabsFound = true;
-    if (!bluredTabsFound)
-      nextActiveTab = tab;
-    if (bluredTabsFound &&
-        !blured) {
-      nextActiveTab = tab;
+  // First, try to find successor based on successorTabId from left tabs.
+  let successorTab = Tab.get(bluredTabs.find(tab => tab.active)?.successorTabId);
+  const scannedTabIds = new Set();
+  while (successorTab && bluredTabIds.has(successorTab.id)) {
+    if (scannedTabIds.has(successorTab.id))
+      break; // prevent infinite loop!
+    scannedTabIds.add(successorTab.id);
+    const nextSuccessorTab = (successorTab.successorTabId > 0 && successorTab.successorTabId != successorTab.id) ?
+      Tab.get(successorTab.successorTabId) :
+      null;
+    if (!nextSuccessorTab)
       break;
-    }
+    successorTab = nextSuccessorTab;
   }
-  if (nextActiveTab)
-    await activateTab(nextActiveTab, { silently });
-  return nextActiveTab;
+  log('blurTab/step 1: found successor = ', successorTab?.id);
+
+  // Second, try to detect successor based on their order.
+  if (!successorTab || bluredTabIds.has(successorTab.id)) {
+    if (successorTab)
+      log(' => it cannot become the successor, find again');
+    let bluredTabsFound = false;
+    for (const tab of Tab.getVisibleTabs(windowId || bluredTabs[0].windowId)) {
+      const blured = bluredTabIds.has(tab.id);
+      if (blured)
+        bluredTabsFound = true;
+      if (!bluredTabsFound)
+        successorTab = tab;
+      if (bluredTabsFound &&
+          !blured) {
+        successorTab = tab;
+        break;
+      }
+    }
+    log('blurTab/step 2: found successor = ', successorTab?.id);
+  }
+
+  if (successorTab)
+    await activateTab(successorTab, { silently });
+  return successorTab;
 }
 
 export function removeTab(tab) {
   return removeTabs([tab]);
 }
 
-export function removeTabs(tabs, { keepDescendants, byMouseOperation, originalStructure, triggerTab } = {}) {
+export async function removeTabs(tabs, { keepDescendants, byMouseOperation, originalStructure, triggerTab } = {}) {
   if (!Constants.IS_BACKGROUND)
     throw new Error('TabsInternalOperation.removeTabs is available only on the background page, use a `kCOMMAND_REMOVE_TABS_INTERNALLY` message instead.');
 
   log('TabsInternalOperation.removeTabs: ', () => tabs.map(dumpTab));
   if (tabs.length == 0)
     return;
+
+  await onBeforeTabsRemove.dispatch(tabs);
 
   const win = TabsStore.windows.get(tabs[0].windowId);
   const tabIds = [];
@@ -136,13 +162,12 @@ export function removeTabs(tabs, { keepDescendants, byMouseOperation, originalSt
       clearCache(tab);
       if (keepDescendants)
         win.keepDescendantsTabs.add(tab.id);
-    }
-    if (willChangeFocus && byMouseOperation) {
-      win.internalByMouseFocusCount++;
-      setTimeout(() => { // the operation can be canceled
-        if (win.internalByMouseFocusCount > 0)
-          win.internalByMouseFocusCount--;
-      }, 250);
+      if (willChangeFocus && byMouseOperation) {
+        win.internallyFocusingByMouseTabs.add(tab.id);
+        setTimeout(() => { // the operation can be canceled
+          win.internallyFocusingByMouseTabs.delete(tab.id);
+        }, 250);
+      }
     }
   }
 

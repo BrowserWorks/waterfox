@@ -71,7 +71,7 @@ const BrowserWindowWatcher = {
     if (win.location.href.startsWith('chrome://browser/content/browser.xhtml')) {
       const installed = this.installTabsSidebar(win);
       if (installed) {
-        this.patchToTabPreviewModules(win);
+        this.patchToTabHoverPreviewModules(win);
         this.patchToPlacesModules(win);
         this.patchToFullScreenModules(win);
         win.addEventListener('DOMAudioPlaybackBlockStarted', this, { capture: true });
@@ -96,7 +96,7 @@ const BrowserWindowWatcher = {
     if (win.location.href.startsWith('chrome://browser/content/browser.xhtml')) {
       this.uninstallTabsSidebar(win);
       try {
-        this.unpatchTabPreviewModules(win);
+        this.unpatchTabHoverPreviewModules(win);
         this.unpatchPlacesModules(win);
         this.unpatchFullScreenModules(win);
         win.removeEventListener('DOMAudioPlaybackBlockStarted', this, { capture: true });
@@ -216,9 +216,9 @@ const BrowserWindowWatcher = {
       :root.tabs-sidebar-right #tabs-sidebar-moveRight {
         display: none;
       }
-      @supports not -moz-bool-pref("userChrome.icon.disabled") {
-        @supports -moz-bool-pref("userChrome.icon.menu") {
-          @supports -moz-bool-pref("userChrome.icon.context_menu") {
+      @media not (-moz-bool-pref: "userChrome.icon.disabled") {
+        @media (-moz-bool-pref: "userChrome.icon.menu") {
+          @media (-moz-bool-pref: "userChrome.icon.context_menu") {
             #tabs-sidebar-newTab {
               list-style-image: var(--uc-new-tab-icon);
             }
@@ -327,17 +327,23 @@ const BrowserWindowWatcher = {
         transition: 0.8s margin-left ease-out,
                     0.8s margin-right ease-out;
       }
-      @supports -moz-bool-pref("userChrome.fullscreen.overlap") {
-        @supports -moz-bool-pref("browser.fullscreen.autohide") {
+      @media (-moz-bool-pref: "userChrome.fullscreen.overlap") {
+        @media (-moz-bool-pref: "browser.fullscreen.autohide") {
           :root[sizemode="fullscreen"] #tabs-sidebar-box,
           :root[sizemode="fullscreen"] #tabs-sidebar-splitter {
+            height: 100% !important;
             position: fixed !important;
             z-index: 900 !important;
-            height: 100% !important;
           }
           :root[sizemode="fullscreen"] #tabs-sidebar-splitter {
             width: 5px !important;
             z-index: 890 !important;
+          }
+          :root[sizemode="fullscreen"]:not(.tabs-sidebar-right) #sidebar-box:not([positionend="true"]) ~ #tabs-sidebar-splitter,
+          :root[sizemode="fullscreen"].tabs-sidebar-right       #sidebar-box:not([positionend="true"]) ~ #tabs-sidebar-splitter,
+          :root[sizemode="fullscreen"]:not(.tabs-sidebar-right) #sidebar-box[positionend="true"]       ~ #tabs-sidebar-splitter,
+          :root[sizemode="fullscreen"].tabs-sidebar-right       #sidebar-box[positionend="true"]       ~ #tabs-sidebar-splitter {
+            order: unset !important;
           }
           :root[sizemode="fullscreen"]:not(.tabs-sidebar-right) #tabs-sidebar-box,
           :root[sizemode="fullscreen"]:not(.tabs-sidebar-right) #tabs-sidebar-splitter {
@@ -351,7 +357,7 @@ const BrowserWindowWatcher = {
       }
 
       @media (prefers-reduced-motion: no-preference) {
-        @supports -moz-bool-pref("userChrome.decoration.animate") {
+        @media (-moz-bool-pref: "userChrome.decoration.animate") {
           :root[sizemode="fullscreen"] #tabs-sidebar-box {
             transition: margin-left 1.3s var(--animation-easing-function) 50ms,
                         margin-right 1.3s var(--animation-easing-function) 50ms !important;
@@ -366,11 +372,14 @@ const BrowserWindowWatcher = {
     document.querySelector('#mainCommandSet').appendChild(element(document, XUL, 'command', {
       id: 'toggle-tabs-sidebar-command',
     }));
-    document.querySelector('#mainKeyset').appendChild(element(document, XUL, 'key', {
-      id:      'toggle-tabs-sidebar-key',
-      keycode: 'VK_F1',
-      command: 'toggle-tabs-sidebar-command',
-    }));
+    // So, as a workaround we don't remove the key element on uninstallation and reuse existing key element.
+    if (!document.querySelector('#toggle-tabs-sidebar-key')) {
+      document.querySelector('#mainKeyset').appendChild(element(document, XUL, 'key', {
+        id:      'toggle-tabs-sidebar-key',
+        keycode: 'VK_F1',
+        command: 'toggle-tabs-sidebar-command',
+      }));
+    }
 
     document.querySelector('#viewSidebarMenu').appendChild(element(document, XUL, 'menuseparator', {
       id: 'viewmenu-tabs-sidebar-separator',
@@ -655,7 +664,8 @@ const BrowserWindowWatcher = {
     for (const node of document.querySelectorAll(`
       #tabs-sidebar-splitter,
       #tabs-sidebar-box,
-      #toggle-tabs-sidebar-key,
+      /* Don't remove key element because only the first element added is effective.*/
+      /*#toggle-tabs-sidebar-key,*/
       #toggle-tabs-sidebar-command,
       #viewmenu-tabs-sidebar-separator,
       #viewmenu-toggle-tabs-sidebar,
@@ -697,17 +707,27 @@ const BrowserWindowWatcher = {
     }
   },
 
-  patchToTabPreviewModules(win) {
-    const tabPreview = win.document.querySelector('#tabbrowser-tab-preview');
+  patchToTabHoverPreviewModules(win) {
+    const tabs = win.document.getElementById('tabbrowser-tabs');
+    if (!tabs)
+      return;
+
+    if (!tabs._previewPanel) {
+      // https://searchfox.org/mozilla-esr128/rev/7998c47697fb3ba3e380eda1281c8280da81a0b1/browser/components/tabbrowser/content/tabs.js#187
+      const TabHoverPreviewPanel = ChromeUtils.importESModule('chrome://browser/content/tabbrowser/tab-hover-preview.mjs').default;
+      tabs._previewPanel = new TabHoverPreviewPanel(win.document.getElementById('tab-preview-panel'));
+    }
+
+    const tabPreview = tabs._previewPanel;
     if (!tabPreview ||
-        !tabPreview.showPreview)
+        !tabPreview.activate)
       return;
 
     tabPreview.__ws__calculateCoordinates = () => {
       const tabsSidebar = win.document.querySelector('#tabs-sidebar');
       const tabsSidebarRect = tabsSidebar.getBoundingClientRect();
       const align = win.document.documentElement.classList.contains('tabs-sidebar-right') ? 'right' : 'left';
-      const previewRect = tabPreview.panel.getBoundingClientRect();
+      const previewRect = tabPreview._panel.getBoundingClientRect();
       const x = align == 'left' ?
         tabsSidebar.screenX + tabsSidebarRect.width - 2 :
         tabsSidebar.screenX - previewRect.width + 2;
@@ -715,32 +735,50 @@ const BrowserWindowWatcher = {
       return [x, y];
     };
 
-    if (!tabPreview.__ws_orig__showPreview)
-      tabPreview.__ws_orig__showPreview = tabPreview.showPreview;
-    tabPreview.showPreview = function() {
-      if (typeof this.__ws__top == 'number') {
-        const [x, y] = tabPreview.__ws__calculateCoordinates();
-        this.panel.openPopupAtScreen(x, y, false);
+    if (!tabPreview.__ws_orig__activate)
+      tabPreview.__ws_orig__activate = tabPreview.activate;
+    // https://searchfox.org/mozilla-esr128/rev/7998c47697fb3ba3e380eda1281c8280da81a0b1/browser/components/tabbrowser/content/tab-hover-preview.mjs#97
+    const self = this;
+    tabPreview.activate = function(tab) {
+      if (this._isDisabled()) {
+        return;
       }
-      else {
-        this.panel.openPopup(this.tab, {
-          position: 'bottomleft topleft',
-          y: -2,
-          isContextMenu: false,
-        });
+      this._tab = tab;
+      this._movePanel();
+
+      this._thumbnailElement = null;
+      this._maybeRequestThumbnail();
+      if (this._panel.state == 'open') {
+        this._updatePreview();
       }
-      win.addEventListener('wheel', this, {
-        capture: true,
-        passive: true,
-      });
-      win.addEventListener('TabSelect', this);
-      this.panel.addEventListener('popuphidden', this);
+      if (this._timer) {
+        return;
+      }
+      this._timer = this._win.setTimeout(() => {
+        this._timer = null;
+        if (self.shouldShowSidebar(win.document) &&
+            typeof this.__ws__top == 'number') {
+          const [x, y] = tabPreview.__ws__calculateCoordinates();
+          this._panel.openPopupAtScreen(x, y, false);
+        }
+        else {
+          this._panel.openPopup(this._tab, {
+            // POPUP_OPTIONS https://searchfox.org/mozilla-esr128/rev/7998c47697fb3ba3e380eda1281c8280da81a0b1/browser/components/tabbrowser/content/tab-hover-preview.mjs#9
+            position: 'bottomleft topleft',
+            x: 0,
+            y: -2,
+          });
+        }
+      }, this._prefPreviewDelay);
+      this._win.addEventListener('TabSelect', this);
+      this._panel.addEventListener('popupshowing', this);
     };
 
-    if (!tabPreview.panel.__ws_orig__moveToAnchor)
-      tabPreview.panel.__ws_orig__moveToAnchor = tabPreview.panel.moveToAnchor;
-    tabPreview.panel.moveToAnchor = function(...args) {
-      if (typeof tabPreview.__ws__top == 'number') {
+    if (!tabPreview._panel.__ws_orig__moveToAnchor)
+      tabPreview._panel.__ws_orig__moveToAnchor = tabPreview._panel.moveToAnchor;
+    tabPreview._panel.moveToAnchor = function(...args) {
+      if (self.shouldShowSidebar(win.document) &&
+          typeof tabPreview.__ws__top == 'number') {
         const [x, y] = tabPreview.__ws__calculateCoordinates();
         this.moveTo(x, y);
         return;
@@ -749,22 +787,29 @@ const BrowserWindowWatcher = {
     };
   },
 
-  unpatchTabPreviewModules(win) {
-    const tabPreview = win.document.querySelector('#tabbrowser-tab-preview');
+  unpatchTabHoverPreviewModules(win) {
+    const tabPreview = win.document.getElementById('tabbrowser-tabs')?._previewPanel;
     if (!tabPreview ||
-        !tabPreview.showPreview)
+        !tabPreview.activate)
       return;
 
-    if (tabPreview.__ws_orig__showPreview) {
-      tabPreview.showPreview = tabPreview.__ws_orig__showPreview;
-      tabPreview.__ws_orig__showPreview = null;
+    if (tabPreview.__ws_orig__activate) {
+      tabPreview.activate = tabPreview.__ws_orig__activate;
+      tabPreview.__ws_orig__activate = null;
+    }
+
+    if (tabPreview._panel?.__ws_orig__moveToAnchor) {
+      tabPreview._panel.moveToAnchor = tabPreview._panel.__ws_orig__moveToAnchor;
+      tabPreview._panel.__ws_orig__moveToAnchor = null;
     }
   },
 
   patchToFullScreenModules(win) {
     const FullScreen = win.FullScreen;
-    const sidebarBox = win.document.querySelector('#tabs-sidebar-box');
-    const sidebarSplitter = win.document.querySelector('#tabs-sidebar-splitter');
+    const sidebarMainBox = win.document.querySelector('#sidebar-main');
+    const sidebarBox = win.document.querySelector('#sidebar-box');
+    const tabsSidebarBox = win.document.querySelector('#tabs-sidebar-box');
+    const tabsSidebarSplitter = win.document.querySelector('#tabs-sidebar-splitter');
 
     if (!FullScreen.__ws_orig__toggle)
       FullScreen.__ws_orig__toggle = FullScreen.toggle;
@@ -775,7 +820,7 @@ const BrowserWindowWatcher = {
       if (enterFS) {
        if (!win.document.fullscreenElement) {
           if (win.gNavToolbox.getAttribute('fullscreenShouldAnimate') == 'true')
-            sidebarBox.setAttribute('fullscreenShouldAnimate', true);
+            tabsSidebarBox.setAttribute('fullscreenShouldAnimate', true);
 
           FullScreen.__ws_sidebar.hide();
        }
@@ -809,30 +854,32 @@ const BrowserWindowWatcher = {
 
         updateMouseTargetRect() {
           const contentsAreaRect = win.gBrowser.tabpanels.getBoundingClientRect();
+          const tabsSidebarBoxRect = tabsSidebarBox.getBoundingClientRect();
+          const sidebarMainBoxRect = sidebarMainBox.getBoundingClientRect();
           const sidebarBoxRect = sidebarBox.getBoundingClientRect();
           const isRight = this.isRightSide();
           this._mouseTargetRect = {
             top:    contentsAreaRect.top,
             bottom: contentsAreaRect.bottom,
-            left:   contentsAreaRect.left + (isRight ? 0 : sidebarBoxRect.width + 50),
-            right:  contentsAreaRect.right - (isRight ? sidebarBoxRect.width + 50 : 0),
+            left:   Math.min(sidebarMainBoxRect.left, sidebarBoxRect.left, contentsAreaRect.left) + (isRight ? 0 : tabsSidebarBoxRect.width + 50),
+            right:  Math.max(sidebarMainBoxRect.right, sidebarBoxRect.right, contentsAreaRect.right) - (isRight ? tabsSidebarBoxRect.width + 50 : 0),
           };
           win.MousePosTracker.addListener(this);
         },
 
         hide() {
           if (this.isRightSide())
-            sidebarBox.style.marginRight = `-${sidebarBox.getBoundingClientRect().width}px`;
+            tabsSidebarBox.style.marginRight = `-${tabsSidebarBox.getBoundingClientRect().width}px`;
           else
-            sidebarBox.style.marginLeft = `-${sidebarBox.getBoundingClientRect().width}px`;
+            tabsSidebarBox.style.marginLeft = `-${tabsSidebarBox.getBoundingClientRect().width}px`;
 
           win.MousePosTracker.removeListener(this);
           this.startListenToShow();
         },
 
         show({ exitting } = {}) {
-          sidebarBox.removeAttribute('fullscreenShouldAnimate');
-          sidebarBox.style.marginLeft = sidebarBox.style.marginRight = '';
+          tabsSidebarBox.removeAttribute('fullscreenShouldAnimate');
+          tabsSidebarBox.style.marginLeft = tabsSidebarBox.style.marginRight = '';
 
           this.endListenToShow();
           if (!exitting) {
@@ -849,9 +896,9 @@ const BrowserWindowWatcher = {
           if (this.listeningToShow)
             return;
           this.listeningToShow = true;
-          sidebarSplitter.addEventListener('mouseover', FullScreen.__ws_sidebar);
-          sidebarSplitter.addEventListener('dragenter', FullScreen.__ws_sidebar);
-          sidebarSplitter.addEventListener('touchmove', FullScreen.__ws_sidebar, {
+          tabsSidebarSplitter.addEventListener('mouseover', FullScreen.__ws_sidebar);
+          tabsSidebarSplitter.addEventListener('dragenter', FullScreen.__ws_sidebar);
+          tabsSidebarSplitter.addEventListener('touchmove', FullScreen.__ws_sidebar, {
             passive: true,
           });
         },
@@ -860,9 +907,9 @@ const BrowserWindowWatcher = {
           if (!this.listeningToShow)
             return;
           this.listeningToShow = false;
-          sidebarSplitter.removeEventListener('mouseover', FullScreen.__ws_sidebar);
-          sidebarSplitter.removeEventListener('dragenter', FullScreen.__ws_sidebar);
-          sidebarSplitter.removeEventListener('touchmove', FullScreen.__ws_sidebar, {
+          tabsSidebarSplitter.removeEventListener('mouseover', FullScreen.__ws_sidebar);
+          tabsSidebarSplitter.removeEventListener('dragenter', FullScreen.__ws_sidebar);
+          tabsSidebarSplitter.removeEventListener('touchmove', FullScreen.__ws_sidebar, {
             passive: true,
           });
         },
@@ -1070,10 +1117,12 @@ const BrowserWindowWatcher = {
             break;
 
           case 'tabs-sidebar-bookmarkTab':
-          case 'tabs-sidebar-bookmarkTabs':
-            win.PlacesUIUtils.showBookmarkPagesDialog(win.PlacesCommandHook.uniqueSelectedPages); // same to #toolbar-context-bookmarkSelectedTab / #toolbar-context-bookmarkSelectedTabs
+          case 'tabs-sidebar-bookmarkTabs': {
+            const pages = win.PlacesCommandHook.getUniquePages(win.gBrowser.selectedTabs)
+              .map(page => Object.assign(page, { uri: Services.io.createExposableURI(page.uri) }));
+            win.PlacesUIUtils.showBookmarkPagesDialog(pages); // same to #toolbar-context-bookmarkSelectedTab / #toolbar-context-bookmarkSelectedTabs
             this.tryHidePopup(event);
-            break;
+          }; break;
 
           case 'tabs-sidebar-selectAll':
             win.gBrowser.selectAllTabs(); // same to #toolbar-context-selectAllTabs
@@ -1130,16 +1179,22 @@ const BrowserWindowWatcher = {
 
   moveToolbarButtonToDefaultPosition() {
     try {
-      const state = JSON.parse(Services.prefs.getStringPref('browser.uiCustomization.state', '{}'));
+      const rawState = Services.prefs.getStringPref('browser.uiCustomization.state', '{}');
+      if (!rawState)
+        return false;
+
+      const state = JSON.parse(rawState);
       if (!state?.placements)
         return false;
 
       let foundInNavBar = false;
+      let found = false;
       for (const [name, items] of Object.entries(state.placements)) {
         if (!items.includes(this.id))
           continue;
         if (name == 'nav-bar')
           foundInNavBar = true;
+        found = true;
         break;
       }
 
@@ -1154,8 +1209,16 @@ const BrowserWindowWatcher = {
 
       if (foundInNavBar)
         lazy.CustomizableUI.moveWidgetWithinArea(this.id, index);
-      else
+      else if (!found)
         lazy.CustomizableUI.addWidgetToArea(this.id, this.defaultArea, index);
+
+      const win = Services.wm.getMostRecentBrowserWindow();
+      win.setTimeout(() => {
+        if (win.document.getElementById(this.id))
+          return;
+        console.log('failed to insert tabs sidebar button due to unhandled error in CustomizableUI module: retrying with reset');
+        win.gCustomizeMode.reset();
+      }, 250); // for safety, this delay need to be large enough
 
       return true;
     }
@@ -1223,13 +1286,18 @@ const BrowserWindowWatcher = {
         }
       }; break;
 
-      case 'browser.uiCustomization.state':
+      case 'browser.uiCustomization.state': {
         if (!Services.prefs.getStringPref(name)) { // resetting!
-          Services.wm.getMostRecentBrowserWindow().setTimeout(() => {
+          const tryInsertButton = () => {
+            if (!Services.prefs.getStringPref(name)) {
+              Services.wm.getMostRecentBrowserWindow().setTimeout(tryInsertButton, 10);
+              return;
+            }
             this.moveToolbarButtonToDefaultPosition();
-          }, 100);
+          };
+          tryInsertButton();
         }
-        break;
+      }; break;
     }
   },
 
@@ -1546,17 +1614,15 @@ this.waterfoxBridge = class extends ExtensionAPI {
 
         async showPreviewPanel(tabId, top) {
           const tab = tabId && context.extension.tabManager.get(tabId);
-          if (!tab ||
-              !Services.prefs.getBoolPref('browser.tabs.cardPreview.enabled', false))
+          if (!tab)
             return;
 
           const document = tab.nativeTab.ownerDocument;
-          const tabPreview = document.querySelector('#tabbrowser-tab-preview');
+          const tabPreview = document.getElementById('tabbrowser-tabs')?._previewPanel;
           if (!tabPreview)
             return;
           tabPreview.__ws__top = top;
-          tabPreview.tab = tab.nativeTab;
-          tabPreview.showPreview();
+          tabPreview.activate(tab.nativeTab);
         },
 
         async hidePreviewPanel(windowId) {
@@ -1564,27 +1630,11 @@ this.waterfoxBridge = class extends ExtensionAPI {
           if (!win)
             return;
 
-          const tabPreview = win.window.document.querySelector('#tabbrowser-tab-preview');
+          const tabPreview = document.getElementById('tabbrowser-tabs')?._previewPanel;
           if (!tabPreview)
             return;
           tabPreview.__ws__top = null;
-          tabPreview.tab = null;
         },
-
-        onHoverPreviewChanged: new EventManager({
-          context,
-          name: 'waterfoxBridge.onHoverPreviewChanged',
-          register: (fire) => {
-            const observe = (_subject, _topic, data) => {
-              fire.async(Services.prefs.getBoolPref('browser.tabs.cardPreview.enabled', false)).catch(() => {}); // ignore Message Manager disconnects
-            };
-            Services.prefs.addObserver('browser.tabs.cardPreview.enabled', observe);
-            observe();
-            return () => {
-              Services.prefs.removeObserver('browser.tabs.cardPreview.enabled', observe);
-            };
-          },
-        }).api(),
 
         async openPreferences() {
           BrowserWindowWatcher.openOptions();

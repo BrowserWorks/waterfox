@@ -15,15 +15,15 @@
   --in-content-box-background-hover: var(--grey-20);
   --in-content-box-background-active: var(--grey-30);
   --in-content-box-border-color: var(--grey-90-a30);
-  --in-content-box-border-color-mixed: rgb(calc((249 * 0.7) + (12 * 0.3)), calc((249 * 0.7) + (12 * 0.3)), calc((250 * 0.7) + (13 * 0.3)));
+  --in-content-box-border-color-mixed: color-mix(in srgb, var(--in-content-box-border-color) 100%, var(--in-content-page-background));
   --in-content-box-info-background: var(--grey-20);
   --in-content-item-hover: rgba(69, 161, 255, 0.2); /* blue 40 a20 */
-  --in-content-item-hover-mixed: rgb(calc((249 * 0.8) + (69 * 0.2)), calc((249 * 0.8) + (161 * 0.2)), calc((250 * 0.8) + (255 * 0.2)));
+  --in-content-item-hover-mixed: color-mix(in srgb, var(--in-content-item-hover) 100%, var(--in-content-page-background));
   --in-content-item-selected: var(--blue-50);
   --in-content-border-highlight: var(--blue-50);
   --in-content-border-focus: var(--blue-50);
   --in-content-border-hover: var(--grey-90-a50);
-  --in-content-border-hover-mixed: rgb(calc((249 * 0.5) + (12 * 0.5)), calc((249 * 0.5) + (12 * 0.5)), calc((250 * 0.5) + (13 * 0.5)));
+  --in-content-border-hover-mixed: color-mix(in srgb, var(--in-content-border-hover) 100%, var(--in-content-page-background));
   --in-content-border-active: var(--blue-50);
   --in-content-border-active-shadow: var(--blue-50-a30);
   --in-content-border-invalid: var(--red-50);
@@ -43,11 +43,11 @@
   --in-content-link-color-active: var(--blue-80);
   --in-content-link-color-visited: var(--blue-60);
   --in-content-button-background: var(--grey-90-a10);
-  --in-content-button-background-mixed: rgb(calc((249 * 0.9) + (12 * 0.1)), calc((249 * 0.9) + (12 * 0.1)), calc((250 * 0.9) + (13 * 0.1)));
+  --in-content-button-background-mixed: color-mix(in srgb, var(--in-content-button-background) 100%, var(--in-content-page-background));
   --in-content-button-background-hover: var(--grey-90-a20);
-  --in-content-button-background-hover-mixed: rgb(calc((249 * 0.8) + (12 * 0.2)), calc((249 * 0.8) + (12 * 0.2)), calc((250 * 0.8) + (13 * 0.2)));
+  --in-content-button-background-hover-mixed: color-mix(in srgb, var(--in-content-button-background-hover) 100%, var(--in-content-page-background));
   --in-content-button-background-active: var(--grey-90-a30);
-  --in-content-button-background-active-mixed: rgb(calc((249 * 0.7) + (12 * 0.3)), calc((249 * 0.7) + (12 * 0.3)), calc((250 * 0.7) + (13 * 0.3)));
+  --in-content-button-background-active-mixed: color-mix(in srgb, var(--in-content-button-background-active) 100%, var(--in-content-page-background));
 
   --blue-40: #45a1ff;
   --blue-40-a10: rgb(69, 161, 255, 0.1);
@@ -121,6 +121,14 @@
 
   --bg-color: var(--grey-10);
   --text-color: var(--grey-90);
+
+
+  /* simulating deprecated CSS system colors */
+  --ThreeDShadow: color-mix(in srgb, ButtonText 30%, ButtonFace);
+  --ThreeDHighlight: color-mix(in srgb, ButtonText 5%, ButtonFace);
+  --AppWorkspace: color-mix(in srgb, CanvasText 20%, Canvas);
+  --MenuText: color-mix(in srgb, ButtonText 85%, ButtonFace);
+  --Menu: ButtonFace;
 }
 
 :link {
@@ -202,24 +210,24 @@ hr {
     --in-content-text-color: var(--in-content-page-color);
     --in-content-deemphasized-text: var(--grey-40);
     --in-content-box-background: #202023;
-    --in-content-box-background-hover: /* rgba(249,249,250,0.15) */ rgb(calc((42 * 0.85) + (249 * 0.15)), calc((42 * 0.85) + (249 * 0.15)), calc((46 * 0.85) + (250 * 0.15)));
-    --in-content-box-background-active: /*rgba(249,249,250,0.2) */ rgb(calc((42 * 0.8) + (249 * 0.2)), calc((42 * 0.8) + (249 * 0.2)), calc((46 * 0.8) + (250 * 0.2)));
+    --in-content-box-background-hover: color-mix(in srgb, rgba(249,249,250,0.15) 100%, var(--in-content-page-background));
+    --in-content-box-background-active: color-mix(in srgb, rgba(249,249,250,0.2) 100%, var(--in-content-page-background));
     --in-content-box-background-odd: rgba(249,249,250,0.05);
     --in-content-box-info-background: rgba(249,249,250,0.15);
 
     --in-content-border-color: rgba(249,249,250,0.2);
-    --in-content-border-color-mixed: rgb(calc((42 * 0.8) + (249 * 0.2)), calc((42 * 0.8) + (249 * 0.2)), calc((46 * 0.8) + (250 * 0.2)));
+    --in-content-border-color-mixed: color-mix(in srgb, var(--in-content-border-color) 100%, var(--in-content-page-background));
     --in-content-border-hover: rgba(249,249,250,0.3);
-    --in-content-border-hover-mixed: rgb(calc((42 * 0.7) + (249 * 0.3)), calc((42 * 0.7) + (249 * 0.3)), calc((46 * 0.7) + (250 * 0.3)));
+    --in-content-border-hover-mixed: color-mix(in srgb, var(--in-content-border-hover) 100%, var(--in-content-page-background));
     --in-content-box-border-color: rgba(249,249,250,0.2);
-    --in-content-box-border-color-mixed: rgb(calc((42 * 0.8) + (249 * 0.2)), calc((42 * 0.8) + (249 * 0.2)), calc((46 * 0.8) + (250 * 0.2)));
+    --in-content-box-border-color-mixed: color-mix(in srgb, var(--in-content-box-border-color) 100%, var(--in-content-page-background));
 
     --in-content-button-background: rgba(249,249,250,0.1);
-    --in-content-button-background-mixed: rgb(calc((42 * 0.9) + (249 * 0.1)), calc((42 * 0.9) + (249 * 0.1)), calc((46 * 0.9) + (250 * 0.1)));
+    --in-content-button-background-mixed: color-mix(in srgb, var(--in-content-button-background) 100%, var(--in-content-page-background));
     --in-content-button-background-hover: rgba(249,249,250,0.15);
-    --in-content-button-background-hover-mixed: rgb(calc((42 * 0.85) + (249 * 0.15)), calc((42 * 0.85) + (249 * 0.15)), calc((46 * 0.85) + (250 * 0.15)));
+    --in-content-button-background-hover-mixed: color-mix(in srgb, var(--in-content-button-background-hover) 100%, var(--in-content-page-background));
     --in-content-button-background-active: rgba(249,249,250,0.2);
-    --in-content-button-background-active-mixed: rgb(calc((42 * 0.8) + (249 * 0.2)), calc((42 * 0.8) + (249 * 0.2)), calc((46 * 0.8) + (250 * 0.2)));
+    --in-content-button-background-active-mixed: color-mix(in srgb, var(--in-content-button-background-active) 100%, var(--in-content-page-background));
 
     --in-content-link-color: var(--blue-40);
     --in-content-link-color-hover: var(--blue-50);
