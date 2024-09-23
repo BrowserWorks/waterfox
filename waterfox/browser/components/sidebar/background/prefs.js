@@ -11,8 +11,6 @@ import {
 } from '/common/common.js';
 import * as Constants from '/common/constants.js';
 
-import Tab from '/common/Tab.js';
-
 export const onChanged = new EventListenerManager();
 
 if (Constants.IS_BACKGROUND) {
@@ -99,17 +97,4 @@ configs.$addObserver(async name => {
   window.requestAnimationFrame(() => {
     mNamesSyncToChrome.delete(name);
   });
-});
-
-browser.waterfoxBridge.onHoverPreviewChanged.addListener(enabled => {
-  if (enabled) {
-    for (const tab of Tab.getAllTabs()) {
-      tab.$TST.registerTooltipText(browser.runtime.id, '', true);
-    }
-  }
-  else {
-    for (const tab of Tab.getAllTabs()) {
-      tab.$TST.unregisterTooltipText(browser.runtime.id);
-    }
-  }
 });

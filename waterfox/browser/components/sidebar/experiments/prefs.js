@@ -36,7 +36,7 @@ function initSidebarCategory(document, { locale, BASE_URL, BASE_PREF }) {
   if (document.querySelector('#category-tabsSidebar'))
     return true;
 
-  const generalItem = document.querySelector('#category-search');
+  const generalItem = document.querySelector('#category-general');
   if (!generalItem)
     return false;
 
@@ -859,9 +859,25 @@ function initSidebarCategory(document, { locale, BASE_URL, BASE_PREF }) {
     document.defaultView.register_module('paneTabsSidebar', document.defaultView.gSidebarPage);
 
     if (document.URL.endsWith('#tabsSidebar')) {
-      document.querySelector('#categories').selectItem(document.querySelector('#category-tabsSidebar'));
-      document.defaultView.gotoPref('paneTabsSidebar');
-      document.defaultView.gCategoryInits.get('paneTabsSidebar').init();
+      let done = false;
+      const initialize = () => {
+        document.querySelector('#categories').selectItem(document.querySelector('#category-tabsSidebar'));
+        document.defaultView.gotoPref('paneTabsSidebar');
+        document.defaultView.gCategoryInits.get('paneTabsSidebar').init();
+        done = true;
+      };
+      if (document.defaultView.gSearchResultsPane.inited) {
+        initialize();
+      }
+      else {
+        document.addEventListener('DOMContentLoaded', initialize, { once: true });
+        document.defaultView.setTimeout(1000, () => {
+          if (done)
+            return;
+          document.removeEventListener('DOMContentLoaded', initialize, { once: true });
+          initialize();
+        });
+      }
     }
   }
   catch (error) {
@@ -995,7 +1011,7 @@ const AboutPreferencesWatcher = {
       const startAt = Date.now();
       const topWin  = loadInfo.browsingContext.topChromeWindow;
       const timer   = topWin.setInterval(() => {
-        if (Date.now() - startAt > 1000) {
+        if (Date.now() - startAt > 5000) {
           // timeout
           topWin.clearInterval(timer);
           return;

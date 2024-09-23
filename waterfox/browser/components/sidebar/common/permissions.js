@@ -71,9 +71,10 @@ browser.runtime.onMessage.addListener((message, _sender) => {
 
   for (const request of requests) {
     const { onChanged, checkbox } = destroyRequest(request);
-    if (onChanged)
-      onChanged(true);
-    checkbox.checked = true;
+    const checked =onChanged ?
+      onChanged(true) :
+      undefined;
+    checkbox.checked = checked !== undefined ? !!checked : true;
   }
 });
 
@@ -114,7 +115,10 @@ export function bindToCheckbox(permissions, checkbox, options = {}) {
 
   isGranted(permissions)
     .then(granted => {
-      checkbox.checked = granted;
+      const checked = options.onInitialized ?
+        options.onInitialized(granted) :
+        undefined;
+      checkbox.checked = checked !== undefined ? !!checked : granted;
     })
     .catch(_error => {
       checkbox.setAttribute('readonly', true);
@@ -168,11 +172,12 @@ export function bindToCheckbox(permissions, checkbox, options = {}) {
         return;
 
       if (granted) {
+        const checked = options.onChanged ?
+          options.onChanged(true) :
+          undefined;
         for (const checkbox of checkboxes) {
-          checkbox.checked = true;
+          checkbox.checked = checked !== undefined ? !!checked : true;
         }
-        if (options.onChanged)
-          options.onChanged(true);
         browser.runtime.sendMessage({
           type: Constants.kCOMMAND_NOTIFY_PERMISSIONS_GRANTED,
           permissions

@@ -104,9 +104,14 @@ async function tryDetectTabBunches(win) {
   }
 
   if (tabReferences.length > 1) {
-    for (const tabReference of tabReferences) {
-      Tab.get(tabReference.id).$TST.temporaryMetadata.set('openedWithOthers', true);
-    }
+    await Promise.all(tabReferences.map(tabReference => {
+      const tab = Tab.get(tabReference.id);
+      tab.$TST.temporaryMetadata.set('openedWithOthers', true);
+      // We need to wait until all tabs are handlede completely.
+      // Otherwise `tab.$TST.needToBeGroupedSiblings` may contain unrelated tabs
+      // (tabs opened from any other parent tab) unexpectedly.
+      return tab.$TST.opened;
+    }));
   }
 
   if (areTabsFromOtherDeviceWithInsertAfterCurrent(tabReferences) &&

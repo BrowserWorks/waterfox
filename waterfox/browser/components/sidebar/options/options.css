@@ -131,7 +131,7 @@ label.has-radio:not(.inline) {
 
 label input[type="radio"] ~ img,
 label input[type="checkbox"] ~ img {
-  border: 1px solid ThreeDShadow;
+  border: 1px solid var(--ThreeDShadow);
   vertical-align: middle;
   margin-top: 0.15em;
   margin-bottom: 0.15em;

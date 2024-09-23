@@ -82,15 +82,24 @@ export function getParentTabOperationBehavior(tab, { context, byInternalOperatio
 
   log(' => behavior: ', behavior);
 
-  if (behavior == Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_INTELLIGENTLY) {
-    behavior = parentTab ? Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_ALL_CHILDREN : Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD;
-    log(' => intelligent behavior: ', behavior);
+  const replacedParentCount = tab?.$TST?.replacedParentGroupTabCount;
+  if (behavior == Constants.kPARENT_TAB_OPERATION_BEHAVIOR_REPLACE_WITH_GROUP_TAB &&
+      configs.closeParentBehavior_replaceWithGroup_thresholdToPrevent >= 0 &&
+      replacedParentCount &&
+      replacedParentCount >= configs.closeParentBehavior_replaceWithGroup_thresholdToPrevent) {
+    behavior = Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_INTELLIGENTLY;
+    log(' => the group tab is already replaced parent, fallback to kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_INTELLIGENTLY');
   }
 
   if (behavior == Constants.kPARENT_TAB_OPERATION_BEHAVIOR_ENTIRE_TREE &&
       preventEntireTreeBehavior) {
+    behavior = Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_INTELLIGENTLY;
+    log(' => preventEntireTreeBehavior behavior, fallback to kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_INTELLIGENTLY');
+  }
+
+  if (behavior == Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_INTELLIGENTLY) {
     behavior = parentTab ? Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_ALL_CHILDREN : Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD;
-    log(' => preventEntireTreeBehavior behavior: ', behavior);
+    log(' => intelligent behavior: ', behavior);
   }
 
   // Promote all children to upper level, if this is the last child of the parent.

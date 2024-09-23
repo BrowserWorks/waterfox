@@ -310,12 +310,23 @@ async function rebuildAll(windows) {
       try {
         log(`build tabs for ${win.id} from scratch`);
         Window.init(win.id);
+        const promises = [];
         for (let tab of win.tabs) {
           tab = Tab.get(tab.id);
           tab.$TST.clear(); // clear dirty restored states
-          TabsUpdate.updateTab(tab, tab, { forceApply: true });
+          promises.push(
+            tab.$TST.getPermanentStates()
+              .then(states => {
+                tab.$TST.states = new Set(states);
+              })
+              .catch(console.error)
+              .then(() => {
+                TabsUpdate.updateTab(tab, tab, { forceApply: true });
+              })
+          );
           tryStartHandleAccelKeyOnTab(tab);
         }
+        await Promise.all(promises);
       }
       catch(e) {
         log(`failed to build tabs for ${win.id}`, e);
@@ -774,7 +785,7 @@ Tab.onTabInternallyMoved.addListener((tab, info = {}) => {
 });
 
 Tab.onMoved.addListener((tab, moveInfo) => {
-  if (!moveInfo.isSubstantiallyMoved)
+  if (moveInfo.movedInBulk)
     return;
   reserveToUpdateInsertionPosition([
     tab,

@@ -1,291 +1,272 @@
 {
-  "manifest_version": 2,
-  "name": "__MSG_extensionName__",
-  "version": "1.0.2.1",
-  "author": "Waterfox",
-  "hidden": true,
-  "description": "__MSG_extensionDescription__",
-  "permissions": [
-    "activeTab",
-    "bookmarks",
-    "clipboardRead",
-    "contextualIdentities",
-    "cookies",
-    "menus",
-    "menus.overrideContext",
-    "notifications",
-    "scripting",
-    "search",
-    "sessions",
-    "storage",
-    "tabs",
-    "theme"
-  ],
-  "optional_permissions": [
-    "<all_urls>"
-  ],
-  "background": {
-    "page": "background/background.html"
-  },
-  "commands": {
-    "reloadTree": {
-      "description": "__MSG_context_reloadTree_command__"
-    },
-    "reloadDescendants": {
-      "description": "__MSG_context_reloadDescendants_command__"
-    },
-    "unblockAutoplayTree": {
-      "description": "__MSG_context_unblockAutoplayTree_command__"
-    },
-    "unblockAutoplayDescendants": {
-      "description": "__MSG_context_unblockAutoplayDescendants_command__"
-    },
-    "toggleMuteTree": {
-      "description": "__MSG_context_toggleMuteTree_command__"
-    },
-    "toggleMuteDescendants": {
-      "description": "__MSG_context_toggleMuteDescendants_command__"
-    },
-    "closeTree": {
-      "description": "__MSG_context_closeTree_command__"
-    },
-    "closeDescendants": {
-      "description": "__MSG_context_closeDescendants_command__"
-    },
-    "closeOthers": {
-      "description": "__MSG_context_closeOthers_command__"
-    },
-    "toggleSticky": {
-      "description": "__MSG_context_toggleSticky_command__"
-    },
-    "collapseTree": {
-      "description": "__MSG_context_collapseTree_command__"
-    },
-    "collapseTreeRecursively": {
-      "description": "__MSG_context_collapseTreeRecursively_command__"
-    },
-    "collapseAll": {
-      "description": "__MSG_context_collapseAll_command__"
-    },
-    "expandTree": {
-      "description": "__MSG_context_expandTree_command__"
-    },
-    "expandTreeRecursively": {
-      "description": "__MSG_context_expandTreeRecursively_command__"
-    },
-    "expandAll": {
-      "description": "__MSG_context_expandAll_command__"
-    },
-    "toggleTreeCollapsed": {
-      "description": "__MSG_command_toggleTreeCollapsed__"
-    },
-    "toggleTreeCollapsedRecursively": {
-      "description": "__MSG_command_toggleTreeCollapsedRecursively__"
-    },
-    "bookmarkTree": {
-      "description": "__MSG_context_bookmarkTree_command__"
-    },
-    "newIndependentTab": {
-      "description": "__MSG_tabbar_newTabButton_tooltip__: __MSG_tabbar_newTabAction_independent_command__"
-    },
-    "newChildTab": {
-      "description": "__MSG_tabbar_newTabButton_tooltip__: __MSG_tabbar_newTabAction_child_command__"
-    },
-    "newChildTabTop": {
-      "description": "__MSG_tabbar_newTabButton_tooltip__: __MSG_tabbar_newTabAction_childTop_command__"
-    },
-    "newChildTabEnd": {
-      "description": "__MSG_tabbar_newTabButton_tooltip__: __MSG_tabbar_newTabAction_childEnd_command__"
-    },
-    "newSiblingTab": {
-      "description": "__MSG_tabbar_newTabButton_tooltip__: __MSG_tabbar_newTabAction_sibling_command__"
-    },
-    "newNextSiblingTab": {
-      "description": "__MSG_tabbar_newTabButton_tooltip__: __MSG_tabbar_newTabAction_nextSibling_command__"
-    },
-    "newContainerTab": {
-      "description": "__MSG_tabbar_newTabWithContexualIdentity_tooltip__"
-    },
-    "tabMoveUp": {
-      "description": "__MSG_command_tabMoveUp__"
-    },
-    "treeMoveUp": {
-      "description": "__MSG_command_treeMoveUp__"
-    },
-    "tabMoveDown": {
-      "description": "__MSG_command_tabMoveDown__"
-    },
-    "treeMoveDown": {
-      "description": "__MSG_command_treeMoveDown__"
-    },
-    "focusPrevious": {
-      "description": "__MSG_command_focusPrevious__"
-    },
-    "focusPreviousSilently": {
-      "description": "__MSG_command_focusPreviousSilently__"
-    },
-    "focusNext": {
-      "description": "__MSG_command_focusNext__"
-    },
-    "focusNextSilently": {
-      "description": "__MSG_command_focusNextSilently__"
-    },
-    "focusParent": {
-      "description": "__MSG_command_focusParent__"
-    },
-    "focusParentOrCollapse": {
-      "description": "__MSG_command_focusParentOrCollapse__"
-    },
-    "focusFirstChild": {
-      "description": "__MSG_command_focusFirstChild__"
-    },
-    "focusFirstChildOrExpand": {
-      "description": "__MSG_command_focusFirstChildOrExpand__"
-    },
-    "focusLastChild": {
-      "description": "__MSG_command_focusLastChild__"
-    },
-    "focusPreviousSibling": {
-      "description": "__MSG_command_focusPreviousSibling__"
-    },
-    "focusNextSibling": {
-      "description": "__MSG_command_focusNextSibling__"
-    },
-    "simulateUpOnTree": {
-      "description": "__MSG_command_simulateUpOnTree__",
-      "suggested_key": {
-        "default": "Alt+Shift+Up"
-      }
-    },
-    "simulateDownOnTree": {
-      "description": "__MSG_command_simulateDownOnTree__",
-      "suggested_key": {
-        "default": "Alt+Shift+Down"
-      }
-    },
-    "simulateLeftOnTree": {
-      "description": "__MSG_command_simulateLeftOnTree__",
-      "suggested_key": {
-        "default": "Alt+Shift+Left"
-      }
-    },
-    "simulateRightOnTree": {
-      "description": "__MSG_command_simulateRightOnTree__",
-      "suggested_key": {
-        "default": "Alt+Shift+Right"
-      }
-    },
-    "tabbarUp": {
-      "description": "__MSG_command_tabbarUp__",
-      "suggested_key": {
-        "default": "Alt+Up"
-      }
-    },
-    "tabbarPageUp": {
-      "description": "__MSG_command_tabbarPageUp__",
-      "suggested_key": {
-        "default": "Alt+PageUp"
-      }
-    },
-    "tabbarHome": {
-      "description": "__MSG_command_tabbarHome__",
-      "suggested_key": {
-        "default": "Alt+Shift+Home"
-      }
-    },
-    "tabbarDown": {
-      "description": "__MSG_command_tabbarDown__",
-      "suggested_key": {
-        "default": "Alt+Down"
-      }
-    },
-    "tabbarPageDown": {
-      "description": "__MSG_command_tabbarPageDown__",
-      "suggested_key": {
-        "default": "Alt+PageDown"
-      }
-    },
-    "tabbarEnd": {
-      "description": "__MSG_command_tabbarEnd__",
-      "suggested_key": {
-        "default": "Alt+End"
-      }
-    },
-    "toggleSubPanel": {
-      "description": "__MSG_command_toggleSubPanel__",
-      "suggested_key": {
-        "default": "F2"
-      }
-    },
-    "switchSubPanel": {
-      "description": "__MSG_command_switchSubPanel__"
-    },
-    "increaseSubPanel": {
-      "description": "__MSG_command_increaseSubPanel__"
-    },
-    "decreaseSubPanel": {
-      "description": "__MSG_command_decreaseSubPanel__"
-    }
-  },
-  "web_accessible_resources": [
-    "/resources/group-tab.html*"
-  ],
-  "protocol_handlers": [
-    {
-      "protocol": "ext+ws",
-      "name": "Waterfox",
-      "uriTemplate": "/resources/protocol-handler.html?%s"
-    }
-  ],
-  "experiment_apis": {
-    "prefs": {
-      "schema": "experiments/prefs.json",
-      "parent": {
-        "scopes": [
-          "addon_parent"
-        ],
-        "paths": [
-          [
-            "prefs"
-          ]
-        ],
-        "script": "experiments/prefs.js"
-      }
-    },
-    "syncPrefs": {
-      "schema": "experiments/syncPrefs.json",
-      "child": {
-        "scopes": [
-          "addon_child"
-        ],
-        "paths": [
-          [
-            "syncPrefs"
-          ]
-        ],
-        "script": "experiments/syncPrefs.js"
-      }
-    },
-    "waterfoxBridge": {
-      "schema": "experiments/waterfoxBridge.json",
-      "parent": {
-        "scopes": [
-          "addon_parent"
-        ],
-        "paths": [
-          [
-            "waterfoxBridge"
-          ]
-        ],
-        "script": "experiments/waterfoxBridge.js"
-      }
-    }
-  },
-  "default_locale": "en",
-  "browser_specific_settings": {
-    "gecko": {
-      "id": "sidebar@waterfox.net",
-      "strict_min_version": "115.0"
-    }
-  }
+	"manifest_version": 2,
+	"name": "__MSG_extensionName__",
+	"version": "1.0.3",
+	"author": "Waterfox",
+	"hidden": true,
+	"description": "__MSG_extensionDescription__",
+	"permissions": [
+		"activeTab",
+		"bookmarks",
+		"clipboardRead",
+		"contextualIdentities",
+		"cookies",
+		"menus",
+		"menus.overrideContext",
+		"notifications",
+		"search",
+		"sessions",
+		"storage",
+		"tabs",
+		"theme",
+		"<all_urls>"
+	],
+	"background": {
+		"page": "background/background.html"
+	},
+	"commands": {
+		"reloadTree": {
+			"description": "__MSG_context_reloadTree_command__"
+		},
+		"reloadDescendants": {
+			"description": "__MSG_context_reloadDescendants_command__"
+		},
+		"unblockAutoplayTree": {
+			"description": "__MSG_context_unblockAutoplayTree_command__"
+		},
+		"unblockAutoplayDescendants": {
+			"description": "__MSG_context_unblockAutoplayDescendants_command__"
+		},
+		"toggleMuteTree": {
+			"description": "__MSG_context_toggleMuteTree_command__"
+		},
+		"toggleMuteDescendants": {
+			"description": "__MSG_context_toggleMuteDescendants_command__"
+		},
+		"closeTree": {
+			"description": "__MSG_context_closeTree_command__"
+		},
+		"closeDescendants": {
+			"description": "__MSG_context_closeDescendants_command__"
+		},
+		"closeOthers": {
+			"description": "__MSG_context_closeOthers_command__"
+		},
+		"toggleSticky": {
+			"description": "__MSG_context_toggleSticky_command__"
+		},
+		"collapseTree": {
+			"description": "__MSG_context_collapseTree_command__"
+		},
+		"collapseTreeRecursively": {
+			"description": "__MSG_context_collapseTreeRecursively_command__"
+		},
+		"collapseAll": {
+			"description": "__MSG_context_collapseAll_command__"
+		},
+		"expandTree": {
+			"description": "__MSG_context_expandTree_command__"
+		},
+		"expandTreeRecursively": {
+			"description": "__MSG_context_expandTreeRecursively_command__"
+		},
+		"expandAll": {
+			"description": "__MSG_context_expandAll_command__"
+		},
+		"toggleTreeCollapsed": {
+			"description": "__MSG_command_toggleTreeCollapsed__"
+		},
+		"toggleTreeCollapsedRecursively": {
+			"description": "__MSG_command_toggleTreeCollapsedRecursively__"
+		},
+		"bookmarkTree": {
+			"description": "__MSG_context_bookmarkTree_command__"
+		},
+		"newIndependentTab": {
+			"description": "__MSG_tabbar_newTabButton_tooltip__: __MSG_tabbar_newTabAction_independent_command__"
+		},
+		"newChildTab": {
+			"description": "__MSG_tabbar_newTabButton_tooltip__: __MSG_tabbar_newTabAction_child_command__"
+		},
+		"newChildTabTop": {
+			"description": "__MSG_tabbar_newTabButton_tooltip__: __MSG_tabbar_newTabAction_childTop_command__"
+		},
+		"newChildTabEnd": {
+			"description": "__MSG_tabbar_newTabButton_tooltip__: __MSG_tabbar_newTabAction_childEnd_command__"
+		},
+		"newSiblingTab": {
+			"description": "__MSG_tabbar_newTabButton_tooltip__: __MSG_tabbar_newTabAction_sibling_command__"
+		},
+		"newNextSiblingTab": {
+			"description": "__MSG_tabbar_newTabButton_tooltip__: __MSG_tabbar_newTabAction_nextSibling_command__"
+		},
+		"newContainerTab": {
+			"description": "__MSG_tabbar_newTabWithContexualIdentity_tooltip__"
+		},
+		"tabMoveUp": {
+			"description": "__MSG_command_tabMoveUp__"
+		},
+		"treeMoveUp": {
+			"description": "__MSG_command_treeMoveUp__"
+		},
+		"tabMoveDown": {
+			"description": "__MSG_command_tabMoveDown__"
+		},
+		"treeMoveDown": {
+			"description": "__MSG_command_treeMoveDown__"
+		},
+		"focusPrevious": {
+			"description": "__MSG_command_focusPrevious__"
+		},
+		"focusPreviousSilently": {
+			"description": "__MSG_command_focusPreviousSilently__"
+		},
+		"focusNext": {
+			"description": "__MSG_command_focusNext__"
+		},
+		"focusNextSilently": {
+			"description": "__MSG_command_focusNextSilently__"
+		},
+		"focusParent": {
+			"description": "__MSG_command_focusParent__"
+		},
+		"focusParentOrCollapse": {
+			"description": "__MSG_command_focusParentOrCollapse__"
+		},
+		"focusFirstChild": {
+			"description": "__MSG_command_focusFirstChild__"
+		},
+		"focusFirstChildOrExpand": {
+			"description": "__MSG_command_focusFirstChildOrExpand__"
+		},
+		"focusLastChild": {
+			"description": "__MSG_command_focusLastChild__"
+		},
+		"focusPreviousSibling": {
+			"description": "__MSG_command_focusPreviousSibling__"
+		},
+		"focusNextSibling": {
+			"description": "__MSG_command_focusNextSibling__"
+		},
+		"simulateUpOnTree": {
+			"description": "__MSG_command_simulateUpOnTree__",
+			"suggested_key": {
+				"default": "Alt+Shift+Up",
+				"mac": "MacCtrl+Shift+Up"
+			}
+		},
+		"simulateDownOnTree": {
+			"description": "__MSG_command_simulateDownOnTree__",
+			"suggested_key": {
+				"default": "Alt+Shift+Down",
+				"mac": "MacCtrl+Shift+Down"
+			}
+		},
+		"simulateLeftOnTree": {
+			"description": "__MSG_command_simulateLeftOnTree__",
+			"suggested_key": {
+				"default": "Alt+Shift+Left",
+				"mac": "MacCtrl+Shift+Left"
+			}
+		},
+		"simulateRightOnTree": {
+			"description": "__MSG_command_simulateRightOnTree__",
+			"suggested_key": {
+				"default": "Alt+Shift+Right",
+				"mac": "MacCtrl+Shift+Right"
+			}
+		},
+		"tabbarUp": {
+			"description": "__MSG_command_tabbarUp__",
+			"suggested_key": {
+				"default": "Alt+Up"
+			}
+		},
+		"tabbarPageUp": {
+			"description": "__MSG_command_tabbarPageUp__",
+			"suggested_key": {
+				"default": "Alt+PageUp"
+			}
+		},
+		"tabbarHome": {
+			"description": "__MSG_command_tabbarHome__",
+			"suggested_key": {
+				"default": "Alt+Shift+Home"
+			}
+		},
+		"tabbarDown": {
+			"description": "__MSG_command_tabbarDown__",
+			"suggested_key": {
+				"default": "Alt+Down"
+			}
+		},
+		"tabbarPageDown": {
+			"description": "__MSG_command_tabbarPageDown__",
+			"suggested_key": {
+				"default": "Alt+PageDown"
+			}
+		},
+		"tabbarEnd": {
+			"description": "__MSG_command_tabbarEnd__",
+			"suggested_key": {
+				"default": "Alt+End"
+			}
+		},
+		"toggleSubPanel": {
+			"description": "__MSG_command_toggleSubPanel__",
+			"suggested_key": {
+				"default": "F2"
+			}
+		},
+		"switchSubPanel": {
+			"description": "__MSG_command_switchSubPanel__"
+		},
+		"increaseSubPanel": {
+			"description": "__MSG_command_increaseSubPanel__"
+		},
+		"decreaseSubPanel": {
+			"description": "__MSG_command_decreaseSubPanel__"
+		}
+	},
+	"web_accessible_resources": ["/resources/group-tab.html*"],
+	"protocol_handlers": [
+		{
+			"protocol": "ext+ws",
+			"name": "Waterfox",
+			"uriTemplate": "/resources/protocol-handler.html?%s"
+		}
+	],
+	"experiment_apis": {
+		"prefs": {
+			"schema": "experiments/prefs.json",
+			"parent": {
+				"scopes": ["addon_parent"],
+				"paths": [["prefs"]],
+				"script": "experiments/prefs.js"
+			}
+		},
+		"syncPrefs": {
+			"schema": "experiments/syncPrefs.json",
+			"child": {
+				"scopes": ["addon_child"],
+				"paths": [["syncPrefs"]],
+				"script": "experiments/syncPrefs.js"
+			}
+		},
+		"waterfoxBridge": {
+			"schema": "experiments/waterfoxBridge.json",
+			"parent": {
+				"scopes": ["addon_parent"],
+				"paths": [["waterfoxBridge"]],
+				"script": "experiments/waterfoxBridge.js"
+			}
+		}
+	},
+	"default_locale": "en",
+	"browser_specific_settings": {
+		"gecko": {
+			"id": "sidebar@waterfox.net",
+			"strict_min_version": "128.0"
+		}
+	}
 }

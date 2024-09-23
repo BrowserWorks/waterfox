@@ -20,6 +20,7 @@ import {
   isLinux,
 } from './common.js';
 import * as ApiTabs from './api-tabs.js';
+import * as TreeBehavior from './tree-behavior.js';
 import * as Constants from './constants.js';
 import * as ContextualIdentities from './contextual-identities.js';
 import * as Dialog from './dialog.js';
@@ -637,6 +638,11 @@ reserveToGroupCreatedBookmarks.retryCount = 0;
 async function tryGroupCreatedBookmarks() {
   log('tryGroupCreatedBookmarks ', mCreatedBookmarks);
 
+  if (!configs.autoCreateFolderForBookmarksFromTree) {
+    log(' => autoCreateFolderForBookmarksFromTree is false');
+    return;
+  }
+
   const lastDraggedTabs = configs.lastDraggedTabs;
   if (lastDraggedTabs &&
       lastDraggedTabs.tabIds.length > mCreatedBookmarks.length) {
@@ -677,36 +683,68 @@ async function tryGroupCreatedBookmarks() {
     for (const bookmark of bookmarks) {
       parentIds.add(bookmark.parentId);
     }
+    log('parentIds: ', parentIds);
     if (parentIds.size > 1) {
       log(' => ignore bookmarks created under multiple folders');
       return;
     }
   }
 
+  const tabs = lastDraggedTabs ?
+    lastDraggedTabs.tabIds.map(id => Tab.get(id)) :
+    (await Promise.all(bookmarks.map(async bookmark => {
+      const tabs = await browser.tabs.query({ url: bookmark.url });
+      if (tabs.length == 0)
+        return null;
+      const tab = tabs.find(tab => tab.highlighted) || tabs[0];
+      return Tab.get(tab);
+    }))).filter(tab => !!tab);
+  log('tabs: ', tabs);
+  if (tabs.length != bookmarks.length) {
+    log(' => ignore bookmarks created from non-tab sources');
+    return;
+  }
+
+  const treeStructure = TreeBehavior.getTreeStructureFromTabs(tabs);
+  log('treeStructure: ', treeStructure);
+  const topLevelTabsCount = treeStructure.filter(item => item.parent < 0).length;
+  if (topLevelTabsCount == treeStructure.length) {
+    log(' => no need to group bookmarks from dragged flat tabs');
+    return;
+  }
+
+  let titles = getTitlesWithTreeStructure(tabs);
+  if (tabs[0].$TST.isGroupTab &&
+      titles.filter(title => !/^>/.test(title)).length == 1) {
+    log('delete needless bookmark for a group tab');
+    browser.bookmarks.remove(bookmarks[0].id);
+    tabs.shift();
+    bookmarks.shift();
+    titles = getTitlesWithTreeStructure(tabs);
+  }
+  log('titles: ', titles);
+
+  log('save tree structure to bookmarks');
+  for (let i = 0, maxi = bookmarks.length; i < maxi; i++) {
+    const title = titles[i];
+    if (title == tabs[i].title)
+      continue;
+    browser.bookmarks.update(bookmarks[i].id, { title });
+  }
+
+  log('ready to group bookmarks under a folder');
+
   const parentId = bookmarks[0].parentId;
   {
     // Do nothing if all bookmarks are created under a new
     // blank folder.
     const allChildren = await browser.bookmarks.getChildren(parentId);
+    log('allChildren.length vs bookmarks.length: ', allChildren.length, bookmarks.length);
     if (allChildren.length == bookmarks.length) {
-      log(' => ignore bookmarks created under a new blank folder');
+      log(' => no need to create folder for bookmarks under a new blank folder');
       return;
     }
   }
-
-  const possibleSourceTabs = (await Promise.all(bookmarks.map(async bookmark => {
-    const tabs = await browser.tabs.query({ url: bookmark.url });
-    if (tabs.length == 0)
-      return null;
-    return tabs[0];
-  }))).filter(tab => !!tab);
-  console.log('possibleSourceTabs ', possibleSourceTabs);
-  if (possibleSourceTabs.length != bookmarks.length) {
-    log(' => ignore bookmarks created from non-tab sources');
-    return;
-  }
-
-  log('ready to group bookmarks under a folder');
 
   log('create a folder for grouping');
   mCreatingCount++;
@@ -727,28 +765,6 @@ async function tryGroupCreatedBookmarks() {
       parentId: folder.id,
       index:    movedCount++
     });
-  }
-
-  if (!lastDraggedTabs)
-    return;
-
-  const tabs = lastDraggedTabs.tabIds.map(id => Tab.get(id));
-  let titles = getTitlesWithTreeStructure(tabs);
-  if (tabs[0].$TST.isGroupTab &&
-      titles.filter(title => !/^>/.test(title)).length == 1) {
-    log('delete needless bookmark for a group tab');
-    browser.bookmarks.remove(bookmarks[0].id);
-    tabs.shift();
-    bookmarks.shift();
-    titles = getTitlesWithTreeStructure(tabs);
-  }
-
-  log('save tree structure to bookmarks');
-  for (let i = 0, maxi = bookmarks.length; i < maxi; i++) {
-    const title = titles[i];
-    if (title == tabs[i].title)
-      continue;
-    browser.bookmarks.update(bookmarks[i].id, { title });
   }
 }
 

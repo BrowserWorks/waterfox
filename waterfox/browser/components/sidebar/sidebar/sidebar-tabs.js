@@ -83,7 +83,7 @@ export function getTabFromDOMNode(node, options = {}) {
 }
 
 
-async function reserveToUpdateLoadingState() {
+export async function reserveToUpdateLoadingState() {
   if (mPromisedInitialized)
     await mPromisedInitialized;
   if (reserveToUpdateLoadingState.waiting)
@@ -283,7 +283,7 @@ export function renderTab(tab, { containerElement, insertBefore } = {}) {
       tab.$TST.removeState(Constants.kTAB_STATE_ACTIVE);
     }
 
-    tab.$TST.invalidateElement(TabInvalidationTarget.Twisty | TabInvalidationTarget.CloseBox | TabInvalidationTarget.Tooltip);
+    tab.$TST.invalidateElement(TabInvalidationTarget.Twisty | TabInvalidationTarget.CloseBox | TabInvalidationTarget.Tooltip | TabInvalidationTarget.Overflow);
     tab.$TST.updateElement(TabUpdateTarget.Counter | TabUpdateTarget.Overflow | TabUpdateTarget.TabProperties);
     tab.$TST.applyStatesToElement();
 
