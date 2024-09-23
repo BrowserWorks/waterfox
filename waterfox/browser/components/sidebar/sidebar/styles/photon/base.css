@@ -33,7 +33,12 @@ tab-item.pinned tab-item-substance {
 
 #tabbar + .after-tabs button,
 #tabbar + .after-tabs [role="button"] {
-  border-bottom: none;
+  /* IMPORTANT NOTE!!
+     We need to keep sizes of the .after-tabs boxes inside/outside #tabbar exact same,
+     to prevent flashing of the scrollbar from repeatedly switched overflow/underflow
+     state. See also: https://github.com/piroor/treestyletab/issues/3589 */
+  /* border-bottom: none; */
+  border-bottom-color: transparent;
 }
 
 

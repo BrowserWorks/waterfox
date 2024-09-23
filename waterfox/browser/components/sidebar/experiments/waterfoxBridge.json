@@ -435,17 +435,6 @@
         ]
       },
       {
-        "name": "onHoverPreviewChanged",
-        "description": "Notified when hover preview is activated or deactivated.",
-        "type": "function",
-        "parameters": [
-          {
-            "type": "boolean",
-            "name": "hoverPreviewEnabled"
-          }
-        ]
-      },
-      {
         "name": "onAutoplayBlocked",
         "description": "Notified when a tab's autoplay is blocked.",
         "type": "function",

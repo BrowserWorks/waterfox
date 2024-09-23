@@ -52,15 +52,15 @@ body,
     --tab-text-inverted: var(--browser-bg-more-lighter, -moz-dialog);
     --tab-text-active: var(--tab-text-regular);
     --tab-text-active-inverted: Highlight;
-    --tab-border: var(--browser-border, var(--browser-bg-more-darker, ThreeDShadow));
-    --tab-surface-hover: var(--browser-bg-hover-for-header-image, var(--browser-bg-more-lighter, ThreeDHighlight));
+    --tab-border: var(--browser-border, var(--browser-bg-more-darker, var(--ThreeDShadow)));
+    --tab-surface-hover: var(--browser-bg-hover-for-header-image, var(--browser-bg-more-lighter, var(--ThreeDHighlight)));
     --tab-surface-active: var(--browser-bg-active-for-header-image, var(--face-highlight-more-lighter, Highlight));
     --tab-surface-active-hover: var(--browser-bg-active-for-header-image, var(--face-highlight-more-more-lighter, Highlight));
     --tab-dropmarker: var(--browser-fg, -moz-dialogtext);
-    --tabbar-bg: var(--browser-bg-darker, ThreeDShadow);
+    --tabbar-bg: var(--browser-bg-darker, var(--ThreeDShadow));
   }
   :root[color-scheme="system-color"] #background::after {
-    background: var(--browser-bg-darker, AppWorkspace);
+    background: var(--browser-bg-darker,var(--AppWorkspace));
     opacity: 0.15;
 
     bottom: 0;

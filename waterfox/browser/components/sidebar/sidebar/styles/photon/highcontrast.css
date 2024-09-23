@@ -14,7 +14,7 @@
   --tab-text-regular: ButtonText;
   --tab-text-active: HighlightText;
   --tab-text-hover: ButtonText;
-  --tab-text-inverted: CaptionText;
+  --tab-text-inverted: AccentColorText;
   --tab-border: GrayText; /* it should be between ButtonText and ButtonFace. */
   --tab-dropmarker: ButtonText;
 }
@@ -24,7 +24,7 @@
 
 :root,
 #background {
-  background: AppWorkspace;
+  background: Canvas;
 }
 
 #background::after {

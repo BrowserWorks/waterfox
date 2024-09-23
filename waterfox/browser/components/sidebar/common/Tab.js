@@ -389,6 +389,10 @@ export default class Tab {
     return this.states.has(Constants.kTAB_STATE_STICKY);
   }
 
+  get stuck() {
+    return this.element?.parentNode?.classList.contains('sticky-tabs-container');
+  }
+
   get isNewTabCommandTab() {
     if (!this.tab ||
         !configs.guessNewOrphanTabAsOpenedByNewTabCommand)
@@ -442,6 +446,13 @@ export default class Tab {
     if (!this.tab || !this.isGroupTab)
       return false;
     return (new URL(this.tab.url)).searchParams.get('temporaryAggressive') == 'true';
+  }
+
+  get replacedParentGroupTabCount() {
+    if (!this.tab || !this.isGroupTab)
+      return 0;
+    const count = parseInt((new URL(this.tab.url)).searchParams.get('replacedParentCount'));
+    return isNaN(count) ? 0 : count;
   }
 
   // Firefox Multi-Account Containers
@@ -962,6 +973,10 @@ export default class Tab {
     return ancestors;
   }
 
+  get level() {
+    return this.ancestorIds.length;
+  }
+
   invalidateCachedAncestors() {
     this.cachedAncestorIds = null;
     for (const child of this.children) {
@@ -1176,13 +1191,16 @@ export default class Tab {
   get needToBeGroupedSiblings() {
     if (!this.tab)
       return [];
+    const openerTabUniqueId = this.getAttribute(Constants.kPERSISTENT_ORIGINAL_OPENER_TAB_ID);
+    if (!openerTabUniqueId)
+      return [];
     return TabsStore.queryAll({
       windowId:   this.tab.windowId,
       tabs:       TabsStore.toBeGroupedTabsInWindow.get(this.tab.windowId),
       normal:     true,
       '!id':      this.id,
       attributes: [
-        Constants.kPERSISTENT_ORIGINAL_OPENER_TAB_ID, this.getAttribute(Constants.kPERSISTENT_ORIGINAL_OPENER_TAB_ID),
+        Constants.kPERSISTENT_ORIGINAL_OPENER_TAB_ID, openerTabUniqueId,
         Constants.kPERSISTENT_ALREADY_GROUPED_FOR_PINNED_OPENER, ''
       ],
       ordered:    true
@@ -1908,30 +1926,27 @@ export default class Tab {
     if (!this.tab) // already closed tab
       return;
     log(`memorizeNeighbors ${this.tab.id} as ${hint}`);
-
-    const previousTab = this.unsafePreviousTab;
-    this.lastPreviousTabId = previousTab && previousTab.id;
-
-    const nextTab = this.unsafeNextTab;
-    this.lastNextTabId = nextTab && nextTab.id;
+    this.lastPreviousTabId = this.unsafePreviousTab?.id;
+    this.lastNextTabId = this.unsafeNextTab?.id;
   }
 
-  get isSubstantiallyMoved() {
+  // https://github.com/piroor/treestyletab/issues/2309#issuecomment-518583824
+  get movedInBulk() {
     const previousTab = this.unsafePreviousTab;
     if (this.lastPreviousTabId &&
-        this.lastPreviousTabId != (previousTab && previousTab.id)) {
-      log(`isSubstantiallyMoved lastPreviousTabId=${this.lastNextTabId}, previousTab=${previousTab && previousTab.id}`);
-      return true;
+        this.lastPreviousTabId != previousTab?.id) {
+      log(`not bulkMoved lastPreviousTabId=${this.lastNextTabId}, previousTab=${previousTab?.id}`);
+      return false;
     }
 
     const nextTab = this.unsafeNextTab;
     if (this.lastNextTabId &&
-        this.lastNextTabId != (nextTab && nextTab.id)) {
-      log(`isSubstantiallyMoved lastNextTabId=${this.lastNextTabId}, nextTab=${nextTab && nextTab.id}`);
-      return true;
+        this.lastNextTabId != nextTab?.id) {
+      log(`not bulkMoved lastNextTabId=${this.lastNextTabId}, nextTab=${nextTab?.id}`);
+      return false;
     }
 
-    return false;
+    return true;
   }
 
   get sanitized() {
@@ -2040,6 +2055,8 @@ export default class Tab {
         ancestorTabIds: this.tab.$TST.ancestorIds,
         bundledTabId:   this.tab.$TST.bundledTabId,
       };
+      if (this.stuck)
+        exportedTab.states.push(Constants.kTAB_STATE_STUCK);
       if (configs.cacheAPITreeItems && light)
         this.$exportedForAPI = exportedTab;
     }
@@ -2891,6 +2908,24 @@ Tab.hasLoadingTab = windowId => {
     tabs:     TabsStore.getTabsMap(TabsStore.loadingTabsInWindow, windowId),
     visible:  true
   });
+};
+
+Tab.hasDuplicatedTabs = (windowId, options = {}) => {
+  const tabs = TabsStore.queryAll({
+    windowId,
+    tabs:   TabsStore.getTabsMap(TabsStore.livingTabsInWindow, windowId),
+    living: true,
+    ...options,
+    iterator: true
+  });
+  const tabKeys = new Set();
+  for (const tab of tabs) {
+    const key = `${tab.cookieStoreId}\n${tab.url}`;
+    if (tabKeys.has(key))
+      return true;
+    tabKeys.add(key);
+  }
+  return false;
 };
 
 Tab.hasMultipleTabs = (windowId, options = {}) => {

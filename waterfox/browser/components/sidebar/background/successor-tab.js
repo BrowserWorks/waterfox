@@ -14,6 +14,7 @@ import {
 import * as ApiTabs from '/common/api-tabs.js';
 import * as Constants from '/common/constants.js';
 import * as SidebarConnection from '/common/sidebar-connection.js';
+import * as TabsInternalOperation from '/common/tabs-internal-operation.js';
 import * as TabsStore from '/common/tabs-store.js';
 import * as TreeBehavior from '/common/tree-behavior.js';
 
@@ -40,6 +41,17 @@ browser.tabs.onUpdated.addListener((tabId, updateInfo, _tab) => {
 }, {
   // we cannot watch only the property...
   // properties: ['successorTabId'],
+});
+
+TabsInternalOperation.onBeforeTabsRemove.addListener(async tabs => {
+  let activeTab = null;
+  const tabIds = tabs.map(tab => {
+    if (tab.active)
+      activeTab = tab;
+    return tab.id;
+  });
+  if (activeTab)
+    await updateInternal(activeTab.id, tabIds);
 });
 
 function setSuccessor(tabId, successorTabId = -1) {
@@ -133,7 +145,7 @@ function update(tabId) {
     }
   }, 0);
 }
-async function updateInternal(tabId) {
+async function updateInternal(tabId, excludeTabIds = []) {
   // tabs.onActivated can be notified before the tab is completely tracked...
   await Tab.waitUntilTracked(tabId);
   const tab = Tab.get(tabId);
@@ -190,6 +202,15 @@ async function updateInternal(tabId) {
   let successor = null;
   if (renewedTab.active) {
     log('it is active, so reset successor');
+    const excludeTabIdsSet = new Set(excludeTabIds);
+    const findSuccessor = (...candidates) => {
+      for (const candidate of candidates) {
+        if (!excludeTabIdsSet.has(candidate?.id) &&
+            candidate)
+          return candidate;
+      }
+      return null;
+    };
     if (configs.successorTabControlLevel == Constants.kSUCCESSOR_TAB_CONTROL_IN_TREE) {
       const closeParentBehavior = TreeBehavior.getParentTabOperationBehavior(tab, {
         context: Constants.kPARENT_TAB_OPERATION_CONTEXT_CLOSE,
@@ -203,7 +224,11 @@ async function updateInternal(tabId) {
       const firstChild = collapsedChildSuccessorAllowed ? tab.$TST.firstChild : tab.$TST.firstVisibleChild;
       const nextVisibleSibling = tab.$TST.nextVisibleSiblingTab;
       const nearestVisiblePreceding = tab.$TST.nearestVisiblePrecedingTab;
-      successor = firstChild || nextVisibleSibling || nearestVisiblePreceding;
+      successor = findSuccessor(
+        firstChild,
+        nextVisibleSibling,
+        nearestVisiblePreceding
+      );
       log(`  possible successor: ${dumpTab(tab)}: `, successor, {
         closeParentBehavior,
         collapsedChildSuccessorAllowed,
@@ -216,22 +241,29 @@ async function updateInternal(tabId) {
           successor.discarded &&
           configs.avoidDiscardedTabToBeActivatedIfPossible) {
         log(`  ${dumpTab(successor)} is discarded.`);
-        successor = tab.$TST.nearestLoadedSiblingTab ||
-                      tab.$TST.nearestLoadedTabInTree ||
-                      tab.$TST.nearestLoadedTab ||
-                      successor;
+        successor = findSuccessor(
+          tab.$TST.nearestLoadedSiblingTab,
+          tab.$TST.nearestLoadedTabInTree,
+          tab.$TST.nearestLoadedTab,
+          successor
+        );
         log(`  => redirected successor is: ${dumpTab(successor)}`);
       }
     }
     else {
-      successor = tab.$TST.nearestVisibleFollowingTab || tab.$TST.nearestVisiblePrecedingTab;
+      successor = findSuccessor(
+        tab.$TST.nearestVisibleFollowingTab,
+        tab.$TST.nearestVisiblePrecedingTab
+      );
       log(`  possible successor: ${dumpTab(tab)}`);
       if (successor &&
           successor.discarded &&
           configs.avoidDiscardedTabToBeActivatedIfPossible) {
         log(`  ${dumpTab(successor)} is discarded.`);
-        successor = tab.$TST.nearestLoadedTab ||
-                      successor;
+        successor = findSuccessor(
+          tab.$TST.nearestLoadedTab,
+          successor
+        );
         log(`  => redirected successor is: ${dumpTab(successor)}`);
       }
     }
@@ -243,8 +275,7 @@ async function updateInternal(tabId) {
   }
   else {
     log(`  ${dumpTab(tab)} is out of control.`, {
-      active:    renewedTab.active,
-      successor: successor && successor.id
+      active: renewedTab.active,
     });
     clearSuccessor(renewedTab.id);
   }

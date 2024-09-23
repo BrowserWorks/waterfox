@@ -52,8 +52,7 @@ Tab.onCreated.addListener((tab, info = {}) => {
         info.movedBySelfWhileCreation) &&
       (tab.$TST.nearestCompletelyOpenedNormalFollowingTab ||
        tab.$TST.nearestCompletelyOpenedNormalPrecedingTab ||
-       (info.treeForActionDetection &&
-        info.treeForActionDetection.target &&
+       (info.treeForActionDetection?.target &&
         (info.treeForActionDetection.target.next ||
          info.treeForActionDetection.target.previous)))) {
     tryFixupTreeForInsertedTab(tab, {
@@ -73,21 +72,21 @@ Tab.onMoving.addListener((tab, moveInfo) => {
   const win              = TabsStore.windows.get(tab.windowId);
   const isNewlyOpenedTab = win.openingTabs.has(tab.id);
   const positionControlled = configs.insertNewChildAt != Constants.kINSERT_NO_CONTROL;
-  if (isNewlyOpenedTab &&
-      !moveInfo.byInternalOperation &&
-      !moveInfo.alreadyMoved &&
-      !moveInfo.isSubstantiallyMoved &&
-      positionControlled) {
-    const opener = tab.$TST.openerTab;
-    // if there is no valid opener, it can be a restored initial tab in a restored window
-    // and can be just moved as a part of window restoration process.
-    if (opener) {
-      log('onTabMove for new child tab: move back '+moveInfo.toIndex+' => '+moveInfo.fromIndex);
-      moveBack(tab, moveInfo);
-      return false;
-    }
-  }
-  return true;
+  if (!isNewlyOpenedTab ||
+      !positionControlled ||
+      moveInfo.byInternalOperation ||
+      moveInfo.alreadyMoved ||
+      !moveInfo.movedInBulk)
+    return true;
+
+  // if there is no valid opener, it can be a restored initial tab in a restored window
+  // and can be just moved as a part of window restoration process.
+  if (!tab.$TST.openerTab)
+    return true;
+
+  log('onTabMove for new child tab: move back '+moveInfo.toIndex+' => '+moveInfo.fromIndex);
+  moveBack(tab, moveInfo);
+  return false;
 });
 
 async function tryFixupTreeForInsertedTab(tab, moveInfo = {}) {
@@ -96,6 +95,7 @@ async function tryFixupTreeForInsertedTab(tab, moveInfo = {}) {
     ...moveInfo,
   });
   log('tryFixupTreeForInsertedTab ', {
+    tab: tab.id,
     parentTabOperationBehavior,
     moveInfo,
     childIds: tab.$TST.childIds,
@@ -118,9 +118,10 @@ async function tryFixupTreeForInsertedTab(tab, moveInfo = {}) {
         broadcast: true
       });
     }
-    await Tree.detachTab(tab, {
-      broadcast: true
-    });
+    if (tab.$TST.parentId)
+      await Tree.detachTab(tab, {
+        broadcast: true
+      });
     // Pinned tab is moved at first, so Tab.onPinned handler cannot know tree information
     // before the pinned tab was moved. Thus we cache tree information for the handler.
     wait(100).then(() => {
@@ -134,10 +135,18 @@ async function tryFixupTreeForInsertedTab(tab, moveInfo = {}) {
     isMovingByShortcut: mMaybeTabMovingByShortcut,
     ...moveInfo,
   });
+  log(' => action: ', action);
   if (!action.action) {
     log('no action');
     return;
   }
+
+  // When multiple tabs are moved at once by outside of TST (e.g. moving of multiselected tabs)
+  // Tree.detectTabActionFromNewPosition() may be called for other tabs asynchronously
+  // before this operation finishes. Thus we need to memorize the calculated "parent"
+  // and Tree.detectTabActionFromNewPosition() will use it.
+  if (action.parent)
+    tab.$TST.temporaryMetadata.set('goingToBeAttachedTo', action.parent);
 
   // notify event to helper addons with action and allow or deny
   const cache = {};
@@ -155,22 +164,26 @@ async function tryFixupTreeForInsertedTab(tab, moveInfo = {}) {
     { tabProperties: ['tab', 'parent', 'insertBefore', 'insertAfter'], cache }
   );
   TSTAPI.clearCache(cache);
+
   if (!allowed) {
     log('no action - canceled by a helper addon');
-    return;
+  }
+  else {
+    log('action: ', action);
+    switch (action.action) {
+      case 'invalid':
+        moveBack(tab, moveInfo);
+        break;
+
+      default:
+        log('tryFixupTreeForInsertedTab: apply action for unattached tab: ', tab, action);
+        await action.apply();
+        break;
+    }
   }
 
-  log('action: ', action);
-  switch (action.action) {
-    case 'invalid':
-      moveBack(tab, moveInfo);
-      return;
-
-    default:
-      log('tryFixupTreeForInsertedTab: apply action for unattached tab: ', tab, action);
-      await action.apply();
-      return;
-  }
+  if (tab.$TST.temporaryMetadata.get('goingToBeAttachedTo') == action.parent)
+    tab.$TST.temporaryMetadata.delete('goingToBeAttachedTo');
 }
 
 function reserveToEnsureRootTabVisible(tab) {
@@ -196,14 +209,14 @@ function reserveToEnsureRootTabVisible(tab) {
 reserveToEnsureRootTabVisible.tabIds = new Set();
 
 Tab.onMoved.addListener((tab, moveInfo = {}) => {
-  if (!moveInfo.byInternalOperation &&
-      !moveInfo.isSubstantiallyMoved &&
-      !tab.$TST.duplicating) {
-    log('process moved tab');
-    tryFixupTreeForInsertedTab(tab, moveInfo);
+  if (moveInfo.byInternalOperation ||
+      !moveInfo.movedInBulk ||
+      tab.$TST.duplicating) {
+    log('internal move');
   }
   else {
-    log('internal move');
+    log('process moved tab');
+    tryFixupTreeForInsertedTab(tab, moveInfo);
   }
   reserveToEnsureRootTabVisible(tab);
 });
@@ -255,7 +268,8 @@ function moveBack(tab, moveInfo) {
   log('Move back tab from unexpected move: ', dumpTab(tab), moveInfo);
   const id  = tab.id;
   const win = TabsStore.windows.get(tab.windowId);
-  win.internalMovingTabs.add(id);
+  const index = moveInfo.fromIndex;
+  win.internalMovingTabs.set(id, index);
   logApiTabs(`handle-moved-tabs:moveBack: browser.tabs.move() `, tab.id, {
     windowId: moveInfo.windowId,
     index:    moveInfo.fromIndex
@@ -266,7 +280,7 @@ function moveBack(tab, moveInfo) {
     windowId: moveInfo.windowId,
     index:    moveInfo.fromIndex
   }).catch(ApiTabs.createErrorHandler(e => {
-    if (win.internalMovingTabs.has(id))
+    if (win.internalMovingTabs.get(id) == index)
       win.internalMovingTabs.delete(id);
     ApiTabs.handleMissingTabError(e);
   }));
