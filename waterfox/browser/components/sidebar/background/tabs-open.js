@@ -299,7 +299,8 @@ function onMessage(message, openerTab) {
           windowId:     message.windowId,
           parent:       Tab.get(message.parentId),
           insertBefore: Tab.get(message.insertBeforeId),
-          insertAfter:  Tab.get(message.insertAfterId)
+          insertAfter:  Tab.get(message.insertAfterId),
+          active:       !!message.active,
         });
       });
       break;

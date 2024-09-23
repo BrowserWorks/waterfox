@@ -264,7 +264,7 @@ async function onShortcutCommand(command) {
       return;
 
     case 'simulateUpOnTree':
-      if (SidebarConnection.isSidebarOpen(activeTab.windowId)) {
+      if (SidebarConnection.isOpen(activeTab.windowId)) {
         if (configs.faviconizePinnedTabs &&
             (activeTab.pinned ||
              activeTab == Tab.getFirstNormalTab(activeTab.windowId))) {
@@ -291,7 +291,7 @@ async function onShortcutCommand(command) {
       }
       return;
     case 'simulateDownOnTree':
-      if (SidebarConnection.isSidebarOpen(activeTab.windowId)) {
+      if (SidebarConnection.isOpen(activeTab.windowId)) {
         if (configs.faviconizePinnedTabs &&
             activeTab.pinned) {
           const nextActiveId = await browser.runtime.sendMessage({
@@ -317,7 +317,7 @@ async function onShortcutCommand(command) {
       }
       return;
     case 'simulateLeftOnTree':
-      if (SidebarConnection.isSidebarOpen(activeTab.windowId)) {
+      if (SidebarConnection.isOpen(activeTab.windowId)) {
         if (configs.faviconizePinnedTabs &&
             activeTab.pinned) {
           const nextActiveId = await browser.runtime.sendMessage({
@@ -342,7 +342,7 @@ async function onShortcutCommand(command) {
       }
       return;
     case 'simulateRightOnTree':
-      if (SidebarConnection.isSidebarOpen(activeTab.windowId)) {
+      if (SidebarConnection.isOpen(activeTab.windowId)) {
         if (configs.faviconizePinnedTabs &&
             activeTab.pinned) {
           const nextActiveId = await browser.runtime.sendMessage({
@@ -453,12 +453,14 @@ async function onShortcutCommand(command) {
 
 function focusPrevious(activeTab) {
   const nextActive = activeTab.$TST.nearestVisiblePrecedingTab ||
+    (!SidebarConnection.isOpen(activeTab.windowId) && activeTab.$TST.previousTab) ||
     Tab.getLastVisibleTab(activeTab.windowId);
   TabsInternalOperation.activateTab(nextActive);
 }
 
 function focusPreviousSilently(activeTab) {
   const nextActive = activeTab.$TST.nearestVisiblePrecedingTab ||
+    (!SidebarConnection.isOpen(activeTab.windowId) && activeTab.$TST.previousTab) ||
     Tab.getLastVisibleTab(activeTab.windowId);
   TabsInternalOperation.activateTab(nextActive, {
     silently: true,
@@ -466,13 +468,15 @@ function focusPreviousSilently(activeTab) {
 }
 
 function focusNext(activeTab) {
-  const nextActive = activeTab.$TST.nextVisibleTab ||
+  const nextActive = activeTab.$TST.nearestVisibleFollowingTab ||
+    (!SidebarConnection.isOpen(activeTab.windowId) && activeTab.$TST.nextTab) ||
     Tab.getFirstVisibleTab(activeTab.windowId);
   TabsInternalOperation.activateTab(nextActive);
 }
 
 function focusNextSilently(activeTab) {
   const nextActive = activeTab.$TST.nearestVisibleFollowingTab ||
+    (!SidebarConnection.isOpen(activeTab.windowId) && activeTab.$TST.nextTab) ||
     Tab.getFirstVisibleTab(activeTab.windowId);
   TabsInternalOperation.activateTab(nextActive, {
     silently: true,
@@ -953,9 +957,27 @@ function onMessageExternal(message, sender) {
     case TSTAPI.kGROUP_TABS:
       return (async () => {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
+        const temporaryStateParams = (message.temporary && !message.temporaryAggressive) ?
+          {
+            temporary:           true,
+            temporaryAggressive: false,
+          } :
+          (!message.temporary && message.temporaryAggressive) ?
+            {
+              temporary:           false,
+              temporaryAggressive: true,
+            } :
+            (message.temporaryAggressive === false && message.temporary === false) ?
+              {
+                temporary:           false,
+                temporaryAggressive: false,
+              } :
+              {};
         const tab = await TabsGroup.groupTabs(Array.from(tabs), {
           title:     message.title,
           broadcast: true,
+          ...TabsGroup.temporaryStateParams(configs.groupTabTemporaryStateForAPI),
+          ...temporaryStateParams,
         });
         if (!tab)
           return null;

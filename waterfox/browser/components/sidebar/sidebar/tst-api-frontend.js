@@ -98,8 +98,11 @@ TSTAPI.onMessageExternal.addListener((message, sender) => {
        document.documentElement.classList.contains('incognito')))
     return;
 
-  if (!message.window && !message.windowId)
-    message.windowId = mTargetWindow;
+  if (!message.windowId)
+    message.windowId = message.window || mTargetWindow;
+
+  if (message.windowId != mTargetWindow)
+    return;
 
   switch (message.type) {
     case TSTAPI.kCLEAR_ALL_EXTRA_TAB_CONTENTS: // for backward compatibility

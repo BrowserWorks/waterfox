@@ -217,6 +217,7 @@ export const kTAB_STATE_GROUP_TAB                 = 'group-tab';
 export const kTAB_STATE_NEW_TAB_COMMAND_TAB       = 'newtab-command-tab';
 export const kTAB_STATE_OPENED_FOR_SAME_WEBSITE   = 'opened-for-same-website';
 export const kTAB_STATE_STICKY                    = 'sticky';
+export const kTAB_STATE_STUCK                   = 'stuck'; // virtual state
 export const kTAB_INTERNAL_STATES = new Set([ // TST specific states
   'tab',
   kTAB_STATE_LAST_ROW,
@@ -239,6 +240,7 @@ export const kTAB_INTERNAL_STATES = new Set([ // TST specific states
   kTAB_STATE_FROM_FIREFOX_VIEW,
   kTAB_STATE_OPENED_FOR_SAME_WEBSITE,
   kTAB_STATE_STICKY,
+  kTAB_STATE_STUCK,
 ]);
 export const kTAB_TEMPORARY_STATES = new Set([ // states not trigger updating of cache
   kTAB_STATE_CREATING,
@@ -269,6 +271,7 @@ export const kTAB_SAFE_STATES = new Set([ // exportable via API
   kTAB_STATE_FROM_FIREFOX_VIEW,
   kTAB_STATE_OPENED_FOR_SAME_WEBSITE,
   kTAB_STATE_STICKY,
+  kTAB_STATE_STUCK,
 ]);
 export const kTAB_SAFE_STATES_ARRAY = Array.from(kTAB_SAFE_STATES);
 

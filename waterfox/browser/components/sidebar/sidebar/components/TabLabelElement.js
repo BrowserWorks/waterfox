@@ -133,6 +133,7 @@ export class TabLabelElement extends HTMLElement {
       return;
     content.textContent = this.getAttribute(kATTR_NAME_VALUE) || '';
     this.classList.toggle('rtl', isRTL(content.textContent));
+    this.invalidateOverflow();
   }
 
   updateOverflow() {
@@ -150,6 +151,10 @@ export class TabLabelElement extends HTMLElement {
       const overflow = tab && !tab.pinned && this._content.offsetWidth > this.offsetWidth;
       this.classList.toggle('overflow', overflow);
     });
+  }
+
+  invalidateOverflow() {
+    this.updateOverflow.invoked = false;
   }
 
   get _content() {

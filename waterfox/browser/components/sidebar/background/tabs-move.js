@@ -14,7 +14,7 @@
  * The Original Code is the Tree Style Tab.
  *
  * The Initial Developer of the Original Code is YUKI "Piro" Hiroshi.
- * Portions created by the Initial Developer are Copyright (C) 2011-2023
+ * Portions created by the Initial Developer are Copyright (C) 2011-2024
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s): YUKI "Piro" Hiroshi <piro.outsider.reflex@gmail.com>
@@ -101,15 +101,15 @@ async function moveTabsInternallyBefore(tabs, referenceTab, options = {}) {
       const oldNextTab     = tab.$TST.unsafeNextTab;
       if (oldNextTab && oldNextTab.id == referenceTab.id) // no move case
         continue;
-      if (SidebarConnection.isInitialized()) { // only on the background page
-        win.internalMovingTabs.add(tab.id);
-        win.alreadyMovedTabs.add(tab.id);
-      }
       const fromIndex = tab.index;
       if (referenceTab.index > tab.index)
         tab.index = referenceTab.index - 1;
       else
         tab.index = referenceTab.index;
+      if (SidebarConnection.isInitialized()) { // only on the background page
+        win.internalMovingTabs.set(tab.id, tab.index);
+        win.alreadyMovedTabs.set(tab.id, tab.index);
+      }
       tab.reindexedBy = `moveTabsInternallyBefore (${tab.index})`;
       Tab.track(tab);
       movedTabs.push(tab);
@@ -211,10 +211,6 @@ async function moveTabsInternallyAfter(tabs, referenceTab, options = {}) {
       if ((!oldNextTab && !nextTab) ||
           (oldNextTab && nextTab && oldNextTab.id == nextTab.id)) // no move case
         continue;
-      if (SidebarConnection.isInitialized()) { // only on the background page
-        win.internalMovingTabs.add(tab.id);
-        win.alreadyMovedTabs.add(tab.id);
-      }
       const fromIndex = tab.index;
       if (nextTab) {
         if (nextTab.index > tab.index)
@@ -224,6 +220,10 @@ async function moveTabsInternallyAfter(tabs, referenceTab, options = {}) {
       }
       else {
         tab.index = win.tabs.size - 1
+      }
+      if (SidebarConnection.isInitialized()) { // only on the background page
+        win.internalMovingTabs.set(tab.id, tab.index);
+        win.alreadyMovedTabs.set(tab.id, tab.index);
       }
       tab.reindexedBy = `moveTabsInternallyAfter (${tab.index})`;
       Tab.track(tab);
@@ -363,8 +363,8 @@ async function syncToNativeTabsInternal(windowId) {
           toIndex--;
         log(`syncToNativeTabs(${windowId}): step1, move ${moveTabIds.join(',')} before ${referenceId} / from = ${fromIndex}, to = ${toIndex}`);
         for (const movedId of moveTabIds) {
-          win.internalMovingTabs.add(movedId);
-          win.alreadyMovedTabs.add(movedId);
+          win.internalMovingTabs.set(movedId, -1);
+          win.alreadyMovedTabs.set(movedId, -1);
           movedTabs.add(movedId);
         }
         logApiTabs(`tabs-move:syncToNativeTabs(${windowId}): step1, browser.tabs.move() `, moveTabIds, {

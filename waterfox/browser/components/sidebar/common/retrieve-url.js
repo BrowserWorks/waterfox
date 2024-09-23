@@ -14,6 +14,7 @@ function log(...args) {
   internalLogger('common/retrieve-url', ...args);
 }
 
+export const kTYPE_PLAIN_TEXT  = 'text/plain';
 export const kTYPE_X_MOZ_URL   = 'text/x-moz-url';
 export const kTYPE_URI_LIST    = 'text/uri-list';
 export const kTYPE_MOZ_TEXT_INTERNAL = 'text/x-moz-text-internal';
@@ -23,7 +24,7 @@ const ACCEPTABLE_DATA_TYPES = [
   kTYPE_URI_LIST,
   kTYPE_X_MOZ_URL,
   kTYPE_MOZ_TEXT_INTERNAL,
-  'text/plain'
+  kTYPE_PLAIN_TEXT,
 ];
 
 let mFileURLResolver = null;
@@ -102,7 +103,7 @@ export async function fromClipboard({ selection } = {}) {
     if (await mSelectionClipboardProvider.isAvailable()) {
       const maybeUrlString = await mSelectionClipboardProvider.getTextData();
       if (maybeUrlString)
-        urls.push(...fromData(maybeUrlString, 'text/plain'));
+        urls.push(...fromData(maybeUrlString, kTYPE_PLAIN_TEXT));
       return sanitizeURLs(urls);
     }
   }
@@ -172,7 +173,7 @@ function fromData(data, type) {
         .trim()
         .split('\n');
 
-    case 'text/plain':
+    case kTYPE_PLAIN_TEXT:
       return data
         .replace(/\r/g, '\n')
         .replace(/\n\n+/g, '\n')
