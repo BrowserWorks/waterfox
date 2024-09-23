@@ -339,7 +339,8 @@ async function updateWindowCache(owner, key, value) {
         });
       return;
     }
-    catch(_error) {
+    catch(error) {
+      console.log(`BackgroundCache.updateWindowCache for ${owner.windowId}/${key} failed: `, error.message, error.stack, error);
     }
   }
 
@@ -372,7 +373,8 @@ async function getWindowCache(owner, key) {
       });
       return value;
     }
-    catch(_error) {
+    catch(error) {
+      console.log(`BackgroundCache.getWindowCache for ${owner.windowId}/${key} failed: `, error.message, error.stack, error);
     }
   }
 

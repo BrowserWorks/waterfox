@@ -225,8 +225,6 @@ document.querySelector('#tabbar').addEventListener('mouseenter', async event => 
 
   mLastHoverTabId = tab.id;
 
-  await wait(Math.max(0, configs.hoverTabPreviewDelayMs));
-
   if (mLastHoverTabId != tab.id ||
       tab.active)
     return;

@@ -197,6 +197,9 @@ const mItemsById = {
     title:              browser.i18n.getMessage('tabContextMenu_close_label'),
     titleMultiselected: browser.i18n.getMessage('tabContextMenu_close_label_multiselected')
   },
+  'context_closeDuplicatedTabs': {
+    title: browser.i18n.getMessage('tabContextMenu_closeDuplicatedTabs_label')
+  },
   'context_closeMultipleTabs': {
     title: browser.i18n.getMessage('tabContextMenu_closeMultipleTabs_label')
   },
@@ -694,6 +697,7 @@ async function onShown(info, contextTab) {
     const previousSiblingTab    = contextTab && contextTab.$TST.previousSiblingTab;
     const nextTab               = contextTab && contextTab.$TST.nextTab;
     const nextSiblingTab        = contextTab && contextTab.$TST.nextSiblingTab;
+    const hasDuplicatedTabs     = Tab.hasDuplicatedTabs(windowId);
     const hasMultipleTabs       = Tab.hasMultipleTabs(windowId);
     const hasMultipleNormalTabs = Tab.hasMultipleTabs(windowId, { normal: true });
     const multiselected         = contextTab && contextTab.$TST.multiselected;
@@ -908,6 +912,11 @@ async function onShown(info, contextTab) {
       multiselected
     }) && modifiedItemsCount++;
 
+    updateItem('context_closeDuplicatedTabs', {
+      visible: emulate && !!contextTab,
+      enabled: hasDuplicatedTabs,
+      multiselected
+    }) && modifiedItemsCount++;
     updateItem('context_closeMultipleTabs', {
       visible: emulate && !!contextTab,
       enabled: hasMultipleNormalTabs,
@@ -1251,6 +1260,28 @@ async function onClick(info, contextTab) {
     case 'context_bookmarkSelected':
       Commands.bookmarkTab(contextTab || activeTab);
       break;
+    case 'context_closeDuplicatedTabs': {
+      const tabs = await browser.tabs.query({ windowId }).catch(ApiTabs.createErrorHandler());
+      tabs.sort((a, b) => b.lastAccessed - a.lastAccessed);
+      const tabKeys = new Set();
+      const closeTabs = [];
+      for (const tab of tabs) {
+        const key = `${tab.cookieStoreId}\n${tab.url}`;
+        if (tabKeys.has(key)) {
+          closeTabs.push(Tab.get(tab.id));
+          continue;
+        }
+        tabKeys.add(key);
+      }
+      const canceled = (await browser.runtime.sendMessage({
+        type: Constants.kCOMMAND_NOTIFY_TABS_CLOSING,
+        tabs: closeTabs.map(tab => tab.$TST.sanitized),
+        windowId,
+      }).catch(ApiTabs.createErrorHandler())) === false;
+      if (canceled)
+        break;
+      TabsInternalOperation.removeTabs(closeTabs);
+    } break;
     case 'context_closeTabsToTheStart': {
       const tabs = await browser.tabs.query({ windowId }).catch(ApiTabs.createErrorHandler());
       const closeTabs = [];
