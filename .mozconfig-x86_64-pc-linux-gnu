@@ -10,7 +10,7 @@ fi
 
 if test "$WFX_RELEASE" || test "$WFX_PRE_RELEASE"; then
     ac_add_options --enable-lto=full
-    ac_add_options --enable-optimize="-march=x86-64 -mfpmath=sse -mprfchw -mpopcnt -msse3 -mcx16 -msahf -mtune=skylake -O3 -w"
+    ac_add_options --enable-optimize="-march=x86-64 -mfpmath=sse -mprfchw -msse3 -mcx16 -msahf -mtune=skylake -O3 -w"
     ac_add_options --enable-release
     ac_add_options --enable-rust-simd
     ac_add_options RUSTC_OPT_LEVEL=3

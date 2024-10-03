@@ -6,7 +6,7 @@ export WINEDEBUG=-all
 
 if test "$WFX_RELEASE" || test "$WFX_PRE_RELEASE"; then
     ac_add_options --enable-lto=cross,full
-    ac_add_options --enable-optimize="-clang:-march=x86-64 -clang:-mfpmath=sse -clang:-mprfchw -clang:-mpopcnt -clang:-msse3 -clang:-mcx16 -clang:-msahf -clang:-mtune=skylake -clang:-O3 -w"
+    ac_add_options --enable-optimize="-clang:-march=x86-64 -clang:-mfpmath=sse -clang:-mprfchw -clang:-msse3 -clang:-mcx16 -clang:-msahf -clang:-mtune=skylake -clang:-O3 -w"
     ac_add_options --enable-release
     ac_add_options --enable-rust-simd
     ac_add_options RUSTC_OPT_LEVEL=3
