@@ -183,7 +183,7 @@ jobs:
           rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
 
           rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
-      - name: "\U0001F69A Move update XMLs from staging"
+      - name: "🚚 Move update XMLs from staging"
         run: |
           OSA=(WINNT_x86_64 Linux_x86_64 Darwin_x86_64-aarch64)
           for OS in "${OSA[@]}"
@@ -194,23 +194,23 @@ jobs:
           done
           for VER in $(rclone lsf --dirs-only :s3:aus/update/production/${{ env.CHANNEL }} | awk -v RS= '{$1=$1}1' | sed 's|/||g')
           do
-              if [[ $VER != '/' ]]
+            if [[ $VER != '/' ]]
+            then
+              if [[ $VER == "G5"* ]] || [[ $VER == "G6"* ]] || [[ $VER =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?(-beta-[0-9]+)?$ ]]
               then
-                  if [[ $VER == "G5"* ]] || [[ $VER == "G6"* ]]
-                  then
-                      for OS in "${OSA[@]}"
-                      do
-                          rclone copyto ./aus_tmp/"$OS"/update.xml :s3:aus/update/production/${{ env.CHANNEL }}/"$VER"/"$OS"/update.xml
-                      done
-                  fi
+                for OS in "${OSA[@]}"
+                do
+                  rclone copyto ./aus_tmp/"$OS"/update.xml :s3:aus/update/production/${{ env.CHANNEL }}/"$VER"/"$OS"/update.xml
+                done
               fi
+            fi
           done
           for OS in "${OSA[@]}"
           do
-              cat <<END >update.xml
+            cat <<END >update.xml
           <?xml version="1.0"?>
           <updates>
           </updates>
           END
-              rclone moveto ./update.xml :s3:aus/update/production/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/"$OS"/update.xml
+            rclone moveto ./update.xml :s3:aus/update/production/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/"$OS"/update.xml
           done
