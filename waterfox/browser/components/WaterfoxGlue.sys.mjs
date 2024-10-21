@@ -16,6 +16,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   TabFeatures: 'resource:///modules/TabFeatures.sys.mjs',
   setTimeout: 'resource://gre/modules/Timer.sys.mjs',
   UICustomizations: 'resource:///modules/UICustomizations.sys.mjs',
+  AboutCfg: 'resource:///modules/AboutCfg.sys.mjs',
 })
 
 const WATERFOX_CUSTOMIZATIONS_PREF =
@@ -70,7 +71,10 @@ export const WaterfoxGlue = {
     // Observe browser shutdown
     Services.obs.addObserver(this, 'quit-application-granted')
     // Listen for addon events
-    this.addAddonListener()
+    this.addAddonListener();
+
+    // Register about:cfg
+    lazy.AboutCfg.init();
   },
 
   async _setPrefObservers() {
