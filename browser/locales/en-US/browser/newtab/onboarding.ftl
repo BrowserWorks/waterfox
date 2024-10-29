@@ -258,7 +258,7 @@ mr2022-onboarding-privacy-segmentation-button-secondary-label = Show detailed in
 ## MR2022 Multistage Gratitude screen strings
 
 mr2022-onboarding-gratitude-title = You’re helping us build a better web
-mr2022-onboarding-gratitude-subtitle = Thank you for using { -brand-short-name }, backed by the Mozilla Foundation. With your support, we’re working to make the internet more open, accessible, and better for everyone.
+mr2022-onboarding-gratitude-subtitle = Thank you for using { -brand-short-name }, developed by BrowserWorks.
 mr2022-onboarding-gratitude-primary-button-label = See what’s new
 mr2022-onboarding-gratitude-secondary-button-label = Start browsing
 
@@ -298,7 +298,7 @@ onboarding-device-migration-primary-button-label = Sign in
 
 # Easy setup screen
 onboarding-easy-setup-security-and-privacy-title = We love keeping you safe
-onboarding-easy-setup-security-and-privacy-subtitle = Our non-profit backed browser helps stop companies from secretly following you around the web.
+onboarding-easy-setup-security-and-privacy-subtitle = We offer privacy out of the box, bringing you the best balance between privacy and useability.
 
 # Mobile download screen
 onboarding-mobile-download-security-and-privacy-title = Stay encrypted when you hop between devices
@@ -306,7 +306,7 @@ onboarding-mobile-download-security-and-privacy-subtitle = When you’re synced 
 
 # Gratitude screen
 onboarding-gratitude-security-and-privacy-title = { -brand-short-name } has your back
-onboarding-gratitude-security-and-privacy-subtitle = Thank you for using { -brand-short-name }, backed by the Mozilla Foundation. With your support, we’re working to make the internet safer and more accessible for everyone.
+onboarding-gratitude-security-and-privacy-subtitle = Thank you for using { -brand-short-name }, developed by Waterfox.
 
 ## New user time and familiarity survey strings
 
