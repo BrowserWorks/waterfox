@@ -93,7 +93,7 @@ const MR_ABOUT_WELCOME_DEFAULT = {
           string_id: "mr2022-onboarding-default-image-alt",
         },
         background:
-          "url('chrome://activity-stream/content/data/content/assets/mr-settodefault.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
+          "url('chrome://onboarding/content/assets/loving-doodle.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
         progress_bar: true,
         hide_secondary_section: "responsive",
         logo: {},
@@ -215,7 +215,7 @@ const MR_ABOUT_WELCOME_DEFAULT = {
           string_id: "mr2022-onboarding-default-image-alt",
         },
         background:
-          "url('chrome://activity-stream/content/data/content/assets/mr-settodefault.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
+          "url('chrome://onboarding/content/assets/loving-doodle.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
         progress_bar: true,
         logo: {},
         title: {
@@ -326,7 +326,7 @@ const MR_ABOUT_WELCOME_DEFAULT = {
           string_id: "mr2022-onboarding-default-image-alt",
         },
         background:
-          "url('chrome://activity-stream/content/data/content/assets/mr-settodefault.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
+          "url('chrome://onboarding/content/assets/loving-doodle.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
         progress_bar: true,
         logo: {},
         title: {
@@ -436,7 +436,7 @@ const MR_ABOUT_WELCOME_DEFAULT = {
           string_id: "mr2022-onboarding-default-image-alt",
         },
         background:
-          "url('chrome://activity-stream/content/data/content/assets/mr-settodefault.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
+          "url('chrome://onboarding/content/assets/loving-doodle.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
         progress_bar: true,
         logo: {},
         title: {
@@ -619,7 +619,7 @@ const MR_ABOUT_WELCOME_DEFAULT = {
           string_id: "onboarding-mobile-download-security-and-privacy-subtitle",
         },
         hero_image: {
-          url: "chrome://activity-stream/content/data/content/assets/mobile-download-qr-new-user.svg",
+          url: "chrome://onboarding/content/assets/qr-play-google-com.svg",
         },
         cta_paragraph: {
           text: {
@@ -629,7 +629,7 @@ const MR_ABOUT_WELCOME_DEFAULT = {
           action: {
             type: "OPEN_URL",
             data: {
-              args: "https://www.mozilla.org/firefox/mobile/get-app/?utm_medium=firefox-desktop&utm_source=onboarding-modal&utm_campaign=mr2022&utm_content=new-global",
+              args: "https://play.google.com/store/apps/details?id=net.waterfox.android.release",
               where: "tab",
             },
           },
@@ -688,7 +688,7 @@ const MR_ABOUT_WELCOME_DEFAULT = {
           string_id: "mr2022-onboarding-gratitude-image-alt",
         },
         background:
-          "url('chrome://activity-stream/content/data/content/assets/mr-gratitude.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
+          "url('chrome://onboarding/content/assets/plant-doodle.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
         progress_bar: true,
         logo: {},
         title: {
