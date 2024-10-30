@@ -5,6 +5,7 @@
 const lazy = {}
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  AboutPages: 'resource:///modules/AboutPages.sys.mjs',
   AddonManager: 'resource://gre/modules/AddonManager.sys.mjs',
   AttributionCode: 'resource:///modules/AttributionCode.sys.mjs',
   BrowserUtils: 'resource:///modules/BrowserUtils.sys.mjs',
@@ -16,7 +17,6 @@ ChromeUtils.defineESModuleGetters(lazy, {
   TabFeatures: 'resource:///modules/TabFeatures.sys.mjs',
   setTimeout: 'resource://gre/modules/Timer.sys.mjs',
   UICustomizations: 'resource:///modules/UICustomizations.sys.mjs',
-  AboutCfg: 'resource:///modules/AboutCfg.sys.mjs',
 })
 
 const WATERFOX_CUSTOMIZATIONS_PREF =
@@ -74,7 +74,7 @@ export const WaterfoxGlue = {
     this.addAddonListener();
 
     // Register about:cfg
-    lazy.AboutCfg.init();
+    lazy.AboutPages.init();
   },
 
   async _setPrefObservers() {
