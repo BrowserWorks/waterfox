@@ -85,7 +85,7 @@ jobs:
       versionout: "${{ steps.versionexport.outputs.version }}"
     steps:
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.5
+        uses: mozilla-actions/sccache-action@v0.0.6
       - name: "\U0001F4BF Build dependencies"
         run: |
           sudo apt update
@@ -199,7 +199,7 @@ jobs:
       contents: read
     steps:
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.5
+        uses: mozilla-actions/sccache-action@v0.0.6
       - name: "\U0001F4BF Build dependencies"
         run: |
           sudo apt update
@@ -411,7 +411,7 @@ jobs:
       SCCACHE_GHA_ENABLED: "true"
     steps:
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.5
+        uses: mozilla-actions/sccache-action@v0.0.6
       - name: "\U0001F4BF Build dependencies"
         run: |
           sudo apt update
@@ -493,21 +493,6 @@ jobs:
           sudo spctl --add ./obj-${{ matrix.arch }}/dist/waterfox/Waterfox.app
           find ./obj-${{ matrix.arch }}/dist/waterfox/ -type f -exec /bin/sh -c "file {} | grep -q executable && chmod +x {}" \;
           rm .mozconfig || true
-          rm /usr/local/bin/2to3 || true
-          rm /usr/local/bin/2to3-3.11 || true
-          rm /usr/local/bin/2to3-3.12 || true
-          rm /usr/local/bin/idle3 || true
-          rm /usr/local/bin/idle3.11 || true
-          rm /usr/local/bin/idle3.12 || true
-          rm /usr/local/bin/pydoc3 || true
-          rm /usr/local/bin/pydoc3.11 || true
-          rm /usr/local/bin/pydoc3.12 || true
-          rm /usr/local/bin/python3 || true
-          rm /usr/local/bin/python3-config || true
-          rm /usr/local/bin/python3.11 || true
-          rm /usr/local/bin/python3.12 || true
-          rm /usr/local/bin/python3.11-config || true
-          rm /usr/local/bin/python3.12-config || true
           ./mach --no-interactive bootstrap --application-choice=browser
           LLVM_PROFDATA=$HOME/.mozbuild/clang/bin/llvm-profdata JARLOG_FILE=en-US.log ./mach python build/pgo/profileserver.py --binary ./obj-${{ matrix.arch }}/dist/waterfox/Waterfox.app/Contents/MacOS/waterfox
       - name: "\U0001F199 Upload Stage 2 Artifact"
@@ -539,7 +524,7 @@ jobs:
       SCCACHE_GHA_ENABLED: "true"
     steps:
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.5
+        uses: mozilla-actions/sccache-action@v0.0.6
       - name: "\U0001F4BF Build dependencies"
         run: |
           sudo apt update
@@ -737,7 +722,7 @@ jobs:
   build-linux-x64:
     name: Linux
     runs-on:
-      - warp-custom-16x-ubuntu-24
+      - warp-custom-16x-ubuntu-22
     concurrency:
       group: "${{ github.head_ref }}-linux-x64"
       cancel-in-progress: true
@@ -749,7 +734,7 @@ jobs:
       SCCACHE_GHA_ENABLED: "true"
     steps:
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.5
+        uses: mozilla-actions/sccache-action@v0.0.6
       - name: "\U0001F4BF Setup build packages"
         run: |
           curl -L "https://www.7-zip.org/a/7z2408-linux-x64.tar.xz" | tar xJ
@@ -814,7 +799,7 @@ jobs:
           if [ -d "$PWD"/waterfox/browser/locales/en-GB ]; then
             ./mach package-multi-locale --locales ar cs da de el en-GB en-US es-ES es-MX fr hu id it ja ko lt nl nn-NO pl pt-BR pt-PT ru sv-SE th vi zh-CN zh-TW
           fi
-          python3 -m pip install --break-system-packages cryptography
+          python3 -m pip install cryptography
           echo "${{ secrets.SIGN_BASE64 }}" | base64 --decode > sign.zip
           unzip -q sign.zip
           rm sign.zip
