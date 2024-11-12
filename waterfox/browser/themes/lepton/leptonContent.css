@@ -42,6 +42,9 @@
     box-sizing: content-box;
     padding: 0 !important;
   }
+  button[data-l10n-id="addon-updates-manual-updates-found"] {
+    height: 100%;
+  }
   #categories {
     padding-inline-end: 1px !important; /* Original: 4px */
   }
@@ -321,7 +324,7 @@
       --menuitem-image: url("chrome://browser/skin/lepton/unpin-tab.svg");
     }
     .context-menu-item span[data-l10n-id="newtab-menu-edit-topsites"] {
-      --menuitem-image: url("chrome://global/skin/icons/edit.svg");
+      --menuitem-image: url("chrome://browser/skin/lepton/edit-active.svg");
     }
     .context-menu-item span[data-l10n-id="newtab-menu-bookmark"] {
       --menuitem-image: url("chrome://browser/skin/bookmark.svg");
@@ -371,6 +374,9 @@
     }
     .top-site-outer .context-menu-button {
       top: 0px !important; /* Original: -20px */
+      right: 0px !important;
+      width: 22px !important;
+      height: 22px !important;
     }
     .top-site-outer .context-menu {
       top: 16.75px !important; /* Original: 6.75px */
@@ -2251,19 +2257,55 @@
       background-color: var(--in-content-box-background-odd);
     }
   }
+  @-moz-document url-prefix("about:preferences") {
+    .privacy-extra-information > .custom-option:not(:first-child) {
+      margin-block: 2px !important; /* Original: 10px */
+    }
+    .extra-information-label:not(:first-child) {
+      margin-top: 4px !important; /* Original: 19px */
+    }
+  }
   /*= about:processes ==========================================================*/
-  @-moz-document url-prefix("about:processes") {
+  @-moz-document url-prefix("about:processes"), url-prefix("about:performance") {
     td.type.favicon[style*='background-image: url("chrome://global/skin/icons/link.svg");']
     {
       background-image: url("chrome://browser/skin/lepton/link.svg") !important;
     }
     .profiler-icon {
-      background: url("chrome://browser/skin/lepton/performance.svg") no-repeat center !important;
+      cursor: pointer;
+      background-image: url("chrome://browser/skin/lepton/performance.svg") !important;
+      background-repeat: no-repeat !important;
+      background-position: center !important;
+      color: inherit !important;
+    }
+    @supports not -moz-bool-pref("userChrome.rounding.square_button") {
+      .profiler-icon {
+        border-radius: 8px !important;
+      }
     }
   }
   @-moz-document url-prefix("about:profiling") {
     .perf-intro-icon {
       background-image: url("chrome://browser/skin/lepton/performance.svg") !important;
+    }
+  }
+  /*= about:processes ==========================================================*/
+  @-moz-document url-prefix("about:support") {
+    #reset-box-button {
+      --in-content-focus-outline-color: var(--in-content-danger-button-background) !important;
+      background-color: var(--in-content-danger-button-background) !important;
+      color: var(--in-content-primary-button-text-color) !important;
+      border-color: var(--in-content-primary-button-border-color) !important;
+    }
+    #reset-box-button:enabled:hover {
+      background-color: var(--in-content-danger-button-background-hover) !important;
+      color: var(--in-content-primary-button-text-color-hover) !important;
+      border-color: var(--in-content-primary-button-border-hover) !important;
+    }
+    #reset-box-button:enabled:hover:active {
+      background-color: var(--in-content-danger-button-background-active) !important;
+      color: var(--in-content-primary-button-text-color-active) !important;
+      border-color: var(--in-content-primary-button-border-active) !important;
     }
   }
   /*= chrome://browser/content/places/places.xhtml =============================*/
@@ -3246,12 +3288,15 @@
 /** Menu - Icons Layout *******************************************************/
 @supports not -moz-bool-pref("userChrome.icon.disabled") {
   @supports -moz-bool-pref("userChrome.icon.menu") {
-    :root {
-      --uc-folder-icon: url("chrome://global/skin/icons/folder.svg");
-    }
-    @supports -moz-bool-pref("userChrome.icon.library") {
+    @-moz-document url-prefix("about:"), url-prefix("chrome://"), regexp("^((jar:)?file:///).*/$")
+    {
       :root {
-        --uc-folder-icon: url("chrome://browser/skin/lepton/folder.svg");
+        --uc-folder-icon: url("chrome://global/skin/icons/folder.svg");
+      }
+      @supports -moz-bool-pref("userChrome.icon.library") {
+        :root {
+          --uc-folder-icon: url("chrome://browser/skin/lepton/folder.svg");
+        }
       }
     }
     @-moz-document url("chrome://browser/content/places/places.xhtml"), url("about:downloads")
@@ -3493,7 +3538,7 @@
         #placesContext_show_bookmark\:info,
         #placesContext_show\:info,
         #placesContext_show_folder\:info {
-          --menuitem-image: url("chrome://global/skin/icons/edit.svg");
+          --menuitem-image: url("chrome://browser/skin/lepton/edit-active.svg");
         }
         #placesContext_deleteBookmark,
         #placesContext_deleteFolder,
@@ -3713,6 +3758,9 @@
   #updates-message + .page-options-menu > .more-options-button {
     box-sizing: content-box;
     padding: 0 !important;
+  }
+  button[data-l10n-id="addon-updates-manual-updates-found"] {
+    height: 100%;
   }
   #categories {
     padding-inline-end: 1px !important; /* Original: 4px */
@@ -3993,7 +4041,7 @@
       --menuitem-image: url("chrome://browser/skin/lepton/unpin-tab.svg");
     }
     .context-menu-item span[data-l10n-id="newtab-menu-edit-topsites"] {
-      --menuitem-image: url("chrome://global/skin/icons/edit.svg");
+      --menuitem-image: url("chrome://browser/skin/lepton/edit-active.svg");
     }
     .context-menu-item span[data-l10n-id="newtab-menu-bookmark"] {
       --menuitem-image: url("chrome://browser/skin/bookmark.svg");
@@ -4051,6 +4099,9 @@
     }
     .top-site-outer .context-menu-button {
       top: 0px !important; /* Original: -20px */
+      right: 0px !important;
+      width: 22px !important;
+      height: 22px !important;
     }
     .top-site-outer .context-menu {
       top: 16.75px !important; /* Original: 6.75px */
@@ -5786,6 +5837,7 @@
   /*= about:memory =============================================================*/
   /*= about:preferences ========================================================*/
   /*= about:processes ==========================================================*/
+  /*= about:processes ==========================================================*/
   /*= chrome://browser/content/places/places.xhtml =============================*/
 }
 @media (-moz-bool-pref: "userContent.page.proton") and (-moz-bool-pref: "userContent.page.field_border") and (prefers-reduced-motion: no-preference) {
@@ -5950,13 +6002,32 @@
   }
 }
 @media (-moz-bool-pref: "userContent.page.proton") {
-  @-moz-document url-prefix("about:processes") {
+  @-moz-document url-prefix("about:preferences") {
+    .privacy-extra-information > .custom-option:not(:first-child) {
+      margin-block: 2px !important; /* Original: 10px */
+    }
+    .extra-information-label:not(:first-child) {
+      margin-top: 4px !important; /* Original: 19px */
+    }
+  }
+}
+@media (-moz-bool-pref: "userContent.page.proton") {
+  @-moz-document url-prefix("about:processes"), url-prefix("about:performance") {
     td.type.favicon[style*='background-image: url("chrome://global/skin/icons/link.svg");']
     {
       background-image: url("chrome://browser/skin/lepton/link.svg") !important;
     }
     .profiler-icon {
-      background: url("chrome://browser/skin/lepton/performance.svg") no-repeat center !important;
+      cursor: pointer;
+      background-image: url("chrome://browser/skin/lepton/performance.svg") !important;
+      background-repeat: no-repeat !important;
+      background-position: center !important;
+      color: inherit !important;
+    }
+    @media (-moz-bool-pref: "userContent.page.proton") and (not (-moz-bool-pref: "userChrome.rounding.square_button")) {
+      .profiler-icon {
+        border-radius: 8px !important;
+      }
     }
   }
 }
@@ -5964,6 +6035,26 @@
   @-moz-document url-prefix("about:profiling") {
     .perf-intro-icon {
       background-image: url("chrome://browser/skin/lepton/performance.svg") !important;
+    }
+  }
+}
+@media (-moz-bool-pref: "userContent.page.proton") {
+  @-moz-document url-prefix("about:support") {
+    #reset-box-button {
+      --in-content-focus-outline-color: var(--in-content-danger-button-background) !important;
+      background-color: var(--in-content-danger-button-background) !important;
+      color: var(--in-content-primary-button-text-color) !important;
+      border-color: var(--in-content-primary-button-border-color) !important;
+    }
+    #reset-box-button:enabled:hover {
+      background-color: var(--in-content-danger-button-background-hover) !important;
+      color: var(--in-content-primary-button-text-color-hover) !important;
+      border-color: var(--in-content-primary-button-border-hover) !important;
+    }
+    #reset-box-button:enabled:hover:active {
+      background-color: var(--in-content-danger-button-background-active) !important;
+      color: var(--in-content-primary-button-text-color-active) !important;
+      border-color: var(--in-content-primary-button-border-active) !important;
     }
   }
 }
@@ -7031,16 +7122,17 @@
 }
 /** Menu - Icons Layout *******************************************************/
 @media (not (-moz-bool-pref: "userChrome.icon.disabled")) and (-moz-bool-pref: "userChrome.icon.menu") {
-  :root {
-    --uc-folder-icon: url("chrome://global/skin/icons/folder.svg");
+  @-moz-document url-prefix("about:"), url-prefix("chrome://"), regexp("^((jar:)?file:///).*/$")
+  {
+    :root {
+      --uc-folder-icon: url("chrome://global/skin/icons/folder.svg");
+    }
+    @media (not (-moz-bool-pref: "userChrome.icon.disabled")) and (-moz-bool-pref: "userChrome.icon.menu") and (-moz-bool-pref: "userChrome.icon.library") {
+      :root {
+        --uc-folder-icon: url("chrome://browser/skin/lepton/folder.svg");
+      }
+    }
   }
-}
-@media (not (-moz-bool-pref: "userChrome.icon.disabled")) and (-moz-bool-pref: "userChrome.icon.menu") and (-moz-bool-pref: "userChrome.icon.library") {
-  :root {
-    --uc-folder-icon: url("chrome://browser/skin/lepton/folder.svg");
-  }
-}
-@media (not (-moz-bool-pref: "userChrome.icon.disabled")) and (-moz-bool-pref: "userChrome.icon.menu") {
   @-moz-document url("chrome://browser/content/places/places.xhtml"), url("about:downloads")
   {
     menupopup menuitem:not([type="checkbox"][checked="true"], [type="radio"]),
@@ -7274,7 +7366,7 @@
       #placesContext_show_bookmark\:info,
       #placesContext_show\:info,
       #placesContext_show_folder\:info {
-        --menuitem-image: url("chrome://global/skin/icons/edit.svg");
+        --menuitem-image: url("chrome://browser/skin/lepton/edit-active.svg");
       }
       #placesContext_deleteBookmark,
       #placesContext_deleteFolder,
@@ -7412,8 +7504,6 @@
       }
     }
   }
-}
-@media (not (-moz-bool-pref: "userChrome.icon.disabled")) and (-moz-bool-pref: "userChrome.icon.menu") {
   @-moz-document url-prefix("about:addons") {
     @media (not (-moz-bool-pref: "userChrome.icon.disabled")) and (-moz-bool-pref: "userChrome.icon.menu") and (-moz-bool-pref: "userChrome.icon.context_menu") {
       button[role="menuitem"] {
@@ -7444,8 +7534,6 @@
       }
     }
   }
-}
-@media (not (-moz-bool-pref: "userChrome.icon.disabled")) and (-moz-bool-pref: "userChrome.icon.menu") {
   @-moz-document url-prefix("about:logins") {
     @media (not (-moz-bool-pref: "userChrome.icon.disabled")) and (-moz-bool-pref: "userChrome.icon.menu") and (-moz-bool-pref: "userChrome.icon.context_menu") {
       .menuitem-export {
