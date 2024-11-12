@@ -53,7 +53,7 @@ const gThemePane = {
       // Animations
       { id: 'userChrome.decoration.disable_panel_animate', type: 'bool' },
       { id: 'userChrome.decoration.disable_sidebar_animate', type: 'bool' },
-      
+
       // == Interface Components ===============================================
       // Tab Bar
       { id: 'userChrome.tab.photon_like_contextline', type: 'bool' },
@@ -75,10 +75,10 @@ const gThemePane = {
       { id: 'userChrome.rounding.square_tab', type: 'bool' },
       { id: 'userChrome.tab.bottom_rounded_corner', type: 'bool' },
       { id: 'userChrome.tab.squareTabCorners', type: 'bool' },
-      
+
       // Nav Bar
       { id: 'userChrome.rounding.square_button', type: 'bool' },
-      
+
       // Panels
       { id: 'userChrome.rounding.square_panel', type: 'bool' },
       { id: 'userChrome.rounding.square_panelitem', type: 'bool' },
@@ -86,7 +86,7 @@ const gThemePane = {
       { id: 'userChrome.rounding.square_menuitem', type: 'bool' },
       { id: 'userChrome.rounding.square_field', type: 'bool' },
       { id: 'userChrome.rounding.square_checklabel', type: 'bool' },
-      
+
       // == Autohide & Hidden ==================================================
       // Tab Bar
       { id: 'userChrome.autohide.tab', type: 'bool' },
@@ -103,19 +103,19 @@ const gThemePane = {
       { id: 'userChrome.autohide.bookmarkbar', type: 'bool' },
       { id: 'userChrome.hidden.bookmarkbar_icon', type: 'bool' },
       { id: 'userChrome.hidden.bookmarkbar_label', type: 'bool' },
-      
+
       // Panels
       { id: 'userChrome.hidden.disabled_menu', type: 'bool' },
 
       // Sidebar
       { id: 'userChrome.autohide.sidebar', type: 'bool' },
       { id: 'userChrome.hidden.sidebar_header', type: 'bool' },
-      
+
       // == Center =============================================================
       // Tab Bar
       { id: 'userChrome.centered.tab', type: 'bool' },
       { id: 'userChrome.centered.tab.label', type: 'bool' },
-      
+
       // Nav Bar
       { id: 'userChrome.centered.urlbar', type: 'bool' },
     ]
@@ -132,7 +132,7 @@ const gThemePane = {
         pref: 'userChrome.centered.tab',
       },
     ]
-  },  
+  },
 
   get presets() {
     return [
@@ -141,7 +141,7 @@ const gThemePane = {
         on: [
           { id: 'userChrome.tab.connect_to_window', value: true },
           { id: 'userChrome.tab.color_like_toolbar', value: true },
-          
+
           { id: 'userChrome.tab.lepton_like_padding', value: false },
           { id: 'userChrome.tab.photon_like_padding', value: true },
 
@@ -169,7 +169,7 @@ const gThemePane = {
         on: [
           { id: 'userChrome.tab.connect_to_window', value: true },
           { id: 'userChrome.tab.color_like_toolbar', value: true },
-          
+
           { id: 'userChrome.tab.lepton_like_padding', value: true },
           { id: 'userChrome.tab.photon_like_padding', value: false },
 
@@ -197,7 +197,7 @@ const gThemePane = {
         on: [
           { id: 'userChrome.tab.connect_to_window', value: false },
           { id: 'userChrome.tab.color_like_toolbar', value: false },
-          
+
           { id: 'userChrome.tab.lepton_like_padding', value: false },
           { id: 'userChrome.tab.photon_like_padding', value: false },
 
@@ -232,7 +232,7 @@ const gThemePane = {
         { id: 'userContent.page.proton_color.system_accent', value: false },
         { id: 'widget.non-native-theme.use-theme-accent', value: false },
       ],
-      
+
       '1': [
         { id: 'userChrome.theme.proton_color.dark_blue_accent', value: false },
         { id: 'userContent.page.proton_color.dark_blue_accent', value: false },
@@ -249,7 +249,7 @@ const gThemePane = {
         { id: 'widget.non-native-theme.use-theme-accent', value: true },
       ]
     }
-  },  
+  },
 
   init() {
     // Initialize prefs
@@ -268,7 +268,7 @@ const gThemePane = {
       const button = document.getElementById(preset.id)
       if (button) {
         button.addEventListener('click', event => {
-          for (const pref of preset['on']) {
+          for (const pref of preset.on) {
             PrefUtils.set(pref.id, pref.value)
           }
         })
@@ -288,26 +288,6 @@ const gThemePane = {
       popup.addEventListener('mouseout', this)
     }
 
-    // Init theme customizations
-    const waterfoxCustomizations = document.getElementById(
-      'waterfoxUserChromeCustomizations'
-    )
-    if (waterfoxCustomizations) {
-      const presetBox = document.getElementById('waterfoxUserChromePresets')
-      presetBox.hidden = userChromeEnabled === 2
-      const themeGroup = document.getElementById(
-        'waterfoxUserChromeCustomizations'
-      )
-      themeGroup.hidden = userChromeEnabled === 2
-
-      this._prefObservers.push(
-        PrefUtils.addObserver(this.WATERFOX_THEME_PREF, isEnabled => {
-          presetBox.hidden = isEnabled === 2
-          themeGroup.hidden = isEnabled === 2
-        })
-      )
-    }
-    
     // Init AccentColor
     this.initAccentColor()
 
@@ -398,7 +378,7 @@ const gThemePane = {
         for (const pref of this.accentPrefs[menulist.value]) {
           PrefUtils.set(pref.id, pref.value)
         }
-      } 
+      }
     })
   },
 
