@@ -280,7 +280,7 @@ export class Section extends React.PureComponent {
           isWebExtension={this.props.isWebExtension}
         >
           {!shouldShowEmptyState && (
-            <ul className="section-list" style={{ padding: 0 }}>
+            <ul className="section-list">
               {cards}
             </ul>
           )}
