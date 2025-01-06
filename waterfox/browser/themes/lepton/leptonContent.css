@@ -2877,7 +2877,7 @@
           fill: currentColor !important;
           color: var(--in-content-primary-button-text-color) !important;
           background-color: var(--in-content-primary-button-background) !important;
-          background-image: url("chrome://global/skin/icons/radio.svg") !important;
+          background-image: url("chrome://browser/skin/lepton/radio.svg") !important;
           border-color: transparent !important;
           /* Style the button also when printing with "Print Backgrounds" unchecked */
           color-adjust: exact !important;
@@ -6702,7 +6702,7 @@
         fill: currentColor !important;
         color: var(--in-content-primary-button-text-color) !important;
         background-color: var(--in-content-primary-button-background) !important;
-        background-image: url("chrome://global/skin/icons/radio.svg") !important;
+        background-image: url("chrome://browser/skin/lepton/radio.svg") !important;
         border-color: transparent !important;
         /* Style the button also when printing with "Print Backgrounds" unchecked */
         color-adjust: exact !important;
