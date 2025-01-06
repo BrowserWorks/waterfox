@@ -253,7 +253,7 @@ pref("userContent.player.animate",        true);
 
 pref("userContent.newTab.full_icon",      true);
 pref("userContent.newTab.animate",        true);
-pref("userContent.newTab.pocket_to_last", true);
+pref("userContent.newTab.pocket_to_last", false);
 pref("userContent.newTab.searchbar",      true);
 
 pref("userContent.page.field_border",     true);
