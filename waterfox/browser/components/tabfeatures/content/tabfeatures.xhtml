@@ -29,14 +29,15 @@
             insertafter="goOfflineMenuitem" />
     </menubar>
 #else
-    <html:template id="appMenu-viewCache">
-        <panelview id="appMenu-protonMainView">
-            <vbox id="appMenu-subview-body" class="panel-subview-body">
-                <toolbarbutton id="appMenu-restart-button" class="subviewbutton subviewbutton-iconic tabFeature"
-                    oncommand="TabFeatures.restartBrowser();" data-l10n-id="appmenuitem-restart-browser"
-                    preference="browser.restart_menu.showpanelmenubtn" hidden="true" />
-            </vbox>
-        </panelview>
-    </html:template>
+   <html:template id="appMenu-viewCache">
+       <panelview id="appMenu-mainView">
+           <vbox class="panel-subview-body">
+               <toolbarbutton id="appMenu-restart-button" class="subviewbutton subviewbutton-iconic tabFeature"
+                   oncommand="TabFeatures.restartBrowser();" data-l10n-id="appmenuitem-restart-browser"
+                   preference="browser.restart_menu.showpanelmenubtn" hidden="true"
+                   insertbefore="appMenu-quit-button2" />
+           </vbox>
+       </panelview>
+   </html:template>
 #endif
 </overlay>
