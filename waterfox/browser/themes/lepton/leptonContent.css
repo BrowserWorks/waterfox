@@ -875,6 +875,14 @@
         }
       }
     }
+    @supports -moz-bool-pref("userContent.page.proton_color.dark_blue_accent") or -moz-bool-pref("userContent.page.proton_color.system_accent") {
+      :root,
+      :host(.anonymous-content-host) {
+        --color-accent-primary: var(--in-content-primary-button-background) !important;
+        --color-accent-primary-hover: var(--in-content-primary-button-background-hover) !important;
+        --color-accent-primary-active: light-dark(var(--color-blue-70), var(--color-cyan-20));
+      }
+    }
     @supports -moz-bool-pref("userContent.page.proton_color.dark_blue_accent") {
       @media (prefers-color-scheme: dark) {
         :host,
@@ -3654,7 +3662,7 @@
     }
     @-moz-document url-prefix("about:addons") {
       @supports -moz-bool-pref("userChrome.icon.context_menu") {
-        button[role="menuitem"] {
+        button:is([role="menuitem"], [role="menuitemcheckbox"]) {
           background-image: var(--icon, url("chrome://browser/skin/lepton/blank.svg")); /* Don't use !important. because of [checked] */
         }
         panel-item[action="check-for-updates"] {
@@ -4608,6 +4616,15 @@
         --menu-disabled-color: var(--dark-menu-disabled-color);
         --menu-border-color: var(--dark-menu-border-color);
         --menu-icon-opacity: var(--dark-menu-icon-opacity);
+      }
+    }
+    @media (-moz-bool-pref: "userContent.page.proton_color") and (-moz-bool-pref: "userContent.page.proton_color.dark_blue_accent"),
+      (-moz-bool-pref: "userContent.page.proton_color") and (-moz-bool-pref: "userContent.page.proton_color.system_accent") {
+      :root,
+      :host(.anonymous-content-host) {
+        --color-accent-primary: var(--in-content-primary-button-background) !important;
+        --color-accent-primary-hover: var(--in-content-primary-button-background-hover) !important;
+        --color-accent-primary-active: light-dark(var(--color-blue-70), var(--color-cyan-20));
       }
     }
     @media (-moz-bool-pref: "userContent.page.proton_color") and (-moz-bool-pref: "userContent.page.proton_color.dark_blue_accent") and (prefers-color-scheme: dark) {
@@ -7506,7 +7523,7 @@
   }
   @-moz-document url-prefix("about:addons") {
     @media (not (-moz-bool-pref: "userChrome.icon.disabled")) and (-moz-bool-pref: "userChrome.icon.menu") and (-moz-bool-pref: "userChrome.icon.context_menu") {
-      button[role="menuitem"] {
+      button:is([role="menuitem"], [role="menuitemcheckbox"]) {
         background-image: var(--icon, url("chrome://browser/skin/lepton/blank.svg")); /* Don't use !important. because of [checked] */
       }
       panel-item[action="check-for-updates"] {
