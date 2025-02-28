@@ -20,7 +20,7 @@ ac_add_options --disable-profiling
 ac_add_options --disable-tests
 
 ac_add_options --enable-application=browser
-ac_add_options --enable-bootstrap=-sccache
+ac_add_options --enable-bootstrap=-clang,-sccache
 if test -x "$(command -v sccache)"; then
     ac_add_options --with-ccache=sccache
 elif test -f "$HOME/.mozbuild/sccache/sccache"; then
