@@ -85,12 +85,15 @@ jobs:
       versionout: "${{ steps.versionexport.outputs.version }}"
     steps:
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.6
+        uses: mozilla-actions/sccache-action@v0.0.7
       - name: "\U0001F4BF Build dependencies"
         run: |
           sudo apt update
           sudo apt install msitools
           rustup target add x86_64-pc-windows-msvc
+          mkdir -p $HOME/.mozbuild
+          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-19.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
+          tar -xvf clang.tar.zst -C $HOME/.mozbuild
           curl -L "https://www.7-zip.org/a/7z2408-linux-x64.tar.xz" | tar xJ
           sudo mv 7zz /usr/local/bin/7z
           curl https://rclone.org/install.sh | sudo bash
@@ -143,7 +146,7 @@ jobs:
         shell: bash
     needs:
       - build-windows-x64-stage-1
-    runs-on: windows-server-s
+    runs-on: windows-2025
     concurrency:
       group: "${{ github.head_ref }}-windows-x64-stage-2"
       cancel-in-progress: true
@@ -154,6 +157,9 @@ jobs:
         run: |
           curl -L https://ftp.mozilla.org/pub/mozilla/libraries/win32/MozillaBuildSetup-Latest.exe --output MozillaBuildSetup-Latest.exe
           7z x MozillaBuildSetup-Latest.exe -o/c/mozilla-build
+          mkdir -p $HOME/.mozbuild
+          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.win64-clang-19.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
+          7z x "clang.tar.zst" -so | 7z x -aoa -si -ttar -o$HOME/.mozbuild
       - name: "\U0001F4E4 Checkout"
         uses: actions/checkout@v4
       - name: ⏬ Download Stage 1 Windows artifact
@@ -167,8 +173,7 @@ jobs:
           ls obj-${{ env.ARCH }}/dist/
           ls obj-${{ env.ARCH }}/dist/waterfox
           rm .mozconfig
-          python --version
-          python mach configure --enable-bootstrap
+          python mach configure --disable-bootstrap
           $env:LLVM_PROFDATA = $HOME + '/.mozbuild/clang/bin/llvm-profdata.exe'; $env:JARLOG_FILE = 'en-US.log'; python mach python build/pgo/profileserver.py --binary ./obj-${{ env.ARCH }}/dist/waterfox/waterfox.exe
       - name: "\U0001F199 Upload Stage 2 Artifact"
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
@@ -183,7 +188,7 @@ jobs:
     needs:
       - build-windows-x64-stage-2
     runs-on:
-      - warp-custom-16x-ubuntu-24
+      - warp-custom-32x-ubuntu-24
     concurrency:
       group: "${{ github.head_ref }}-windows-x64-stage-3"
       cancel-in-progress: true
@@ -199,12 +204,15 @@ jobs:
       contents: read
     steps:
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.6
+        uses: mozilla-actions/sccache-action@v0.0.7
       - name: "\U0001F4BF Build dependencies"
         run: |
           sudo apt update
           sudo apt install msitools
           rustup target add x86_64-pc-windows-msvc
+          mkdir -p $HOME/.mozbuild
+          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-19.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
+          tar -xvf clang.tar.zst -C $HOME/.mozbuild
           curl -L https://github.com/ebourg/jsign/releases/download/6.0/jsign_6.0_all.deb --output jsign_6.0_all.deb
           sudo apt install -y ./jsign_6.0_all.deb
           curl -L "https://www.7-zip.org/a/7z2408-linux-x64.tar.xz" | tar xJ
@@ -411,12 +419,15 @@ jobs:
       SCCACHE_GHA_ENABLED: "true"
     steps:
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.6
+        uses: mozilla-actions/sccache-action@v0.0.7
       - name: "\U0001F4BF Build dependencies"
         run: |
           sudo apt update
           sudo apt install nasm
           rustup target add ${{ matrix.arch }}
+          mkdir -p $HOME/.mozbuild
+          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-19.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
+          tar -xvf clang.tar.zst -C $HOME/.mozbuild
           curl -L "https://www.7-zip.org/a/7z2408-linux-x64.tar.xz" | tar xJ
           sudo mv 7zz /usr/local/bin/7z
           curl https://rclone.org/install.sh | sudo bash
@@ -472,8 +483,10 @@ jobs:
         include:
           - runs-on: macos-13-large
             arch: x86_64-apple-darwin
+            clang_url: https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.macosx64-clang-19.latest/artifacts/public/build/clang.tar.zst
           - runs-on: warp-macos-13-arm64-6x
             arch: aarch64-apple-darwin
+            clang_url: https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.macosx64-aarch64-clang-19.latest/artifacts/public/build/clang.tar.zst
     needs:
       - build-macos-multi-stage-1
     steps:
@@ -486,7 +499,10 @@ jobs:
           path: obj-${{ matrix.arch }}/dist/
       - name: "\U0001F3D7 Run PGO"
         run: |
-          python --version
+          mkdir -p $HOME/.mozbuild
+          curl -L ${{ matrix.clang_url }} -o clang.tar.zst
+          zstd -d clang.tar.zst
+          tar -xf clang.tar
           ls obj-${{ matrix.arch }}/dist/
           ls obj-${{ matrix.arch }}/dist/waterfox
           sudo xattr -dr com.apple.quarantine ./obj-${{ matrix.arch }}/dist/waterfox/Waterfox.app
@@ -494,7 +510,7 @@ jobs:
           find ./obj-${{ matrix.arch }}/dist/waterfox/ -type f -exec /bin/sh -c "file {} | grep -q executable && chmod +x {}" \;
           rm .mozconfig || true
           ./mach --no-interactive bootstrap --application-choice=browser
-          LLVM_PROFDATA=$HOME/.mozbuild/clang/bin/llvm-profdata JARLOG_FILE=en-US.log ./mach python build/pgo/profileserver.py --binary ./obj-${{ matrix.arch }}/dist/waterfox/Waterfox.app/Contents/MacOS/waterfox
+          LLVM_PROFDATA=$PWD/clang/bin/llvm-profdata JARLOG_FILE=en-US.log ./mach python build/pgo/profileserver.py --binary ./obj-${{ matrix.arch }}/dist/waterfox/Waterfox.app/Contents/MacOS/waterfox
       - name: "\U0001F199 Upload Stage 2 Artifact"
         if: ${{ inputs.TRIGGER_EVENT == 'workflow_dispatch' }}
         uses: actions/upload-artifact@v4
@@ -524,12 +540,15 @@ jobs:
       SCCACHE_GHA_ENABLED: "true"
     steps:
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.6
+        uses: mozilla-actions/sccache-action@v0.0.7
       - name: "\U0001F4BF Build dependencies"
         run: |
           sudo apt update
           sudo apt install nasm
           rustup target add ${{ matrix.arch }}
+          mkdir -p $HOME/.mozbuild
+          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-19.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
+          tar -xvf clang.tar.zst -C $HOME/.mozbuild
           curl -L "https://www.7-zip.org/a/7z2408-linux-x64.tar.xz" | tar xJ
           sudo mv 7zz /usr/local/bin/7z
           curl https://rclone.org/install.sh | sudo bash
@@ -734,9 +753,12 @@ jobs:
       SCCACHE_GHA_ENABLED: "true"
     steps:
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.6
+        uses: mozilla-actions/sccache-action@v0.0.7
       - name: "\U0001F4BF Setup build packages"
         run: |
+          mkdir -p $HOME/.mozbuild
+          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-19.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
+          tar -xvf clang.tar.zst -C $HOME/.mozbuild
           curl -L "https://www.7-zip.org/a/7z2408-linux-x64.tar.xz" | tar xJ
           sudo mv 7zz /usr/local/bin/7z
           sudo apt install patchelf
