@@ -1,35 +1,55 @@
-<h1 align="center">Waterfox Source Code</h1>
+# Waterfox
 
-Welcome to Waterfox! Waterfox is now once again fully independent. We'd love to accept help from contributors, so feel free to reach out via [Reddit](https://www.reddit.com/message/compose?to=MrAlex94).
+<p align="center">A privacy-focused, performance-oriented browser based on Firefox.</p>
 
-[![Website](https://img.shields.io/website?url=https://www.waterfox.net)](https://www.waterfox.net)
-[![🏗 Builds](https://github.com/WaterfoxCo/Waterfox/actions/workflows/pipeline.yml/badge.svg)](https://github.com/WaterfoxCo/Waterfox/actions/workflows/push.yml)
-[![License: MPL 2.0](https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg)](https://opensource.org/licenses/MPL-2.0)
+<p align="center">
+  <a href="https://www.waterfox.net"><img src="https://img.shields.io/website?url=https://www.waterfox.net" alt="Website"></a>
+  <a href="https://github.com/BrowserWorks/Waterfox/actions/workflows/pipeline.yml"><img src="https://github.com/BrowserWorks/Waterfox/actions/workflows/pipeline.yml/badge.svg" alt="Build Status"></a>
+  <a href="https://opensource.org/licenses/MPL-2.0"><img src="https://img.shields.io/badge/License-MPL_2.0-brightgreen.svg" alt="License: MPL 2.0"></a>
+  <a href="https://www.reddit.com/r/waterfox/"><img src="https://img.shields.io/reddit/subreddit-subscribers/waterfox?style=social" alt="Reddit"></a>
+</p>
 
-An explanation of the Waterfox Source Code Directory Structure and links to
-project pages can be found at the [Directory Structure documents](https://firefox-source-docs.mozilla.org/contributing/directory_structure.html).
+## About Waterfox
 
-For information on how to build Waterfox from the source code and create patches see the [quick reference](https://firefox-source-docs.mozilla.org/contributing/contribution_quickref.html).
+Waterfox is an open-source, privacy-focused browser based on the popular open source browser with a red panda as a mascot. It is designed to be a drop-in replacement for said browser that offers enhanced privacy features, performance improvements, and customizability while maintaining compatibility with existing extensions.
 
-### Developer Working Hours
+### Key Features
 
-Typically, we are available 9:00 🕘 → 17:00 🕔, Monday → Friday. This does not include [UK bank holidays](https://www.gov.uk/bank-holidays) or annual leave. During this time we will be programming or responding to queries as and when appropriate.
+- **Privacy-focused**: Removal of telemetry and tracking, with bare minimum of data collection for operation.
+- **Performance-oriented**: Optimized for modern systems
+- **Customizable**: Support for classic and modern extensions
+- **Cross-platform**: Available for Windows, macOS, Linux and Android
+- **Modern**: Regular updates to stay current with web standards
 
-### Roadmap
+## Getting Started
 
-Q3 2023
-===
-* Release G6, the latest time by September 26.
-* Prepare Waterfox for Android for release, ideally by September 26 depending on previous project complexity.
-* Release updated OSS website, powered by [astro](https://astro.build/).
+### Download
 
-2H 2023
-===
-* Implement a native vertical tab implementation. Work has already started for this in the background.
-* Make profile switching more accessible. 
+You can download the latest stable version of Waterfox from our [official website](https://www.waterfox.net/download).
 
-2024
-===
-* Implement own profile sync service. This is a hard complexity item and no guarantee of this.
-* Prepare Waterfox for iOS.
-* Some more special surprises, with work already started.
+### Building from Source
+
+For instructions on how to build Waterfox from source, please see our [Build Guide](BUILDING.md).
+
+## Contributing
+
+We welcome contributions from the community! Please see our [Contributing Guide](CONTRIBUTING.md) for details on how to get started.
+
+## Documentation
+
+- [Source Directory Structure](https://firefox-source-docs.mozilla.org/contributing/directory_structure.html)
+- [Quick Reference for Contributors](https://firefox-source-docs.mozilla.org/contributing/contribution_quickref.html)
+- [Build Documentation](BUILDING.md)
+
+## Community
+
+- [Official Website](https://www.waterfox.net)
+- [Reddit](https://www.reddit.com/r/waterfox/)
+
+## Developer Information
+
+The core development team is typically available 9:00 🕘 → 17:00 🕔, Monday → Friday (UK time). This does not include [UK bank holidays](https://www.gov.uk/bank-holidays) or annual leave.
+
+## License
+
+Waterfox is licensed under the [Mozilla Public License 2.0](LICENSE).
