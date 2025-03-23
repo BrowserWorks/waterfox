@@ -152,7 +152,7 @@ JxlEncoderOutputProcessorWrapper::GetBuffer(size_t min_size,
     alloc_size = std::min(alloc_size, it->first - position_);
     JXL_ENSURE(alloc_size >= min_size);
   }
-  JXL_ENSURE(buffer.owned_data.resize(alloc_size));
+  JXL_RETURN_IF_ERROR(buffer.owned_data.resize(alloc_size));
   has_buffer_ = true;
   return JxlOutputProcessorBuffer(buffer.owned_data.data(), alloc_size, 0,
                                   this);
@@ -2097,8 +2097,13 @@ JxlEncoderStatus JxlEncoderAddJPEGFrame(
   }
 
   if (!frame_settings->enc->color_encoding_set) {
-    SetColorEncodingFromJpegData(
-        *io.Main().jpeg_data, &frame_settings->enc->metadata.m.color_encoding);
+    if (!SetColorEncodingFromJpegData(
+            *io.Main().jpeg_data,
+            &frame_settings->enc->metadata.m.color_encoding)) {
+      return JXL_API_ERROR(
+          frame_settings->enc, JXL_ENC_ERR_BAD_INPUT,
+          "Error decoding the ICC profile embedded in the input JPEG");
+    }
     frame_settings->enc->color_encoding_set = true;
   }
 

@@ -760,6 +760,16 @@ Status FindBestPatchDictionary(const Image3F& opsin,
   // Recursive application of patches could create very weird issues.
   cparams.patches = Override::kOff;
 
+  if (WantDebugOutput(cparams)) {
+    if (is_xyb) {
+      JXL_RETURN_IF_ERROR(
+          DumpXybImage(cparams, "patch_reference", reference_frame));
+    } else {
+      JXL_RETURN_IF_ERROR(
+          DumpImage(cparams, "patch_reference", reference_frame));
+    }
+  }
+
   JXL_RETURN_IF_ERROR(RoundtripPatchFrame(&reference_frame, state,
                                           kPatchFrameReferenceId, cparams, cms,
                                           pool, aux_out, /*subtract=*/true));

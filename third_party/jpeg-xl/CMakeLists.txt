@@ -225,7 +225,7 @@ if(JPEGXL_STATIC)
 
   # https://learn.microsoft.com/en-us/cpp/build/reference/md-mt-ld-use-run-time-library?view=msvc-170
   # https://cmake.org/cmake/help/latest/variable/CMAKE_MSVC_RUNTIME_LIBRARY.html
-  set(CMAKE_MSVC_RUNTIME_LIBRARY MultiThreaded)
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "$<$<NOT:$<CONFIG:Debug>>:MultiThreaded>" CACHE STRING "")
 
   # Clang developers say that in case to use "static" we have to build stdlib
   # ourselves; for real use case we don't care about stdlib, as it is "granted",
@@ -330,7 +330,7 @@ else ()
     if (NOT JPEGXL_ENABLE_SIZELESS_VECTORS)
       set(HWY_DISABLED_TARGETS "${HWY_DISABLED_TARGETS}|HWY_SVE|HWY_SVE2|HWY_SVE_256|HWY_SVE2_128|HWY_RVV")
     endif()
-    add_definitions(-DHWY_DISABLED_TARGETS=\(${HWY_DISABLED_TARGETS}\))
+    add_compile_options($<$<NOT:$<COMPILE_LANGUAGE:RC>>:-DHWY_DISABLED_TARGETS=\(${HWY_DISABLED_TARGETS}\)>)
   endif()
 
   # Machine flags.
@@ -460,7 +460,7 @@ if(JPEGXL_ENABLE_MANPAGES)
   find_program(ASCIIDOC a2x)
   if(ASCIIDOC)
     file(STRINGS "${ASCIIDOC}" ASCIIDOC_SHEBANG LIMIT_COUNT 1)
-    if(ASCIIDOC_SHEBANG MATCHES "sh$" OR MINGW)
+    if(ASCIIDOC_SHEBANG MATCHES "sh$" OR ASCIIDOC_SHEBANG MATCHES "libexec/bin/python$" OR MINGW)
       set(ASCIIDOC_PY_FOUND ON)
       # Run the program directly and set ASCIIDOC as empty.
       set(ASCIIDOC_PY "${ASCIIDOC}")
