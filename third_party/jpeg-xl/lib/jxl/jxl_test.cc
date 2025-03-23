@@ -1035,17 +1035,6 @@ TEST(JxlTest, RoundtripAlpha16) {
   EXPECT_SLIGHTLY_BELOW(ButteraugliDistance(t.ppf(), ppf_out), 0.6);
 }
 
-namespace {
-JXLCompressParams CompressParamsForLossless() {
-  JXLCompressParams cparams;
-  cparams.AddOption(JXL_ENC_FRAME_SETTING_MODULAR, 1);
-  cparams.AddOption(JXL_ENC_FRAME_SETTING_COLOR_TRANSFORM, 1);
-  cparams.AddOption(JXL_ENC_FRAME_SETTING_MODULAR_PREDICTOR, 6);  // Weighted
-  cparams.distance = 0;
-  return cparams;
-}
-}  // namespace
-
 JXL_SLOW_TEST(JxlTest, RoundtripLossless8) {
   ThreadPoolForTests pool(8);
   const std::vector<uint8_t> orig =
@@ -1054,7 +1043,7 @@ JXL_SLOW_TEST(JxlTest, RoundtripLossless8) {
   ASSERT_TRUE(t.DecodeFromBytes(orig));
   t.ClearMetadata();
 
-  JXLCompressParams cparams = CompressParamsForLossless();
+  JXLCompressParams cparams = test::CompressParamsForLossless();
   JXLDecompressParams dparams;
   dparams.accepted_formats.push_back(t.ppf().frames[0].color.format);
 
@@ -1071,7 +1060,7 @@ JXL_SLOW_TEST(JxlTest, RoundtripLossless8ThunderGradient) {
   ASSERT_TRUE(t.DecodeFromBytes(orig));
   t.ClearMetadata();
 
-  JXLCompressParams cparams = CompressParamsForLossless();
+  JXLCompressParams cparams = test::CompressParamsForLossless();
   cparams.AddOption(JXL_ENC_FRAME_SETTING_EFFORT, 2);             // kThunder
   cparams.AddOption(JXL_ENC_FRAME_SETTING_MODULAR_PREDICTOR, 5);  // Gradient
   JXLDecompressParams dparams;
@@ -1090,7 +1079,7 @@ JXL_SLOW_TEST(JxlTest, RoundtripLossless8LightningGradient) {
   ASSERT_TRUE(t.DecodeFromBytes(orig));
   t.ClearMetadata();
 
-  JXLCompressParams cparams = CompressParamsForLossless();
+  JXLCompressParams cparams = test::CompressParamsForLossless();
   cparams.AddOption(JXL_ENC_FRAME_SETTING_EFFORT, 1);  // kLightning
   JXLDecompressParams dparams;
   dparams.accepted_formats.push_back(t.ppf().frames[0].color.format);
@@ -1110,7 +1099,7 @@ JXL_SLOW_TEST(JxlTest, RoundtripLossless8Falcon) {
   ASSERT_TRUE(t.DecodeFromBytes(orig));
   t.ClearMetadata();
 
-  JXLCompressParams cparams = CompressParamsForLossless();
+  JXLCompressParams cparams = test::CompressParamsForLossless();
   cparams.AddOption(JXL_ENC_FRAME_SETTING_EFFORT, 3);  // kFalcon
   JXLDecompressParams dparams;
   dparams.accepted_formats.push_back(t.ppf().frames[0].color.format);
@@ -1130,7 +1119,7 @@ TEST(JxlTest, RoundtripLossless8Alpha) {
   ASSERT_EQ(t.ppf().info.alpha_bits, 8);
   EXPECT_EQ(t.ppf().frames[0].color.format.data_type, JXL_TYPE_UINT8);
 
-  JXLCompressParams cparams = CompressParamsForLossless();
+  JXLCompressParams cparams = test::CompressParamsForLossless();
 
   JXLDecompressParams dparams;
   dparams.accepted_formats.push_back(t.ppf().frames[0].color.format);
@@ -1168,7 +1157,7 @@ TEST(JxlTest, RoundtripLossless16Alpha) {
   ASSERT_EQ(t.ppf().info.bits_per_sample, 16);
   ASSERT_EQ(t.ppf().info.alpha_bits, 16);
 
-  JXLCompressParams cparams = CompressParamsForLossless();
+  JXLCompressParams cparams = test::CompressParamsForLossless();
 
   JXLDecompressParams dparams;
   dparams.accepted_formats.push_back(t.ppf().frames[0].color.format);
@@ -1208,7 +1197,7 @@ TEST(JxlTest, RoundtripLossless16AlphaNotMisdetectedAs8Bit) {
   ASSERT_EQ(t.ppf().info.bits_per_sample, 16);
   ASSERT_EQ(t.ppf().info.alpha_bits, 16);
 
-  JXLCompressParams cparams = CompressParamsForLossless();
+  JXLCompressParams cparams = test::CompressParamsForLossless();
 
   JXLDecompressParams dparams;
   dparams.accepted_formats.push_back(t.ppf().frames[0].color.format);
@@ -1300,7 +1289,7 @@ TEST(JxlTest, RoundtripLossless8Gray) {
   EXPECT_EQ(t.ppf().color_encoding.color_space, JXL_COLOR_SPACE_GRAY);
   EXPECT_EQ(t.ppf().info.bits_per_sample, 8);
 
-  JXLCompressParams cparams = CompressParamsForLossless();
+  JXLCompressParams cparams = test::CompressParamsForLossless();
 
   JXLDecompressParams dparams;
   dparams.accepted_formats.push_back(t.ppf().frames[0].color.format);
@@ -1353,7 +1342,7 @@ TEST(JxlTest, RoundtripLosslessAnimation) {
   t.ClearMetadata();
   EXPECT_EQ(4, t.ppf().frames.size());
 
-  JXLCompressParams cparams = CompressParamsForLossless();
+  JXLCompressParams cparams = test::CompressParamsForLossless();
 
   JXLDecompressParams dparams;
   dparams.accepted_formats.push_back(t.ppf().frames[0].color.format);
@@ -1719,7 +1708,7 @@ TEST(JxlTest, RoundtripUnsignedCustomBitdepthLossless) {
         frame.RandomFill();
         t.ppf().input_bitdepth.type = JXL_BIT_DEPTH_FROM_CODESTREAM;
 
-        JXLCompressParams cparams = CompressParamsForLossless();
+        JXLCompressParams cparams = test::CompressParamsForLossless();
 
         JXLDecompressParams dparams;
         dparams.accepted_formats.push_back(t.ppf().frames[0].color.format);
@@ -1751,7 +1740,7 @@ TEST(JxlTest, LosslessPNMRoundtrip) {
       }
       ASSERT_TRUE(t.DecodeFromBytes(orig));
 
-      JXLCompressParams cparams = CompressParamsForLossless();
+      JXLCompressParams cparams = test::CompressParamsForLossless();
       cparams.AddOption(JXL_ENC_FRAME_SETTING_EFFORT, 1);  // kLightning
 
       JXLDecompressParams dparams;

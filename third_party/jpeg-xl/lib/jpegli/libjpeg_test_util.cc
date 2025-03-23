@@ -5,6 +5,7 @@
 
 #include "lib/jpegli/libjpeg_test_util.h"
 
+#include <cstdlib>
 #include <cstring>
 
 #include "lib/jxl/base/compiler_specific.h"

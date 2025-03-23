@@ -5,6 +5,8 @@
 
 #include "lib/jxl/loop_filter.h"
 
+#include <cmath>
+
 #include "lib/jxl/base/status.h"
 #include "lib/jxl/fields.h"
 

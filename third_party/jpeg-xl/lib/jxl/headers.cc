@@ -5,6 +5,9 @@
 
 #include "lib/jxl/headers.h"
 
+#include <cstdint>
+#include <limits>
+
 #include "lib/jxl/fields.h"
 #include "lib/jxl/frame_dimensions.h"
 
@@ -57,7 +60,8 @@ size_t SizeHeader::xsize() const {
 }
 
 Status SizeHeader::Set(size_t xsize64, size_t ysize64) {
-  if (xsize64 > 0xFFFFFFFFull || ysize64 > 0xFFFFFFFFull) {
+  constexpr size_t kDimensionCap = std::numeric_limits<uint32_t>::max();
+  if (xsize64 > kDimensionCap || ysize64 > kDimensionCap) {
     return JXL_FAILURE("Image too large");
   }
   const uint32_t xsize32 = static_cast<uint32_t>(xsize64);

@@ -531,6 +531,9 @@ StatusOr<size_t> BuildAndStoreANSEncodingData(
 StatusOr<float> ANSPopulationCost(const ANSHistBin* data,
                                   size_t alphabet_size) {
   float cost = 0.0f;
+  if (ANS_MAX_ALPHABET_SIZE < alphabet_size) {
+    return std::numeric_limits<float>::max();
+  }
   JXL_ASSIGN_OR_RETURN(
       uint32_t method,
       ComputeBestMethod(data, alphabet_size, &cost,

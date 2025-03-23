@@ -1186,6 +1186,16 @@ std::vector<TestConfig> GenerateTests(bool buffered) {
       }
     }
   }
+  {
+    TestConfig config;
+    config.input.xsize = 137;
+    config.input.ysize = 80;
+    config.jparams.progressive_mode = 0;
+    config.jparams.h_sampling = {1, 1, 1};
+    config.jparams.v_sampling = {4, 2, 1};
+    config.compare_to_orig = true;
+    all_tests.push_back(config);
+  }
   for (int h0_samp : {1, 3}) {
     for (int v0_samp : {1, 3}) {
       for (int h2_samp : {1, 3}) {

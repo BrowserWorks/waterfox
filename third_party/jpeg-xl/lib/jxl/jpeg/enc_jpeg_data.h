@@ -27,8 +27,8 @@ Status EncodeJPEGData(JxlMemoryManager* memory_manager, JPEGData& jpeg_data,
                       std::vector<uint8_t>* bytes,
                       const CompressParams& cparams);
 
-void SetColorEncodingFromJpegData(const jpeg::JPEGData& jpg,
-                                  ColorEncoding* color_encoding);
+Status SetColorEncodingFromJpegData(const jpeg::JPEGData& jpg,
+                                    ColorEncoding* color_encoding);
 Status SetChromaSubsamplingFromJpegData(const JPEGData& jpg,
                                         YCbCrChromaSubsampling* cs);
 Status SetColorTransformFromJpegData(const JPEGData& jpg,
