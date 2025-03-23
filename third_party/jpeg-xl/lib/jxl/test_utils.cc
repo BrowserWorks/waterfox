@@ -865,6 +865,49 @@ Status EncodeFile(const CompressParams& params, CodecInOut* io,
   return true;
 }
 
+extras::JXLCompressParams CompressParamsForLossless() {
+  extras::JXLCompressParams cparams;
+  cparams.AddOption(JXL_ENC_FRAME_SETTING_MODULAR, 1);
+  cparams.AddOption(JXL_ENC_FRAME_SETTING_COLOR_TRANSFORM, 1);
+  cparams.AddOption(JXL_ENC_FRAME_SETTING_MODULAR_PREDICTOR, 6);  // Weighted
+  cparams.distance = 0.0;
+  return cparams;
+}
+
+StatusOr<ImageF> GetImage(const extras::PackedPixelFile& ppf) {
+  JxlMemoryManager* memory_manager = MemoryManager();
+  ImageF gray;
+  JXL_ENSURE(!ppf.frames.empty());
+  const extras::PackedImage& image = ppf.frames[0].color;
+  const JxlPixelFormat& format = image.format;
+  JXL_RETURN_IF_ERROR(format.num_channels == 1);
+  const uint8_t* pixels = reinterpret_cast<const uint8_t*>(image.pixels());
+  JXL_TEST_ASSIGN_OR_DIE(
+      gray, ImageF::Create(memory_manager, image.xsize, image.ysize));
+  JXL_RETURN_IF_ERROR(
+      ConvertFromExternal(pixels, image.pixels_size, image.xsize, image.ysize,
+                          ppf.info.bits_per_sample, format, 0, nullptr, &gray));
+  return gray;
+}
+
+StatusOr<Image3F> GetColorImage(const extras::PackedPixelFile& ppf) {
+  JxlMemoryManager* memory_manager = MemoryManager();
+  Image3F color;
+  JXL_ENSURE(!ppf.frames.empty());
+  const extras::PackedImage& image = ppf.frames[0].color;
+  const JxlPixelFormat& format = image.format;
+  JXL_RETURN_IF_ERROR(format.num_channels == 3);
+  const uint8_t* pixels = reinterpret_cast<const uint8_t*>(image.pixels());
+  JXL_TEST_ASSIGN_OR_DIE(
+      color, Image3F::Create(memory_manager, image.xsize, image.ysize));
+  for (size_t c = 0; c < format.num_channels; ++c) {
+    JXL_RETURN_IF_ERROR(ConvertFromExternal(
+        pixels, image.pixels_size, image.xsize, image.ysize,
+        ppf.info.bits_per_sample, format, c, nullptr, &color.Plane(c)));
+  }
+  return color;
+}
+
 }  // namespace test
 
 bool operator==(const jxl::Bytes& a, const jxl::Bytes& b) {

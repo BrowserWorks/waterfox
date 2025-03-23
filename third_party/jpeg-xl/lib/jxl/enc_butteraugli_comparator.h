@@ -39,6 +39,7 @@ class JxlButteraugliComparator : public Comparator {
   std::unique_ptr<ButteraugliComparator> comparator_;
   size_t xsize_ = 0;
   size_t ysize_ = 0;
+  float intensity_target_ = 0.f;
 };
 
 }  // namespace jxl

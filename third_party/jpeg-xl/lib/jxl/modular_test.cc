@@ -308,12 +308,11 @@ TEST_P(ModularTestParam, RoundtripLossless) {
   int bitdepth = config.bitdepth;
   int responsive = config.responsive;
 
-  ThreadPool* pool = nullptr;
   Rng generator(123);
   const std::vector<uint8_t> orig =
       ReadTestData("external/wesaturate/500px/u76c0g_bliznaca_srgb8.png");
-  CodecInOut io1{memory_manager};
-  ASSERT_TRUE(SetFromBytes(Bytes(orig), &io1, pool));
+  extras::PackedPixelFile ppf1;
+  ASSERT_TRUE(DecodeBytes(Bytes(orig), extras::ColorHints(), &ppf1));
 
   // vary the dimensions a bit, in case of bugs related to
   // even vs odd width or height.
@@ -332,11 +331,11 @@ TEST_P(ModularTestParam, RoundtripLossless) {
 
   for (size_t c = 0; c < 3; c++) {
     for (size_t y = 0; y < ysize; y++) {
-      const float* in = io1.Main().color()->PlaneRow(c, y);
       float* out = noise_added.PlaneRow(c, y);
       for (size_t x = 0; x < xsize; x++) {
         // make the least significant bits random
-        float f = in[x] + generator.UniformF(0.0f, 1.f / 255.f);
+        float f = *ppf1.frames[0].color.const_pixels(y, x, c) +
+                  generator.UniformF(0.0f, 1.f / 255.f);
         if (f > 1.f) f = 1.f;
         // quantize to the bitdepth we're testing
         unsigned int u = static_cast<unsigned int>(std::lround(f * factor));

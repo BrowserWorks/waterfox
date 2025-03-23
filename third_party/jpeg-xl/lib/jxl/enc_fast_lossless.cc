@@ -6,8 +6,6 @@
 #include "lib/jxl/base/status.h"
 #ifndef FJXL_SELF_INCLUDE
 
-#include "lib/jxl/enc_fast_lossless.h"
-
 #include <assert.h>
 #include <stdint.h>
 #include <string.h>
@@ -17,6 +15,8 @@
 #include <limits>
 #include <memory>
 #include <vector>
+
+#include "lib/jxl/enc_fast_lossless.h"
 
 #if FJXL_STANDALONE
 #if defined(_MSC_VER)
@@ -1468,46 +1468,10 @@ struct SIMDVec32 {
     return SIMDVec32{_mm256_set1_epi32(v)};
   }
   FJXL_INLINE SIMDVec32 ValToToken() const {
-    // we know that each value has at most 20 bits, so we just need 5 nibbles
-    // and don't need to mask the fifth. However we do need to set the higher
-    // bytes to 0xFF, which will make table lookups return 0.
-    auto nibble0 =
-        _mm256_or_si256(_mm256_and_si256(vec, _mm256_set1_epi32(0xF)),
-                        _mm256_set1_epi32(0xFFFFFF00));
-    auto nibble1 = _mm256_or_si256(
-        _mm256_and_si256(_mm256_srli_epi32(vec, 4), _mm256_set1_epi32(0xF)),
-        _mm256_set1_epi32(0xFFFFFF00));
-    auto nibble2 = _mm256_or_si256(
-        _mm256_and_si256(_mm256_srli_epi32(vec, 8), _mm256_set1_epi32(0xF)),
-        _mm256_set1_epi32(0xFFFFFF00));
-    auto nibble3 = _mm256_or_si256(
-        _mm256_and_si256(_mm256_srli_epi32(vec, 12), _mm256_set1_epi32(0xF)),
-        _mm256_set1_epi32(0xFFFFFF00));
-    auto nibble4 = _mm256_or_si256(_mm256_srli_epi32(vec, 16),
-                                   _mm256_set1_epi32(0xFFFFFF00));
-
-    auto lut0 = _mm256_broadcastsi128_si256(
-        _mm_setr_epi8(0, 1, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4));
-    auto lut1 = _mm256_broadcastsi128_si256(
-        _mm_setr_epi8(0, 5, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8));
-    auto lut2 = _mm256_broadcastsi128_si256(_mm_setr_epi8(
-        0, 9, 10, 10, 11, 11, 11, 11, 12, 12, 12, 12, 12, 12, 12, 12));
-    auto lut3 = _mm256_broadcastsi128_si256(_mm_setr_epi8(
-        0, 13, 14, 14, 15, 15, 15, 15, 16, 16, 16, 16, 16, 16, 16, 16));
-    auto lut4 = _mm256_broadcastsi128_si256(_mm_setr_epi8(
-        0, 17, 18, 18, 19, 19, 19, 19, 20, 20, 20, 20, 20, 20, 20, 20));
-
-    auto token0 = _mm256_shuffle_epi8(lut0, nibble0);
-    auto token1 = _mm256_shuffle_epi8(lut1, nibble1);
-    auto token2 = _mm256_shuffle_epi8(lut2, nibble2);
-    auto token3 = _mm256_shuffle_epi8(lut3, nibble3);
-    auto token4 = _mm256_shuffle_epi8(lut4, nibble4);
-
-    auto token =
-        _mm256_max_epi32(_mm256_max_epi32(_mm256_max_epi32(token0, token1),
-                                          _mm256_max_epi32(token2, token3)),
-                         token4);
-    return SIMDVec32{token};
+    auto f32 = _mm256_castps_si256(_mm256_cvtepi32_ps(vec));
+    return SIMDVec32{_mm256_max_epi32(
+        _mm256_setzero_si256(),
+        _mm256_sub_epi32(_mm256_srli_epi32(f32, 23), _mm256_set1_epi32(126)))};
   }
   FJXL_INLINE SIMDVec32 SatSubU(const SIMDVec32& to_subtract) const {
     return SIMDVec32{_mm256_sub_epi32(_mm256_max_epu32(vec, to_subtract.vec),
@@ -4171,7 +4135,7 @@ namespace default_implementation {
 #undef FJXL_NEON
 }  // namespace default_implementation
 
-#else  // FJXL_ENABLE_NEON
+#else                                    // FJXL_ENABLE_NEON
 
 namespace default_implementation {
 #include "lib/jxl/enc_fast_lossless.cc"  // NOLINT
