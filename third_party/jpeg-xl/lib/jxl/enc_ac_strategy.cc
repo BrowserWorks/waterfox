@@ -1171,7 +1171,6 @@ Status AcStrategyHeuristics::Finalize(const FrameDimensions& frame_dim,
         ac_strategy.CountBlocks(AcStrategyType::DCT64X64);
   }
 
-  // if (JXL_DEBUG_AC_STRATEGY && WantDebugOutput(aux_out)) {
   if (JXL_DEBUG_AC_STRATEGY && WantDebugOutput(cparams)) {
     JXL_RETURN_IF_ERROR(DumpAcStrategy(ac_strategy, frame_dim.xsize,
                                        frame_dim.ysize, "ac_strategy", aux_out,

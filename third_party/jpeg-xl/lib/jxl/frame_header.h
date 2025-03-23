@@ -428,7 +428,7 @@ struct FrameHeader : public Fields {
   uint32_t save_as_reference;
 
   // Whether to save this frame before or after the color transform. A frame
-  // that is saved before the color tansform can only be used for blending
+  // that is saved before the color transform can only be used for blending
   // through patches. On the contrary, a frame that is saved after the color
   // transform can only be used for blending through blending modes.
   // Irrelevant for extra channel blending. Can only be true if

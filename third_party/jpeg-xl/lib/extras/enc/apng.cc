@@ -264,9 +264,10 @@ void MaybeAddGAMA(const JxlColorEncoding& c_enc, png_structp png_ptr,
 void MaybeAddCLLi(const JxlColorEncoding& c_enc, const float intensity_target,
                   png_structp png_ptr, png_infop info_ptr) {
   if (c_enc.transfer_function != JXL_TRANSFER_FUNCTION_PQ) return;
+  if (intensity_target == 10'000) return;
 
   const uint32_t max_content_light_level =
-      static_cast<uint32_t>(10000.f * Clamp1(intensity_target, 0.f, 10000.f));
+      static_cast<uint32_t>(10'000.f * Clamp1(intensity_target, 0.f, 10'000.f));
   png_byte chunk_data[8] = {};
   png_save_uint_32(chunk_data, max_content_light_level);
   // Leave MaxFALL set to 0.
@@ -380,6 +381,7 @@ Status APNGEncoder::EncodePackedPixelFileToAPNG(
 
     info_ptr = png_create_info_struct(png_ptr);
     if (!info_ptr) return JXL_FAILURE("Could not init png info struct");
+    png_set_compression_level(png_ptr, 1);
 
     png_set_write_fn(png_ptr, bytes, PngWrite, nullptr);
     png_set_flush(png_ptr, 0);
@@ -396,7 +398,10 @@ Status APNGEncoder::EncodePackedPixelFileToAPNG(
                  PNG_FILTER_TYPE_BASE);
     if (count == 0 && !encode_extra_channels) {
       if (!MaybeAddSRGB(ppf.color_encoding, png_ptr, info_ptr)) {
-        MaybeAddCICP(ppf.color_encoding, png_ptr, info_ptr);
+        if (ppf.primary_color_representation !=
+            PackedPixelFile::kIccIsPrimary) {
+          MaybeAddCICP(ppf.color_encoding, png_ptr, info_ptr);
+        }
         if (!ppf.icc.empty()) {
           png_set_benign_errors(png_ptr, 1);
           png_set_iCCP(png_ptr, info_ptr, "1", 0, ppf.icc.data(),

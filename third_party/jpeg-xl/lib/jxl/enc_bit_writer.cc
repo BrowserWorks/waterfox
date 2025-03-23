@@ -34,7 +34,10 @@ Status BitWriter::Allotment::Init(BitWriter* JXL_RESTRICT writer) {
   prev_bits_written_ = writer->BitsWritten();
   const size_t prev_bytes = writer->storage_.size();
   const size_t next_bytes = DivCeil(max_bits_, kBitsPerByte);
-  JXL_RETURN_IF_ERROR(writer->storage_.resize(prev_bytes + next_bytes));
+  if (!writer->storage_.resize(prev_bytes + next_bytes)) {
+    called_ = true;
+    return false;
+  }
   parent_ = writer->current_allotment_;
   writer->current_allotment_ = this;
   return true;
