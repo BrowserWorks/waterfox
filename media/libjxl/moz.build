@@ -118,9 +118,3 @@ FINAL_LIBRARY = "xul"
 
 # We allow warnings for third-party code that can be updated from upstream.
 AllowCompilerWarnings()
-
-# Clang 5.0 has a compiler bug that prevents build in c++17
-# See https://gitlab.com/wg1/jpeg-xl/-/issues/227
-# This should be okay since we are using the C API.
-if CONFIG["CC_TYPE"] == "clang":
-    CXXFLAGS += ["-std=c++11"]
