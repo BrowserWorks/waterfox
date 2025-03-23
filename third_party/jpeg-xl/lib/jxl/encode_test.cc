@@ -1488,7 +1488,6 @@ JXL_GTEST_INSTANTIATE_TEST_SUITE_P(
 
 JXL_TRANSCODE_JPEG_TEST(EncodeTest, JPEGFrameTest) {
   TEST_LIBJPEG_SUPPORT();
-  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   for (int skip_basic_info = 0; skip_basic_info < 2; skip_basic_info++) {
     for (int skip_color_encoding = 0; skip_color_encoding < 2;
          skip_color_encoding++) {
@@ -1496,9 +1495,9 @@ JXL_TRANSCODE_JPEG_TEST(EncodeTest, JPEGFrameTest) {
       if (skip_basic_info && !skip_color_encoding) continue;
       const std::string jpeg_path = "jxl/flower/flower_cropped.jpg";
       const std::vector<uint8_t> orig = jxl::test::ReadTestData(jpeg_path);
-      jxl::CodecInOut orig_io{memory_manager};
-      ASSERT_TRUE(SetFromBytes(jxl::Bytes(orig), &orig_io,
-                               /*pool=*/nullptr));
+      jxl::extras::PackedPixelFile orig_ppf;
+      ASSERT_TRUE(
+          DecodeBytes(jxl::Bytes(orig), jxl::extras::ColorHints(), &orig_ppf));
 
       JxlEncoderPtr enc = JxlEncoderMake(nullptr);
       JxlEncoderFrameSettings* frame_settings =
@@ -1508,8 +1507,8 @@ JXL_TRANSCODE_JPEG_TEST(EncodeTest, JPEGFrameTest) {
       if (!skip_basic_info) {
         JxlBasicInfo basic_info;
         JxlEncoderInitBasicInfo(&basic_info);
-        basic_info.xsize = orig_io.xsize();
-        basic_info.ysize = orig_io.ysize();
+        basic_info.xsize = orig_ppf.xsize();
+        basic_info.ysize = orig_ppf.ysize();
         basic_info.uses_original_profile = JXL_TRUE;
         EXPECT_EQ(JXL_ENC_SUCCESS,
                   JxlEncoderSetBasicInfo(enc.get(), &basic_info));
@@ -1541,13 +1540,11 @@ JXL_TRANSCODE_JPEG_TEST(EncodeTest, JPEGFrameTest) {
       compressed.resize(next_out - compressed.data());
       EXPECT_EQ(JXL_ENC_SUCCESS, process_result);
 
-      jxl::CodecInOut decoded_io{memory_manager};
-      EXPECT_TRUE(jxl::test::DecodeFile(
-          {}, jxl::Bytes(compressed.data(), compressed.size()), &decoded_io));
+      jxl::extras::PackedPixelFile decoded_ppf;
+      EXPECT_TRUE(DecodeBytes(jxl::Bytes(compressed.data(), compressed.size()),
+                              jxl::extras::ColorHints(), &decoded_ppf));
 
-      EXPECT_LE(ComputeDistance2(orig_io.Main(), decoded_io.Main(),
-                                 *JxlGetDefaultCms()),
-                3.5);
+      EXPECT_LE(jxl::test::ComputeDistance2(orig_ppf, decoded_ppf), 3.5);
     }
   }
 }

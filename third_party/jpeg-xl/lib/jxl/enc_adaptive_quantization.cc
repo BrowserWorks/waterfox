@@ -951,7 +951,11 @@ Status FindBestQuantization(const FrameHeader& frame_header,
   const float butteraugli_target = cparams.butteraugli_distance;
   const float original_butteraugli = cparams.original_butteraugli_distance;
   ButteraugliParams params;
-  params.intensity_target = 80.f;
+  const auto& tf = frame_header.nonserialized_metadata->m.color_encoding.Tf();
+  params.intensity_target =
+      tf.IsPQ() || tf.IsHLG()
+          ? frame_header.nonserialized_metadata->m.IntensityTarget()
+          : 80.f;
   JxlButteraugliComparator comparator(params, cms);
   JXL_RETURN_IF_ERROR(comparator.SetLinearReferenceImage(linear));
   bool lower_is_better =
