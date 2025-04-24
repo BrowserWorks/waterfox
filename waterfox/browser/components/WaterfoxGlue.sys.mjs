@@ -228,7 +228,7 @@ export const WaterfoxGlue = {
     addon =
       (await lazy.AddonManager.maybeInstallBuiltinAddon(
         ID,
-        '1.0.3',
+        '1.0.4',
         'resource://builtin-addons/sidebar/'
       )) || addon
 
