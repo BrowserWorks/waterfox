@@ -532,14 +532,7 @@ export async function moveTabsWithStructure(tabs, params = {}) {
 
   let movedRoots = params.import ? [] : Tab.collectRootTabs(movedTabs);
 
-  const movedWholeTree = [].concat(movedRoots);
-  for (const movedRoot of movedRoots) {
-    const descendants = movedRoot.$TST.descendants;
-    for (const descendant of descendants) {
-      if (!movedWholeTree.includes(descendant))
-        movedWholeTree.push(descendant);
-    }
-  }
+  const movedWholeTree = Tree.getWholeTree(movedRoots);
   log('=> movedTabs: ', () => ['moved', movedTabs.map(dumpTab).join(' / '), 'whole', movedWholeTree.map(dumpTab).join(' / ')]);
 
   const movedTabsSet = new Set(movedTabs);
@@ -568,6 +561,7 @@ export async function moveTabsWithStructure(tabs, params = {}) {
       await Tree.detachTabsFromTree(movedTabs, {
         insertBefore: params.insertBefore,
         insertAfter:  params.insertAfter,
+        partial:      true,
         broadcast:    params.broadcast,
       });
   }

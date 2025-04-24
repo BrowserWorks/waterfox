@@ -452,6 +452,11 @@ async function cacheTree(windowId, triggers) {
   win.lastWindowCacheOwner = getWindowCacheOwner(windowId);
   if (!win.lastWindowCacheOwner)
     return;
+  const firstTab = Tab.getFirstTab(windowId);
+  if (firstTab.incognito) { // never save cache for incognito windows
+    updateWindowCache(win.lastWindowCacheOwner, Constants.kWINDOW_STATE_CACHED_TABS, null);
+    return;
+  }
   log('cacheTree for window ', windowId, triggers/*{ stack: configs.debug && new Error().stack }*/);
   updateWindowCache(win.lastWindowCacheOwner, Constants.kWINDOW_STATE_CACHED_TABS, {
     version:         kCONTENTS_VERSION,
