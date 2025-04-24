@@ -624,15 +624,40 @@ export function detachTab(child, options = {}) {
   });
 }
 
+export function getWholeTree(rootTabs) {
+  if (!Array.isArray(rootTabs))
+    rootTabs = [rootTabs];
+  const wholeTree = [].concat(rootTabs);
+  for (const movedRoot of rootTabs) {
+    const descendants = movedRoot.$TST.descendants;
+    for (const descendant of descendants) {
+      if (!wholeTree.includes(descendant))
+        wholeTree.push(descendant);
+    }
+  }
+  return wholeTree;
+}
+
 export async function detachTabsFromTree(tabs, options = {}) {
   if (!Array.isArray(tabs))
     tabs = [tabs];
   tabs = Array.from(tabs).reverse();
+  // you should specify this option if you already call "Tree.getWholeTree()" for the tabs.
+  const partial = 'partial' in options ?
+    options.partial :
+    getWholeTree(tabs).length != tabs.length;
   const promisedAttach = [];
   for (const tab of tabs) {
+    let behavior = partial ?
+      TreeBehavior.getParentTabOperationBehavior(tab, {
+        context: Constants.kPARENT_TAB_OPERATION_CONTEXT_CLOSE,
+      }) :
+      Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD;
+    if (behavior == Constants.kPARENT_TAB_OPERATION_BEHAVIOR_ENTIRE_TREE)
+      behavior = Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD;
     promisedAttach.push(detachAllChildren(tab, {
       ...options,
-      behavior:  Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
+      behavior,
       ignoreTabs: tabs,
     }));
   }

@@ -46,6 +46,8 @@ function element(document, NS, localName, attributes, children) {
 const BrowserWindowWatcher = {
   WATCHING_URLS: [
     'chrome://browser/content/browser.xhtml',
+    'chrome://browser/content/places/bookmarksSidebar.xhtml',
+    'chrome://browser/content/places/places.xhtml',
   ],
   BASE_URL: null, // this need to be replaced with "moz-extension://..../"
   BASE_PREF: 'browser.sidebar.', // null,
@@ -77,8 +79,18 @@ const BrowserWindowWatcher = {
         win.addEventListener('DOMAudioPlaybackBlockStarted', this, { capture: true });
         win.addEventListener('DOMAudioPlaybackBlockStopped', this, { capture: true });
         win.addEventListener('visibilitychange', this);
+        const sidebar = win.document?.querySelector('#sidebar');
+        if (sidebar)
+          this.patchToPlacesModules(sidebar.contentWindow);
       }
       return installed;
+    }
+    else if (win.location.href.startsWith('chrome://browser/content/places/')) {
+      const loaded = !!win.PlacesControllerDragHelper;
+      if (loaded) {
+        this.patchToPlacesModules(win);
+      }
+      return loaded;
     }
 
     return true;
@@ -102,6 +114,16 @@ const BrowserWindowWatcher = {
         win.removeEventListener('DOMAudioPlaybackBlockStarted', this, { capture: true });
         win.removeEventListener('DOMAudioPlaybackBlockStopped', this, { capture: true });
         win.removeEventListener('visibilitychange', this);
+        const sidebar = win.document?.querySelector('#sidebar');
+        if (sidebar)
+          this.unpatchPlacesModules(sidebar.contentWindow);
+      }
+      catch(_error) {
+      }
+    }
+    else if (win.location.href.startsWith('chrome://browser/content/places/')) {
+      try {
+        this.unpatchPlacesModules(win);
       }
       catch(_error) {
       }
@@ -984,6 +1006,25 @@ const BrowserWindowWatcher = {
     document.documentElement.classList.toggle('tabs-sidebar-right', isRight);
   },
 
+  *iteratePlacesOwnerWindows() {
+    const browserWindows = Services.wm.getEnumerator('navigator:browser');
+    while (browserWindows.hasMoreElements()) {
+      const win = browserWindows.getNext()/*.QueryInterface(Components.interfaces.nsIDOMWindow)*/
+      yield win;
+      const sidebar = win.document?.querySelector('#sidebar');
+      if (sidebar)
+        yield sidebar.contentWindow;
+    }
+
+    const organizerWindows = Services.wm.getEnumerator('Places:Organizer');
+    while (organizerWindows.hasMoreElements()) {
+      const win = organizerWindows.getNext()/*.QueryInterface(Components.interfaces.nsIDOMWindow)*/
+      yield win;
+    }
+
+    return;
+  },
+
   openOptions(win, full = false) {
     const url = full ? `${this.BASE_URL}options/options.html#!` : 'about:preferences#tabsSidebar';
 
@@ -1493,10 +1534,12 @@ this.waterfoxBridge = class extends ExtensionAPI {
           Services.ww.registerNotification(BrowserWindowWatcher);
 
           // handle already opened browser windows
-          const windows = Services.wm.getEnumerator('navigator:browser');
-          while (windows.hasMoreElements()) {
-            const win = windows.getNext()/*.QueryInterface(Components.interfaces.nsIDOMWindow)*/;
-            BrowserWindowWatcher.handleWindow(win);
+          const windows = BrowserWindowWatcher.iteratePlacesOwnerWindows();
+          while (true) {
+            const win = windows.next();
+            if (win.done)
+              break;
+            BrowserWindowWatcher.handleWindow(win.value);
           }
 
           // add toolbar button
@@ -1928,10 +1971,12 @@ this.waterfoxBridge = class extends ExtensionAPI {
 
     Services.ww.unregisterNotification(BrowserWindowWatcher);
 
-    const windows = Services.wm.getEnumerator('navigator:browser');
-    while (windows.hasMoreElements()) {
-      const win = windows.getNext()/*.QueryInterface(Components.interfaces.nsIDOMWindow)*/;
-      BrowserWindowWatcher.unhandleWindow(win);
+    const windows = BrowserWindowWatcher.iteratePlacesOwnerWindows();
+    while (true) {
+      const win = windows.next();
+      if (win.done)
+        break;
+      BrowserWindowWatcher.unhandleWindow(win.value);
     }
 
     //const handler = Cc['@mozilla.org/network/protocol;1?name=resource'].getService(Components.interfaces.nsISubstitutingProtocolHandler);
