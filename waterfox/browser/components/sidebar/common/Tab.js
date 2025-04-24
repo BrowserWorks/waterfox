@@ -2031,7 +2031,7 @@ export default class Tab {
           null :
           (this.tab.id in cache.effectiveFavIconUrls) ?
             cache.effectiveFavIconUrls[this.tab.id] :
-            (this.tab.favIconUrl && this.tab.favIconUrl.startsWith('data:')) ?
+            this.tab.favIconUrl?.startsWith('data:') ?
               this.tab.favIconUrl :
               TabFavIconHelper.getLastEffectiveFavIconURL(this.tab).catch(ApiTabs.handleMissingTabError),
         doProgressively(

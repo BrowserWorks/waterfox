@@ -1191,6 +1191,54 @@
       });
     }
 
+    // Workaround for a problem on an overload situation.
+    // When the system is in overload, the promise returned by browser.windows.create()
+    // won't be resolved forever (until the window is closed).
+    // So, we detect the opened window without the promise in different way
+    // based on its unique URL.
+    static async _safeCreateWindow(params) {
+      const existingWindowIds = new Set((await browser.windows.getAll()).map(win => win.id));
+      const uniqueKeyParam = `popup-id-for-${uniqueKey}=${parseInt(Math.random() * Math.pow(2, 16))}`;
+      const dialogUrl = params.url.replace(/[?#]/, matched => {
+        if (matched == '?')
+          return `?${uniqueKeyParam}&`;
+        else
+          return `?#{uniqueKeyParam}#`;
+      });
+      let win;
+      const promisedWin = browser.windows.create({
+        ...params,
+        url: dialogUrl,
+      }).then(resolvedWin => {
+        console.log('RichConfirm._safeCreateWindow: promised window is resolved');
+        win = resolvedWin;
+      });
+      while (!win) {
+        await Promise.race([
+          new Promise(async (resolve, _reject) => {
+            if (win)
+              return resolve();
+            const windows = await browser.windows.getAll({ populate: true });
+            if (win)
+              return resolve();
+            for (const window of windows) {
+              if (existingWindowIds.has(window.id) ||
+                  !window.tabs[0].url.includes(uniqueKeyParam))
+                continue;
+
+              console.log('RichConfirm._safeCreateWindow: new window is detected');
+              win = window;
+              resolve();
+              return;
+            }
+            setTimeout(resolve, 150);
+          }),
+          promisedWin,
+        ]);
+      }
+      return win;
+    }
+
     static async _showInPopupInternal(ownerWin, params) {
       const minWidth  = Math.max(ownerWin.width, Math.ceil(screen.availWidth / 3));
       const minHeight = Math.max(ownerWin.height, Math.ceil(screen.availHeight / 3));
@@ -1234,7 +1282,7 @@
       const fullUrl = /^about:/.test(url) || /^\w+:\/\//.test(url) ?
         url :
         `moz-extension://${location.host}/${url.replace(/^\//, '')}`;
-      const win = await browser.windows.create({
+      const win = await this._safeCreateWindow({
         url:    fullUrl,
         type:   'popup',
         ...simulatedSize
