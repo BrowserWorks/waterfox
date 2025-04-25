@@ -80,8 +80,9 @@ const BrowserWindowWatcher = {
         win.addEventListener('DOMAudioPlaybackBlockStopped', this, { capture: true });
         win.addEventListener('visibilitychange', this);
         const sidebar = win.document?.querySelector('#sidebar');
-        if (sidebar)
-          this.patchToPlacesModules(sidebar.contentWindow);
+        if (sidebar?.contentWindow?.PlacesControllerDragHelper) {
+           this.patchToPlacesModules(sidebar.contentWindow);
+        }
       }
       return installed;
     }
@@ -115,8 +116,10 @@ const BrowserWindowWatcher = {
         win.removeEventListener('DOMAudioPlaybackBlockStopped', this, { capture: true });
         win.removeEventListener('visibilitychange', this);
         const sidebar = win.document?.querySelector('#sidebar');
-        if (sidebar)
+        // Only unpatch if it seems to be a Places-related sidebar that would have been patched
+        if (sidebar?.contentWindow?.PlacesControllerDragHelper) { // Or check a flag set during patching
           this.unpatchPlacesModules(sidebar.contentWindow);
+        }
       }
       catch(_error) {
       }
@@ -1669,14 +1672,20 @@ this.waterfoxBridge = class extends ExtensionAPI {
         },
 
         async hidePreviewPanel(windowId) {
-          const win = windowId && context.extension.windowManager.get(windowId)
-          if (!win)
+          const win = windowId && context.extension.windowManager.get(windowId);
+          if (!win || !win.window)
             return;
 
-          const tabPreview = document.getElementById('tabbrowser-tabs')?._previewPanel;
-          if (!tabPreview)
-            return;
-          tabPreview.__ws__top = null;
+          try {
+            // Access the document through the window object
+            const document = win.window.document;
+            const tabPreview = document.getElementById('tabbrowser-tabs')?._previewPanel;
+            if (!tabPreview)
+              return;
+            tabPreview.__ws__top = null;
+          } catch (error) {
+            console.log("Error in hidePreviewPanel:", error);
+          }
         },
 
         async openPreferences() {
