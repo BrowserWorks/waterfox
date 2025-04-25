@@ -85,7 +85,7 @@ jobs:
       versionout: "${{ steps.versionexport.outputs.version }}"
     steps:
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.7
+        uses: mozilla-actions/sccache-action@v0.0.9
       - name: "\U0001F4BF Build dependencies"
         run: |
           sudo apt update
@@ -204,7 +204,7 @@ jobs:
       contents: read
     steps:
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.7
+        uses: mozilla-actions/sccache-action@v0.0.9
       - name: "\U0001F4BF Build dependencies"
         run: |
           sudo apt update
@@ -419,7 +419,7 @@ jobs:
       SCCACHE_GHA_ENABLED: "true"
     steps:
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.7
+        uses: mozilla-actions/sccache-action@v0.0.9
       - name: "\U0001F4BF Build dependencies"
         run: |
           sudo apt update
@@ -540,7 +540,7 @@ jobs:
       SCCACHE_GHA_ENABLED: "true"
     steps:
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.7
+        uses: mozilla-actions/sccache-action@v0.0.9
       - name: "\U0001F4BF Build dependencies"
         run: |
           sudo apt update
@@ -753,7 +753,7 @@ jobs:
       SCCACHE_GHA_ENABLED: "true"
     steps:
       - name: Run sccache-cache
-        uses: mozilla-actions/sccache-action@v0.0.7
+        uses: mozilla-actions/sccache-action@v0.0.9
       - name: "\U0001F4BF Setup build packages"
         run: |
           mkdir -p $HOME/.mozbuild
