@@ -141,6 +141,9 @@ function commonDialogOnLoad() {
       case "checkbox":
         Dialog.onCheckbox();
         break;
+      case "checkbox2":
+        Dialog.onCheckbox2();
+        break;
     }
   });
 
