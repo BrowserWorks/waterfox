@@ -598,19 +598,34 @@ const BrowserWindowWatcher = {
       ...(shouldShowSidebar ? {} : { hidden: 'true' }),
     }));
 
-    range.selectNode(document.querySelector('#appcontent'));
-    range.collapse(true);
-    range.insertNode(elements);
+    const targetElement = document.querySelector('#tabbrowser-tabbox');
+    if (targetElement) {
+      range.selectNode(targetElement);
+      range.collapse(true);
+      range.insertNode(elements);
+    } else {
+      console.error('WaterfoxBridge: #tabbrowser-tabbox element not found in window:', win.location.href, '. Cannot insert sidebar elements.');
+      // If #tabbrowser-tabbox is critical, the sidebar might not function correctly.
+      // Consider if further error handling or alternative insertion logic is needed.
+    }
     range.detach();
 
-    document.querySelector('#tabs-sidebar').addEventListener('load', () => {
-      document.querySelector('#tabs-sidebar').contentWindow.loadPanel(
-        this.EXTENSION_ID,
-        `${this.BASE_URL}sidebar/sidebar.html`,
-        false
-      );
-    }, { capture: true, once: true });
-    document.querySelector('#tabs-sidebar').addEventListener('dragover', event => {
+    const tabsSidebarElement = document.querySelector('#tabs-sidebar');
+    if (tabsSidebarElement) {
+      tabsSidebarElement.addEventListener('load', () => {
+        // Ensure contentWindow is available before calling loadPanel
+        if (tabsSidebarElement.contentWindow) {
+          tabsSidebarElement.contentWindow.loadPanel(
+            this.EXTENSION_ID,
+            `${this.BASE_URL}sidebar/sidebar.html`,
+            false
+          );
+        } else {
+          console.error('WaterfoxBridge: #tabs-sidebar contentWindow is not available.');
+        }
+      }, { capture: true, once: true });
+
+      tabsSidebarElement.addEventListener('dragover', event => {
       this.lastTransferredFiles.clear();
       for (const file of event.dataTransfer.files) {
         const fileInternal = Cc['@mozilla.org/file/local;1']
@@ -622,6 +637,9 @@ const BrowserWindowWatcher = {
         this.lastTransferredFiles[this.getKeyFromFile(file)] = url;
       }
     }, { capture: true });
+    } else {
+      console.error('WaterfoxBridge: #tabs-sidebar element not found. Cannot attach event listeners or load panel.');
+    }
 
     document.addEventListener('SidebarShown', this, { capture: true });
     document.addEventListener('popupshowing', this);
@@ -1063,12 +1081,24 @@ const BrowserWindowWatcher = {
   },
 
   updateHorizontalTabsState(document) {
-    const active = document.querySelector('#tabs-sidebar-box').getAttribute('hidden') != 'true';
+    const sidebarBox = document.querySelector('#tabs-sidebar-box');
+    let active = false;
+    if (sidebarBox) {
+      active = sidebarBox.getAttribute('hidden') != 'true';
+    } else {
+      console.error('WaterfoxBridge: #tabs-sidebar-box element not found in window:', document.defaultView.location.href, '. Cannot update horizontal tabs state.');
+      // Defaulting to 'active = false' as a fallback
+    }
     const hideHorizontalTabsWhileActive = Services.prefs.getBoolPref(`${this.BASE_PREF}hideHorizontalTabsWhileActive`, true);
 
     document.documentElement.classList.toggle('tabs-sidebar-is-active', active);
     document.documentElement.classList.toggle('hide-horizontal-tabs-while-tabs-sidebar-is-active', hideHorizontalTabsWhileActive);
-    document.defaultView.TabsInTitlebar.allowedBy('TabsSidebar', !hideHorizontalTabsWhileActive || !active);
+    if (document.defaultView.TabsInTitlebar &&
+        typeof document.defaultView.TabsInTitlebar.allowedBy === 'function') {
+      document.defaultView.TabsInTitlebar.allowedBy('TabsSidebar', !hideHorizontalTabsWhileActive || !active);
+    } else {
+      console.warn('WaterfoxBridge: TabsInTitlebar or TabsInTitlebar.allowedBy is not available on window:', document.defaultView.location.href);
+    }
   },
 
   openTabsSidebar(document) {
