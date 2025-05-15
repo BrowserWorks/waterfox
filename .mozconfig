@@ -44,15 +44,14 @@ ac_add_options --disable-crashreporter
 ac_add_options --disable-debug
 ac_add_options --disable-dmd
 ac_add_options --disable-geckodriver
-ac_add_options --disable-jprof
 ac_add_options --disable-profiling
+ac_add_options --disable-tests
 ac_add_options --disable-updater
 
 ac_add_options --enable-application=browser
 ac_add_options --enable-bootstrap
 ac_add_options --enable-jxl
 ac_add_options --enable-optimize="-Os -w"
-ac_add_options --enable-tests
 ac_add_options --enable-unverified-updates
 
 ac_add_options --with-app-basename=Waterfox
