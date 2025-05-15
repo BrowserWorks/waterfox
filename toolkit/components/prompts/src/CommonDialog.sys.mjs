@@ -194,13 +194,13 @@ export class CommonDialog {
     infoBody.appendChild(infoBody.ownerDocument.createTextNode(croppedMessage));
 
     // WATERFOX: Check if both labels are undefined before deciding to hide the container.
-    // This first checks if both labels are undefined before hiding the container. 
+    // This first checks if both labels are undefined before hiding the container.
     // If not, it shows the container and then proceeds to render each checkbox if its corresponding label is defined.
     let label = this.args.checkLabel;
     let label2 = this.args.checkLabel2;
 
     if (!label && !label2) {
-      // Hide everything if both labels undefined  
+      // Hide everything if both labels undefined
       this.ui.checkboxContainer.hidden = true;
     } else {
       // Show container
@@ -209,7 +209,7 @@ export class CommonDialog {
 
       if (label) {
         this.setLabelForNode(this.ui.checkbox, label);
-        this.ui.checkbox.hidden = false; 
+        this.ui.checkbox.hidden = false;
         this.ui.checkbox.checked = this.args.checked;
       } else {
         this.ui.checkbox.hidden = true;
@@ -218,7 +218,7 @@ export class CommonDialog {
       if (label2) {
         this.setLabelForNode(this.ui.checkbox2, label2);
         this.ui.checkbox2.hidden = false;
-        this.ui.checkbox2.checked = this.args.checked2;  
+        this.ui.checkbox2.checked = this.args.checked2;
       } else {
         this.ui.checkbox2.hidden = true;
       }
@@ -356,7 +356,7 @@ export class CommonDialog {
 
   onCheckbox2() {
     this.args.checked2 = this.ui.checkbox2.checked;
-  },
+  }
 
   onButton0() {
     this.args.promptActive = false;
