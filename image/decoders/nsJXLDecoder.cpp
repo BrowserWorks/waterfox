@@ -347,8 +347,17 @@ LexerTransition<nsJXLDecoder::State> nsJXLDecoder::ReadJXLData(
       }
 
       case JXL_DEC_SUCCESS: {
-        PostDecodeDone(HasAnimation() ? (int32_t)mInfo.animation.num_loops - 1
-                                      : 0);
+        int32_t loopArg;
+        if (HasAnimation()) {
+          // JXL num_loops: 0 means infinite. (num_loops - 1) becomes -1.
+          // JXL num_loops: 1 means play once. (num_loops - 1) becomes 0 (0 repeats).
+          // JXL num_loops: N means play N times. (num_loops - 1) becomes N-1 (N-1 repeats).
+          loopArg = static_cast<int32_t>(mInfo.animation.num_loops) - 1;
+        } else {
+          loopArg = 0; // For non-animated images, repeat count is 0.
+        }
+        PostLoopCount(loopArg); // Pass the loop count to PostLoopCount
+        PostDecodeDone();       // Call PostDecodeDone without arguments
         return Transition::TerminateSuccess();
       }
     }
