@@ -80,6 +80,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
     "resource:///modules/WebProtocolHandlerRegistrar.sys.mjs",
   WindowsRegistry: "resource://gre/modules/WindowsRegistry.sys.mjs",
   setTimeout: "resource://gre/modules/Timer.sys.mjs",
+  WaterfoxGlue: "resource:///modules/WaterfoxGlue.jsm",
 });
 
 XPCOMUtils.defineLazyServiceGetters(lazy, {
@@ -428,6 +429,8 @@ BrowserGlue.prototype = {
   // (i.e. before the first window is opened)
   _beforeUIStartup: function BG__beforeUIStartup() {
     lazy.SessionStartup.init();
+
+    WaterfoxGlue.init();
 
     // check if we're in safe mode
     if (Services.appinfo.inSafeMode) {
