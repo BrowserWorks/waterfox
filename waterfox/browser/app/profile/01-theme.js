@@ -189,8 +189,8 @@ pref("userContent.player.ui.twoline",                  false);
 pref("userContent.newTab.hidden_logo",                 false);
 pref("userContent.newTab.background_image",            false);
 
-pref("userContent.page.proton_color.dark_blue_accent", true);
-pref("userContent.page.proton_color.system_accent",    false);
+pref("userContent.page.proton_color.dark_blue_accent", false);
+pref("userContent.page.proton_color.system_accent",    true);
 pref("userContent.page.monospace",                     false);
 
 // == Theme Default Settings ===================================================
