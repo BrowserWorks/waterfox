@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "hidden": true,
 
-  "applications": {
+  "browser_specific_settings": {
     "gecko": {
       "id": "addonstores@waterfox.net",
       "strict_min_version": "72.0a1"
