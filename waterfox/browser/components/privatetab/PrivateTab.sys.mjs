@@ -8,6 +8,7 @@ import { TabStateCache } from "resource:///modules/sessionstore/TabStateCache.sy
 import { TabStateFlusher } from "resource:///modules/sessionstore/TabStateFlusher.sys.mjs";
 import { BrowserUtils } from "resource:///modules/BrowserUtils.sys.mjs";
 import { PrefUtils } from "resource:///modules/PrefUtils.sys.mjs";
+import { setTimeout } from "resource://gre/modules/Timer.sys.mjs";
 
 export const PrivateTab = {
   config: {
@@ -49,16 +50,25 @@ export const PrivateTab = {
    `;
   },
 
-  init(window) {
+  init(aWindow) {
     // Only init in a non-private window
-    if (!window.PrivateBrowsingUtils.isWindowPrivate(window)) {
-      window.PrivateTab = this;
+    if (!aWindow.PrivateBrowsingUtils.isWindowPrivate(aWindow)) {
+      // Wait for XUL elements to be available before initializing listeners.
+      // 'toggleTabPrivateState' is an element from our associated XUL.
+      if (!aWindow.document.getElementById('toggleTabPrivateState')) {
+        setTimeout(() => {
+          this.init(aWindow);
+        }, 50); // Retry after 50ms
+        return;
+      }
+
+      aWindow.PrivateTab = this;
       this.initContainer("Private");
-      this.initObservers(window);
-      this.initListeners(window);
-      this.initCustomFunctions(window);
+      this.initObservers(aWindow);
+      this.initListeners(aWindow);
+      this.initCustomFunctions(aWindow);
       this.overridePlacesUIUtils();
-      this.updatePrivateMaskId(window);
+      this.updatePrivateMaskId(aWindow);
       BrowserUtils.setStyle(this.style);
     }
   },
@@ -91,21 +101,57 @@ export const PrivateTab = {
 
   initListeners(aWindow) {
     this.initPrivateTabListeners(aWindow);
-    aWindow.document
-      .getElementById("placesContext")
-      ?.addEventListener("popupshowing", this.placesContext);
-    aWindow.document
-      .getElementById("contentAreaContextMenu")
-      ?.addEventListener("popupshowing", this.contentContext);
-    aWindow.document
-      .getElementById("contentAreaContextMenu")
-      ?.addEventListener("popuphidden", this.hideContext);
-    aWindow.document
-      .getElementById("tabContextMenu")
-      ?.addEventListener("popupshowing", this.tabContext);
-    aWindow.document
-      .getElementById("newPrivateTab-button")
-      ?.addEventListener("click", this.toolbarClick);
+    const doc = aWindow.document;
+
+    doc.getElementById("placesContext")
+      ?.addEventListener("popupshowing", this.placesContext.bind(this));
+    doc.getElementById("contentAreaContextMenu")
+      ?.addEventListener("popupshowing", this.contentContext.bind(this));
+    doc.getElementById("contentAreaContextMenu")
+      ?.addEventListener("popuphidden", this.hideContext.bind(this));
+    doc.getElementById("tabContextMenu")
+      ?.addEventListener("popupshowing", this.tabContext.bind(this));
+    doc.getElementById(this.BTN2_ID) // "newPrivateTab-button"
+      ?.addEventListener("click", this.toolbarClick.bind(this));
+
+    // Listeners for commands previously in XUL oncommand attributes
+    doc.getElementById('togglePrivateTab-key')?.addEventListener('command', () => {
+      this.togglePrivate(aWindow);
+    });
+
+    doc.getElementById('newPrivateTab-key')?.addEventListener('command', () => {
+      this.browserOpenTabPrivate(aWindow);
+    });
+
+    doc.getElementById('toggleTabPrivateState')?.addEventListener('command', () => {
+      if (aWindow.TabContextMenu && aWindow.TabContextMenu.contextTab) {
+        this.togglePrivate(aWindow, aWindow.TabContextMenu.contextTab);
+      } else {
+        // Fallback if contextTab is not available, though togglePrivate handles default selected tab
+        this.togglePrivate(aWindow);
+      }
+    });
+
+    const openAllPrivateHandler = (event) => {
+      // The event object itself is passed to openAllPrivate
+      this.openAllPrivate(event);
+    };
+    doc.getElementById('openAllPrivate')?.addEventListener('command', openAllPrivateHandler);
+    doc.getElementById('openAllLinksPrivate')?.addEventListener('command', openAllPrivateHandler);
+
+    doc.getElementById('openPrivate')?.addEventListener('command', (event) => {
+      // The event object itself is passed to openPrivateTab
+      this.openPrivateTab(event);
+    });
+
+    doc.getElementById('menu_newPrivateTab')?.addEventListener('command', () => {
+      this.browserOpenTabPrivate(aWindow);
+    });
+
+    doc.getElementById('openLinkInPrivateTab')?.addEventListener('command', (event) => {
+      // The event object itself is passed to openLink
+      this.openLink(event);
+    });
   },
 
   async updatePrivateMaskId(aWindow) {
@@ -295,8 +341,9 @@ export const PrivateTab = {
 
   initPrivateTabListeners(aWindow) {
     let { gBrowser } = aWindow;
-    gBrowser.tabContainer.addEventListener("TabSelect", this.onTabSelect);
-    gBrowser.tabContainer.addEventListener("TabOpen", this.onTabOpen);
+    // Bind `this` for methods that might rely on it, or for consistency
+    gBrowser.tabContainer.addEventListener("TabSelect", this.onTabSelect.bind(this));
+    gBrowser.tabContainer.addEventListener("TabOpen", this.onTabOpen.bind(this));
 
     gBrowser.privateListener = e => {
       let browser = e.target;
@@ -326,7 +373,7 @@ export const PrivateTab = {
     aWindow.addEventListener("XULFrameLoaderCreated", gBrowser.privateListener);
 
     if (this.observePrivateTabs) {
-      gBrowser.tabContainer.addEventListener("TabClose", this.onTabClose);
+      gBrowser.tabContainer.addEventListener("TabClose", this.onTabClose.bind(this));
     }
   },
 

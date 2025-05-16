@@ -10,6 +10,7 @@ const lazy = {}
 
 ChromeUtils.defineESModuleGetters(lazy, {
   AboutNewTab: 'resource:///modules/AboutNewTab.sys.mjs',
+  setTimeout: 'resource://gre/modules/Timer.sys.mjs',
 })
 
 export const TabFeatures = {
@@ -20,11 +21,20 @@ export const TabFeatures = {
   PREF_REQUIRECONFIRM: 'browser.restart_menu.requireconfirm',
   PREF_PURGECACHE: 'browser.restart_menu.purgecache',
 
-  init(window) {
-    window.TabFeatures = this
-    this.initListeners(window)
-    this.initNewTabConfig()
-    this.initNewTabFocus(window)
+  init(aWindow) {
+    // Wait for XUL elements to be available before initializing listeners.
+    // 'context_copyTabUrl' is an element from our associated XUL, which we will now wait for.
+    if (!aWindow.document.getElementById('context_copyTabUrl')) {
+      lazy.setTimeout(() => {
+        this.init(aWindow);
+      }, 50); // Retry after 50ms
+      return;
+    }
+
+    aWindow.TabFeatures = this;
+    this.initListeners(aWindow);
+    this.initNewTabConfig(); // Does not require aWindow
+    this.initNewTabFocus(aWindow);
   },
 
   destroy() {
@@ -32,17 +42,77 @@ export const TabFeatures = {
   },
 
   initListeners(aWindow) {
-    aWindow.document
+    const doc = aWindow.document;
+
+    doc
       .getElementById('tabContextMenu')
-      ?.addEventListener('popupshowing', this.tabContext)
+      ?.addEventListener('popupshowing', this.tabContext.bind(this));
     if (AppConstants.platform === 'macosx') {
-      aWindow.document
+      doc
         .getElementById('file-menu')
-        ?.addEventListener('popupshowing', this.tabContext)
+        ?.addEventListener('popupshowing', this.tabContext.bind(this));
     } else {
-      aWindow.document
+      doc
         .getElementById('appMenu-popup')
-        ?.addEventListener('popupshowing', this.tabContext)
+        ?.addEventListener('popupshowing', this.tabContext.bind(this));
+    }
+
+    // Add command listeners for menu items
+    doc.getElementById('context_duplicateTab')?.addEventListener('command', (event) => {
+      if (aWindow.TabContextMenu && aWindow.TabContextMenu.contextTab) {
+        aWindow.duplicateTabIn(aWindow.TabContextMenu.contextTab, 'tab');
+      } else {
+        // console.warn("TabFeatures: duplicateTabIn not called, context not available.");
+      }
+    });
+
+    const copyTabUrlElement = doc.getElementById('context_copyTabUrl');
+    if (copyTabUrlElement) {
+      copyTabUrlElement.addEventListener('command', (event) => {
+        if (aWindow.TabContextMenu && aWindow.TabContextMenu.contextTab && aWindow.TabContextMenu.contextTab.linkedBrowser) {
+          try {
+            this.copyTabUrl(aWindow.TabContextMenu.contextTab.linkedBrowser.currentURI.spec, aWindow);
+          } catch (e) {
+            console.error("TabFeatures: Error inside copyTabUrl listener execution:", e);
+          }
+        } else {
+          // console.warn("TabFeatures: copyTabUrl not called, context or linkedBrowser not available.");
+        }
+      });
+    } else {
+      console.error("TabFeatures: FAILED to find element 'context_copyTabUrl'. Listener NOT attached.");
+    }
+
+    doc.getElementById('context_copyAllTabUrls')?.addEventListener('command', (event) => {
+      this.copyAllTabUrls(aWindow);
+    });
+
+    doc.getElementById('context_unloadTab')?.addEventListener('command', (event) => {
+      if (aWindow.gBrowser && aWindow.TabContextMenu && aWindow.TabContextMenu.contextTab) {
+        // Prevent unloading if it's the last tab or the only non-pinned tab in the window
+        if (aWindow.gBrowser.tabs.length > 1 &&
+            (Array.from(aWindow.gBrowser.tabs).filter(t => !t.pinned).length > 1 || !aWindow.TabContextMenu.contextTab.pinned)) {
+          aWindow.gBrowser.discardBrowser(aWindow.TabContextMenu.contextTab);
+        } else {
+          // console.log("TabFeatures: discardBrowser not called, conditions not met (e.g., last tab).");
+        }
+      } else {
+        // console.warn("TabFeatures: discardBrowser not called, context not available.");
+      }
+    });
+
+    const restartMac = doc.getElementById('app_restartBrowser');
+    if (restartMac) {
+      restartMac.addEventListener('command', (event) => {
+        this.restartBrowser();
+      });
+    }
+
+    const restartOther = doc.getElementById('appMenu-restart-button');
+    if (restartOther) {
+      restartOther.addEventListener('command', (event) => {
+        this.restartBrowser();
+      });
     }
   },
 
