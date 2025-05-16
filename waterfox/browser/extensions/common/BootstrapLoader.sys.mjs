@@ -3,18 +3,14 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { AddonManager } from "resource://gre/modules/AddonManager.sys.mjs";
-import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  AddonInternal: "resource://gre/modules/addons/XPIDatabase.sys.mjs",
   Blocklist: "resource://gre/modules/Blocklist.sys.mjs",
   ConsoleAPI: "resource://gre/modules/Console.sys.mjs",
   InstallRDF: "resource:///modules/RDFManifestConverter.sys.mjs",
-});
-
-XPCOMUtils.defineLazyModuleGetters(lazy, {
-  AddonInternal: "resource://gre/modules/addons/XPIDatabase.jsm",
 });
 
 Services.obs.addObserver(doc => {
