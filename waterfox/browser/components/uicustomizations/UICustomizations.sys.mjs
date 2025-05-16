@@ -86,86 +86,119 @@ export const UICustomizations = {
 
   styleMenuBar(doc, win) {
     let menuBar = doc.getElementById("toolbar-menubar");
-    let titleBar = doc.getElementById("titlebar");
-    // Appearance should be none if windowed and menu-bar not displaying,
-    // should be none with padding-top: 6px if fullscreen and menu-bar not displaying,
-    // else should be ""
+    // If menuBar (toolbar-menubar) doesn't exist, we can't proceed with its styling.
+    if (!menuBar) {
+      console.warn("UICustomizations.sys.mjs: toolbar-menubar element not found. Cannot apply custom menubar styling.");
+      return;
+    }
+
+    // The original code used a 'titleBar' element which has been removed in recent changes.
+    // We will now apply the conditional styling directly to the 'menuBar' element itself.
+
     let fullscreen = win.windowState == win.STATE_MAXIMIZED;
     if (
       PrefUtils.get(this.PREF_TOOLBARPOS) != "topabove" &&
       menuBar.getAttribute("autohide") == "true"
     ) {
       if (fullscreen) {
-        titleBar.setAttribute("style", "appearance: none; padding-top: 6px;");
+        menuBar.setAttribute("style", "appearance: none; padding-top: 6px;");
       } else {
-        titleBar.setAttribute("style", "appearance: none;");
+        menuBar.setAttribute("style", "appearance: none;");
       }
     } else {
-      titleBar.setAttribute("style", "");
+      // If conditions are not met, clear any inline style from menuBar.
+      menuBar.setAttribute("style", "");
     }
   },
 
   moveTabBar(aWindow, aValue) {
-    let bottomBookmarksBar = aWindow.document.querySelector(
-      "#browser-bottombox #PersonalToolbar"
-    );
-    let bottomBox = aWindow.document.querySelector("#browser-bottombox");
-    let tabsToolbar = aWindow.document.querySelector("#TabsToolbar");
-    let titlebar = aWindow.document.querySelector("#titlebar");
+    const doc = aWindow.document; // Use a shorthand for document
+
+    // Get elements used in various cases, check them early if crucial.
+    let tabsToolbar = doc.querySelector("#TabsToolbar");
+    if (!tabsToolbar) {
+      console.warn("UICustomizations.sys.mjs: #TabsToolbar not found. Cannot move tab bar.");
+      return;
+    }
+
+    let navigatorToolbox = doc.querySelector("#navigator-toolbox");
+    let bottomBox = doc.querySelector("#browser-bottombox");
+    // bottomBookmarksBar is queried specifically in the 'bottomabove' case.
 
     if (!aValue) {
       aValue = PrefUtils.get(this.PREF_TOOLBARPOS);
     }
     switch (aValue) {
       case "topabove":
-        titlebar.insertAdjacentElement("beforeend", tabsToolbar);
-        aWindow.gBrowser.setTabTitle(
-          aWindow.document.querySelector(".tabbrowser-tab:first-child")
-        );
+        // Original logic used 'titlebar'. #titlebar is removed.
+        // #titlebar used to contain #toolbar-menubar then #TabsToolbar.
+        // So, "beforeend" of #titlebar meant #TabsToolbar came after #toolbar-menubar.
+        let menuBar = doc.querySelector("#toolbar-menubar");
+        // Ensure menuBar exists and is a child of navigatorToolbox for sensible placement.
+        if (menuBar && menuBar.parentElement === navigatorToolbox) {
+          menuBar.insertAdjacentElement("afterend", tabsToolbar);
+        } else if (navigatorToolbox) {
+          // Fallback: if menubar isn't suitable/found, place tabs at the start of navigator-toolbox.
+          navigatorToolbox.insertAdjacentElement("afterbegin", tabsToolbar);
+        } else {
+          console.warn("UICustomizations.sys.mjs: Could not place TabsToolbar 'topabove'. #navigator-toolbox or #toolbar-menubar not suitable.");
+        }
         break;
       case "topbelow":
-        aWindow.document
-          .querySelector("#navigator-toolbox")
-          .appendChild(tabsToolbar);
-        aWindow.gBrowser.setTabTitle(
-          aWindow.document.querySelector(".tabbrowser-tab:first-child")
-        );
+        if (navigatorToolbox) {
+          navigatorToolbox.appendChild(tabsToolbar);
+        } else {
+          console.warn("UICustomizations.sys.mjs: #navigator-toolbox not found. Cannot move tab bar to 'topbelow'.");
+        }
         break;
       case "bottomabove":
         // Above status bar
+        if (!bottomBox) {
+          console.warn("UICustomizations.sys.mjs: #browser-bottombox not found for 'bottomabove'.");
+          break; 
+        }
         bottomBox.collapsed = false;
-        if (bottomBookmarksBar) {
+        let bottomBookmarksBar = doc.querySelector(
+          "#browser-bottombox #PersonalToolbar"
+        );
+        if (bottomBookmarksBar) { 
           bottomBookmarksBar.insertAdjacentElement("afterend", tabsToolbar);
         } else {
           bottomBox.insertAdjacentElement("afterbegin", tabsToolbar);
         }
-        aWindow.gBrowser.setTabTitle(
-          aWindow.document.querySelector(".tabbrowser-tab:first-child")
-        );
         break;
       case "bottombelow":
         // Below status bar
+        if (!bottomBox) {
+          console.warn("UICustomizations.sys.mjs: #browser-bottombox not found for 'bottombelow'.");
+          break;
+        }
         bottomBox.collapsed = false;
         bottomBox.insertAdjacentElement("beforeend", tabsToolbar);
-        aWindow.gBrowser.setTabTitle(
-          aWindow.document.querySelector(".tabbrowser-tab:first-child")
-        );
         break;
     }
 
+    // This call was common to all cases, so move it after the switch.
+    // Also, ensure the first tab exists before trying to set its title.
+    const firstTab = doc.querySelector(".tabbrowser-tab:first-child");
+    if (firstTab) {
+      aWindow.gBrowser.setTabTitle(firstTab);
+    }
+
     // Set title on top bar when title bar is disabled and tab bar position is different than default
-    const topBar = aWindow.document.querySelector("#toolbar-menubar-pagetitle");
-    const activeTab = aWindow.document.querySelector('tab[selected="true"]');
+    const topBar = doc.querySelector("#toolbar-menubar-pagetitle");
+    const activeTab = doc.querySelector('tab[selected="true"]');
     if (topBar && activeTab) {
       topBar.textContent = activeTab.getAttribute("label");
     }
   },
 
   moveBookmarksBar(aWindow, aValue) {
-    let bottomTabs = aWindow.document.querySelector(
+    const doc = aWindow.document;
+    let bottomTabs = doc.querySelector(
       "#browser-bottombox #TabsToolbar"
     );
-    let bookmarksBar = aWindow.document.querySelector("#PersonalToolbar");
+    let bookmarksBar = doc.querySelector("#PersonalToolbar");
 
     if (!aValue) {
       aValue = PrefUtils.get(this.PREF_BOOKMARKPOS, "top");
@@ -182,17 +215,32 @@ export const UICustomizations = {
 
     switch (aValue) {
       case "top":
-        aWindow.document
-          .querySelector("#nav-bar")
-          .insertAdjacentElement("afterend", bookmarksBar);
+        let navBar = doc.querySelector("#nav-bar");
+        if (navBar && bookmarksBar) {
+          navBar.insertAdjacentElement("afterend", bookmarksBar);
+        } else {
+          if (!bookmarksBar) {
+            console.warn("UICustomizations.sys.mjs: #PersonalToolbar not found. Cannot move bookmarks bar.");
+          }
+          if (!navBar) {
+            console.warn("UICustomizations.sys.mjs: #nav-bar not found. Cannot move bookmarks bar to top.");
+          }
+        }
         break;
       case "bottom":
+        if (!bookmarksBar) {
+          console.warn("UICustomizations.sys.mjs: #PersonalToolbar not found. Cannot move bookmarks bar.");
+          break;
+        }
         if (bottomTabs) {
           bottomTabs.insertAdjacentElement("beforebegin", bookmarksBar);
         } else {
-          aWindow.document
-            .querySelector("#browser-bottombox")
-            .insertAdjacentElement("afterbegin", bookmarksBar);
+          let bottomBox = doc.querySelector("#browser-bottombox");
+          if (bottomBox) {
+            bottomBox.insertAdjacentElement("afterbegin", bookmarksBar);
+          } else {
+            console.warn("UICustomizations.sys.mjs: #browser-bottombox not found. Cannot move bookmarks bar to bottom.");
+          }
         }
         break;
     }
