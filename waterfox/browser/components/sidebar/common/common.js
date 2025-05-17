@@ -1,14 +1,7 @@
-/*
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-*/
-'use strict';
+import Configs from "/extlib/Configs.js";
+import EventListenerManager from "/extlib/EventListenerManager.js";
 
-import Configs from '/extlib/Configs.js';
-import EventListenerManager from '/extlib/EventListenerManager.js';
-
-import * as Constants from './constants.js';
+import * as Constants from "./constants.js";
 
 const WATERFOX_SPECIFIC_VALUES = {
   hideHorizontalTabsWhileActive: true,
@@ -21,7 +14,7 @@ const WATERFOX_SPECIFIC_VALUES = {
   stickyActiveTab: false,
   stickySoundPlayingTab: false,
   stickySharingTab: false,
-  style: 'proton',
+  style: "proton",
   exposeUnblockAutoplayFeatures: true,
 
   // because full options page is already behind the "Advanced" options
@@ -61,7 +54,8 @@ export const WATERFOX_AUTOMATED_TEST_DEFAULT_VALUES = {
   autoAttachSameSiteOrphan: Constants.kNEWTAB_OPEN_AS_CHILD_END,
 };
 
-export const DEVICE_SPECIFIC_CONFIG_KEYS = mapAndFilter(`
+export const DEVICE_SPECIFIC_CONFIG_KEYS = mapAndFilter(
+  `
   chunkedSyncDataLocal0
   chunkedSyncDataLocal1
   chunkedSyncDataLocal2
@@ -85,12 +79,18 @@ export const DEVICE_SPECIFIC_CONFIG_KEYS = mapAndFilter(`
   syncEnabled
   syncLastMessageTimestamp
   syncOtherDevicesDetected
-`.trim().split('\n'), key => {
-  key = key.trim();
-  return key && key.indexOf('//') != 0 && key;
-});
+`
+    .trim()
+    .split("\n"),
+  (key) => {
+    key = key.trim();
+    return key && key.indexOf("//") !== 0 && key;
+  }
+);
 
-const localKeys = DEVICE_SPECIFIC_CONFIG_KEYS.concat(mapAndFilter(`
+const localKeys = DEVICE_SPECIFIC_CONFIG_KEYS.concat(
+  mapAndFilter(
+    `
   APIEnabled
   accelKey
   baseIndent
@@ -125,12 +125,19 @@ const localKeys = DEVICE_SPECIFIC_CONFIG_KEYS.concat(mapAndFilter(`
   userStyleRulesFieldHeight
   userStyleRulesFieldTheme
   runTestsParameters
-`.trim().split('\n'), key => {
-  key = key.trim();
-  return key && key.indexOf('//') != 0 && key;
-}));
+`
+      .trim()
+      .split("\n"),
+    (key) => {
+      key = key.trim();
+      return key && key.indexOf("//") !== 0 && key;
+    }
+  )
+);
 
-export const obsoleteConfigs = new Set(mapAndFilter(`
+export const obsoleteConfigs = new Set(
+  mapAndFilter(
+    `
   sidebarScrollbarPosition // migrated to user stylesheet
   scrollbarMode // migrated to user stylesheet
   suppressGapFromShownOrHiddenToolbar // migrated to suppressGapFromShownOrHiddenToolbarOnFullScreen/NewTab
@@ -169,340 +176,370 @@ export const obsoleteConfigs = new Set(mapAndFilter(`
   autoGroupNewTabsTimeout // migrated to tabBunchesDetectionTimeout
   autoGroupNewTabsDelayOnNewWindow // migrated to tabBunchesDetectionDelayOnNewWindow
   autoHiddenScrollbarPlaceholderSize // migrated to shiftTabsForScrollbarDistance
-`.trim().split('\n'), key => {
-  key = key.replace(/\/\/.*/, '').trim();
-  if (!key)
-    return undefined;
-  return key && key.indexOf('//') != 0 && key;
-}));
+`
+      .trim()
+      .split("\n"),
+    (key) => {
+      key = key.replace(/\/\/.*/, "").trim();
+      if (!key) return undefined;
+      return key && key.indexOf("//") !== 0 && key;
+    }
+  )
+);
 
-export const configs = new Configs({
-  optionsExpandedSections: ['section-appearance'],
-  optionsExpandedGroups: [],
+export const configs = new Configs(
+  {
+    optionsExpandedSections: ["section-appearance"],
+    optionsExpandedGroups: [],
 
-  // appearance
-  sidebarPosition: Constants.kTABBAR_POSITION_AUTO,
-  sidebarPositionRighsideNotificationShown: false,
-  sidebarPositionOptionNotificationTimeout: 20 * 1000,
+    // appearance
+    sidebarPosition: Constants.kTABBAR_POSITION_AUTO,
+    sidebarPositionRighsideNotificationShown: false,
+    sidebarPositionOptionNotificationTimeout: 20 * 1000,
 
-  style: /^Mac/i.test(navigator.platform) ? 'sidebar' : 'proton',
-  colorScheme: /^Linux/i.test(navigator.platform) ? 'system-color' : 'photon' ,
-  iconColor: 'auto',
-  indentLine: 'auto',
+    style: /^Mac/i.test(navigator.platform) ? "sidebar" : "proton",
+    colorScheme: /^Linux/i.test(navigator.platform) ? "system-color" : "photon",
+    iconColor: "auto",
+    indentLine: "auto",
 
-  shiftTabsForScrollbarDistance: '0.5em',
-  shiftTabsForScrollbarOnlyOnHover: false,
+    shiftTabsForScrollbarDistance: "0.5em",
+    shiftTabsForScrollbarOnlyOnHover: false,
 
-  unrepeatableBGImageAspectRatio: 4,
+    unrepeatableBGImageAspectRatio: 4,
 
-  faviconizePinnedTabs: true,
-  maxFaviconizedPinnedTabsInOneRow: 0, // auto
-  faviconizedTabScale: 1.75,
-  maxPinnedTabsRowsAreaPercentage: 50,
+    faviconizePinnedTabs: true,
+    maxFaviconizedPinnedTabsInOneRow: 0, // auto
+    faviconizedTabScale: 1.75,
+    maxPinnedTabsRowsAreaPercentage: 50,
 
-  counterRole: Constants.kCOUNTER_ROLE_CONTAINED_TABS,
+    counterRole: Constants.kCOUNTER_ROLE_CONTAINED_TABS,
 
-  baseIndent: 12,
-  minIndent: Constants.kDEFAULT_MIN_INDENT,
-  maxTreeLevel: -1,
-  indentAutoShrink: true,
-  indentAutoShrinkOnlyForVisible: true,
-  labelOverflowStyle: 'fade',
+    baseIndent: 12,
+    minIndent: Constants.kDEFAULT_MIN_INDENT,
+    maxTreeLevel: -1,
+    indentAutoShrink: true,
+    indentAutoShrinkOnlyForVisible: true,
+    labelOverflowStyle: "fade",
 
-  showContextualIdentitiesSelector: false,
-  showNewTabActionSelector: true,
-  longPressOnNewTabButton: Constants.kCONTEXTUAL_IDENTITY_SELECTOR,
-  zoomable: false,
-  showOverflowTitleByTooltip: true,
-  showCollapsedDescendantsByTooltip: true,
+    showContextualIdentitiesSelector: false,
+    showNewTabActionSelector: true,
+    longPressOnNewTabButton: Constants.kCONTEXTUAL_IDENTITY_SELECTOR,
+    zoomable: false,
+    showOverflowTitleByTooltip: true,
+    showCollapsedDescendantsByTooltip: true,
 
-  showDialogInSidebar: false,
+    showDialogInSidebar: false,
 
-  outOfScreenTabsRenderingPages: 1,
-  renderHiddenTabs: false,
+    outOfScreenTabsRenderingPages: 1,
+    renderHiddenTabs: false,
 
-  suppressGapFromShownOrHiddenToolbarOnlyOnMouseOperation: true,
-  suppressGapFromShownOrHiddenToolbarOnFullScreen: false,
-  suppressGapFromShownOrHiddenToolbarOnNewTab: true,
-  suppressGapFromShownOrHiddenToolbarInterval: 50,
-  suppressGapFromShownOrHiddenToolbarTimeout: 500,
-  cancelGapSuppresserHoverDelay: 1000, // msec
+    suppressGapFromShownOrHiddenToolbarOnlyOnMouseOperation: true,
+    suppressGapFromShownOrHiddenToolbarOnFullScreen: false,
+    suppressGapFromShownOrHiddenToolbarOnNewTab: true,
+    suppressGapFromShownOrHiddenToolbarInterval: 50,
+    suppressGapFromShownOrHiddenToolbarTimeout: 500,
+    cancelGapSuppresserHoverDelay: 1000, // msec
 
-  enableWorkaroundForBug1875100: true,
-  watchWindowStateInterval: 500,
+    enableWorkaroundForBug1875100: true,
+    watchWindowStateInterval: 500,
 
+    // context menu
+    emulateDefaultContextMenu: true,
+    showTreeCommandsInTabsContextMenuGlobally: true,
 
-  // context menu
-  emulateDefaultContextMenu: true,
-  showTreeCommandsInTabsContextMenuGlobally: true,
+    context_reloadTree: true,
+    context_reloadDescendants: false,
+    context_unblockAutoplayTree: true,
+    context_unblockAutoplayDescendants: false,
+    context_toggleMuteTree: true,
+    context_toggleMuteDescendants: false,
+    context_closeTree: true,
+    context_closeDescendants: false,
+    context_closeOthers: false,
+    context_toggleSticky: false,
+    context_collapseTree: false,
+    context_collapseTreeRecursively: true,
+    context_collapseAll: true,
+    context_expandTree: false,
+    context_expandTreeRecursively: true,
+    context_expandAll: true,
+    context_bookmarkTree: true,
+    context_sendTreeToDevice: false,
 
-  context_reloadTree: true,
-  context_reloadDescendants: false,
-  context_unblockAutoplayTree: true,
-  context_unblockAutoplayDescendants: false,
-  context_toggleMuteTree: true,
-  context_toggleMuteDescendants: false,
-  context_closeTree: true,
-  context_closeDescendants: false,
-  context_closeOthers: false,
-  context_toggleSticky: false,
-  context_collapseTree: false,
-  context_collapseTreeRecursively: true,
-  context_collapseAll: true,
-  context_expandTree: false,
-  context_expandTreeRecursively: true,
-  context_expandAll: true,
-  context_bookmarkTree: true,
-  context_sendTreeToDevice: false,
+    context_topLevel_reloadTree: false,
+    context_topLevel_reloadDescendants: false,
+    context_topLevel_unblockAutoplayTree: false,
+    context_topLevel_unblockAutoplayDescendants: false,
+    context_topLevel_toggleMuteTree: false,
+    context_topLevel_toggleMuteDescendants: false,
+    context_topLevel_closeTree: false,
+    context_topLevel_closeDescendants: false,
+    context_topLevel_closeOthers: false,
+    context_topLevel_toggleSticky: true,
+    context_topLevel_collapseTree: false,
+    context_topLevel_collapseTreeRecursively: false,
+    context_topLevel_collapseAll: false,
+    context_topLevel_expandTree: false,
+    context_topLevel_expandTreeRecursively: false,
+    context_topLevel_expandAll: false,
+    context_topLevel_bookmarkTree: false,
+    context_topLevel_sendTreeToDevice: true,
 
-  context_topLevel_reloadTree: false,
-  context_topLevel_reloadDescendants: false,
-  context_topLevel_unblockAutoplayTree: false,
-  context_topLevel_unblockAutoplayDescendants: false,
-  context_topLevel_toggleMuteTree: false,
-  context_topLevel_toggleMuteDescendants: false,
-  context_topLevel_closeTree: false,
-  context_topLevel_closeDescendants: false,
-  context_topLevel_closeOthers: false,
-  context_topLevel_toggleSticky: true,
-  context_topLevel_collapseTree: false,
-  context_topLevel_collapseTreeRecursively: false,
-  context_topLevel_collapseAll: false,
-  context_topLevel_expandTree: false,
-  context_topLevel_expandTreeRecursively: false,
-  context_topLevel_expandAll: false,
-  context_topLevel_bookmarkTree: false,
-  context_topLevel_sendTreeToDevice: true,
+    context_collapsed: false,
+    context_pinnedTab: false,
+    context_unpinnedTab: false,
 
-  context_collapsed: false,
-  context_pinnedTab: false,
-  context_unpinnedTab: false,
+    context_openAllBookmarksWithStructure: true,
+    context_openAllBookmarksWithStructureRecursively: false,
 
-  context_openAllBookmarksWithStructure: true,
-  context_openAllBookmarksWithStructureRecursively: false,
+    openAllBookmarksWithStructureDiscarded: true,
+    suppressGroupTabForStructuredTabsFromBookmarks: true,
 
-  openAllBookmarksWithStructureDiscarded: true,
-  suppressGroupTabForStructuredTabsFromBookmarks: true,
+    // tree behavior
+    shouldDetectClickOnIndentSpaces: true,
 
+    autoCollapseExpandSubtreeOnAttach: true,
+    autoCollapseExpandSubtreeOnSelect: true,
+    autoCollapseExpandSubtreeOnSelectExceptActiveTabRemove: true,
 
-  // tree behavior
-  shouldDetectClickOnIndentSpaces: true,
+    treeDoubleClickBehavior: Constants.kTREE_DOUBLE_CLICK_BEHAVIOR_NONE,
 
-  autoCollapseExpandSubtreeOnAttach: true,
-  autoCollapseExpandSubtreeOnSelect: true,
-  autoCollapseExpandSubtreeOnSelectExceptActiveTabRemove: true,
+    autoExpandIntelligently: true,
+    unfocusableCollapsedTab: true,
+    autoExpandOnTabSwitchingShortcuts: true,
+    autoExpandOnTabSwitchingShortcutsDelay: 800,
+    autoExpandOnLongHover: true,
+    autoExpandOnLongHoverDelay: 500,
+    autoExpandOnLongHoverRestoreIniitalState: true,
 
-  treeDoubleClickBehavior: Constants.kTREE_DOUBLE_CLICK_BEHAVIOR_NONE,
+    autoCreateFolderForBookmarksFromTree: true,
 
-  autoExpandIntelligently: true,
-  unfocusableCollapsedTab: true,
-  autoExpandOnTabSwitchingShortcuts: true,
-  autoExpandOnTabSwitchingShortcutsDelay: 800,
-  autoExpandOnLongHover: true,
-  autoExpandOnLongHoverDelay: 500,
-  autoExpandOnLongHoverRestoreIniitalState: true,
+    accelKey: "",
 
-  autoCreateFolderForBookmarksFromTree: true,
+    skipCollapsedTabsForTabSwitchingShortcuts: false,
 
-  accelKey: '',
+    syncParentTabAndOpenerTab: true,
 
-  skipCollapsedTabsForTabSwitchingShortcuts: false,
+    dropLinksOnTabBehavior: Constants.kDROPLINK_ASK,
 
-  syncParentTabAndOpenerTab: true,
+    tabDragBehavior:
+      Constants.kDRAG_BEHAVIOR_MOVE |
+      Constants.kDRAG_BEHAVIOR_TEAR_OFF |
+      Constants.kDRAG_BEHAVIOR_ENTIRE_TREE,
+    tabDragBehaviorShift:
+      Constants.kDRAG_BEHAVIOR_MOVE |
+      Constants.kDRAG_BEHAVIOR_ENTIRE_TREE |
+      Constants.kDRAG_BEHAVIOR_ALLOW_BOOKMARK,
+    showTabDragBehaviorNotification: true,
+    guessDraggedNativeTabs: true,
+    ignoreTabDropNearSidebarArea: true,
+    moveSoloTabOnDropParentToDescendant: true,
 
-  dropLinksOnTabBehavior: Constants.kDROPLINK_ASK,
+    fixupTreeOnTabVisibilityChanged: false,
+    fixupOrderOfTabsFromOtherDevice: true,
 
-  tabDragBehavior:      Constants.kDRAG_BEHAVIOR_MOVE | Constants.kDRAG_BEHAVIOR_TEAR_OFF | Constants.kDRAG_BEHAVIOR_ENTIRE_TREE,
-  tabDragBehaviorShift: Constants.kDRAG_BEHAVIOR_MOVE | Constants.kDRAG_BEHAVIOR_ENTIRE_TREE | Constants.kDRAG_BEHAVIOR_ALLOW_BOOKMARK,
-  showTabDragBehaviorNotification: true,
-  guessDraggedNativeTabs: true,
-  ignoreTabDropNearSidebarArea: true,
-  moveSoloTabOnDropParentToDescendant: true,
+    scrollToExpandedTree: true,
+    syncActiveStateToBundledTabs: true,
 
-  fixupTreeOnTabVisibilityChanged: false,
-  fixupOrderOfTabsFromOtherDevice: true,
+    spreadMutedStateOnlyToSoundPlayingTabs: true,
 
-  scrollToExpandedTree: true,
-  syncActiveStateToBundledTabs: true,
+    // tab bunches
+    tabBunchesDetectionTimeout: 100,
+    tabBunchesDetectionDelayOnNewWindow: 500,
+    autoGroupNewTabsFromBookmarks: true,
+    restoreTreeForTabsFromBookmarks: true,
+    tabsFromSameFolderMinThresholdPercentage: 50,
+    autoGroupNewTabsFromOthers: false,
+    autoGroupNewTabsFromPinned: true,
+    autoGroupNewTabsFromFirefoxView: false,
+    groupTabTemporaryStateForNewTabsFromBookmarks:
+      Constants.kGROUP_TAB_TEMPORARY_STATE_PASSIVE,
+    groupTabTemporaryStateForNewTabsFromOthers:
+      Constants.kGROUP_TAB_TEMPORARY_STATE_PASSIVE,
+    groupTabTemporaryStateForChildrenOfPinned:
+      Constants.kGROUP_TAB_TEMPORARY_STATE_PASSIVE,
+    groupTabTemporaryStateForChildrenOfFirefoxView:
+      Constants.kGROUP_TAB_TEMPORARY_STATE_PASSIVE,
+    groupTabTemporaryStateForOrphanedTabs:
+      Constants.kGROUP_TAB_TEMPORARY_STATE_AGGRESSIVE,
+    groupTabTemporaryStateForAPI: Constants.kGROUP_TAB_TEMPORARY_STATE_NOTHING,
+    renderTreeInGroupTabs: true,
+    warnOnAutoGroupNewTabs: true,
+    warnOnAutoGroupNewTabsWithListing: true,
+    warnOnAutoGroupNewTabsWithListingMaxRows: 5,
+    showAutoGroupOptionHint: true,
+    showAutoGroupOptionHintWithOpener: true,
 
-  spreadMutedStateOnlyToSoundPlayingTabs: true,
+    // behavior around newly opened tabs
+    insertNewChildAt: Constants.kINSERT_END, // basically this option affects only very edge cases not controlled with "autoAttach*" options.
+    insertNewTabFromPinnedTabAt: Constants.kINSERT_NEXT_TO_LAST_RELATED_TAB,
+    insertNewTabFromFirefoxViewAt: Constants.kINSERT_NEXT_TO_LAST_RELATED_TAB,
+    insertDroppedTabsAt: Constants.kINSERT_END,
 
+    scrollToNewTabMode: Constants.kSCROLL_TO_NEW_TAB_IF_POSSIBLE,
+    scrollLines: 3,
 
-  // tab bunches
-  tabBunchesDetectionTimeout: 100,
-  tabBunchesDetectionDelayOnNewWindow: 500,
-  autoGroupNewTabsFromBookmarks: true,
-  restoreTreeForTabsFromBookmarks: true,
-  tabsFromSameFolderMinThresholdPercentage: 50,
-  autoGroupNewTabsFromOthers: false,
-  autoGroupNewTabsFromPinned: true,
-  autoGroupNewTabsFromFirefoxView: false,
-  groupTabTemporaryStateForNewTabsFromBookmarks: Constants.kGROUP_TAB_TEMPORARY_STATE_PASSIVE,
-  groupTabTemporaryStateForNewTabsFromOthers: Constants.kGROUP_TAB_TEMPORARY_STATE_PASSIVE,
-  groupTabTemporaryStateForChildrenOfPinned: Constants.kGROUP_TAB_TEMPORARY_STATE_PASSIVE,
-  groupTabTemporaryStateForChildrenOfFirefoxView: Constants.kGROUP_TAB_TEMPORARY_STATE_PASSIVE,
-  groupTabTemporaryStateForOrphanedTabs: Constants.kGROUP_TAB_TEMPORARY_STATE_AGGRESSIVE,
-  groupTabTemporaryStateForAPI: Constants.kGROUP_TAB_TEMPORARY_STATE_NOTHING,
-  renderTreeInGroupTabs: true,
-  warnOnAutoGroupNewTabs: true,
-  warnOnAutoGroupNewTabsWithListing: true,
-  warnOnAutoGroupNewTabsWithListingMaxRows: 5,
-  showAutoGroupOptionHint: true,
-  showAutoGroupOptionHintWithOpener: true,
+    autoAttach: true,
+    autoAttachOnOpenedWithOwner: Constants.kNEWTAB_OPEN_AS_CHILD_END,
+    autoAttachOnNewTabCommand: Constants.kNEWTAB_DO_NOTHING,
+    autoAttachOnContextNewTabCommand:
+      Constants.kNEWTAB_OPEN_AS_NEXT_SIBLING_WITH_INHERITED_CONTAINER,
+    autoAttachOnNewTabButtonMiddleClick: Constants.kNEWTAB_OPEN_AS_CHILD_END,
+    middleClickPasteURLOnNewTabButton: /^Linux/i.test(navigator.platform), // simulates "browser.tabs.searchclipboardfor.middleclick"
+    autoAttachOnNewTabButtonAccelClick:
+      Constants.kNEWTAB_OPEN_AS_NEXT_SIBLING_WITH_INHERITED_CONTAINER,
+    autoAttachOnDuplicated: Constants.kNEWTAB_OPEN_AS_NEXT_SIBLING,
+    autoAttachSameSiteOrphan: Constants.kNEWTAB_OPEN_AS_CHILD_END,
+    autoAttachOnOpenedFromExternal: Constants.kNEWTAB_DO_NOTHING,
+    autoAttachOnAnyOtherTrigger: Constants.kNEWTAB_DO_NOTHING,
+    guessNewOrphanTabAsOpenedByNewTabCommand: true,
+    guessNewOrphanTabAsOpenedByNewTabCommandTitle: browser.i18n.getMessage(
+      "guessNewOrphanTabAsOpenedByNewTabCommandTitle"
+    ),
+    guessNewOrphanTabAsOpenedByNewTabCommandUrl:
+      "about:newtab|about:privatebrowsing",
+    inheritContextualIdentityToChildTabMode:
+      Constants.kCONTEXTUAL_IDENTITY_DEFAULT,
+    inheritContextualIdentityToSameSiteOrphanMode:
+      Constants.kCONTEXTUAL_IDENTITY_FROM_LAST_ACTIVE,
+    inheritContextualIdentityToTabsFromExternalMode:
+      Constants.kCONTEXTUAL_IDENTITY_DEFAULT,
+    inheritContextualIdentityToTabsFromAnyOtherTriggerMode:
+      Constants.kCONTEXTUAL_IDENTITY_DEFAULT,
+    inheritContextualIdentityToUnopenableURLTabs: false,
 
+    // behavior around closed tab
+    parentTabOperationBehaviorMode:
+      Constants.kPARENT_TAB_OPERATION_BEHAVIOR_MODE_PARALLEL,
+    //closeParentBehavior_insideSidebar_collapsed:  Constants.kPARENT_TAB_OPERATION_BEHAVIOR_ENTIRE_TREE, // permanently consistent
+    closeParentBehavior_insideSidebar_expanded:
+      Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
+    closeParentBehavior_outsideSidebar_collapsed:
+      Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
+    closeParentBehavior_outsideSidebar_expanded:
+      Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
+    closeParentBehavior_noSidebar_collapsed:
+      Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
+    closeParentBehavior_noSidebar_expanded:
+      Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
+    //moveParentBehavior_insideSidebar_collapsed:   Constants.kPARENT_TAB_OPERATION_BEHAVIOR_ENTIRE_TREE, // permanently consistent
+    //moveParentBehavior_insideSidebar_expanded:    Constants.kPARENT_TAB_OPERATION_BEHAVIOR_ENTIRE_TREE, // permanently consistent
+    moveParentBehavior_outsideSidebar_collapsed:
+      Constants.kPARENT_TAB_OPERATION_BEHAVIOR_ENTIRE_TREE,
+    moveParentBehavior_outsideSidebar_expanded:
+      Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
+    moveParentBehavior_noSidebar_collapsed:
+      Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
+    moveParentBehavior_noSidebar_expanded:
+      Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
+    closeParentBehavior_replaceWithGroup_thresholdToPrevent: 1, // negative value means "never prevent"
+    moveTabsToBottomWhenDetachedFromClosedParent: false,
+    promoteAllChildrenWhenClosedParentIsLastChild: true,
+    successorTabControlLevel: Constants.kSUCCESSOR_TAB_CONTROL_IN_TREE,
+    simulateSelectOwnerOnClose: true,
+    simulateLockTabSizing: true,
+    deferScrollingToOutOfViewportSuccessor: true,
+    simulateTabsLoadInBackgroundInverted: false,
+    supportTabsMultiselect: typeof browser.menus.overrideContext === "function",
+    warnOnCloseTabs: true,
+    warnOnCloseTabsNotificationTimeout: 20 * 1000,
+    warnOnCloseTabsByClosebox: true,
+    warnOnCloseTabsWithListing: true,
+    lastConfirmedToCloseTabs: 0,
+    grantedRemovingTabIds: [],
+    sidebarVirtuallyOpenedWindows: [], // for automated tests
+    sidebarVirtuallyClosedWindows: [], // for automated tests
+    sidebarWidthInWindow: {},
 
-  // behavior around newly opened tabs
-  insertNewChildAt: Constants.kINSERT_END, // basically this option affects only very edge cases not controlled with "autoAttach*" options.
-  insertNewTabFromPinnedTabAt: Constants.kINSERT_NEXT_TO_LAST_RELATED_TAB,
-  insertNewTabFromFirefoxViewAt: Constants.kINSERT_NEXT_TO_LAST_RELATED_TAB,
-  insertDroppedTabsAt: Constants.kINSERT_END,
+    // animation
+    animation: true,
+    animationForce: false,
+    maxAllowedImmediateRefreshCount: 1,
+    smoothScrollEnabled: true,
+    smoothScrollDuration: 150,
+    burstDuration: 375,
+    indentDuration: 200,
+    collapseDuration: 150,
+    outOfViewTabNotifyDuration: 750,
+    subMenuOpenDelay: 300,
+    subMenuCloseDelay: 300,
 
-  scrollToNewTabMode: Constants.kSCROLL_TO_NEW_TAB_IF_POSSIBLE,
-  scrollLines: 3,
+    // subpanel
+    lastSelectedSubPanelProviderId: null,
+    lastSubPanelHeight: 0,
+    maxSubPanelSizeRatio: 0.66,
 
-  autoAttach: true,
-  autoAttachOnOpenedWithOwner: Constants.kNEWTAB_OPEN_AS_CHILD_END,
-  autoAttachOnNewTabCommand: Constants.kNEWTAB_DO_NOTHING,
-  autoAttachOnContextNewTabCommand: Constants.kNEWTAB_OPEN_AS_NEXT_SIBLING_WITH_INHERITED_CONTAINER,
-  autoAttachOnNewTabButtonMiddleClick: Constants.kNEWTAB_OPEN_AS_CHILD_END,
-  middleClickPasteURLOnNewTabButton: /^Linux/i.test(navigator.platform), // simulates "browser.tabs.searchclipboardfor.middleclick"
-  autoAttachOnNewTabButtonAccelClick: Constants.kNEWTAB_OPEN_AS_NEXT_SIBLING_WITH_INHERITED_CONTAINER,
-  autoAttachOnDuplicated: Constants.kNEWTAB_OPEN_AS_NEXT_SIBLING,
-  autoAttachSameSiteOrphan: Constants.kNEWTAB_OPEN_AS_CHILD_END,
-  autoAttachOnOpenedFromExternal: Constants.kNEWTAB_DO_NOTHING,
-  autoAttachOnAnyOtherTrigger: Constants.kNEWTAB_DO_NOTHING,
-  guessNewOrphanTabAsOpenedByNewTabCommand: true,
-  guessNewOrphanTabAsOpenedByNewTabCommandTitle: browser.i18n.getMessage('guessNewOrphanTabAsOpenedByNewTabCommandTitle'),
-  guessNewOrphanTabAsOpenedByNewTabCommandUrl: 'about:newtab|about:privatebrowsing',
-  inheritContextualIdentityToChildTabMode: Constants.kCONTEXTUAL_IDENTITY_DEFAULT,
-  inheritContextualIdentityToSameSiteOrphanMode: Constants.kCONTEXTUAL_IDENTITY_FROM_LAST_ACTIVE,
-  inheritContextualIdentityToTabsFromExternalMode: Constants.kCONTEXTUAL_IDENTITY_DEFAULT,
-  inheritContextualIdentityToTabsFromAnyOtherTriggerMode: Constants.kCONTEXTUAL_IDENTITY_DEFAULT,
-  inheritContextualIdentityToUnopenableURLTabs: false,
+    // misc.
+    showExpertOptions: false,
+    exposeUnblockAutoplayFeatures: false,
+    bookmarkTreeFolderName: browser.i18n.getMessage(
+      "bookmarkFolder_label_default",
+      ["%TITLE%", "%YEAR%", "%MONTH%", "%DATE%"]
+    ),
+    defaultBookmarkParentId: "toolbar_____", // 'unfiled_____' for Firefox 83 and olders,
+    incrementalSearchTimeout: 1000, // same to the default value of Firefox's "ui.menu.incremental_search.timeout"
+    defaultSearchEngine: "https://www.google.com/search?q=%s",
+    acceleratedTabOperations: true,
+    acceleratedTabCreation: false,
+    enableWorkaroundForBug1409262: false,
+    enableWorkaroundForBug1548949: true,
+    enableWorkaroundForBug1767165_fixDragEndCoordinates: null, // workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=1767165
+    enableWorkaroundForBug1763420_reloadMaskImage: true, // workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=1763420
+    maximumDelayForBug1561879: 500,
+    workaroundForBug1548949DroppedTabs: null,
+    heartbeatInterval: 5000,
+    connectionTimeoutDelay: 500,
+    maximumAcceptableDelayForTabDuplication: 10 * 1000,
+    maximumDelayUntilTabIsTracked: 10 * 60 * 1000,
+    delayToBlockUserOperationForTabsRestoration: 1000,
+    intervalToUpdateProgressForBlockedUserOperation: 50,
+    delayToShowProgressForBlockedUserOperation: 1000,
+    acceptableDelayForInternalFocusMoving: 150,
+    delayForDuplicatedTabDetection: 0, // https://github.com/piroor/treestyletab/issues/2845
+    delayToRetrySyncTabsOrder: 100,
+    notificationTimeout: 10 * 1000,
+    longPressDuration: 400,
+    minimumIntervalToProcessDragoverEvent: 50,
+    delayToApplyHighlightedState: 50,
+    acceptableFlickerToIgnoreClickOnTabAndTabbar: 10,
+    autoDiscardTabForUnexpectedFocus: true,
+    autoDiscardTabForUnexpectedFocusDelay: 500,
+    avoidDiscardedTabToBeActivatedIfPossible: false,
+    provressiveHighlightingStep: Number.MAX_SAFE_INTEGER,
+    progressievHighlightingInterval: 100,
+    generatedTabElementsPoolLifetimeMsec: 5 * 1000,
+    undoMultipleTabsClose: true,
+    allowDragNewTabButton: true,
+    newTabButtonDragGestureModifiers: "shift",
+    migratedBookmarkUrls: [],
+    lastDragOverSidebarOwnerWindowId: null,
+    notifiedFeaturesVersion: 0,
 
+    useCachedTree: true,
+    persistCachedTree: true,
 
-  // behavior around closed tab
-  parentTabOperationBehaviorMode:     Constants.kPARENT_TAB_OPERATION_BEHAVIOR_MODE_PARALLEL,
-  //closeParentBehavior_insideSidebar_collapsed:  Constants.kPARENT_TAB_OPERATION_BEHAVIOR_ENTIRE_TREE, // permanently consistent
-  closeParentBehavior_insideSidebar_expanded:   Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
-  closeParentBehavior_outsideSidebar_collapsed: Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
-  closeParentBehavior_outsideSidebar_expanded:  Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
-  closeParentBehavior_noSidebar_collapsed:      Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
-  closeParentBehavior_noSidebar_expanded:       Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
-  //moveParentBehavior_insideSidebar_collapsed:   Constants.kPARENT_TAB_OPERATION_BEHAVIOR_ENTIRE_TREE, // permanently consistent
-  //moveParentBehavior_insideSidebar_expanded:    Constants.kPARENT_TAB_OPERATION_BEHAVIOR_ENTIRE_TREE, // permanently consistent
-  moveParentBehavior_outsideSidebar_collapsed:  Constants.kPARENT_TAB_OPERATION_BEHAVIOR_ENTIRE_TREE,
-  moveParentBehavior_outsideSidebar_expanded:   Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
-  moveParentBehavior_noSidebar_collapsed:       Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
-  moveParentBehavior_noSidebar_expanded:        Constants.kPARENT_TAB_OPERATION_BEHAVIOR_PROMOTE_FIRST_CHILD,
-  closeParentBehavior_replaceWithGroup_thresholdToPrevent: 1, // negative value means "never prevent"
-  moveTabsToBottomWhenDetachedFromClosedParent: false,
-  promoteAllChildrenWhenClosedParentIsLastChild: true,
-  successorTabControlLevel: Constants.kSUCCESSOR_TAB_CONTROL_IN_TREE,
-  simulateSelectOwnerOnClose: true,
-  simulateLockTabSizing: true,
-  deferScrollingToOutOfViewportSuccessor: true,
-  simulateTabsLoadInBackgroundInverted: false,
-  supportTabsMultiselect: typeof browser.menus.overrideContext == 'function',
-  warnOnCloseTabs: true,
-  warnOnCloseTabsNotificationTimeout: 20 * 1000,
-  warnOnCloseTabsByClosebox: true,
-  warnOnCloseTabsWithListing: true,
-  lastConfirmedToCloseTabs: 0,
-  grantedRemovingTabIds: [],
-  sidebarVirtuallyOpenedWindows: [], // for automated tests
-  sidebarVirtuallyClosedWindows: [], // for automated tests
-  sidebarWidthInWindow: {},
+    // This should be removed after https://bugzilla.mozilla.org/show_bug.cgi?id=1388193
+    // or https://bugzilla.mozilla.org/show_bug.cgi?id=1421329 become fixed.
+    // Otherwise you need to set "svg.context-properties.content.enabled"="true" via "about:config".
+    simulateSVGContextFill: true,
 
+    requestingPermissions: null,
+    requestingPermissionsNatively: null,
+    lastDraggedTabs: null,
 
-  // animation
-  animation: true,
-  animationForce: false,
-  maxAllowedImmediateRefreshCount: 1,
-  smoothScrollEnabled:  true,
-  smoothScrollDuration: 150,
-  burstDuration:    375,
-  indentDuration:   200,
-  collapseDuration: 150,
-  outOfViewTabNotifyDuration: 750,
-  subMenuOpenDelay: 300,
-  subMenuCloseDelay: 300,
+    // https://dxr.mozilla.org/mozilla-central/rev/2535bad09d720e71a982f3f70dd6925f66ab8ec7/browser/base/content/browser.css#137
+    newTabAnimationDuration: 100,
 
-
-  // subpanel
-  lastSelectedSubPanelProviderId: null,
-  lastSubPanelHeight: 0,
-  maxSubPanelSizeRatio: 0.66,
-
-
-  // misc.
-  showExpertOptions: false,
-  exposeUnblockAutoplayFeatures: false,
-  bookmarkTreeFolderName: browser.i18n.getMessage('bookmarkFolder_label_default', ['%TITLE%', '%YEAR%', '%MONTH%', '%DATE%']),
-  defaultBookmarkParentId: 'toolbar_____', // 'unfiled_____' for Firefox 83 and olders,
-  incrementalSearchTimeout: 1000, // same to the default value of Firefox's "ui.menu.incremental_search.timeout"
-  defaultSearchEngine: 'https://www.google.com/search?q=%s',
-  acceleratedTabOperations: true,
-  acceleratedTabCreation: false,
-  enableWorkaroundForBug1409262: false,
-  enableWorkaroundForBug1548949: true,
-  enableWorkaroundForBug1767165_fixDragEndCoordinates: null, // workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=1767165
-  enableWorkaroundForBug1763420_reloadMaskImage: true, // workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=1763420
-  maximumDelayForBug1561879: 500,
-  workaroundForBug1548949DroppedTabs: null,
-  heartbeatInterval: 5000,
-  connectionTimeoutDelay: 500,
-  maximumAcceptableDelayForTabDuplication: 10 * 1000,
-  maximumDelayUntilTabIsTracked: 10 * 60 * 1000,
-  delayToBlockUserOperationForTabsRestoration: 1000,
-  intervalToUpdateProgressForBlockedUserOperation: 50,
-  delayToShowProgressForBlockedUserOperation: 1000,
-  acceptableDelayForInternalFocusMoving: 150,
-  delayForDuplicatedTabDetection: 0, // https://github.com/piroor/treestyletab/issues/2845
-  delayToRetrySyncTabsOrder: 100,
-  notificationTimeout: 10 * 1000,
-  longPressDuration: 400,
-  minimumIntervalToProcessDragoverEvent: 50,
-  delayToApplyHighlightedState: 50,
-  acceptableFlickerToIgnoreClickOnTabAndTabbar: 10,
-  autoDiscardTabForUnexpectedFocus: true,
-  autoDiscardTabForUnexpectedFocusDelay: 500,
-  avoidDiscardedTabToBeActivatedIfPossible: false,
-  provressiveHighlightingStep: Number.MAX_SAFE_INTEGER,
-  progressievHighlightingInterval: 100,
-  generatedTabElementsPoolLifetimeMsec: 5 * 1000,
-  undoMultipleTabsClose: true,
-  allowDragNewTabButton: true,
-  newTabButtonDragGestureModifiers: 'shift',
-  migratedBookmarkUrls: [],
-  lastDragOverSidebarOwnerWindowId: null,
-  notifiedFeaturesVersion: 0,
-
-  useCachedTree: true,
-  persistCachedTree: true,
-
-  // This should be removed after https://bugzilla.mozilla.org/show_bug.cgi?id=1388193
-  // or https://bugzilla.mozilla.org/show_bug.cgi?id=1421329 become fixed.
-  // Otherwise you need to set "svg.context-properties.content.enabled"="true" via "about:config".
-  simulateSVGContextFill: true,
-
-  requestingPermissions: null,
-  requestingPermissionsNatively: null,
-  lastDraggedTabs: null,
-
-  // https://dxr.mozilla.org/mozilla-central/rev/2535bad09d720e71a982f3f70dd6925f66ab8ec7/browser/base/content/browser.css#137
-  newTabAnimationDuration: 100,
-
-  chunkedUserStyleRules0: '',
-  chunkedUserStyleRules1: '',
-  chunkedUserStyleRules2: '',
-  chunkedUserStyleRules3: '',
-  chunkedUserStyleRules4: '',
-  chunkedUserStyleRules5: '',
-  chunkedUserStyleRules6: '',
-  chunkedUserStyleRules7: '',
-  // obsolete, migrated to chunkedUserStyleRules0-5
-  userStyleRules: `
+    chunkedUserStyleRules0: "",
+    chunkedUserStyleRules1: "",
+    chunkedUserStyleRules2: "",
+    chunkedUserStyleRules3: "",
+    chunkedUserStyleRules4: "",
+    chunkedUserStyleRules5: "",
+    chunkedUserStyleRules6: "",
+    chunkedUserStyleRules7: "",
+    // obsolete, migrated to chunkedUserStyleRules0-5
+    userStyleRules: `
 /* Show title of unread tabs with red and italic font */
 /*
 :root.sidebar tab-item.unread .label-content {
@@ -518,134 +555,133 @@ export const configs = new Configs({
 }
 */
 `.trim(),
-  userStyleRulesFieldHeight: '10em',
-  userStyleRulesFieldTheme: 'auto',
+    userStyleRulesFieldHeight: "10em",
+    userStyleRulesFieldTheme: "auto",
 
-  syncOtherDevicesDetected: false,
-  syncAvailableNotified: false,
-  syncAvailableNotificationTimeout: 20 * 1000,
-  syncDeviceInfo: null,
-  syncDevices:    {},
-  syncDevicesLocalCache: {},
-  syncDeviceExpirationDays: 14,
-  // Must be same to "services.sync.engine.tabs.filteredUrls"
-  syncUnsendableUrlPattern: '^(about:.*|resource:.*|chrome:.*|wyciwyg:.*|file:.*|blob:.*|moz-extension:.*)$',
-  syncLastMessageTimestamp: 0,
-  syncReceivedTabsNotificationTimeout: 20 * 1000,
-  syncSentTabsNotificationTimeout: 5 * 1000,
-  chunkedSyncData0: '',
-  chunkedSyncData1: '',
-  chunkedSyncData2: '',
-  chunkedSyncData3: '',
-  chunkedSyncData4: '',
-  chunkedSyncData5: '',
-  chunkedSyncData6: '',
-  chunkedSyncData7: '',
-  chunkedSyncDataLocal0: '',
-  chunkedSyncDataLocal1: '',
-  chunkedSyncDataLocal2: '',
-  chunkedSyncDataLocal3: '',
-  chunkedSyncDataLocal4: '',
-  chunkedSyncDataLocal5: '',
-  chunkedSyncDataLocal6: '',
-  chunkedSyncDataLocal7: '',
+    syncOtherDevicesDetected: false,
+    syncAvailableNotified: false,
+    syncAvailableNotificationTimeout: 20 * 1000,
+    syncDeviceInfo: null,
+    syncDevices: {},
+    syncDevicesLocalCache: {},
+    syncDeviceExpirationDays: 14,
+    // Must be same to "services.sync.engine.tabs.filteredUrls"
+    syncUnsendableUrlPattern:
+      "^(about:.*|resource:.*|chrome:.*|wyciwyg:.*|file:.*|blob:.*|moz-extension:.*)$",
+    syncLastMessageTimestamp: 0,
+    syncReceivedTabsNotificationTimeout: 20 * 1000,
+    syncSentTabsNotificationTimeout: 5 * 1000,
+    chunkedSyncData0: "",
+    chunkedSyncData1: "",
+    chunkedSyncData2: "",
+    chunkedSyncData3: "",
+    chunkedSyncData4: "",
+    chunkedSyncData5: "",
+    chunkedSyncData6: "",
+    chunkedSyncData7: "",
+    chunkedSyncDataLocal0: "",
+    chunkedSyncDataLocal1: "",
+    chunkedSyncDataLocal2: "",
+    chunkedSyncDataLocal3: "",
+    chunkedSyncDataLocal4: "",
+    chunkedSyncDataLocal5: "",
+    chunkedSyncDataLocal6: "",
+    chunkedSyncDataLocal7: "",
 
+    // Compatibility with other addons
+    knownExternalAddons: ["multipletab@piro.sakura.ne.jp"],
+    cachedExternalAddons: [],
+    grantedExternalAddonPermissions: {},
+    incognitoAllowedExternalAddons: [],
 
-  // Compatibility with other addons
-  knownExternalAddons: [
-    'multipletab@piro.sakura.ne.jp'
-  ],
-  cachedExternalAddons: [],
-  grantedExternalAddonPermissions: {},
-  incognitoAllowedExternalAddons: [],
+    // This must be same to the redirect key of Container Bookmarks.
+    // https://addons.mozilla.org/firefox/addon/container-bookmarks/
+    containerRedirectKey: "container",
 
-  // This must be same to the redirect key of Container Bookmarks.
-  // https://addons.mozilla.org/firefox/addon/container-bookmarks/
-  containerRedirectKey: 'container',
+    debug: false,
+    runTestsParameters: "",
+    syncEnabled: true,
+    APIEnabled: true,
+    cacheAPITreeItems: false,
+    logTimestamp: true,
+    loggingQueries: false,
+    logFor: {
+      // git grep configs.logFor | grep -v common.js | cut -d "'" -f 2 | sed -e "s/^/    '/" -e "s/$/': false,/"
+      "background/api-tabs-listener": false,
+      "background/background-cache": false,
+      "background/background": false,
+      "background/browser-action-menu": false,
+      "background/commands": false,
+      "background/context-menu": false,
+      "background/handle-misc": false,
+      "background/handle-moved-tabs": false,
+      "background/handle-new-tabs": false,
+      "background/handle-removed-tabs": false,
+      "background/handle-tab-bunches": false,
+      "background/handle-tab-focus": false,
+      "background/handle-tab-multiselect": false,
+      "background/handle-tree-changes": false,
+      "background/migration": false,
+      "background/successor-tab": false,
+      "background/tab-context-menu": false,
+      "background/tabs-group": false,
+      "background/tabs-move": false,
+      "background/tabs-open": false,
+      "background/tree": false,
+      "background/tree-structure": false,
+      "common/Tab": false,
+      "common/Window": false,
+      "common/api-tabs": false,
+      "common/bookmark": false,
+      "common/contextual-identities": false,
+      "common/dialog": false,
+      "common/permissions": false,
+      "common/retrieve-url": false,
+      "common/sidebar-connection": false,
+      "common/sync": false,
+      "common/tabs-internal-operation": false,
+      "common/tabs-update": false,
+      "common/tree-behavior": false,
+      "common/tst-api": false,
+      "common/unique-id": false,
+      "common/user-operation-blocker": false,
+      "sidebar/background-connection": false,
+      "sidebar/collapse-expand": false,
+      "sidebar/drag-and-drop": false,
+      "sidebar/event-utils": false,
+      "sidebar/gap-canceller": false,
+      "sidebar/indent": false,
+      "sidebar/mouse-event-listener": false,
+      "sidebar/pinned-tabs": false,
+      "sidebar/scroll": false,
+      "sidebar/sidebar-tabs": false,
+      "sidebar/sidebar": false,
+      "sidebar/size": false,
+      "sidebar/subpanel": false,
+      "sidebar/tab-context-menu": false,
+      "sidebar/tst-api-frontend": false,
+    },
+    loggingConnectionMessages: false,
+    enableLinuxBehaviors: false,
+    enableMacOSBehaviors: false,
+    enableWindowsBehaviors: false,
 
+    ...Object.fromEntries(Array.from(obsoleteConfigs, (key) => [key, null])),
 
-  debug:     false,
-  runTestsParameters: '',
-  syncEnabled: true,
-  APIEnabled: true,
-  cacheAPITreeItems: false,
-  logTimestamp: true,
-  loggingQueries: false,
-  logFor: { // git grep configs.logFor | grep -v common.js | cut -d "'" -f 2 | sed -e "s/^/    '/" -e "s/$/': false,/"
-    'background/api-tabs-listener': false,
-    'background/background-cache': false,
-    'background/background': false,
-    'background/browser-action-menu': false,
-    'background/commands': false,
-    'background/context-menu': false,
-    'background/handle-misc': false,
-    'background/handle-moved-tabs': false,
-    'background/handle-new-tabs': false,
-    'background/handle-removed-tabs': false,
-    'background/handle-tab-bunches': false,
-    'background/handle-tab-focus': false,
-    'background/handle-tab-multiselect': false,
-    'background/handle-tree-changes': false,
-    'background/migration': false,
-    'background/successor-tab': false,
-    'background/tab-context-menu': false,
-    'background/tabs-group': false,
-    'background/tabs-move': false,
-    'background/tabs-open': false,
-    'background/tree': false,
-    'background/tree-structure': false,
-    'common/Tab': false,
-    'common/Window': false,
-    'common/api-tabs': false,
-    'common/bookmark': false,
-    'common/contextual-identities': false,
-    'common/dialog': false,
-    'common/permissions': false,
-    'common/retrieve-url': false,
-    'common/sidebar-connection': false,
-    'common/sync': false,
-    'common/tabs-internal-operation': false,
-    'common/tabs-update': false,
-    'common/tree-behavior': false,
-    'common/tst-api': false,
-    'common/unique-id': false,
-    'common/user-operation-blocker': false,
-    'sidebar/background-connection': false,
-    'sidebar/collapse-expand': false,
-    'sidebar/drag-and-drop': false,
-    'sidebar/event-utils': false,
-    'sidebar/gap-canceller': false,
-    'sidebar/indent': false,
-    'sidebar/mouse-event-listener': false,
-    'sidebar/pinned-tabs': false,
-    'sidebar/scroll': false,
-    'sidebar/sidebar-tabs': false,
-    'sidebar/sidebar': false,
-    'sidebar/size': false,
-    'sidebar/subpanel': false,
-    'sidebar/tab-context-menu': false,
-    'sidebar/tst-api-frontend': false,
+    ...WATERFOX_SPECIFIC_VALUES,
+
+    configsVersion: 0,
+
+    testKey: 0, // for tests/utils.js
   },
-  loggingConnectionMessages: false,
-  enableLinuxBehaviors: false,
-  enableMacOSBehaviors: false,
-  enableWindowsBehaviors: false,
-
-
-  ...(Object.fromEntries(Array.from(obsoleteConfigs, key => [key, null]))),
-
-  ...WATERFOX_SPECIFIC_VALUES,
-
-  configsVersion: 0,
-
-  testKey: 0 // for tests/utils.js
-}, {
-  localKeys
-});
+  {
+    localKeys,
+  }
+);
 
 configs.$addLocalLoadedObserver((key, value) => {
   switch (key) {
-    case 'syncEnabled':
+    case "syncEnabled":
       configs.sync = !!value;
       return;
 
@@ -660,17 +696,15 @@ browser.storage.sync.remove(localKeys);
 configs.$loaded.then(() => {
   EventListenerManager.debug = configs.debug;
   log.forceStore = false;
-  if (!configs.debug)
-    log.logs = [];
+  if (!configs.debug) log.logs = [];
 });
 
-
 export function loadUserStyleRules() {
-  return getChunkedConfig('chunkedUserStyleRules');
+  return getChunkedConfig("chunkedUserStyleRules");
 }
 
 export function saveUserStyleRules(style) {
-  return setChunkedConfig('chunkedUserStyleRules', style);
+  return setChunkedConfig("chunkedUserStyleRules", style);
 }
 
 export function getChunkedConfig(key) {
@@ -678,8 +712,7 @@ export function getChunkedConfig(key) {
   let count = 0;
   while (true) {
     const slotKey = `${key}${count}`;
-    if (!(slotKey in configs))
-      break;
+    if (!(slotKey in configs)) break;
     chunks.push(configs[slotKey]);
     count++;
   }
@@ -693,21 +726,22 @@ export function setChunkedConfig(key, value) {
   }
 
   const chunks = chunkString(value, Constants.kSYNC_STORAGE_SAFE_QUOTA);
-  if (chunks.length > slotsSize)
-    throw new Error('too large data');
+  if (chunks.length > slotsSize) throw new Error("too large data");
 
-  [...chunks,
-    ...Array.from(new Uint8Array(slotsSize), _ => '')]
+  [...chunks, ...Array.from(new Uint8Array(slotsSize), (_) => "")]
     .slice(0, slotsSize)
     .forEach((chunk, index) => {
       const slotKey = `${key}${index}`;
-      if (slotKey in configs)
-        configs[slotKey] = chunk || '';
+      if (slotKey in configs) configs[slotKey] = chunk || "";
     });
 }
 
 function chunkString(input, maxBytes) {
-  let binaryString = btoa(Array.from(new TextEncoder().encode(input), c => String.fromCharCode(c)).join(''));
+  let binaryString = btoa(
+    Array.from(new TextEncoder().encode(input), (c) =>
+      String.fromCharCode(c)
+    ).join("")
+  );
   const chunks = [];
   while (binaryString.length > 0) {
     chunks.push(binaryString.slice(0, maxBytes));
@@ -718,28 +752,32 @@ function chunkString(input, maxBytes) {
 
 function joinChunkedStrings(chunks) {
   try {
-    const buffer = Uint8Array.from(atob(chunks.join('')).split('').map(bytes => bytes.charCodeAt(0)));
+    const buffer = Uint8Array.from(
+      atob(chunks.join(""))
+        .split("")
+        .map((bytes) => bytes.charCodeAt(0))
+    );
     return new TextDecoder().decode(buffer);
-  }
-  catch(_error) {
-    return '';
+  } catch (_error) {
+    return "";
   }
 }
 
-
 shouldApplyAnimation.onChanged = new EventListenerManager();
-shouldApplyAnimation.prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-shouldApplyAnimation.prefersReducedMotion.addListener(_event => {
+shouldApplyAnimation.prefersReducedMotion = window.matchMedia(
+  "(prefers-reduced-motion: reduce)"
+);
+shouldApplyAnimation.prefersReducedMotion.addListener((_event) => {
   shouldApplyAnimation.onChanged.dispatch(shouldApplyAnimation());
 });
-configs.$addObserver(key => {
-  switch(key) {
-    case 'animation':
-    case 'animationForce':
+configs.$addObserver((key) => {
+  switch (key) {
+    case "animation":
+    case "animationForce":
       shouldApplyAnimation.onChanged.dispatch(shouldApplyAnimation());
       break;
 
-    case 'debug':
+    case "debug":
       EventListenerManager.debug = configs[key];
       break;
   }
@@ -748,66 +786,63 @@ configs.$addObserver(key => {
 // Some animation effects like smooth scrolling are still active even if it matches to "prefers-reduced-motion: reduce".
 // So this function provides ability to ignore the media query result.
 export function shouldApplyAnimation(configOnly = false) {
-  if (!configs.animation)
-    return false;
-  return configOnly || configs.animationForce || !shouldApplyAnimation.prefersReducedMotion.matches;
+  if (!configs.animation) return false;
+  return (
+    configOnly ||
+    configs.animationForce ||
+    !shouldApplyAnimation.prefersReducedMotion.matches
+  );
 }
 
-
-export function log(module, ...args)
-{
+export function log(module, ...args) {
   const isModuleLog = module in configs.$default.logFor;
-  const message    = isModuleLog ? args.shift() : module ;
-  const useConsole = configs && configs.debug && (!isModuleLog || configs.logFor[module]);
-  const logging    = useConsole || log.forceStore;
-  if (!logging)
-    return;
+  const message = isModuleLog ? args.shift() : module;
+  const useConsole = configs?.debug && (!isModuleLog || configs.logFor[module]);
+  const logging = useConsole || log.forceStore;
+  if (!logging) return;
 
-  args = args.map(arg => typeof arg == 'function' ? arg() : arg);
+  args = args.map((arg) => (typeof arg === "function" ? arg() : arg));
 
-  const nest = (new Error()).stack.split('\n').length;
-  let indent = '';
+  const nest = new Error().stack.split("\n").length;
+  let indent = "";
   for (let i = 0; i < nest; i++) {
-    indent += ' ';
+    indent += " ";
   }
-  if (isModuleLog)
-    module = `${module}: `
-  else
-    module = '';
+  if (isModuleLog) module = `${module}: `;
+  else module = "";
 
-  const timestamp = configs.logTimestamp ? `${getTimeStamp()} ` : '';
+  const timestamp = configs.logTimestamp ? `${getTimeStamp()} ` : "";
   const line = `tst<${log.context}>: ${timestamp}${module}${indent}${message}`;
-  if (useConsole)
-    console.log(line, ...args);
+  if (useConsole) console.log(line, ...args);
 
-  log.logs.push(`${line} ${args.reduce((output, arg, index) => {
-    output += `${index == 0 ? '' : ', '}${uneval(arg)}`;
-    return output;
-  }, '')}`);
+  log.logs.push(
+    `${line} ${args.reduce((output, arg, index) => {
+      output += `${index === 0 ? "" : ", "}${uneval(arg)}`;
+      return output;
+    }, "")}`
+  );
   log.logs = log.logs.slice(-log.max);
 }
-log.context = '?';
-log.max  = 2000;
+log.context = "?";
+log.max = 2000;
 log.logs = [];
 log.forceStore = true;
 
 // uneval() is no more available after https://bugzilla.mozilla.org/show_bug.cgi?id=1565170
 function uneval(value) {
   switch (typeof value) {
-    case 'undefined':
-      return 'undefined';
+    case "undefined":
+      return "undefined";
 
-    case 'function':
+    case "function":
       return value.toString();
 
-    case 'object':
-      if (!value)
-        return 'null';
+    case "object":
+      if (!value) return "null";
     default:
       try {
         return JSON.stringify(value);
-      }
-      catch(e) {
+      } catch (e) {
         return `${String(value)} (couldn't be stringified due to an error: ${String(e)})`;
       }
   }
@@ -825,22 +860,19 @@ function getTimeStamp() {
 configs.$logger = log;
 
 export function dumpTab(tab) {
-  if (!configs || !configs.debug)
-    return '';
-  if (!tab)
-    return '<NULL>';
-  return `#${tab.id}(${!!tab.$TST ? 'tracked' : '!tracked'})`;
+  if (!configs || !configs.debug) return "";
+  if (!tab) return "<NULL>";
+  return `#${tab.id}(${tab.$TST ? "tracked" : "!tracked"})`;
 }
 
 export async function wait(task = 0, timeout = 0) {
-  if (typeof task != 'function') {
+  if (typeof task !== "function") {
     timeout = task;
-    task    = null;
+    task = null;
   }
   return new Promise((resolve, _reject) => {
     setTimeout(async () => {
-      if (task)
-        await task();
+      if (task) await task();
       resolve();
     }, timeout);
   });
@@ -855,31 +887,28 @@ export function nextFrame() {
 export async function asyncRunWithTimeout({ task, timeout, onTimedOut }) {
   let succeeded = false;
   return Promise.race([
-    task().then(result => {
+    task().then((result) => {
       succeeded = true;
       return result;
     }),
     wait(timeout).then(() => {
-      if (!succeeded)
-        return onTimedOut();
+      if (!succeeded) return onTimedOut();
     }),
   ]);
 }
 
-
 const mNotificationTasks = new Map();
 
 function destroyNotificationTask(task) {
-  if (!mNotificationTasks.has(task.id))
-    return;
+  if (!mNotificationTasks.has(task.id)) return;
 
   mNotificationTasks.delete(task.id);
 
   const resolve = task.resolve;
-  const url     = task.url;
+  const url = task.url;
 
-  task.id      = undefined;
-  task.url     = undefined;
+  task.id = undefined;
+  task.url = undefined;
   task.resolve = undefined;
 
   return { resolve, url };
@@ -887,13 +916,12 @@ function destroyNotificationTask(task) {
 
 function onNotificationClicked(notificationId) {
   const task = mNotificationTasks.get(notificationId);
-  if (!task)
-    return;
+  if (!task) return;
 
   const { resolve, url } = destroyNotificationTask(task);
   if (url) {
     browser.tabs.create({
-      url
+      url,
     });
   }
   resolve(true);
@@ -902,8 +930,7 @@ browser.notifications.onClicked.addListener(onNotificationClicked);
 
 function onNotificationClosed(notificationId) {
   const task = mNotificationTasks.get(notificationId);
-  if (!task)
-    return;
+  if (!task) return;
 
   const { resolve } = destroyNotificationTask(task);
   resolve(false);
@@ -912,10 +939,10 @@ browser.notifications.onClosed.addListener(onNotificationClosed);
 
 export async function notify({ icon, title, message, timeout, url } = {}) {
   const id = await browser.notifications.create({
-    type:    'basic',
+    type: "basic",
     iconUrl: icon || Constants.kNOTIFICATION_DEFAULT_ICON,
     title,
-    message
+    message,
   });
 
   const task = { id, url };
@@ -924,8 +951,7 @@ export async function notify({ icon, title, message, timeout, url } = {}) {
   return new Promise(async (resolve, _reject) => {
     task.resolve = resolve;
 
-    if (typeof timeout != 'number')
-      timeout = configs.notificationTimeout;
+    if (typeof timeout !== "number") timeout = configs.notificationTimeout;
     if (timeout >= 0) {
       await wait(timeout);
     }
@@ -934,29 +960,24 @@ export async function notify({ icon, title, message, timeout, url } = {}) {
       destroyNotificationTask(task);
       resolve(false);
     }
-  }).then(clicked => {
+  }).then((clicked) => {
     return clicked;
   });
 }
 
-
 export function tryRevokeObjectURL(url) {
-  if (!url.startsWith(`blob:${browser.runtime.getURL('') }`))
-    return;
+  if (!url.startsWith(`blob:${browser.runtime.getURL("")}`)) return;
 
   try {
     URL.revokeObjectURL(url);
-  }
-  catch(error) {
-    console.log('tryRevokeObjectURL failed: ', error);
+  } catch (error) {
+    console.log("tryRevokeObjectURL failed: ", error);
   }
 }
-
 
 export function compareAsNumber(a, b) {
   return a - b;
 }
-
 
 // Helper functions for optimization
 // Originally implemented by @bb010g at
@@ -974,15 +995,14 @@ export function mapAndFilter(values, mapper) {
     return mappedValues;
   }, []);
   */
-  const maxi = ('length' in values ? values.length : values.size) >>> 0; // define as unsigned int
+  const maxi = ("length" in values ? values.length : values.size) >>> 0; // define as unsigned int
   const mappedValues = new Array(maxi); // prepare with enough size at first, to avoid needless re-allocation
   let count = 0,
-      value, // this must be defined outside of the loop, to avoid needless re-allocation
-      mappedValue; // this must be defined outside of the loop, to avoid needless re-allocation
+    value, // this must be defined outside of the loop, to avoid needless re-allocation
+    mappedValue; // this must be defined outside of the loop, to avoid needless re-allocation
   for (value of values) {
     mappedValue = mapper(value);
-    if (mappedValue !== undefined)
-      mappedValues[count++] = mappedValue;
+    if (mappedValue !== undefined) mappedValues[count++] = mappedValue;
   }
   mappedValues.length = count; // shrink the array at last
   return mappedValues;
@@ -991,11 +1011,10 @@ export function mapAndFilter(values, mapper) {
 export function mapAndFilterUniq(values, mapper, options = {}) {
   const mappedValues = new Set();
   let value, // this must be defined outside of the loop, to avoid needless re-allocation
-      mappedValue; // this must be defined outside of the loop, to avoid needless re-allocation
+    mappedValue; // this must be defined outside of the loop, to avoid needless re-allocation
   for (value of values) {
     mappedValue = mapper(value);
-    if (mappedValue !== undefined)
-      mappedValues.add(mappedValue);
+    if (mappedValue !== undefined) mappedValues.add(mappedValue);
   }
   return options.set ? mappedValues : Array.from(mappedValues);
 }
@@ -1009,15 +1028,14 @@ export function countMatched(values, matcher) {
   }, 0);
   */
   let count = 0,
-      value; // this must be defined outside of the loop, to avoid needless re-allocation
+    value; // this must be defined outside of the loop, to avoid needless re-allocation
   for (value of values) {
-    if (matcher(value))
-      count++;
+    if (matcher(value)) count++;
   }
   return count;
 }
 
-export function toLines(values, mapper, separator = '\n') {
+export function toLines(values, mapper, separator = "\n") {
   /* This function logically equals to:
   return values.reduce((output, value, index) => {
     output += `${index == 0 ? '' : '\n'}${mapper(value)}`;
@@ -1026,9 +1044,10 @@ export function toLines(values, mapper, separator = '\n') {
   */
   const maxi = values.length >>> 0; // define as unsigned int
   let i = 0,
-      lines = '';
-  while (i < maxi) { // use "while" loop instead "for" loop, for better performance
-    lines += `${i == 0 ? '' : separator}${mapper(values[i])}`;
+    lines = "";
+  while (i < maxi) {
+    // use "while" loop instead "for" loop, for better performance
+    lines += `${i === 0 ? "" : separator}${mapper(values[i])}`;
     i++;
   }
   return lines;
@@ -1040,7 +1059,7 @@ export async function doProgressively(tabs, task, interval) {
   const results = [];
   for (const tab of tabs) {
     results.push(task(tab));
-    if (interval && (Date.now() - lastStartAt >= interval)) {
+    if (interval && Date.now() - lastStartAt >= interval) {
       await wait(50);
       lastStartAt = Date.now();
     }
@@ -1048,50 +1067,50 @@ export async function doProgressively(tabs, task, interval) {
   return Promise.all(results);
 }
 
-
 let useLegacyOverflowEvents = false;
 
-export function watchOverflowStateChange({ target, moreResizeTargets, onOverflow, onUnderflow, horizontal, vertical }) {
-  if (!horizontal && !vertical)
-    return;
+export function watchOverflowStateChange({
+  target,
+  moreResizeTargets,
+  onOverflow,
+  onUnderflow,
+  horizontal,
+  vertical,
+}) {
+  if (!horizontal && !vertical) return;
 
-  onOverflow  = onOverflow  || (() => {});
+  onOverflow = onOverflow || (() => {});
   onUnderflow = onUnderflow || (() => {});
 
   let lastOverflow = null;
   let invoked = false;
   const onObserved = () => {
-    if (invoked)
-      return;
+    if (invoked) return;
     invoked = true;
     window.requestAnimationFrame(() => {
       invoked = false;
 
-      const overflow = (
+      const overflow =
         (horizontal && isOverflowHorizontally(target)) ||
-        (vertical && isOverflowVertically(target))
-      );
-      if (overflow === lastOverflow)
-        return;
+        (vertical && isOverflowVertically(target));
+      if (overflow === lastOverflow) return;
 
       lastOverflow = overflow;
 
       if (overflow) {
         onOverflow();
-      }
-      else {
+      } else {
         onUnderflow();
       }
     });
   };
 
-  let resizeObserver/*, mutationObserver*/;
+  let resizeObserver /*, mutationObserver*/;
   if (!useLegacyOverflowEvents) {
     const resizeTargets = new Set([target, ...(moreResizeTargets || [])]);
-    resizeObserver = new ResizeObserver(entries => {
+    resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
-        if (!resizeTargets.has(entry.target))
-          continue;
+        if (!resizeTargets.has(entry.target)) continue;
         onObserved();
       }
     });
@@ -1118,8 +1137,7 @@ export function watchOverflowStateChange({ target, moreResizeTargets, onOverflow
   }
 
   const destroyObserver = () => {
-    if (!resizeObserver)
-      return;
+    if (!resizeObserver) return;
     resizeObserver.disconnect();
     resizeObserver = null;
     /*
@@ -1130,24 +1148,21 @@ export function watchOverflowStateChange({ target, moreResizeTargets, onOverflow
 
   // Legacy method for Firefox 127 or older.
   // See also: https://bugzilla.mozilla.org/show_bug.cgi?id=1888737
-  const onOverflowEvent = event => {
+  const onOverflowEvent = (event) => {
     if (!useLegacyOverflowEvents) {
       useLegacyOverflowEvents = true;
       destroyObserver();
     }
-    if (event.target != target)
-      return;
-    if (event.type == 'overflow')
-      onOverflow();
-    else
-      onUnderflow();
+    if (event.target !== target) return;
+    if (event.type === "overflow") onOverflow();
+    else onUnderflow();
   };
-  target.addEventListener('overflow', onOverflowEvent);
-  target.addEventListener('underflow', onOverflowEvent);
+  target.addEventListener("overflow", onOverflowEvent);
+  target.addEventListener("underflow", onOverflowEvent);
 
   const unwatch = () => {
-    target.removeEventListener('overflow', onOverflowEvent);
-    target.removeEventListener('underflow', onOverflowEvent);
+    target.removeEventListener("overflow", onOverflowEvent);
+    target.removeEventListener("underflow", onOverflowEvent);
     destroyObserver();
   };
   return unwatch;
@@ -1161,52 +1176,52 @@ function isOverflowVertically(target) {
   return target.scrollHeight > target.clientHeight;
 }
 
-
 export async function sha1sum(string) {
   const encoder = new TextEncoder();
   const data = encoder.encode(string);
-  const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+  const hashBuffer = await crypto.subtle.digest("SHA-1", data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('');
+  const hashHex = hashArray
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
   return hashHex;
 }
 
 export function sanitizeForHTMLText(text) {
-  return (text || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return (text || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
-export function sanitizeForRegExpSource(source) { // https://stackoverflow.com/questions/6300183/sanitize-string-of-regex-characters-before-regexp-build
-  return source.replace(/[#-.]|[[-^]|[?|{}]/g, '\\$&');
+export function sanitizeForRegExpSource(source) {
+  // https://stackoverflow.com/questions/6300183/sanitize-string-of-regex-characters-before-regexp-build
+  return source.replace(/[#-.]|[[-^]|[?|{}]/g, "\\$&");
 }
 
 export function sanitizeAccesskeyMark(label) {
-  return String(label || '').replace(/\(&[a-z]\)|&([a-z])/gi, '$1');
+  return String(label || "").replace(/\(&[a-z]\)|&([a-z])/gi, "$1");
 }
 
-export function getWindowParamsFromSource(sourceWindow, { left, top, width, height } = {}) {
+export function getWindowParamsFromSource(
+  sourceWindow,
+  { left, top, width, height } = {}
+) {
   const params = {
     // inherit properties of the source window
     incognito: sourceWindow.incognito,
-    state:     sourceWindow.state,
-    width:     sourceWindow.width,
-    height:    sourceWindow.height,
-    left:      sourceWindow.left,
-    top:       sourceWindow.top,
+    state: sourceWindow.state,
+    width: sourceWindow.width,
+    height: sourceWindow.height,
+    left: sourceWindow.left,
+    top: sourceWindow.top,
   };
-  if (typeof left == 'number')
-    params.left = left;
-  if (typeof top == 'number')
-    params.top = top;
-  if (typeof width == 'number')
-    params.width = width;
-  if (typeof height == 'number')
-    params.height = height;
-  if (params.state == 'fullscreen' ||
-      params.state == 'maximized') {
+  if (typeof left === "number") params.left = left;
+  if (typeof top === "number") params.top = top;
+  if (typeof width === "number") params.width = width;
+  if (typeof height === "number") params.height = height;
+  if (params.state === "fullscreen" || params.state === "maximized") {
     delete params.left;
     delete params.top;
     delete params.width;
@@ -1216,18 +1231,18 @@ export function getWindowParamsFromSource(sourceWindow, { left, top, width, heig
 }
 
 export function isNewTabCommandTab(tab) {
-  const newTabTitles = new Set(configs.guessNewOrphanTabAsOpenedByNewTabCommandTitle.split('|'));
-  const newTabUrls   = new Set(configs.guessNewOrphanTabAsOpenedByNewTabCommandUrl.split('|'));
+  const newTabTitles = new Set(
+    configs.guessNewOrphanTabAsOpenedByNewTabCommandTitle.split("|")
+  );
+  const newTabUrls = new Set(
+    configs.guessNewOrphanTabAsOpenedByNewTabCommandUrl.split("|")
+  );
   return newTabTitles.has(tab?.title) || newTabUrls.has(tab?.url);
 }
 
 export function isFirefoxViewTab(tab) {
-  return (
-    tab?.url.startsWith('about:firefoxview') &&
-    tab?.hidden
-  );
+  return tab?.url.startsWith("about:firefoxview") && tab?.hidden;
 }
-
 
 export function isLinux() {
   return configs.enableLinuxBehaviors || /^Linux/i.test(navigator.platform);

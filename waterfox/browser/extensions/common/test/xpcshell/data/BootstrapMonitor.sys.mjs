@@ -27,10 +27,10 @@ function notify(event, originalMethod, data, reason) {
 
 // Allows a simple one-line bootstrap script:
 // Components.utils.import("resource://xpcshelldata/bootstrapmonitor.jsm").monitor(this);
-export var monitor = function (
+export var monitor = (
   scope,
   methods = ["install", "startup", "shutdown", "uninstall"]
-) {
+) => {
   for (let event of methods) {
     scope[event] = notify.bind(null, event, scope[event]);
   }

@@ -1,28 +1,18 @@
-/*
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-*/
-'use strict';
+import { asyncRunWithTimeout } from "/common/common.js";
+import * as UniqueId from "/common/unique-id.js";
 
-import * as UniqueId from '/common/unique-id.js';
-import {
-  asyncRunWithTimeout,
-} from '/common/common.js';
-
-const DB_NAME = 'PermanentStorage';
+const DB_NAME = "PermanentStorage";
 const DB_VERSION = 3;
 const EXPIRATION_TIME_IN_MSEC = 7 * 24 * 60 * 60 * 1000; // 7 days
 const TIMEOUT_IN_MSEC = 1000 * 5; // 5 sec
 
-export const BACKGROUND = 'backgroundCaches';
-const SIDEBAR = 'sidebarCaches'; // obsolete, but left here to delete old storage
+export const BACKGROUND = "backgroundCaches";
+const SIDEBAR = "sidebarCaches"; // obsolete, but left here to delete old storage
 
 let mOpenedDB;
 
 async function openDB() {
-  if (mOpenedDB)
-    return mOpenedDB;
+  if (mOpenedDB) return mOpenedDB;
   return new Promise((resolve, _reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -45,17 +35,19 @@ async function openDB() {
 
       const needToUpgrade = event.oldVersion < DB_VERSION;
       if (needToUpgrade) {
-        if (objectStores.contains(BACKGROUND))
-          db.deleteObjectStore(BACKGROUND);
-        if (objectStores.contains(SIDEBAR))
-          db.deleteObjectStore(SIDEBAR);
+        if (objectStores.contains(BACKGROUND)) db.deleteObjectStore(BACKGROUND);
+        if (objectStores.contains(SIDEBAR)) db.deleteObjectStore(SIDEBAR);
       }
 
-      if (needToUpgrade ||
-          !objectStores.contains(BACKGROUND)) {
-        const backgroundCachesStore = db.createObjectStore(BACKGROUND, { keyPath: 'key', unique: true });
-        backgroundCachesStore.createIndex('windowId', 'windowId', { unique: false });
-        backgroundCachesStore.createIndex('timestamp', 'timestamp');
+      if (needToUpgrade || !objectStores.contains(BACKGROUND)) {
+        const backgroundCachesStore = db.createObjectStore(BACKGROUND, {
+          keyPath: "key",
+          unique: true,
+        });
+        backgroundCachesStore.createIndex("windowId", "windowId", {
+          unique: false,
+        });
+        backgroundCachesStore.createIndex("timestamp", "timestamp");
       }
     };
   });
@@ -66,8 +58,7 @@ export async function setValue({ windowId, key, value } = {}) {
     openDB(),
     UniqueId.ensureWindowId(windowId),
   ]);
-  if (!db)
-    return;
+  if (!db) return;
 
   reserveToExpireOldEntries();
 
@@ -75,36 +66,42 @@ export async function setValue({ windowId, key, value } = {}) {
 
   const cacheKey = `${windowUniqueId}-${key}`;
   asyncRunWithTimeout({
-    task: () => new Promise((resolve, reject) => {
-      const timestamp = Date.now();
-      try {
-        const transaction = db.transaction([store], 'readwrite');
-        const cacheStore = transaction.objectStore(store);
-        const cacheRequest = cacheStore.put({
-          key:      cacheKey,
-          windowId: windowUniqueId,
-          value,
-          timestamp,
-        });
+    task: () =>
+      new Promise((resolve, reject) => {
+        const timestamp = Date.now();
+        try {
+          const transaction = db.transaction([store], "readwrite");
+          const cacheStore = transaction.objectStore(store);
+          const cacheRequest = cacheStore.put({
+            key: cacheKey,
+            windowId: windowUniqueId,
+            value,
+            timestamp,
+          });
 
-        transaction.oncomplete = () => {
-          //db.close();
-          windowId = undefined;
-          key      = undefined;
-          value    = undefined;
-          resolve();
-        };
+          transaction.oncomplete = () => {
+            //db.close();
+            windowId = undefined;
+            key = undefined;
+            value = undefined;
+            resolve();
+          };
 
-        cacheRequest.onerror = event => {
-          console.error(`Failed to store cache ${cacheKey} in the store ${store}`, event);
-          reject(event);
-        };
-      }
-      catch(error) {
-        console.error(`Failed to store cache ${cacheKey} in the store ${store}`, error);
-        reject(error);
-      }
-    }),
+          cacheRequest.onerror = (event) => {
+            console.error(
+              `Failed to store cache ${cacheKey} in the store ${store}`,
+              event
+            );
+            reject(event);
+          };
+        } catch (error) {
+          console.error(
+            `Failed to store cache ${cacheKey} in the store ${store}`,
+            error
+          );
+          reject(error);
+        }
+      }),
     timeout: TIMEOUT_IN_MSEC,
     onTimedOut() {
       throw new Error(`CacheStorage.setValue for {windowId}/key timed out`);
@@ -117,8 +114,7 @@ export async function deleteValue({ windowId, key } = {}) {
     openDB(),
     UniqueId.ensureWindowId(windowId),
   ]);
-  if (!db)
-    return;
+  if (!db) return;
 
   reserveToExpireOldEntries();
 
@@ -126,29 +122,35 @@ export async function deleteValue({ windowId, key } = {}) {
 
   const cacheKey = `${windowUniqueId}-${key}`;
   asyncRunWithTimeout({
-    task: () => new Promise((resolve, reject) => {
-      try {
-        const transaction = db.transaction([store], 'readwrite');
-        const cacheStore = transaction.objectStore(store);
-        const cacheRequest = cacheStore.delete(cacheKey);
+    task: () =>
+      new Promise((resolve, reject) => {
+        try {
+          const transaction = db.transaction([store], "readwrite");
+          const cacheStore = transaction.objectStore(store);
+          const cacheRequest = cacheStore.delete(cacheKey);
 
-        transaction.oncomplete = () => {
-          //db.close();
-          windowId = undefined;
-          key      = undefined;
-          resolve();
-        };
+          transaction.oncomplete = () => {
+            //db.close();
+            windowId = undefined;
+            key = undefined;
+            resolve();
+          };
 
-        cacheRequest.onerror = event => {
-          console.error(`Failed to delete cache ${cacheKey} in the store ${store}`, event);
-          reject(event);
-        };
-      }
-      catch(error) {
-        console.error(`Failed to delete cache ${cacheKey} in the store ${store}`, error);
-        reject(error);
-      }
-    }),
+          cacheRequest.onerror = (event) => {
+            console.error(
+              `Failed to delete cache ${cacheKey} in the store ${store}`,
+              event
+            );
+            reject(event);
+          };
+        } catch (error) {
+          console.error(
+            `Failed to delete cache ${cacheKey} in the store ${store}`,
+            error
+          );
+          reject(error);
+        }
+      }),
     timeout: TIMEOUT_IN_MSEC,
     onTimedOut() {
       throw new Error(`CacheStorage.deleteValue for {windowId}/key timed out`);
@@ -181,7 +183,7 @@ async function getValueInternal({ windowId, key } = {}) {
     const cacheKey = `${windowUniqueId}-${key}`;
     const timestamp = Date.now();
     try {
-      const transaction = db.transaction([store], 'readwrite');
+      const transaction = db.transaction([store], "readwrite");
       const cacheStore = transaction.objectStore(store);
 
       const cacheRequest = cacheStore.get(cacheKey);
@@ -195,30 +197,29 @@ async function getValueInternal({ windowId, key } = {}) {
         // IndexedDB does not support partial update, so
         // we need to put all properties not only timestamp.
         cacheStore.put({
-          key:      cacheKey,
+          key: cacheKey,
           windowId: windowUniqueId,
-          value:    cache.value,
+          value: cache.value,
           timestamp,
         });
         resolve(cache.value);
-        cache.key      = undefined;
+        cache.key = undefined;
         cache.windowId = undefined;
-        cache.value    = undefined;
+        cache.value = undefined;
       };
 
-      cacheRequest.onerror = event => {
-        console.error('Failed to get from cache:', event);
+      cacheRequest.onerror = (event) => {
+        console.error("Failed to get from cache:", event);
         resolve(null);
       };
 
       transaction.oncomplete = () => {
         //db.close();
         windowId = undefined;
-        key      = undefined;
+        key = undefined;
       };
-    }
-    catch(error) {
-      console.error('Failed to get from cache:', error);
+    } catch (error) {
+      console.error("Failed to get from cache:", error);
       resolve(null);
     }
   });
@@ -246,14 +247,15 @@ async function clearForWindowInternal(windowId) {
     }
 
     try {
-      const transaction = db.transaction([BACKGROUND], 'readwrite');
+      const transaction = db.transaction([BACKGROUND], "readwrite");
       const backgroundCacheStore = transaction.objectStore(BACKGROUND);
-      const backgroundCacheIndex = backgroundCacheStore.index('windowId');
-      const backgroundCacheRequest = backgroundCacheIndex.openCursor(IDBKeyRange.only(windowUniqueId));
+      const backgroundCacheIndex = backgroundCacheStore.index("windowId");
+      const backgroundCacheRequest = backgroundCacheIndex.openCursor(
+        IDBKeyRange.only(windowUniqueId)
+      );
       backgroundCacheRequest.onsuccess = (event) => {
         const cursor = event.target.result;
-        if (!cursor)
-          return;
+        if (!cursor) return;
         const key = cursor.primaryKey;
         cursor.continue();
         backgroundCacheStore.delete(key);
@@ -263,9 +265,8 @@ async function clearForWindowInternal(windowId) {
         //db.close();
         resolve();
       };
-    }
-    catch(error) {
-      console.error('Failed to clear caches:', error);
+    } catch (error) {
+      console.error("Failed to clear caches:", error);
       reject(error);
     }
   });
@@ -289,17 +290,18 @@ async function expireOldEntries() {
     }
 
     try {
-      const transaction = db.transaction([BACKGROUND], 'readwrite');
+      const transaction = db.transaction([BACKGROUND], "readwrite");
       const backgroundCacheStore = transaction.objectStore(BACKGROUND);
-      const backgroundCacheIndex = backgroundCacheStore.index('timestamp');
+      const backgroundCacheIndex = backgroundCacheStore.index("timestamp");
 
       const expirationTimestamp = Date.now() - EXPIRATION_TIME_IN_MSEC;
 
-      const backgroundCacheRequest = backgroundCacheIndex.openCursor(IDBKeyRange.upperBound(expirationTimestamp));
+      const backgroundCacheRequest = backgroundCacheIndex.openCursor(
+        IDBKeyRange.upperBound(expirationTimestamp)
+      );
       backgroundCacheRequest.onsuccess = (event) => {
         const cursor = event.target.result;
-        if (!cursor)
-          return;
+        if (!cursor) return;
         const key = cursor.primaryKey;
         cursor.continue();
         backgroundCacheStore.delete(key);
@@ -309,9 +311,8 @@ async function expireOldEntries() {
         //db.close();
         resolve();
       };
-    }
-    catch(error) {
-      console.error('Failed to expire old entries:', error);
+    } catch (error) {
+      console.error("Failed to expire old entries:", error);
       reject(error);
     }
   });

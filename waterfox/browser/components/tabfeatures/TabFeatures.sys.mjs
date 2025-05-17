@@ -3,28 +3,28 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 const { AppConstants } = ChromeUtils.importESModule(
-  'resource://gre/modules/AppConstants.sys.mjs'
-)
+  "resource://gre/modules/AppConstants.sys.mjs"
+);
 
-const lazy = {}
+const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
-  AboutNewTab: 'resource:///modules/AboutNewTab.sys.mjs',
-  setTimeout: 'resource://gre/modules/Timer.sys.mjs',
-})
+  AboutNewTab: "resource:///modules/AboutNewTab.sys.mjs",
+  setTimeout: "resource://gre/modules/Timer.sys.mjs",
+});
 
 export const TabFeatures = {
-  NEW_TAB_CONFIG_PATH: 'browser.newtab.url',
+  NEW_TAB_CONFIG_PATH: "browser.newtab.url",
   newTabURL: null,
   prefListener: null,
-  PREF_ACTIVETAB: 'browser.tabs.copyurl.activetab',
-  PREF_REQUIRECONFIRM: 'browser.restart_menu.requireconfirm',
-  PREF_PURGECACHE: 'browser.restart_menu.purgecache',
+  PREF_ACTIVETAB: "browser.tabs.copyurl.activetab",
+  PREF_REQUIRECONFIRM: "browser.restart_menu.requireconfirm",
+  PREF_PURGECACHE: "browser.restart_menu.purgecache",
 
   init(aWindow) {
     // Wait for XUL elements to be available before initializing listeners.
     // 'context_copyTabUrl' is an element from our associated XUL, which we will now wait for.
-    if (!aWindow.document.getElementById('context_copyTabUrl')) {
+    if (!aWindow.document.getElementById("context_copyTabUrl")) {
       lazy.setTimeout(() => {
         this.init(aWindow);
       }, 50); // Retry after 50ms
@@ -38,79 +38,101 @@ export const TabFeatures = {
   },
 
   destroy() {
-    this.destroyNewTabConfig()
+    this.destroyNewTabConfig();
   },
 
   initListeners(aWindow) {
     const doc = aWindow.document;
 
     doc
-      .getElementById('tabContextMenu')
-      ?.addEventListener('popupshowing', this.tabContext.bind(this));
-    if (AppConstants.platform === 'macosx') {
+      .getElementById("tabContextMenu")
+      ?.addEventListener("popupshowing", this.tabContext.bind(this));
+    if (AppConstants.platform === "macosx") {
       doc
-        .getElementById('file-menu')
-        ?.addEventListener('popupshowing', this.tabContext.bind(this));
+        .getElementById("file-menu")
+        ?.addEventListener("popupshowing", this.tabContext.bind(this));
     } else {
       doc
-        .getElementById('appMenu-popup')
-        ?.addEventListener('popupshowing', this.tabContext.bind(this));
+        .getElementById("appMenu-popup")
+        ?.addEventListener("popupshowing", this.tabContext.bind(this));
     }
 
     // Add command listeners for menu items
-    doc.getElementById('context_duplicateTab')?.addEventListener('command', (event) => {
-      if (aWindow.TabContextMenu && aWindow.TabContextMenu.contextTab) {
-        aWindow.duplicateTabIn(aWindow.TabContextMenu.contextTab, 'tab');
-      } else {
-        // console.warn("TabFeatures: duplicateTabIn not called, context not available.");
-      }
-    });
+    doc
+      .getElementById("context_duplicateTab")
+      ?.addEventListener("command", (_event) => {
+        if (aWindow.TabContextMenu?.contextTab) {
+          aWindow.duplicateTabIn(aWindow.TabContextMenu.contextTab, "tab");
+        } else {
+          // console.warn("TabFeatures: duplicateTabIn not called, context not available.");
+        }
+      });
 
-    const copyTabUrlElement = doc.getElementById('context_copyTabUrl');
+    const copyTabUrlElement = doc.getElementById("context_copyTabUrl");
     if (copyTabUrlElement) {
-      copyTabUrlElement.addEventListener('command', (event) => {
-        if (aWindow.TabContextMenu && aWindow.TabContextMenu.contextTab && aWindow.TabContextMenu.contextTab.linkedBrowser) {
+      copyTabUrlElement.addEventListener("command", (_event) => {
+        if (aWindow.TabContextMenu?.contextTab?.linkedBrowser) {
           try {
-            this.copyTabUrl(aWindow.TabContextMenu.contextTab.linkedBrowser.currentURI.spec, aWindow);
+            this.copyTabUrl(
+              aWindow.TabContextMenu.contextTab.linkedBrowser.currentURI.spec,
+              aWindow
+            );
           } catch (e) {
-            console.error("TabFeatures: Error inside copyTabUrl listener execution:", e);
+            console.error(
+              "TabFeatures: Error inside copyTabUrl listener execution:",
+              e
+            );
           }
         } else {
           // console.warn("TabFeatures: copyTabUrl not called, context or linkedBrowser not available.");
         }
       });
     } else {
-      console.error("TabFeatures: FAILED to find element 'context_copyTabUrl'. Listener NOT attached.");
+      console.error(
+        "TabFeatures: FAILED to find element 'context_copyTabUrl'. Listener NOT attached."
+      );
     }
 
-    doc.getElementById('context_copyAllTabUrls')?.addEventListener('command', (event) => {
-      this.copyAllTabUrls(aWindow);
-    });
+    doc
+      .getElementById("context_copyAllTabUrls")
+      ?.addEventListener("command", (_event) => {
+        this.copyAllTabUrls(aWindow);
+      });
 
-    doc.getElementById('context_unloadTab')?.addEventListener('command', (event) => {
-      if (aWindow.gBrowser && aWindow.TabContextMenu && aWindow.TabContextMenu.contextTab) {
-        // Prevent unloading if it's the last tab or the only non-pinned tab in the window
-        if (aWindow.gBrowser.tabs.length > 1 &&
-            (Array.from(aWindow.gBrowser.tabs).filter(t => !t.pinned).length > 1 || !aWindow.TabContextMenu.contextTab.pinned)) {
-          aWindow.gBrowser.discardBrowser(aWindow.TabContextMenu.contextTab);
+    doc
+      .getElementById("context_unloadTab")
+      ?.addEventListener("command", (_event) => {
+        if (
+          aWindow.gBrowser &&
+          aWindow.TabContextMenu &&
+          aWindow.TabContextMenu.contextTab
+        ) {
+          // Prevent unloading if it's the last tab or the only non-pinned tab in the window
+          if (
+            aWindow.gBrowser.tabs.length > 1 &&
+            (Array.from(aWindow.gBrowser.tabs).filter((t) => !t.pinned).length >
+              1 ||
+              !aWindow.TabContextMenu.contextTab.pinned)
+          ) {
+            aWindow.gBrowser.discardBrowser(aWindow.TabContextMenu.contextTab);
+          } else {
+            // console.log("TabFeatures: discardBrowser not called, conditions not met (e.g., last tab).");
+          }
         } else {
-          // console.log("TabFeatures: discardBrowser not called, conditions not met (e.g., last tab).");
+          // console.warn("TabFeatures: discardBrowser not called, context not available.");
         }
-      } else {
-        // console.warn("TabFeatures: discardBrowser not called, context not available.");
-      }
-    });
+      });
 
-    const restartMac = doc.getElementById('app_restartBrowser');
+    const restartMac = doc.getElementById("app_restartBrowser");
     if (restartMac) {
-      restartMac.addEventListener('command', (event) => {
+      restartMac.addEventListener("command", (_event) => {
         this.restartBrowser();
       });
     }
 
-    const restartOther = doc.getElementById('appMenu-restart-button');
+    const restartOther = doc.getElementById("appMenu-restart-button");
     if (restartOther) {
-      restartOther.addEventListener('command', (event) => {
+      restartOther.addEventListener("command", (_event) => {
         this.restartBrowser();
       });
     }
@@ -118,132 +140,135 @@ export const TabFeatures = {
 
   initNewTabConfig() {
     // Fetch pref if it exists
-    this.newTabURL = Services.prefs.getStringPref(this.NEW_TAB_CONFIG_PATH, '')
+    this.newTabURL = Services.prefs.getStringPref(this.NEW_TAB_CONFIG_PATH, "");
 
     // Only proceed if a value is actually set
     if (this.newTabURL) {
       try {
-        lazy.AboutNewTab.newTabURL = this.newTabURL
+        lazy.AboutNewTab.newTabURL = this.newTabURL;
         this.prefListener = Services.prefs.addObserver(
           this.NEW_TAB_CONFIG_PATH,
-          (subject, topic, data) => {
+          (_subject, _topic, _data) => {
             const newURL = Services.prefs.getStringPref(
               this.NEW_TAB_CONFIG_PATH,
-              ''
-            )
+              ""
+            );
             if (newURL) {
-              lazy.AboutNewTab.newTabURL = newURL
+              lazy.AboutNewTab.newTabURL = newURL;
             } else {
               // If the pref is cleared, revert to default behavior
-              lazy.AboutNewTab.resetNewTabURL()
+              lazy.AboutNewTab.resetNewTabURL();
             }
           }
-        )
+        );
       } catch (e) {
-        console.error('Error initializing new tab config:', e)
+        console.error("Error initializing new tab config:", e);
       }
     }
   },
 
   initNewTabFocus(window) {
-    window.gBrowser.tabContainer.addEventListener('TabOpen', event => {
-      const tab = event.target
-      const browser = window.gBrowser.getBrowserForTab(tab)
+    window.gBrowser.tabContainer.addEventListener("TabOpen", (event) => {
+      const tab = event.target;
+      const browser = window.gBrowser.getBrowserForTab(tab);
 
       browser.addEventListener(
-        'load',
+        "load",
         function onLoad() {
-          browser.removeEventListener('load', onLoad)
+          browser.removeEventListener("load", onLoad);
           window.setTimeout(() => {
-            browser.contentWindow.focus()
-          }, 0)
+            browser.contentWindow.focus();
+          }, 0);
         },
         { once: true }
-      )
-    })
+      );
+    });
   },
 
   destroyNewTabConfig() {
     if (this.prefListener) {
-      Services.prefs.removeObserver(this.NEW_TAB_CONFIG_PATH, this.prefListener)
-      this.prefListener = null
+      Services.prefs.removeObserver(
+        this.NEW_TAB_CONFIG_PATH,
+        this.prefListener
+      );
+      this.prefListener = null;
     }
   },
 
   tabContext(aEvent) {
-    let win = aEvent.view
+    let win = aEvent.view;
     if (!win) {
-      win = Services.wm.getMostRecentWindow('navigator:browser')
+      win = Services.wm.getMostRecentWindow("navigator:browser");
     }
-    const { document } = win
-    const elements = document.getElementsByClassName('tabFeature')
+    const { document } = win;
+    const elements = document.getElementsByClassName("tabFeature");
     for (let i = 0; i < elements.length; i++) {
-      const el = elements[i]
-      const pref = el.getAttribute('preference')
+      const el = elements[i];
+      const pref = el.getAttribute("preference");
       if (pref) {
-        const visible = Services.prefs.getBoolPref(pref)
-        el.hidden = !visible
+        const visible = Services.prefs.getBoolPref(pref);
+        el.hidden = !visible;
       }
     }
     // Can't unload selected tab, so don't show menu item in that case
     if (win.TabContextMenu.contextTab === win.gBrowser.selectedTab) {
-      const el = document.getElementById('context_unloadTab')
-      el.hidden = true
+      const el = document.getElementById("context_unloadTab");
+      el.hidden = true;
     }
   },
 
   // Copies current tab url to clipboard
   copyTabUrl(aUri, aWindow) {
     const gClipboardHelper = Cc[
-      '@mozilla.org/widget/clipboardhelper;1'
-    ].getService(Ci.nsIClipboardHelper)
+      "@mozilla.org/widget/clipboardhelper;1"
+    ].getService(Ci.nsIClipboardHelper);
     try {
       Services.prefs.getBoolPref(this.PREF_ACTIVETAB)
         ? gClipboardHelper.copyString(aWindow.gBrowser.currentURI.spec)
-        : gClipboardHelper.copyString(aUri)
+        : gClipboardHelper.copyString(aUri);
     } catch (e) {
       throw new Error(
         `We're sorry but something has gone wrong with 'CopyTabUrl' ${e}`
-      )
+      );
     }
   },
 
   // Copies all tab urls to clipboard
   copyAllTabUrls(aWindow) {
     const gClipboardHelper = Cc[
-      '@mozilla.org/widget/clipboardhelper;1'
-    ].getService(Ci.nsIClipboardHelper)
+      "@mozilla.org/widget/clipboardhelper;1"
+    ].getService(Ci.nsIClipboardHelper);
     //Get all urls
-    const urlArr = this._getAllUrls(aWindow)
+    const urlArr = this._getAllUrls(aWindow);
     try {
       // Enumerate all urls in to a list.
-      let urlList = urlArr.join('\n')
+      let urlList = urlArr.join("\n");
       // Send list to clipboard.
-      gClipboardHelper.copyString(urlList.trim())
+      gClipboardHelper.copyString(urlList.trim());
       // Clear url list after clipboard event
-      urlList = ''
+      urlList = "";
     } catch (e) {
       throw new Error(
         `We're sorry but something has gone wrong with 'copyAllTabUrls' ${e}`
-      )
+      );
     }
   },
 
   // Get all the tab urls into an array.
   _getAllUrls(aWindow) {
     // We don't want to copy about uri's
-    const blocklist = /^about:.*/i
-    const urlArr = []
-    const tabCount = aWindow.gBrowser.browsers.length
+    const blocklist = /^about:.*/i;
+    const urlArr = [];
+    const tabCount = aWindow.gBrowser.browsers.length;
     Array(tabCount)
       .fill()
       .map((_, i) => {
-        const spec = aWindow.gBrowser.getBrowserAtIndex(i).currentURI.spec
+        const spec = aWindow.gBrowser.getBrowserAtIndex(i).currentURI.spec;
         if (!blocklist.test(spec)) {
-          urlArr.push(spec)
+          urlArr.push(spec);
         }
-      })
-    return urlArr
+      });
+    return urlArr;
   },
 
   async restartBrowser() {
@@ -251,40 +276,40 @@ export const TabFeatures = {
       if (Services.prefs.getBoolPref(this.PREF_REQUIRECONFIRM)) {
         // Need brand in here to be able to expand { -brand-short-name }
         const l10n = new Localization([
-          'branding/brand.ftl',
-          'browser/waterfox.ftl',
-        ])
+          "branding/brand.ftl",
+          "browser/waterfox.ftl",
+        ]);
         const [title, question] = (
           await l10n.formatMessages([
-            { id: 'restart-prompt-title' },
-            { id: 'restart-prompt-question' },
+            { id: "restart-prompt-title" },
+            { id: "restart-prompt-question" },
           ])
-        ).map(({ value }) => value)
+        ).map(({ value }) => value);
 
         if (Services.prompt.confirm(null, title, question)) {
           // only restart if confirmation given
-          this._attemptRestart()
+          this._attemptRestart();
         }
       } else {
-        this._attemptRestart()
+        this._attemptRestart();
       }
     } catch (e) {
       console.error(
         "We're sorry but something has gone wrong with 'restartBrowser' ",
         e
-      )
+      );
     }
   },
 
   _attemptRestart() {
     // Purge cache if required
     if (Services.prefs.getBoolPref(this.PREF_PURGECACHE)) {
-      Services.appinfo.invalidateCachesOnRestart()
+      Services.appinfo.invalidateCachesOnRestart();
     }
 
     // Initiate the restart
     Services.startup.quit(
       Services.startup.eRestart | Services.startup.eAttemptQuit
-    )
+    );
   },
-}
+};

@@ -10,7 +10,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   StoreHandler: "resource:///modules/StoreHandler.sys.mjs",
 });
 
-export function ExtensionCompatibilityHandler() { }
+export function ExtensionCompatibilityHandler() {}
 
 ExtensionCompatibilityHandler.prototype = {
   /**
@@ -23,9 +23,9 @@ ExtensionCompatibilityHandler.prototype = {
    * @param  aRequest
    *         The nsIRequest dealing with the content
    */
-  async handleContent(aMimetype, aContext, aRequest) {
-    let uri = aRequest.URI;
-    if (aMimetype == CRX_CONTENT_TYPE) {
+  async handleContent(aMimetype, _aContext, aRequest) {
+    const uri = aRequest.URI;
+    if (aMimetype === CRX_CONTENT_TYPE) {
       // attempt install
       try {
         return new lazy.StoreHandler().attemptInstall(uri);
@@ -40,8 +40,8 @@ ExtensionCompatibilityHandler.prototype = {
   QueryInterface: ChromeUtils.generateQI([Ci.nsIContentHandler]),
 
   log(aMsg) {
-    let msg = "addon_stores.js: " + (aMsg.join ? aMsg.join("") : aMsg);
+    const msg = `addon_stores.js: ${aMsg.join ? aMsg.join("") : aMsg}`;
     Services.console.logStringMessage(msg);
-    dump(msg + "\n");
+    dump(`${msg}\n`);
   },
 };

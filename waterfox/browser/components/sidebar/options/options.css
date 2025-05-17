@@ -46,7 +46,8 @@ em {
   font-weight: bold;
 }
 
-p, ul {
+p,
+ul {
   margin: 0 0 0.5em 0;
   padding: 0;
 }
@@ -92,7 +93,6 @@ label.has-radio:not(.inline) {
 :root:not(.expose-unblock-autoplay-features) .unblock-autoplay-features {
   display: none;
 }
-
 
 #style-radiogroup {
   align-content: flex-start;
@@ -176,8 +176,6 @@ label input[type="checkbox"] ~ img {
   background-image: url("as-next-sibling.png");
 }
 
-
-
 #browserThemeCustomRules {
   -moz-user-select: text;
   cursor: text;
@@ -207,8 +205,9 @@ label input[type="checkbox"] ~ img {
 
 #userStyleRulesField > .CodeMirror.CodeMirror-focused {
   border-color: var(--in-content-border-focus);
-  box-shadow: 0 0 0 1px var(--in-content-border-active),
-              0 0 0 4px var(--in-content-border-active-shadow);
+  box-shadow:
+    0 0 0 1px var(--in-content-border-active),
+    0 0 0 4px var(--in-content-border-active-shadow);
 }
 
 #userStyleRulesField.invalid > .CodeMirror {
@@ -240,7 +239,6 @@ label input[type="checkbox"] ~ img {
   flex-grow: 1;
 }
 
-
 table {
   border-collapse: collapse;
 }
@@ -260,7 +258,6 @@ tbody tr {
     border-top-color: rgba(255, 255, 255, 0.2);
   }
 }
-
 
 .contextConfigs tbody th,
 .tabDragBehaviorConfigs tbody th {
@@ -284,7 +281,6 @@ tbody tr {
   margin-right: 1.5em;
 }
 
-
 #externalAddonPermissionsGroup td:nth-child(2) {
   text-align: center;
 }
@@ -293,8 +289,10 @@ tbody tr {
   margin-right: 3em;
 }
 
-
-fieldset.collapsible.collapsed > *:not(legend):not(div) /* "div" is for the container of "import" and "export" buttons */ {
+fieldset.collapsible.collapsed
+  > *:not(legend):not(
+    div
+  ) /* "div" is for the container of "import" and "export" buttons */ {
   display: none;
 }
 
@@ -313,12 +311,10 @@ body > section.collapsed > h1:first-child::before {
   transform: rotate(-90deg);
 }
 
-
 :root.successor-tab-support .without-successor-tab-support,
 :root:not(.successor-tab-support) .with-successor-tab-support {
   display: none;
 }
-
 
 body > section {
   margin-top: 1em;
@@ -342,7 +338,6 @@ body > section.collapsed > h1:first-child ~ * {
   opacity: 0;
 }
 
-
 #defaultBookmarkParentChooser {
   max-width: 100%;
 }
@@ -353,18 +348,17 @@ body > section.collapsed > h1:first-child ~ * {
   margin-bottom: 0.5em;
 }
 
-
 :root:not(.show-expert-options) .expert:not(option.expert[selected]) {
   display: none;
 }
 
 .expert:not(option) {
   background: var(--in-content-box-info-background);
-  box-shadow: 0 0 0.5em var(--in-content-box-info-background),
-              0 0 0.5em var(--in-content-box-info-background),
-              0 0 0.5em var(--in-content-box-info-background);
+  box-shadow:
+    0 0 0.5em var(--in-content-box-info-background),
+    0 0 0.5em var(--in-content-box-info-background),
+    0 0 0.5em var(--in-content-box-info-background);
 }
-
 
 #link-optionsPage-top {
   float: right;
@@ -374,7 +368,6 @@ body > section.collapsed > h1:first-child ~ * {
 body.independent #link-optionsPage-top {
   display: none;
 }
-
 
 input[type="checkbox"].missing-permission {
   opacity: 0.5;

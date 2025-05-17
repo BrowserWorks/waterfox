@@ -1,8 +1,3 @@
-/* Any copyright is dedicated to the Public Domain.
- * http://creativecommons.org/publicdomain/zero/1.0/
- */
-"use strict";
-
 createAppInfo("xpcshell@tests.mozilla.org", "XPCShell", "1", "1");
 
 const ADDONS = {
@@ -15,11 +10,11 @@ const ADDONS = {
   },
 };
 
-add_task(async function() {
+add_task(async () => {
   await promiseStartupManager();
 
   let sawInstall = false;
-  Services.obs.addObserver(function() {
+  Services.obs.addObserver(() => {
     sawInstall = true;
   }, "addon-install");
 

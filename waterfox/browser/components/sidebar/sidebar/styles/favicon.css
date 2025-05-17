@@ -20,7 +20,7 @@ tab-favicon {
   width: var(--favicon-size);
   z-index: var(--tab-base-z-index);
 
-  --favicon-base-z-index:            20;
+  --favicon-base-z-index: 20;
   --favicon-preferred-image-z-index: 100;
 }
 tab-item tab-favicon,
@@ -67,11 +67,12 @@ tab-item.group-tab .favicon-builtin::before {
   mask: url("/resources/icons/folder.svg") no-repeat center / 100%;
 }
 
-
 tab-item[data-current-uri^="chrome:"] .favicon-builtin::before {
   background: url("/resources/icons/defaultFavicon.svg") no-repeat center / 100%;
 }
-:root.simulate-svg-context-fill tab-item[data-current-uri^="chrome:"] .favicon-builtin::before {
+:root.simulate-svg-context-fill
+  tab-item[data-current-uri^="chrome:"]
+  .favicon-builtin::before {
   background: var(--tab-text);
   mask: url("/resources/icons/defaultFavicon.svg") no-repeat center / 100%;
 }
@@ -79,7 +80,9 @@ tab-item[data-current-uri^="chrome:"] .favicon-builtin::before {
 tab-item[data-current-uri^="about:addons"] .favicon-builtin::before {
   background: url("/resources/icons/extensions.svg") no-repeat center / 100%;
 }
-:root.simulate-svg-context-fill tab-item[data-current-uri^="about:addons"] .favicon-builtin::before {
+:root.simulate-svg-context-fill
+  tab-item[data-current-uri^="about:addons"]
+  .favicon-builtin::before {
   background: var(--tab-text);
   mask: url("/resources/icons/extensions.svg") no-repeat center / 100%;
 }
@@ -87,7 +90,9 @@ tab-item[data-current-uri^="about:addons"] .favicon-builtin::before {
 tab-item[data-current-uri^="about:debugging"] .favicon-builtin::before {
   background: url("/resources/icons/developer.svg") no-repeat center / 100%;
 }
-:root.simulate-svg-context-fill tab-item[data-current-uri^="about:debugging"] .favicon-builtin::before {
+:root.simulate-svg-context-fill
+  tab-item[data-current-uri^="about:debugging"]
+  .favicon-builtin::before {
   background: var(--tab-text);
   mask: url("/resources/icons/developer.svg") no-repeat center / 100%;
 }
@@ -95,13 +100,17 @@ tab-item[data-current-uri^="about:debugging"] .favicon-builtin::before {
 tab-item[data-current-uri^="about:devtools-toolbox"] .favicon-builtin::before {
   background: url("/resources/icons/window.svg") no-repeat center / 100%;
 }
-:root.simulate-svg-context-fill tab-item[data-current-uri^="about:devtools-toolbox"] .favicon-builtin::before {
+:root.simulate-svg-context-fill
+  tab-item[data-current-uri^="about:devtools-toolbox"]
+  .favicon-builtin::before {
   background: var(--tab-text);
   mask: url("/resources/icons/window.svg") no-repeat center / 100%;
 }
 
 tab-item[data-current-uri^="about:logins"] .favicon-builtin::before,
-:root.simulate-svg-context-fill tab-item[data-current-uri^="about:logins"] .favicon-builtin::before {
+:root.simulate-svg-context-fill
+  tab-item[data-current-uri^="about:logins"]
+  .favicon-builtin::before {
   background: url("/resources/icons/lockwise.svg") no-repeat center / 100%;
   mask: none;
 }
@@ -110,8 +119,12 @@ tab-item[data-current-uri^="about:performance"] .favicon-builtin::before,
 tab-item[data-current-uri^="about:processes"] .favicon-builtin::before {
   background: url("/resources/icons/performance.svg") no-repeat center / 100%;
 }
-:root.simulate-svg-context-fill tab-item[data-current-uri^="about:performance"] .favicon-builtin::before,
-:root.simulate-svg-context-fill tab-item[data-current-uri^="about:processes"] .favicon-builtin::before {
+:root.simulate-svg-context-fill
+  tab-item[data-current-uri^="about:performance"]
+  .favicon-builtin::before,
+:root.simulate-svg-context-fill
+  tab-item[data-current-uri^="about:processes"]
+  .favicon-builtin::before {
   background: var(--tab-text);
   mask: url("/resources/icons/performance.svg") no-repeat center / 100%;
 }
@@ -120,22 +133,32 @@ tab-item[data-current-uri^="about:config"] .favicon-builtin::before,
 tab-item[data-current-uri^="about:preferences"] .favicon-builtin::before {
   background: url("/resources/icons/settings.svg") no-repeat center / 100%;
 }
-:root.simulate-svg-context-fill tab-item[data-current-uri^="about:config"] .favicon-builtin::before,
-:root.simulate-svg-context-fill tab-item[data-current-uri^="about:preferences"] .favicon-builtin::before {
+:root.simulate-svg-context-fill
+  tab-item[data-current-uri^="about:config"]
+  .favicon-builtin::before,
+:root.simulate-svg-context-fill
+  tab-item[data-current-uri^="about:preferences"]
+  .favicon-builtin::before {
   background: var(--tab-text);
   mask: url("/resources/icons/settings.svg") no-repeat center / 100%;
 }
 
 tab-item[data-current-uri^="about:privatebrowsing"] .favicon-builtin::before,
-:root.simulate-svg-context-fill tab-item[data-current-uri^="about:privatebrowsing"] .favicon-builtin::before {
-  background: url("/resources/icons/privatebrowsing-favicon.svg") no-repeat center / 100%;
+:root.simulate-svg-context-fill
+  tab-item[data-current-uri^="about:privatebrowsing"]
+  .favicon-builtin::before {
+  background: url("/resources/icons/privatebrowsing-favicon.svg") no-repeat
+    center / 100%;
   mask: none;
 }
 
 tab-item[data-current-uri^="about:profiling"] .favicon-builtin::before {
-  background: url("/resources/icons/profiler-stopwatch.svg") no-repeat center / 100%;
+  background: url("/resources/icons/profiler-stopwatch.svg") no-repeat center /
+    100%;
 }
-:root.simulate-svg-context-fill tab-item[data-current-uri^="about:profiling"] .favicon-builtin::before {
+:root.simulate-svg-context-fill
+  tab-item[data-current-uri^="about:profiling"]
+  .favicon-builtin::before {
   background: var(--tab-text);
   mask: url("/resources/icons/profiler-stopwatch.svg") no-repeat center / 100%;
 }
@@ -143,41 +166,53 @@ tab-item[data-current-uri^="about:profiling"] .favicon-builtin::before {
 tab-item[data-current-uri^="about:protections"] .favicon-builtin::before {
   background: url("/resources/icons/dashboard.svg") no-repeat center / 100%;
 }
-:root.simulate-svg-context-fill tab-item[data-current-uri^="about:protections"] .favicon-builtin::before {
+:root.simulate-svg-context-fill
+  tab-item[data-current-uri^="about:protections"]
+  .favicon-builtin::before {
   background: var(--tab-text);
   mask: url("/resources/icons/dashboard.svg") no-repeat center / 100%;
 }
 
 tab-item[data-current-uri^="about:robots"] .favicon-builtin::before,
-:root.simulate-svg-context-fill tab-item[data-current-uri^="about:robots"] .favicon-builtin::before {
+:root.simulate-svg-context-fill
+  tab-item[data-current-uri^="about:robots"]
+  .favicon-builtin::before {
   background: url("/resources/icons/robot.ico") no-repeat center / 100%;
   mask: none;
 }
 
-tab-item[data-current-favicon-uri="chrome://global/skin/icons/blocked.svg"] .favicon-builtin::before {
+tab-item[data-current-favicon-uri="chrome://global/skin/icons/blocked.svg"]
+  .favicon-builtin::before {
   background: url("/resources/icons/blocked.svg") no-repeat center / 100%;
 }
-:root.simulate-svg-context-fill tab-item[data-current-favicon-uri="chrome://global/skin/icons/blocked.svg"] .favicon-builtin::before {
+:root.simulate-svg-context-fill
+  tab-item[data-current-favicon-uri="chrome://global/skin/icons/blocked.svg"]
+  .favicon-builtin::before {
   background: var(--tab-text);
   mask: url("/resources/icons/blocked.svg") no-repeat center / 100%;
 }
 
-tab-item[data-current-favicon-uri="chrome://global/skin/icons/info.svg"] .favicon-builtin::before {
+tab-item[data-current-favicon-uri="chrome://global/skin/icons/info.svg"]
+  .favicon-builtin::before {
   background: url("/resources/icons/info.svg") no-repeat center / 100%;
 }
-:root.simulate-svg-context-fill tab-item[data-current-favicon-uri="chrome://global/skin/icons/info.svg"] .favicon-builtin::before {
+:root.simulate-svg-context-fill
+  tab-item[data-current-favicon-uri="chrome://global/skin/icons/info.svg"]
+  .favicon-builtin::before {
   background: var(--tab-text);
   mask: url("/resources/icons/info.svg") no-repeat center / 100%;
 }
 
-tab-item[data-current-favicon-uri="chrome://global/skin/icons/warning.svg"] .favicon-builtin::before {
+tab-item[data-current-favicon-uri="chrome://global/skin/icons/warning.svg"]
+  .favicon-builtin::before {
   background: url("/resources/icons/warning.svg") no-repeat center / 100%;
 }
-:root.simulate-svg-context-fill tab-item[data-current-favicon-uri="chrome://global/skin/icons/warning.svg"] .favicon-builtin::before {
+:root.simulate-svg-context-fill
+  tab-item[data-current-favicon-uri="chrome://global/skin/icons/warning.svg"]
+  .favicon-builtin::before {
   background: var(--tab-text);
   mask: url("/resources/icons/warning.svg") no-repeat center / 100%;
 }
-
 
 tab-item.group-tab tab-favicon:not(.error) .favicon-image[src] {
   bottom: 0;
@@ -187,7 +222,6 @@ tab-item.group-tab tab-favicon:not(.error) .favicon-image[src] {
   right: 0;
   z-index: var(--favicon-preferred-image-z-index);
 }
-
 
 tab-favicon.error .favicon-image,
 .favicon-image:not([src]),
@@ -204,32 +238,36 @@ tab-item[data-current-uri^="about:processes"] .favicon-image,
 tab-item[data-current-uri^="about:profiling"] .favicon-image,
 tab-item[data-current-uri^="about:protections"] .favicon-image,
 tab-item[data-current-uri^="about:robots"] .favicon-image,
-tab-item[data-current-favicon-uri="chrome://global/skin/icons/blocked.svg"] .favicon-image,
-tab-item[data-current-favicon-uri="chrome://global/skin/icons/info.svg"] .favicon-image,
-tab-item[data-current-favicon-uri="chrome://global/skin/icons/warning.svg"] .favicon-image,
-tab-item:not(.group-tab
-       ):not([data-current-uri^="chrome:"]
-       ):not([data-current-uri^="about:addons"]
-       ):not([data-current-uri^="about:config"]
-       ):not([data-current-uri^="about:debugging"]
-       ):not([data-current-uri^="about:logins"]
-       ):not([data-current-uri^="about:devtools-toolbox"]
-       ):not([data-current-uri^="about:performance"]
-       ):not([data-current-uri^="about:preferences"]
-       ):not([data-current-uri^="about:privatebrowsing"]
-       ):not([data-current-uri^="about:processes"]
-       ):not([data-current-uri^="about:profiling"]
-       ):not([data-current-uri^="about:protections"]
-       ):not([data-current-uri^="about:robots"]
-       ):not([data-current-favicon-uri="chrome://global/skin/icons/blocked.svg"]
-       ):not([data-current-favicon-uri="chrome://global/skin/icons/info.svg"]
-       ):not([data-current-favicon-uri="chrome://global/skin/icons/warning.svg"])
-  tab-favicon:not(.error) .favicon-image[src] ~ .favicon-builtin::before,
+tab-item[data-current-favicon-uri="chrome://global/skin/icons/blocked.svg"]
+  .favicon-image,
+tab-item[data-current-favicon-uri="chrome://global/skin/icons/info.svg"]
+  .favicon-image,
+tab-item[data-current-favicon-uri="chrome://global/skin/icons/warning.svg"]
+  .favicon-image,
+tab-item:not(.group-tab):not([data-current-uri^="chrome:"]):not(
+    [data-current-uri^="about:addons"]
+  ):not([data-current-uri^="about:config"]):not(
+    [data-current-uri^="about:debugging"]
+  ):not([data-current-uri^="about:logins"]):not(
+    [data-current-uri^="about:devtools-toolbox"]
+  ):not([data-current-uri^="about:performance"]):not(
+    [data-current-uri^="about:preferences"]
+  ):not([data-current-uri^="about:privatebrowsing"]):not(
+    [data-current-uri^="about:processes"]
+  ):not([data-current-uri^="about:profiling"]):not(
+    [data-current-uri^="about:protections"]
+  ):not([data-current-uri^="about:robots"]):not(
+    [data-current-favicon-uri="chrome://global/skin/icons/blocked.svg"]
+  ):not([data-current-favicon-uri="chrome://global/skin/icons/info.svg"]):not(
+    [data-current-favicon-uri="chrome://global/skin/icons/warning.svg"]
+  )
+  tab-favicon:not(.error)
+  .favicon-image[src]
+  ~ .favicon-builtin::before,
 tab-item.loading .favicon-image,
 tab-item.loading .favicon-builtin::before {
   display: none !important;
 }
-
 
 /* Sharing status for faviconized tabs.
    Styles for regular tabs are degined in sharing-state.css. */
@@ -237,16 +275,23 @@ tab-item.loading .favicon-builtin::before {
 tab-item:not(.faviconized) .favicon-sharing-state,
 tab-item.active .favicon-sharing-state,
 tab-item.loading .favicon-sharing-state,
-tab-item.faviconized:not(.sharing-camera):not(.sharing-microphone):not(.sharing-screen) .favicon-sharing-state {
+tab-item.faviconized:not(.sharing-camera):not(.sharing-microphone):not(
+    .sharing-screen
+  )
+  .favicon-sharing-state {
   display: none;
 }
 
 tab-item.faviconized:not(.active):not(.loading).sharing-camera .favicon-image,
-tab-item.faviconized:not(.active):not(.loading).sharing-camera .favicon-builtin::before,
-tab-item.faviconized:not(.active):not(.loading).sharing-microphone .favicon-image,
-tab-item.faviconized:not(.active):not(.loading).sharing-microphone .favicon-builtin::before,
+tab-item.faviconized:not(.active):not(.loading).sharing-camera
+  .favicon-builtin::before,
+tab-item.faviconized:not(.active):not(.loading).sharing-microphone
+  .favicon-image,
+tab-item.faviconized:not(.active):not(.loading).sharing-microphone
+  .favicon-builtin::before,
 tab-item.faviconized:not(.active):not(.loading).sharing-screen .favicon-image,
-tab-item.faviconized:not(.active):not(.loading).sharing-screen .favicon-builtin::before {
+tab-item.faviconized:not(.active):not(.loading).sharing-screen
+  .favicon-builtin::before {
   animation: var(--tab-sharing-icon-animation-inverted);
 }
 
@@ -259,23 +304,29 @@ tab-item.faviconized:not(.active):not(.loading).sharing-screen .favicon-builtin:
 }
 
 tab-item.faviconized.sharing-camera .favicon-sharing-state::before {
-  background-image: url("./icons/camera.svg")
+  background-image: url("./icons/camera.svg");
 }
-:root.simulate-svg-context-fill tab-item.faviconized.sharing-camera .favicon-sharing-state::before {
+:root.simulate-svg-context-fill
+  tab-item.faviconized.sharing-camera
+  .favicon-sharing-state::before {
   mask-image: url("./icons/camera.svg");
 }
 
 tab-item.faviconized.sharing-microphone .favicon-sharing-state::before {
-  background-image: url("./icons/microphone.svg")
+  background-image: url("./icons/microphone.svg");
 }
-:root.simulate-svg-context-fill tab-item.faviconized.sharing-microphone .favicon-sharing-state::before {
+:root.simulate-svg-context-fill
+  tab-item.faviconized.sharing-microphone
+  .favicon-sharing-state::before {
   mask-image: url("./icons/microphone.svg");
 }
 
 tab-item.faviconized.sharing-screen .favicon-sharing-state::before {
-  background-image: url("./icons/screen.svg")
+  background-image: url("./icons/screen.svg");
 }
-:root.simulate-svg-context-fill tab-item.faviconized.sharing-screen .favicon-sharing-state::before {
+:root.simulate-svg-context-fill
+  tab-item.faviconized.sharing-screen
+  .favicon-sharing-state::before {
   mask-image: url("./icons/screen.svg");
 }
 
@@ -287,8 +338,6 @@ tab-item.faviconized.sharing-screen .favicon-sharing-state::before {
   /* put this here to override background-image specivied rules above! */
   background: var(--sharing-state-color);
 }
-
-
 
 /* Sticky status */
 
@@ -319,7 +368,7 @@ tab-item.pinned .favicon-sticky-state {
 }
 
 tab-item.sticky .favicon-sticky-state::after {
-  background-image: url("./icons/pin-12.svg")
+  background-image: url("./icons/pin-12.svg");
 }
 :root.simulate-svg-context-fill tab-item.sticky .favicon-sticky-state::after {
   mask-image: url("./icons/pin-12.svg");

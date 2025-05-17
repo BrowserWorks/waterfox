@@ -29,23 +29,23 @@
   --color-animation: 0.25s ease-out;
   --indent-animation: var(--indent-duration) ease-out;
   --collapse-animation: var(--collapse-duration) ease-out;
-  --tab-basic-animation: background    var(--color-animation),
-                         color         var(--color-animation),
-                         left          var(--collapse-animation),
-                         margin-bottom var(--collapse-animation),
-                         margin-top    var(--collapse-animation),
-                         max-height    var(--collapse-animation),
-                         max-width     var(--collapse-animation),
-                         min-height    var(--collapse-animation),
-                         min-width     var(--collapse-animation),
-                         opacity       var(--collapse-animation),
-                         padding       var(--collapse-animation), /* for extra margin on overlay-scrollbar mode */
-                         right         var(--collapse-animation);
-  --tab-animation: var(--tab-basic-animation),
-                   background    var(--color-animation),
-                   top           var(--collapse-animation);
-  --tab-indent-animation: margin-left   var(--indent-animation),
-                          margin-right  var(--indent-animation);
+  --tab-basic-animation:
+    background var(--color-animation),
+    color var(--color-animation),
+    left var(--collapse-animation),
+    margin-bottom var(--collapse-animation),
+    margin-top var(--collapse-animation),
+    max-height var(--collapse-animation),
+    max-width var(--collapse-animation),
+    min-height var(--collapse-animation),
+    min-width var(--collapse-animation),
+    opacity var(--collapse-animation),
+    padding var(--collapse-animation), /* for extra margin on overlay-scrollbar mode */
+    right var(--collapse-animation);
+  --tab-animation: var(--tab-basic-animation), background var(--color-animation),
+    top var(--collapse-animation);
+  --tab-indent-animation: margin-left var(--indent-animation), margin-right
+    var(--indent-animation);
 
   --button-opacity: 0.75;
   --button-hover-opacity: 1;
@@ -66,40 +66,49 @@
   --multiselected-color-opacity: 0.35;
 
   /* z-index of elements: we should define them here to keep their strict priorities */
-  --invisible-z-index:       -100;
-  --dummy-element-z-index:   1; /* dummy tab */
-  --background-z-index:      10; /* background screen */
-  --accessible-ui-z-index:   100; /* tabbar itself, and others */
-  --over-tabs-z-index:       200; /* buttons after tabs, pinned tabs (required to make pinned tabs clickable) */
-  --over-buttons-z-index:    300; /* buttons on buttons after tabs */
+  --invisible-z-index: -100;
+  --dummy-element-z-index: 1; /* dummy tab */
+  --background-z-index: 10; /* background screen */
+  --accessible-ui-z-index: 100; /* tabbar itself, and others */
+  --over-tabs-z-index: 200; /* buttons after tabs, pinned tabs (required to make pinned tabs clickable) */
+  --over-buttons-z-index: 300; /* buttons on buttons after tabs */
   --notification-ui-z-index: 9000;
-  --blocking-ui-z-index:     10000; /* frontmost of others */
+  --blocking-ui-z-index: 10000; /* frontmost of others */
 
-  --tab-background-z-index:            10;
+  --tab-background-z-index: 10;
   --tab-extra-contents-behind-z-index: 20;
-  --tab-indent-z-index:                90;
-  --tab-base-z-index:                  100;
+  --tab-indent-z-index: 90;
+  --tab-base-z-index: 100;
   --tab-extra-contents-beside-z-index: 150;
-  --tab-favicon-z-index:               200;
-  --tab-burster-z-index:               4000;
-  --tab-highlighter-z-index:           5000;
-  --tab-extra-contents-front-z-index:  6000;
-  --tab-ui-z-index:                    9000;
-  --tab-drop-marker-z-index:           10000;
+  --tab-favicon-z-index: 200;
+  --tab-burster-z-index: 4000;
+  --tab-highlighter-z-index: 5000;
+  --tab-extra-contents-front-z-index: 6000;
+  --tab-ui-z-index: 9000;
+  --tab-drop-marker-z-index: 10000;
 
   --visual-gap-offset: 0px;
   --visual-gap-animation: top var(--collapse-animation);
-  --visual-gap-hover-animation: top var(--collapse-animation) var(--visual-gap-hover-animation-delay);
+  --visual-gap-hover-animation: top var(--collapse-animation)
+    var(--visual-gap-hover-animation-delay);
 }
 
 tab-item {
   --tab-current-size: var(--tab-size);
-  --attention-marker-x-offset: calc(0px - ((var(--tab-current-size) - var(--favicon-size)) / 2));
-  --attention-marker-y-offset: calc(0px - ((var(--tab-current-size) - var(--favicon-size)) / 2));
-  --attention-marker-gradient: radial-gradient(circle farthest-corner at 50% calc(100% - 14% + 1px),
-                                               var(--tab-highlighted-glow) 0,
-                                               var(--tab-highlighted-glow) 7%,
-                                               rgba(255, 255, 255, 0) 7%);
+  --attention-marker-x-offset: calc(
+    0px -
+    ((var(--tab-current-size) - var(--favicon-size)) / 2)
+  );
+  --attention-marker-y-offset: calc(
+    0px -
+    ((var(--tab-current-size) - var(--favicon-size)) / 2)
+  );
+  --attention-marker-gradient: radial-gradient(
+    circle farthest-corner at 50% calc(100% - 14% + 1px),
+    var(--tab-highlighted-glow) 0,
+    var(--tab-highlighted-glow) 7%,
+    rgba(255, 255, 255, 0) 7%
+  );
   --attention-marker-gradient-hover: var(--attention-marker-gradient);
   /* old style
   --attention-marker-gradient: radial-gradient(circle farthest-corner at 50% calc(100% - 3px),
@@ -113,8 +122,16 @@ tab-item {
   */
 }
 tab-item.faviconized {
-  --attention-marker-x-offset: calc(0px - ((var(--tab-current-size) - var(--favicon-size)) / 2) + ((var(--tab-current-size) - var(--faviconized-tab-size)) / 2));
-  --attention-marker-y-offset: calc(0px - ((var(--tab-current-size) - var(--favicon-size)) / 2) + ((var(--tab-current-size) - var(--faviconized-tab-size))));
+  --attention-marker-x-offset: calc(
+    0px -
+    ((var(--tab-current-size) - var(--favicon-size)) / 2) +
+    ((var(--tab-current-size) - var(--faviconized-tab-size)) / 2)
+  );
+  --attention-marker-y-offset: calc(
+    0px -
+    ((var(--tab-current-size) - var(--favicon-size)) / 2) +
+    ((var(--tab-current-size) - var(--faviconized-tab-size)))
+  );
 }
 
 tab-item:not(.faviconized):not(.dummy),
@@ -135,9 +152,15 @@ tab-item.faviconized:focus tab-favicon {
 }
 
 @keyframes blink {
-  0% { opacity: 0; }
-  50% { opacity: 1; }
-  100% { opacity: 0; }
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 :root.debug * {
@@ -165,7 +188,8 @@ img {
 }
 
 button,
-.after-tabs [role="button"] /*,
+.after-tabs
+  [role="button"] /*,
 tab-item,
 tab-twisty,
 tab-closebox,
@@ -193,10 +217,10 @@ tab-sound-button */ {
   height: 100%; /* to make #content flexible */
 }
 
-
 /* tabbar */
 
-:root, body {
+:root,
+body {
   color-scheme: light dark;
   font: message-box; /* this is same to Firefox's UI. */
 }
@@ -278,7 +302,11 @@ tab-sound-button */ {
   top: calc(var(--tabbar-top-area-size) + var(--pinned-tabs-area-size));
 }
 .overflow-indicator.end {
-  bottom: calc(var(--subpanel-area-size) + var(--tabbar-bottom-area-size) + var(--after-tabs-area-size));
+  bottom: calc(
+    var(--subpanel-area-size) +
+    var(--tabbar-bottom-area-size) +
+    var(--after-tabs-area-size)
+  );
 }
 #normal-tabs-container.overflow.scrolled .overflow-indicator.start,
 #normal-tabs-container.overflow:not(.fully-scrolled) .overflow-indicator.end {
@@ -304,7 +332,12 @@ tab-sound-button */ {
   top: calc(var(--tabbar-top-area-size) + var(--pinned-tabs-area-size));
 }
 .sticky-tabs-container.below {
-  bottom: calc(var(--after-tabs-area-size) + var(--tabbar-bottom-area-size) + var(--tabbar-bottom-area-size) + var(--subpanel-area-size));
+  bottom: calc(
+    var(--after-tabs-area-size) +
+    var(--tabbar-bottom-area-size) +
+    var(--tabbar-bottom-area-size) +
+    var(--subpanel-area-size)
+  );
 }
 
 :root.animation:not(.minimized) .tabs-spacer {
@@ -344,14 +377,12 @@ tab-sound-button */ {
   scrollbar-width: thin;
 }
 
-
 ul {
   flex-grow: 1;
   list-style: none;
   margin: 0;
   padding: 0;
 }
-
 
 /* dummy elements to calculate actual size of boxes */
 
@@ -392,7 +423,6 @@ ul {
   width: var(--shift-tabs-for-scrollbar-distance, 0);
 }
 
-
 /* tabs */
 
 tab-item,
@@ -418,7 +448,8 @@ tab-item-substance {
   flex-wrap: nowrap;
   justify-content: flex-start;
   line-height: 1;
-  margin: var(--tab-margin-top) var(--tab-margin-right) var(--tab-margin-bottom) var(--tab-margin-left);
+  margin: var(--tab-margin-top) var(--tab-margin-right) var(--tab-margin-bottom)
+    var(--tab-margin-left);
   max-width: 100%;
   min-height: 0;
   /*overflow: hidden;*/ /* we should not apply overflow:hidden here to allow rendering box-shadow of contents */
@@ -460,11 +491,19 @@ tab-item-substance .caption {
 /* auto-hidden scrollbar placeholder workaround */
 :root.left.shift-tabs-for-scrollbar-only-on-hover.on-scrollbar-area:hover
   #tabbar.scrollbar-autohide
-  #normal-tabs-container.overflow tab-item:not(.pinned) tab-item-substance,
+  #normal-tabs-container.overflow
+  tab-item:not(.pinned)
+  tab-item-substance,
 :root.left:not(.shift-tabs-for-scrollbar-only-on-hover)
   #tabbar.scrollbar-autohide
-  #normal-tabs-container.overflow tab-item:not(.pinned) tab-item-substance {
-  margin-left: calc(var(--tab-margin-left) + var(--tab-indent) + var(--shift-tabs-for-scrollbar-distance));
+  #normal-tabs-container.overflow
+  tab-item:not(.pinned)
+  tab-item-substance {
+  margin-left: calc(
+    var(--tab-margin-left) +
+    var(--tab-indent) +
+    var(--shift-tabs-for-scrollbar-distance)
+  );
 }
 
 :root.right tab-item:not(.pinned) tab-item-substance {
@@ -474,11 +513,19 @@ tab-item-substance .caption {
 /* auto-hidden scrollbar placeholder workaround */
 :root.right.shift-tabs-for-scrollbar-only-on-hover.on-scrollbar-area:hover
   #tabbar.scrollbar-autohide
-  #normal-tabs-container.overflow tab-item:not(.pinned) tab-item-substance,
+  #normal-tabs-container.overflow
+  tab-item:not(.pinned)
+  tab-item-substance,
 :root.right:not(.shift-tabs-for-scrollbar-only-on-hover)
   #tabbar.scrollbar-autohide
-  #normal-tabs-container.overflow tab-item:not(.pinned) tab-item-substance {
-  margin-right: calc(var(--tab-margin-right) + var(--tab-indent) + var(--shift-tabs-for-scrollbar-distance));
+  #normal-tabs-container.overflow
+  tab-item:not(.pinned)
+  tab-item-substance {
+  margin-right: calc(
+    var(--tab-margin-right) +
+    var(--tab-indent) +
+    var(--shift-tabs-for-scrollbar-distance)
+  );
 }
 
 tab-item,
@@ -501,11 +548,14 @@ tab-item.hidden {
   transition: var(--tab-animation);
 }
 :root.animation:not(.minimized) tab-item.animation-ready:not(.expanding),
-:root.animation:not(.minimized) tab-item.animation-ready:not(.expanding) tab-item-substance,
+:root.animation:not(.minimized)
+  tab-item.animation-ready:not(.expanding)
+  tab-item-substance,
 :root.animation:not(.minimized) tab-item.animation-ready.expanding.moving,
-:root.animation:not(.minimized) tab-item.animation-ready.expanding.moving tab-item-substance {
-  transition: var(--tab-animation),
-              var(--tab-indent-animation);
+:root.animation:not(.minimized)
+  tab-item.animation-ready.expanding.moving
+  tab-item-substance {
+  transition: var(--tab-animation), var(--tab-indent-animation);
 }
 
 tab-item.removing,
@@ -539,7 +589,6 @@ tab-item.duplicating,
 tab-item.duplicating tab-item-substance {
   transition: none;
 }
-
 
 :root.left tab-item tab-twisty {
   order: -1;
@@ -599,7 +648,9 @@ tab-item .extra-items-container.indent {
 }
 /* auto-hidden scrollbar placeholder workaround */
 #tabbar.scrollbar-autohide
-  #normal-tabs-container.overflow tab-item .extra-items-container.indent{
+  #normal-tabs-container.overflow
+  tab-item
+  .extra-items-container.indent {
   width: calc(var(--tab-indent) + var(--shift-tabs-for-scrollbar-distance));
 }
 :root.left tab-item .extra-items-container.indent {
@@ -636,7 +687,7 @@ tab-item .burster {
 tab-item.faviconized.unread tab-favicon::before,
 tab-item.attention tab-favicon::before {
   bottom: auto;
-  content: '';
+  content: "";
   height: var(--tab-current-size);
   left: var(--attention-marker-x-offset);
   right: auto;
@@ -665,10 +716,10 @@ tab-item .extra-items-container.behind {
   z-index: var(--tab-extra-contents-front-z-index);
 }
 
-:root.newtab-action-selectable
-  .newtab-button
-  .extra-items-container,
-:root:not(.newtab-action-selectable).contextual-identity-selectable:not(.incognito)
+:root.newtab-action-selectable .newtab-button .extra-items-container,
+:root:not(.newtab-action-selectable).contextual-identity-selectable:not(
+    .incognito
+  )
   .newtab-button
   .extra-items-container {
   right: var(--new-tab-button-anchor-size);
@@ -680,9 +731,6 @@ tab-item .extra-items-container.behind {
   left: var(--new-tab-button-anchor-size);
 }
 
-
-
-
 /* pinned tabs */
 
 #pinned-tabs-container {
@@ -692,14 +740,16 @@ tab-item .extra-items-container.behind {
   max-height: var(--pinned-tabs-area-size);
   overflow: hidden;
   top: calc(var(--tabbar-top-area-size) + var(--visual-gap-offset));
-  transition: max-height var(--collapse-animation),
-              var(--visual-gap-animation);
+  transition:
+    max-height var(--collapse-animation),
+    var(--visual-gap-animation);
   z-index: var(--over-tabs-z-index);
 }
 :root.hover-on-top-edge:hover #pinned-tabs-container {
   top: 0 !important;
-  transition: max-height var(--collapse-animation),
-              var(--visual-gap-hover-animation);
+  transition:
+    max-height var(--collapse-animation),
+    var(--visual-gap-hover-animation);
 }
 
 #pinned-tabs-container.overflow {
@@ -713,7 +763,14 @@ tab-item .extra-items-container.behind {
   flex-grow: 0;
   flex-wrap: wrap;
   justify-content: flex-start;
-  padding-right: max(1px, calc(100% - (var(--pinned-tab-width, 100%) * var(--pinned-tabs-max-column, 99999)) - (var(--pinned-tab-width, 100%) / 2)));
+  padding-right: max(
+    1px,
+    calc(
+      100% -
+      (var(--pinned-tab-width, 100%) * var(--pinned-tabs-max-column, 99999)) -
+      (var(--pinned-tab-width, 100%) / 2)
+    )
+  );
   transition: padding-right var(--collapse-animation);
 }
 
@@ -725,18 +782,22 @@ tab-item .extra-items-container.behind {
 /* auto-hidden scrollbar placeholder workaround */
 :root.left.shift-tabs-for-scrollbar-only-on-hover.on-scrollbar-area:hover
   #tabbar.scrollbar-autohide
-  #pinned-tabs-container.overflow .tabs.pinned,
+  #pinned-tabs-container.overflow
+  .tabs.pinned,
 :root.left:not(.shift-tabs-for-scrollbar-only-on-hover)
   #tabbar.scrollbar-autohide
-  #pinned-tabs-container.overflow .tabs.pinned {
+  #pinned-tabs-container.overflow
+  .tabs.pinned {
   padding-left: var(--shift-tabs-for-scrollbar-distance);
 }
 :root.right.shift-tabs-for-scrollbar-only-on-hover.on-scrollbar-area:hover
   #tabbar.scrollbar-autohide
-  #pinned-tabs-container.overflow .tabs.pinned,
+  #pinned-tabs-container.overflow
+  .tabs.pinned,
 :root.right:not(.shift-tabs-for-scrollbar-only-on-hover)
   #tabbar.scrollbar-autohide
-  #pinned-tabs-container.overflow .tabs.pinned {
+  #pinned-tabs-container.overflow
+  .tabs.pinned {
   padding-right: var(--shift-tabs-for-scrollbar-distance);
 }
 
@@ -748,9 +809,11 @@ tab-item .extra-items-container.behind {
   transition: var(--visual-gap-hover-animation);
 }
 
-
 tab-item.faviconized {
-  --faviconized-tab-padding: calc((var(--tab-current-size) - var(--favicon-size)) / 2);
+  --faviconized-tab-padding: calc(
+    (var(--tab-current-size) - var(--favicon-size)) /
+    2
+  );
   --tab-current-size: var(--faviconized-tab-size);
   height: var(--tab-current-size);
   margin: 0;
@@ -787,12 +850,16 @@ tab-item.faviconized tab-label * {
   top: 0;
 }
 
-tab-item.faviconized.unread:not(.active) tab-item-substance:not(:hover) tab-favicon::before,
+tab-item.faviconized.unread:not(.active)
+  tab-item-substance:not(:hover)
+  tab-favicon::before,
 tab-item.attention tab-item-substance:not(:hover) tab-favicon::before {
   background-image: var(--attention-marker-gradient);
 }
 
-tab-item.faviconized.unread:not(.active) tab-item-substance:hover tab-favicon::before,
+tab-item.faviconized.unread:not(.active)
+  tab-item-substance:hover
+  tab-favicon::before,
 tab-item.attention tab-item-substance:hover tab-favicon::before {
   background-image: var(--attention-marker-gradient-hover);
 }
@@ -807,7 +874,6 @@ tab-item.faviconized.active:not([data-drop-position]) tab-item-substance {
   outline-offset: -2px;
 }
 
-
 /* tab label */
 
 tab-item tab-label {
@@ -819,7 +885,7 @@ tab-item tab-label {
 }
 
 :root:not([data-label-overflow="fade"]) tab-item tab-label {
-  text-overflow: ".."; /*ellipsis*/;
+  text-overflow: ".."; /*ellipsis*/
 }
 
 :root[data-label-overflow="fade"] tab-item tab-label.overflow {
@@ -847,7 +913,6 @@ tab-item:not(.subtree-collapsed) .counter {
 .counter::after {
   content: ")";
 }
-
 
 /* tab-closebox */
 
@@ -908,7 +973,6 @@ tab-closebox::after {
   mask: url("./icons/close-16.svg") no-repeat center / 100%;
 }
 
-
 tab-item:not(.collapsed) tab-closebox:hover {
   opacity: var(--button-hover-opacity);
 }
@@ -916,7 +980,6 @@ tab-item:not(.collapsed) tab-closebox:hover {
 tab-item:not(.collapsed) tab-closebox:active {
   opacity: var(--button-active-opacity);
 }
-
 
 /* contextual identity (aka Container Tab) */
 
@@ -927,7 +990,10 @@ tab-item:not(.collapsed) tab-closebox:active {
 }
 
 tab-item:not(.faviconized) .contextual-identity-marker {
-  --contextual-identity-marker-margin: min(calc((var(--tab-current-size) - var(--favicon-size)) / 2), calc(var(--tab-current-size) * 0.15));
+  --contextual-identity-marker-margin: min(
+    calc((var(--tab-current-size) - var(--favicon-size)) / 2),
+    calc(var(--tab-current-size) * 0.15)
+  );
   bottom: var(--contextual-identity-marker-margin);
   top: var(--contextual-identity-marker-margin);
   width: var(--contextual-identity-marker-width);
@@ -942,13 +1008,15 @@ tab-item:not(.faviconized) .contextual-identity-marker {
 }
 
 tab-item.faviconized .contextual-identity-marker {
-  --contextual-identity-marker-margin: min(calc((var(--tab-current-size) - var(--favicon-size)) / 2), calc(var(--tab-current-size) * 0.33));
+  --contextual-identity-marker-margin: min(
+    calc((var(--tab-current-size) - var(--favicon-size)) / 2),
+    calc(var(--tab-current-size) * 0.33)
+  );
   bottom: 0;
   height: var(--contextual-identity-marker-width);
   left: var(--contextual-identity-marker-margin);
   right: var(--contextual-identity-marker-margin);
 }
-
 
 /* non-tab items */
 
@@ -983,7 +1051,6 @@ tab-item.faviconized .contextual-identity-marker {
   justify-content: flex-end;
 }
 
-
 .newtab-button-box {
   position: relative;
 }
@@ -1017,14 +1084,12 @@ tab-item.faviconized .contextual-identity-marker {
   .after-tabs
   .newtab-button-box:hover
   .newtab-action-selector-anchor,
-.after-tabs
-  .newtab-action-selector-anchor.open,
+.after-tabs .newtab-action-selector-anchor.open,
 :root.contextual-identity-selectable:not(.incognito)
   .after-tabs
   .newtab-button-box:hover
   .contextual-identities-selector-anchor:not([disabled="true"]),
-.after-tabs
-  .contextual-identities-selector-anchor.open {
+.after-tabs .contextual-identities-selector-anchor.open {
   pointer-events: auto;
   opacity: 1;
 }
@@ -1038,7 +1103,10 @@ tab-item.faviconized .contextual-identity-marker {
   max-width: var(--new-tab-button-anchor-size);
   opacity: 0;
   overflow: hidden;
-  padding: calc((var(--new-tab-button-anchor-size) - var(--svg-small-icon-size)) / 2);
+  padding: calc(
+    (var(--new-tab-button-anchor-size) - var(--svg-small-icon-size)) /
+    2
+  );
   pointer-events: none;
   position: absolute;
   top: 0;
@@ -1096,14 +1164,13 @@ tab-item.faviconized .contextual-identity-marker {
   mask: url("./icons/ArrowheadDown.svg") no-repeat center / 60%;
 }
 
-
 #out-of-view-tab-notifier {
   background: transparent repeat-x bottom;
   background-image: linear-gradient(
-                      to top,
-                      var(--tab-highlighted-glow) 0,
-                      transparent 100%
-                    );
+    to top,
+    var(--tab-highlighted-glow) 0,
+    transparent 100%
+  );
   display: none;
   margin-top: calc(0 - var(--tab-size));
   min-height: var(--tab-size);
@@ -1111,7 +1178,6 @@ tab-item.faviconized .contextual-identity-marker {
   position: relative;
   opacity: 0;
 }
-
 
 #out-of-view-tab-notifier.notifying {
   display: block;
@@ -1165,7 +1231,6 @@ tab-item.faviconized .contextual-identity-marker {
   padding-bottom: 0.25em;
   width: 100%;
 }
-
 
 /* sub panel */
 
@@ -1266,14 +1331,11 @@ iframe#subpanel {
   content: "▲";
 }
 
-
-
 /* fake context menu */
 
 #tabContextMenu:not([data-tab-id]) li.extra {
   display: none !important;
 }
-
 
 /* bookmark dialog */
 
@@ -1281,7 +1343,6 @@ iframe#subpanel {
 .rich-confirm .bookmark-dialog button {
   max-width: 100%;
 }
-
 
 /* blocking UI */
 
@@ -1321,7 +1382,6 @@ body > ul[id$="selector"] {
   opacity: 0;
 }
 
-
 /* Workaround for issues */
 
 /*
@@ -1336,4 +1396,3 @@ body > ul[id$="selector"] {
   --browser-bg-images: none !important;
   --theme-images-theme_frame: none !important;
 }
-

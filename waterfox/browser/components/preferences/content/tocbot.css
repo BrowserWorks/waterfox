@@ -1,4 +1,49 @@
-.toc{overflow-y:auto}.toc>.toc-list{overflow:hidden;position:relative}.toc>.toc-list li{list-style:none}.toc-list{margin:0;padding-left:10px}a.toc-link{color:currentColor;height:100%}.is-collapsible{max-height:1000px;overflow:hidden;transition:all 300ms ease-in-out}.is-collapsed{max-height:0}.is-position-fixed{position:fixed !important;top:0}.is-active-link{font-weight:700}.toc-link::before{background-color:#eee;content:" ";display:inline-block;height:inherit;left:0;margin-top:-1px;position:absolute;width:2px}.is-active-link::before{background-color:#54bc4b}/*# sourceMappingURL=tocbot.css.map */
+.toc {
+  overflow-y: auto;
+}
+.toc > .toc-list {
+  overflow: hidden;
+  position: relative;
+}
+.toc > .toc-list li {
+  list-style: none;
+}
+.toc-list {
+  margin: 0;
+  padding-left: 10px;
+}
+a.toc-link {
+  color: currentColor;
+  height: 100%;
+}
+.is-collapsible {
+  max-height: 1000px;
+  overflow: hidden;
+  transition: all 300ms ease-in-out;
+}
+.is-collapsed {
+  max-height: 0;
+}
+.is-position-fixed {
+  position: fixed !important;
+  top: 0;
+}
+.is-active-link {
+  font-weight: 700;
+}
+.toc-link::before {
+  background-color: #eee;
+  content: " ";
+  display: inline-block;
+  height: inherit;
+  left: 0;
+  margin-top: -1px;
+  position: absolute;
+  width: 2px;
+}
+.is-active-link::before {
+  background-color: #54bc4b;
+} /*# sourceMappingURL=tocbot.css.map */
 
 /* Patched version */
 .toc {
@@ -37,21 +82,23 @@
 .toc-link::before {
   background-color: #eeeeef;
 }
-.is-active-link::before{
+.is-active-link::before {
   background-color: var(--in-content-accent-color, AccentColor);
 }
 
 .toc-list-item:hover:not(:has(> .toc-list:hover)) > .toc-link {
   font-weight: 700;
 }
-.toc-list-item:hover:not(:has(> .toc-list:hover)) > .toc-link:not(.is-active-link)::before {
+.toc-list-item:hover:not(:has(> .toc-list:hover))
+  > .toc-link:not(.is-active-link)::before {
   background-color: #d1d1d6;
 }
 @media (prefers-color-scheme: dark) {
   .toc-link:not(.is-active-link)::before {
     background-color: #2c2b32;
   }
-  .toc-list-item:hover:not(:has(> .toc-list:hover)) > .toc-link:not(.is-active-link)::before {
+  .toc-list-item:hover:not(:has(> .toc-list:hover))
+    > .toc-link:not(.is-active-link)::before {
     background-color: #57575d;
   }
 }

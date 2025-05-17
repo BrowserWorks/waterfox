@@ -2,12 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { ContextualIdentityService } from "resource://gre/modules/ContextualIdentityService.sys.mjs";
+import { BrowserUtils } from "resource:///modules/BrowserUtils.sys.mjs";
 import { PlacesUIUtils } from "resource:///modules/PlacesUIUtils.sys.mjs";
+import { PrefUtils } from "resource:///modules/PrefUtils.sys.mjs";
 import { TabStateCache } from "resource:///modules/sessionstore/TabStateCache.sys.mjs";
 import { TabStateFlusher } from "resource:///modules/sessionstore/TabStateFlusher.sys.mjs";
-import { BrowserUtils } from "resource:///modules/BrowserUtils.sys.mjs";
-import { PrefUtils } from "resource:///modules/PrefUtils.sys.mjs";
+import { ContextualIdentityService } from "resource://gre/modules/ContextualIdentityService.sys.mjs";
 import { setTimeout } from "resource://gre/modules/Timer.sys.mjs";
 
 export const PrivateTab = {
@@ -55,7 +55,7 @@ export const PrivateTab = {
     if (!aWindow.PrivateBrowsingUtils.isWindowPrivate(aWindow)) {
       // Wait for XUL elements to be available before initializing listeners.
       // 'toggleTabPrivateState' is an element from our associated XUL.
-      if (!aWindow.document.getElementById('toggleTabPrivateState')) {
+      if (!aWindow.document.getElementById("toggleTabPrivateState")) {
         setTimeout(() => {
           this.init(aWindow);
         }, 50); // Retry after 50ms
@@ -76,12 +76,12 @@ export const PrivateTab = {
   initContainer(aName) {
     ContextualIdentityService.ensureDataReady();
     this.container = ContextualIdentityService._identities.find(
-      container => container.name == aName
+      (container) => container.name === aName
     );
     if (!this.container) {
       ContextualIdentityService.create(aName, "fingerprint", "purple");
       this.container = ContextualIdentityService._identities.find(
-        container => container.name == aName
+        (container) => container.name === aName
       );
     } else if (!this.config.neverClearData) {
       this.clearData();
@@ -95,7 +95,7 @@ export const PrivateTab = {
     });
   },
 
-  initObservers(aWindow) {
+  initObservers(_aWindow) {
     this.setPrivateObserver();
   },
 
@@ -103,59 +103,76 @@ export const PrivateTab = {
     this.initPrivateTabListeners(aWindow);
     const doc = aWindow.document;
 
-    doc.getElementById("placesContext")
+    doc
+      .getElementById("placesContext")
       ?.addEventListener("popupshowing", this.placesContext.bind(this));
-    doc.getElementById("contentAreaContextMenu")
+    doc
+      .getElementById("contentAreaContextMenu")
       ?.addEventListener("popupshowing", this.contentContext.bind(this));
-    doc.getElementById("contentAreaContextMenu")
+    doc
+      .getElementById("contentAreaContextMenu")
       ?.addEventListener("popuphidden", this.hideContext.bind(this));
-    doc.getElementById("tabContextMenu")
+    doc
+      .getElementById("tabContextMenu")
       ?.addEventListener("popupshowing", this.tabContext.bind(this));
-    doc.getElementById(this.BTN2_ID) // "newPrivateTab-button"
+    doc
+      .getElementById(this.BTN2_ID) // "newPrivateTab-button"
       ?.addEventListener("click", this.toolbarClick.bind(this));
 
     // Listeners for commands previously in XUL oncommand attributes
-    doc.getElementById('togglePrivateTab-key')?.addEventListener('command', () => {
-      this.togglePrivate(aWindow);
-    });
+    doc
+      .getElementById("togglePrivateTab-key")
+      ?.addEventListener("command", () => {
+        this.togglePrivate(aWindow);
+      });
 
-    doc.getElementById('newPrivateTab-key')?.addEventListener('command', () => {
+    doc.getElementById("newPrivateTab-key")?.addEventListener("command", () => {
       this.browserOpenTabPrivate(aWindow);
     });
 
-    doc.getElementById('toggleTabPrivateState')?.addEventListener('command', () => {
-      if (aWindow.TabContextMenu && aWindow.TabContextMenu.contextTab) {
-        this.togglePrivate(aWindow, aWindow.TabContextMenu.contextTab);
-      } else {
-        // Fallback if contextTab is not available, though togglePrivate handles default selected tab
-        this.togglePrivate(aWindow);
-      }
-    });
+    doc
+      .getElementById("toggleTabPrivateState")
+      ?.addEventListener("command", () => {
+        if (aWindow.TabContextMenu?.contextTab) {
+          this.togglePrivate(aWindow, aWindow.TabContextMenu.contextTab);
+        } else {
+          // Fallback if contextTab is not available, though togglePrivate handles default selected tab
+          this.togglePrivate(aWindow);
+        }
+      });
 
     const openAllPrivateHandler = (event) => {
       // The event object itself is passed to openAllPrivate
       this.openAllPrivate(event);
     };
-    doc.getElementById('openAllPrivate')?.addEventListener('command', openAllPrivateHandler);
-    doc.getElementById('openAllLinksPrivate')?.addEventListener('command', openAllPrivateHandler);
+    doc
+      .getElementById("openAllPrivate")
+      ?.addEventListener("command", openAllPrivateHandler);
+    doc
+      .getElementById("openAllLinksPrivate")
+      ?.addEventListener("command", openAllPrivateHandler);
 
-    doc.getElementById('openPrivate')?.addEventListener('command', (event) => {
+    doc.getElementById("openPrivate")?.addEventListener("command", (event) => {
       // The event object itself is passed to openPrivateTab
       this.openPrivateTab(event);
     });
 
-    doc.getElementById('menu_newPrivateTab')?.addEventListener('command', () => {
-      this.browserOpenTabPrivate(aWindow);
-    });
+    doc
+      .getElementById("menu_newPrivateTab")
+      ?.addEventListener("command", () => {
+        this.browserOpenTabPrivate(aWindow);
+      });
 
-    doc.getElementById('openLinkInPrivateTab')?.addEventListener('command', (event) => {
-      // The event object itself is passed to openLink
-      this.openLink(event);
-    });
+    doc
+      .getElementById("openLinkInPrivateTab")
+      ?.addEventListener("command", (event) => {
+        // The event object itself is passed to openLink
+        this.openLink(event);
+      });
   },
 
   async updatePrivateMaskId(aWindow) {
-    let privateMask = aWindow.document.getElementsByClassName(
+    const privateMask = aWindow.document.getElementsByClassName(
       "private-browsing-indicator-icon"
     )[0];
     privateMask.id = "private-mask";
@@ -163,7 +180,7 @@ export const PrivateTab = {
 
   setPrivateObserver() {
     if (!this.config.neverClearData) {
-      let observe = () => {
+      const observe = () => {
         this.clearData();
         if (!this.config.restoreTabsOnRestart) {
           this.closeTabs();
@@ -175,21 +192,21 @@ export const PrivateTab = {
 
   closeTabs() {
     ContextualIdentityService._forEachContainerTab((tab, tabbrowser) => {
-      if (tab.userContextId == this.container.userContextId) {
+      if (tab.userContextId === this.container.userContextId) {
         tabbrowser.removeTab(tab);
       }
     });
   },
 
   placesContext(aEvent) {
-    let win = aEvent.view;
+    const win = aEvent.view;
     if (!win) {
       return;
     }
-    let { document } = win;
-    let openAll = "placesContext_openBookmarkContainer:tabs";
-    let openAllLinks = "placesContext_openLinks:tabs";
-    let openTab = "placesContext_open:newtab";
+    const { document } = win;
+    const openAll = "placesContext_openBookmarkContainer:tabs";
+    const openAllLinks = "placesContext_openLinks:tabs";
+    const openTab = "placesContext_open:newtab";
     // let document = event.target.ownerDocument;
     document.getElementById("openPrivate").disabled =
       document.getElementById(openTab).disabled;
@@ -206,21 +223,21 @@ export const PrivateTab = {
   },
 
   isPrivate(aTab) {
-    return aTab.getAttribute("usercontextid") == this.container.userContextId;
+    return aTab.getAttribute("usercontextid") === this.container.userContextId;
   },
 
   contentContext(aEvent) {
-    let win = aEvent.view;
+    const win = aEvent.view;
     if (!win) {
       return;
     }
-    let { gContextMenu, gBrowser, PrivateTab } = win;
-    let tab = gBrowser.getTabForBrowser(gContextMenu.browser);
+    const { gContextMenu, gBrowser, PrivateTab } = win;
+    const tab = gBrowser.getTabForBrowser(gContextMenu.browser);
     gContextMenu.showItem(
       "openLinkInPrivateTab",
       gContextMenu.onSaveableLink || gContextMenu.onPlainTextLink
     );
-    let isPrivate = PrivateTab.isPrivate(tab);
+    const isPrivate = PrivateTab.isPrivate(tab);
     if (isPrivate) {
       gContextMenu.showItem("context-openlinkincontainertab", false);
     }
@@ -230,17 +247,17 @@ export const PrivateTab = {
     if (!aEvent.view) {
       return;
     }
-    if (aEvent.target == this) {
+    if (aEvent.target === this) {
       aEvent.view.document.getElementById("openLinkInPrivateTab").hidden = true;
     }
   },
 
   tabContext(aEvent) {
-    let win = aEvent.view;
+    const win = aEvent.view;
     if (!win) {
       return;
     }
-    let { document, PrivateTab } = win;
+    const { document, PrivateTab } = win;
     const isPrivate =
       win.TabContextMenu.contextTab.userContextId ===
       PrivateTab.container.userContextId;
@@ -250,11 +267,11 @@ export const PrivateTab = {
   },
 
   openLink(aEvent) {
-    let win = aEvent.view;
+    const win = aEvent.view;
     if (!win) {
       return;
     }
-    let { gContextMenu, PrivateTab, document } = win;
+    const { gContextMenu, PrivateTab, document } = win;
     win.openLinkIn(
       gContextMenu.linkURL,
       "tab",
@@ -266,14 +283,14 @@ export const PrivateTab = {
   },
 
   toolbarClick(aEvent) {
-    let win = aEvent.view;
+    const win = aEvent.view;
     if (!win) {
       return;
     }
-    let { PrivateTab, document } = win;
-    if (aEvent.button == 0) {
+    const { PrivateTab, document } = win;
+    if (aEvent.button === 0) {
       PrivateTab.browserOpenTabPrivate(win);
-    } else if (aEvent.button == 2) {
+    } else if (aEvent.button === 2) {
       document.popupNode = document.getElementById(PrivateTab.BTN_ID);
       document
         .getElementById("toolbar-context-menu")
@@ -293,9 +310,21 @@ export const PrivateTab = {
     const originalOpenTabset = PlacesUIUtils.openTabset;
 
     // Redefine the function
-    PlacesUIUtils.openTabset = function(aEvent, aWindow, aTabs, loadInBackground) {
+    PlacesUIUtils.openTabset = function (
+      aEvent,
+      aWindow,
+      aTabs,
+      loadInBackground
+    ) {
       // Call the original function with the modified arguments
-      return originalOpenTabset.call(this, aEvent, aWindow, aTabs, loadInBackground, aEvent.userContextId || 0);
+      return originalOpenTabset.call(
+        this,
+        aEvent,
+        aWindow,
+        aTabs,
+        loadInBackground,
+        aEvent.userContextId || 0
+      );
     };
   },
 
@@ -305,7 +334,7 @@ export const PrivateTab = {
   },
 
   openPrivateTab(event) {
-    let view = event.target.parentElement._view;
+    const view = event.target.parentElement._view;
     PlacesUIUtils._openNodeIn(view.selectedNode, "tab", view.ownerWindow, {
       aPrivate: false,
       userContextId: this.container.userContextId,
@@ -316,7 +345,7 @@ export const PrivateTab = {
     let newTab;
     const { gBrowser, gURLBar } = aWindow;
     aTab.setAttribute("isToggling", true);
-    const shouldSelect = aTab == aWindow.gBrowser.selectedTab;
+    const shouldSelect = aTab === aWindow.gBrowser.selectedTab;
     try {
       newTab = gBrowser.duplicateTab(aTab);
       if (shouldSelect) {
@@ -327,7 +356,7 @@ export const PrivateTab = {
         }
       }
       gBrowser.removeTab(aTab);
-    } catch (ex) {
+    } catch (_ex) {
       // Can use this to pop up failure message
     }
     return newTab;
@@ -340,18 +369,24 @@ export const PrivateTab = {
   },
 
   initPrivateTabListeners(aWindow) {
-    let { gBrowser } = aWindow;
+    const { gBrowser } = aWindow;
     // Bind `this` for methods that might rely on it, or for consistency
-    gBrowser.tabContainer.addEventListener("TabSelect", this.onTabSelect.bind(this));
-    gBrowser.tabContainer.addEventListener("TabOpen", this.onTabOpen.bind(this));
+    gBrowser.tabContainer.addEventListener(
+      "TabSelect",
+      this.onTabSelect.bind(this)
+    );
+    gBrowser.tabContainer.addEventListener(
+      "TabOpen",
+      this.onTabOpen.bind(this)
+    );
 
-    gBrowser.privateListener = e => {
-      let browser = e.target;
-      let tab = gBrowser.getTabForBrowser(browser);
+    gBrowser.privateListener = (e) => {
+      const browser = e.target;
+      const tab = gBrowser.getTabForBrowser(browser);
       if (!tab) {
         return;
       }
-      let isPrivate = this.isPrivate(tab);
+      const isPrivate = this.isPrivate(tab);
 
       if (!isPrivate) {
         if (this.observePrivateTabs) {
@@ -373,21 +408,24 @@ export const PrivateTab = {
     aWindow.addEventListener("XULFrameLoaderCreated", gBrowser.privateListener);
 
     if (this.observePrivateTabs) {
-      gBrowser.tabContainer.addEventListener("TabClose", this.onTabClose.bind(this));
+      gBrowser.tabContainer.addEventListener(
+        "TabClose",
+        this.onTabClose.bind(this)
+      );
     }
   },
 
   onTabSelect(aEvent) {
-    let tab = aEvent.target;
+    const tab = aEvent.target;
     if (!tab) {
       return;
     }
-    let win = tab.ownerGlobal;
-    let { PrivateTab } = win;
-    let prevTab = aEvent.detail.previousTab;
-    let isPrivate = PrivateTab.isPrivate(tab);
+    const win = tab.ownerGlobal;
+    const { PrivateTab } = win;
+    const prevTab = aEvent.detail.previousTab;
+    const isPrivate = PrivateTab.isPrivate(tab);
 
-    if (tab.userContextId != prevTab.userContextId) {
+    if (tab.userContextId !== prevTab.userContextId) {
       // Show/hide private mask on browser window
       PrivateTab.toggleMask(win);
       // Ensure we don't save search suggestions for PrivateTab
@@ -399,12 +437,12 @@ export const PrivateTab = {
 
   async onTabOpen(aEvent) {
     // Update tab state cache
-    let tab = aEvent.target;
+    const tab = aEvent.target;
     if (!tab) {
       return;
     }
-    let { PrivateTab } = tab.ownerGlobal;
-    let isPrivate = PrivateTab.isPrivate(tab);
+    const { PrivateTab } = tab.ownerGlobal;
+    const isPrivate = PrivateTab.isPrivate(tab);
     // if statement is temp solution to prevent containers being dropped on restart.
     // The flushing and cache updating should only occur if the parent tab was
     // private and the new tab is non-private OR the parent tab was non-private
@@ -412,13 +450,13 @@ export const PrivateTab = {
     // We also need to be wary of pinned state of tabs, as that may also have been
     // affected in the same case.
     if (isPrivate) {
-      let userContextId = isPrivate ? PrivateTab.container.userContextId : 0;
+      const userContextId = isPrivate ? PrivateTab.container.userContextId : 0;
       // Duplicating a tab copies the tab state cache from the parent tab.
       // Therefore we need to flush the tab state to ensure it's updated,
       // then overwrite the tab usercontextid so that any restored tabs
       // are opened in the correct container, rather than that of their
       // parent tab.
-      let browser = tab.linkedBrowser;
+      const browser = tab.linkedBrowser;
       // Can't update tab state if we can't get the browser
       if (browser) {
         TabStateFlusher.flush(browser)
@@ -428,7 +466,7 @@ export const PrivateTab = {
               userContextId,
             });
           })
-          .catch(ex => {
+          .catch((_ex) => {
             // Sometimes tests fail here
           });
       }
@@ -436,11 +474,11 @@ export const PrivateTab = {
   },
 
   onTabClose(aEvent) {
-    let tab = aEvent.target;
+    const tab = aEvent.target;
     if (!tab) {
       return;
     }
-    let { PrivateTab } = tab.ownerGlobal;
+    const { PrivateTab } = tab.ownerGlobal;
     if (PrivateTab.isPrivate(tab)) {
       PrivateTab.openTabs.delete(tab);
       if (!PrivateTab.openTabs.size) {
@@ -450,19 +488,19 @@ export const PrivateTab = {
   },
 
   toggleMask(aWindow) {
-    let { gBrowser } = aWindow;
-    let privateMask = aWindow.document.getElementById("private-mask");
+    const { gBrowser } = aWindow;
+    const privateMask = aWindow.document.getElementById("private-mask");
     if (gBrowser.selectedTab.isToggling) {
       privateMask.setAttribute(
         "enabled",
-        gBrowser.selectedTab.userContextId == this.container.userContextId
+        gBrowser.selectedTab.userContextId === this.container.userContextId
           ? "false"
           : "true"
       );
     } else {
       privateMask.setAttribute(
         "enabled",
-        gBrowser.selectedTab.userContextId == this.container.userContextId
+        gBrowser.selectedTab.userContextId === this.container.userContextId
           ? "true"
           : "false"
       );
@@ -476,12 +514,12 @@ export const PrivateTab = {
   },
 
   initCustomFunctions(aWindow) {
-    let { MozElements, PrivateTab } = aWindow;
+    const { MozElements, PrivateTab } = aWindow;
     MozElements.MozTab.prototype.getAttribute = function (att) {
-      if (att == "usercontextid" && this.getAttribute("isToggling", false)) {
+      if (att === "usercontextid" && this.getAttribute("isToggling", false)) {
         this.removeAttribute("isToggling");
         // If in private tab and we attempt to toggle, remove container, else convert to private tab
-        return PrivateTab.orig_getAttribute.call(this, att) ==
+        return PrivateTab.orig_getAttribute.call(this, att) ===
           PrivateTab.container.userContextId
           ? 0
           : PrivateTab.container.userContextId;

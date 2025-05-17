@@ -1,40 +1,28 @@
-/*
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-*/
-'use strict';
+import "/extlib/l10n.js";
 
-import '/extlib/l10n.js';
+import { configs, log } from "/common/common.js";
+import MetricsData from "/common/MetricsData.js";
+import Tab from "/common/Tab.js";
+import * as TabsStore from "/common/tabs-store.js";
 
-import {
-  log,
-  configs
-} from '/common/common.js';
+import * as BackgroundConnection from "./background-connection.js";
+import * as Sidebar from "./sidebar.js";
+import "./collapse-expand.js";
+import "./mouse-event-listener.js";
+import "./tab-context-menu.js";
+import "./tst-api-frontend.js";
 
-import * as TabsStore from '/common/tabs-store.js';
+log.context = "Sidebar-?";
 
-import MetricsData from '/common/MetricsData.js';
-import Tab from '/common/Tab.js';
+MetricsData.add("Loaded");
 
-import * as BackgroundConnection from './background-connection.js';
-import * as Sidebar from './sidebar.js';
-import './collapse-expand.js';
-import './mouse-event-listener.js';
-import './tab-context-menu.js';
-import './tst-api-frontend.js';
-
-log.context = 'Sidebar-?';
-
-MetricsData.add('Loaded');
-
-window.addEventListener('load', Sidebar.init, { once: true });
+window.addEventListener("load", Sidebar.init, { once: true });
 
 window.dumpMetricsData = () => {
   return MetricsData.toString();
 };
 window.dumpLogs = () => {
-  return log.logs.join('\n');
+  return log.logs.join("\n");
 };
 
 // for old debugging method

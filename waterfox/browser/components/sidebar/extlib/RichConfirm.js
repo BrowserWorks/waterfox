@@ -1,16 +1,8 @@
-/*
- license: The MIT License, Copyright (c) 2018-2024 YUKI "Piro" Hiroshi
- original:
-   https://github.com/piroor/webextensions-lib-rich-confirm
-*/
-'use strict';
-
 (function defineRichConfirm(uniqueKey) {
   class RichConfirm {
     constructor(params) {
       this.params = params;
-      if (!this.params.buttons)
-        this.params.buttons = ['OK'];
+      if (!this.params.buttons) this.params.buttons = ["OK"];
       this.onClick = this.onClick.bind(this);
       this.onKeyDown = this.onKeyDown.bind(this);
       this.onKeyUp = this.onKeyUp.bind(this);
@@ -21,33 +13,36 @@
       return `rich-confirm-${this.uniqueKey}`;
     }
     get dialog() {
-      return this.ui.querySelector('.rich-confirm-dialog');
+      return this.ui.querySelector(".rich-confirm-dialog");
     }
     get content() {
-      return this.ui.querySelector('.rich-confirm-content');
+      return this.ui.querySelector(".rich-confirm-content");
     }
     get buttonsContainer() {
-      return this.ui.querySelector('.rich-confirm-buttons');
+      return this.ui.querySelector(".rich-confirm-buttons");
     }
     get checkContainer() {
-      return this.ui.querySelector('.rich-confirm-check-label');
+      return this.ui.querySelector(".rich-confirm-check-label");
     }
     get checkCheckbox() {
-      return this.ui.querySelector('.rich-confirm-check-checkbox');
+      return this.ui.querySelector(".rich-confirm-check-checkbox");
     }
     get checkMessage() {
-      return this.ui.querySelector('.rich-confirm-check-message');
+      return this.ui.querySelector(".rich-confirm-check-message");
     }
 
     get focusTargets() {
-      return Array.from(this.ui.querySelectorAll('input:not([type="hidden"]), textarea, select, button')).filter(node => node.offsetWidth > 0);
+      return Array.from(
+        this.ui.querySelectorAll(
+          'input:not([type="hidden"]), textarea, select, button'
+        )
+      ).filter((node) => node.offsetWidth > 0);
     }
 
     buildUI() {
-      if (this.ui)
-        return;
-      this.style = document.createElement('style');
-      this.style.setAttribute('type', 'text/css');
+      if (this.ui) return;
+      this.style = document.createElement("style");
+      this.style.setAttribute("type", "text/css");
       const common = `.${this.commonClass}`;
       this.style.textContent = `
         /* color scheme */
@@ -490,15 +485,18 @@
       range.collapse(false);
       const commonClass = [
         this.commonClass,
-        this.params.popup ? 'popup-window' : '',
-        this.params.simulation ? 'simulation' : '',
-        this.params.type ? `type-${this.params.type}` : '',
-        /win/i.test(navigator.platform) ? 'windows' :
-          /mac/i.test(navigator.platform) ? 'mac' :
-            /linux/i.test(navigator.platform) ? 'linux' :
-              ''
-      ].join(' ');
-      const uniqueId = `created-at-${Date.now()}-${Math.floor(Math.random() * Math.pow(2, 24))}`;
+        this.params.popup ? "popup-window" : "",
+        this.params.simulation ? "simulation" : "",
+        this.params.type ? `type-${this.params.type}` : "",
+        /win/i.test(navigator.platform)
+          ? "windows"
+          : /mac/i.test(navigator.platform)
+            ? "mac"
+            : /linux/i.test(navigator.platform)
+              ? "linux"
+              : "",
+      ].join(" ");
+      const uniqueId = `created-at-${Date.now()}-${Math.floor(Math.random() * 2 ** 24)}`;
       const fragment = range.createContextualFragment(`
         <div class="rich-confirm ${commonClass} ${uniqueId}">
           <div class="rich-confirm-row ${commonClass}">
@@ -516,41 +514,53 @@
       `);
       range.insertNode(fragment);
       range.detach();
-      this.ui = document.querySelector(`.rich-confirm.${this.commonClass}.${uniqueId}`);
+      this.ui = document.querySelector(
+        `.rich-confirm.${this.commonClass}.${uniqueId}`
+      );
     }
 
     getNextFocusedNodeByAccesskey(key) {
-      for (const attribute of ['accesskey', 'data-access-key', 'data-sub-access-key']) {
-        const current = this.dialog.querySelector(':focus');
+      for (const attribute of [
+        "accesskey",
+        "data-access-key",
+        "data-sub-access-key",
+      ]) {
+        const current = this.dialog.querySelector(":focus");
         const condition = `[${attribute}="${key.toLowerCase()}"]`;
         const nextNode = this.getNextNode(current, condition);
-        if (nextNode)
-          return nextNode;
+        if (nextNode) return nextNode;
       }
       return null;
     }
 
-    getNextNode(base, condition = '') {
+    getNextNode(base, condition = "") {
       const matchedNodes = [...this.dialog.querySelectorAll(condition)];
       const currentIndex = matchedNodes.indexOf(base);
-      const nextNode = currentIndex == -1 || currentIndex == matchedNodes.index - 1 ?
-        matchedNodes[0] : matchedNodes[currentIndex + 1];
-      if (nextNode && window.getComputedStyle(nextNode, null).display == 'none')
+      const nextNode =
+        currentIndex === -1 || currentIndex === matchedNodes.index - 1
+          ? matchedNodes[0]
+          : matchedNodes[currentIndex + 1];
+      if (
+        nextNode &&
+        window.getComputedStyle(nextNode, null).display === "none"
+      )
         return this.getNextNode(nextNode, condition);
       return nextNode;
     }
 
     updateAccessKey(element) {
       const ACCESS_KEY_MATCHER = /(&([^\s]))/i;
-      const label = element.textContent || (/^(button|submit|reset)$/i.test(element.type) && element.value) || '';
-      const matchedKey = element.accessKey ?
-        label.match(new RegExp(`((${element.accessKey}))`, 'i')) :
-        label.match(ACCESS_KEY_MATCHER);
-      const accessKey = element.accessKey || (matchedKey && matchedKey[2]);
+      const label =
+        element.textContent ||
+        (/^(button|submit|reset)$/i.test(element.type) && element.value) ||
+        "";
+      const matchedKey = element.accessKey
+        ? label.match(new RegExp(`((${element.accessKey}))`, "i"))
+        : label.match(ACCESS_KEY_MATCHER);
+      const accessKey = element.accessKey || matchedKey?.[2];
       if (accessKey) {
         element.accessKey = element.dataset.accessKey = accessKey.toLowerCase();
-        if (matchedKey &&
-            !/^(input|textarea)$/i.test(element.localName)) {
+        if (matchedKey && !/^(input|textarea)$/i.test(element.localName)) {
           const textNode = this.evaluateXPath(
             `child::node()[contains(self::text(), "${matchedKey[1]}")]`,
             element,
@@ -562,39 +572,33 @@
             range.setStart(textNode, startPosition);
             range.setEnd(textNode, startPosition + matchedKey[1].length);
             range.deleteContents();
-            const accessKeyNode = document.createElement('span');
-            accessKeyNode.classList.add('accesskey');
+            const accessKeyNode = document.createElement("span");
+            accessKeyNode.classList.add("accesskey");
             accessKeyNode.textContent = matchedKey[2];
             range.insertNode(accessKeyNode);
             range.detach();
           }
         }
-      }
-      else if (/^([^\s])/i.test(label))
+      } else if (/^([^\s])/i.test(label))
         element.dataset.subAccessKey = RegExp.$1.toLowerCase();
-      else
-        element.dataset.accessKey = element.dataset.subAccessKey = null;
+      else element.dataset.accessKey = element.dataset.subAccessKey = null;
     }
 
     evaluateXPath(expression, context, type) {
-      if (!type)
-        type = XPathResult.ORDERED_NODE_SNAPSHOT_TYPE;
+      if (!type) type = XPathResult.ORDERED_NODE_SNAPSHOT_TYPE;
       try {
         return (context.ownerDocument || context).evaluate(
           expression,
-          (context || document),
+          context || document,
           null,
           type,
           null
         );
-      }
-      catch(_e) {
+      } catch (_e) {
         return {
           singleNodeValue: null,
-          snapshotLength:  0,
-          snapshotItem:    function() {
-            return null
-          }
+          snapshotLength: 0,
+          snapshotItem: () => null,
         };
       }
     }
@@ -610,98 +614,90 @@
         range.collapse(false);
         const fragment = range.createContextualFragment(this.params.content);
         range.insertNode(fragment);
-        for (const element of this.content.querySelectorAll('[accesskey]')) {
+        for (const element of this.content.querySelectorAll("[accesskey]")) {
           this.updateAccessKey(element);
         }
-      }
-      else if (this.params.message) {
+      } else if (this.params.message) {
         this.content.textContent = this.params.message;
       }
 
       if (this.params.checkMessage) {
         this.checkMessage.textContent = this.params.checkMessage;
         this.checkCheckbox.checked = !!this.params.checked;
-        this.checkContainer.classList.remove('hidden');
-      }
-      else {
-        this.checkContainer.classList.add('hidden');
+        this.checkContainer.classList.remove("hidden");
+      } else {
+        this.checkContainer.classList.add("hidden");
       }
 
       range.selectNodeContents(this.buttonsContainer);
       range.deleteContents();
       const buttons = document.createDocumentFragment();
       for (const label of this.params.buttons) {
-        const button = document.createElement('button');
+        const button = document.createElement("button");
         button.textContent = label;
-        button.setAttribute('title', label);
+        button.setAttribute("title", label);
         buttons.appendChild(button);
         this.updateAccessKey(button);
       }
       range.insertNode(buttons);
 
-      this.ui.addEventListener('click', this.onClick);
-      window.addEventListener('keydown', this.onKeyDown, true);
-      window.addEventListener('keyup', this.onKeyUp, true);
-      window.addEventListener('contextmenu', this.onContextMenu, true);
-      window.addEventListener('pagehide', this.onUnload);
-      window.addEventListener('beforeunload', this.onUnload);
+      this.ui.addEventListener("click", this.onClick);
+      window.addEventListener("keydown", this.onKeyDown, true);
+      window.addEventListener("keyup", this.onKeyUp, true);
+      window.addEventListener("contextmenu", this.onContextMenu, true);
+      window.addEventListener("pagehide", this.onUnload);
+      window.addEventListener("beforeunload", this.onUnload);
 
-      const targets = this.focusTargets.filter(target => target != this.checkCheckbox);
+      const targets = this.focusTargets.filter(
+        (target) => target !== this.checkCheckbox
+      );
       targets[0].focus();
 
       range.detach();
 
-      if (typeof this.params.onShown == 'function') {
+      if (typeof this.params.onShown === "function") {
         try {
           await this.params.onShown(this.content, this.params.inject || {});
-        }
-        catch(error) {
+        } catch (error) {
           console.error(error);
         }
-      }
-      else if (Array.isArray(this.params.onShown)) {
+      } else if (Array.isArray(this.params.onShown)) {
         for (const onShownPart of this.params.onShown) {
-          if (typeof onShownPart != 'function')
-            continue;
+          if (typeof onShownPart !== "function") continue;
           try {
             await onShownPart(this.content, this.params.inject || {});
-          }
-          catch(error) {
+          } catch (error) {
             console.error(error);
           }
         }
       }
 
-      this.ui.querySelector('.rich-confirm-dialog').setAttribute('aria-modal', !!this.params.modal);
-      this.ui.classList.add('show');
+      this.ui
+        .querySelector(".rich-confirm-dialog")
+        .setAttribute("aria-modal", !!this.params.modal);
+      this.ui.classList.add("show");
 
-      if (typeof onShown == 'function') {
+      if (typeof onShown === "function") {
         try {
           await onShown(this.content, this.params.inject || {});
-        }
-        catch(error) {
+        } catch (error) {
           console.error(error);
         }
-      }
-      else if (Array.isArray(onShown)) {
+      } else if (Array.isArray(onShown)) {
         for (const onShownPart of onShown) {
-          if (typeof onShownPart != 'function')
-            continue;
+          if (typeof onShownPart !== "function") continue;
           try {
             await onShownPart(this.content, this.params.inject || {});
-          }
-          catch(error) {
+          } catch (error) {
             console.error(error);
           }
         }
       }
 
       setTimeout(() => {
-        if (!this.ui ||
-            !this.ui.classList)
-          return;
+        if (!this.ui || !this.ui.classList) return;
         // Apply overflow:auto after all contents are correctly rendered.
-        this.ui.classList.add('shown');
+        this.ui.classList.add("shown");
       }, 10);
 
       return new Promise((resolve, reject) => {
@@ -711,20 +707,18 @@
     }
 
     async hide() {
-      this.ui.classList.remove('show');
-      if (typeof this.params.onHidden == 'function') {
+      this.ui.classList.remove("show");
+      if (typeof this.params.onHidden === "function") {
         try {
           this.params.onHidden(this.content, this.params.inject || {});
-        }
-        catch(_error) {
-        }
+        } catch (_error) {}
       }
-      this.ui.removeEventListener('click', this.onClick);
-      window.removeEventListener('keydown', this.onKeyDown, true);
-      window.removeEventListener('keyup', this.onKeyUp, true);
-      window.removeEventListener('contextmenu', this.onContextMenu, true);
-      window.removeEventListener('pagehide', this.onUnload);
-      window.removeEventListener('beforeunload', this.onUnload);
+      this.ui.removeEventListener("click", this.onClick);
+      window.removeEventListener("keydown", this.onKeyDown, true);
+      window.removeEventListener("keyup", this.onKeyUp, true);
+      window.removeEventListener("contextmenu", this.onContextMenu, true);
+      window.removeEventListener("pagehide", this.onUnload);
+      window.removeEventListener("beforeunload", this.onUnload);
       delete this._resolve;
       delete this._rejecte;
       const ui = this.ui;
@@ -745,45 +739,44 @@
       const resolve = this._resolve;
       const result = {
         buttonIndex: -1,
-        checked: !!this.params.checkMessage && this.checkCheckbox.checked
+        checked: !!this.params.checkMessage && this.checkCheckbox.checked,
       };
       return this.hide().then(() => resolve(result));
     }
 
     onClick(event) {
       let target = event.target;
-      if (target.nodeType == Node.TEXT_NODE)
-        target = target.parentNode;
+      if (target.nodeType === Node.TEXT_NODE) target = target.parentNode;
 
-      if (target.closest(`.rich-confirm-content.${this.commonClass}`) &&
-          target.closest('input, textarea, select, button'))
+      if (
+        target.closest(`.rich-confirm-content.${this.commonClass}`) &&
+        target.closest("input, textarea, select, button")
+      )
         return;
 
-      if (event.button != 0) {
+      if (event.button !== 0) {
         event.stopPropagation();
         event.preventDefault();
         return;
       }
 
-      const button = target.closest('button');
+      const button = target.closest("button");
       if (button) {
         event.stopPropagation();
         event.preventDefault();
-        const buttonIndex = Array.from(this.buttonsContainer.childNodes).indexOf(button);
+        const buttonIndex = Array.from(
+          this.buttonsContainer.childNodes
+        ).indexOf(button);
         const values = {};
-        for (const field of this.content.querySelectorAll('[id], [name]')) {
+        for (const field of this.content.querySelectorAll("[id], [name]")) {
           let value = null;
           if (field.matches('input[type="checkbox"]')) {
             value = field.checked;
-          }
-          else if (field.matches('input[type="radio"]')) {
-            if (field.checked)
-              value = field.value;
-          }
-          else if ('value' in field.dataset) {
+          } else if (field.matches('input[type="radio"]')) {
+            if (field.checked) value = field.value;
+          } else if ("value" in field.dataset) {
             value = field.dataset.value;
-          }
-          else {
+          } else {
             value = field.value;
           }
           values[field.id || field.name] = value;
@@ -792,14 +785,16 @@
         const result = {
           buttonIndex,
           values,
-          checked: !!this.params.checkMessage && this.checkCheckbox.checked
+          checked: !!this.params.checkMessage && this.checkCheckbox.checked,
         };
         this.hide().then(() => resolve(result));
         return;
       }
 
-      if (!this.params.popup &&
-          !target.closest(`.rich-confirm-dialog.${this.commonClass}`)) {
+      if (
+        !this.params.popup &&
+        !target.closest(`.rich-confirm-dialog.${this.commonClass}`)
+      ) {
         event.stopPropagation();
         event.preventDefault();
         this.dismiss();
@@ -808,106 +803,111 @@
 
     onKeyDown(event) {
       let target = event.target;
-      if (target.nodeType == Node.TEXT_NODE)
-        target = target.parentNode;
-      const onContent = target.closest(`.rich-confirm-content.${this.commonClass}`);
+      if (target.nodeType === Node.TEXT_NODE) target = target.parentNode;
+      const onContent = target.closest(
+        `.rich-confirm-content.${this.commonClass}`
+      );
 
       switch (event.key) {
-        case 'ArrowUp':
-        case 'ArrowLeft':
-        case 'PageUp':
-          if (onContent)
-            break;
+        case "ArrowUp":
+        case "ArrowLeft":
+        case "PageUp":
+          if (onContent) break;
           event.stopPropagation();
           event.preventDefault();
           this.advanceFocus(-1);
           break;
 
-        case 'ArrowDown':
-        case 'ArrowRight':
-        case 'PageDown':
-          if (onContent)
-            break;
+        case "ArrowDown":
+        case "ArrowRight":
+        case "PageDown":
+          if (onContent) break;
           event.stopPropagation();
           event.preventDefault();
           this.advanceFocus(1);
           break;
 
-        case 'Home':
-          if (onContent)
-            break;
+        case "Home":
+          if (onContent) break;
           event.stopPropagation();
           event.preventDefault();
           this.focusTargets[0].focus();
           break;
 
-        case 'End':
-          if (onContent)
-            break;
+        case "End": {
+          if (onContent) break;
           event.stopPropagation();
           event.preventDefault();
           const targets = this.focusTargets;
-          targets[targets.length-1].focus();
+          targets[targets.length - 1].focus();
           break;
+        }
 
-        case 'Tab':
+        case "Tab":
           event.stopPropagation();
           event.preventDefault();
           this.advanceFocus(event.shiftKey ? -1 : 1);
           break;
 
-        case 'Escape':
+        case "Escape":
           event.stopPropagation();
           event.preventDefault();
           this.dismiss();
           break;
 
-        case 'Enter':
-          if (onContent && !target.closest('textarea')) {
+        case "Enter":
+          if (onContent && !target.closest("textarea")) {
             event.stopPropagation();
             event.preventDefault();
             this.buttonsContainer.firstChild.click();
           }
           break;
 
-        default: {
-          const currentFocused = this.dialog.querySelector(':focus');
-          const needAccelKey = (
-            currentFocused &&
-            (currentFocused.localName.toLowerCase() == 'textarea' ||
-             (currentFocused.localName.toLowerCase() == 'input' &&
-              /^(date|datetime|datetime-local|email|file|month|number|password|search|tel|text|time|url|week)$/i.test(currentFocused.type)))
-          );
-          if ((!needAccelKey || event.altKey) &&
+        default:
+          {
+            const currentFocused = this.dialog.querySelector(":focus");
+            const needAccelKey =
+              currentFocused &&
+              (currentFocused.localName.toLowerCase() === "textarea" ||
+                (currentFocused.localName.toLowerCase() === "input" &&
+                  /^(date|datetime|datetime-local|email|file|month|number|password|search|tel|text|time|url|week)$/i.test(
+                    currentFocused.type
+                  )));
+            if (
+              (!needAccelKey || event.altKey) &&
               !event.ctrlKey &&
               !event.shiftKey &&
               !event.metaKey &&
-              event.key.length == 1) {
-            const node = this.getNextFocusedNodeByAccesskey(event.key);
-            if (node && typeof node.focus == 'function') {
-              node.focus();
-              const nextNode = this.getNextFocusedNodeByAccesskey(event.key);
-              if ((!nextNode || nextNode == node) &&
-                  typeof node.click == 'function')
-                node.click();
+              event.key.length === 1
+            ) {
+              const node = this.getNextFocusedNodeByAccesskey(event.key);
+              if (node && typeof node.focus === "function") {
+                node.focus();
+                const nextNode = this.getNextFocusedNodeByAccesskey(event.key);
+                if (
+                  (!nextNode || nextNode === node) &&
+                  typeof node.click === "function"
+                )
+                  node.click();
+              }
             }
           }
-        }; return;
+          return;
       }
     }
 
     onKeyUp(event) {
       switch (event.key) {
-        case 'ArrowUp':
-        case 'ArrowLeft':
-        case 'PageUp':
-        case 'ArrowDown':
-        case 'ArrowRight':
-        case 'PageDown':
-        case 'Home':
-        case 'End':
-        case 'Tab':
-        case 'Escape':
+        case "ArrowUp":
+        case "ArrowLeft":
+        case "PageUp":
+        case "ArrowDown":
+        case "ArrowRight":
+        case "PageDown":
+        case "Home":
+        case "End":
+        case "Tab":
+        case "Escape":
           event.stopPropagation();
           event.preventDefault();
           break;
@@ -919,10 +919,11 @@
 
     onContextMenu(event) {
       let target = event.target;
-      if (target.nodeType == Node.TEXT_NODE)
-        target = target.parentNode;
-      const onContent = target.closest(`.rich-confirm-content.${this.commonClass}`);
-      if (!onContent || !target.closest('input, textarea')) {
+      if (target.nodeType === Node.TEXT_NODE) target = target.parentNode;
+      const onContent = target.closest(
+        `.rich-confirm-content.${this.commonClass}`
+      );
+      if (!onContent || !target.closest("input, textarea")) {
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
@@ -934,25 +935,30 @@
     }
 
     advanceFocus(direction) {
-      const focusedItem = this.ui.querySelector(':focus');
-      console.log('focusedItem ', focusedItem);
+      const focusedItem = this.ui.querySelector(":focus");
+      console.log("focusedItem ", focusedItem);
       const targets = this.focusTargets;
-      console.log('focusTargets ', targets);
+      console.log("focusTargets ", targets);
       const index = focusedItem ? targets.indexOf(focusedItem) : -1;
-      if (direction < 0) { // backward
-        const nextFocused = index < 0 ? targets[targets.length-1] :
-          targets[index == 0 ? targets.length-1 : index-1];
+      if (direction < 0) {
+        // backward
+        const nextFocused =
+          index < 0
+            ? targets[targets.length - 1]
+            : targets[index === 0 ? targets.length - 1 : index - 1];
         nextFocused.focus();
-      }
-      else { // forward
-        const nextFocused = index < 0 ? targets[0] :
-          targets[index == targets.length-1 ? 0 : index+1];
+      } else {
+        // forward
+        const nextFocused =
+          index < 0
+            ? targets[0]
+            : targets[index === targets.length - 1 ? 0 : index + 1];
         nextFocused.focus();
       }
     }
 
     static async show(params) {
-      const confirm = new this(params);
+      const confirm = new RichConfirm(params);
       return confirm.show();
     }
 
@@ -964,27 +970,28 @@
       let onMessage;
       const promisedResult = new Promise((resolve, _reject) => {
         onMessage = (message, _sender) => {
-          if (!message ||
-              typeof message != 'object' ||
-              message.uniqueKey != this.uniqueKey)
+          if (
+            !message ||
+            typeof message !== "object" ||
+            message.uniqueKey !== RichConfirm.uniqueKey
+          )
             return;
 
           switch (message.type) {
-            case 'rich-confirm-dialog-shown':
-              if (typeof params.onReady == 'function') {
+            case "rich-confirm-dialog-shown":
+              if (typeof params.onReady === "function") {
                 try {
                   params.onReady({
-                    width:  message.dialogWidth,
-                    height: message.dialogHeight
+                    width: message.dialogWidth,
+                    height: message.dialogHeight,
                   });
-                }
-                catch(error) {
+                } catch (error) {
                   console.error(error);
                 }
               }
               break;
 
-            case 'rich-confirm-dialog-complete':
+            case "rich-confirm-dialog-complete":
               resolve(message.result);
               break;
           }
@@ -992,20 +999,21 @@
         browser.runtime.onMessage.addListener(onMessage);
       });
       try {
-        if (browser.scripting) // Manifest V3
+        if (browser.scripting)
+          // Manifest V3
           await browser.scripting.executeScript({
             target: { tabId },
             func: defineRichConfirm,
-            args: [this.uniqueKey],
+            args: [RichConfirm.uniqueKey],
           });
         else
           await browser.tabs.executeScript(tabId, {
             code: `
               if (!window.RichConfirm)
-                 (${defineRichConfirm.toString()})(${this.uniqueKey});
+                 (${defineRichConfirm.toString()})(${RichConfirm.uniqueKey});
             `,
             matchAboutBlank: true,
-            runAt:           'document_start'
+            runAt: "document_start",
           });
         const transferableParams = { ...params };
         const injectTransferable = [];
@@ -1013,27 +1021,37 @@
         delete transferableParams.inject;
         for (const key in params.inject) {
           const value = inject[key];
-          const transferable = (
+          const transferable =
             value &&
-            typeof value == 'function' &&
-            typeof value.toString == 'function'
-          ) ? value.toString() : JSON.stringify(value);
+            typeof value === "function" &&
+            typeof value.toString === "function"
+              ? value.toString()
+              : JSON.stringify(value);
           injectTransferable.push(`${JSON.stringify(key)} : ${transferable}`);
         }
-        const stringifyOnShown = onShown => {
+        const stringifyOnShown = (onShown) => {
           if (Array.isArray(onShown))
-            return `[${onShown.map(stringifyOnShown).join(',')}]`;
-          return typeof onShown == 'function' ?
-            onShown.toString()
-              .replace(/^\s*(async\s+)?function/, '$1')
-              .replace(/^\s*(async\s+)?/, '$1 function ')
-              .replace(/^\s*(async\s+)?function ((?:\([^=\)]*\)|[^\(\)=]+)\s*=>\s*\{)/, '$1 $2') :
-            '() => {}';
+            return `[${onShown.map(stringifyOnShown).join(",")}]`;
+          return typeof onShown === "function"
+            ? onShown
+                .toString()
+                .replace(/^\s*(async\s+)?function/, "$1")
+                .replace(/^\s*(async\s+)?/, "$1 function ")
+                .replace(
+                  /^\s*(async\s+)?function ((?:\([^=)]*\)|[^()=]+)\s*=>\s*\{)/,
+                  "$1 $2"
+                )
+            : "() => {}";
         };
         const originalOnShown = stringifyOnShown(params.onShown);
         delete transferableParams.onShown;
 
-        const run = async function run(uniqueKey, originalOnShown, transferableParams, inject) {
+        const run = async function run(
+          uniqueKey,
+          originalOnShown,
+          transferableParams,
+          inject
+        ) {
           delete window.RichConfirm.result;
           const confirm = new RichConfirm({
             ...transferableParams,
@@ -1043,70 +1061,79 @@
                 originalOnShown = [originalOnShown];
               for (const originalOnShownPart of originalOnShown) {
                 try {
-                  if (typeof originalOnShownPart == 'function')
+                  if (typeof originalOnShownPart === "function")
                     await originalOnShownPart(content, inject);
-                }
-                catch(error) {
+                } catch (error) {
                   console.error(error);
                 }
               }
-            }
+            },
           });
           const result = await confirm.show({
             onShown(content, _injected) {
               const dialog = content.parentNode;
-              const rect   = dialog.getBoundingClientRect();
-              const style  = window.getComputedStyle(dialog, null);
+              const rect = dialog.getBoundingClientRect();
+              const style = window.getComputedStyle(dialog, null);
               // End padding is not included in the scrillable size,
               // so we manually add them.
-              const rightPadding  = dialog.scrollLeftMax > 0 && parseFloat(style.getPropertyValue('padding-right')) || 0;
-              const bottomPadding = dialog.scrollTopMax > 0 && parseFloat(style.getPropertyValue('padding-bottom')) || 0;
+              const rightPadding =
+                (dialog.scrollLeftMax > 0 &&
+                  parseFloat(style.getPropertyValue("padding-right"))) ||
+                0;
+              const bottomPadding =
+                (dialog.scrollTopMax > 0 &&
+                  parseFloat(style.getPropertyValue("padding-bottom"))) ||
+                0;
               browser.runtime.sendMessage({
-                type:         'rich-confirm-dialog-shown',
-                uniqueKey:    uniqueKey,
-                dialogWidth:  rect.width + dialog.scrollLeftMax + rightPadding,
-                dialogHeight: rect.height + dialog.scrollTopMax + bottomPadding
+                type: "rich-confirm-dialog-shown",
+                uniqueKey: uniqueKey,
+                dialogWidth: rect.width + dialog.scrollLeftMax + rightPadding,
+                dialogHeight: rect.height + dialog.scrollTopMax + bottomPadding,
               });
-            }
+            },
           });
           browser.runtime.sendMessage({
-            type:      'rich-confirm-dialog-complete',
+            type: "rich-confirm-dialog-complete",
             uniqueKey: uniqueKey,
-            result
+            result,
           });
         };
-        if (browser.scripting) // Manifest V3
+        if (browser.scripting)
+          // Manifest V3
           browser.scripting.executeScript({
             target: { tabId },
             func: run,
-            args: [this.uniqueKey, originalOnShown, transferableParams, inject],
+            args: [
+              RichConfirm.uniqueKey,
+              originalOnShown,
+              transferableParams,
+              inject,
+            ],
           });
         else
           browser.tabs.executeScript(tabId, {
             code: `
               (${run.toString()})(
-                ${this.uniqueKey},
+                ${RichConfirm.uniqueKey},
                 (${originalOnShown.toString()}),
                 ${JSON.stringify(transferableParams)},
-                {${injectTransferable.join(',')}}
+                {${injectTransferable.join(",")}}
               );
             `,
             matchAboutBlank: true,
-            runAt:           'document_start'
+            runAt: "document_start",
           });
         // Don't return the promise directly here, instead await it
         // because the "finally" block must be processed after
         // the promise is resolved.
         const result = await promisedResult;
         return result;
-      }
-      catch(error) {
+      } catch (error) {
         console.error(error, error.stack);
         return {
-          buttonIndex: -1
+          buttonIndex: -1,
         };
-      }
-      finally {
+      } finally {
         if (browser.runtime.onMessage.hasListener(onMessage))
           browser.runtime.onMessage.removeListener(onMessage);
       }
@@ -1117,26 +1144,28 @@
       if (!params) {
         params = winId;
         ownerWin = await browser.windows.getLastFocused({});
-      }
-      else {
+      } else {
         ownerWin = await browser.windows.get(winId);
       }
 
-      const type = this.DIALOG_READY_NOTIFICATION_TYPE;
-      const tryRepositionDialogToCenterOfOwner = this._tryRepositionDialogToCenterOfOwner;
-      browser.runtime.onMessage.addListener(function onMessage(message, sender) {
-        switch (message.type) {
-          case type:
-            browser.runtime.onMessage.removeListener(onMessage);
-            tryRepositionDialogToCenterOfOwner({
-              ...message,
-              dialogWindowId: sender.tab.windowId,
-            });
-            break;
+      const type = RichConfirm.DIALOG_READY_NOTIFICATION_TYPE;
+      const tryRepositionDialogToCenterOfOwner =
+        RichConfirm._tryRepositionDialogToCenterOfOwner;
+      browser.runtime.onMessage.addListener(
+        function onMessage(message, sender) {
+          switch (message.type) {
+            case type:
+              browser.runtime.onMessage.removeListener(onMessage);
+              tryRepositionDialogToCenterOfOwner({
+                ...message,
+                dialogWindowId: sender.tab.windowId,
+              });
+              break;
+          }
         }
-      });
+      );
 
-      return this._showInPopupInternal(ownerWin, {
+      return RichConfirm._showInPopupInternal(ownerWin, {
         ...params,
         inject: {
           ...(params.inject || {}),
@@ -1144,18 +1173,28 @@
           __RichConfirm__ownerWindowId: ownerWin.id,
         },
         onShown: [
-          ...(!params.onShown ? [] : Array.isArray(params.onShown) ? params.onShown : [params.onShown]),
-          (container, { __RichConfirm__reportScreenMessageType, __RichConfirm__ownerWindowId }) => {
+          ...(!params.onShown
+            ? []
+            : Array.isArray(params.onShown)
+              ? params.onShown
+              : [params.onShown]),
+          (
+            _container,
+            {
+              __RichConfirm__reportScreenMessageType,
+              __RichConfirm__ownerWindowId,
+            }
+          ) => {
             setTimeout(() => {
               // We cannot move this window by this callback function, thus I just send
               // a request to update window position.
               browser.runtime.sendMessage({
-                type:          __RichConfirm__reportScreenMessageType,
+                type: __RichConfirm__reportScreenMessageType,
                 ownerWindowId: __RichConfirm__ownerWindowId,
-                availLeft:     screen.availLeft,
-                availTop:      screen.availTop,
-                availWidth:    screen.availWidth,
-                availHeight:   screen.availHeight,
+                availLeft: screen.availLeft,
+                availTop: screen.availTop,
+                availWidth: screen.availWidth,
+                availHeight: screen.availHeight,
               });
             }, 0);
           },
@@ -1163,31 +1202,45 @@
       });
     }
 
-    static async _tryRepositionDialogToCenterOfOwner({ dialogWindowId, ownerWindowId, availLeft, availTop, availWidth, availHeight }) {
+    static async _tryRepositionDialogToCenterOfOwner({
+      dialogWindowId,
+      ownerWindowId,
+      availLeft,
+      availTop,
+      availWidth,
+      availHeight,
+    }) {
       const [dialogWin, ownerWin] = await Promise.all([
         browser.windows.get(dialogWindowId),
         browser.windows.get(ownerWindowId),
       ]);
-      const placedOnOwner = (
-        dialogWin.left + dialogWin.width - (dialogWin.width / 2) < ownerWin.left &&
-        dialogWin.top + dialogWin.height - (dialogWin.height / 2) < ownerWin.top &&
-        dialogWin.left + (dialogWin.width / 2) < ownerWin.left + ownerWin.width &&
-        dialogWin.top + (dialogWin.height / 2) < ownerWin.top + ownerWin.height
-      );
-      const placedInsideViewArea = (
+      const placedOnOwner =
+        dialogWin.left + dialogWin.width - dialogWin.width / 2 <
+          ownerWin.left &&
+        dialogWin.top + dialogWin.height - dialogWin.height / 2 <
+          ownerWin.top &&
+        dialogWin.left + dialogWin.width / 2 < ownerWin.left + ownerWin.width &&
+        dialogWin.top + dialogWin.height / 2 < ownerWin.top + ownerWin.height;
+      const placedInsideViewArea =
         dialogWin.left >= availLeft &&
         dialogWin.top >= availTop &&
         dialogWin.left + dialogWin.width <= availLeft + availWidth &&
-        dialogWin.top + dialogWin.height <= availTop + availHeight
-      );
-      if (placedOnOwner && placedInsideViewArea)
-        return;
+        dialogWin.top + dialogWin.height <= availTop + availHeight;
+      if (placedOnOwner && placedInsideViewArea) return;
 
-      const top  = ownerWin.top + Math.round((ownerWin.height - dialogWin.height) / 2);
-      const left = ownerWin.left + Math.round((ownerWin.width - dialogWin.width) / 2);
+      const top =
+        ownerWin.top + Math.round((ownerWin.height - dialogWin.height) / 2);
+      const left =
+        ownerWin.left + Math.round((ownerWin.width - dialogWin.width) / 2);
       return browser.windows.update(dialogWin.id, {
-        left: Math.min(availLeft + availWidth - dialogWin.width, Math.max(availLeft, left)),
-        top:  Math.min(availTop + availHeight - dialogWin.height, Math.max(availTop, top)),
+        left: Math.min(
+          availLeft + availWidth - dialogWin.width,
+          Math.max(availLeft, left)
+        ),
+        top: Math.min(
+          availTop + availHeight - dialogWin.height,
+          Math.max(availTop, top)
+        ),
       });
     }
 
@@ -1197,36 +1250,42 @@
     // So, we detect the opened window without the promise in different way
     // based on its unique URL.
     static async _safeCreateWindow(params) {
-      const existingWindowIds = new Set((await browser.windows.getAll()).map(win => win.id));
-      const uniqueKeyParam = `popup-id-for-${uniqueKey}=${parseInt(Math.random() * Math.pow(2, 16))}`;
-      const dialogUrl = params.url.replace(/[?#]/, matched => {
-        if (matched == '?')
-          return `?${uniqueKeyParam}&`;
-        else
-          return `?#{uniqueKeyParam}#`;
+      const existingWindowIds = new Set(
+        (await browser.windows.getAll()).map((win) => win.id)
+      );
+      const uniqueKeyParam = `popup-id-for-${uniqueKey}=${parseInt(Math.random() * 2 ** 16)}`;
+      const dialogUrl = params.url.replace(/[?#]/, (matched) => {
+        if (matched === "?") return `?${uniqueKeyParam}&`;
+        else return `?#{uniqueKeyParam}#`;
       });
       let win;
-      const promisedWin = browser.windows.create({
-        ...params,
-        url: dialogUrl,
-      }).then(resolvedWin => {
-        console.log('RichConfirm._safeCreateWindow: promised window is resolved');
-        win = resolvedWin;
-      });
+      const promisedWin = browser.windows
+        .create({
+          ...params,
+          url: dialogUrl,
+        })
+        .then((resolvedWin) => {
+          console.log(
+            "RichConfirm._safeCreateWindow: promised window is resolved"
+          );
+          win = resolvedWin;
+        });
       while (!win) {
         await Promise.race([
           new Promise(async (resolve, _reject) => {
-            if (win)
-              return resolve();
+            if (win) return resolve();
             const windows = await browser.windows.getAll({ populate: true });
-            if (win)
-              return resolve();
+            if (win) return resolve();
             for (const window of windows) {
-              if (existingWindowIds.has(window.id) ||
-                  !window.tabs[0].url.includes(uniqueKeyParam))
+              if (
+                existingWindowIds.has(window.id) ||
+                !window.tabs[0].url.includes(uniqueKeyParam)
+              )
                 continue;
 
-              console.log('RichConfirm._safeCreateWindow: new window is detected');
+              console.log(
+                "RichConfirm._safeCreateWindow: new window is detected"
+              );
               win = window;
               resolve();
               return;
@@ -1240,17 +1299,24 @@
     }
 
     static async _showInPopupInternal(ownerWin, params) {
-      const minWidth  = Math.max(ownerWin.width, Math.ceil(screen.availWidth / 3));
-      const minHeight = Math.max(ownerWin.height, Math.ceil(screen.availHeight / 3));
+      const minWidth = Math.max(
+        ownerWin.width,
+        Math.ceil(screen.availWidth / 3)
+      );
+      const minHeight = Math.max(
+        ownerWin.height,
+        Math.ceil(screen.availHeight / 3)
+      );
 
-      const simulation = new this({
+      const simulation = new RichConfirm({
         ...params,
         popup: true,
-        simulation: true
+        simulation: true,
       });
       simulation.buildUI();
-      const simulatedContainer = simulation.ui.querySelector('.rich-confirm-row');
-      simulatedContainer.style.minWidth  = `${minWidth}px`;
+      const simulatedContainer =
+        simulation.ui.querySelector(".rich-confirm-row");
+      simulatedContainer.style.minWidth = `${minWidth}px`;
       simulatedContainer.style.minHeight = `${minHeight}px`;
       await new Promise((resolve, _reject) => {
         simulation.show({
@@ -1258,64 +1324,73 @@
             setTimeout(() => {
               resolve();
             }, 0);
-          }
+          },
         });
       });
-      const simulatedDialog = simulation.ui.querySelector('.rich-confirm-dialog');
-      const simulatedRect   = simulatedDialog.getBoundingClientRect();
+      const simulatedDialog = simulation.ui.querySelector(
+        ".rich-confirm-dialog"
+      );
+      const simulatedRect = simulatedDialog.getBoundingClientRect();
 
       // Safe guard for scrollbar due to unexpected line breaks
-      const safetyFactor  = 1.05;
+      const safetyFactor = 1.05;
       const simulatedSize = {
-        width:  Math.ceil(simulatedRect.width * safetyFactor),
-        height: Math.ceil(simulatedRect.height * safetyFactor)
+        width: Math.ceil(simulatedRect.width * safetyFactor),
+        height: Math.ceil(simulatedRect.height * safetyFactor),
       };
       simulation.hide();
       // This dimension is not accurate because we must think about
       // the size of the window frame, but currently I don't know how to
       // calculate it here...
 
-      simulatedSize.top  = ownerWin.top + Math.floor((ownerWin.height - simulatedSize.height) / 2);
-      simulatedSize.left = ownerWin.left + Math.floor((ownerWin.width - simulatedSize.width) / 2);
+      simulatedSize.top =
+        ownerWin.top + Math.floor((ownerWin.height - simulatedSize.height) / 2);
+      simulatedSize.left =
+        ownerWin.left + Math.floor((ownerWin.width - simulatedSize.width) / 2);
 
-      const url     = params.url || 'about:blank';
-      const fullUrl = /^about:/.test(url) || /^\w+:\/\//.test(url) ?
-        url :
-        `moz-extension://${location.host}/${url.replace(/^\//, '')}`;
-      const win = await this._safeCreateWindow({
-        url:    fullUrl,
-        type:   'popup',
-        ...simulatedSize
+      const url = params.url || "about:blank";
+      const fullUrl =
+        /^about:/.test(url) || /^\w+:\/\//.test(url)
+          ? url
+          : `moz-extension://${location.host}/${url.replace(/^\//, "")}`;
+      const win = await RichConfirm._safeCreateWindow({
+        url: fullUrl,
+        type: "popup",
+        ...simulatedSize,
       });
       // Due to a Firefox's bug we cannot open popup type window
       // at specified position.
       // https://bugzilla.mozilla.org/show_bug.cgi?id=1271047
       // Thus we need to move the window immediately after it is opened.
-      if (win.left + win.width - (win.width / 2) <= ownerWin.left ||
-          win.top + win.height - (win.height / 2) <= ownerWin.top ||
-          win.left + (win.width / 2) >= ownerWin.left + ownerWin.width ||
-          win.top + (win.height / 2) >= ownerWin.top + ownerWin.height) {
+      if (
+        win.left + win.width - win.width / 2 <= ownerWin.left ||
+        win.top + win.height - win.height / 2 <= ownerWin.top ||
+        win.left + win.width / 2 >= ownerWin.left + ownerWin.width ||
+        win.top + win.height / 2 >= ownerWin.top + ownerWin.height
+      ) {
         // But, such a move will produce an annoying flash.
         // So, I grudgingly accept the position of the dialog placed
         // if the popup (partially or fully) covers the owner window.
         browser.windows.update(win.id, {
-          top:  simulatedSize.top,
-          left: simulatedSize.left
+          top: simulatedSize.top,
+          left: simulatedSize.left,
         });
       }
-      const activeTab = win.tabs.find(tab => tab.active);
+      const activeTab = win.tabs.find((tab) => tab.active);
 
-      const onFocusChanged = !params.modal ? null : windowId => {
-        if (windowId == ownerWin.id)
-          browser.windows.update(win.id, { focused: true });
-      };
+      const onFocusChanged = !params.modal
+        ? null
+        : (windowId) => {
+            if (windowId === ownerWin.id)
+              browser.windows.update(win.id, { focused: true });
+          };
       if (onFocusChanged)
         browser.windows.onFocusChanged.addListener(onFocusChanged);
 
       let onClosed;
       const promisedDismissed = new Promise((resolve, _reject) => {
-        onClosed = windowId => {
-          if (windowId == win.id) {
+        onClosed = (windowId) => {
+          if (windowId === win.id) {
             win.closed = true;
             resolve({ buttonIndex: -1 });
           }
@@ -1330,94 +1405,99 @@
             const frameSize = await new Promise((resolve, _reject) => {
               let timeout;
               const getFrameSize = function getFrameSize(title, uniqueKey) {
-                if (title)
-                  document.title = title;
+                if (title) document.title = title;
                 const classList = document.documentElement.classList;
                 classList.add(`rich-confirm-${uniqueKey}`);
-                classList.add('popup-window');
+                classList.add("popup-window");
                 return {
-                  width:  window.outerWidth - window.innerWidth,
+                  width: window.outerWidth - window.innerWidth,
                   height: window.outerHeight - window.innerHeight,
-                  url:    location.href
+                  url: location.href,
                 };
               };
               const onTabUpdated = (tabId, updateInfo, _tab) => {
-                if (updateInfo.status != 'complete' ||
-                    !browser.tabs.onUpdated.hasListener(onTabUpdated))
+                if (
+                  updateInfo.status !== "complete" ||
+                  !browser.tabs.onUpdated.hasListener(onTabUpdated)
+                )
                   return;
-                if (timeout)
-                  clearTimeout(timeout);
+                if (timeout) clearTimeout(timeout);
                 if (browser.scripting)
-                  browser.scripting.executeScript({ // Manifest V3
-                    target: { tabId },
-                    func:   getFrameSize,
-                    args:   [params.title, uniqueKey],
-                  }).then(injectionResults => {
-                    const result = injectionResults[0].result;
-                    if (result.url != fullUrl)
-                      return;
-                    browser.tabs.onUpdated.removeListener(onTabUpdated);
-                    resolve(result);
-                  });
+                  browser.scripting
+                    .executeScript({
+                      // Manifest V3
+                      target: { tabId },
+                      func: getFrameSize,
+                      args: [params.title, uniqueKey],
+                    })
+                    .then((injectionResults) => {
+                      const result = injectionResults[0].result;
+                      if (result.url !== fullUrl) return;
+                      browser.tabs.onUpdated.removeListener(onTabUpdated);
+                      resolve(result);
+                    });
                 else
-                  browser.tabs.executeScript(tabId, {
-                    code: `(${getFrameSize.toString()})(
+                  browser.tabs
+                    .executeScript(tabId, {
+                      code: `(${getFrameSize.toString()})(
                       ${JSON.stringify(params.title)},
                       ${JSON.stringify(uniqueKey)}
                     );`,
-                    matchAboutBlank: true,
-                    runAt:           'document_start'
-                  }).then(results => {
-                    if (results[0].url != fullUrl)
-                      return;
-                    browser.tabs.onUpdated.removeListener(onTabUpdated);
-                    resolve(results[0]);
-                  });
+                      matchAboutBlank: true,
+                      runAt: "document_start",
+                    })
+                    .then((results) => {
+                      if (results[0].url !== fullUrl) return;
+                      browser.tabs.onUpdated.removeListener(onTabUpdated);
+                      resolve(results[0]);
+                    });
               };
               timeout = setTimeout(() => {
-                if (!browser.tabs.onUpdated.hasListener(onTabUpdated))
-                  return;
+                if (!browser.tabs.onUpdated.hasListener(onTabUpdated)) return;
                 timeout = null;
                 if (browser.scripting)
-                  browser.scripting.executeScript({ // Manifest V3
-                    target: { tabId: activeTab.id },
-                    func:   getFrameSize,
-                    args:   [params.title, uniqueKey],
-                  }).then(injectionResult => {
-                    const result = injectionResult.result[0];
-                    if (result.url != fullUrl)
-                      return;
-                    browser.tabs.onUpdated.removeListener(onTabUpdated);
-                    resolve(result);
-                  });
+                  browser.scripting
+                    .executeScript({
+                      // Manifest V3
+                      target: { tabId: activeTab.id },
+                      func: getFrameSize,
+                      args: [params.title, uniqueKey],
+                    })
+                    .then((injectionResult) => {
+                      const result = injectionResult.result[0];
+                      if (result.url !== fullUrl) return;
+                      browser.tabs.onUpdated.removeListener(onTabUpdated);
+                      resolve(result);
+                    });
                 else
-                  browser.tabs.executeScript(activeTab.id, {
-                    code: `(${getFrameSize.toString()})(
+                  browser.tabs
+                    .executeScript(activeTab.id, {
+                      code: `(${getFrameSize.toString()})(
                       ${JSON.stringify(params.title)},
                       ${JSON.stringify(uniqueKey)}
                     );`,
-                    matchAboutBlank: true,
-                    runAt:           'document_start'
-                  }).then(results => {
-                    if (results[0].url != fullUrl)
-                      return;
-                    browser.tabs.onUpdated.removeListener(onTabUpdated);
-                    resolve(results[0]);
-                  });
+                      matchAboutBlank: true,
+                      runAt: "document_start",
+                    })
+                    .then((results) => {
+                      if (results[0].url !== fullUrl) return;
+                      browser.tabs.onUpdated.removeListener(onTabUpdated);
+                      resolve(results[0]);
+                    });
               }, 500);
               browser.tabs.onUpdated.addListener(onTabUpdated, {
-                properties: ['status'],
-                tabId:      activeTab.id
+                properties: ["status"],
+                tabId: activeTab.id,
               });
             });
 
-            if (typeof browser.tabs.setZoom == 'function')
+            if (typeof browser.tabs.setZoom === "function")
               await browser.tabs.setZoom(activeTab.id, 1);
-            return this.showInTab(activeTab.id, {
+            return RichConfirm.showInTab(activeTab.id, {
               ...params,
               popup: true,
               onReady(dialogSize) {
-                const actualWidth  = Math.min(
+                const actualWidth = Math.min(
                   Math.ceil(dialogSize.width + frameSize.width),
                   Math.max(
                     ownerWin.left + ownerWin.width - simulatedSize.left,
@@ -1432,7 +1512,7 @@
                   )
                 );
                 browser.windows.update(win.id, {
-                  width:  actualWidth,
+                  width: actualWidth,
                   height: actualHeight,
                   // We should reposition the dialog at truly center of the
                   // owner window, but it will produce an annoying slip of
@@ -1440,14 +1520,13 @@
                   //top:    Math.floor(ownerWin.top + ((ownerWin.height - actualHeight) / 2)),
                   //left:   Math.floor(ownerWin.left + ((ownerWin.width - actualWidth) / 2))
                 });
-              }
+              },
             });
-          }
-          catch(error) {
+          } catch (error) {
             console.error(error);
             return null;
           }
-        })()
+        })(),
       ]);
 
       if (onFocusChanged)
@@ -1458,29 +1537,30 @@
         // A window closed with a blank page won't appear
         // in the "Recently Closed Windows" list.
         const reloadWithBlank = function reloadWithBlank() {
-          location.replace('about:blank');
+          location.replace("about:blank");
         };
-        (browser.scripting ?
-          browser.scripting.executeScript({ // Manifest V3
-            target: { tabId: activeTab.id },
-            func:   reloadWithBlank,
-          }) :
-          browser.tabs.executeScript(activeTab.id, {
-            code: `(${reloadWithBlank.toString()})();`,
-            matchAboutBlank: true,
-            runAt:           'document_start'
-          }))
-          .then(() => {
-            browser.windows.remove(win.id);
-          });
+        (browser.scripting
+          ? browser.scripting.executeScript({
+              // Manifest V3
+              target: { tabId: activeTab.id },
+              func: reloadWithBlank,
+            })
+          : browser.tabs.executeScript(activeTab.id, {
+              code: `(${reloadWithBlank.toString()})();`,
+              matchAboutBlank: true,
+              runAt: "document_start",
+            })
+        ).then(() => {
+          browser.windows.remove(win.id);
+        });
       }
 
       return result;
     }
-  };
+  }
   RichConfirm.uniqueKey = RichConfirm.prototype.uniqueKey = uniqueKey;
   RichConfirm.DIALOG_READY_NOTIFICATION_TYPE = `__RichConfirm_${uniqueKey}__confirmation-dialog-ready`;
   window.RichConfirm = RichConfirm;
   return true; // this is required to run this script as a content script
-})(parseInt(Math.random() * Math.pow(2, 16)));
+})(parseInt(Math.random() * 2 ** 16));
 export default RichConfirm;

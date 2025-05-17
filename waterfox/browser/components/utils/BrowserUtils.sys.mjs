@@ -2,11 +2,9 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-/* global */
-
-import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 import { CustomizableUI } from "resource:///modules/CustomizableUI.sys.mjs";
 import { PanelMultiView } from "resource:///modules/PanelMultiView.sys.mjs";
+import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 
 const lazy = {};
 
@@ -28,8 +26,8 @@ export const BrowserUtils = {
   },
   createElement(aDoc, aTag, aAttrs) {
     // Create element
-    let el = aDoc.createXULElement(aTag);
-    for (let att in aAttrs) {
+    const el = aDoc.createXULElement(aTag);
+    for (const att in aAttrs) {
       // don't set null attrs
       if (aAttrs[att]) {
         el.setAttribute(att, aAttrs[att]);
@@ -40,9 +38,9 @@ export const BrowserUtils = {
 
   // api endpoints
   createAndPositionElement(aWindow, aTag, aAttrs, aAdjacentTo, aPosition) {
-    let doc = aWindow.document;
+    const doc = aWindow.document;
     // Create element
-    let el = this.createElement(doc, aTag, aAttrs);
+    const el = this.createElement(doc, aTag, aAttrs);
     // Place it in certain location
     let pos = doc.getElementById(aAdjacentTo);
     if (aPosition) {
@@ -55,7 +53,7 @@ export const BrowserUtils = {
       if (pos) {
         pos.insertAdjacentElement(aPosition, el);
       }
-    } else if (aAdjacentTo == "gNavToolbox") {
+    } else if (aAdjacentTo === "gNavToolbox") {
       aWindow.gNavToolbox.appendChild(el);
     } else {
       pos.appendChild(el);
@@ -73,9 +71,9 @@ export const BrowserUtils = {
    * BrowserUtils.executeInAllWindows(Urlbar.addDynamicStylesheet, "chrome://browser/skin/waterfox.css")
    */
   executeInAllWindows(func, ...args) {
-    let windows = Services.wm.getEnumerator("navigator:browser");
+    const windows = Services.wm.getEnumerator("navigator:browser");
     while (windows.hasMoreElements()) {
-      let window = windows.getNext();
+      const window = windows.getNext();
       func(window, ...args);
     }
   },
@@ -96,35 +94,35 @@ export const BrowserUtils = {
 
   registerStylesheet(uri) {
     if (!this.sheetRegistered(uri)) {
-      let url = Services.io.newURI(uri);
-      let type = lazy.styleSheetService.USER_SHEET;
+      const url = Services.io.newURI(uri);
+      const type = lazy.styleSheetService.USER_SHEET;
       lazy.styleSheetService.loadAndRegisterSheet(url, type);
     }
   },
 
   unregisterStylesheet(uri) {
     if (this.sheetRegistered(uri)) {
-      let url = Services.io.newURI(uri);
-      let type = lazy.styleSheetService.USER_SHEET;
+      const url = Services.io.newURI(uri);
+      const type = lazy.styleSheetService.USER_SHEET;
       lazy.styleSheetService.unregisterSheet(url, type);
     }
   },
 
   sheetRegistered(uri) {
-    let url = Services.io.newURI(uri);
-    let type = lazy.styleSheetService.USER_SHEET;
+    const url = Services.io.newURI(uri);
+    const type = lazy.styleSheetService.USER_SHEET;
     return lazy.styleSheetService.sheetRegistered(url, type);
   },
 
   setStyle(aStyleSheet) {
-    let styleSheetService = Cc[
+    const styleSheetService = Cc[
       "@mozilla.org/content/style-sheet-service;1"
     ].getService(Ci.nsIStyleSheetService);
 
-    let url = Services.io.newURI(
-      "data:text/css;charset=UTF-8," + encodeURIComponent(aStyleSheet)
+    const url = Services.io.newURI(
+      `data:text/css;charset=UTF-8,${encodeURIComponent(aStyleSheet)}`
     );
-    let type = styleSheetService.USER_SHEET;
+    const type = styleSheetService.USER_SHEET;
 
     styleSheetService.loadAndRegisterSheet(url, type);
   },
