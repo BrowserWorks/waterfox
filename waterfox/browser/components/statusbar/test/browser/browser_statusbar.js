@@ -1,5 +1,3 @@
-"use strict";
-
 // Test status bar is present
 add_task(async function testStatusBarPresent() {
   let el = document.getElementById("status-bar");

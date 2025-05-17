@@ -1,181 +1,209 @@
-/*
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-*/
-'use strict';
+import * as ApiTabs from "/common/api-tabs.js";
+import * as Bookmark from "/common/bookmark.js";
+import { configs, log as internalLogger } from "/common/common.js";
+import * as Sync from "/common/sync.js";
+import Tab from "/common/Tab.js";
+import * as TSTAPI from "/common/tst-api.js";
 
-import {
-  log as internalLogger,
-  configs,
-} from '/common/common.js';
-
-import * as ApiTabs from '/common/api-tabs.js';
-import * as Bookmark from '/common/bookmark.js';
-import * as Sync from '/common/sync.js';
-import * as TSTAPI from '/common/tst-api.js';
-
-import Tab from '/common/Tab.js';
-
-import * as Commands from './commands.js';
-import * as TabContextMenu from './tab-context-menu.js';
+import * as Commands from "./commands.js";
+import * as TabContextMenu from "./tab-context-menu.js";
 
 function log(...args) {
-  internalLogger('background/context-menu', ...args);
+  internalLogger("background/context-menu", ...args);
 }
 
 export async function init() {
-  return Promise.all([
-    addTabItems(),
-    addBookmarkItems(),
-  ]);
+  return Promise.all([addTabItems(), addBookmarkItems()]);
 }
 
 const SAFE_CREATE_PROPERTIES = [
-  'checked',
-  'contexts',
-  'documentUrlPatterns',
-  'enabled',
-  'icons',
-  'id',
-  'parentId',
-  'title',
-  'type',
-  'viewTypes',
-  'visible'
+  "checked",
+  "contexts",
+  "documentUrlPatterns",
+  "enabled",
+  "icons",
+  "id",
+  "parentId",
+  "title",
+  "type",
+  "viewTypes",
+  "visible",
 ];
 
 function getSafeCreateParams(params) {
   const safeParams = {};
   for (const property of SAFE_CREATE_PROPERTIES) {
-    if (property in params)
-      safeParams[property] = params[property];
+    if (property in params) safeParams[property] = params[property];
   }
   return safeParams;
 }
 
 const manifest = browser.runtime.getManifest();
 
-const kROOT_TAB_ITEM = 'ws';
-const kROOT_BOOKMARK_ITEM = 'ws-bookmark';
+const kROOT_TAB_ITEM = "ws";
+const kROOT_BOOKMARK_ITEM = "ws-bookmark";
 
 const mTabItemsById = {
-  'reloadTree': {
-    title:              browser.i18n.getMessage('context_reloadTree_label'),
-    titleMultiselected: browser.i18n.getMessage('context_reloadTree_label_multiselected')
+  reloadTree: {
+    title: browser.i18n.getMessage("context_reloadTree_label"),
+    titleMultiselected: browser.i18n.getMessage(
+      "context_reloadTree_label_multiselected"
+    ),
   },
-  'reloadDescendants': {
-    title:              browser.i18n.getMessage('context_reloadDescendants_label'),
-    titleMultiselected: browser.i18n.getMessage('context_reloadDescendants_label_multiselected')
+  reloadDescendants: {
+    title: browser.i18n.getMessage("context_reloadDescendants_label"),
+    titleMultiselected: browser.i18n.getMessage(
+      "context_reloadDescendants_label_multiselected"
+    ),
   },
   // This item won't be handled by the onClicked handler, so you may need to handle it with something experiments API.
-  'unblockAutoplayTree': {
-    title:                browser.i18n.getMessage('context_unblockAutoplayTree_label'),
-    titleMultiselected:   browser.i18n.getMessage('context_unblockAutoplayTree_label_multiselected'),
+  unblockAutoplayTree: {
+    title: browser.i18n.getMessage("context_unblockAutoplayTree_label"),
+    titleMultiselected: browser.i18n.getMessage(
+      "context_unblockAutoplayTree_label_multiselected"
+    ),
     requireAutoplayBlockedTab: true,
   },
   // This item won't be handled by the onClicked handler, so you may need to handle it with something experiments API.
-  'unblockAutoplayDescendants': {
-    title:                browser.i18n.getMessage('context_unblockAutoplayDescendants_label'),
-    titleMultiselected:   browser.i18n.getMessage('context_unblockAutoplayDescendants_label_multiselected'),
+  unblockAutoplayDescendants: {
+    title: browser.i18n.getMessage("context_unblockAutoplayDescendants_label"),
+    titleMultiselected: browser.i18n.getMessage(
+      "context_unblockAutoplayDescendants_label_multiselected"
+    ),
     requireAutoplayBlockedDescendant: true,
   },
-  'toggleMuteTree': {
-    titleMuteTree:                browser.i18n.getMessage('context_toggleMuteTree_label_mute'),
-    titleMultiselectedMuteTree:   browser.i18n.getMessage('context_toggleMuteTree_label_multiselected_mute'),
-    titleUnmuteTree:              browser.i18n.getMessage('context_toggleMuteTree_label_unmute'),
-    titleMultiselectedUnmuteTree: browser.i18n.getMessage('context_toggleMuteTree_label_multiselected_unmute')
+  toggleMuteTree: {
+    titleMuteTree: browser.i18n.getMessage("context_toggleMuteTree_label_mute"),
+    titleMultiselectedMuteTree: browser.i18n.getMessage(
+      "context_toggleMuteTree_label_multiselected_mute"
+    ),
+    titleUnmuteTree: browser.i18n.getMessage(
+      "context_toggleMuteTree_label_unmute"
+    ),
+    titleMultiselectedUnmuteTree: browser.i18n.getMessage(
+      "context_toggleMuteTree_label_multiselected_unmute"
+    ),
   },
-  'toggleMuteDescendants': {
-    titleMuteDescendant:                browser.i18n.getMessage('context_toggleMuteDescendants_label_mute'),
-    titleMultiselectedMuteDescendant:   browser.i18n.getMessage('context_toggleMuteDescendants_label_multiselected_mute'),
-    titleUnmuteDescendant:              browser.i18n.getMessage('context_toggleMuteDescendants_label_unmute'),
-    titleMultiselectedUnmuteDescendant: browser.i18n.getMessage('context_toggleMuteDescendants_label_multiselected_unmute')
+  toggleMuteDescendants: {
+    titleMuteDescendant: browser.i18n.getMessage(
+      "context_toggleMuteDescendants_label_mute"
+    ),
+    titleMultiselectedMuteDescendant: browser.i18n.getMessage(
+      "context_toggleMuteDescendants_label_multiselected_mute"
+    ),
+    titleUnmuteDescendant: browser.i18n.getMessage(
+      "context_toggleMuteDescendants_label_unmute"
+    ),
+    titleMultiselectedUnmuteDescendant: browser.i18n.getMessage(
+      "context_toggleMuteDescendants_label_multiselected_unmute"
+    ),
   },
-  'separatorAfterReload': {
-    type: 'separator'
+  separatorAfterReload: {
+    type: "separator",
   },
-  'closeTree': {
-    title:              browser.i18n.getMessage('context_closeTree_label'),
-    titleMultiselected: browser.i18n.getMessage('context_closeTree_label_multiselected')
+  closeTree: {
+    title: browser.i18n.getMessage("context_closeTree_label"),
+    titleMultiselected: browser.i18n.getMessage(
+      "context_closeTree_label_multiselected"
+    ),
   },
-  'closeDescendants': {
-    title:              browser.i18n.getMessage('context_closeDescendants_label'),
-    titleMultiselected: browser.i18n.getMessage('context_closeDescendants_label_multiselected'),
-    requireTree:        true,
+  closeDescendants: {
+    title: browser.i18n.getMessage("context_closeDescendants_label"),
+    titleMultiselected: browser.i18n.getMessage(
+      "context_closeDescendants_label_multiselected"
+    ),
+    requireTree: true,
   },
-  'closeOthers': {
-    title:              browser.i18n.getMessage('context_closeOthers_label'),
-    titleMultiselected: browser.i18n.getMessage('context_closeOthers_label_multiselected')
+  closeOthers: {
+    title: browser.i18n.getMessage("context_closeOthers_label"),
+    titleMultiselected: browser.i18n.getMessage(
+      "context_closeOthers_label_multiselected"
+    ),
   },
-  'separatorAfterClose': {
-    type: 'separator'
+  separatorAfterClose: {
+    type: "separator",
   },
-  'toggleSticky': {
-    titleStick:                browser.i18n.getMessage('context_toggleSticky_label_stick'),
-    titleMultiselectedStick:   browser.i18n.getMessage('context_toggleSticky_label_multiselected_stick'),
-    titleUnstick:              browser.i18n.getMessage('context_toggleSticky_label_unstick'),
-    titleMultiselectedUnstick: browser.i18n.getMessage('context_toggleSticky_label_multiselected_unstick'),
+  toggleSticky: {
+    titleStick: browser.i18n.getMessage("context_toggleSticky_label_stick"),
+    titleMultiselectedStick: browser.i18n.getMessage(
+      "context_toggleSticky_label_multiselected_stick"
+    ),
+    titleUnstick: browser.i18n.getMessage("context_toggleSticky_label_unstick"),
+    titleMultiselectedUnstick: browser.i18n.getMessage(
+      "context_toggleSticky_label_multiselected_unstick"
+    ),
     requireNormal: true,
   },
-  'separatorAfterToggleSticky': {
-    type: 'separator'
+  separatorAfterToggleSticky: {
+    type: "separator",
   },
-  'collapseTree': {
-    title:              browser.i18n.getMessage('context_collapseTree_label'),
-    titleMultiselected: browser.i18n.getMessage('context_collapseTree_label_multiselected'),
+  collapseTree: {
+    title: browser.i18n.getMessage("context_collapseTree_label"),
+    titleMultiselected: browser.i18n.getMessage(
+      "context_collapseTree_label_multiselected"
+    ),
     requireTree: true,
   },
-  'collapseTreeRecursively': {
-    title:              browser.i18n.getMessage('context_collapseTreeRecursively_label'),
-    titleMultiselected: browser.i18n.getMessage('context_collapseTreeRecursively_label_multiselected'),
-    requireTree:        true,
-  },
-  'collapseAll': {
-    title:               browser.i18n.getMessage('context_collapseAll_label'),
-    hideOnMultiselected: true
-  },
-  'expandTree': {
-    title:              browser.i18n.getMessage('context_expandTree_label'),
-    titleMultiselected: browser.i18n.getMessage('context_expandTree_label_multiselected'),
-    requireTree:       true,
-  },
-  'expandTreeRecursively': {
-    title:              browser.i18n.getMessage('context_expandTreeRecursively_label'),
-    titleMultiselected: browser.i18n.getMessage('context_expandTreeRecursively_label_multiselected'),
-    requireTree:        true,
-  },
-  'expandAll': {
-    title:               browser.i18n.getMessage('context_expandAll_label'),
-    hideOnMultiselected: true
-  },
-  'separatorAfterCollapseExpand': {
-    type: 'separator'
-  },
-  'bookmarkTree': {
-    title:              browser.i18n.getMessage('context_bookmarkTree_label'),
-    titleMultiselected: browser.i18n.getMessage('context_bookmarkTree_label_multiselected')
-  },
-  'sendTreeToDevice': {
-    title:              browser.i18n.getMessage('context_sendTreeToDevice_label'),
-    titleMultiselected: browser.i18n.getMessage('context_sendTreeToDevice_label_multiselected')
-  },
-  'separatorAfterBookmark': {
-    type: 'separator'
-  },
-  'collapsed': {
-    title:       browser.i18n.getMessage('context_collapsed_label'),
+  collapseTreeRecursively: {
+    title: browser.i18n.getMessage("context_collapseTreeRecursively_label"),
+    titleMultiselected: browser.i18n.getMessage(
+      "context_collapseTreeRecursively_label_multiselected"
+    ),
     requireTree: true,
-    type:        'checkbox'
   },
-  'pinnedTab': {
-    title: browser.i18n.getMessage('context_pinnedTab_label'),
-    type: 'radio'
+  collapseAll: {
+    title: browser.i18n.getMessage("context_collapseAll_label"),
+    hideOnMultiselected: true,
   },
-  'unpinnedTab': {
-    title: browser.i18n.getMessage('context_unpinnedTab_label'),
-    type: 'radio'
-  }
+  expandTree: {
+    title: browser.i18n.getMessage("context_expandTree_label"),
+    titleMultiselected: browser.i18n.getMessage(
+      "context_expandTree_label_multiselected"
+    ),
+    requireTree: true,
+  },
+  expandTreeRecursively: {
+    title: browser.i18n.getMessage("context_expandTreeRecursively_label"),
+    titleMultiselected: browser.i18n.getMessage(
+      "context_expandTreeRecursively_label_multiselected"
+    ),
+    requireTree: true,
+  },
+  expandAll: {
+    title: browser.i18n.getMessage("context_expandAll_label"),
+    hideOnMultiselected: true,
+  },
+  separatorAfterCollapseExpand: {
+    type: "separator",
+  },
+  bookmarkTree: {
+    title: browser.i18n.getMessage("context_bookmarkTree_label"),
+    titleMultiselected: browser.i18n.getMessage(
+      "context_bookmarkTree_label_multiselected"
+    ),
+  },
+  sendTreeToDevice: {
+    title: browser.i18n.getMessage("context_sendTreeToDevice_label"),
+    titleMultiselected: browser.i18n.getMessage(
+      "context_sendTreeToDevice_label_multiselected"
+    ),
+  },
+  separatorAfterBookmark: {
+    type: "separator",
+  },
+  collapsed: {
+    title: browser.i18n.getMessage("context_collapsed_label"),
+    requireTree: true,
+    type: "checkbox",
+  },
+  pinnedTab: {
+    title: browser.i18n.getMessage("context_pinnedTab_label"),
+    type: "radio",
+  },
+  unpinnedTab: {
+    title: browser.i18n.getMessage("context_unpinnedTab_label"),
+    type: "radio",
+  },
 };
 const mTabItems = [];
 const mGroupedTabItems = [];
@@ -188,47 +216,53 @@ for (const id of Object.keys(mTabItemsById)) {
   item.enabled = true;
   // Access key is not supported by WE API.
   // See also: https://bugzilla.mozilla.org/show_bug.cgi?id=1320462
-  item.titleWithoutAccesskey = item.title && item.title.replace(/\(&[a-z]\)|&([a-z])/i, '$1');
-  item.titleMultiselectedWithoutAccesskey = item.titleMultiselected && item.titleMultiselected.replace(/\(&[a-z]\)|&([a-z])/i, '$1');
-  item.type = item.type || 'normal';
-  item.contexts = ['tab'];
+  item.titleWithoutAccesskey = item.title?.replace(
+    /\(&[a-z]\)|&([a-z])/i,
+    "$1"
+  );
+  item.titleMultiselectedWithoutAccesskey = item.titleMultiselected?.replace(
+    /\(&[a-z]\)|&([a-z])/i,
+    "$1"
+  );
+  item.type = item.type || "normal";
+  item.contexts = ["tab"];
   item.lastVisible = item.visible = false;
   item.lastTitle = item.title;
   mTabItems.push(item);
 
   const groupedItem = {
     ...item,
-    id:       `grouped:${id}`,
-    parentId: kROOT_TAB_ITEM
+    id: `grouped:${id}`,
+    parentId: kROOT_TAB_ITEM,
   };
   mGroupedTabItems.push(groupedItem);
   mGroupedTabItemsById[groupedItem.id] = groupedItem;
 }
 
 const mTabSeparator = {
-  id:        `separatprBefore${kROOT_TAB_ITEM}`,
-  type:      'separator',
-  contexts:  ['tab'],
-  viewTypes: ['sidebar'],
+  id: `separatprBefore${kROOT_TAB_ITEM}`,
+  type: "separator",
+  contexts: ["tab"],
+  viewTypes: ["sidebar"],
   documentUrlPatterns: [`moz-extension://${location.host}/*`],
-  visible:   false,
-  lastVisible: false
+  visible: false,
+  lastVisible: false,
 };
 const mTabRootItem = {
-  id:       kROOT_TAB_ITEM,
-  type:     'normal',
-  contexts: ['tab'],
-  title:    browser.i18n.getMessage('context_menu_label'),
-  icons:    manifest.icons,
-  visible:  false,
-  lastVisible: false
+  id: kROOT_TAB_ITEM,
+  type: "normal",
+  contexts: ["tab"],
+  title: browser.i18n.getMessage("context_menu_label"),
+  icons: manifest.icons,
+  visible: false,
+  lastVisible: false,
 };
 
 const mAllTabItems = [
   mTabSeparator,
   mTabRootItem,
   ...mTabItems,
-  ...mGroupedTabItems
+  ...mGroupedTabItems,
 ];
 
 function addTabItems() {
@@ -242,13 +276,16 @@ function addTabItems() {
   for (const item of mAllTabItems) {
     const params = getSafeCreateParams(item);
     promises.push(browser.menus.create(params));
-    if (item.id == mTabSeparator.id ||
-        addTabItems.done)
-      continue;
-    promises.push(TabContextMenu.onMessageExternal({
-      type: TSTAPI.kCONTEXT_MENU_CREATE,
-      params
-    }, browser.runtime));
+    if (item.id === mTabSeparator.id || addTabItems.done) continue;
+    promises.push(
+      TabContextMenu.onMessageExternal(
+        {
+          type: TSTAPI.kCONTEXT_MENU_CREATE,
+          params,
+        },
+        browser.runtime
+      )
+    );
   }
 
   addTabItems.done = true;
@@ -256,27 +293,30 @@ function addTabItems() {
 }
 addTabItems.done = false;
 
-
 const mBookmarkItemsById = {
   openAllBookmarksWithStructure: {
-    title: browser.i18n.getMessage('context_openAllBookmarksWithStructure_label')
+    title: browser.i18n.getMessage(
+      "context_openAllBookmarksWithStructure_label"
+    ),
   },
   openAllBookmarksWithStructureRecursively: {
-    title: browser.i18n.getMessage('context_openAllBookmarksWithStructureRecursively_label')
-  }
+    title: browser.i18n.getMessage(
+      "context_openAllBookmarksWithStructureRecursively_label"
+    ),
+  },
 };
 const mBookmarkItems = [];
-const mGroupedBookmarkItems = []
+const mGroupedBookmarkItems = [];
 for (const id of Object.keys(mBookmarkItemsById)) {
   const item = mBookmarkItemsById[id];
-  item.id        = id;
-  item.contexts  = ['bookmark'];
+  item.id = id;
+  item.contexts = ["bookmark"];
   item.configKey = `context_${id}`;
   const groupedItem = {
     ...item,
-    id:            `grouped:${id}`,
-    parentId:      kROOT_BOOKMARK_ITEM,
-    ungroupedItem: item
+    id: `grouped:${id}`,
+    parentId: kROOT_BOOKMARK_ITEM,
+    ungroupedItem: item,
   };
   item.icons = manifest.icons;
 
@@ -287,29 +327,29 @@ for (const id of Object.keys(mBookmarkItemsById)) {
 }
 
 const mBookmarkSeparator = {
-  id:        `separatprBefore${kROOT_BOOKMARK_ITEM}`,
-  type:      'separator',
-  contexts:  ['bookmark'],
-  viewTypes: ['sidebar'],
+  id: `separatprBefore${kROOT_BOOKMARK_ITEM}`,
+  type: "separator",
+  contexts: ["bookmark"],
+  viewTypes: ["sidebar"],
   documentUrlPatterns: [`moz-extension://${location.host}/*`],
-  visible:   false,
-  lastVisible: false
+  visible: false,
+  lastVisible: false,
 };
 const mBookmarkRootItem = {
-  id:       kROOT_BOOKMARK_ITEM,
-  type:     'normal',
-  contexts: ['bookmark'],
-  title:    manifest.name,
-  icons:    manifest.icons,
-  visible:  false,
-  lastVisible: false
+  id: kROOT_BOOKMARK_ITEM,
+  type: "normal",
+  contexts: ["bookmark"],
+  title: manifest.name,
+  icons: manifest.icons,
+  visible: false,
+  lastVisible: false,
 };
 
 const mAllBookmarkItems = [
   mBookmarkSeparator,
   mBookmarkRootItem,
   ...mBookmarkItems,
-  ...mGroupedBookmarkItems
+  ...mGroupedBookmarkItems,
 ];
 
 function addBookmarkItems() {
@@ -327,16 +367,15 @@ function addBookmarkItems() {
 }
 addBookmarkItems.done = false;
 
-
 // Re-register items to put them after
 // top level items added by other addons.
 TabContextMenu.onTopLevelItemAdded.addListener(reserveToRefreshItems);
 
 function reserveToRefreshItems() {
-  if (reserveToRefreshItems.invoked)
-    return;
+  if (reserveToRefreshItems.invoked) return;
   reserveToRefreshItems.invoked = true;
-  setTimeout(() => { // because window.requestAnimationFrame is decelerate for an invisible document.
+  setTimeout(() => {
+    // because window.requestAnimationFrame is decelerate for an invisible document.
     reserveToRefreshItems.invoked = false;
     addTabItems();
     addBookmarkItems();
@@ -344,22 +383,45 @@ function reserveToRefreshItems() {
 }
 
 function updateItem(id, params) {
-  log('updateItem ', id, params);
+  log("updateItem ", id, params);
   browser.menus.update(id, params).catch(ApiTabs.createErrorSuppressor());
-  TabContextMenu.onMessageExternal({
-    type:   TSTAPI.kCONTEXT_MENU_UPDATE,
-    params: [id, params]
-  }, browser.runtime);
+  TabContextMenu.onMessageExternal(
+    {
+      type: TSTAPI.kCONTEXT_MENU_UPDATE,
+      params: [id, params],
+    },
+    browser.runtime
+  );
 }
 
-function updateItemsVisibility(items, { forceVisible = null, multiselected = false, hasUnmutedTab = false, hasUnmutedDescendant = false, hasAutoplayBlockedTab = false, hasAutoplayBlockedDescendant = false, sticky = false, hidden = false } = {}) {
-  log('updateItemsVisibility ', items, { forceVisible, multiselected, hasUnmutedTab, hasUnmutedDescendant, hasAutoplayBlockedTab, hasAutoplayBlockedDescendant, sticky });
+function updateItemsVisibility(
+  items,
+  {
+    forceVisible = null,
+    multiselected = false,
+    hasUnmutedTab = false,
+    hasUnmutedDescendant = false,
+    hasAutoplayBlockedTab = false,
+    hasAutoplayBlockedDescendant = false,
+    sticky = false,
+    hidden = false,
+  } = {}
+) {
+  log("updateItemsVisibility ", items, {
+    forceVisible,
+    multiselected,
+    hasUnmutedTab,
+    hasUnmutedDescendant,
+    hasAutoplayBlockedTab,
+    hasAutoplayBlockedDescendant,
+    sticky,
+  });
   let updated = false;
   let visibleItemsCount = 0;
   let visibleNormalItemsCount = 0;
   let lastSeparator;
   for (const item of items) {
-    if (item.type == 'separator') {
+    if (item.type === "separator") {
       if (lastSeparator) {
         if (lastSeparator.lastVisible) {
           updateItem(lastSeparator.id, { visible: false });
@@ -368,11 +430,17 @@ function updateItemsVisibility(items, { forceVisible = null, multiselected = fal
         }
       }
       lastSeparator = item;
-    }
-    else {
-      const title = Commands.getMenuItemTitle(item, { multiselected, hasUnmutedTab, hasUnmutedDescendant, sticky });
-      let visible = !hidden && (!(item.configKey in configs) || configs[item.configKey] || false);
-      log('checking ', item.id, {
+    } else {
+      const title = Commands.getMenuItemTitle(item, {
+        multiselected,
+        hasUnmutedTab,
+        hasUnmutedDescendant,
+        sticky,
+      });
+      let visible =
+        !hidden &&
+        (!(item.configKey in configs) || configs[item.configKey] || false);
+      log("checking ", item.id, {
         config: visible,
         multiselected: item.hideOnMultiselected && multiselected,
         lastVisible: item.lastVisible,
@@ -380,13 +448,17 @@ function updateItemsVisibility(items, { forceVisible = null, multiselected = fal
       });
       if (forceVisible !== null && forceVisible !== undefined)
         visible = forceVisible;
-      if ((item.hideOnMultiselected && multiselected) ||
-          (item.requireAutoplayBlockedTab && !hasAutoplayBlockedTab) ||
-          (item.requireAutoplayBlockedDescendant && !hasAutoplayBlockedDescendant))
+      if (
+        (item.hideOnMultiselected && multiselected) ||
+        (item.requireAutoplayBlockedTab && !hasAutoplayBlockedTab) ||
+        (item.requireAutoplayBlockedDescendant && !hasAutoplayBlockedDescendant)
+      )
         visible = false;
       if (visible) {
         if (lastSeparator) {
-          updateItem(lastSeparator.id, { visible: visibleNormalItemsCount > 0 });
+          updateItem(lastSeparator.id, {
+            visible: visibleNormalItemsCount > 0,
+          });
           lastSeparator.lastVisible = true;
           lastSeparator = null;
           updated = true;
@@ -404,13 +476,12 @@ function updateItemsVisibility(items, { forceVisible = null, multiselected = fal
         updatedParams.title = title;
         item.lastTitle = title;
       }
-      if (Object.keys(updatedParams).length == 0)
-        continue;
+      if (Object.keys(updatedParams).length === 0) continue;
       updateItem(item.id, updatedParams);
       updated = true;
     }
   }
-  if (lastSeparator && lastSeparator.lastVisible) {
+  if (lastSeparator?.lastVisible) {
     updateItem(lastSeparator.id, { visible: false });
     lastSeparator.lastVisible = false;
     updated = true;
@@ -418,204 +489,239 @@ function updateItemsVisibility(items, { forceVisible = null, multiselected = fal
   return { updated, visibleItemsCount };
 }
 
-async function updateItems({ multiselected, hasUnmutedTab, hasUnmutedDescendant, hasAutoplayBlockedTab, hasAutoplayBlockedDescendant, sticky, hidden } = {}) {
+async function updateItems({
+  multiselected,
+  hasUnmutedTab,
+  hasUnmutedDescendant,
+  hasAutoplayBlockedTab,
+  hasAutoplayBlockedDescendant,
+  sticky,
+  hidden,
+} = {}) {
   let updated = false;
 
-  const groupedItems = updateItemsVisibility(mGroupedTabItems, { multiselected, hasUnmutedTab, hasUnmutedDescendant, hasAutoplayBlockedTab, hasAutoplayBlockedDescendant, sticky, hidden });
-  if (groupedItems.updated)
-    updated = true;
+  const groupedItems = updateItemsVisibility(mGroupedTabItems, {
+    multiselected,
+    hasUnmutedTab,
+    hasUnmutedDescendant,
+    hasAutoplayBlockedTab,
+    hasAutoplayBlockedDescendant,
+    sticky,
+    hidden,
+  });
+  if (groupedItems.updated) updated = true;
 
-  const separatorVisible = !hidden && configs.emulateDefaultContextMenu && groupedItems.visibleItemsCount > 0;
-  if (separatorVisible != mTabSeparator.lastVisible) {
+  const separatorVisible =
+    !hidden &&
+    configs.emulateDefaultContextMenu &&
+    groupedItems.visibleItemsCount > 0;
+  if (separatorVisible !== mTabSeparator.lastVisible) {
     updateItem(mTabSeparator.id, { visible: separatorVisible });
     mTabSeparator.lastVisible = separatorVisible;
     updated = true;
   }
 
-  const grouped = !hidden && configs.emulateDefaultContextMenu && groupedItems.visibleItemsCount > 1;
-  if (grouped != mTabRootItem.lastVisible) {
+  const grouped =
+    !hidden &&
+    configs.emulateDefaultContextMenu &&
+    groupedItems.visibleItemsCount > 1;
+  if (grouped !== mTabRootItem.lastVisible) {
     updateItem(mTabRootItem.id, { visible: grouped });
     mTabRootItem.lastVisible = grouped;
     updated = true;
   }
 
-  const topLevelItems = updateItemsVisibility(mTabItems, { forceVisible: grouped ? false : null, multiselected, hasUnmutedTab, hasUnmutedDescendant, hasAutoplayBlockedTab, hasAutoplayBlockedDescendant, sticky, hidden });
-  if (topLevelItems.updated)
-    updated = true;
+  const topLevelItems = updateItemsVisibility(mTabItems, {
+    forceVisible: grouped ? false : null,
+    multiselected,
+    hasUnmutedTab,
+    hasUnmutedDescendant,
+    hasAutoplayBlockedTab,
+    hasAutoplayBlockedDescendant,
+    sticky,
+    hidden,
+  });
+  if (topLevelItems.updated) updated = true;
 
-  if (mGroupedTabItemsById['grouped:sendTreeToDevice'].lastVisible &&
-      await TabContextMenu.updateSendToDeviceItems('grouped:sendTreeToDevice', {
-        manage: navigator.userAgent.includes('Fennec'), // see also https://github.com/piroor/treestyletab/issues/3174
-      }))
+  if (
+    mGroupedTabItemsById["grouped:sendTreeToDevice"].lastVisible &&
+    (await TabContextMenu.updateSendToDeviceItems("grouped:sendTreeToDevice", {
+      manage: navigator.userAgent.includes("Fennec"), // see also https://github.com/piroor/treestyletab/issues/3174
+    }))
+  )
     updated = true;
 
   return updated;
 }
 
 export function onClick(info, tab) {
-  if (info.bookmarkId)
-    return onBookmarkItemClick(info);
-  else
-    return onTabItemClick(info, tab);
+  if (info.bookmarkId) return onBookmarkItemClick(info);
+  else return onTabItemClick(info, tab);
 }
 browser.menus.onClicked.addListener(onClick);
 
 function onTabItemClick(info, tab) {
   // Extra context menu commands won't be available on the blank area of the tab bar.
-  if (!tab)
-    return;
+  if (!tab) return;
 
-  log('context menu item clicked: ', info, tab);
+  log("context menu item clicked: ", info, tab);
 
   const contextTab = Tab.get(tab.id);
-  const contextTabs = contextTab.$TST.multiselected ? Tab.getSelectedTabs(contextTab.windowId) : [contextTab];
+  const contextTabs = contextTab.$TST.multiselected
+    ? Tab.getSelectedTabs(contextTab.windowId)
+    : [contextTab];
 
-  const itemId = info.menuItemId.replace(/^(?:grouped:|context_topLevel_)/, '');
-  if (mTabItemsById[itemId] &&
-      mTabItemsById[itemId].type == 'checkbox')
+  const itemId = info.menuItemId.replace(/^(?:grouped:|context_topLevel_)/, "");
+  if (mTabItemsById[itemId] && mTabItemsById[itemId].type === "checkbox")
     mTabItemsById[itemId].checked = !mTabItemsById[itemId].checked;
 
-  const inverted = info.button == 1;
+  const inverted = info.button === 1;
   switch (itemId) {
-    case 'reloadTree':
-      if (inverted)
-        Commands.reloadDescendants(contextTabs);
-      else
-        Commands.reloadTree(contextTabs);
+    case "reloadTree":
+      if (inverted) Commands.reloadDescendants(contextTabs);
+      else Commands.reloadTree(contextTabs);
       break;
-    case 'reloadDescendants':
-      if (inverted)
-        Commands.reloadTree(contextTabs);
-      else
-        Commands.reloadDescendants(contextTabs);
+    case "reloadDescendants":
+      if (inverted) Commands.reloadTree(contextTabs);
+      else Commands.reloadDescendants(contextTabs);
       break;
 
-    case 'toggleMuteTree':
-      if (inverted)
-        Commands.toggleMuteDescendants(contextTabs);
-      else
-        Commands.toggleMuteTree(contextTabs);
+    case "toggleMuteTree":
+      if (inverted) Commands.toggleMuteDescendants(contextTabs);
+      else Commands.toggleMuteTree(contextTabs);
       break;
-    case 'toggleMuteDescendants':
-      if (inverted)
-        Commands.toggleMuteTree(contextTabs);
-      else
-        Commands.toggleMuteDescendants(contextTabs);
+    case "toggleMuteDescendants":
+      if (inverted) Commands.toggleMuteTree(contextTabs);
+      else Commands.toggleMuteDescendants(contextTabs);
       break;
 
-    case 'closeTree':
-      if (inverted)
-        Commands.closeDescendants(contextTabs);
-      else
-        Commands.closeTree(contextTabs);
+    case "closeTree":
+      if (inverted) Commands.closeDescendants(contextTabs);
+      else Commands.closeTree(contextTabs);
       break;
-    case 'closeDescendants':
-      if (inverted)
-        Commands.closeTree(contextTabs);
-      else
-        Commands.closeDescendants(contextTabs);
+    case "closeDescendants":
+      if (inverted) Commands.closeTree(contextTabs);
+      else Commands.closeDescendants(contextTabs);
       break;
-    case 'closeOthers':
+    case "closeOthers":
       Commands.closeOthers(contextTabs);
       break;
 
-    case 'toggleSticky':
+    case "toggleSticky":
       Commands.toggleSticky(contextTabs, !contextTab.$TST.sticky);
       break;
 
-    case 'collapseTree':
+    case "collapseTree":
       Commands.collapseTree(contextTabs, { recursively: inverted });
       break;
-    case 'collapseTreeRecursively':
+    case "collapseTreeRecursively":
       Commands.collapseTree(contextTabs, { recursively: !inverted });
       break;
-    case 'collapseAll':
+    case "collapseAll":
       Commands.collapseAll(contextTab.windowId);
       break;
-    case 'expandTree':
+    case "expandTree":
       Commands.expandTree(contextTabs, { recursively: inverted });
       break;
-    case 'expandTreeRecursively':
+    case "expandTreeRecursively":
       Commands.expandTree(contextTabs, { recursively: !inverted });
       break;
-    case 'expandAll':
+    case "expandAll":
       Commands.expandAll(contextTab.windowId);
       break;
 
-    case 'bookmarkTree':
+    case "bookmarkTree":
       Commands.bookmarkTree(contextTabs);
       break;
 
-    case 'sendTreeToDevice:all':
+    case "sendTreeToDevice:all":
       Sync.sendTabsToAllDevices(contextTabs, { recursively: true });
       break;
 
-    case 'collapsed':
-      if (info.wasChecked)
-        Commands.expandTree(contextTab);
-      else
-        Commands.collapseTree(contextTab);
+    case "collapsed":
+      if (info.wasChecked) Commands.expandTree(contextTab);
+      else Commands.collapseTree(contextTab);
       break;
-    case 'pinnedTab': {
-      const tabs = Tab.getPinnedTabs(contextTab.windowId);
-      if (tabs.length > 0)
-        browser.tabs.update(tabs[0].id, { active: true })
-          .catch(ApiTabs.createErrorHandler(ApiTabs.handleMissingTabError));
-    }; break;
-    case 'unpinnedTab': {
-      const tabs = Tab.getUnpinnedTabs(tab.windowId);
-      if (tabs.length > 0)
-        browser.tabs.update(tabs[0].id, { active: true })
-          .catch(ApiTabs.createErrorHandler(ApiTabs.handleMissingTabError));
-    }; break;
+    case "pinnedTab":
+      {
+        const tabs = Tab.getPinnedTabs(contextTab.windowId);
+        if (tabs.length > 0)
+          browser.tabs
+            .update(tabs[0].id, { active: true })
+            .catch(ApiTabs.createErrorHandler(ApiTabs.handleMissingTabError));
+      }
+      break;
+    case "unpinnedTab":
+      {
+        const tabs = Tab.getUnpinnedTabs(tab.windowId);
+        if (tabs.length > 0)
+          browser.tabs
+            .update(tabs[0].id, { active: true })
+            .catch(ApiTabs.createErrorHandler(ApiTabs.handleMissingTabError));
+      }
+      break;
 
-    default: {
-      const sendToDeviceMatch = info.menuItemId.match(/^sendTreeToDevice:device:(.+)$/);
-      if (contextTab &&
-          sendToDeviceMatch)
-        Sync.sendTabsToDevice(
-          contextTabs,
-          { to: sendToDeviceMatch[1],
-            recursively: true }
+    default:
+      {
+        const sendToDeviceMatch = info.menuItemId.match(
+          /^sendTreeToDevice:device:(.+)$/
         );
-    }; break;
+        if (contextTab && sendToDeviceMatch)
+          Sync.sendTabsToDevice(contextTabs, {
+            to: sendToDeviceMatch[1],
+            recursively: true,
+          });
+      }
+      break;
   }
 }
 TabContextMenu.onTSTItemClick.addListener(onTabItemClick);
 
 async function onBookmarkItemClick(info) {
-  switch (info.menuItemId.replace(/^grouped:/, '')) {
-    case 'openAllBookmarksWithStructure':
-      Commands.openAllBookmarksWithStructure(info.bookmarkId, { recursively: false });
+  switch (info.menuItemId.replace(/^grouped:/, "")) {
+    case "openAllBookmarksWithStructure":
+      Commands.openAllBookmarksWithStructure(info.bookmarkId, {
+        recursively: false,
+      });
       break;
 
-    case 'openAllBookmarksWithStructureRecursively':
-      Commands.openAllBookmarksWithStructure(info.bookmarkId, { recursively: true });
+    case "openAllBookmarksWithStructureRecursively":
+      Commands.openAllBookmarksWithStructure(info.bookmarkId, {
+        recursively: true,
+      });
       break;
   }
 }
 
 async function onShown(info, tab) {
-  if (info.contexts.includes('tab'))
-    await onTabContextMenuShown(info, tab);
-  else if (info.contexts.includes('bookmark'))
-    onBookmarkContextMenuShown(info);
+  if (info.contexts.includes("tab")) await onTabContextMenuShown(info, tab);
+  else if (info.contexts.includes("bookmark")) onBookmarkContextMenuShown(info);
 }
 browser.menus.onShown.addListener(onShown);
 
 let mLastContextTabId = null;
 async function onTabContextMenuShown(info, tab) {
-  const contextTabId = tab && tab.id;
+  const contextTabId = tab?.id;
   mLastContextTabId = contextTabId;
 
   tab = tab && Tab.get(contextTabId);
-  const multiselected = tab && tab.$TST.multiselected;
-  const contextTabs      = multiselected ? Tab.getSelectedTabs(tab.windowId) : tab ? [tab] : [];
-  const hasChild         = contextTabs.length > 0 && contextTabs.some(tab => tab.$TST.hasChild);
-  const subtreeCollapsed = contextTabs.length > 0 && contextTabs.some(tab => tab.$TST.subtreeCollapsed);
-  const grouped          = contextTabs.length > 0 && contextTabs.some(tab => tab.$TST.isGroupTab);
-  const { hasUnmutedTab, hasUnmutedDescendant } = Commands.getUnmutedState(contextTabs);
-  const { hasAutoplayBlockedTab, hasAutoplayBlockedDescendant } = Commands.getAutoplayBlockedState(contextTabs);
+  const multiselected = tab?.$TST.multiselected;
+  const contextTabs = multiselected
+    ? Tab.getSelectedTabs(tab.windowId)
+    : tab
+      ? [tab]
+      : [];
+  const hasChild =
+    contextTabs.length > 0 && contextTabs.some((tab) => tab.$TST.hasChild);
+  const subtreeCollapsed =
+    contextTabs.length > 0 &&
+    contextTabs.some((tab) => tab.$TST.subtreeCollapsed);
+  const grouped =
+    contextTabs.length > 0 && contextTabs.some((tab) => tab.$TST.isGroupTab);
+  const { hasUnmutedTab, hasUnmutedDescendant } =
+    Commands.getUnmutedState(contextTabs);
+  const { hasAutoplayBlockedTab, hasAutoplayBlockedDescendant } =
+    Commands.getAutoplayBlockedState(contextTabs);
 
   let updated = await updateItems({
     multiselected,
@@ -624,60 +730,48 @@ async function onTabContextMenuShown(info, tab) {
     hasAutoplayBlockedTab,
     hasAutoplayBlockedDescendant,
     sticky: tab?.$TST.sticky,
-    hidden: !configs.showTreeCommandsInTabsContextMenuGlobally && info.viewType != 'sidebar',
+    hidden:
+      !configs.showTreeCommandsInTabsContextMenuGlobally &&
+      info.viewType !== "sidebar",
   });
-  if (mLastContextTabId != contextTabId)
-    return; // Skip further operations if the menu was already reopened on a different context tab.
+  if (mLastContextTabId !== contextTabId) return; // Skip further operations if the menu was already reopened on a different context tab.
 
   for (const item of mTabItems) {
     let newVisible;
     let newEnabled;
-    if (item.id == 'sendTreeToDevice' &&
-        item.visible) {
+    if (item.id === "sendTreeToDevice" && item.visible) {
       newVisible = contextTabs.filter(Sync.isSendableTab).length > 0;
-      newEnabled = (
-        hasChild &&
-        Sync.getOtherDevices().length > 0
-      );
-    }
-    else if (item.requireTree) {
+      newEnabled = hasChild && Sync.getOtherDevices().length > 0;
+    } else if (item.requireTree) {
       newEnabled = hasChild;
       switch (item.id) {
-        case 'collapseTree':
-          if (subtreeCollapsed)
-            newEnabled = false;
+        case "collapseTree":
+          if (subtreeCollapsed) newEnabled = false;
           break;
-        case 'expandTree':
-          if (!subtreeCollapsed)
-            newEnabled = false;
+        case "expandTree":
+          if (!subtreeCollapsed) newEnabled = false;
           break;
       }
-    }
-    else if (item.requireMultiselected) {
+    } else if (item.requireMultiselected) {
       newEnabled = multiselected;
-    }
-    else if (item.requireGrouped) {
+    } else if (item.requireGrouped) {
       newEnabled = grouped;
-    }
-    else if (item.requireNormal) {
+    } else if (item.requireNormal) {
       newEnabled = tab?.pinned;
-    }
-    else {
+    } else {
       continue;
     }
 
-    if ((newVisible === undefined ||
-         newVisible == !!item.visible) &&
-        (newEnabled === undefined ||
-         newEnabled == !!item.enabled))
+    if (
+      (newVisible === undefined || newVisible === !!item.visible) &&
+      (newEnabled === undefined || newEnabled === !!item.enabled)
+    )
       continue;
 
     const params = {};
-    if (newVisible !== undefined &&
-        newVisible != !!item.visible)
+    if (newVisible !== undefined && newVisible !== !!item.visible)
       params.visible = item.visible = !!newVisible;
-    if (newEnabled !== undefined &&
-        newEnabled != !!item.enabled)
+    if (newEnabled !== undefined && newEnabled !== !!item.enabled)
       params.enabled = item.enabled = !!newEnabled;
 
     updateItem(item.id, params);
@@ -689,15 +783,14 @@ async function onTabContextMenuShown(info, tab) {
     const canExpand = hasChild && subtreeCollapsed;
     mTabItemsById.collapsed.checked = canExpand;
     const params = {
-      checked: canExpand
+      checked: canExpand,
     };
-    updateItem('collapsed', params);
+    updateItem("collapsed", params);
     updateItem(`grouped:collapsed`, params);
     updated = true;
   }
 
-  if (updated)
-    browser.menus.refresh().catch(ApiTabs.createErrorSuppressor());
+  if (updated) browser.menus.refresh().catch(ApiTabs.createErrorSuppressor());
 }
 TabContextMenu.onTSTTabContextMenuShown.addListener(onTabContextMenuShown);
 
@@ -709,13 +802,10 @@ async function onBookmarkContextMenuShown(info) {
   let isFolder = true;
   if (info.bookmarkId) {
     const item = await Bookmark.getItemById(info.bookmarkId);
-    if (mLastContextItemId != contextItemId)
-      return; // Skip further operations if the menu was already reopened on a different context item.
-    isFolder = (
-      item.type == 'folder' ||
-      (item.type == 'bookmark' &&
-       /^place:parent=([^&]+)$/.test(item.url))
-    );
+    if (mLastContextItemId !== contextItemId) return; // Skip further operations if the menu was already reopened on a different context item.
+    isFolder =
+      item.type === "folder" ||
+      (item.type === "bookmark" && /^place:parent=([^&]+)$/.test(item.url));
   }
 
   let visibleItemCount = 0;
@@ -727,17 +817,15 @@ async function onBookmarkContextMenuShown(info) {
   );
   mBookmarkItemsById.openAllBookmarksWithStructureRecursively.visible = !!(
     isFolder &&
-    configs[mBookmarkItemsById.openAllBookmarksWithStructureRecursively.configKey] &&
+    configs[
+      mBookmarkItemsById.openAllBookmarksWithStructureRecursively.configKey
+    ] &&
     ++visibleItemCount
   );
 
   for (const item of mGroupedBookmarkItems) {
-    item.visible = !!(
-      visibleItemCount > 1 &&
-      item.ungroupedItem.visible
-    );
-    if (item.visible)
-      item.ungroupedItem.visible = false;
+    item.visible = !!(visibleItemCount > 1 && item.ungroupedItem.visible);
+    if (item.visible) item.ungroupedItem.visible = false;
   }
   for (const item of [...mBookmarkItems, ...mGroupedBookmarkItems]) {
     browser.menus.update(item.id, {
@@ -746,14 +834,13 @@ async function onBookmarkContextMenuShown(info) {
   }
 
   browser.menus.update(mBookmarkSeparator.id, {
-    visible: visibleItemCount > 0
+    visible: visibleItemCount > 0,
   });
   browser.menus.update(mBookmarkRootItem.id, {
-    visible: visibleItemCount > 1
+    visible: visibleItemCount > 1,
   });
   browser.menus.refresh().catch(ApiTabs.createErrorSuppressor());
 }
-
 
 export function getItemIdsWithIcon() {
   return [

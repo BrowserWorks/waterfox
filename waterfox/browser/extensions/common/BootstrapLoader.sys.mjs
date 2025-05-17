@@ -13,34 +13,34 @@ ChromeUtils.defineESModuleGetters(lazy, {
   InstallRDF: "resource:///modules/RDFManifestConverter.sys.mjs",
 });
 
-Services.obs.addObserver(doc => {
+Services.obs.addObserver((doc) => {
   if (
     doc.location.protocol + doc.location.pathname === "about:addons" ||
     doc.location.protocol + doc.location.pathname ===
       "chrome://mozapps/content/extensions/aboutaddons.html"
   ) {
     const win = doc.defaultView;
-    let handleEvent_orig =
+    const handleEvent_orig =
       win.customElements.get("addon-card").prototype.handleEvent;
     win.customElements.get("addon-card").prototype.handleEvent = function (e) {
       if (
         e.type === "click" &&
         e.target.getAttribute("action") === "preferences" &&
-        this.addon.optionsType == AddonManager.OPTIONS_TYPE_DIALOG
+        this.addon.optionsType === AddonManager.OPTIONS_TYPE_DIALOG
       ) {
-        let windows = Services.wm.getEnumerator(null);
+        const windows = Services.wm.getEnumerator(null);
         while (windows.hasMoreElements()) {
-          let win2 = windows.getNext();
+          const win2 = windows.getNext();
           if (win2.closed) {
             continue;
           }
-          if (win2.document.documentURI == this.addon.optionsURL) {
+          if (win2.document.documentURI === this.addon.optionsURL) {
             win2.focus();
             return;
           }
         }
         let features = "chrome,titlebar,toolbar,centerscreen";
-        let instantApply = Services.prefs.getBoolPref(
+        const instantApply = Services.prefs.getBoolPref(
           "browser.preferences.instantApply"
         );
         features += instantApply ? ",dialog=no" : "";
@@ -50,16 +50,16 @@ Services.obs.addObserver(doc => {
           features
         );
       } else {
-        handleEvent_orig.apply(this, arguments);
+        handleEvent_orig.apply(this, [e]);
       }
     };
-    let update_orig = win.customElements.get("addon-options").prototype.update;
+    const update_orig = win.customElements.get("addon-options").prototype.update;
     win.customElements.get("addon-options").prototype.update = function (
-      card,
+      _card,
       addon
     ) {
-      update_orig.apply(this, arguments);
-      if (addon.optionsType == AddonManager.OPTIONS_TYPE_DIALOG) {
+      update_orig.apply(this, [e]);
+      if (addon.optionsType === AddonManager.OPTIONS_TYPE_DIALOG) {
         this.querySelector('panel-item[action="preferences"]').hidden = false;
       }
     };
@@ -75,13 +75,13 @@ ChromeUtils.defineLazyGetter(lazy, "BOOTSTRAP_REASONS", () => {
 
 import { Log } from "resource://gre/modules/Log.sys.mjs";
 
-var logger = Log.repository.getLogger("addons.bootstrap");
+const logger = Log.repository.getLogger("addons.bootstrap");
 
 /**
  * Valid IDs fit this pattern.
  */
-var gIDTest =
-  /^(\{[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}|[a-z0-9-\._]*\@[a-z0-9-\._]+)$/i;
+const gIDTest =
+  /^(\{[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\}|[a-z0-9-._]*@[a-z0-9-._]+)$/i;
 
 // Properties that exist in the install manifest
 const PROP_METADATA = [
@@ -115,10 +115,10 @@ const COMPATIBLE_BY_DEFAULT_TYPES = {
   dictionary: true,
 };
 
-const hasOwnProperty = Function.call.bind(Object.prototype.hasOwnProperty);
+const objectHasOwnProperty = Function.call.bind(Object.prototype.hasOwnProperty);
 
 function isXPI(filename) {
-  let ext = filename.slice(-4).toLowerCase();
+  const ext = filename.slice(-4).toLowerCase();
   return ext === ".xpi" || ext === ".zip";
 }
 
@@ -134,7 +134,7 @@ function isXPI(filename) {
  */
 function buildJarURI(aJarfile, aPath) {
   let uri = Services.io.newFileURI(aJarfile);
-  uri = "jar:" + uri.spec + "!/" + aPath;
+  uri = `jar:${uri.spec}!/${aPath}`;
   return Services.io.newURI(uri);
 }
 
@@ -152,20 +152,22 @@ function buildJarURI(aJarfile, aPath) {
  * @returns {nsIURI}
  *        An nsIURI pointing at the resource
  */
-function getURIForResourceInFile(aFile, aPath) {
-  if (!isXPI(aFile.leafName)) {
-    let resource = aFile.clone();
-    if (aPath) {
-      aPath.split("/").forEach(part => resource.append(part));
-    }
+ function getURIForResourceInFile(aFile, aPath) {
+   if (!isXPI(aFile.leafName)) {
+     const resource = aFile.clone();
+     if (aPath) {
+       for (const part of aPath.split("/")) {
+         resource.append(part);
+       }
+     }
 
-    return Services.io.newFileURI(resource);
-  }
+     return Services.io.newFileURI(resource);
+   }
 
-  return buildJarURI(aFile, aPath);
-}
+   return buildJarURI(aFile, aPath);
+ }
 
-export var BootstrapLoader = {
+export const BootstrapLoader = {
   name: "bootstrap",
   manifestFile: "install.rdf",
   async loadManifest(pkg) {
@@ -186,10 +188,10 @@ export var BootstrapLoader = {
      *        an object containing the locale properties
      */
     function readLocale(aSource, isDefault, aSeenLocales) {
-      let locale = {};
+      const locale = {};
       if (!isDefault) {
         locale.locales = [];
-        for (let localeName of aSource.locales || []) {
+        for (const localeName of aSource.locales || []) {
           if (!localeName) {
             logger.warn("Ignoring empty locale in localized properties");
             continue;
@@ -208,8 +210,8 @@ export var BootstrapLoader = {
         }
       }
 
-      for (let prop of [...PROP_LOCALE_SINGLE, ...PROP_LOCALE_MULTI]) {
-        if (hasOwnProperty(aSource, prop)) {
+      for (const prop of [...PROP_LOCALE_SINGLE, ...PROP_LOCALE_MULTI]) {
+        if (objectHasOwnProperty(aSource, prop)) {
           locale[prop] = aSource[prop];
         }
       }
@@ -217,12 +219,12 @@ export var BootstrapLoader = {
       return locale;
     }
 
-    let manifestData = await pkg.readString("install.rdf");
-    let manifest = lazy.InstallRDF.loadFromString(manifestData).decode();
+    const manifestData = await pkg.readString("install.rdf");
+    const manifest = lazy.InstallRDF.loadFromString(manifestData).decode();
 
-    let addon = new lazy.AddonInternal();
-    for (let prop of PROP_METADATA) {
-      if (hasOwnProperty(manifest, prop)) {
+    const addon = new lazy.AddonInternal();
+    for (const prop of PROP_METADATA) {
+      if (objectHasOwnProperty(manifest, prop)) {
         addon[prop] = manifest[prop];
       }
     }
@@ -230,10 +232,10 @@ export var BootstrapLoader = {
     if (!addon.type) {
       addon.type = "extension";
     } else {
-      let type = addon.type;
+      const type = addon.type;
       addon.type = null;
-      for (let name in TYPES) {
-        if (TYPES[name] == type) {
+      for (const name in TYPES) {
+        if (TYPES[name] === type) {
           addon.type = name;
           break;
         }
@@ -241,14 +243,14 @@ export var BootstrapLoader = {
     }
 
     if (!(addon.type in TYPES)) {
-      throw new Error("Install manifest specifies unknown type: " + addon.type);
+      throw new Error(`Install manifest specifies unknown type: ${addon.type}`);
     }
 
     if (!addon.id) {
       throw new Error("No ID in install manifest");
     }
     if (!gIDTest.test(addon.id)) {
-      throw new Error("Illegal add-on ID " + addon.id);
+      throw new Error(`Illegal add-on ID ${addon.id}`);
     }
     if (!addon.version) {
       throw new Error("No version in install manifest");
@@ -256,22 +258,22 @@ export var BootstrapLoader = {
 
     addon.strictCompatibility =
       !(addon.type in COMPATIBLE_BY_DEFAULT_TYPES) ||
-      manifest.strictCompatibility == "true";
+      manifest.strictCompatibility === "true";
 
     // Only read these properties for extensions.
-    if (addon.type == "extension") {
-      if (manifest.bootstrap != "true") {
+    if (addon.type === "extension") {
+      if (manifest.bootstrap !== "true") {
         throw new Error("Non-restartless extensions no longer supported");
       }
 
       if (
         addon.optionsType &&
-        addon.optionsType != AddonManager.OPTIONS_TYPE_DIALOG &&
-        addon.optionsType != AddonManager.OPTIONS_TYPE_INLINE_BROWSER &&
-        addon.optionsType != AddonManager.OPTIONS_TYPE_TAB
+        addon.optionsType !== AddonManager.OPTIONS_TYPE_DIALOG &&
+        addon.optionsType !== AddonManager.OPTIONS_TYPE_INLINE_BROWSER &&
+        addon.optionsType !== AddonManager.OPTIONS_TYPE_TAB
       ) {
         throw new Error(
-          "Install manifest specifies unknown optionsType: " + addon.optionsType
+          `Install manifest specifies unknown optionsType: ${addon.optionsType}`
         );
       }
     } else {
@@ -279,11 +281,11 @@ export var BootstrapLoader = {
       // dictionary loader can process.
       if (addon.type === "dictionary") {
         addon.loader = null;
-        let dictionaries = {};
+        const dictionaries = {};
         await pkg.iterFiles(({ path }) => {
-          let match = /^dictionaries\/([^\/]+)\.dic$/.exec(path);
+          const match = /^dictionaries\/([^/]+)\.dic$/.exec(path);
           if (match) {
-            let lang = match[1].replace(/_/g, "-");
+            const lang = match[1].replace(/_/g, "-");
             dictionaries[lang] = match[0];
           }
         });
@@ -300,21 +302,21 @@ export var BootstrapLoader = {
 
     addon.defaultLocale = readLocale(manifest, true);
 
-    let seenLocales = [];
+    const seenLocales = [];
     addon.locales = [];
-    for (let localeData of manifest.localized || []) {
-      let locale = readLocale(localeData, false, seenLocales);
+    for (const localeData of manifest.localized || []) {
+      const locale = readLocale(localeData, false, seenLocales);
       if (locale) {
         addon.locales.push(locale);
       }
     }
 
-    let dependencies = new Set(manifest.dependencies);
+    const dependencies = new Set(manifest.dependencies);
     addon.dependencies = Object.freeze(Array.from(dependencies));
 
-    let seenApplications = [];
+    const seenApplications = [];
     addon.targetApplications = [];
-    for (let targetApp of manifest.targetApplications || []) {
+    for (const targetApp of manifest.targetApplications || []) {
       if (!targetApp.id || !targetApp.minVersion || !targetApp.maxVersion) {
         logger.warn(
           "Ignoring invalid targetApplication entry in install manifest"
@@ -323,9 +325,7 @@ export var BootstrapLoader = {
       }
       if (seenApplications.includes(targetApp.id)) {
         logger.warn(
-          "Ignoring duplicate targetApplication entry for " +
-            targetApp.id +
-            " in install manifest"
+          `Ignoring duplicate targetApplication entry for ${targetApp.id} in install manifest`
         );
         continue;
       }
@@ -336,14 +336,14 @@ export var BootstrapLoader = {
     // Note that we don't need to check for duplicate targetPlatform entries since
     // the RDF service coalesces them for us.
     addon.targetPlatforms = [];
-    for (let targetPlatform of manifest.targetPlatforms || []) {
-      let platform = {
+    for (const targetPlatform of manifest.targetPlatforms || []) {
+      const platform = {
         os: null,
         abi: null,
       };
 
-      let pos = targetPlatform.indexOf("_");
-      if (pos != -1) {
+      const pos = targetPlatform.indexOf("_");
+      if (pos !== -1) {
         platform.os = targetPlatform.substring(0, pos);
         platform.abi = targetPlatform.substring(pos + 1);
       } else {
@@ -355,7 +355,7 @@ export var BootstrapLoader = {
 
     addon.userDisabled = false;
     addon.softDisabled =
-      addon.blocklistState == lazy.Blocklist.STATE_SOFTBLOCKED;
+      addon.blocklistState === lazy.Blocklist.STATE_SOFTBLOCKED;
     addon.applyBackgroundUpdates = AddonManager.AUTOUPDATE_DEFAULT;
 
     addon.userPermissions = null;
@@ -374,11 +374,11 @@ export var BootstrapLoader = {
   },
 
   loadScope(addon) {
-    let file = addon.file || addon._sourceBundle;
-    let uri = getURIForResourceInFile(file, "bootstrap.js").spec;
-    let principal = Services.scriptSecurityManager.getSystemPrincipal();
+    const file = addon.file || addon._sourceBundle;
+    const uri = getURIForResourceInFile(file, "bootstrap.js").spec;
+    const principal = Services.scriptSecurityManager.getSystemPrincipal();
 
-    let sandbox = new Cu.Sandbox(principal, {
+    const sandbox = new Cu.Sandbox(principal, {
       sandboxName: uri,
       addonId: addon.id,
       wantGlobalProperties: ["ChromeUtils"],
@@ -405,19 +405,19 @@ export var BootstrapLoader = {
       }
 
       try {
-        let method = Cu.evalInSandbox(name, sandbox);
+        const method = Cu.evalInSandbox(name, sandbox);
         return method;
-      } catch (err) {}
+      } catch (_err) {}
 
       return () => {
         logger.warn(`Add-on ${addon.id} is missing bootstrap method ${name}`);
       };
     }
 
-    let install = findMethod("install");
-    let uninstall = findMethod("uninstall");
-    let startup = findMethod("startup");
-    let shutdown = findMethod("shutdown");
+    const install = findMethod("install");
+    const uninstall = findMethod("uninstall");
+    const startup = findMethod("startup");
+    const shutdown = findMethod("shutdown");
 
     return {
       install: (...args) => install(...args),
@@ -429,7 +429,7 @@ export var BootstrapLoader = {
       },
 
       startup(...args) {
-        if (addon.type == "extension") {
+        if (addon.type === "extension") {
           logger.debug(`Registering manifest for ${file.path}\n`);
           Components.manager.addBootstrappedManifestLocation(file);
         }
@@ -439,10 +439,8 @@ export var BootstrapLoader = {
       shutdown(data, reason) {
         try {
           return shutdown(data, reason);
-        } catch (err) {
-          throw err;
         } finally {
-          if (reason != lazy.BOOTSTRAP_REASONS.APP_SHUTDOWN) {
+          if (reason !== lazy.BOOTSTRAP_REASONS.APP_SHUTDOWN) {
             logger.debug(`Removing manifest for ${file.path}\n`);
             Components.manager.removeBootstrappedManifestLocation(file);
           }

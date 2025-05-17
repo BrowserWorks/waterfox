@@ -13,7 +13,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
 
 ChromeUtils.defineLazyGetter(lazy, "PopupNotifications", () => {
   // eslint-disable-next-line no-shadow
-  let { PopupNotifications } = ChromeUtils.importESModule(
+  const { PopupNotifications } = ChromeUtils.importESModule(
     "resource://gre/modules/PopupNotifications.sys.mjs"
   );
   try {
@@ -21,10 +21,10 @@ ChromeUtils.defineLazyGetter(lazy, "PopupNotifications", () => {
     const gBrowser = win.gBrowser;
     const document = win.document;
     const gURLBar = win.gURLBar;
-    let shouldSuppress = () => {
+    const shouldSuppress = () => {
       return (
-        win.windowState == win.STATE_MINIMIZED ||
-        (gURLBar.getAttribute("pageproxystate") != "valid" &&
+        win.windowState === win.STATE_MINIMIZED ||
+        (gURLBar.getAttribute("pageproxystate") !== "valid" &&
           gURLBar.focused) ||
         gBrowser?.selectedBrowser.hasAttribute("tabmodalChromePromptShowing") ||
         gBrowser?.selectedBrowser.hasAttribute("tabDialogShowing")
@@ -87,7 +87,7 @@ export class StoreHandler {
    * @param dir string absolute path to directory to remove
    */
   flushDir(dir) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       const nsiDir = this._getNsiFile(dir);
       if (nsiDir.exists()) {
         // remove all files
@@ -111,8 +111,8 @@ export class StoreHandler {
    * Set extension UUID
    */
   _setUUID() {
-    let uuid = uuidGenerator.generateUUID();
-    let uuidString = uuid.toString();
+    const uuid = uuidGenerator.generateUUID();
+    const uuidString = uuid.toString();
     this._extensionUUID = uuidString;
   }
 
@@ -120,7 +120,7 @@ export class StoreHandler {
    * Reset extension UUID
    */
   _resetUUID() {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       this._extensionUUID = undefined;
       resolve();
     });
@@ -137,12 +137,12 @@ export class StoreHandler {
     const anchorID = "addons-notification-icon";
     const win = lazy.BrowserWindowTracker.getTopWindow();
     const browser = win.gBrowser.selectedBrowser;
-    let action = {
+    const action = {
       label: "OK",
       accessKey: "failed_accessKey",
-      callback: () => { },
+      callback: () => {},
     };
-    var options = {
+    const options = {
       persistent: true,
       hideClose: true,
     };
@@ -163,7 +163,7 @@ export class StoreHandler {
    * @param path string path to file
    */
   _getNsiFile(path) {
-    let nsiFile = new lazy.FileUtils.File(path);
+    const nsiFile = new lazy.FileUtils.File(path);
     return nsiFile;
   }
 
@@ -174,7 +174,7 @@ export class StoreHandler {
    * @param retry bool is this a retry attempt or not
    */
   attemptInstall(uri, retry = false) {
-    let channel = lazy.NetUtil.newChannel({
+    const channel = lazy.NetUtil.newChannel({
       uri: uri.spec,
       loadUsingSystemPrincipal: true,
     });
@@ -193,13 +193,13 @@ export class StoreHandler {
       // write nsiInputStream to nsiOutputStream
       // this was originally in a separate function but had error
       // passing input stream between funcs
-      let aOutputStream = lazy.FileUtils.openAtomicFileOutputStream(
+      const aOutputStream = lazy.FileUtils.openAtomicFileOutputStream(
         this.nsiFileXpi
       );
       lazy.NetUtil.asyncCopy(
         aInputStream,
         aOutputStream,
-        async aResultInner => {
+        async (aResultInner) => {
           // Check that we had success.
           if (!Components.isSuccessCode(aResultInner)) {
             // delete any tmp files
@@ -211,16 +211,16 @@ export class StoreHandler {
           }
           try {
             await this._removeChromeHeaders(this.xpiPath);
-            let manifest = this._amendManifest(this.nsiFileXpi);
+            const manifest = this._amendManifest(this.nsiFileXpi);
             // Notify tests
             Services.obs.notifyObservers(null, "waterfox-test-stores");
-            if (manifest instanceof Array) {
+            if (Array.isArray(manifest)) {
               this._cleanup(this.nsiFileXpi);
               this._installFailedMsg(
                 "This add-on could not be installed because not all of its features are supported."
               );
               Services.console.logStringMessage(
-                "CRX: Unsupported APIs: " + manifest.join(",")
+                `CRX: Unsupported APIs: ${manifest.join(",")}`
               );
               return false;
             }
@@ -236,7 +236,7 @@ export class StoreHandler {
               "There was an issue while attempting to install the add-on."
             );
             Services.console.logStringMessage(
-              "CRX: Error installing add-on: " + e
+              `CRX: Error installing add-on: ${e}`
             );
             return false;
           }
@@ -250,78 +250,79 @@ export class StoreHandler {
    *
    * @param path string path to downloaded extension file
    */
-  async _removeChromeHeaders(path) {
-    try {
-      // read using IOUtils to enable data manipulation
-      let arrayBuffer = await IOUtils.read(path);
-      // determine Chrome ext headers
-      let locOfPk = arrayBuffer.slice(0, 3000);
-      for (var i = 0; i < locOfPk.length; i++) {
-        if (
-          locOfPk[i] == 80 &&
-          locOfPk[i + 1] == 75 &&
-          locOfPk[i + 2] == 3 &&
-          locOfPk[i + 3] == 4
-        ) {
-          locOfPk = null;
-          break;
-        }
-      }
-      if (i == 3000) {
-        Services.console.logStringMessage("CRX: Magic not found");
-        return false;
-      }
-      // remove Chrome ext headers
-      let zipBuffer = arrayBuffer.slice(i);
-      // overwrite .zip with headers removed as ZipReader only compatible with nsiFile type, not Uint8Array
-      await IOUtils.write(path, zipBuffer);
-      return true;
-    } catch (e) {
-      Services.console.logStringMessage("CRX: Error removing Chrome headers");
-      return false;
-    }
-  }
+   async _removeChromeHeaders(path) {
+       let i; // Declare i at the root of the function scope to be used in the loop and after.
+       try {
+         // read using IOUtils to enable data manipulation
+         const arrayBuffer = await IOUtils.read(path);
+         // determine Chrome ext headers
+         let locOfPk = arrayBuffer.slice(0, 3000);
+         for (i = 0; i < locOfPk.length; i++) { // Initialize and use the function-scoped i
+           if (
+             locOfPk[i] === 80 &&
+             locOfPk[i + 1] === 75 &&
+             locOfPk[i + 2] === 3 &&
+             locOfPk[i + 3] === 4
+           ) {
+             locOfPk = null;
+             break;
+           }
+         }
+         if (i === 3000) {
+           Services.console.logStringMessage("CRX: Magic not found");
+           return false;
+         }
+         // remove Chrome ext headers
+         const zipBuffer = arrayBuffer.slice(i);
+         // overwrite .zip with headers removed as ZipReader only compatible with nsiFile type, not Uint8Array
+         await IOUtils.write(path, zipBuffer);
+         return true;
+       } catch (_e) {
+         Services.console.logStringMessage("CRX: Error removing Chrome headers");
+         return false;
+       }
+     }
 
   /**
    * Check API compatibility and maybe add id and remove update_url from manifest
    *
    * @param file nsiFile tmp extension file
    */
-  _amendManifest(file) {
-    try {
-      // unzip nsiFile object
-      let zr = new ZipReader(file);
-      let manifest = this._parseManifest(zr);
-      // only manifest version 2 currently supported
-      if (manifest.manifest_version != 2 || !manifest.manifest_version) {
-        this._installFailedMsg(
-          "Manifest version not supported, must be manifest_version: 2"
-        );
-        return false;
-      }
-      // ensure locale properties set correctly
-      manifest = this._localeCheck(manifest, zr);
-      // check API compatibility
-      let unsupportedApis = this._manifestCompatCheck(manifest);
-      if (unsupportedApis.length) {
-        return unsupportedApis;
-      }
-      manifest.applications = {
-        gecko: {
-          id: this._getUUID(),
-        },
-      };
-      // cannot allow auto update of crx extensions
-      delete manifest.update_url;
-      manifest = JSON.stringify(manifest);
-      // close zipReader
-      zr.close();
-      return manifest;
-    } catch (e) {
-      Services.console.logStringMessage("CRX: Error updating manifest: " + e);
-      return false;
-    }
-  }
+   _amendManifest(file) {
+       try {
+         // unzip nsiFile object
+         const zr = new ZipReader(file);
+         let manifest = this._parseManifest(zr);
+         // only manifest version 2 currently supported
+         if (manifest.manifest_version !== 2 || !manifest.manifest_version) {
+           this._installFailedMsg(
+             "Manifest version not supported, must be manifest_version: 2"
+           );
+           return false;
+         }
+         // ensure locale properties set correctly
+         manifest = this._localeCheck(manifest, zr);
+         // check API compatibility
+         const unsupportedApis = this._manifestCompatCheck(manifest);
+         if (unsupportedApis.length) {
+           return unsupportedApis;
+         }
+         manifest.applications = {
+           gecko: {
+             id: this._getUUID(),
+           },
+         };
+         // cannot allow auto update of crx extensions
+         manifest.update_url = undefined;
+         manifest = JSON.stringify(manifest);
+         // close zipReader
+         zr.close();
+         return manifest;
+       } catch (e) {
+         Services.console.logStringMessage(`CRX: Error updating manifest: ${e}`);
+         return false;
+       }
+     }
 
   /**
    * Parse manifest file into JS Object
@@ -329,13 +330,13 @@ export class StoreHandler {
    * @param zr nsiZipReader ZipReader object
    */
   _parseManifest(zr) {
-    let entryPointer = "manifest.json";
+    const entryPointer = "manifest.json";
     let manifest;
     if (zr.hasEntry(entryPointer)) {
-      let entry = zr.getEntry(entryPointer);
-      let inputStream = zr.getInputStream(entryPointer);
-      let rsi = new ReusableStreamInstance(inputStream);
-      let fileContents = rsi.read(entry.realSize);
+      const entry = zr.getEntry(entryPointer);
+      const inputStream = zr.getInputStream(entryPointer);
+      const rsi = new ReusableStreamInstance(inputStream);
+      const fileContents = rsi.read(entry.realSize);
       manifest = JSON.parse(fileContents);
     }
     return manifest;
@@ -346,120 +347,135 @@ export class StoreHandler {
    *
    * @param manifest Object manifest to compatibility check
    */
-  _manifestCompatCheck(manifest) {
-    let unsupported = {
-      externally_connectable: "",
-      storage: "",
-      chrome_settings_overrides: {
-        search_provider: {
-          alternate_urls: "",
-          image_url: "",
-          image_url_post_params: "",
-          instant_url: "",
-          instant_url_post_params: "",
-          prepopulated_id: "",
-        },
-        startup_pages: "",
-      },
-      chrome_url_overrides: {
-        bookmarks: "",
-        history: "",
-      },
-      commands: {
-        global: "",
-      },
-      incognito: "split",
-      offline_enabled: "",
-      optional_permissions: [
-        "background",
-        "contentSettings",
-        "contextMenus",
-        "debugger",
-        "pageCapture",
-        "tabCapture",
-      ],
-      options_page: "",
-      permissions: [
-        "background",
-        "contentSettings",
-        "debugger",
-        "pageCapture",
-        "tabCapture",
-      ],
-      version_name: "",
-    };
-    var unsupportedInManifest = [];
-    Object.entries(manifest).forEach(arr => {
-      if (
-        Object.keys(unsupported).includes(arr[0]) &&
-        unsupported[arr[0]] == ""
-      ) {
-        // if manifest key is in unsupported list and
-        // no value associated with unsupported key
-        // we know it's unsupported in it's entirety
-        unsupportedInManifest.push(arr[0]);
-      } else if (
-        Object.keys(unsupported).includes(arr[0]) &&
-        typeof unsupported[arr[0]] == "string" &&
-        unsupported[arr[0]] == arr[1]
-      ) {
-        // if key is unsupported and value matches
-        // value in unsupported, we know the kv pair
-        // only is unsupported
-        unsupportedInManifest.push(arr[0] + ": " + arr[1]);
-      } else if (
-        Object.keys(unsupported).includes(arr[0]) &&
-        Object.prototype.toString.call(unsupported[arr[0]]) ==
-        "[object Array]" &&
-        Object.prototype.toString.call(arr[1]) == "[object Array]"
-      ) {
-        // if value in unsupported is an array, we know
-        // key is permissions related so we need to check
-        // each permission against the unsupported array
-        var permissionArr = [];
-        arr[1].forEach(value => {
-          if (unsupported[arr[0]].includes(value)) {
-            permissionArr.push(arr[0] + "." + value);
-          }
-        });
-        if (permissionArr.length) {
-          unsupportedInManifest.push(...permissionArr);
-        }
-      } else if (
-        Object.keys(unsupported).includes(arr[0]) &&
-        typeof unsupported[arr[0]] == "object" &&
-        typeof arr[1] == "object"
-      ) {
-        // if value in unsupported is object we need to
-        // identify if this is the final layer or if there
-        // is another object for one of the keys here
-        Object.keys(arr[1]).forEach(key => {
-          if (
-            Object.keys(unsupported[arr[0]]).includes(key) &&
-            typeof unsupported[arr[0]][key] == "string"
-          ) {
-            // if object value in unsupported is string we know that
-            // it is unsupported in it's entirety
-            unsupportedInManifest.push(arr[0] + "." + key);
-            // TODO: need to rewrite this to be recursive so we don't have to go down the nesting
-          } else if (
-            Object.keys(unsupported[arr[0]]).includes(key) &&
-            typeof unsupported[arr[0]][key] == "object" &&
-            typeof arr[1][key] == "object"
-          ) {
-            // if object value in unsupported is another object
-            // we have to dig through the extra layer
-            Object.keys(arr[1][key]).forEach(value => {
-              if (Object.keys(unsupported[arr[0]][key]).includes(value)) {
-                unsupportedInManifest.push(arr[0] + "." + key + "." + value);
-              }
-            });
-          }
-        });
-      }
-    });
-    return unsupportedInManifest;
-  }
+   _manifestCompatCheck(manifest) {
+       const unsupported = {
+         externally_connectable: "",
+         storage: "",
+         chrome_settings_overrides: {
+           search_provider: {
+             alternate_urls: "",
+             image_url: "",
+             image_url_post_params: "",
+             instant_url: "",
+             instant_url_post_params: "",
+             prepopulated_id: "",
+           },
+           startup_pages: "",
+         },
+         chrome_url_overrides: {
+           bookmarks: "",
+           history: "",
+         },
+         commands: {
+           global: "",
+         },
+         incognito: "split",
+         offline_enabled: "",
+         optional_permissions: [
+           "background",
+           "contentSettings",
+           "contextMenus",
+           "debugger",
+           "pageCapture",
+           "tabCapture",
+         ],
+         options_page: "",
+         permissions: [
+           "background",
+           "contentSettings",
+           "debugger",
+           "pageCapture",
+           "tabCapture",
+         ],
+         version_name: "",
+       };
+       const unsupportedInManifest = [];
+
+       for (const arr of Object.entries(manifest)) {
+         const manifestKey = arr[0];
+         const manifestValue = arr[1];
+
+         if (
+           Object.keys(unsupported).includes(manifestKey) &&
+           unsupported[manifestKey] === ""
+         ) {
+           // if manifest key is in unsupported list and
+           // no value associated with unsupported key
+           // we know it's unsupported in it's entirety
+           unsupportedInManifest.push(manifestKey);
+         } else if (
+           Object.keys(unsupported).includes(manifestKey) &&
+           typeof unsupported[manifestKey] === "string" &&
+           unsupported[manifestKey] === manifestValue
+         ) {
+           // if key is unsupported and value matches
+           // value in unsupported, we know the kv pair
+           // only is unsupported
+           unsupportedInManifest.push(`${manifestKey}: ${manifestValue}`);
+         } else if (
+           Object.keys(unsupported).includes(manifestKey) &&
+           Array.isArray(unsupported[manifestKey]) &&
+           Array.isArray(manifestValue)
+         ) {
+           // if value in unsupported is an array, we know
+           // key is permissions related so we need to check
+           // each permission against the unsupported array
+           const permissionArr = []; // Changed var to let, scoped within this block
+           for (const value of manifestValue) {
+             if (unsupported[manifestKey].includes(value)) {
+               permissionArr.push(`${manifestKey}.${value}`);
+             }
+           }
+           if (permissionArr.length) {
+             unsupportedInManifest.push(...permissionArr);
+           }
+         } else if (
+           Object.keys(unsupported).includes(manifestKey) &&
+           typeof unsupported[manifestKey] === "object" &&
+           unsupported[manifestKey] !== null &&
+           !Array.isArray(unsupported[manifestKey]) &&
+           typeof manifestValue === "object" &&
+           manifestValue !== null &&
+           !Array.isArray(manifestValue)
+         ) {
+           // if value in unsupported is object we need to
+           // identify if this is the final layer or if there
+           // is another object for one of the keys here
+           for (const key of Object.keys(manifestValue)) {
+             if (
+               Object.keys(unsupported[manifestKey]).includes(key) &&
+               typeof unsupported[manifestKey][key] === "string"
+             ) {
+               // if object value in unsupported is string we know that
+               // it is unsupported in it's entirety
+               unsupportedInManifest.push(`${manifestKey}.${key}`);
+               // TODO: need to rewrite this to be recursive so we don't have to go down the nesting
+             } else if (
+               Object.keys(unsupported[manifestKey]).includes(key) &&
+               typeof unsupported[manifestKey][key] === "object" &&
+               unsupported[manifestKey][key] !== null &&
+               !Array.isArray(unsupported[manifestKey][key]) &&
+               typeof manifestValue[key] === "object" &&
+               manifestValue[key] !== null &&
+               !Array.isArray(manifestValue[key])
+             ) {
+               // if object value in unsupported is another object
+               // we have to dig through the extra layer
+               for (const value of Object.keys(manifestValue[key])) {
+                 if (
+                   Object.keys(unsupported[manifestKey][key]).includes(value)
+                 ) {
+                   unsupportedInManifest.push(
+                     `${manifestKey}.${key}.${value}`
+                   );
+                 }
+               }
+             }
+           }
+         }
+       }
+       return unsupportedInManifest;
+     }
 
   /**
    * Ensure manifest compliance based on extension contents
@@ -467,19 +483,21 @@ export class StoreHandler {
    * @param manifest
    * @param zr
    */
-  _localeCheck(manifest, zr) {
-    let entryPointer = "_locales/";
-    if (zr.hasEntry(entryPointer)) {
-      if (!manifest.default_locale) {
-        zr.hasEntry("_locales/en/")
-          ? (manifest.default_locale = "en")
-          : (manifest.default_locale = "en-US");
-      }
-    } else if (manifest.default_locale) {
-      delete manifest.default_locale;
-    }
-    return manifest;
-  }
+   _localeCheck(manifest, zr) {
+       const entryPointer = "_locales/";
+       if (zr.hasEntry(entryPointer)) {
+         if (!manifest.default_locale) {
+           if (zr.hasEntry("_locales/en/")) {
+             manifest.default_locale = "en";
+           } else {
+             manifest.default_locale = "en-US";
+           }
+         }
+       } else if (manifest.default_locale) {
+         manifest.default_locale = undefined;
+       }
+       return manifest;
+     }
 
   /**
    * Write amended manifest to temporary manifest.json
@@ -488,7 +506,8 @@ export class StoreHandler {
    * @param manifest string JSON string of amended manifest
    */
   _writeTmpManifest(file, manifest) {
-    let manifestOutputStream = lazy.FileUtils.openAtomicFileOutputStream(file);
+    const manifestOutputStream =
+      lazy.FileUtils.openAtomicFileOutputStream(file);
     manifestOutputStream.write(manifest, manifest.length);
   }
 
@@ -500,7 +519,7 @@ export class StoreHandler {
    */
   _replaceManifestInXpi(xpiFile, manifestFile) {
     try {
-      let pr = {
+      const pr = {
         PR_RDONLY: 0x01,
         PR_WRONLY: 0x02,
         PR_RDWR: 0x04,
@@ -520,7 +539,7 @@ export class StoreHandler {
       );
       zw.close();
       return true;
-    } catch (e) {
+    } catch (_e) {
       Services.console.logStringMessage("CRX: Error replacing manifest");
       return false;
     }
@@ -532,7 +551,7 @@ export class StoreHandler {
    * @param xpiFile nsiFile tmp extension file to install
    */
   async _installXpi(xpiFile) {
-    let install = await lazy.AddonManager.getInstallForFile(xpiFile);
+    const install = await lazy.AddonManager.getInstallForFile(xpiFile);
     const win = lazy.BrowserWindowTracker.getTopWindow();
     const browser = win.gBrowser.selectedBrowser;
     const document = win.document;
@@ -549,8 +568,8 @@ export class StoreHandler {
    * @param zipFile nsiFile tmp extension file
    */
   _cleanup(zipFile) {
-    return new Promise(resolve => {
-      let parent = zipFile.parent;
+    return new Promise((resolve) => {
+      const parent = zipFile.parent;
       parent.remove(true);
       resolve();
     });
