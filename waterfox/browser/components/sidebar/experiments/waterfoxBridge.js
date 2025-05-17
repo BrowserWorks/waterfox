@@ -837,7 +837,7 @@ const BrowserWindowWatcher = {
       "hide-horizontal-tabs-while-tabs-sidebar-is-active"
     );
     document.documentElement.classList.remove("tabs-sidebar-is-active");
-    win.TabsInTitlebar.allowedBy("TabsSidebar", true);
+    win.CustomTitlebar.allowedBy("TabsSidebar", true);
 
     document.removeEventListener("SidebarShown", this, { capture: true });
     document.removeEventListener("popupshowing", this);
@@ -1308,17 +1308,18 @@ const BrowserWindowWatcher = {
       "hide-horizontal-tabs-while-tabs-sidebar-is-active",
       hideHorizontalTabsWhileActive
     );
+
     if (
-      document.defaultView.TabsInTitlebar &&
-      typeof document.defaultView.TabsInTitlebar.allowedBy === "function"
+      document.defaultView.CustomTitlebar &&
+      typeof document.defaultView.CustomTitlebar.allowedBy === "function"
     ) {
-      document.defaultView.TabsInTitlebar.allowedBy(
+      document.defaultView.CustomTitlebar.allowedBy(
         "TabsSidebar",
         !hideHorizontalTabsWhileActive || !active
       );
     } else {
       console.warn(
-        "WaterfoxBridge: TabsInTitlebar or TabsInTitlebar.allowedBy is not available on window:",
+        "WaterfoxBridge: CustomTitlebar or CustomTitlebar.allowedBy is not available on window:",
         document.defaultView.location.href
       );
     }
