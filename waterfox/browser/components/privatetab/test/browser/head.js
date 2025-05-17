@@ -1,5 +1,3 @@
-"use strict";
-
 const { TabStateFlusher } = ChromeUtils.importESModule(
   "resource:///modules/sessionstore/TabStateFlusher.sys.mjs"
 );
@@ -24,12 +22,12 @@ const { PrivateTab } = ChromeUtils.importESModule(
   "resource:///modules/PrivateTab.sys.mjs"
 );
 
-const URI1 = "https://test1.example.com/";
-const URI2 = "https://example.com/";
+const _URI1 = "https://test1.example.com/";
+const _URI2 = "https://example.com/";
 
-let OS = AppConstants.platform;
+const _OS = AppConstants.platform;
 
-function promiseBrowserLoaded(
+function _promiseBrowserLoaded(
   aBrowser,
   ignoreSubFrames = true,
   wantLoad = null
@@ -39,21 +37,21 @@ function promiseBrowserLoaded(
 
 // Removes the given tab immediately and returns a promise that resolves when
 // all pending status updates (messages) of the closing tab have been received.
-function promiseRemoveTabAndSessionState(tab) {
-  let sessionUpdatePromise = BrowserTestUtils.waitForSessionStoreUpdate(tab);
+function _promiseRemoveTabAndSessionState(tab) {
+  const sessionUpdatePromise = BrowserTestUtils.waitForSessionStoreUpdate(tab);
   BrowserTestUtils.removeTab(tab);
   return sessionUpdatePromise;
 }
 
-function setPropertyOfFormField(browserContext, selector, propName, newValue) {
+function _setPropertyOfFormField(browserContext, selector, propName, newValue) {
   return SpecialPowers.spawn(
     browserContext,
     [selector, propName, newValue],
     (selectorChild, propNameChild, newValueChild) => {
-      let node = content.document.querySelector(selectorChild);
+      const node = content.document.querySelector(selectorChild);
       node[propNameChild] = newValueChild;
 
-      let event = node.ownerDocument.createEvent("UIEvents");
+      const event = node.ownerDocument.createEvent("UIEvents");
       event.initUIEvent("input", true, true, node.ownerGlobal, 0);
       node.dispatchEvent(event);
     }
@@ -63,10 +61,10 @@ function setPropertyOfFormField(browserContext, selector, propName, newValue) {
 /**
  * Helper for opening the toolbar context menu.
  */
-async function openTabContextMenu(tab) {
+async function _openTabContextMenu(tab) {
   info("Opening tab context menu");
-  let contextMenu = document.getElementById("tabContextMenu");
-  let openTabContextMenuPromise = BrowserTestUtils.waitForPopupEvent(
+  const contextMenu = document.getElementById("tabContextMenu");
+  const openTabContextMenuPromise = BrowserTestUtils.waitForPopupEvent(
     contextMenu,
     "shown"
   );

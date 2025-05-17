@@ -1,17 +1,7 @@
-/*
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-*/
-/*
- original:
-   http://github.com/piroor/webextensions-lib-tab-favicon-helper
-*/
-'use strict';
-
 const TabFavIconHelper = {
-  LAST_EFFECTIVE_FAVICON: 'last-effective-favIcon',
-  VALID_FAVICON_PATTERN: /^(about|app|chrome|data|file|ftp|https?|moz-extension|resource):/,
+  LAST_EFFECTIVE_FAVICON: "last-effective-favIcon",
+  VALID_FAVICON_PATTERN:
+    /^(about|app|chrome|data|file|ftp|https?|moz-extension|resource):/,
   DRAWABLE_FAVICON_PATTERN: /^(https?|moz-extension|resource):/,
 
   // original: chrome://browser/content/aboutlogins/icons/favicon.svg
@@ -126,27 +116,29 @@ data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACGFjVEw
 </svg>
 `,
 
-  async _urlToKey(url) { // sha1 hash
+  async _urlToKey(url) {
+    // sha1 hash
     const encoder = new TextEncoder();
     const data = encoder.encode(url);
 
-    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+    const hashBuffer = await crypto.subtle.digest("SHA-1", data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    const hashHex = hashArray
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
 
     return hashHex;
   },
 
-  DB_NAME: 'TabFavIconHelper',
+  DB_NAME: "TabFavIconHelper",
   DB_VERSION: 2,
-  STORE_FAVICONS: 'favIcons',
-  STORE_EFFECTIVE_FAVICONS: 'effectiveFavIcons',
-  STORE_UNEFFECTIVE_FAVICONS: 'uneffectiveFavIcons',
+  STORE_FAVICONS: "favIcons",
+  STORE_EFFECTIVE_FAVICONS: "effectiveFavIcons",
+  STORE_UNEFFECTIVE_FAVICONS: "uneffectiveFavIcons",
   EXPIRATION_TIME_IN_MSEC: 7 * 24 * 60 * 60 * 1000, // 7 days
 
   async _openDB() {
-    if (this._openedDB)
-      return this._openedDB;
+    if (this._openedDB) return this._openedDB;
     return new Promise((resolve, _reject) => {
       const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
 
@@ -177,25 +169,41 @@ data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACGFjVEw
             db.deleteObjectStore(this.STORE_UNEFFECTIVE_FAVICONS);
         }
 
-        if (needToUpgrade ||
-            !objectStores.contains(this.STORE_FAVICONS)) {
-          const favIconsStore = db.createObjectStore(this.STORE_FAVICONS, { keyPath: 'key', unique: true });
-          favIconsStore.createIndex('urlKey', 'urlKey', { unique: false });
-          favIconsStore.createIndex('timestamp', 'timestamp');
+        if (needToUpgrade || !objectStores.contains(this.STORE_FAVICONS)) {
+          const favIconsStore = db.createObjectStore(this.STORE_FAVICONS, {
+            keyPath: "key",
+            unique: true,
+          });
+          favIconsStore.createIndex("urlKey", "urlKey", { unique: false });
+          favIconsStore.createIndex("timestamp", "timestamp");
         }
 
-        if (needToUpgrade ||
-            !objectStores.contains(this.STORE_EFFECTIVE_FAVICONS)) {
-          const effectiveFavIconsStore = db.createObjectStore(this.STORE_EFFECTIVE_FAVICONS, { keyPath: 'urlKey', unique: true });
-          effectiveFavIconsStore.createIndex('timestamp', 'timestamp');
-          effectiveFavIconsStore.createIndex('favIconKey', 'favIconKey', { unique: false });
+        if (
+          needToUpgrade ||
+          !objectStores.contains(this.STORE_EFFECTIVE_FAVICONS)
+        ) {
+          const effectiveFavIconsStore = db.createObjectStore(
+            this.STORE_EFFECTIVE_FAVICONS,
+            { keyPath: "urlKey", unique: true }
+          );
+          effectiveFavIconsStore.createIndex("timestamp", "timestamp");
+          effectiveFavIconsStore.createIndex("favIconKey", "favIconKey", {
+            unique: false,
+          });
         }
 
-        if (needToUpgrade ||
-            !objectStores.contains(this.STORE_UNEFFECTIVE_FAVICONS)) {
-          const uneffectiveFavIconsStore = db.createObjectStore(this.STORE_UNEFFECTIVE_FAVICONS, { keyPath: 'urlKey', unique: true });
-          uneffectiveFavIconsStore.createIndex('timestamp', 'timestamp');
-          uneffectiveFavIconsStore.createIndex('favIconKey', 'favIconKey', { unique: false });
+        if (
+          needToUpgrade ||
+          !objectStores.contains(this.STORE_UNEFFECTIVE_FAVICONS)
+        ) {
+          const uneffectiveFavIconsStore = db.createObjectStore(
+            this.STORE_UNEFFECTIVE_FAVICONS,
+            { keyPath: "urlKey", unique: true }
+          );
+          uneffectiveFavIconsStore.createIndex("timestamp", "timestamp");
+          uneffectiveFavIconsStore.createIndex("favIconKey", "favIconKey", {
+            unique: false,
+          });
         }
       };
     });
@@ -207,17 +215,27 @@ data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACGFjVEw
       this._urlToKey(tabUrl),
       this._urlToKey(favIconUrl),
     ]);
-    if (!db)
-      return;
+    if (!db) return;
 
     try {
-      const transaction = db.transaction([store, this.STORE_FAVICONS], 'readwrite');
+      const transaction = db.transaction(
+        [store, this.STORE_FAVICONS],
+        "readwrite"
+      );
       const associationStore = transaction.objectStore(store);
       const favIconStore = transaction.objectStore(this.STORE_FAVICONS);
       const timestamp = Date.now();
 
-      const associationRequest = associationStore.put({ urlKey: tabUrlKey, favIconKey, timestamp });
-      const favIconRequest = favIconStore.put({ key: favIconKey, url: favIconUrl, timestamp });
+      const associationRequest = associationStore.put({
+        urlKey: tabUrlKey,
+        favIconKey,
+        timestamp,
+      });
+      const favIconRequest = favIconStore.put({
+        key: favIconKey,
+        url: favIconUrl,
+        timestamp,
+      });
 
       transaction.oncomplete = () => {
         //db.close();
@@ -227,16 +245,24 @@ data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACGFjVEw
         store = undefined;
       };
 
-      associationRequest.onerror = event => {
-        console.error(`Failed to associate favIconUrl ${favIconUrl} to tabUrl ${tabUrl} in the store ${store}`, event);
+      associationRequest.onerror = (event) => {
+        console.error(
+          `Failed to associate favIconUrl ${favIconUrl} to tabUrl ${tabUrl} in the store ${store}`,
+          event
+        );
       };
 
-      favIconRequest.onerror = event => {
-        console.error(`Failed to store favIconUrl ${favIconUrl} to tabUrl ${tabUrl} in the store ${store}`, event);
+      favIconRequest.onerror = (event) => {
+        console.error(
+          `Failed to store favIconUrl ${favIconUrl} to tabUrl ${tabUrl} in the store ${store}`,
+          event
+        );
       };
-    }
-    catch(error) {
-      console.error(`Failed to associate favIconUrl ${favIconUrl} to tabUrl ${tabUrl} in the store ${store}`, error);
+    } catch (error) {
+      console.error(
+        `Failed to associate favIconUrl ${favIconUrl} to tabUrl ${tabUrl} in the store ${store}`,
+        error
+      );
     }
   },
 
@@ -245,11 +271,10 @@ data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACGFjVEw
       this._openDB(),
       this._urlToKey(tabUrl),
     ]);
-    if (!db)
-      return;
+    if (!db) return;
 
     try {
-      const transaction = db.transaction([store], 'readwrite');
+      const transaction = db.transaction([store], "readwrite");
       const associationStore = transaction.objectStore(store);
       const unassociationRequest = associationStore.delete(tabUrlKey);
 
@@ -260,12 +285,17 @@ data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACGFjVEw
         store = undefined;
       };
 
-      unassociationRequest.onerror = event => {
-        console.error(`Failed to unassociate favIconUrl from tabUrl ${tabUrl} in the store ${store}`, event);
+      unassociationRequest.onerror = (event) => {
+        console.error(
+          `Failed to unassociate favIconUrl from tabUrl ${tabUrl} in the store ${store}`,
+          event
+        );
       };
-    }
-    catch(error) {
-      console.error(`Failed to unassociate favIconUrl from tabUrl ${tabUrl} in the store ${store}`, error);
+    } catch (error) {
+      console.error(
+        `Failed to unassociate favIconUrl from tabUrl ${tabUrl} in the store ${store}`,
+        error
+      );
     }
   },
 
@@ -281,7 +311,10 @@ data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACGFjVEw
       }
 
       try {
-        const transaction = db.transaction([store, this.STORE_FAVICONS], 'readonly');
+        const transaction = db.transaction(
+          [store, this.STORE_FAVICONS],
+          "readonly"
+        );
         const associationStore = transaction.objectStore(store);
         const favIconStore = transaction.objectStore(this.STORE_FAVICONS);
 
@@ -315,14 +348,20 @@ data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACGFjVEw
             favIcon = undefined;
           };
 
-          favIconRequest.onerror = event => {
-            console.error(`Failed to get favIconUrl from tabUrl ${tabUrl}`, event);
+          favIconRequest.onerror = (event) => {
+            console.error(
+              `Failed to get favIconUrl from tabUrl ${tabUrl}`,
+              event
+            );
             resolve(null);
           };
         };
 
-        associationRequest.onerror = event => {
-          console.error(`Failed to get favIcon association from tabUrl ${tabUrl}`, event);
+        associationRequest.onerror = (event) => {
+          console.error(
+            `Failed to get favIcon association from tabUrl ${tabUrl}`,
+            event
+          );
           resolve(null);
         };
 
@@ -331,17 +370,15 @@ data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACGFjVEw
           tabUrl = undefined;
           store = undefined;
         };
-      }
-      catch(error) {
-        console.error('Failed to get from cache:', error);
+      } catch (error) {
+        console.error("Failed to get from cache:", error);
         resolve(null);
       }
     });
   },
 
   async _reserveToExpireOldEntries() {
-    if (this._reservedExpiration)
-      clearTimeout(this._reservedExpiration);
+    if (this._reservedExpiration) clearTimeout(this._reservedExpiration);
     this._reservedExpiration = setTimeout(() => {
       this._reservedExpiration = null;
       this._expireOldEntries();
@@ -356,62 +393,77 @@ data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACGFjVEw
       }
 
       try {
-        const transaction = db.transaction([this.STORE_FAVICONS, this.STORE_EFFECTIVE_FAVICONS, this.STORE_UNEFFECTIVE_FAVICONS], 'readwrite');
+        const transaction = db.transaction(
+          [
+            this.STORE_FAVICONS,
+            this.STORE_EFFECTIVE_FAVICONS,
+            this.STORE_UNEFFECTIVE_FAVICONS,
+          ],
+          "readwrite"
+        );
         const favIconsStore = transaction.objectStore(this.STORE_FAVICONS);
-        const effectiveFavIconsStore = transaction.objectStore(this.STORE_EFFECTIVE_FAVICONS);
-        const uneffectiveFavIconsStore = transaction.objectStore(this.STORE_UNEFFECTIVE_FAVICONS);
+        const effectiveFavIconsStore = transaction.objectStore(
+          this.STORE_EFFECTIVE_FAVICONS
+        );
+        const uneffectiveFavIconsStore = transaction.objectStore(
+          this.STORE_UNEFFECTIVE_FAVICONS
+        );
 
-        const favIconIndex = favIconsStore.index('timestamp');
-        const effectiveFavIconIndex = effectiveFavIconsStore.index('timestamp');
-        const uneffectiveFavIconIndex = uneffectiveFavIconsStore.index('timestamp');
+        const favIconIndex = favIconsStore.index("timestamp");
+        const effectiveFavIconIndex = effectiveFavIconsStore.index("timestamp");
+        const uneffectiveFavIconIndex =
+          uneffectiveFavIconsStore.index("timestamp");
 
         const expirationTimestamp = Date.now() - this.EXPIRATION_TIME_IN_MSEC;
 
-        const favIconRequest = favIconIndex.openCursor(IDBKeyRange.upperBound(expirationTimestamp));
+        const favIconRequest = favIconIndex.openCursor(
+          IDBKeyRange.upperBound(expirationTimestamp)
+        );
         favIconRequest.onsuccess = (event) => {
           const cursor = event.target.result;
-          if (!cursor)
-            return;
+          if (!cursor) return;
           const key = cursor.primaryKey;
           cursor.continue();
           const deleteRequest = favIconsStore.delete(key);
-          deleteRequest.onerror = event => {
+          deleteRequest.onerror = (event) => {
             console.error(`Failed to clear favicon index`, event);
           };
         };
-        favIconRequest.onerror = event => {
+        favIconRequest.onerror = (event) => {
           console.error(`Failed to retrieve favicon index`, event);
         };
 
-        const effectiveFavIconRequest = effectiveFavIconIndex.openCursor(IDBKeyRange.upperBound(expirationTimestamp));
+        const effectiveFavIconRequest = effectiveFavIconIndex.openCursor(
+          IDBKeyRange.upperBound(expirationTimestamp)
+        );
         effectiveFavIconRequest.onsuccess = (event) => {
           const cursor = event.target.result;
-          if (!cursor)
-            return;
+          if (!cursor) return;
           const url = cursor.primaryKey;
           cursor.continue();
           const deleteRequest = effectiveFavIconsStore.delete(url);
-          deleteRequest.onerror = event => {
+          deleteRequest.onerror = (event) => {
             console.error(`Failed to clear effective favicon index`, event);
           };
         };
-        effectiveFavIconRequest.onerror = event => {
+        effectiveFavIconRequest.onerror = (event) => {
           console.error(`Failed to retrieve effective favicon index`, event);
         };
 
-        const uneffectiveFavIconRequest = uneffectiveFavIconIndex.openCursor(IDBKeyRange.upperBound(expirationTimestamp));
+        const uneffectiveFavIconRequest = uneffectiveFavIconIndex.openCursor(
+          IDBKeyRange.upperBound(expirationTimestamp)
+        );
         uneffectiveFavIconRequest.onsuccess = (event) => {
           const cursor = event.target.result;
-          if (!cursor)
-            return;
+          if (!cursor) return;
           const url = cursor.primaryKey;
           cursor.continue();
           const deleteRequest = uneffectiveFavIconsStore.delete(url);
-          deleteRequest.onerror = event => {
+          deleteRequest.onerror = (event) => {
             console.error(`Failed to clear uneffective favicon index`, event);
           };
         };
-        uneffectiveFavIconRequest.onerror = event => {
+        uneffectiveFavIconRequest.onerror = (event) => {
           console.error(`Failed to retrieve uneffective favicon index`, event);
         };
 
@@ -419,9 +471,8 @@ data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACGFjVEw
           //db.close();
           resolve();
         };
-      }
-      catch(error) {
-        console.error('Failed to expire old entries:', error);
+      } catch (error) {
+        console.error("Failed to expire old entries:", error);
         reject(error);
       }
     });
@@ -435,26 +486,31 @@ data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACGFjVEw
     this._onTabUpdated = this._onTabUpdated.bind(this);
     browser.tabs.onUpdated.addListener(this._onTabUpdated);
 
-    this.canvas = document.createElement('canvas');
+    this.canvas = document.createElement("canvas");
     this.canvas.width = this.canvas.height = this.FAVICON_SIZE;
-    this.canvas.setAttribute('style', `
+    this.canvas.setAttribute(
+      "style",
+      `
       visibility: hidden;
       pointer-events: none;
       position: fixed
-    `);
+    `
+    );
     document.body.appendChild(this.canvas);
 
-    window.addEventListener('unload', () => {
-      browser.tabs.onUpdated.removeListener(this._onTabUpdated);
-    }, { once: true });
+    window.addEventListener(
+      "unload",
+      () => {
+        browser.tabs.onUpdated.removeListener(this._onTabUpdated);
+      },
+      { once: true }
+    );
   },
 
-  _sessionAPIAvailable: (
-    browser.sessions &&
-    browser.sessions.getTabValue &&
+  _sessionAPIAvailable:
+    browser.sessions?.getTabValue &&
     browser.sessions.setTabValue &&
-    browser.sessions.removeTabValue
-  ),
+    browser.sessions.removeTabValue,
 
   _addTask(task) {
     this._tasks.push(task);
@@ -462,14 +518,12 @@ data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACGFjVEw
   },
 
   _run() {
-    if (this._running)
-      return;
+    if (this._running) return;
     this._running = true;
     const processOneTask = () => {
-      if (this._tasks.length == 0) {
+      if (this._tasks.length === 0) {
         this._running = false;
-      }
-      else {
+      } else {
         const tasks = this._tasks.splice(0, this._processStep);
         while (tasks.length > 0) {
           tasks.shift()();
@@ -483,51 +537,52 @@ data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACGFjVEw
   // public
   loadToImage(params = {}) {
     this._addTask(() => {
-      this._getEffectiveFavIconURL(params.tab, params.url)
-        .then(url => {
+      this._getEffectiveFavIconURL(params.tab, params.url).then(
+        (url) => {
           params.image.src = url;
-          params.image.classList.remove('error');
+          params.image.classList.remove("error");
           url = undefined;
         },
-              _error => {
-                params.image.src = '';
-                params.image.classList.add('error');
-              });
+        (_error) => {
+          params.image.src = "";
+          params.image.classList.add("error");
+        }
+      );
     });
   },
 
   // public
-  maybeImageTab(_tab) { // for backward compatibility
+  maybeImageTab(_tab) {
+    // for backward compatibility
     return false;
   },
 
   _getSafeFaviconUrl(url) {
     switch (url) {
-      case 'chrome://browser/content/aboutlogins/icons/favicon.svg':
+      case "chrome://browser/content/aboutlogins/icons/favicon.svg":
         return this._getSVGDataURI(this.FAVICON_LOCKWISE);
-      case 'chrome://browser/content/robot.ico':
+      case "chrome://browser/content/robot.ico":
         return this.FAVICON_ROBOT;
-      case 'chrome://browser/skin/controlcenter/dashboard.svg':
+      case "chrome://browser/skin/controlcenter/dashboard.svg":
         return this._getSVGDataURI(this.FAVICON_DASHBOARD);
-      case 'chrome://browser/skin/developer.svg':
+      case "chrome://browser/skin/developer.svg":
         return this._getSVGDataURI(this.FAVICON_DEVELOPER);
-      case 'chrome://browser/skin/privatebrowsing/favicon.svg':
+      case "chrome://browser/skin/privatebrowsing/favicon.svg":
         return this._getSVGDataURI(this.FAVICON_PRIVATE_BROWSING);
-      case 'chrome://browser/skin/settings.svg':
+      case "chrome://browser/skin/settings.svg":
         return this._getSVGDataURI(this.FAVICON_SETTINGS);
-      case 'chrome://browser/skin/window.svg':
+      case "chrome://browser/skin/window.svg":
         return this._getSVGDataURI(this.FAVICON_WINDOW);
-      case 'chrome://devtools/skin/images/profiler-stopwatch.svg':
+      case "chrome://devtools/skin/images/profiler-stopwatch.svg":
         return this._getSVGDataURI(this.FAVICON_PROFILER);
-      case 'chrome://global/skin/icons/performance.svg':
+      case "chrome://global/skin/icons/performance.svg":
         return this._getSVGDataURI(this.FAVICON_PERFORMANCE);
-      case 'chrome://global/skin/icons/warning.svg':
+      case "chrome://global/skin/icons/warning.svg":
         return this._getSVGDataURI(this.FAVICON_WARNING);
-      case 'chrome://mozapps/skin/extensions/extensionGeneric-16.svg':
+      case "chrome://mozapps/skin/extensions/extensionGeneric-16.svg":
         return this._getSVGDataURI(this.FAVICON_EXTENSION);
       default:
-        if (/^chrome:\/\//.test(url) &&
-            !/^chrome:\/\/branding\//.test(url))
+        if (/^chrome:\/\//.test(url) && !/^chrome:\/\/branding\//.test(url))
           return this._getSVGDataURI(this.FAVICON_GLOBE);
         break;
     }
@@ -539,28 +594,35 @@ data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACGFjVEw
 
   // public
   async getLastEffectiveFavIconURL(tab) {
-    if (tab.favIconUrl?.startsWith('data:'))
-      return tab.favIconUrl;
+    if (tab.favIconUrl?.startsWith("data:")) return tab.favIconUrl;
 
-    const uneffectiveFavIconUrl = await this._getAssociatedFavIconUrlFromTabUrl({ tabUrl: tab.url, store: this.STORE_UNEFFECTIVE_FAVICONS });
-    if (uneffectiveFavIconUrl)
-      return null;
+    const uneffectiveFavIconUrl = await this._getAssociatedFavIconUrlFromTabUrl(
+      { tabUrl: tab.url, store: this.STORE_UNEFFECTIVE_FAVICONS }
+    );
+    if (uneffectiveFavIconUrl) return null;
 
-    const favIconUrl = await this._getAssociatedFavIconUrlFromTabUrl({ tabUrl: tab.url, store: this.STORE_EFFECTIVE_FAVICONS });
-    if (favIconUrl)
-      return favIconUrl;
+    const favIconUrl = await this._getAssociatedFavIconUrlFromTabUrl({
+      tabUrl: tab.url,
+      store: this.STORE_EFFECTIVE_FAVICONS,
+    });
+    if (favIconUrl) return favIconUrl;
 
-    if (!this._sessionAPIAvailable)
-      return null;
+    if (!this._sessionAPIAvailable) return null;
 
-    const lastData = await browser.sessions.getTabValue(tab.id, this.LAST_EFFECTIVE_FAVICON);
-    return lastData && lastData.url == tab.url && lastData.favIconUrl;
+    const lastData = await browser.sessions.getTabValue(
+      tab.id,
+      this.LAST_EFFECTIVE_FAVICON
+    );
+    return lastData && lastData.url === tab.url && lastData.favIconUrl;
   },
 
   async _getEffectiveFavIconURL(tab, favIconUrl = null) {
-    if (tab.favIconUrl?.startsWith('data:')) {
+    if (tab.favIconUrl?.startsWith("data:")) {
       browser.sessions.removeTabValue(tab.id, this.LAST_EFFECTIVE_FAVICON);
-      this._unassociateFavIconUrlFromTabUrl({ tabUrl: tab.url, store: this.STORE_UNEFFECTIVE_FAVICONS });
+      this._unassociateFavIconUrlFromTabUrl({
+        tabUrl: tab.url,
+        store: this.STORE_UNEFFECTIVE_FAVICONS,
+      });
       return tab.favIconUrl;
     }
 
@@ -569,83 +631,107 @@ data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACGFjVEw
       let storedFavIconUrl;
       if (!favIconUrl && tab.discarded) {
         // discarded tab doesn't have favIconUrl, so we should use cached data.
-        storedFavIconUrl = favIconUrl = await this.getLastEffectiveFavIconURL(tab);
+        storedFavIconUrl = favIconUrl =
+          await this.getLastEffectiveFavIconURL(tab);
       }
 
       let loader, onLoad, onError;
-      const clear = (() => {
+      const clear = () => {
         if (loader) {
-          loader.removeEventListener('load', onLoad, { once: true });
-          loader.removeEventListener('error', onError, { once: true });
+          loader.removeEventListener("load", onLoad, { once: true });
+          loader.removeEventListener("error", onError, { once: true });
         }
         loader = onLoad = onError = favIconUrl = storedFavIconUrl = undefined;
-      });
+      };
 
-      onLoad = async foundFavIconUrl => {
+      onLoad = async (foundFavIconUrl) => {
         let dataURL = null;
         if (this.DRAWABLE_FAVICON_PATTERN.test(favIconUrl)) {
-          const context = this.canvas.getContext('2d');
+          const context = this.canvas.getContext("2d");
           context.clearRect(0, 0, this.FAVICON_SIZE, this.FAVICON_SIZE);
           context.drawImage(loader, 0, 0, this.FAVICON_SIZE, this.FAVICON_SIZE);
           try {
-            dataURL = this.canvas.toDataURL('image/png');
-          }
-          catch(_error) {
+            dataURL = this.canvas.toDataURL("image/png");
+          } catch (_error) {
             // it can fail due to security reasons
           }
         }
-        const oldFavIconUrl = foundFavIconUrl || await this._getAssociatedFavIconUrlFromTabUrl({ tabUrl: tab.url, store: this.STORE_EFFECTIVE_FAVICONS });
-        if (!oldFavIconUrl ||
-            oldFavIconUrl != favIconUrl) {
+        const oldFavIconUrl =
+          foundFavIconUrl ||
+          (await this._getAssociatedFavIconUrlFromTabUrl({
+            tabUrl: tab.url,
+            store: this.STORE_EFFECTIVE_FAVICONS,
+          }));
+        if (!oldFavIconUrl || oldFavIconUrl !== favIconUrl) {
           if (this._sessionAPIAvailable)
             browser.sessions.setTabValue(tab.id, this.LAST_EFFECTIVE_FAVICON, {
               url: tab.url,
               favIconUrl,
             });
         }
-        this._associateFavIconUrlToTabUrl({ tabUrl: tab.url, favIconUrl, store: this.STORE_EFFECTIVE_FAVICONS });
-        this._unassociateFavIconUrlFromTabUrl({ tabUrl: tab.url, store: this.STORE_UNEFFECTIVE_FAVICONS });
+        this._associateFavIconUrlToTabUrl({
+          tabUrl: tab.url,
+          favIconUrl,
+          store: this.STORE_EFFECTIVE_FAVICONS,
+        });
+        this._unassociateFavIconUrlFromTabUrl({
+          tabUrl: tab.url,
+          store: this.STORE_UNEFFECTIVE_FAVICONS,
+        });
         resolve(dataURL || favIconUrl);
         clear();
       };
-      onError = async error => {
-        this._unassociateFavIconUrlFromTabUrl({ tabUrl: tab.url, store: this.STORE_EFFECTIVE_FAVICONS });
-        this._associateFavIconUrlToTabUrl({ tabUrl: tab.url, favIconUrl, store: this.STORE_UNEFFECTIVE_FAVICONS });
+      onError = async (error) => {
+        this._unassociateFavIconUrlFromTabUrl({
+          tabUrl: tab.url,
+          store: this.STORE_EFFECTIVE_FAVICONS,
+        });
+        this._associateFavIconUrlToTabUrl({
+          tabUrl: tab.url,
+          favIconUrl,
+          store: this.STORE_UNEFFECTIVE_FAVICONS,
+        });
         if (this._sessionAPIAvailable)
           browser.sessions.removeTabValue(tab.id, this.LAST_EFFECTIVE_FAVICON);
         clear();
-        reject(error || new Error('No effective icon'));
+        reject(error || new Error("No effective icon"));
       };
-      storedFavIconUrl = storedFavIconUrl || await this._getAssociatedFavIconUrlFromTabUrl({ tabUrl: tab.url, store: this.STORE_EFFECTIVE_FAVICONS });
-      if (storedFavIconUrl)
-        return onLoad(storedFavIconUrl);
-      if (!favIconUrl ||
-          !this.VALID_FAVICON_PATTERN.test(favIconUrl)) {
+      storedFavIconUrl =
+        storedFavIconUrl ||
+        (await this._getAssociatedFavIconUrlFromTabUrl({
+          tabUrl: tab.url,
+          store: this.STORE_EFFECTIVE_FAVICONS,
+        }));
+      if (storedFavIconUrl) return onLoad(storedFavIconUrl);
+      if (!favIconUrl || !this.VALID_FAVICON_PATTERN.test(favIconUrl)) {
         onError();
         return;
       }
       loader = new Image();
-      if (/^https?:/.test(favIconUrl))
-        loader.crossOrigin = 'anonymous';
-      loader.addEventListener('load', () => onLoad(), { once: true });
-      loader.addEventListener('error', onError, { once: true });
+      if (/^https?:/.test(favIconUrl)) loader.crossOrigin = "anonymous";
+      loader.addEventListener("load", () => onLoad(), { once: true });
+      loader.addEventListener("error", onError, { once: true });
       try {
         loader.src = favIconUrl;
-      }
-      catch(error) {
-        this._unassociateFavIconUrlFromTabUrl({ tabUrl: tab.url, store: this.STORE_EFFECTIVE_FAVICONS });
-        this._associateFavIconUrlToTabUrl({ tabUrl: tab.url, favIconUrl, store: this.STORE_UNEFFECTIVE_FAVICONS });
+      } catch (error) {
+        this._unassociateFavIconUrlFromTabUrl({
+          tabUrl: tab.url,
+          store: this.STORE_EFFECTIVE_FAVICONS,
+        });
+        this._associateFavIconUrlToTabUrl({
+          tabUrl: tab.url,
+          favIconUrl,
+          store: this.STORE_UNEFFECTIVE_FAVICONS,
+        });
         onError(error);
       }
     });
   },
 
   _onTabUpdated(tabId, changeInfo, _tab) {
-    if (!this._hasFavIconInfo(changeInfo))
-      return;
+    if (!this._hasFavIconInfo(changeInfo)) return;
     let timer = this._updatingTabs.get(tabId);
-    if (timer)
-      clearTimeout(timer);
+    if (timer) clearTimeout(timer);
     // Updating of last effective favicon must be done after the loading
     // of the tab itself is correctly done, to avoid cookie problems on
     // some websites.
@@ -653,23 +739,22 @@ data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAACGFjVEw
     timer = setTimeout(async () => {
       this._updatingTabs.delete(tabId);
       const tab = await browser.tabs.get(tabId);
-      if (!tab ||
-          (changeInfo.favIconUrl &&
-           tab.favIconUrl != changeInfo.favIconUrl) ||
-          (changeInfo.url &&
-           tab.url != changeInfo.url) ||
-          !this._hasFavIconInfo(tab))
+      if (
+        !tab ||
+        (changeInfo.favIconUrl && tab.favIconUrl !== changeInfo.favIconUrl) ||
+        (changeInfo.url && tab.url !== changeInfo.url) ||
+        !this._hasFavIconInfo(tab)
+      )
         return; // expired
 
-      await this._getEffectiveFavIconURL(
-        tab,
-        changeInfo.favIconUrl
-      ).catch(_error => {});
+      await this._getEffectiveFavIconURL(tab, changeInfo.favIconUrl).catch(
+        (_error) => {}
+      );
     }, 5000);
     this._updatingTabs.set(tabId, timer);
   },
   _hasFavIconInfo(tabOrChangeInfo) {
-    return 'favIconUrl' in tabOrChangeInfo;
+    return "favIconUrl" in tabOrChangeInfo;
   },
   _updatingTabs: new Map(),
 };

@@ -2,11 +2,11 @@
 
 <script>
     /* eslint-env mozilla/browser-window */
-    /* globals register_module gThemePane gotoPref */
+    /* globals register_module _gThemePane gotoPref */
     Services.scriptloader.loadSubScript("chrome://browser/content/overlays/theme.js", this);
 
     // Register the pane
-    register_module("paneTheme", gThemePane);
+    register_module("paneTheme", _gThemePane);
 
     // This ensure that we actually render the Theme page when refreshing on
     // about:preferences#theme. It is needed because the regular gotoPref in
@@ -134,13 +134,13 @@
             data-l10n-id="disable-sidebar-animate" />
     </groupbox>
 
-   
+
     <hbox id="firefoxInterfaceComponentCategory" class="subcategory" hidden="true" data-category="paneTheme">
         <!-- Interface Components -->
         <html:h1 data-l10n-id="interface-component-header"/>
     </hbox>
     <groupbox id="tabbarComponentGroup"  data-category="paneTheme" hidden="true">
-        <!-- Tab Bar -->  
+        <!-- Tab Bar -->
         <label>
             <html:h2 data-l10n-id="tab-bar-header" />
         </label>
@@ -182,7 +182,7 @@
 
         <checkbox id="compactNavBarPopup" preference="userChrome.padding.urlView_expanding"
             data-l10n-id="compact-navbar-popup" />
-        
+
         <!-- Full Screen -->
         <!-- <label>
             <html:h2 data-l10n-id="full-screen-header" />
@@ -295,8 +295,8 @@
         <checkbox id="squareCheckbox" preference="userChrome.rounding.square_checklabel"
             data-l10n-id="square-checkbox" />
     </groupbox>
-    
-    
+
+
     <hbox id="firefoxAutohideCategory" class="subcategory" hidden="true" data-category="paneTheme">
         <!-- Auto Hide & Hidden -->
         <html:h1 data-l10n-id="autohide-hidden-header"/>
@@ -305,7 +305,7 @@
         <label>
             <html:h2 data-l10n-id="tab-bar-header" />
         </label>
-        
+
         <hbox>
             <checkbox id="autoHideTabs" preference="userChrome.autohide.tab" data-l10n-id="auto-hide-tabs" />
 
@@ -414,7 +414,7 @@
         <label>
             <html:h2 data-l10n-id="sidebar-header" />
         </label>
-        
+
         <hbox>
             <checkbox id="autoHideSidebar" preference="userChrome.autohide.sidebar"
                 data-l10n-id="auto-hide-sidebar" />
@@ -444,7 +444,7 @@
         <label>
             <html:h2 data-l10n-id="tab-bar-header" />
         </label>
-        
+
         <hbox>
             <checkbox id="centerTabContent" preference="userChrome.centered.tab"
                 data-l10n-id="center-tab-content" />
@@ -471,7 +471,7 @@
         <label>
             <html:h2 data-l10n-id="nav-bar-header" />
         </label>
-        
+
         <hbox>
             <checkbox id="centerNavBarText" preference="userChrome.centered.urlbar"
                 data-l10n-id="center-navbar-text" />

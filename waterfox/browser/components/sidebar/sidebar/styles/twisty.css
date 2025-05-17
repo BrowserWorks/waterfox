@@ -7,7 +7,10 @@
 
 :root {
   --tab-twisty-offset: calc((var(--tab-ui-size) - var(--favicon-size)) / 2);
-  --tab-twisty-negative-offset: calc((var(--favicon-size) - var(--tab-ui-size)) / 2);
+  --tab-twisty-negative-offset: calc(
+    (var(--favicon-size) - var(--tab-ui-size)) /
+    2
+  );
 }
 
 tab-item tab-twisty {
@@ -48,7 +51,6 @@ tab-item:not(.collapsed):not(.subtree-collapsed) tab-twisty:hover {
   opacity: 1;
 }
 
-
 tab-item:not(.collapsed) tab-twisty::before {
   -moz-context-properties: fill;
   background: url("./icons/ArrowheadDown.svg") no-repeat center / 60%;
@@ -68,15 +70,14 @@ tab-item:not(.collapsed) tab-twisty::before {
 }
 
 :root.animation tab-item:not(.collapsed) tab-twisty::before {
-  transition: transform 0.2s ease-out,
-              opacity 0.15s ease-out;
+  transition:
+    transform 0.2s ease-out,
+    opacity 0.15s ease-out;
   transform: rotatez(0);
 }
-:root.left
-  tab-item:not(.collapsed).subtree-collapsed tab-twisty::before {
+:root.left tab-item:not(.collapsed).subtree-collapsed tab-twisty::before {
   transform: rotatez(-90deg);
 }
-:root.right
-  tab-item:not(.collapsed).subtree-collapsed tab-twisty::before {
+:root.right tab-item:not(.collapsed).subtree-collapsed tab-twisty::before {
   transform: rotatez(90deg);
 }

@@ -1,10 +1,3 @@
-/*
- license: The MIT License, Copyright (c) 2018-2023 YUKI "Piro" Hiroshi
- original:
-   https://github.com/piroor/webextensions-lib-menu-ui
-*/
-'use strict';
-
 {
   class MenuUI {
     static $wait(timeout) {
@@ -16,36 +9,31 @@
     // XPath Utilities
     static $hasClass(className) {
       return `contains(concat(" ", normalize-space(@class), " "), " ${className} ")`;
-    };
+    }
 
     static $evaluateXPath(expression, context, type) {
-      if (!type)
-        type = XPathResult.ORDERED_NODE_SNAPSHOT_TYPE;
+      if (!type) type = XPathResult.ORDERED_NODE_SNAPSHOT_TYPE;
       try {
         return (context.ownerDocument || context).evaluate(
           expression,
-          (context || document),
+          context || document,
           null,
           type,
           null
         );
-      }
-      catch(_e) {
+      } catch (_e) {
         return {
           singleNodeValue: null,
-          snapshotLength:  0,
-          snapshotItem:    function() {
-            return null
-          }
+          snapshotLength: 0,
+          snapshotItem: () => null,
         };
       }
     }
 
     static $getArrayFromXPathResult(result) {
-      const max   = result.snapshotLength;
+      const max = result.snapshotLength;
       const array = new Array(max);
-      if (!max)
-        return array;
+      if (!max) return array;
 
       for (let i = 0; i < max; i++) {
         array[i] = result.snapshotItem(i);
@@ -54,66 +42,70 @@
     }
 
     constructor(params = {}) {
-      this.$lastHoverItem   = null;
+      this.$lastHoverItem = null;
       this.$lastFocusedItem = null;
-      this.$mouseDownFired  = false;
+      this.$mouseDownFired = false;
 
-      this.root              = params.root;
-      this.onCommand         = params.onCommand || (() => {});
-      this.onShown           = params.onShown || (() => {});
-      this.onHidden          = params.onHidden || (() => {});
+      this.root = params.root;
+      this.onCommand = params.onCommand || (() => {});
+      this.onShown = params.onShown || (() => {});
+      this.onHidden = params.onHidden || (() => {});
       this.animationDuration = params.animationDuration || 150;
-      this.subMenuOpenDelay  = params.subMenuOpenDelay || 300;
+      this.subMenuOpenDelay = params.subMenuOpenDelay || 300;
       this.subMenuCloseDelay = params.subMenuCloseDelay || 300;
-      this.appearance        = params.appearance || 'menu';
+      this.appearance = params.appearance || "menu";
       this.incrementalSearch = params.incrementalSearch || false;
       this.incrementalSearchTimeout = params.incrementalSearchTimeout || 1000;
 
-      this.$onBlur            = this.$onBlur.bind(this);
-      this.$onMouseOver       = this.$onMouseOver.bind(this);
-      this.$onMouseDown       = this.$onMouseDown.bind(this);
-      this.$onMouseUp         = this.$onMouseUp.bind(this);
-      this.$onClick           = this.$onClick.bind(this);
-      this.$onKeyDown         = this.$onKeyDown.bind(this);
-      this.$onKeyUp           = this.$onKeyUp.bind(this);
-      this.$onTransitionEnd   = this.$onTransitionEnd.bind(this);
-      this.$onContextMenu     = this.$onContextMenu.bind(this);
+      this.$onBlur = this.$onBlur.bind(this);
+      this.$onMouseOver = this.$onMouseOver.bind(this);
+      this.$onMouseDown = this.$onMouseDown.bind(this);
+      this.$onMouseUp = this.$onMouseUp.bind(this);
+      this.$onClick = this.$onClick.bind(this);
+      this.$onKeyDown = this.$onKeyDown.bind(this);
+      this.$onKeyUp = this.$onKeyUp.bind(this);
+      this.$onTransitionEnd = this.$onTransitionEnd.bind(this);
+      this.$onContextMenu = this.$onContextMenu.bind(this);
 
       if (!this.root.id)
-        this.root.id = `MenuUI-root-${this.$uniqueKey}-${parseInt(Math.random() * Math.pow(2, 16))}`;
+        this.root.id = `MenuUI-root-${this.$uniqueKey}-${parseInt(Math.random() * 2 ** 16)}`;
 
       this.root.classList.add(this.$commonClass);
-      this.root.classList.add('menu-ui');
+      this.root.classList.add("menu-ui");
       this.root.classList.add(this.appearance);
-      this.root.setAttribute('role', 'menu');
+      this.root.setAttribute("role", "menu");
 
-      this.$screen = document.createElement('div');
+      this.$screen = document.createElement("div");
       this.$screen.classList.add(this.$commonClass);
-      this.$screen.classList.add('menu-ui-blocking-screen');
+      this.$screen.classList.add("menu-ui-blocking-screen");
       this.root.parentNode.insertBefore(this.$screen, this.root.nextSibling);
 
-      this.$marker = document.createElement('span');
+      this.$marker = document.createElement("span");
       this.$marker.classList.add(this.$commonClass);
-      this.$marker.classList.add('menu-ui-marker');
+      this.$marker.classList.add("menu-ui-marker");
       this.$marker.classList.add(this.appearance);
       this.root.parentNode.insertBefore(this.$marker, this.root.nextSibling);
 
       this.$lastKeyInputAt = -1;
-      this.$incrementalSearchString = '';
+      this.$incrementalSearchString = "";
     }
 
     get opened() {
-      return this.root.classList.contains('open');
+      return this.root.classList.contains("open");
     }
 
     $updateAccessKey(item) {
       const ACCESS_KEY_MATCHER = /(&([^\s]))/i;
 
-      const title = item.getAttribute('title');
+      const title = item.getAttribute("title");
       if (title)
-        item.setAttribute('title', title.replace(ACCESS_KEY_MATCHER, '$2'));
+        item.setAttribute("title", title.replace(ACCESS_KEY_MATCHER, "$2"));
 
-      const label = MenuUI.$evaluateXPath('child::text()', item, XPathResult.STRING_TYPE).stringValue;
+      const label = MenuUI.$evaluateXPath(
+        "child::text()",
+        item,
+        XPathResult.STRING_TYPE
+      ).stringValue;
       item.dataset.lowerCasedText = label.toLowerCase();
 
       const matchedKey = label.match(ACCESS_KEY_MATCHER);
@@ -129,18 +121,16 @@
           range.setStart(textNode, startPosition);
           range.setEnd(textNode, startPosition + 2);
           range.deleteContents();
-          const accessKeyNode = document.createElement('span');
-          accessKeyNode.classList.add('accesskey');
+          const accessKeyNode = document.createElement("span");
+          accessKeyNode.classList.add("accesskey");
           accessKeyNode.textContent = matchedKey[2];
           range.insertNode(accessKeyNode);
           range.detach();
         }
         item.dataset.accessKey = matchedKey[2].toLowerCase();
-      }
-      else if (/^([^\s])/i.test(item.textContent))
+      } else if (/^([^\s])/i.test(item.textContent))
         item.dataset.subAccessKey = RegExp.$1.toLowerCase();
-      else
-        item.dataset.accessKey = item.dataset.subAccessKey = null;
+      else item.dataset.accessKey = item.dataset.subAccessKey = null;
     }
 
     async open(options = {}) {
@@ -155,14 +145,14 @@
       this.$lastHoverItem = null;
       this.anchor = options.anchor;
       this.$updateItems(this.root);
-      this.root.classList.add('open');
-      this.$screen.classList.add('open');
-      this.$marker.classList.remove('top');
-      this.$marker.classList.remove('bottom');
+      this.root.classList.add("open");
+      this.$screen.classList.add("open");
+      this.$marker.classList.remove("top");
+      this.$marker.classList.remove("bottom");
       if (this.anchor) {
-        this.anchor.classList.add('open');
+        this.anchor.classList.add("open");
         this.$marker.style.transition = `opacity ${this.animationDuration}ms ease-out`;
-        this.$marker.classList.add('open');
+        this.$marker.classList.add("open");
       }
       this.$updatePositions(this.root, options);
       this.onShown();
@@ -177,151 +167,142 @@
           this.close().then(resolve);
           return;
         }
-        this.root.parentNode.addEventListener('mouseover', this.$onMouseOver);
-        this.root.addEventListener('transitionend', this.$onTransitionEnd);
-        window.addEventListener('contextmenu', this.$onContextMenu, { capture: true });
-        window.addEventListener('mousedown', this.$onMouseDown, { capture: true });
-        window.addEventListener('mouseup', this.$onMouseUp, { capture: true });
-        window.addEventListener('click', this.$onClick, { capture: true });
-        window.addEventListener('keydown', this.$onKeyDown, { capture: true });
-        window.addEventListener('keyup', this.$onKeyUp, { capture: true });
-        window.addEventListener('blur', this.$onBlur, { capture: true });
+        this.root.parentNode.addEventListener("mouseover", this.$onMouseOver);
+        this.root.addEventListener("transitionend", this.$onTransitionEnd);
+        window.addEventListener("contextmenu", this.$onContextMenu, {
+          capture: true,
+        });
+        window.addEventListener("mousedown", this.$onMouseDown, {
+          capture: true,
+        });
+        window.addEventListener("mouseup", this.$onMouseUp, { capture: true });
+        window.addEventListener("click", this.$onClick, { capture: true });
+        window.addEventListener("keydown", this.$onKeyDown, { capture: true });
+        window.addEventListener("keyup", this.$onKeyUp, { capture: true });
+        window.addEventListener("blur", this.$onBlur, { capture: true });
         resolve();
       });
     }
 
     $tryCancelOpen() {
-      if (!(typeof this.canceller == 'function'))
-        return false;
+      if (!(typeof this.canceller === "function")) return false;
       try {
         return this.canceller();
-      }
-      catch(_e) {
-      }
+      } catch (_e) {}
       return false;
     }
 
     updateMenuItem(item) {
       this.$updateItems(item);
-      const submenu = item.querySelector('ul');
-      if (submenu)
-        this.$updatePositions(submenu);
+      const submenu = item.querySelector("ul");
+      if (submenu) this.$updatePositions(submenu);
     }
 
     $updateItems(parent) {
-      parent.setAttribute('role', 'menu');
-      for (const item of parent.querySelectorAll('li:not(.separator)')) {
-        item.setAttribute('tabindex', -1);
-        item.classList.remove('open');
+      parent.setAttribute("role", "menu");
+      for (const item of parent.querySelectorAll("li:not(.separator)")) {
+        item.setAttribute("tabindex", -1);
+        item.classList.remove("open");
 
-        if (item.classList.contains('checkbox'))
-          item.setAttribute('role', 'menuitemcheckbox');
-        else if (item.classList.contains('radio'))
-          item.setAttribute('role', 'menuitemradio');
-        else if (item.classList.contains('separator'))
-          item.setAttribute('role', 'separator');
-        else
-          item.setAttribute('role', 'menuitem');
+        if (item.classList.contains("checkbox"))
+          item.setAttribute("role", "menuitemcheckbox");
+        else if (item.classList.contains("radio"))
+          item.setAttribute("role", "menuitemradio");
+        else if (item.classList.contains("separator"))
+          item.setAttribute("role", "separator");
+        else item.setAttribute("role", "menuitem");
 
-        if (item.matches('.checked, .radio')) {
-          if (item.classList.contains('checked'))
-            item.setAttribute('aria-checked', 'true');
-          else
-            item.setAttribute('aria-checked', 'false');
-        }
-        else {
-          item.removeAttribute('aria-checked');
+        if (item.matches(".checked, .radio")) {
+          if (item.classList.contains("checked"))
+            item.setAttribute("aria-checked", "true");
+          else item.setAttribute("aria-checked", "false");
+        } else {
+          item.removeAttribute("aria-checked");
         }
 
         this.$updateAccessKey(item);
-        const icon = item.querySelector('span.icon') || document.createElement('span');
+        const icon =
+          item.querySelector("span.icon") || document.createElement("span");
         if (!icon.parentNode) {
-          icon.classList.add('icon');
+          icon.classList.add("icon");
           item.insertBefore(icon, item.firstChild);
         }
         if (item.dataset.icon) {
           if (item.dataset.iconColor) {
-            item.style.backgroundImage = '';
+            item.style.backgroundImage = "";
             icon.style.backgroundColor = item.dataset.iconColor;
-            icon.style.mask            = `url(${JSON.stringify(item.dataset.icon)}) no-repeat center / 100%`;
-          }
-          else {
+            icon.style.mask = `url(${JSON.stringify(item.dataset.icon)}) no-repeat center / 100%`;
+          } else {
             item.style.backgroundImage = `url(${JSON.stringify(item.dataset.icon)})`;
-            icon.style.backgroundColor =
-              icon.style.mask = '';
+            icon.style.backgroundColor = icon.style.mask = "";
           }
-        }
-        else {
+        } else {
           item.style.backgroundImage =
             icon.style.backgroundColor =
-            icon.style.mask = '';
+            icon.style.mask =
+              "";
         }
-        if (item.querySelector('ul'))
-          item.classList.add('has-submenu');
-        else
-          item.classList.remove('has-submenu');
+        if (item.querySelector("ul")) item.classList.add("has-submenu");
+        else item.classList.remove("has-submenu");
       }
     }
 
     $updatePositions(parent, options = {}) {
-      const menus = [parent].concat(Array.from(parent.querySelectorAll('ul')));
+      const menus = [parent].concat(Array.from(parent.querySelectorAll("ul")));
       for (const menu of menus) {
         if (this.animationDuration)
           menu.style.transition = `opacity ${this.animationDuration}ms ease-out`;
-        else
-          menu.style.transition = '';
+        else menu.style.transition = "";
         this.$updatePosition(menu, options);
       }
     }
 
     $updatePosition(menu, options = {}) {
       let left = options.left;
-      let top  = options.top;
+      let top = options.top;
       const containerRect = this.$containerRect;
-      const menuRect      = menu.getBoundingClientRect();
+      const menuRect = menu.getBoundingClientRect();
 
-      if (options.anchor &&
-          (left === undefined || top === undefined) &&
-          menu == this.root) {
+      if (
+        options.anchor &&
+        (left === undefined || top === undefined) &&
+        menu === this.root
+      ) {
         const anchorRect = options.anchor.getBoundingClientRect();
         if (containerRect.bottom - anchorRect.bottom >= menuRect.height) {
           top = anchorRect.bottom;
-          this.$marker.classList.add('top');
-          this.$marker.classList.remove('bottom');
+          this.$marker.classList.add("top");
+          this.$marker.classList.remove("bottom");
           this.$marker.style.top = `calc(${top}px - 0.4em)`;
-        }
-        else if (anchorRect.top - containerRect.top >= menuRect.height) {
+        } else if (anchorRect.top - containerRect.top >= menuRect.height) {
           top = Math.max(0, anchorRect.top - menuRect.height);
-          this.$marker.classList.add('bottom');
-          this.$marker.classList.remove('top');
+          this.$marker.classList.add("bottom");
+          this.$marker.classList.remove("top");
           this.$marker.style.top = `calc(${top}px + ${menuRect.height}px - 0.6em)`;
-        }
-        else {
+        } else {
           top = Math.max(0, containerRect.top - menuRect.height);
-          this.$marker.classList.remove('bottom');
-          this.$marker.classList.remove('top');
+          this.$marker.classList.remove("bottom");
+          this.$marker.classList.remove("top");
           this.$marker.style.top = `calc(${top}px + ${menuRect.height}px - 0.6em)`;
         }
 
         if (containerRect.right - anchorRect.left >= menuRect.width) {
           left = anchorRect.left;
           this.$marker.style.left = `calc(${left}px + 0.5em)`;
-        }
-        else if (anchorRect.left - containerRect.left >= menuRect.width) {
+        } else if (anchorRect.left - containerRect.left >= menuRect.width) {
           left = Math.max(0, anchorRect.right - menuRect.width);
           this.$marker.style.left = `calc(${left}px + ${menuRect.width}px - 1.5em)`;
-        }
-        else {
+        } else {
           left = Math.max(0, containerRect.left - menuRect.width);
           this.$marker.style.left = `calc(${left}px + ${menuRect.width}px - 1.5em)`;
         }
       }
 
       let parentRect;
-      if (menu.parentNode.localName == 'li') {
+      if (menu.parentNode.localName === "li") {
         parentRect = menu.parentNode.getBoundingClientRect();
         left = parentRect.right;
-        top  = parentRect.top;
+        top = parentRect.top;
       }
 
       if (left === undefined)
@@ -329,7 +310,7 @@
       if (top === undefined)
         top = Math.max(0, (containerRect.height - menuRect.height) / 2);
 
-      if (!options.anchor && menu == this.root) {
+      if (!options.anchor && menu === this.root) {
         // reposition to avoid the menu is opened below the cursor
         if (containerRect.bottom - top < menuRect.height) {
           top = top - menuRect.height;
@@ -340,36 +321,44 @@
       }
 
       const minMargin = 3;
-      const overwrap  = 4;
-      const firstTryLeft = Math.max(minMargin, Math.min(left - overwrap, containerRect.width - menuRect.width - minMargin));
-      if (parentRect &&
-          firstTryLeft < parentRect.right - overwrap &&
-          containerRect.left < parentRect.left - menuRect.width + overwrap) {
+      const overwrap = 4;
+      const firstTryLeft = Math.max(
+        minMargin,
+        Math.min(
+          left - overwrap,
+          containerRect.width - menuRect.width - minMargin
+        )
+      );
+      if (
+        parentRect &&
+        firstTryLeft < parentRect.right - overwrap &&
+        containerRect.left < parentRect.left - menuRect.width + overwrap
+      ) {
         left = parentRect.left - menuRect.width + overwrap;
-      }
-      else {
+      } else {
         left = firstTryLeft;
       }
       menu.style.left = `${left}px`;
 
-      top  = Math.max(minMargin, Math.min(top,  containerRect.height - menuRect.height - minMargin));
-      if (menu == this.root && this.$marker.classList.contains('top'))
+      top = Math.max(
+        minMargin,
+        Math.min(top, containerRect.height - menuRect.height - minMargin)
+      );
+      if (menu === this.root && this.$marker.classList.contains("top"))
         menu.style.top = `calc(${top}px + 0.5em)`;
-      else if (menu == this.root && this.$marker.classList.contains('bottom'))
+      else if (menu === this.root && this.$marker.classList.contains("bottom"))
         menu.style.top = `calc(${top}px - 0.5em)`;
-      else
-        menu.style.top = `${top}px`;
+      else menu.style.top = `${top}px`;
     }
 
     async close() {
-      if (!this.opened)
-        return;
+      if (!this.opened) return;
       this.$tryCancelOpen();
-      this.root.classList.remove('open');
-      this.$screen.classList.remove('open');
+      this.root.classList.remove("open");
+      this.$screen.classList.remove("open");
       if (this.anchor) {
-        this.anchor.classList.remove('open');
-        this.$marker.classList.remove('open');
+        this.anchor.classList.remove("open");
+        this.$marker.classList.remove("open");
       }
       this.$mouseDownAfterOpen = false;
       this.$lastFocusedItem = null;
@@ -386,67 +375,74 @@
       });
     }
     $onClosed() {
-      const menus = [this.root].concat(Array.from(this.root.querySelectorAll('ul')));
+      const menus = [this.root].concat(
+        Array.from(this.root.querySelectorAll("ul"))
+      );
       for (const menu of menus) {
         this.$updatePosition(menu, { left: 0, right: 0 });
       }
-      this.root.parentNode.removeEventListener('mouseover', this.$onMouseOver);
-      this.root.removeEventListener('transitionend', this.$onTransitionEnd);
-      window.removeEventListener('contextmenu', this.$onContextMenu, { capture: true });
-      window.removeEventListener('mousedown', this.$onMouseDown, { capture: true });
-      window.removeEventListener('mouseup', this.$onMouseUp, { capture: true });
-      window.removeEventListener('click', this.$onClick, { capture: true });
-      window.removeEventListener('keydown', this.$onKeyDown, { capture: true });
-      window.removeEventListener('keyup', this.$onKeyUp, { capture: true });
-      window.removeEventListener('blur', this.$onBlur, { capture: true });
+      this.root.parentNode.removeEventListener("mouseover", this.$onMouseOver);
+      this.root.removeEventListener("transitionend", this.$onTransitionEnd);
+      window.removeEventListener("contextmenu", this.$onContextMenu, {
+        capture: true,
+      });
+      window.removeEventListener("mousedown", this.$onMouseDown, {
+        capture: true,
+      });
+      window.removeEventListener("mouseup", this.$onMouseUp, { capture: true });
+      window.removeEventListener("click", this.$onClick, { capture: true });
+      window.removeEventListener("keydown", this.$onKeyDown, { capture: true });
+      window.removeEventListener("keyup", this.$onKeyUp, { capture: true });
+      window.removeEventListener("blur", this.$onBlur, { capture: true });
       this.onHidden();
     }
 
     get $containerRect() {
-      const x      = 0;
-      const y      = 0;
-      const width  = window.innerWidth;
+      const x = 0;
+      const y = 0;
+      const width = window.innerWidth;
       const height = window.innerHeight;
       return {
-        x, y, width, height,
-        left:   x,
-        top:    y,
-        right:  width,
-        bottom: height
+        x,
+        y,
+        width,
+        height,
+        left: x,
+        top: y,
+        right: width,
+        bottom: height,
       };
     }
 
     focusTo(item) {
       this.$lastFocusedItem = this.$lastHoverItem = item;
       this.$lastFocusedItem.focus();
-      this.$lastFocusedItem.scrollIntoView({ block: 'nearest' });
+      this.$lastFocusedItem.scrollIntoView({ block: "nearest" });
     }
 
     $onBlur(event) {
-      if (event.target == document)
-        this.close();
+      if (event.target === document) this.close();
     }
 
     $onMouseOver(event) {
       let item = this.$getEffectiveItem(event.target);
-      if (this.delayedOpen && this.delayedOpen.item != item) {
+      if (this.delayedOpen && this.delayedOpen.item !== item) {
         clearTimeout(this.delayedOpen.timer);
         this.delayedOpen = null;
       }
-      if (item && item.delayedClose) {
+      if (item?.delayedClose) {
         clearTimeout(item.delayedClose);
         item.delayedClose = null;
       }
-      if (item && item.classList.contains('separator')) {
+      if (item?.classList.contains("separator")) {
         this.$lastHoverItem = item;
         item = null;
       }
       if (!item) {
         if (this.$lastFocusedItem) {
-          if (this.$lastFocusedItem.parentNode != this.root) {
+          if (this.$lastFocusedItem.parentNode !== this.root) {
             this.focusTo(this.$lastFocusedItem.parentNode.parentNode);
-          }
-          else {
+          } else {
             this.$lastFocusedItem.blur();
             this.$lastFocusedItem = null;
           }
@@ -460,44 +456,42 @@
       this.focusTo(item);
 
       this.delayedOpen = {
-        item:  item,
+        item: item,
         timer: setTimeout(() => {
           this.delayedOpen = null;
           this.$openSubmenuFor(item);
-        }, this.subMenuOpenDelay)
+        }, this.subMenuOpenDelay),
       };
     }
 
     $setHover(item) {
-      for (const item of this.root.querySelectorAll('li.hover')) {
-        if (item != item)
-          item.classList.remove('hover');
+      for (const item of this.root.querySelectorAll("li.hover")) {
+        if (item !== item) item.classList.remove("hover");
       }
-      if (item)
-        item.classList.add('hover');
+      if (item) item.classList.add("hover");
     }
 
     $openSubmenuFor(item) {
       const items = MenuUI.$evaluateXPath(
-        `ancestor-or-self::li[${MenuUI.$hasClass('has-submenu')}][not(${MenuUI.$hasClass('disabled')})]`,
+        `ancestor-or-self::li[${MenuUI.$hasClass("has-submenu")}][not(${MenuUI.$hasClass("disabled")})]`,
         item
       );
       for (const item of MenuUI.$getArrayFromXPathResult(items)) {
-        item.classList.add('open');
+        item.classList.add("open");
       }
     }
 
     $closeOtherSubmenus(item) {
       const items = MenuUI.$evaluateXPath(
-        `preceding-sibling::li[${MenuUI.$hasClass('has-submenu')}] |
-       following-sibling::li[${MenuUI.$hasClass('has-submenu')}] |
-       preceding-sibling::li/descendant::li[${MenuUI.$hasClass('has-submenu')}] |
-       following-sibling::li/descendant::li[${MenuUI.$hasClass('has-submenu')}]`,
+        `preceding-sibling::li[${MenuUI.$hasClass("has-submenu")}] |
+       following-sibling::li[${MenuUI.$hasClass("has-submenu")}] |
+       preceding-sibling::li/descendant::li[${MenuUI.$hasClass("has-submenu")}] |
+       following-sibling::li/descendant::li[${MenuUI.$hasClass("has-submenu")}]`,
         item
       );
       for (const item of MenuUI.$getArrayFromXPathResult(items)) {
         item.delayedClose = setTimeout(() => {
-          item.classList.remove('open');
+          item.classList.remove("open");
         }, this.subMenuCloseDelay);
       }
     }
@@ -511,21 +505,23 @@
     }
 
     $getEffectiveItem(node) {
-      const target = node.closest('li');
-      let untransparentTarget = target && target.closest('ul');
+      const target = node.closest("li");
+      let untransparentTarget = target?.closest("ul");
       while (untransparentTarget) {
-        if (parseFloat(window.getComputedStyle(untransparentTarget, null).opacity) < 1)
+        if (
+          parseFloat(
+            window.getComputedStyle(untransparentTarget, null).opacity
+          ) < 1
+        )
           return null;
-        untransparentTarget = untransparentTarget.parentNode.closest('ul');
-        if (untransparentTarget == document)
-          break;
+        untransparentTarget = untransparentTarget.parentNode.closest("ul");
+        if (untransparentTarget === document) break;
       }
       return target;
     }
 
     $onMouseUp(event) {
-      if (!this.$mouseDownAfterOpen &&
-        event.target.closest(`#${this.root.id}`))
+      if (!this.$mouseDownAfterOpen && event.target.closest(`#${this.root.id}`))
         this.$onClick(event);
     }
 
@@ -535,12 +531,16 @@
       event.preventDefault();
 
       const target = this.$getEffectiveItem(event.target);
-      if (!target ||
-        target.classList.contains('separator') ||
-        target.classList.contains('has-submenu') ||
-        target.classList.contains('disabled')) {
-        if (this.$mouseDownFired && // ignore "click" event triggered by a mousedown fired before the menu is opened (like long-press)
-            !event.target.closest(`#${this.root.id}`))
+      if (
+        !target ||
+        target.classList.contains("separator") ||
+        target.classList.contains("has-submenu") ||
+        target.classList.contains("disabled")
+      ) {
+        if (
+          this.$mouseDownFired && // ignore "click" event triggered by a mousedown fired before the menu is opened (like long-press)
+          !event.target.closest(`#${this.root.id}`)
+        )
           return this.close();
         return;
       }
@@ -549,125 +549,136 @@
     }
 
     $getNextFocusedItemByAccesskey(key) {
-      for (const attribute of ['access-key', 'sub-access-key']) {
-        const current = this.$lastHoverItem || this.$lastFocusedItem || this.root.firstChild;
+      for (const attribute of ["access-key", "sub-access-key"]) {
+        const current =
+          this.$lastHoverItem || this.$lastFocusedItem || this.root.firstChild;
         const condition = `@data-${attribute}="${key.toLowerCase()}"`;
         const item = this.$getNextItem(current, condition);
-        if (item)
-          return item;
+        if (item) return item;
       }
       return null;
     }
 
     $incrementalSearchNextFocusedItem(key) {
       this.$incrementalSearchString += key.toLowerCase();
-      const current = this.$lastHoverItem || this.$lastFocusedItem || this.root.firstChild;
+      const current =
+        this.$lastHoverItem || this.$lastFocusedItem || this.root.firstChild;
       const condition = `starts-with(@data-lower-cased-text, "${this.$incrementalSearchString.replace(/"/g, '\\"')}")`;
-      if (this.$isItemMatches(current, condition))
-        return current;
+      if (this.$isItemMatches(current, condition)) return current;
       const item = this.$getNextItem(current, condition);
       return item;
     }
 
     $shouldSearchIncremental() {
-      if (!this.incrementalSearch)
-        return false;
+      if (!this.incrementalSearch) return false;
 
       const last = this.$lastKeyInputAt;
-      const now = this.$lastKeyInputAt = Date.now();
-      if (last < 0)
-        return true; // start
+      const now = (this.$lastKeyInputAt = Date.now());
+      if (last < 0) return true; // start
 
       if (now - last > this.incrementalSearchTimeout)
-        this.$incrementalSearchString = '';
+        this.$incrementalSearchString = "";
 
       return true; // continue
     }
 
     $onKeyDown(event) {
       switch (event.key) {
-        case 'ArrowUp':
+        case "ArrowUp":
           event.stopPropagation();
           event.preventDefault();
           this.$advanceFocus(-1);
           break;
 
-        case 'ArrowDown':
+        case "ArrowDown":
           event.stopPropagation();
           event.preventDefault();
           this.$advanceFocus(1);
           break;
 
-        case 'ArrowRight':
+        case "ArrowRight":
           event.stopPropagation();
           event.preventDefault();
           this.$digIn();
           break;
 
-        case 'ArrowLeft':
+        case "ArrowLeft":
           event.stopPropagation();
           event.preventDefault();
           this.$digOut();
           break;
 
-        case 'Home':
+        case "Home":
           event.stopPropagation();
           event.preventDefault();
-          this.$advanceFocus(1, (
-            this.$lastHoverItem && this.$lastHoverItem.parentNode ||
-          this.$lastFocusedItem && this.$lastFocusedItem.parentNode ||
-          this.root
-          ).lastChild);
+          this.$advanceFocus(
+            1,
+            (
+              this.$lastHoverItem?.parentNode ||
+              this.$lastFocusedItem?.parentNode ||
+              this.root
+            ).lastChild
+          );
           break;
 
-        case 'End':
+        case "End":
           event.stopPropagation();
           event.preventDefault();
-          this.$advanceFocus(-1, (
-            this.$lastHoverItem && this.$lastHoverItem.parentNode ||
-          this.$lastFocusedItem && this.$lastFocusedItem.parentNode ||
-          this.root
-          ).firstChild);
+          this.$advanceFocus(
+            -1,
+            (
+              this.$lastHoverItem?.parentNode ||
+              this.$lastFocusedItem?.parentNode ||
+              this.root
+            ).firstChild
+          );
           break;
 
-        case 'Enter': {
-          event.stopPropagation();
-          event.preventDefault();
-          const targetItem = this.$lastHoverItem || this.$lastFocusedItem;
-          if (targetItem) {
-            if (targetItem.classList.contains('disabled'))
-              this.close();
-            else if (!targetItem.classList.contains('separator'))
-              this.onCommand(targetItem, event);
-          }
-        }; break;
-
-        case 'Escape': {
-          event.stopPropagation();
-          event.preventDefault();
-          const targetItem = this.$lastHoverItem || this.$lastFocusedItem;
-          if (!targetItem ||
-            targetItem.parentNode == this.root)
-            this.close();
-          else
-            this.$digOut();
-        }; break;
-
-        case 'BackSpace': {
-          if (this.$shouldSearchIncremental()) {
+        case "Enter":
+          {
             event.stopPropagation();
             event.preventDefault();
-            this.$incrementalSearchString = this.$incrementalSearchString.slice(0, this.$incrementalSearchString.length - 1);
-            const item = this.$incrementalSearchNextFocusedItem('');
-            if (item) {
-              this.focusTo(item);
-              this.$setHover(null);
+            const targetItem = this.$lastHoverItem || this.$lastFocusedItem;
+            if (targetItem) {
+              if (targetItem.classList.contains("disabled")) this.close();
+              else if (!targetItem.classList.contains("separator"))
+                this.onCommand(targetItem, event);
             }
           }
-        }; break;
+          break;
+
+        case "Escape":
+          {
+            event.stopPropagation();
+            event.preventDefault();
+            const targetItem = this.$lastHoverItem || this.$lastFocusedItem;
+            if (!targetItem || targetItem.parentNode === this.root)
+              this.close();
+            else this.$digOut();
+          }
+          break;
+
+        case "BackSpace":
+          {
+            if (this.$shouldSearchIncremental()) {
+              event.stopPropagation();
+              event.preventDefault();
+              this.$incrementalSearchString =
+                this.$incrementalSearchString.slice(
+                  0,
+                  this.$incrementalSearchString.length - 1
+                );
+              const item = this.$incrementalSearchNextFocusedItem("");
+              if (item) {
+                this.focusTo(item);
+                this.$setHover(null);
+              }
+            }
+          }
+          break;
 
         default:
-          if (event.key.length == 1) {
+          if (event.key.length === 1) {
             if (this.$shouldSearchIncremental()) {
               event.stopPropagation();
               event.preventDefault();
@@ -683,12 +694,12 @@
             if (item) {
               this.focusTo(item);
               this.$setHover(null);
-              if (this.$getNextFocusedItemByAccesskey(event.key) == item &&
-                  !item.classList.contains('disabled')) {
-                if (item.querySelector('ul'))
-                  this.$digIn();
-                else
-                  this.onCommand(item, event);
+              if (
+                this.$getNextFocusedItemByAccesskey(event.key) === item &&
+                !item.classList.contains("disabled")
+              ) {
+                if (item.querySelector("ul")) this.$digIn();
+                else this.onCommand(item, event);
               }
             }
           }
@@ -698,23 +709,25 @@
 
     $onKeyUp(event) {
       switch (event.key) {
-        case 'ArrowUp':
-        case 'ArrowDown':
-        case 'ArrowRight':
-        case 'ArrowLeft':
-        case 'Home':
-        case 'End':
-        case 'Enter':
-        case 'Escape':
-        case 'Bakcspace':
+        case "ArrowUp":
+        case "ArrowDown":
+        case "ArrowRight":
+        case "ArrowLeft":
+        case "Home":
+        case "End":
+        case "Enter":
+        case "Escape":
+        case "Bakcspace":
           event.stopPropagation();
           event.preventDefault();
           return;
 
         default:
-          if (event.key.length == 1 &&
-              (this.$shouldSearchIncremental() ||
-               this.$getNextFocusedItemByAccesskey(event.key))) {
+          if (
+            event.key.length === 1 &&
+            (this.$shouldSearchIncremental() ||
+              this.$getNextFocusedItemByAccesskey(event.key))
+          ) {
             event.stopPropagation();
             event.preventDefault();
           }
@@ -722,58 +735,56 @@
       }
     }
 
-    $getPreviousItem(base, condition = '') {
-      const extrcondition = condition ? `[${condition}]` : '' ;
-      const item = (
+    $getPreviousItem(base, condition = "") {
+      const extrcondition = condition ? `[${condition}]` : "";
+      const item =
         MenuUI.$evaluateXPath(
-          `preceding-sibling::li[not(${MenuUI.$hasClass('separator')})]${extrcondition}[1]`,
+          `preceding-sibling::li[not(${MenuUI.$hasClass("separator")})]${extrcondition}[1]`,
           base,
           XPathResult.FIRST_ORDERED_NODE_TYPE
         ).singleNodeValue ||
         MenuUI.$evaluateXPath(
-          `following-sibling::li[not(${MenuUI.$hasClass('separator')})]${extrcondition}[last()]`,
+          `following-sibling::li[not(${MenuUI.$hasClass("separator")})]${extrcondition}[last()]`,
           base,
           XPathResult.FIRST_ORDERED_NODE_TYPE
         ).singleNodeValue ||
         MenuUI.$evaluateXPath(
-          `self::li[not(${MenuUI.$hasClass('separator')})]${extrcondition}`,
+          `self::li[not(${MenuUI.$hasClass("separator")})]${extrcondition}`,
           base,
           XPathResult.FIRST_ORDERED_NODE_TYPE
-        ).singleNodeValue
-      );
-      if (window.getComputedStyle(item, null).display == 'none')
+        ).singleNodeValue;
+      if (window.getComputedStyle(item, null).display === "none")
         return this.$getPreviousItem(item, condition);
       return item;
     }
 
-    $getNextItem(base, condition = '') {
-      const extrcondition = condition ? `[${condition}]` : '' ;
-      const item = (
+    $getNextItem(base, condition = "") {
+      const extrcondition = condition ? `[${condition}]` : "";
+      const item =
         MenuUI.$evaluateXPath(
-          `following-sibling::li[not(${MenuUI.$hasClass('separator')})]${extrcondition}[1]`,
+          `following-sibling::li[not(${MenuUI.$hasClass("separator")})]${extrcondition}[1]`,
           base,
           XPathResult.FIRST_ORDERED_NODE_TYPE
         ).singleNodeValue ||
         MenuUI.$evaluateXPath(
-          `preceding-sibling::li[not(${MenuUI.$hasClass('separator')})]${extrcondition}[last()]`,
+          `preceding-sibling::li[not(${MenuUI.$hasClass("separator")})]${extrcondition}[last()]`,
           base,
           XPathResult.FIRST_ORDERED_NODE_TYPE
         ).singleNodeValue ||
         MenuUI.$evaluateXPath(
-          `self::li[not(${MenuUI.$hasClass('separator')})]${extrcondition}`,
+          `self::li[not(${MenuUI.$hasClass("separator")})]${extrcondition}`,
           base,
           XPathResult.FIRST_ORDERED_NODE_TYPE
-        ).singleNodeValue
-      );
-      if (item && window.getComputedStyle(item, null).display == 'none')
+        ).singleNodeValue;
+      if (item && window.getComputedStyle(item, null).display === "none")
         return this.$getNextItem(item, condition);
       return item;
     }
 
-    $isItemMatches(base, condition = '') {
-      const extrcondition = condition ? `[${condition}]` : '' ;
+    $isItemMatches(base, condition = "") {
+      const extrcondition = condition ? `[${condition}]` : "";
       return !!MenuUI.$evaluateXPath(
-        `self::li[not(${MenuUI.$hasClass('separator')})]${extrcondition}`,
+        `self::li[not(${MenuUI.$hasClass("separator")})]${extrcondition}`,
         base,
         XPathResult.FIRST_ORDERED_NODE_TYPE
       ).singleNodeValue;
@@ -784,10 +795,13 @@
       if (!lastFocused) {
         if (direction < 0)
           this.$lastFocusedItem = lastFocused = this.root.firstChild;
-        else
-          this.$lastFocusedItem = lastFocused = this.root.lastChild;
+        else this.$lastFocusedItem = lastFocused = this.root.lastChild;
       }
-      this.focusTo(direction < 0 ? this.$getPreviousItem(lastFocused) : this.$getNextItem(lastFocused));
+      this.focusTo(
+        direction < 0
+          ? this.$getPreviousItem(lastFocused)
+          : this.$getNextItem(lastFocused)
+      );
       this.$setHover(null);
     }
 
@@ -796,8 +810,8 @@
         this.$advanceFocus(1, this.root.lastChild);
         return;
       }
-      const submenu = this.$lastFocusedItem.querySelector('ul');
-      if (!submenu || this.$lastFocusedItem.classList.contains('disabled'))
+      const submenu = this.$lastFocusedItem.querySelector("ul");
+      if (!submenu || this.$lastFocusedItem.classList.contains("disabled"))
         return;
       this.$closeOtherSubmenus(this.$lastFocusedItem);
       this.$openSubmenuFor(this.$lastFocusedItem);
@@ -806,27 +820,22 @@
 
     $digOut() {
       const targetItem = this.$lastHoverItem || this.$lastFocusedItem;
-      if (!targetItem ||
-        targetItem.parentNode == this.root)
-        return;
+      if (!targetItem || targetItem.parentNode === this.root) return;
       this.$closeOtherSubmenus(targetItem);
       this.$lastFocusedItem = targetItem.parentNode.parentNode;
       this.$closeOtherSubmenus(this.$lastFocusedItem);
-      this.$lastFocusedItem.classList.remove('open');
+      this.$lastFocusedItem.classList.remove("open");
       this.focusTo(targetItem.parentNode.parentNode);
       this.$setHover(null);
     }
 
     $onTransitionEnd(event) {
-      const hoverItems = this.root.querySelectorAll('li:hover');
-      if (hoverItems.length == 0)
-        return;
+      const hoverItems = this.root.querySelectorAll("li:hover");
+      if (hoverItems.length === 0) return;
       const $lastHoverItem = hoverItems[hoverItems.length - 1];
       const item = this.$getEffectiveItem($lastHoverItem);
-      if (!item)
-        return;
-      if (item.parentNode != event.target)
-        return;
+      if (!item) return;
+      if (item.parentNode !== event.target) return;
       this.$setHover(item);
       this.focusTo(item);
     }
@@ -837,12 +846,11 @@
       event.preventDefault();
     }
 
-
     static $installStyles() {
-      this.style = document.createElement('style');
-      this.style.setAttribute('type', 'text/css');
-      const common = `.${this.$commonClass}`;
-      this.style.textContent = `
+      MenuUI.style = document.createElement("style");
+      MenuUI.style.setAttribute("type", "text/css");
+      const common = `.${MenuUI.$commonClass}`;
+      MenuUI.style.textContent = `
         ${common}.menu-ui,
         ${common}.menu-ui ul {
           background-color: var(--menu-ui-background-color);
@@ -1056,21 +1064,21 @@
           width: var(--icon-size);
         }
       `;
-      document.head.appendChild(this.style);
+      document.head.appendChild(MenuUI.style);
     }
 
     static init() {
-      MenuUI.$uniqueKey   = parseInt(Math.random() * Math.pow(2, 16));
+      MenuUI.$uniqueKey = parseInt(Math.random() * 2 ** 16);
       MenuUI.$commonClass = `menu-ui-${MenuUI.$uniqueKey}`;
 
-      MenuUI.prototype.$uniqueKey   = MenuUI.$uniqueKey;
+      MenuUI.prototype.$uniqueKey = MenuUI.$uniqueKey;
       MenuUI.prototype.$commonClass = MenuUI.$commonClass;
 
       MenuUI.$installStyles();
 
       window.MenuUI = MenuUI;
     }
-  };
+  }
 
   MenuUI.init();
 }

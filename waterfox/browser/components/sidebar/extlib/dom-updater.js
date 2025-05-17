@@ -2,7 +2,7 @@
  license: The MIT License, Copyright (c) 2020 YUKI "Piro" Hiroshi
 */
 
-import { SequenceMatcher } from './diff.js';
+import { SequenceMatcher } from "./diff.js";
 
 export const DOMUpdater = {
   /**
@@ -17,16 +17,15 @@ export const DOMUpdater = {
     if (!context) {
       topLevel = true;
       context = {
-        count:       0,
+        count: 0,
         beforeRange: before.ownerDocument.createRange(),
-        afterRange:  after.ownerDocument.createRange()
+        afterRange: after.ownerDocument.createRange(),
       };
     }
     const { beforeRange, afterRange } = context;
 
-    if (before.nodeValue !== null ||
-        after.nodeValue !== null) {
-      if (before.nodeValue != after.nodeValue) {
+    if (before.nodeValue !== null || after.nodeValue !== null) {
+      if (before.nodeValue !== after.nodeValue) {
         //console.log('node value: ', after.nodeValue);
         before.nodeValue = after.nodeValue;
         context.count++;
@@ -34,14 +33,23 @@ export const DOMUpdater = {
       return context.count;
     }
 
-    const beforeNodes = Array.from(before.childNodes, this._getDiffableNodeString);
-    const afterNodes = Array.from(after.childNodes, this._getDiffableNodeString);
-    const nodeOerations = (new SequenceMatcher(beforeNodes, afterNodes)).operations();
+    const beforeNodes = Array.from(
+      before.childNodes,
+      this._getDiffableNodeString
+    );
+    const afterNodes = Array.from(
+      after.childNodes,
+      this._getDiffableNodeString
+    );
+    const nodeOerations = new SequenceMatcher(
+      beforeNodes,
+      afterNodes
+    ).operations();
     // Update from back to front for safety!
     for (const operation of nodeOerations.reverse()) {
       const [tag, fromStart, fromEnd, toStart, toEnd] = operation;
       switch (tag) {
-        case 'equal':
+        case "equal":
           for (let i = 0, maxi = fromEnd - fromStart; i < maxi; i++) {
             this.update(
               before.childNodes[fromStart + i],
@@ -50,13 +58,13 @@ export const DOMUpdater = {
             );
           }
           break;
-        case 'delete':
+        case "delete":
           beforeRange.setStart(before, fromStart);
           beforeRange.setEnd(before, fromEnd);
           beforeRange.deleteContents();
           context.count++;
           break;
-        case 'insert':
+        case "insert":
           beforeRange.setStart(before, fromStart);
           beforeRange.setEnd(before, fromEnd);
           afterRange.setStart(after, toStart);
@@ -64,7 +72,7 @@ export const DOMUpdater = {
           beforeRange.insertNode(afterRange.cloneContents());
           context.count++;
           break;
-        case 'replace':
+        case "replace":
           beforeRange.setStart(before, fromStart);
           beforeRange.setEnd(before, fromEnd);
           beforeRange.deleteContents();
@@ -81,54 +89,65 @@ export const DOMUpdater = {
       afterRange.detach();
     }
 
-    if (before.nodeType == before.ELEMENT_NODE &&
-        after.nodeType == after.ELEMENT_NODE) {
-      const beforeAttrs = Array.from(before.attributes, attr => `${attr.name}:${attr.value}`).  sort();
-      const afterAttrs = Array.from(after.attributes, attr => `${attr.name}:${attr.value}`).  sort();
-      const attrOerations = (new SequenceMatcher(beforeAttrs, afterAttrs)).operations();
+    if (
+      before.nodeType === before.ELEMENT_NODE &&
+      after.nodeType === after.ELEMENT_NODE
+    ) {
+      const beforeAttrs = Array.from(
+        before.attributes,
+        (attr) => `${attr.name}:${attr.value}`
+      ).sort();
+      const afterAttrs = Array.from(
+        after.attributes,
+        (attr) => `${attr.name}:${attr.value}`
+      ).sort();
+      const attrOerations = new SequenceMatcher(
+        beforeAttrs,
+        afterAttrs
+      ).operations();
       for (const operation of attrOerations) {
         const [tag, fromStart, fromEnd, toStart, toEnd] = operation;
         switch (tag) {
-          case 'equal':
+          case "equal":
             break;
-          case 'delete':
+          case "delete":
             for (let i = fromStart; i < fromEnd; i++) {
-              const name = beforeAttrs[i].split(':')[0];
+              const name = beforeAttrs[i].split(":")[0];
               //console.log('delete: delete attr: ', name);
               before.removeAttribute(name);
               context.count++;
             }
             break;
-          case 'insert':
+          case "insert":
             for (let i = toStart; i < toEnd; i++) {
-              const attr = afterAttrs[i].split(':');
+              const attr = afterAttrs[i].split(":");
               const name = attr[0];
-              const value = attr.slice(1).join(':');
+              const value = attr.slice(1).join(":");
               //console.log('insert: set attr: ', name, value);
               before.setAttribute(name, value);
               context.count++;
             }
             break;
-          case 'replace':
+          case "replace": {
             const insertedAttrs = new Set();
             for (let i = toStart; i < toEnd; i++) {
-              const attr = afterAttrs[i].split(':');
+              const attr = afterAttrs[i].split(":");
               const name = attr[0];
-              const value = attr.slice(1).join(':');
+              const value = attr.slice(1).join(":");
               //console.log('replace: set attr: ', name, value);
               before.setAttribute(name, value);
               insertedAttrs.add(name);
               context.count++;
             }
             for (let i = fromStart; i < fromEnd; i++) {
-              const name = beforeAttrs[i].split(':')[0];
-              if (insertedAttrs.has(name))
-                continue;
+              const name = beforeAttrs[i].split(":")[0];
+              if (insertedAttrs.has(name)) continue;
               //console.log('replace: delete attr: ', name);
               before.removeAttribute(name);
               context.count++;
             }
             break;
+          }
         }
       }
     }
@@ -136,10 +155,8 @@ export const DOMUpdater = {
   },
 
   _getDiffableNodeString(node) {
-    if (node.nodeType == node.ELEMENT_NODE)
-      return `element:${node.tagName}#${node.id}#${node.getAttribute('anonid')}`;
-    else
-      return `node:${node.nodeType}`;
-  }
-
+    if (node.nodeType === node.ELEMENT_NODE)
+      return `element:${node.tagName}#${node.id}#${node.getAttribute("anonid")}`;
+    else return `node:${node.nodeType}`;
+  },
 };

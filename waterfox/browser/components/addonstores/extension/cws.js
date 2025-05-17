@@ -3,9 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 /* globals browser */
 
-"use-strict";
-
-function uninit() {
+function _uninit() {
   updateInstallClickHandlers(document.body, false);
   unwatchAddingInstallHandlers();
 }
@@ -26,32 +24,43 @@ let gObserver;
 init();
 
 function hideElements() {
-  const elementsToHide = Array.from(document.querySelectorAll('[aria-labelledby="promo-header"], [aria-label="info"]'));
+  const elementsToHide = Array.from(
+    document.querySelectorAll(
+      '[aria-labelledby="promo-header"], [aria-label="info"]'
+    )
+  );
 
   for (const element of elementsToHide) {
-    element.style.display = 'none';
+    element.style.display = "none";
   }
 }
 
 function replaceButtonText() {
-  const buttons = Array.from(document.querySelectorAll('button')).filter(button => button.textContent.includes('Add to Chrome'));
+  const buttons = Array.from(document.querySelectorAll("button")).filter(
+    (button) => button.textContent.includes("Add to Chrome")
+  );
 
   for (const button of buttons) {
-    button.textContent = button.textContent.replace('Add to Chrome', 'Add to Waterfox');
-    button.style.color = 'white'; // Add this line
+    button.textContent = button.textContent.replace(
+      "Add to Chrome",
+      "Add to Waterfox"
+    );
+    button.style.color = "white"; // Add this line
   }
 }
 
 function updateInstallClickHandlers(node, addHandlers) {
   if (node.nodeType === Node.ELEMENT_NODE) {
-    const buttons = Array.from(node.querySelectorAll('button')).filter(button => button.textContent.includes('Add to Chrome'));
+    const buttons = Array.from(node.querySelectorAll("button")).filter(
+      (button) => button.textContent.includes("Add to Chrome")
+    );
 
     for (const button of buttons) {
       if (addHandlers) {
-        button.removeAttribute('disabled');
+        button.removeAttribute("disabled");
         button.addEventListener("click", handleInstall, true);
       } else {
-        button.setAttribute('disabled', '');
+        button.setAttribute("disabled", "");
         button.removeEventListener("click", handleInstall, true);
       }
     }
@@ -62,7 +71,7 @@ function updateInstallClickHandlers(node, addHandlers) {
  * If return is truthy, the return value is returned.
  *
  */
-function parentNodeUntil(node, maxDepth, predicate) {
+function _parentNodeUntil(node, maxDepth, predicate) {
   let curNode = node;
   let rez;
   let depth = 0;
@@ -80,7 +89,7 @@ function handleInstall(e) {
   e.stopPropagation();
 
   // Extract the extension ID from the URL of the page
-  const urlParts = window.location.pathname.split('/');
+  const urlParts = window.location.pathname.split("/");
   const extId = urlParts[urlParts.length - 1];
 
   if (!extId) {
@@ -88,7 +97,7 @@ function handleInstall(e) {
       "Addon Stores Compatibility encountered an error. Failed to determine extension ID."
     );
   } else {
-    let downloadURL = buildDownloadURL(extId);
+    const downloadURL = buildDownloadURL(extId);
     browser.runtime.sendMessage({
       downloadURL,
     });
@@ -96,7 +105,7 @@ function handleInstall(e) {
 }
 
 function watchForAddingInstallHandlers() {
-  gObserver = new MutationObserver(mutations => {
+  gObserver = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       if (mutation.type === "childList") {
         for (const node of mutation.addedNodes) {
@@ -118,15 +127,15 @@ function unwatchAddingInstallHandlers() {
 }
 
 function buildDownloadURL(extId) {
-  let baseUrl =
+  const baseUrl =
     "https://clients2.google.com/service/update2/crx?response=redirect&prodversion=49.0&acceptformat=crx3&x=id%3D***%26installsource%3Dondemand%26uc";
   return baseUrl.replace("***", extId);
 }
 
-browser.runtime.onMessage.addListener(request => {
+browser.runtime.onMessage.addListener((_request) => {
   const ID = "waterfox-extension-test";
   if (!document.getElementById(ID)) {
-    let el = document.createElement("div");
+    const el = document.createElement("div");
     el.setAttribute("id", ID);
     document.body.appendChild(el);
   }

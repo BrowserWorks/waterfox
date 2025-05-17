@@ -62,30 +62,44 @@ tab-item:not(.collapsed) tab-sound-button:active {
 }
 
 tab-item:not(.collapsed).sound-playing tab-sound-button,
-tab-item:not(.collapsed).has-sound-playing-member.subtree-collapsed[data-child-ids]
+tab-item:not(
+    .collapsed
+  ).has-sound-playing-member.subtree-collapsed[data-child-ids]
   tab-sound-button,
 tab-item:not(.collapsed).muted tab-sound-button,
 tab-item:not(.collapsed).has-muted-member.subtree-collapsed[data-child-ids]
   tab-sound-button,
 tab-item:not(.collapsed).autoplay-blocked tab-sound-button,
-tab-item:not(.collapsed).has-autoplay-blocked-member.subtree-collapsed[data-child-ids]
+tab-item:not(
+    .collapsed
+  ).has-autoplay-blocked-member.subtree-collapsed[data-child-ids]
   tab-sound-button {
   display: inline-block;
 }
 
 tab-item:not(.collapsed).muted.faviconized tab-sound-button::before,
 tab-item:not(.collapsed).muted tab-sound-button::after,
-tab-item:not(.collapsed).has-muted-member.subtree-collapsed[data-child-ids].faviconized
+tab-item:not(
+    .collapsed
+  ).has-muted-member.subtree-collapsed[data-child-ids].faviconized
   tab-sound-button::before,
 tab-item:not(.collapsed).has-muted-member.subtree-collapsed[data-child-ids]
   tab-sound-button::after {
   background-image: url("./icons/audio-16-mute.svg");
 }
-:root.simulate-svg-context-fill tab-item:not(.collapsed).muted.faviconized tab-sound-button::before,
-:root.simulate-svg-context-fill tab-item:not(.collapsed).muted tab-sound-button::after,
-:root.simulate-svg-context-fill tab-item:not(.collapsed).has-muted-member.subtree-collapsed[data-child-ids].faviconized
+:root.simulate-svg-context-fill
+  tab-item:not(.collapsed).muted.faviconized
   tab-sound-button::before,
-:root.simulate-svg-context-fill tab-item:not(.collapsed).has-muted-member.subtree-collapsed[data-child-ids]
+:root.simulate-svg-context-fill
+  tab-item:not(.collapsed).muted
+  tab-sound-button::after,
+:root.simulate-svg-context-fill
+  tab-item:not(
+    .collapsed
+  ).has-muted-member.subtree-collapsed[data-child-ids].faviconized
+  tab-sound-button::before,
+:root.simulate-svg-context-fill
+  tab-item:not(.collapsed).has-muted-member.subtree-collapsed[data-child-ids]
   tab-sound-button::after {
   background-image: none;
   mask-image: url("./icons/audio-16-mute.svg");
@@ -93,17 +107,31 @@ tab-item:not(.collapsed).has-muted-member.subtree-collapsed[data-child-ids]
 
 tab-item:not(.collapsed).autoplay-blocked.faviconized tab-sound-button::before,
 tab-item:not(.collapsed).autoplay-blocked tab-sound-button::after,
-tab-item:not(.collapsed).has-autoplay-blocked-member.subtree-collapsed[data-child-ids].faviconized
+tab-item:not(
+    .collapsed
+  ).has-autoplay-blocked-member.subtree-collapsed[data-child-ids].faviconized
   tab-sound-button::before,
-tab-item:not(.collapsed).has-autoplay-blocked-member.subtree-collapsed[data-child-ids]
+tab-item:not(
+    .collapsed
+  ).has-autoplay-blocked-member.subtree-collapsed[data-child-ids]
   tab-sound-button::after {
   background-image: url("./icons/audio-16-blocked.svg");
 }
-:root.simulate-svg-context-fill tab-item:not(.collapsed).autoplay-blocked.faviconized tab-sound-button::before,
-:root.simulate-svg-context-fill tab-item:not(.collapsed).autoplay-blocked tab-sound-button::after,
-:root.simulate-svg-context-fill tab-item:not(.collapsed).has-autoplay-blocked-member.subtree-collapsed[data-child-ids].faviconized
+:root.simulate-svg-context-fill
+  tab-item:not(.collapsed).autoplay-blocked.faviconized
   tab-sound-button::before,
-:root.simulate-svg-context-fill tab-item:not(.collapsed).has-autoplay-blocked-member.subtree-collapsed[data-child-ids]
+:root.simulate-svg-context-fill
+  tab-item:not(.collapsed).autoplay-blocked
+  tab-sound-button::after,
+:root.simulate-svg-context-fill
+  tab-item:not(
+    .collapsed
+  ).has-autoplay-blocked-member.subtree-collapsed[data-child-ids].faviconized
+  tab-sound-button::before,
+:root.simulate-svg-context-fill
+  tab-item:not(
+    .collapsed
+  ).has-autoplay-blocked-member.subtree-collapsed[data-child-ids]
   tab-sound-button::after {
   background-image: none;
   mask-image: url("./icons/audio-16-blocked.svg");
@@ -112,19 +140,34 @@ tab-item:not(.collapsed).has-autoplay-blocked-member.subtree-collapsed[data-chil
 /* put style definition for sound-playing tab after muted tab,
    because "sound-playing" is more important than muted for
    mixed state tree. */
-tab-item:not(.collapsed).sound-playing:not(.muted).faviconized tab-sound-button::before,
+tab-item:not(.collapsed).sound-playing:not(.muted).faviconized
+tab-sound-button::before,
 tab-item:not(.collapsed).sound-playing:not(.muted) tab-sound-button::after,
-tab-item:not(.collapsed).has-sound-playing-member.subtree-collapsed[data-child-ids].faviconized
+tab-item:not(
+    .collapsed
+  ).has-sound-playing-member.subtree-collapsed[data-child-ids].faviconized
   tab-sound-button::before,
-tab-item:not(.collapsed).has-sound-playing-member.subtree-collapsed[data-child-ids]
+tab-item:not(
+    .collapsed
+  ).has-sound-playing-member.subtree-collapsed[data-child-ids]
   tab-sound-button::after {
   background-image: url("./icons/audio-16.svg");
 }
-:root.simulate-svg-context-fill tab-item:not(.collapsed).sound-playing:not(.muted).faviconized tab-sound-button::before,
-:root.simulate-svg-context-fill tab-item:not(.collapsed).sound-playing:not(.muted) tab-sound-button::after,
-:root.simulate-svg-context-fill tab-item:not(.collapsed).has-sound-playing-member.subtree-collapsed[data-child-ids].faviconized
+:root.simulate-svg-context-fill
+  tab-item:not(.collapsed).sound-playing:not(.muted).faviconized
   tab-sound-button::before,
-:root.simulate-svg-context-fill tab-item:not(.collapsed).has-sound-playing-member.subtree-collapsed[data-child-ids]
+:root.simulate-svg-context-fill
+  tab-item:not(.collapsed).sound-playing:not(.muted)
+  tab-sound-button::after,
+:root.simulate-svg-context-fill
+  tab-item:not(
+    .collapsed
+  ).has-sound-playing-member.subtree-collapsed[data-child-ids].faviconized
+  tab-sound-button::before,
+:root.simulate-svg-context-fill
+  tab-item:not(
+    .collapsed
+  ).has-sound-playing-member.subtree-collapsed[data-child-ids]
   tab-sound-button::after {
   background-image: none;
   mask-image: url("./icons/audio-16.svg");

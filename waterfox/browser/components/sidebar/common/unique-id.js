@@ -1,22 +1,11 @@
-/*
-# This Source Code Form is subject to the terms of the Mozilla Public
-# License, v. 2.0. If a copy of the MPL was not distributed with this
-# file, You can obtain one at http://mozilla.org/MPL/2.0/.
-*/
-'use strict';
-
-import {
-  log as internalLogger,
-  configs,
-  wait,
-} from './common.js';
-import * as ApiTabs from './api-tabs.js';
-import * as Constants from './constants.js';
-import * as TabsStore from './tabs-store.js';
+import * as ApiTabs from "./api-tabs.js";
+import { configs, log as internalLogger, wait } from "./common.js";
+import * as Constants from "./constants.js";
+import * as TabsStore from "./tabs-store.js";
 
 // eslint-disable-next-line no-unused-vars
-function log(...args) {
-  internalLogger('common/unique-id', ...args);
+function _log(...args) {
+  internalLogger("common/unique-id", ...args);
 }
 
 //===================================================================
@@ -51,7 +40,10 @@ Warty
 Xenial
 Yakkety
 Zesty
-`.toLowerCase().trim().split(/\s+/);
+`
+  .toLowerCase()
+  .trim()
+  .split(/\s+/);
 
 const kID_NOUNS = `
 Alpaca
@@ -80,7 +72,10 @@ Werwolf
 Xerus
 Yak
 Zapus
-`.toLowerCase().trim().split(/\s+/);
+`
+  .toLowerCase()
+  .trim()
+  .split(/\s+/);
 
 let mReadyToDetectDuplicatedTab = false;
 
@@ -89,63 +84,70 @@ export function readyToDetectDuplicatedTab() {
 }
 
 export async function request(tabOrId, options = {}) {
-  if (typeof options != 'object')
-    options = {};
+  if (typeof options !== "object") options = {};
 
   let tab = tabOrId;
-  if (typeof tabOrId == 'number')
-    tab = TabsStore.tabs.get(tabOrId);
+  if (typeof tabOrId === "number") tab = TabsStore.tabs.get(tabOrId);
 
   if (TabsStore.getCurrentWindowId()) {
-    return browser.runtime.sendMessage({
-      type:  Constants.kCOMMAND_REQUEST_UNIQUE_ID,
-      tabId: tab.id
-    }).catch(ApiTabs.createErrorHandler());
+    return browser.runtime
+      .sendMessage({
+        type: Constants.kCOMMAND_REQUEST_UNIQUE_ID,
+        tabId: tab.id,
+      })
+      .catch(ApiTabs.createErrorHandler());
   }
 
-  let originalId    = null;
+  let originalId = null;
   let originalTabId = null;
-  let duplicated    = false;
+  let duplicated = false;
   if (!options.forceNew) {
     // https://github.com/piroor/treestyletab/issues/2845
     // This delay may break initial restoration of tabs, so we should
     // ignore it until all restoration processes are finished.
-    if (mReadyToDetectDuplicatedTab &&
-        configs.delayForDuplicatedTabDetection > 0)
+    if (
+      mReadyToDetectDuplicatedTab &&
+      configs.delayForDuplicatedTabDetection > 0
+    )
       await wait(configs.delayForDuplicatedTabDetection);
 
-    let oldId = await browser.sessions.getTabValue(tab.id, Constants.kPERSISTENT_ID).catch(ApiTabs.createErrorHandler());
-    if (oldId && !oldId.tabId) // ignore broken information!
+    let oldId = await browser.sessions
+      .getTabValue(tab.id, Constants.kPERSISTENT_ID)
+      .catch(ApiTabs.createErrorHandler());
+    if (oldId && !oldId.tabId)
+      // ignore broken information!
       oldId = null;
 
     if (oldId) {
       // If the tab detected from stored tabId is different, it is duplicated tab.
       try {
         const tabWithOldId = TabsStore.tabs.get(oldId.tabId);
-        if (!tabWithOldId)
-          throw new Error(`Invalid tab ID: ${oldId.tabId}`);
-        originalId = (tabWithOldId.$TST.uniqueId || await tabWithOldId.$TST.promisedUniqueId).id;
-        duplicated = tab && tabWithOldId.id != tab.id && originalId == oldId.id;
-        if (duplicated)
-          originalTabId = oldId.tabId;
-        else
-          throw new Error(`Invalid tab ID: ${oldId.tabId}`);
-      }
-      catch(e) {
+        if (!tabWithOldId) throw new Error(`Invalid tab ID: ${oldId.tabId}`);
+        originalId = (
+          tabWithOldId.$TST.uniqueId ||
+          (await tabWithOldId.$TST.promisedUniqueId)
+        ).id;
+        duplicated =
+          tab && tabWithOldId.id !== tab.id && originalId === oldId.id;
+        if (duplicated) originalTabId = oldId.tabId;
+        else throw new Error(`Invalid tab ID: ${oldId.tabId}`);
+      } catch (e) {
         ApiTabs.handleMissingTabError(e);
         // It fails if the tab doesn't exist.
         // There is no live tab for the tabId, thus
         // this seems to be a tab restored from session.
         // We need to update the related tab id.
-        browser.sessions.setTabValue(tab.id, Constants.kPERSISTENT_ID, {
-          id:    oldId.id,
-          tabId: tab.id
-        }).catch(ApiTabs.createErrorSuppressor());
+        browser.sessions
+          .setTabValue(tab.id, Constants.kPERSISTENT_ID, {
+            id: oldId.id,
+            tabId: tab.id,
+          })
+          .catch(ApiTabs.createErrorSuppressor());
         return {
-          id:            oldId.id,
-          originalId:    null,
+          id: oldId.id,
+          originalId: null,
           originalTabId: oldId.tabId,
-          restored:      true
+          restored: true,
         };
       }
     }
@@ -153,29 +155,39 @@ export async function request(tabOrId, options = {}) {
 
   const id = `tab-${generate()}`;
   // tabId is for detecttion of duplicated tabs
-  await browser.sessions.setTabValue(tab.id, Constants.kPERSISTENT_ID, { id, tabId: tab.id }).catch(ApiTabs.createErrorSuppressor());
+  await browser.sessions
+    .setTabValue(tab.id, Constants.kPERSISTENT_ID, { id, tabId: tab.id })
+    .catch(ApiTabs.createErrorSuppressor());
   return { id, originalId, originalTabId, duplicated };
 }
 
 function generate() {
-  const adjective   = kID_ADJECTIVES[Math.floor(Math.random() * kID_ADJECTIVES.length)];
-  const noun        = kID_NOUNS[Math.floor(Math.random() * kID_NOUNS.length)];
+  const adjective =
+    kID_ADJECTIVES[Math.floor(Math.random() * kID_ADJECTIVES.length)];
+  const noun = kID_NOUNS[Math.floor(Math.random() * kID_NOUNS.length)];
   const randomValue = Math.floor(Math.random() * 1000);
   return `${adjective}-${noun}-${Date.now()}-${randomValue}`;
 }
 
 export async function getFromTabs(tabs) {
-  return Promise.all(tabs.map(tab =>
-    browser.sessions.getTabValue(tab.id, Constants.kPERSISTENT_ID).catch(ApiTabs.createErrorHandler())
-  ));
+  return Promise.all(
+    tabs.map((tab) =>
+      browser.sessions
+        .getTabValue(tab.id, Constants.kPERSISTENT_ID)
+        .catch(ApiTabs.createErrorHandler())
+    )
+  );
 }
 
 export async function ensureWindowId(windowId) {
-  const storedUniqueId = await browser.sessions.getWindowValue(windowId, 'uniqueId').catch(_ => null);
-  if (storedUniqueId)
-    return storedUniqueId;
+  const storedUniqueId = await browser.sessions
+    .getWindowValue(windowId, "uniqueId")
+    .catch((_) => null);
+  if (storedUniqueId) return storedUniqueId;
 
   const uniqueId = `window-${generate()}`;
-  await browser.sessions.setWindowValue(windowId, 'uniqueId', uniqueId).catch(_ => null);
+  await browser.sessions
+    .setWindowValue(windowId, "uniqueId", uniqueId)
+    .catch((_) => null);
   return uniqueId;
 }

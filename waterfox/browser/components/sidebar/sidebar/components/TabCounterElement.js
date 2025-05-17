@@ -4,14 +4,12 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
-import {
-  configs
-} from '/common/common.js';
-import * as Constants from '/common/constants.js';
+import { configs } from "/common/common.js";
+import * as Constants from "/common/constants.js";
 
-export const kTAB_COUNTER_ELEMENT_NAME = 'tab-counter';
+export const kTAB_COUNTER_ELEMENT_NAME = "tab-counter";
 
-const kTAB_COUNTER_CLASS_NAME = 'counter';
+const kTAB_COUNTER_CLASS_NAME = "counter";
 
 export class TabCounterElement extends HTMLElement {
   static define() {
@@ -48,13 +46,11 @@ export class TabCounterElement extends HTMLElement {
 
   update() {
     const tab = this.owner;
-    if (!tab || !tab.$TST)
-      return;
+    if (!tab || !tab.$TST) return;
 
     const descendants = tab.$TST.descendants;
     let count = descendants.length;
-    if (configs.counterRole == Constants.kCOUNTER_ROLE_ALL_TABS)
-      count += 1;
+    if (configs.counterRole === Constants.kCOUNTER_ROLE_ALL_TABS) count += 1;
     this.textContent = count;
   }
 }

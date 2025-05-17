@@ -1,56 +1,21 @@
-/* ***** BEGIN LICENSE BLOCK *****
- * Version: MPL 1.1
- *
- * The contents of this file are subject to the Mozilla Public License Version
- * 1.1 (the "License"); you may not use this file except in compliance with
- * the License. You may obtain a copy of the License at
- * http://www.mozilla.org/MPL/
- *
- * Software distributed under the License is distributed on an "AS IS" basis,
- * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
- * for the specific language governing rights and limitations under the
- * License.
- *
- * The Original Code is the Tree Style Tab.
- *
- * The Initial Developer of the Original Code is YUKI "Piro" Hiroshi.
- * Portions created by the Initial Developer are Copyright (C) 2011-2024
- * the Initial Developer. All Rights Reserved.
- *
- * Contributor(s): YUKI "Piro" Hiroshi <piro.outsider.reflex@gmail.com>
- *                 wanabe <https://github.com/wanabe>
- *                 Tetsuharu OHZEKI <https://github.com/saneyuki>
- *                 Xidorn Quan <https://github.com/upsuper> (Firefox 40+ support)
- *                 lv7777 (https://github.com/lv7777)
- *
- * ***** END LICENSE BLOCK ******/
-'use strict';
-
-import EventListenerManager from '/extlib/EventListenerManager.js';
-
+import * as ApiTabs from "/common/api-tabs.js";
+import EventListenerManager from "/extlib/EventListenerManager.js";
+import { configs, log as internalLogger, isLinux, wait } from "./common.js";
+import * as Constants from "./constants.js";
+import * as SidebarConnection from "./sidebar-connection.js";
 import {
-  log as internalLogger,
-  wait,
-  configs,
-  isLinux,
-} from './common.js';
-import * as ApiTabs from '/common/api-tabs.js';
-import * as Constants from './constants.js';
-import * as SidebarConnection from './sidebar-connection.js';
-import * as TabsStore from './tabs-store.js';
-
-import {
-  default as Tab,
   kPERMISSION_INCOGNITO,
   kPERMISSIONS_ALL,
-} from './Tab.js';
+  default as Tab,
+} from "./Tab.js";
+import * as TabsStore from "./tabs-store.js";
 
 function log(...args) {
-  internalLogger('common/tst-api', ...args);
+  internalLogger("common/tst-api", ...args);
 }
 
 export const onInitialized = new EventListenerManager();
-export const onRegistered   = new EventListenerManager();
+export const onRegistered = new EventListenerManager();
 export const onUnregistered = new EventListenerManager();
 export const onMessageExternal = {
   $listeners: new Set(),
@@ -61,134 +26,156 @@ export const onMessageExternal = {
     this.$listeners.delete(listener);
   },
   dispatch(...args) {
-    return Array.from(this.$listeners, listener => listener(...args));
-  }
+    return Array.from(this.$listeners, (listener) => listener(...args));
+  },
 };
 
-export const kREGISTER_SELF         = 'register-self';
-export const kUNREGISTER_SELF       = 'unregister-self';
-export const kGET_VERSION           = 'get-version';
-export const kWAIT_FOR_SHUTDOWN     = 'wait-for-shutdown';
-export const kPING                  = 'ping';
-export const kNOTIFY_READY          = 'ready';
-export const kNOTIFY_SHUTDOWN       = 'shutdown'; // defined but not notified for now.
-export const kNOTIFY_SIDEBAR_SHOW   = 'sidebar-show';
-export const kNOTIFY_SIDEBAR_HIDE   = 'sidebar-hide';
-export const kNOTIFY_TABS_RENDERED  = 'tabs-rendered';
-export const kNOTIFY_TABS_UNRENDERED = 'tabs-unrendered';
-export const kNOTIFY_TAB_STICKY_STATE_CHANGED = 'tab-sticky-state-changed';
-export const kNOTIFY_TAB_CLICKED    = 'tab-clicked'; // for backward compatibility
-export const kNOTIFY_TAB_DBLCLICKED = 'tab-dblclicked';
-export const kNOTIFY_TAB_MOUSEDOWN  = 'tab-mousedown';
-export const kNOTIFY_TAB_MOUSEUP    = 'tab-mouseup';
-export const kNOTIFY_TABBAR_CLICKED = 'tabbar-clicked'; // for backward compatibility
-export const kNOTIFY_TABBAR_MOUSEDOWN = 'tabbar-mousedown';
-export const kNOTIFY_TABBAR_MOUSEUP = 'tabbar-mouseup';
-export const kNOTIFY_EXTRA_CONTENTS_CLICKED      = 'extra-contents-clicked';
-export const kNOTIFY_EXTRA_CONTENTS_DBLCLICKED   = 'extra-contents-dblclicked';
-export const kNOTIFY_EXTRA_CONTENTS_MOUSEDOWN    = 'extra-contents-mousedown';
-export const kNOTIFY_EXTRA_CONTENTS_MOUSEUP      = 'extra-contents-mouseup';
-export const kNOTIFY_EXTRA_CONTENTS_KEYDOWN      = 'extra-contents-keydown';
-export const kNOTIFY_EXTRA_CONTENTS_KEYUP        = 'extra-contents-keyup';
-export const kNOTIFY_EXTRA_CONTENTS_INPUT        = 'extra-contents-input';
-export const kNOTIFY_EXTRA_CONTENTS_CHANGE       = 'extra-contents-change';
-export const kNOTIFY_EXTRA_CONTENTS_COMPOSITIONSTART  = 'extra-contents-compositionstart';
-export const kNOTIFY_EXTRA_CONTENTS_COMPOSITIONUPDATE = 'extra-contents-compositionupdate';
-export const kNOTIFY_EXTRA_CONTENTS_COMPOSITIONEND    = 'extra-contents-compositionend';
-export const kNOTIFY_EXTRA_CONTENTS_FOCUS        = 'extra-contents-focus';
-export const kNOTIFY_EXTRA_CONTENTS_BLUR         = 'extra-contents-blur';
-export const kNOTIFY_TABBAR_OVERFLOW  = 'tabbar-overflow';
-export const kNOTIFY_TABBAR_UNDERFLOW = 'tabbar-underflow';
-export const kNOTIFY_NEW_TAB_BUTTON_CLICKED   = 'new-tab-button-clicked';
-export const kNOTIFY_NEW_TAB_BUTTON_MOUSEDOWN = 'new-tab-button-mousedown';
-export const kNOTIFY_NEW_TAB_BUTTON_MOUSEUP   = 'new-tab-button-mouseup';
-export const kNOTIFY_TAB_MOUSEMOVE  = 'tab-mousemove';
-export const kNOTIFY_TAB_MOUSEOVER  = 'tab-mouseover';
-export const kNOTIFY_TAB_MOUSEOUT   = 'tab-mouseout';
-export const kNOTIFY_TAB_DRAGREADY  = 'tab-dragready';
-export const kNOTIFY_TAB_DRAGCANCEL = 'tab-dragcancel';
-export const kNOTIFY_TAB_DRAGSTART  = 'tab-dragstart';
-export const kNOTIFY_TAB_DRAGENTER  = 'tab-dragenter';
-export const kNOTIFY_TAB_DRAGEXIT   = 'tab-dragexit';
-export const kNOTIFY_TAB_DRAGEND    = 'tab-dragend';
-export const kNOTIFY_TREE_ATTACHED  = 'tree-attached';
-export const kNOTIFY_TREE_DETACHED  = 'tree-detached';
-export const kNOTIFY_TREE_COLLAPSED_STATE_CHANGED = 'tree-collapsed-state-changed';
-export const kNOTIFY_NATIVE_TAB_DRAGSTART = 'native-tab-dragstart';
-export const kNOTIFY_NATIVE_TAB_DRAGEND   = 'native-tab-dragend';
-export const kNOTIFY_PERMISSIONS_CHANGED = 'permissions-changed';
-export const kNOTIFY_NEW_TAB_PROCESSED = 'new-tab-processed';
-export const kSTART_CUSTOM_DRAG     = 'start-custom-drag';
-export const kNOTIFY_TRY_MOVE_FOCUS_FROM_COLLAPSING_TREE = 'try-move-focus-from-collapsing-tree';
-export const kNOTIFY_TRY_REDIRECT_FOCUS_FROM_COLLAPSED_TAB = 'try-redirect-focus-from-collaped-tab';
-export const kNOTIFY_TRY_EXPAND_TREE_FROM_FOCUSED_PARENT = 'try-expand-tree-from-focused-parent';
-export const kNOTIFY_TRY_EXPAND_TREE_FROM_FOCUSED_BUNDLED_PARENT = 'try-expand-tree-from-focused-bundled-parent';
-export const kNOTIFY_TRY_EXPAND_TREE_FROM_ATTACHED_CHILD = 'try-expand-tree-from-attached-child';
-export const kNOTIFY_TRY_EXPAND_TREE_FROM_FOCUSED_COLLAPSED_TAB = 'try-expand-tree-from-focused-collapsed-tab';
-export const kNOTIFY_TRY_EXPAND_TREE_FROM_LONG_PRESS_CTRL_KEY = 'try-expand-tree-from-long-press-ctrl-key';
-export const kNOTIFY_TRY_EXPAND_TREE_FROM_END_TAB_SWITCH = 'try-expand-tree-from-end-tab-switch';
-export const kNOTIFY_TRY_EXPAND_TREE_FROM_EXPAND_COMMAND = 'try-expand-tree-from-expand-command';
-export const kNOTIFY_TRY_EXPAND_TREE_FROM_EXPAND_ALL_COMMAND = 'try-expand-tree-from-expand-all-command';
-export const kNOTIFY_TRY_COLLAPSE_TREE_FROM_OTHER_EXPANSION = 'try-collapse-tree-from-other-expansion';
-export const kNOTIFY_TRY_COLLAPSE_TREE_FROM_COLLAPSE_COMMAND = 'try-collapse-tree-from-collapse-command';
-export const kNOTIFY_TRY_COLLAPSE_TREE_FROM_COLLAPSE_ALL_COMMAND = 'try-collapse-tree-from-collapse-all-command';
-export const kNOTIFY_TRY_FIXUP_TREE_ON_TAB_MOVED = 'try-fixup-tree-on-tab-moved';
-export const kNOTIFY_TRY_HANDLE_NEWTAB = 'try-handle-newtab';
-export const kNOTIFY_TRY_SCROLL_TO_ACTIVATED_TAB = 'try-scroll-to-activated-tab';
-export const kGET_TREE              = 'get-tree';
-export const kGET_LIGHT_TREE        = 'get-light-tree';
-export const kATTACH                = 'attach';
-export const kDETACH                = 'detach';
-export const kINDENT                = 'indent';
-export const kDEMOTE                = 'demote';
-export const kOUTDENT               = 'outdent';
-export const kPROMOTE               = 'promote';
-export const kMOVE_UP               = 'move-up';
-export const kMOVE_TO_START         = 'move-to-start';
-export const kMOVE_DOWN             = 'move-down';
-export const kMOVE_TO_END           = 'move-to-end';
-export const kMOVE_BEFORE           = 'move-before';
-export const kMOVE_AFTER            = 'move-after';
-export const kFOCUS                 = 'focus';
-export const kCREATE                = 'create';
-export const kDUPLICATE             = 'duplicate';
-export const kGROUP_TABS            = 'group-tabs';
-export const kOPEN_IN_NEW_WINDOW    = 'open-in-new-window';
-export const kREOPEN_IN_CONTAINER   = 'reopen-in-container';
-export const kGET_TREE_STRUCTURE    = 'get-tree-structure';
-export const kSET_TREE_STRUCTURE    = 'set-tree-structure';
-export const kSTICK_TAB             = 'stick-tab';
-export const kUNSTICK_TAB           = 'unstick-tab';
-export const kTOGGLE_STICKY_STATE   = 'toggle-sticky-state';
-export const kREGISTER_AUTO_STICKY_STATES   = 'register-auto-sticky-states';
-export const kUNREGISTER_AUTO_STICKY_STATES = 'unregister-auto-sticky-states';
-export const kCOLLAPSE_TREE         = 'collapse-tree';
-export const kEXPAND_TREE           = 'expand-tree';
-export const kTOGGLE_TREE_COLLAPSED = 'toggle-tree-collapsed';
-export const kADD_TAB_STATE         = 'add-tab-state';
-export const kREMOVE_TAB_STATE      = 'remove-tab-state';
-export const kSCROLL                = 'scroll';
-export const kSTOP_SCROLL           = 'stop-scroll';
-export const kSCROLL_LOCK           = 'scroll-lock';
-export const kSCROLL_UNLOCK         = 'scroll-unlock';
-export const kNOTIFY_SCROLLED       = 'scrolled';
-export const kBLOCK_GROUPING        = 'block-grouping';
-export const kUNBLOCK_GROUPING      = 'unblock-grouping';
-export const kSET_TOOLTIP_TEXT      = 'set-tooltip-text';
-export const kCLEAR_TOOLTIP_TEXT    = 'clear-tooltip-text';
-export const kGRANT_TO_REMOVE_TABS  = 'grant-to-remove-tabs';
-export const kOPEN_ALL_BOOKMARKS_WITH_STRUCTURE = 'open-all-bookmarks-with-structure';
-export const kSET_EXTRA_CONTENTS                  = 'set-extra-contents';
-export const kCLEAR_EXTRA_CONTENTS                = 'clear-extra-contents';
-export const kCLEAR_ALL_EXTRA_CONTENTS            = 'clear-all-extra-contents';
-export const kSET_EXTRA_TAB_CONTENTS              = 'set-extra-tab-contents'; // for backward compatibility
-export const kCLEAR_EXTRA_TAB_CONTENTS            = 'clear-extra-tab-contents'; // for backward compatibility
-export const kCLEAR_ALL_EXTRA_TAB_CONTENTS        = 'clear-all-extra-tab-contents'; // for backward compatibility
-export const kSET_EXTRA_NEW_TAB_BUTTON_CONTENTS   = 'set-extra-new-tab-button-contents'; // for backward compatibility
-export const kCLEAR_EXTRA_NEW_TAB_BUTTON_CONTENTS = 'clear-extra-new-tab-button-contents'; // for backward compatibility
-export const kSET_EXTRA_CONTENTS_PROPERTIES       = 'set-extra-contents-properties';
-export const kFOCUS_TO_EXTRA_CONTENTS             = 'focus-to-extra-contents';
-export const kGET_DRAG_DATA         = 'get-drag-data';
+export const kREGISTER_SELF = "register-self";
+export const kUNREGISTER_SELF = "unregister-self";
+export const kGET_VERSION = "get-version";
+export const kWAIT_FOR_SHUTDOWN = "wait-for-shutdown";
+export const kPING = "ping";
+export const kNOTIFY_READY = "ready";
+export const kNOTIFY_SHUTDOWN = "shutdown"; // defined but not notified for now.
+export const kNOTIFY_SIDEBAR_SHOW = "sidebar-show";
+export const kNOTIFY_SIDEBAR_HIDE = "sidebar-hide";
+export const kNOTIFY_TABS_RENDERED = "tabs-rendered";
+export const kNOTIFY_TABS_UNRENDERED = "tabs-unrendered";
+export const kNOTIFY_TAB_STICKY_STATE_CHANGED = "tab-sticky-state-changed";
+export const kNOTIFY_TAB_CLICKED = "tab-clicked"; // for backward compatibility
+export const kNOTIFY_TAB_DBLCLICKED = "tab-dblclicked";
+export const kNOTIFY_TAB_MOUSEDOWN = "tab-mousedown";
+export const kNOTIFY_TAB_MOUSEUP = "tab-mouseup";
+export const kNOTIFY_TABBAR_CLICKED = "tabbar-clicked"; // for backward compatibility
+export const kNOTIFY_TABBAR_MOUSEDOWN = "tabbar-mousedown";
+export const kNOTIFY_TABBAR_MOUSEUP = "tabbar-mouseup";
+export const kNOTIFY_EXTRA_CONTENTS_CLICKED = "extra-contents-clicked";
+export const kNOTIFY_EXTRA_CONTENTS_DBLCLICKED = "extra-contents-dblclicked";
+export const kNOTIFY_EXTRA_CONTENTS_MOUSEDOWN = "extra-contents-mousedown";
+export const kNOTIFY_EXTRA_CONTENTS_MOUSEUP = "extra-contents-mouseup";
+export const kNOTIFY_EXTRA_CONTENTS_KEYDOWN = "extra-contents-keydown";
+export const kNOTIFY_EXTRA_CONTENTS_KEYUP = "extra-contents-keyup";
+export const kNOTIFY_EXTRA_CONTENTS_INPUT = "extra-contents-input";
+export const kNOTIFY_EXTRA_CONTENTS_CHANGE = "extra-contents-change";
+export const kNOTIFY_EXTRA_CONTENTS_COMPOSITIONSTART =
+  "extra-contents-compositionstart";
+export const kNOTIFY_EXTRA_CONTENTS_COMPOSITIONUPDATE =
+  "extra-contents-compositionupdate";
+export const kNOTIFY_EXTRA_CONTENTS_COMPOSITIONEND =
+  "extra-contents-compositionend";
+export const kNOTIFY_EXTRA_CONTENTS_FOCUS = "extra-contents-focus";
+export const kNOTIFY_EXTRA_CONTENTS_BLUR = "extra-contents-blur";
+export const kNOTIFY_TABBAR_OVERFLOW = "tabbar-overflow";
+export const kNOTIFY_TABBAR_UNDERFLOW = "tabbar-underflow";
+export const kNOTIFY_NEW_TAB_BUTTON_CLICKED = "new-tab-button-clicked";
+export const kNOTIFY_NEW_TAB_BUTTON_MOUSEDOWN = "new-tab-button-mousedown";
+export const kNOTIFY_NEW_TAB_BUTTON_MOUSEUP = "new-tab-button-mouseup";
+export const kNOTIFY_TAB_MOUSEMOVE = "tab-mousemove";
+export const kNOTIFY_TAB_MOUSEOVER = "tab-mouseover";
+export const kNOTIFY_TAB_MOUSEOUT = "tab-mouseout";
+export const kNOTIFY_TAB_DRAGREADY = "tab-dragready";
+export const kNOTIFY_TAB_DRAGCANCEL = "tab-dragcancel";
+export const kNOTIFY_TAB_DRAGSTART = "tab-dragstart";
+export const kNOTIFY_TAB_DRAGENTER = "tab-dragenter";
+export const kNOTIFY_TAB_DRAGEXIT = "tab-dragexit";
+export const kNOTIFY_TAB_DRAGEND = "tab-dragend";
+export const kNOTIFY_TREE_ATTACHED = "tree-attached";
+export const kNOTIFY_TREE_DETACHED = "tree-detached";
+export const kNOTIFY_TREE_COLLAPSED_STATE_CHANGED =
+  "tree-collapsed-state-changed";
+export const kNOTIFY_NATIVE_TAB_DRAGSTART = "native-tab-dragstart";
+export const kNOTIFY_NATIVE_TAB_DRAGEND = "native-tab-dragend";
+export const kNOTIFY_PERMISSIONS_CHANGED = "permissions-changed";
+export const kNOTIFY_NEW_TAB_PROCESSED = "new-tab-processed";
+export const kSTART_CUSTOM_DRAG = "start-custom-drag";
+export const kNOTIFY_TRY_MOVE_FOCUS_FROM_COLLAPSING_TREE =
+  "try-move-focus-from-collapsing-tree";
+export const kNOTIFY_TRY_REDIRECT_FOCUS_FROM_COLLAPSED_TAB =
+  "try-redirect-focus-from-collaped-tab";
+export const kNOTIFY_TRY_EXPAND_TREE_FROM_FOCUSED_PARENT =
+  "try-expand-tree-from-focused-parent";
+export const kNOTIFY_TRY_EXPAND_TREE_FROM_FOCUSED_BUNDLED_PARENT =
+  "try-expand-tree-from-focused-bundled-parent";
+export const kNOTIFY_TRY_EXPAND_TREE_FROM_ATTACHED_CHILD =
+  "try-expand-tree-from-attached-child";
+export const kNOTIFY_TRY_EXPAND_TREE_FROM_FOCUSED_COLLAPSED_TAB =
+  "try-expand-tree-from-focused-collapsed-tab";
+export const kNOTIFY_TRY_EXPAND_TREE_FROM_LONG_PRESS_CTRL_KEY =
+  "try-expand-tree-from-long-press-ctrl-key";
+export const kNOTIFY_TRY_EXPAND_TREE_FROM_END_TAB_SWITCH =
+  "try-expand-tree-from-end-tab-switch";
+export const kNOTIFY_TRY_EXPAND_TREE_FROM_EXPAND_COMMAND =
+  "try-expand-tree-from-expand-command";
+export const kNOTIFY_TRY_EXPAND_TREE_FROM_EXPAND_ALL_COMMAND =
+  "try-expand-tree-from-expand-all-command";
+export const kNOTIFY_TRY_COLLAPSE_TREE_FROM_OTHER_EXPANSION =
+  "try-collapse-tree-from-other-expansion";
+export const kNOTIFY_TRY_COLLAPSE_TREE_FROM_COLLAPSE_COMMAND =
+  "try-collapse-tree-from-collapse-command";
+export const kNOTIFY_TRY_COLLAPSE_TREE_FROM_COLLAPSE_ALL_COMMAND =
+  "try-collapse-tree-from-collapse-all-command";
+export const kNOTIFY_TRY_FIXUP_TREE_ON_TAB_MOVED =
+  "try-fixup-tree-on-tab-moved";
+export const kNOTIFY_TRY_HANDLE_NEWTAB = "try-handle-newtab";
+export const kNOTIFY_TRY_SCROLL_TO_ACTIVATED_TAB =
+  "try-scroll-to-activated-tab";
+export const kGET_TREE = "get-tree";
+export const kGET_LIGHT_TREE = "get-light-tree";
+export const kATTACH = "attach";
+export const kDETACH = "detach";
+export const kINDENT = "indent";
+export const kDEMOTE = "demote";
+export const kOUTDENT = "outdent";
+export const kPROMOTE = "promote";
+export const kMOVE_UP = "move-up";
+export const kMOVE_TO_START = "move-to-start";
+export const kMOVE_DOWN = "move-down";
+export const kMOVE_TO_END = "move-to-end";
+export const kMOVE_BEFORE = "move-before";
+export const kMOVE_AFTER = "move-after";
+export const kFOCUS = "focus";
+export const kCREATE = "create";
+export const kDUPLICATE = "duplicate";
+export const kGROUP_TABS = "group-tabs";
+export const kOPEN_IN_NEW_WINDOW = "open-in-new-window";
+export const kREOPEN_IN_CONTAINER = "reopen-in-container";
+export const kGET_TREE_STRUCTURE = "get-tree-structure";
+export const kSET_TREE_STRUCTURE = "set-tree-structure";
+export const kSTICK_TAB = "stick-tab";
+export const kUNSTICK_TAB = "unstick-tab";
+export const kTOGGLE_STICKY_STATE = "toggle-sticky-state";
+export const kREGISTER_AUTO_STICKY_STATES = "register-auto-sticky-states";
+export const kUNREGISTER_AUTO_STICKY_STATES = "unregister-auto-sticky-states";
+export const kCOLLAPSE_TREE = "collapse-tree";
+export const kEXPAND_TREE = "expand-tree";
+export const kTOGGLE_TREE_COLLAPSED = "toggle-tree-collapsed";
+export const kADD_TAB_STATE = "add-tab-state";
+export const kREMOVE_TAB_STATE = "remove-tab-state";
+export const kSCROLL = "scroll";
+export const kSTOP_SCROLL = "stop-scroll";
+export const kSCROLL_LOCK = "scroll-lock";
+export const kSCROLL_UNLOCK = "scroll-unlock";
+export const kNOTIFY_SCROLLED = "scrolled";
+export const kBLOCK_GROUPING = "block-grouping";
+export const kUNBLOCK_GROUPING = "unblock-grouping";
+export const kSET_TOOLTIP_TEXT = "set-tooltip-text";
+export const kCLEAR_TOOLTIP_TEXT = "clear-tooltip-text";
+export const kGRANT_TO_REMOVE_TABS = "grant-to-remove-tabs";
+export const kOPEN_ALL_BOOKMARKS_WITH_STRUCTURE =
+  "open-all-bookmarks-with-structure";
+export const kSET_EXTRA_CONTENTS = "set-extra-contents";
+export const kCLEAR_EXTRA_CONTENTS = "clear-extra-contents";
+export const kCLEAR_ALL_EXTRA_CONTENTS = "clear-all-extra-contents";
+export const kSET_EXTRA_TAB_CONTENTS = "set-extra-tab-contents"; // for backward compatibility
+export const kCLEAR_EXTRA_TAB_CONTENTS = "clear-extra-tab-contents"; // for backward compatibility
+export const kCLEAR_ALL_EXTRA_TAB_CONTENTS = "clear-all-extra-tab-contents"; // for backward compatibility
+export const kSET_EXTRA_NEW_TAB_BUTTON_CONTENTS =
+  "set-extra-new-tab-button-contents"; // for backward compatibility
+export const kCLEAR_EXTRA_NEW_TAB_BUTTON_CONTENTS =
+  "clear-extra-new-tab-button-contents"; // for backward compatibility
+export const kSET_EXTRA_CONTENTS_PROPERTIES = "set-extra-contents-properties";
+export const kFOCUS_TO_EXTRA_CONTENTS = "focus-to-extra-contents";
+export const kGET_DRAG_DATA = "get-drag-data";
 
 const BULK_MESSAGING_TYPES = new Set([
   kNOTIFY_SIDEBAR_SHOW,
@@ -217,52 +204,57 @@ const BULK_MESSAGING_TYPES = new Set([
   kNOTIFY_PERMISSIONS_CHANGED,
 ]);
 
-export const kCONTEXT_MENU_OPEN       = 'contextMenu-open';
-export const kCONTEXT_MENU_CREATE     = 'contextMenu-create';
-export const kCONTEXT_MENU_UPDATE     = 'contextMenu-update';
-export const kCONTEXT_MENU_REMOVE     = 'contextMenu-remove';
-export const kCONTEXT_MENU_REMOVE_ALL = 'contextMenu-remove-all';
-export const kCONTEXT_MENU_CLICK      = 'contextMenu-click';
-export const kCONTEXT_MENU_SHOWN      = 'contextMenu-shown';
-export const kCONTEXT_MENU_HIDDEN     = 'contextMenu-hidden';
-export const kFAKE_CONTEXT_MENU_OPEN       = 'fake-contextMenu-open';
-export const kFAKE_CONTEXT_MENU_CREATE     = 'fake-contextMenu-create';
-export const kFAKE_CONTEXT_MENU_UPDATE     = 'fake-contextMenu-update';
-export const kFAKE_CONTEXT_MENU_REMOVE     = 'fake-contextMenu-remove';
-export const kFAKE_CONTEXT_MENU_REMOVE_ALL = 'fake-contextMenu-remove-all';
-export const kFAKE_CONTEXT_MENU_CLICK      = 'fake-contextMenu-click';
-export const kFAKE_CONTEXT_MENU_SHOWN      = 'fake-contextMenu-shown';
-export const kFAKE_CONTEXT_MENU_HIDDEN     = 'fake-contextMenu-hidden';
-export const kOVERRIDE_CONTEXT        = 'override-context';
+export const kCONTEXT_MENU_OPEN = "contextMenu-open";
+export const kCONTEXT_MENU_CREATE = "contextMenu-create";
+export const kCONTEXT_MENU_UPDATE = "contextMenu-update";
+export const kCONTEXT_MENU_REMOVE = "contextMenu-remove";
+export const kCONTEXT_MENU_REMOVE_ALL = "contextMenu-remove-all";
+export const kCONTEXT_MENU_CLICK = "contextMenu-click";
+export const kCONTEXT_MENU_SHOWN = "contextMenu-shown";
+export const kCONTEXT_MENU_HIDDEN = "contextMenu-hidden";
+export const kFAKE_CONTEXT_MENU_OPEN = "fake-contextMenu-open";
+export const kFAKE_CONTEXT_MENU_CREATE = "fake-contextMenu-create";
+export const kFAKE_CONTEXT_MENU_UPDATE = "fake-contextMenu-update";
+export const kFAKE_CONTEXT_MENU_REMOVE = "fake-contextMenu-remove";
+export const kFAKE_CONTEXT_MENU_REMOVE_ALL = "fake-contextMenu-remove-all";
+export const kFAKE_CONTEXT_MENU_CLICK = "fake-contextMenu-click";
+export const kFAKE_CONTEXT_MENU_SHOWN = "fake-contextMenu-shown";
+export const kFAKE_CONTEXT_MENU_HIDDEN = "fake-contextMenu-hidden";
+export const kOVERRIDE_CONTEXT = "override-context";
 
-export const kCOMMAND_BROADCAST_API_REGISTERED   = 'ws:broadcast-registered';
-export const kCOMMAND_BROADCAST_API_UNREGISTERED = 'ws:broadcast-unregistered';
-export const kCOMMAND_BROADCAST_API_PERMISSION_CHANGED = 'ws:permission-changed';
-export const kCOMMAND_REQUEST_INITIALIZE         = 'ws:request-initialize';
-export const kCOMMAND_REQUEST_CONTROL_STATE      = 'ws:request-control-state';
-export const kCOMMAND_GET_ADDONS                 = 'ws:get-addons';
-export const kCOMMAND_SET_API_PERMISSION         = 'ws:set-api-permisssion';
-export const kCOMMAND_NOTIFY_PERMISSION_CHANGED  = 'ws:notify-api-permisssion-changed';
-export const kCOMMAND_UNREGISTER_ADDON           = 'ws:unregister-addon';
+export const kCOMMAND_BROADCAST_API_REGISTERED = "ws:broadcast-registered";
+export const kCOMMAND_BROADCAST_API_UNREGISTERED = "ws:broadcast-unregistered";
+export const kCOMMAND_BROADCAST_API_PERMISSION_CHANGED =
+  "ws:permission-changed";
+export const kCOMMAND_REQUEST_INITIALIZE = "ws:request-initialize";
+export const kCOMMAND_REQUEST_CONTROL_STATE = "ws:request-control-state";
+export const kCOMMAND_GET_ADDONS = "ws:get-addons";
+export const kCOMMAND_SET_API_PERMISSION = "ws:set-api-permisssion";
+export const kCOMMAND_NOTIFY_PERMISSION_CHANGED =
+  "ws:notify-api-permisssion-changed";
+export const kCOMMAND_UNREGISTER_ADDON = "ws:unregister-addon";
 
-export const INTERNAL_CALL_PREFIX = 'ws:api:';
-export const INTERNAL_CALL_PREFIX_MATCHER = new RegExp(`^${INTERNAL_CALL_PREFIX}`);
+export const INTERNAL_CALL_PREFIX = "ws:api:";
+export const INTERNAL_CALL_PREFIX_MATCHER = new RegExp(
+  `^${INTERNAL_CALL_PREFIX}`
+);
 
-export const kNEWTAB_CONTEXT_NEWTAB_COMMAND             = 'newtab-command';
-export const kNEWTAB_CONTEXT_WITH_OPENER                = 'with-opener';
-export const kNEWTAB_CONTEXT_DUPLICATED                 = 'duplicated';
-export const kNEWTAB_CONTEXT_FROM_PINNED                = 'from-pinned';
-export const kNEWTAB_CONTEXT_FROM_EXTERNAL              = 'from-external';
-export const kNEWTAB_CONTEXT_WEBSITE_SAME_TO_ACTIVE_TAB = 'website-same-to-active-tab';
-export const kNEWTAB_CONTEXT_FROM_ABOUT_ADDONS          = 'from-about-addons';
-export const kNEWTAB_CONTEXT_UNKNOWN                    = 'unknown';
+export const kNEWTAB_CONTEXT_NEWTAB_COMMAND = "newtab-command";
+export const kNEWTAB_CONTEXT_WITH_OPENER = "with-opener";
+export const kNEWTAB_CONTEXT_DUPLICATED = "duplicated";
+export const kNEWTAB_CONTEXT_FROM_PINNED = "from-pinned";
+export const kNEWTAB_CONTEXT_FROM_EXTERNAL = "from-external";
+export const kNEWTAB_CONTEXT_WEBSITE_SAME_TO_ACTIVE_TAB =
+  "website-same-to-active-tab";
+export const kNEWTAB_CONTEXT_FROM_ABOUT_ADDONS = "from-about-addons";
+export const kNEWTAB_CONTEXT_UNKNOWN = "unknown";
 
 const mAddons = new Map();
-let mScrollLockedBy    = {};
+let mScrollLockedBy = {};
 let mGroupingBlockedBy = {};
 
 const mPendingMessagesFor = new Map();
-const mMessagesPendedAt   = new Map();
+const mMessagesPendedAt = new Map();
 
 // you should use this to reduce memory usage around effective favicons
 export function clearCache(cache) {
@@ -272,42 +264,50 @@ export function clearCache(cache) {
 // This function is complex a little, but we should not make a custom class for this purpose,
 // bacause instances of the class will be very short-life and increases RAM usage on
 // massive tabs case.
-export async function exportTab(sourceTab, { addonId, light, isContextTab, interval, permissions, cache, cacheKey } = {}) {
+export async function exportTab(
+  sourceTab,
+  { addonId, light, isContextTab, interval, permissions, cache, cacheKey } = {}
+) {
   const normalizedSourceTab = Tab.get(sourceTab);
   if (!normalizedSourceTab)
     throw new Error(`Fatal error: tried to export not a tab. ${sourceTab}`);
   sourceTab = normalizedSourceTab;
 
-  if (!interval)
-    interval = 0;
-  if (!cache)
-    cache = {};
+  if (!interval) interval = 0;
+  if (!cache) cache = {};
 
-  if (!cache.tabs)
-    cache.tabs = {};
-  if (!cache.effectiveFavIconUrls)
-    cache.effectiveFavIconUrls = {};
+  if (!cache.tabs) cache.tabs = {};
+  if (!cache.effectiveFavIconUrls) cache.effectiveFavIconUrls = {};
 
   if (!permissions) {
-    permissions = (!addonId || addonId == browser.runtime.id) ?
-      kPERMISSIONS_ALL :
-      new Set(getGrantedPermissionsForAddon(addonId));
-    if (addonId &&
-        configs.incognitoAllowedExternalAddons.includes(addonId))
+    permissions =
+      !addonId || addonId === browser.runtime.id
+        ? kPERMISSIONS_ALL
+        : new Set(getGrantedPermissionsForAddon(addonId));
+    if (addonId && configs.incognitoAllowedExternalAddons.includes(addonId))
       permissions.add(kPERMISSION_INCOGNITO);
   }
   if (!cacheKey)
-    cacheKey = `${sourceTab.id}:${Array.from(permissions).sort().join(',')}`;
+    cacheKey = `${sourceTab.id}:${Array.from(permissions).sort().join(",")}`;
 
-  if (!sourceTab ||
-      (sourceTab.incognito &&
-       !permissions.has(kPERMISSION_INCOGNITO)))
+  if (
+    !sourceTab ||
+    (sourceTab.incognito && !permissions.has(kPERMISSION_INCOGNITO))
+  )
     return null;
 
   // The promise is cached here instead of the result,
   // to avoid cache miss caused by concurrent call.
   if (!(cacheKey in cache.tabs)) {
-    cache.tabs[cacheKey] = sourceTab.$TST.exportForAPI({ addonId, light, isContextTab, interval, permissions, cache, cacheKey });
+    cache.tabs[cacheKey] = sourceTab.$TST.exportForAPI({
+      addonId,
+      light,
+      isContextTab,
+      interval,
+      permissions,
+      cache,
+      cacheKey,
+    });
   }
   return cache.tabs[cacheKey];
 }
@@ -318,22 +318,22 @@ export function getAddon(id) {
 
 export function getGrantedPermissionsForAddon(id) {
   const addon = getAddon(id);
-  return addon && addon.grantedPermissions || new Set();
+  return addon?.grantedPermissions || new Set();
 }
 
 function registerAddon(id, addon) {
-  log('addon is registered: ', id, addon);
+  log("addon is registered: ", id, addon);
 
   // inherit properties from last effective value
   const oldAddon = getAddon(id);
   if (oldAddon) {
-    if (!('listeningTypes' in addon) && 'listeningTypes' in oldAddon)
+    if (!("listeningTypes" in addon) && "listeningTypes" in oldAddon)
       addon.listeningTypes = oldAddon.listeningTypes;
-    if (!('style' in addon) && 'style' in oldAddon)
+    if (!("style" in addon) && "style" in oldAddon)
       addon.style = oldAddon.style;
-    if (!('allowBulkMessaging' in addon) && 'allowBulkMessaging' in oldAddon)
+    if (!("allowBulkMessaging" in addon) && "allowBulkMessaging" in oldAddon)
       addon.allowBulkMessaging = oldAddon.allowBulkMessaging;
-    if (!('lightTree' in addon) && 'lightTree' in oldAddon)
+    if (!("lightTree" in addon) && "lightTree" in oldAddon)
       addon.lightTree = oldAddon.lightTree;
   }
 
@@ -350,7 +350,7 @@ function registerAddon(id, addon) {
       kNOTIFY_NEW_TAB_BUTTON_MOUSEUP,
       kNOTIFY_TABBAR_CLICKED,
       kNOTIFY_TABBAR_MOUSEDOWN,
-      kNOTIFY_TABBAR_MOUSEUP
+      kNOTIFY_TABBAR_MOUSEUP,
     ];
   }
 
@@ -361,10 +361,12 @@ function registerAddon(id, addon) {
   const grantedPermissions = configs.grantedExternalAddonPermissions[id] || [];
   addon.grantedPermissions = new Set(grantedPermissions);
 
-  if (Constants.IS_BACKGROUND &&
-      !addon.bypassPermissionCheck &&
-      addon.requestedPermissions.size > 0 &&
-      addon.grantedPermissions.size != addon.requestedPermissions.size)
+  if (
+    Constants.IS_BACKGROUND &&
+    !addon.bypassPermissionCheck &&
+    addon.requestedPermissions.size > 0 &&
+    addon.grantedPermissions.size !== addon.requestedPermissions.size
+  )
     notifyPermissionRequest(addon, addon.requestedPermissions);
 
   addon.id = id;
@@ -377,36 +379,44 @@ function registerAddon(id, addon) {
 const mPermissionNotificationForAddon = new Map();
 
 async function notifyPermissionRequest(addon, requestedPermissions) {
-  log('notifyPermissionRequest ', addon, requestedPermissions);
+  log("notifyPermissionRequest ", addon, requestedPermissions);
 
-  if (mPermissionNotificationForAddon.has(addon.id))
-    return;
+  if (mPermissionNotificationForAddon.has(addon.id)) return;
 
   mPermissionNotificationForAddon.set(addon.id, -1);
   const id = await browser.notifications.create({
-    type:    'basic',
+    type: "basic",
     iconUrl: Constants.kNOTIFICATION_DEFAULT_ICON,
-    title:   browser.i18n.getMessage('api_requestedPermissions_title'),
-    message: browser.i18n.getMessage(`api_requestedPermissions_message${isLinux() ? '_linux' : ''}`, [
-      addon.name || addon.title || addon.id,
-      Array.from(requestedPermissions, permission => {
-        if (permission == kPERMISSION_INCOGNITO)
-          return null;
-        try {
-          return browser.i18n.getMessage(`api_requestedPermissions_type_${permission}`) || permission;
-        }
-        catch(_error) {
-          return permission;
-        }
-      }).filter(permission => !!permission).join('\n')
-    ])
+    title: browser.i18n.getMessage("api_requestedPermissions_title"),
+    message: browser.i18n.getMessage(
+      `api_requestedPermissions_message${isLinux() ? "_linux" : ""}`,
+      [
+        addon.name || addon.title || addon.id,
+        Array.from(requestedPermissions, (permission) => {
+          if (permission === kPERMISSION_INCOGNITO) return null;
+          try {
+            return (
+              browser.i18n.getMessage(
+                `api_requestedPermissions_type_${permission}`
+              ) || permission
+            );
+          } catch (_error) {
+            return permission;
+          }
+        })
+          .filter((permission) => !!permission)
+          .join("\n"),
+      ]
+    ),
   });
   mPermissionNotificationForAddon.set(addon.id, id);
 }
 
 function setPermissions(addon, permisssions) {
   addon.grantedPermissions = permisssions;
-  const cachedPermissions = JSON.parse(JSON.stringify(configs.grantedExternalAddonPermissions));
+  const cachedPermissions = JSON.parse(
+    JSON.stringify(configs.grantedExternalAddonPermissions)
+  );
   cachedPermissions[addon.id] = Array.from(addon.grantedPermissions);
   configs.grantedExternalAddonPermissions = cachedPermissions;
   notifyPermissionChanged(addon);
@@ -416,21 +426,26 @@ function notifyPermissionChanged(addon) {
   const permissions = Array.from(addon.grantedPermissions);
   browser.runtime.sendMessage({
     type: kCOMMAND_BROADCAST_API_PERMISSION_CHANGED,
-    id:   addon.id,
-    permissions
+    id: addon.id,
+    permissions,
   });
-  if (addon.id == browser.runtime.id)
-    return;
-  browser.runtime.sendMessage(addon.id, {
-    type:                 kNOTIFY_PERMISSIONS_CHANGED,
-    grantedPermissions:   permissions.filter(permission => permission.startsWith('!')),
-    privateWindowAllowed: configs.incognitoAllowedExternalAddons.includes(addon.id)
-  }).catch(ApiTabs.createErrorHandler());
+  if (addon.id === browser.runtime.id) return;
+  browser.runtime
+    .sendMessage(addon.id, {
+      type: kNOTIFY_PERMISSIONS_CHANGED,
+      grantedPermissions: permissions.filter((permission) =>
+        permission.startsWith("!")
+      ),
+      privateWindowAllowed: configs.incognitoAllowedExternalAddons.includes(
+        addon.id
+      ),
+    })
+    .catch(ApiTabs.createErrorHandler());
 }
 
 function unregisterAddon(id) {
   const addon = getAddon(id);
-  log('addon is unregistered: ', id, addon);
+  log("addon is unregistered: ", id, addon);
   onUnregistered.dispatch(addon);
   mAddons.delete(id);
   mPendingMessagesFor.delete(id);
@@ -446,17 +461,14 @@ export function getAddons() {
 const mConnections = new Map();
 
 function onCommonCommand(message, sender) {
-  if (!message ||
-      typeof message.type != 'string')
-    return;
+  if (!message || typeof message.type !== "string") return;
 
   const addon = getAddon(sender.id);
 
   switch (message.type) {
     case kSCROLL_LOCK:
       mScrollLockedBy[sender.id] = true;
-      if (!addon)
-        registerAddon(sender.id, sender);
+      if (!addon) registerAddon(sender.id, sender);
       return Promise.resolve(true);
 
     case kSCROLL_UNLOCK:
@@ -465,8 +477,7 @@ function onCommonCommand(message, sender) {
 
     case kBLOCK_GROUPING:
       mGroupingBlockedBy[sender.id] = true;
-      if (!addon)
-        registerAddon(sender.id, sender);
+      if (!addon) registerAddon(sender.id, sender);
       return Promise.resolve(true);
 
     case kUNBLOCK_GROUPING:
@@ -474,17 +485,14 @@ function onCommonCommand(message, sender) {
       return Promise.resolve(true);
 
     case kSET_EXTRA_TAB_CONTENTS:
-      if (!addon)
-        registerAddon(sender.id, sender);
+      if (!addon) registerAddon(sender.id, sender);
       break;
 
     case kSET_EXTRA_NEW_TAB_BUTTON_CONTENTS:
-      if (!addon)
-        registerAddon(sender.id, sender);
+      if (!addon) registerAddon(sender.id, sender);
       break;
   }
 }
-
 
 // =======================================================================
 // for backend
@@ -495,28 +503,26 @@ let mPromisedInitialized = null;
 
 if (Constants.IS_BACKGROUND) {
   browser.runtime.onMessageExternal.addListener(onBackendCommand);
-  browser.runtime.onConnectExternal.addListener(port => {
-    if (!mInitialized ||
-        !configs.APIEnabled)
-      return;
+  browser.runtime.onConnectExternal.addListener((port) => {
+    if (!mInitialized || !configs.APIEnabled) return;
     const sender = port.sender;
     mConnections.set(sender.id, port);
-    port.onMessage.addListener(message => {
+    port.onMessage.addListener((message) => {
       const messages = message.messages || [message];
       for (const oneMessage of messages) {
         onMessageExternal.dispatch(oneMessage, sender);
         SidebarConnection.sendMessage({
-          type: 'external',
+          type: "external",
           oneMessage,
-          sender
+          sender,
         });
       }
     });
-    port.onDisconnect.addListener(_message => {
+    port.onDisconnect.addListener((_message) => {
       mConnections.delete(sender.id);
       onBackendCommand({
         type: kUNREGISTER_SELF,
-        sender
+        sender,
       }).catch(ApiTabs.createErrorSuppressor());
     });
   });
@@ -537,9 +543,11 @@ export async function initAsBackend() {
 
   const manifest = browser.runtime.getManifest();
   registerAddon(browser.runtime.id, {
-    id:         browser.runtime.id,
-    internalId: browser.runtime.getURL('').replace(/^moz-extension:\/\/([^\/]+)\/.*$/, '$1'),
-    icons:      manifest.icons,
+    id: browser.runtime.id,
+    internalId: browser.runtime
+      .getURL("")
+      .replace(/^moz-extension:\/\/([^/]+)\/.*$/, "$1"),
+    icons: manifest.icons,
     listeningTypes: [
       kNOTIFY_EXTRA_CONTENTS_CLICKED,
       kNOTIFY_EXTRA_CONTENTS_DBLCLICKED,
@@ -556,40 +564,49 @@ export async function initAsBackend() {
       kNOTIFY_EXTRA_CONTENTS_BLUR,
     ],
     bypassPermissionCheck: true,
-    allowBulkMessaging:    true,
-    lightTree:             true,
+    allowBulkMessaging: true,
+    lightTree: true,
   });
 
   const respondedAddons = [];
   const notifiedAddons = {};
-  const notifyAddons = configs.knownExternalAddons.concat(configs.cachedExternalAddons);
-  log('initAsBackend: notifyAddons = ', notifyAddons);
-  await Promise.all(notifyAddons.map(async id => {
-    if (id in notifiedAddons)
-      return;
-    notifiedAddons[id] = true;
-    try {
-      id = await new Promise((resolve, reject) => {
-        let responded = false;
-        browser.runtime.sendMessage(id, {
-          type: kNOTIFY_READY
-        }).then(() => {
-          responded = true;
-          resolve(id);
-        }).catch(ApiTabs.createErrorHandler(reject));
-        setTimeout(() => {
-          if (!responded)
-            reject(new Error(`TSTAPI.initAsBackend: addon ${id} does not respond.`));
-        }, 3000);
-      });
-      if (id)
-        respondedAddons.push(id);
-    }
-    catch(e) {
-      console.log(`TSTAPI.initAsBackend: failed to send "ready" message to "${id}":`, e);
-    }
-  }));
-  log('initAsBackend: respondedAddons = ', respondedAddons);
+  const notifyAddons = configs.knownExternalAddons.concat(
+    configs.cachedExternalAddons
+  );
+  log("initAsBackend: notifyAddons = ", notifyAddons);
+  await Promise.all(
+    notifyAddons.map(async (id) => {
+      if (id in notifiedAddons) return;
+      notifiedAddons[id] = true;
+      try {
+        id = await new Promise((resolve, reject) => {
+          let responded = false;
+          browser.runtime
+            .sendMessage(id, {
+              type: kNOTIFY_READY,
+            })
+            .then(() => {
+              responded = true;
+              resolve(id);
+            })
+            .catch(ApiTabs.createErrorHandler(reject));
+          setTimeout(() => {
+            if (!responded)
+              reject(
+                new Error(`TSTAPI.initAsBackend: addon ${id} does not respond.`)
+              );
+          }, 3000);
+        });
+        if (id) respondedAddons.push(id);
+      } catch (e) {
+        console.log(
+          `TSTAPI.initAsBackend: failed to send "ready" message to "${id}":`,
+          e
+        );
+      }
+    })
+  );
+  log("initAsBackend: respondedAddons = ", respondedAddons);
   configs.cachedExternalAddons = respondedAddons;
 
   onInitialized.dispatch();
@@ -597,28 +614,24 @@ export async function initAsBackend() {
 }
 
 if (Constants.IS_BACKGROUND) {
-  browser.notifications.onClicked.addListener(notificationId => {
-    if (!mInitialized)
-      return;
+  browser.notifications.onClicked.addListener((notificationId) => {
+    if (!mInitialized) return;
 
     for (const [addonId, id] of mPermissionNotificationForAddon.entries()) {
-      if (id != notificationId)
-        continue;
+      if (id !== notificationId) continue;
       mPermissionNotificationForAddon.delete(addonId);
       browser.tabs.create({
-        url: `moz-extension://${location.host}/options/options.html#externalAddonPermissionsGroup`
+        url: `moz-extension://${location.host}/options/options.html#externalAddonPermissionsGroup`,
       });
       break;
     }
   });
 
   browser.notifications.onClosed.addListener((notificationId, _byUser) => {
-    if (!mInitialized)
-      return;
+    if (!mInitialized) return;
 
     for (const [addonId, id] of mPermissionNotificationForAddon.entries()) {
-      if (id != notificationId)
-        continue;
+      if (id !== notificationId) continue;
       mPermissionNotificationForAddon.delete(addonId);
       break;
     }
@@ -634,10 +647,10 @@ if (Constants.IS_BACKGROUND) {
 
   SidebarConnection.onDisconnected.addListener((windowId, openCount) => {
     broadcastMessage({
-      type:   kNOTIFY_SIDEBAR_HIDE,
+      type: kNOTIFY_SIDEBAR_HIDE,
       window: windowId,
       windowId,
-      openCount
+      openCount,
     });
   });
 
@@ -706,23 +719,20 @@ if (Constants.IS_BACKGROUND) {
   */
 
   browser.runtime.onMessage.addListener((message, _sender) => {
-    if (!mInitialized ||
-        !message ||
-        typeof message.type != 'string')
-      return;
+    if (!mInitialized || !message || typeof message.type !== "string") return;
 
     switch (message.type) {
       case kCOMMAND_REQUEST_INITIALIZE:
         return Promise.resolve({
-          addons:         exportAddons(),
-          scrollLocked:   mScrollLockedBy,
-          groupingLocked: mGroupingBlockedBy
+          addons: exportAddons(),
+          scrollLocked: mScrollLockedBy,
+          groupingLocked: mGroupingBlockedBy,
         });
 
       case kCOMMAND_REQUEST_CONTROL_STATE:
         return Promise.resolve({
-          scrollLocked:   mScrollLockedBy,
-          groupingLocked: mGroupingBlockedBy
+          scrollLocked: mScrollLockedBy,
+          groupingLocked: mGroupingBlockedBy,
         });
 
       case kCOMMAND_GET_ADDONS:
@@ -731,9 +741,11 @@ if (Constants.IS_BACKGROUND) {
           for (const [id, addon] of mAddons.entries()) {
             addons.push({
               id,
-              label:              addon.name || addon.title || addon.id,
-              permissions:        Array.from(addon.requestedPermissions),
-              permissionsGranted: Array.from(addon.requestedPermissions).join(',') == Array.from(addon.grantedPermissions).join(',')
+              label: addon.name || addon.title || addon.id,
+              permissions: Array.from(addon.requestedPermissions),
+              permissionsGranted:
+                Array.from(addon.requestedPermissions).join(",") ===
+                Array.from(addon.grantedPermissions).join(","),
             });
           }
           return addons;
@@ -757,27 +769,28 @@ if (Constants.IS_BACKGROUND) {
 const mPromisedOnBeforeUnload = new Promise((resolve, _reject) => {
   // If this promise doesn't do anything then there seems to be a timeout so it only works if TST is disabled within about 10 seconds after this promise is used as a response to a message. After that it will not throw an error for the waiting extension.
   // If we use the following then the returned promise will be rejected when TST is disabled even for longer times:
-  window.addEventListener('beforeunload', () => resolve());
+  window.addEventListener("beforeunload", () => resolve());
 });
 
 const mWaitingShutdownMessages = new Map();
 
 function onBackendCommand(message, sender) {
-  if (message && message.messages)
+  if (message?.messages)
     return Promise.all(
-      message.messages.map(oneMessage => onBackendCommand(oneMessage, sender))
+      message.messages.map((oneMessage) => onBackendCommand(oneMessage, sender))
     );
 
-  if (!mInitialized ||
-      !message ||
-      typeof message != 'object' ||
-      typeof message.type != 'string')
+  if (
+    !mInitialized ||
+    !message ||
+    typeof message !== "object" ||
+    typeof message.type !== "string"
+  )
     return;
 
   const results = onMessageExternal.dispatch(message, sender);
-  const firstPromise = results.find(result => result instanceof Promise);
-  if (firstPromise)
-    return firstPromise;
+  const firstPromise = results.find((result) => result instanceof Promise);
+  if (firstPromise) return firstPromise;
 
   switch (message.type) {
     case kPING:
@@ -785,64 +798,77 @@ function onBackendCommand(message, sender) {
 
     case kREGISTER_SELF:
       return (async () => {
-        message.internalId = sender.url.replace(/^moz-extension:\/\/([^\/]+)\/.*$/, '$1');
+        message.internalId = sender.url.replace(
+          /^moz-extension:\/\/([^/]+)\/.*$/,
+          "$1"
+        );
         message.id = sender.id;
         message.subPanel = message.subPanel || message.subpanel || null;
         if (message.subPanel) {
-          const url = typeof message.subPanel.url === 'string' && new URL(message.subPanel.url, new URL('/', sender.url));
+          const url =
+            typeof message.subPanel.url === "string" &&
+            new URL(message.subPanel.url, new URL("/", sender.url));
           if (!url || url.hostname !== message.internalId) {
-            console.error(`"subPanel.url" must refer to a page packed in the registering extension.`);
-            message.subPanel.url = 'about:blank?error=invalid-origin'
-          } else
-            message.subPanel.url = url.href;
+            console.error(
+              `"subPanel.url" must refer to a page packed in the registering extension.`
+            );
+            message.subPanel.url = "about:blank?error=invalid-origin";
+          } else message.subPanel.url = url.href;
         }
-        message.newlyInstalled = !configs.cachedExternalAddons.includes(sender.id);
+        message.newlyInstalled = !configs.cachedExternalAddons.includes(
+          sender.id
+        );
         registerAddon(sender.id, message);
-        browser.runtime.sendMessage({
-          type:    kCOMMAND_BROADCAST_API_REGISTERED,
-          sender:  sender,
-          message: message
-        }).catch(ApiTabs.createErrorSuppressor());
+        browser.runtime
+          .sendMessage({
+            type: kCOMMAND_BROADCAST_API_REGISTERED,
+            sender: sender,
+            message: message,
+          })
+          .catch(ApiTabs.createErrorSuppressor());
         if (message.newlyInstalled)
-          configs.cachedExternalAddons = configs.cachedExternalAddons.concat([sender.id]);
-        if (message.listeningTypes &&
-            message.listeningTypes.includes(kWAIT_FOR_SHUTDOWN) &&
-            !mWaitingShutdownMessages.has(sender.id)) {
+          configs.cachedExternalAddons = configs.cachedExternalAddons.concat([
+            sender.id,
+          ]);
+        if (
+          message.listeningTypes?.includes(kWAIT_FOR_SHUTDOWN) &&
+          !mWaitingShutdownMessages.has(sender.id)
+        ) {
           const onShutdown = () => {
             const storedShutdown = mWaitingShutdownMessages.get(sender.id);
             // eslint-disable-next-line no-use-before-define
-            if (storedShutdown && storedShutdown !== promisedShutdown)
-              return; // it is obsolete
+            if (storedShutdown && storedShutdown !== promisedShutdown) return; // it is obsolete
 
-            const addon          = getAddon(sender.id);
-            const lastRegistered = addon && addon.lastRegistered;
+            const addon = getAddon(sender.id);
+            const lastRegistered = addon?.lastRegistered;
             setTimeout(() => {
               // if it is re-registered immediately, it was updated or reloaded.
               const addon = getAddon(sender.id);
-              if (addon &&
-                  addon.lastRegistered != lastRegistered)
-                return;
+              if (addon && addon.lastRegistered !== lastRegistered) return;
               // otherwise it is uninstalled.
-              browser.runtime.sendMessage({
-                type: kCOMMAND_BROADCAST_API_UNREGISTERED,
-                sender
-              }).catch(ApiTabs.createErrorSuppressor());
+              browser.runtime
+                .sendMessage({
+                  type: kCOMMAND_BROADCAST_API_UNREGISTERED,
+                  sender,
+                })
+                .catch(ApiTabs.createErrorSuppressor());
               unregisterAddon(sender.id);
-              configs.cachedExternalAddons = configs.cachedExternalAddons.filter(id => id != sender.id);
+              configs.cachedExternalAddons =
+                configs.cachedExternalAddons.filter((id) => id !== sender.id);
             }, 350);
           };
           const promisedShutdown = (async () => {
             try {
-              const shouldUninit = await browser.runtime.sendMessage(sender.id, {
-                type: kWAIT_FOR_SHUTDOWN
-              });
-              if (!shouldUninit)
-                return;
-            }
-            catch (_error) {
+              const shouldUninit = await browser.runtime.sendMessage(
+                sender.id,
+                {
+                  type: kWAIT_FOR_SHUTDOWN,
+                }
+              );
+              if (!shouldUninit) return;
+            } catch (_error) {
               // Extension was disabled.
-            }
-            finally {
+            } finally {
               mWaitingShutdownMessages.delete(sender.id);
             }
             onShutdown();
@@ -851,19 +877,27 @@ function onBackendCommand(message, sender) {
           promisedShutdown.catch(onShutdown);
         }
         return {
-          grantedPermissions:   Array.from(getGrantedPermissionsForAddon(sender.id)).filter(permission => permission.startsWith('!')),
-          privateWindowAllowed: configs.incognitoAllowedExternalAddons.includes(sender.id)
+          grantedPermissions: Array.from(
+            getGrantedPermissionsForAddon(sender.id)
+          ).filter((permission) => permission.startsWith("!")),
+          privateWindowAllowed: configs.incognitoAllowedExternalAddons.includes(
+            sender.id
+          ),
         };
       })();
 
     case kUNREGISTER_SELF:
       return (async () => {
-        browser.runtime.sendMessage({
-          type: kCOMMAND_BROADCAST_API_UNREGISTERED,
-          sender
-        }).catch(ApiTabs.createErrorSuppressor());
+        browser.runtime
+          .sendMessage({
+            type: kCOMMAND_BROADCAST_API_UNREGISTERED,
+            sender,
+          })
+          .catch(ApiTabs.createErrorSuppressor());
         unregisterAddon(sender.id);
-        configs.cachedExternalAddons = configs.cachedExternalAddons.filter(id => id != sender.id);
+        configs.cachedExternalAddons = configs.cachedExternalAddons.filter(
+          (id) => id !== sender.id
+        );
         return true;
       })();
 
@@ -887,7 +921,6 @@ export function isGroupingBlocked() {
   return Object.keys(mGroupingBlockedBy).length > 0;
 }
 
-
 // =======================================================================
 // for frontend
 // =======================================================================
@@ -897,58 +930,65 @@ export async function initAsFrontend() {
   mPromisedInitialized = new Promise((resolve, _reject) => {
     resolver = resolve;
   });
-  log('initAsFrontend: start');
+  log("initAsFrontend: start");
   let response;
   while (true) {
-    response = await browser.runtime.sendMessage({ type: kCOMMAND_REQUEST_INITIALIZE });
-    if (response)
-      break;
+    response = await browser.runtime.sendMessage({
+      type: kCOMMAND_REQUEST_INITIALIZE,
+    });
+    if (response) break;
     await wait(10);
   }
   browser.runtime.onMessageExternal.addListener(onFrontendCommand);
-  log('initAsFrontend: response = ', response);
+  log("initAsFrontend: response = ", response);
   importAddons(response.addons);
   for (const [, addon] of getAddons()) {
     onRegistered.dispatch(addon);
   }
-  mScrollLockedBy    = response.scrollLocked;
+  mScrollLockedBy = response.scrollLocked;
   mGroupingBlockedBy = response.groupingLocked;
 
   onInitialized.dispatch();
-  log('initAsFrontend: finish');
+  log("initAsFrontend: finish");
   resolver();
   mPromisedInitialized = null;
 }
 
 function onFrontendCommand(message, sender) {
   //console.log('onFrontendCommand ', message, sender);
-  if (!configs.APIEnabled)
-    return;
+  if (!configs.APIEnabled) return;
 
-  if (message && message.messages)
+  if (message?.messages)
     return Promise.all(
-      message.messages.map(oneMessage => onFrontendCommand(oneMessage, sender))
+      message.messages.map((oneMessage) =>
+        onFrontendCommand(oneMessage, sender)
+      )
     );
 
-  if (message &&
-      typeof message == 'object' &&
-      typeof message.type == 'string') {
+  if (
+    message &&
+    typeof message === "object" &&
+    typeof message.type === "string"
+  ) {
     const results = onMessageExternal.dispatch(message, sender);
-    log('onMessageExternal: ', message, ' => ', results, 'sender: ', sender);
-    const firstPromise = results.find(result => result instanceof Promise);
-    if (firstPromise)
-      return firstPromise;
+    log("onMessageExternal: ", message, " => ", results, "sender: ", sender);
+    const firstPromise = results.find((result) => result instanceof Promise);
+    if (firstPromise) return firstPromise;
   }
-  if (configs.incognitoAllowedExternalAddons.includes(sender.id) ||
-      !document.documentElement.classList.contains('incognito'))
+  if (
+    configs.incognitoAllowedExternalAddons.includes(sender.id) ||
+    !document.documentElement.classList.contains("incognito")
+  )
     return onCommonCommand(message, sender);
 }
 
 if (Constants.IS_SIDEBAR) {
   browser.runtime.onMessage.addListener((message, _sender) => {
-    if (!message ||
-        typeof message != 'object' ||
-        typeof message.type != 'string')
+    if (
+      !message ||
+      typeof message !== "object" ||
+      typeof message.type !== "string"
+    )
       return;
 
     switch (message.type) {
@@ -960,17 +1000,18 @@ if (Constants.IS_SIDEBAR) {
         unregisterAddon(message.sender.id);
         break;
 
-      case kCOMMAND_BROADCAST_API_PERMISSION_CHANGED: {
-        const addon = getAddon(message.id);
-        addon.grantedPermissions = new Set(message.permissions);
-      }; break;
+      case kCOMMAND_BROADCAST_API_PERMISSION_CHANGED:
+        {
+          const addon = getAddon(message.id);
+          addon.grantedPermissions = new Set(message.permissions);
+        }
+        break;
     }
   });
 }
 
 function importAddons(addons) {
-  if (!addons)
-    console.log(new Error('null import'));
+  if (!addons) console.log(new Error("null import"));
   for (const id of Object.keys(mAddons)) {
     unregisterAddon(id);
   }
@@ -985,37 +1026,40 @@ export function isScrollLocked() {
 
 export async function notifyScrolled(params = {}) {
   const lockers = Object.keys(mScrollLockedBy);
-  const tab     = params.tab;
+  const tab = params.tab;
   const windowId = TabsStore.getCurrentWindowId();
-  const tabs    = Tab.getTabs(windowId);
-  const cache   = {};
-  const results = await broadcastMessage({
-    type: kNOTIFY_SCROLLED,
-    tab:  tab && tabs.find(another => another.id == tab.id),
-    tabs,
-    overflow: params.overflow,
-    window: windowId,
-    windowId,
+  const tabs = Tab.getTabs(windowId);
+  const cache = {};
+  const results = await broadcastMessage(
+    {
+      type: kNOTIFY_SCROLLED,
+      tab: tab && tabs.find((another) => another.id === tab.id),
+      tabs,
+      overflow: params.overflow,
+      window: windowId,
+      windowId,
 
-    deltaX:       params.event.deltaX,
-    deltaY:       params.event.deltaY,
-    deltaZ:       params.event.deltaZ,
-    deltaMode:    params.event.deltaMode,
-    scrollTop:    params.scrollContainer.scrollTop,
-    scrollTopMax: params.scrollContainer.scrollTopMax,
+      deltaX: params.event.deltaX,
+      deltaY: params.event.deltaY,
+      deltaZ: params.event.deltaZ,
+      deltaMode: params.event.deltaMode,
+      scrollTop: params.scrollContainer.scrollTop,
+      scrollTopMax: params.scrollContainer.scrollTopMax,
 
-    altKey:   params.event.altKey,
-    ctrlKey:  params.event.ctrlKey,
-    metaKey:  params.event.metaKey,
-    shiftKey: params.event.shiftKey,
+      altKey: params.event.altKey,
+      ctrlKey: params.event.ctrlKey,
+      metaKey: params.event.metaKey,
+      shiftKey: params.event.shiftKey,
 
-    clientX:  params.event.clientX,
-    clientY:  params.event.clientY,
-  }, {
-    targets: lockers,
-    tabProperties: ['tab', 'tabs'],
-    cache,
-  });
+      clientX: params.event.clientX,
+      clientY: params.event.clientY,
+    },
+    {
+      targets: lockers,
+      tabProperties: ["tab", "tabs"],
+      cache,
+    }
+  );
   for (const result of results) {
     if (!result || result.error || result.result === undefined)
       delete mScrollLockedBy[result.id];
@@ -1023,35 +1067,39 @@ export async function notifyScrolled(params = {}) {
   clearCache(cache);
 }
 
-
 // =======================================================================
 // Common utilities to send notification messages to other addons
 // =======================================================================
 
-export async function tryOperationAllowed(type, message = {}, { targets, except, tabProperties, cache } = {}) {
-  if (mPromisedInitialized)
-    await mPromisedInitialized;
+export async function tryOperationAllowed(
+  type,
+  message = {},
+  { targets, except, tabProperties, cache } = {}
+) {
+  if (mPromisedInitialized) await mPromisedInitialized;
 
   if (!hasListenerForMessageType(type, { targets, except })) {
     //log(`=> ${type}: no listener, always allowed`);
     return true;
   }
   cache = cache || {};
-  const results = await broadcastMessage({ ...message, type }, {
-    targets,
-    except,
-    tabProperties,
-    cache,
-  }).catch(error => {
-    if (configs.debug)
-      console.error(error);
+  const results = await broadcastMessage(
+    { ...message, type },
+    {
+      targets,
+      except,
+      tabProperties,
+      cache,
+    }
+  ).catch((error) => {
+    if (configs.debug) console.error(error);
     return [];
   });
   if (!results) {
     log(`=> ${type}: allowed because no one responded`);
     return true;
   }
-  if (results.flat().some(result => result && result.result)) {
+  if (results.flat().some((result) => result?.result)) {
     log(`=> ${type}: canceled by some helper addon`);
     return false;
   }
@@ -1064,86 +1112,109 @@ export function hasListenerForMessageType(type, { targets, except } = {}) {
 }
 
 export function getListenersForMessageType(type, { targets, except } = {}) {
-  targets = targets instanceof Set ? targets : new Set(Array.isArray(targets) ? targets : targets ? [targets] : []);
-  except  = except instanceof Set ? except : new Set(Array.isArray(except) ? except : except ? [except] : []);
+  targets =
+    targets instanceof Set
+      ? targets
+      : new Set(Array.isArray(targets) ? targets : targets ? [targets] : []);
+  except =
+    except instanceof Set
+      ? except
+      : new Set(Array.isArray(except) ? except : except ? [except] : []);
 
   const finalTargets = new Set();
   for (const [id, addon] of getAddons()) {
-    if (addon.listeningTypes.includes(type) &&
-        (targets.size == 0 || targets.has(id)) &&
-        !except.has(id))
+    if (
+      addon.listeningTypes.includes(type) &&
+      (targets.size === 0 || targets.has(id)) &&
+      !except.has(id)
+    )
       finalTargets.add(id);
   }
   //log('getListenersForMessageType ', { type, targets, except, finalTargets, all: mAddons });
   return Array.from(finalTargets, getAddon);
 }
 
-export async function sendMessage(addonId, message, { tabProperties, cache, isContextTab } = {}) {
-  if (mPromisedInitialized)
-    await mPromisedInitialized;
+export async function sendMessage(
+  addonId,
+  message,
+  { tabProperties, cache, isContextTab } = {}
+) {
+  if (mPromisedInitialized) await mPromisedInitialized;
 
   cache = cache || {};
 
   const incognitoParams = { windowId: message.windowId || message.window };
   for (const key of tabProperties) {
-    if (!message[key])
-      continue;
-    if (Array.isArray(message[key]))
-      incognitoParams.tab = message[key][0].tab;
-    else
-      incognitoParams.tab = message[key].tab;
+    if (!message[key]) continue;
+    if (Array.isArray(message[key])) incognitoParams.tab = message[key][0].tab;
+    else incognitoParams.tab = message[key].tab;
     break;
   }
   if (!isSafeAtIncognito(addonId, incognitoParams))
-    throw new Error(`Message from incognito source is not allowed for ${addonId}`);
+    throw new Error(
+      `Message from incognito source is not allowed for ${addonId}`
+    );
 
-  const safeMessage = await sanitizeMessage(message, { addonId, tabProperties, cache, isContextTab });
-  const result = directSendMessage(addonId, safeMessage);
-  if (result.error)
-    throw result.error;
-  return result.result;
-}
-
-export async function broadcastMessage(message, { targets, except, tabProperties, cache, isContextTab } = {}) {
-  if (!configs.APIEnabled)
-    return [];
-
-  if (mPromisedInitialized)
-    await mPromisedInitialized;
-
-  const listenerAddons = getListenersForMessageType(message.type, { targets, except });
-  tabProperties = tabProperties || [];
-  cache         = cache || {};
-  log(`broadcastMessage: sending message for ${message.type}: `, {
-    message,
-    listenerAddons,
-    tabProperties
-  });
-
-  const promisedResults = spawnMessages(new Set(listenerAddons.map(addon => addon.id)), {
-    message,
+  const safeMessage = await sanitizeMessage(message, {
+    addonId,
     tabProperties,
     cache,
     isContextTab,
   });
-  return Promise.all(promisedResults).then(results => {
-    log(`broadcastMessage: got responses for ${message.type}: `, results);
-    return results;
-  }).catch(ApiTabs.createErrorHandler());
+  const result = directSendMessage(addonId, safeMessage);
+  if (result.error) throw result.error;
+  return result.result;
 }
 
-function* spawnMessages(targets, { message, tabProperties, cache, isContextTab }) {
+export async function broadcastMessage(
+  message,
+  { targets, except, tabProperties, cache, isContextTab } = {}
+) {
+  if (!configs.APIEnabled) return [];
+
+  if (mPromisedInitialized) await mPromisedInitialized;
+
+  const listenerAddons = getListenersForMessageType(message.type, {
+    targets,
+    except,
+  });
   tabProperties = tabProperties || [];
-  cache         = cache || {};
+  cache = cache || {};
+  log(`broadcastMessage: sending message for ${message.type}: `, {
+    message,
+    listenerAddons,
+    tabProperties,
+  });
+
+  const promisedResults = spawnMessages(
+    new Set(listenerAddons.map((addon) => addon.id)),
+    {
+      message,
+      tabProperties,
+      cache,
+      isContextTab,
+    }
+  );
+  return Promise.all(promisedResults)
+    .then((results) => {
+      log(`broadcastMessage: got responses for ${message.type}: `, results);
+      return results;
+    })
+    .catch(ApiTabs.createErrorHandler());
+}
+
+function* spawnMessages(
+  targets,
+  { message, tabProperties, cache, isContextTab }
+) {
+  tabProperties = tabProperties || [];
+  cache = cache || {};
 
   const incognitoParams = { windowId: message.windowId || message.window };
   for (const key of tabProperties) {
-    if (!message[key])
-      continue;
-    if (Array.isArray(message[key]))
-      incognitoParams.tab = message[key][0].tab;
-    else
-      incognitoParams.tab = message[key].tab;
+    if (!message[key]) continue;
+    if (Array.isArray(message[key])) incognitoParams.tab = message[key][0].tab;
+    else incognitoParams.tab = message[key].tab;
     break;
   }
 
@@ -1151,28 +1222,34 @@ function* spawnMessages(targets, { message, tabProperties, cache, isContextTab }
     if (!isSafeAtIncognito(id, incognitoParams))
       return {
         id,
-        result: undefined
+        result: undefined,
       };
 
-    const allowedMessage = await sanitizeMessage(message, { addonId: id, tabProperties, cache, isContextTab });
+    const allowedMessage = await sanitizeMessage(message, {
+      addonId: id,
+      tabProperties,
+      cache,
+      isContextTab,
+    });
     const addon = getAddon(id) || {};
-    if (BULK_MESSAGING_TYPES.has(message.type) &&
-        addon.allowBulkMessaging) {
+    if (BULK_MESSAGING_TYPES.has(message.type) && addon.allowBulkMessaging) {
       const startAt = `${Date.now()}-${parseInt(Math.random() * 65000)}`;
       mMessagesPendedAt.set(id, startAt);
       const messages = mPendingMessagesFor.get(id) || [];
       messages.push(allowedMessage);
       mPendingMessagesFor.set(id, messages);
-      (Constants.IS_BACKGROUND ?
-        setTimeout : // because window.requestAnimationFrame is decelerate for an invisible document.
-        window.requestAnimationFrame)(() => {
-        if (mMessagesPendedAt.get(id) != startAt)
-          return;
+      (Constants.IS_BACKGROUND
+        ? setTimeout
+        : // because window.requestAnimationFrame is decelerate for an invisible document.
+          window.requestAnimationFrame)(() => {
+        if (mMessagesPendedAt.get(id) !== startAt) return;
         const messages = mPendingMessagesFor.get(id);
         mPendingMessagesFor.delete(id);
-        if (!messages || messages.length == 0)
-          return;
-        directSendMessage(id, messages.length == 1 ? messages[0] : { messages });
+        if (!messages || messages.length === 0) return;
+        directSendMessage(
+          id,
+          messages.length === 1 ? messages[0] : { messages }
+        );
       }, 0);
       return {
         id,
@@ -1189,28 +1266,38 @@ function* spawnMessages(targets, { message, tabProperties, cache, isContextTab }
 }
 async function directSendMessage(id, message) {
   try {
-    const result = await (id == browser.runtime.id ?
-      browser.runtime.sendMessage(
-        Array.isArray(message) ?
-          message.map(message => ({ ...message, type: `${INTERNAL_CALL_PREFIX}${message.type}` })) :
-          ({ ...message, type: `${INTERNAL_CALL_PREFIX}${message.type}` })
-      ) :
-      browser.runtime.sendMessage(id, message));
+    const result = await (id === browser.runtime.id
+      ? browser.runtime.sendMessage(
+          Array.isArray(message)
+            ? message.map((message) => ({
+                ...message,
+                type: `${INTERNAL_CALL_PREFIX}${message.type}`,
+              }))
+            : { ...message, type: `${INTERNAL_CALL_PREFIX}${message.type}` }
+        )
+      : browser.runtime.sendMessage(id, message));
     return {
       id,
       result,
     };
-  }
-  catch(error) {
+  } catch (error) {
     console.log(`Error on sending message to ${id}`, message, error);
-    if (error &&
-        error.message == 'Could not establish connection. Receiving end does not exist.') {
-      browser.runtime.sendMessage(id, { type: kNOTIFY_READY }).catch(_error => {
-        console.log(`Unregistering missing helper addon ${id}...`);
-        unregisterAddon(id);
-        if (Constants.IS_SIDEBAR)
-          browser.runtime.sendMessage({ type: kCOMMAND_UNREGISTER_ADDON, id });
-      });
+    if (
+      error &&
+      error.message ===
+        "Could not establish connection. Receiving end does not exist."
+    ) {
+      browser.runtime
+        .sendMessage(id, { type: kNOTIFY_READY })
+        .catch((_error) => {
+          console.log(`Unregistering missing helper addon ${id}...`);
+          unregisterAddon(id);
+          if (Constants.IS_SIDEBAR)
+            browser.runtime.sendMessage({
+              type: kCOMMAND_UNREGISTER_ADDON,
+              id,
+            });
+        });
     }
     return {
       id,
@@ -1220,19 +1307,26 @@ async function directSendMessage(id, message) {
 }
 
 export function isSafeAtIncognito(addonId, { tab, windowId }) {
-  if (addonId == browser.runtime.id)
-    return true;
+  if (addonId === browser.runtime.id) return true;
   const win = windowId && TabsStore.windows.get(windowId);
-  const hasIncognitoInfo = (win && win.incognito) || (tab && tab.incognito);
-  return !hasIncognitoInfo || configs.incognitoAllowedExternalAddons.includes(addonId);
+  const hasIncognitoInfo = win?.incognito || tab?.incognito;
+  return (
+    !hasIncognitoInfo ||
+    configs.incognitoAllowedExternalAddons.includes(addonId)
+  );
 }
 
-async function sanitizeMessage(message, { addonId, tabProperties, cache, isContextTab }) {
+async function sanitizeMessage(
+  message,
+  { addonId, tabProperties, cache, isContextTab }
+) {
   const addon = getAddon(addonId);
-  if (!message ||
-      !tabProperties ||
-      tabProperties.length == 0 ||
-      addon.bypassPermissionCheck)
+  if (
+    !message ||
+    !tabProperties ||
+    tabProperties.length === 0 ||
+    addon.bypassPermissionCheck
+  )
     return message;
 
   cache = cache || {};
@@ -1242,89 +1336,109 @@ async function sanitizeMessage(message, { addonId, tabProperties, cache, isConte
   if (tabProperties) {
     for (const name of tabProperties) {
       const treeItem = message[name];
-      if (!treeItem)
-        continue;
+      if (!treeItem) continue;
       if (Array.isArray(treeItem))
-        tasks.push((async treeItems => {
-          const tabs = await Promise.all(treeItems.map(treeItem => exportTab(treeItem, {
-            addonId: addon.id,
-            light:   !!addon.lightTree,
-            cache,
-            isContextTab,
-          })));
-          sanitizedProperties[name] = tabs.filter(tab => !!tab);
-        })(treeItem));
+        tasks.push(
+          (async (treeItems) => {
+            const tabs = await Promise.all(
+              treeItems.map((treeItem) =>
+                exportTab(treeItem, {
+                  addonId: addon.id,
+                  light: !!addon.lightTree,
+                  cache,
+                  isContextTab,
+                })
+              )
+            );
+            sanitizedProperties[name] = tabs.filter((tab) => !!tab);
+          })(treeItem)
+        );
       else
-        tasks.push((async () => {
-          sanitizedProperties[name] = await exportTab(treeItem, {
-            addonId: addon.id,
-            light:   !!addon.lightTree,
-            cache,
-            isContextTab,
-          });
-        })());
+        tasks.push(
+          (async () => {
+            sanitizedProperties[name] = await exportTab(treeItem, {
+              addonId: addon.id,
+              light: !!addon.lightTree,
+              cache,
+              isContextTab,
+            });
+          })()
+        );
     }
   }
   await Promise.all(tasks);
   return { ...message, ...sanitizedProperties };
 }
 
-
 // =======================================================================
 // Common utilities for request-response type API call
 // =======================================================================
 
 export async function getTargetTabs(message, sender) {
-  const tabQuery = message.tabs || message.tabIds || message.tab || message.tabId;
+  const tabQuery =
+    message.tabs || message.tabIds || message.tab || message.tabId;
   const windowId = message.window || message.windowId;
 
   if (Array.isArray(tabQuery))
-    await Promise.all(tabQuery.map(oneTabQuery => {
-      if (typeof oneTabQuery == 'number')
-        return Tab.waitUntilTracked(oneTabQuery)
-      return true;
-    }));
-  else if (typeof tabQuery == 'number')
-    await Tab.waitUntilTracked(tabQuery);
+    await Promise.all(
+      tabQuery.map((oneTabQuery) => {
+        if (typeof oneTabQuery === "number")
+          return Tab.waitUntilTracked(oneTabQuery);
+        return true;
+      })
+    );
+  else if (typeof tabQuery === "number") await Tab.waitUntilTracked(tabQuery);
 
-  if (windowId)
-    await Tab.waitUntilTrackedAll(windowId);
+  if (windowId) await Tab.waitUntilTrackedAll(windowId);
 
   const queryOptions = {};
   if (Array.isArray(queryOptions.states)) {
     queryOptions.states = queryOptions.states || [];
-    queryOptions.states.push(...queryOptions.states.map(state => [state, true]));
+    queryOptions.states.push(
+      ...queryOptions.states.map((state) => [state, true])
+    );
   }
   if (Array.isArray(queryOptions.statesNot)) {
     queryOptions.states = queryOptions.statesNot || [];
-    queryOptions.states.push(...queryOptions.statesNot.map(state => [state, false]));
+    queryOptions.states.push(
+      ...queryOptions.statesNot.map((state) => [state, false])
+    );
   }
 
   if (Array.isArray(tabQuery))
     return getTabsByQueries(tabQuery, { windowId, queryOptions, sender });
 
   if (windowId) {
-    if (tabQuery == '*')
+    if (tabQuery === "*")
       return Tab.getAllTabs(windowId, { ...queryOptions, iterator: true });
     else if (!tabQuery)
       return Tab.getRootTabs(windowId, { ...queryOptions, iterator: true });
   }
-  if (tabQuery == '*') {
-    const win = await browser.windows.getLastFocused({
-      windowTypes: ['normal']
-    }).catch(ApiTabs.createErrorHandler());
+  if (tabQuery === "*") {
+    const win = await browser.windows
+      .getLastFocused({
+        windowTypes: ["normal"],
+      })
+      .catch(ApiTabs.createErrorHandler());
     return Tab.getAllTabs(win.id, { ...queryOptions, iterator: true });
   }
   if (tabQuery) {
-    let tabs = await getTabsByQueries([tabQuery], { windowId, queryOptions, sender });
+    let tabs = await getTabsByQueries([tabQuery], {
+      windowId,
+      queryOptions,
+      sender,
+    });
     if (queryOptions.states)
-      tabs = tabs.filter(tab => {
+      tabs = tabs.filter((tab) => {
         const unified = new Set([...tab.$TST.states, ...queryOptions.states]);
-        return unified.size == tab.$TST.states.size;
+        return unified.size === tab.$TST.states.size;
       });
     if (queryOptions.statesNot)
-      tabs = tabs.filter(tab => {
-        const unified = new Set([...tab.$TST.states, ...queryOptions.statesNot]);
+      tabs = tabs.filter((tab) => {
+        const unified = new Set([
+          ...tab.$TST.states,
+          ...queryOptions.statesNot,
+        ]);
         return unified.size > tab.$TST.states.size;
       });
     return tabs;
@@ -1337,136 +1451,164 @@ export async function getTargetRenderedTabs(message, sender) {
   // Populating it to an array while operations will finishes
   // the iterator and returned tabs will become just blank.
   const tabs = await getTargetTabs(message, sender);
-  if (!tabs)
-    return tabs;
+  if (!tabs) return tabs;
 
-  const windowId = message.window ||
+  const windowId =
+    message.window ||
     message.windowId ||
-    await browser.windows.getLastFocused({
-      windowTypes: ['normal']
-    }).catch(ApiTabs.createErrorHandler()).then(win => win && win.id);
+    (await browser.windows
+      .getLastFocused({
+        windowTypes: ["normal"],
+      })
+      .catch(ApiTabs.createErrorHandler())
+      .then((win) => win?.id));
   const renderedTabIds = await browser.runtime.sendMessage({
     type: Constants.kCOMMAND_GET_RENDERED_TAB_IDS,
     windowId,
   });
   const renderedTabIdsSet = new Set(renderedTabIds);
-  return Array.from(tabs).filter(tab => renderedTabIdsSet.has(tab.id));
+  return Array.from(tabs).filter((tab) => renderedTabIdsSet.has(tab.id));
 }
 
 async function getTabsByQueries(queries, { windowId, queryOptions, sender }) {
-  const win = !windowId && await browser.windows.getLastFocused({
-    populate: true
-  }).catch(ApiTabs.createErrorHandler());
+  const win =
+    !windowId &&
+    (await browser.windows
+      .getLastFocused({
+        populate: true,
+      })
+      .catch(ApiTabs.createErrorHandler()));
   const activeWindow = TabsStore.windows.get(windowId || win.id) || win;
-  const tabs = await Promise.all(queries.map(query => getTabsByQuery(query, { activeWindow, queryOptions, sender }).catch(error => {
-    console.error(error);
-    return null;
-  })));
-  log('getTabsByQueries: ', queries, ' => ', tabs, 'sender: ', sender, windowId);
+  const tabs = await Promise.all(
+    queries.map((query) =>
+      getTabsByQuery(query, { activeWindow, queryOptions, sender }).catch(
+        (error) => {
+          console.error(error);
+          return null;
+        }
+      )
+    )
+  );
+  log(
+    "getTabsByQueries: ",
+    queries,
+    " => ",
+    tabs,
+    "sender: ",
+    sender,
+    windowId
+  );
 
-  return tabs.flat().filter(tab => !!tab);
+  return tabs.flat().filter((tab) => !!tab);
 }
 
 async function getTabsByQuery(query, { activeWindow, queryOptions, sender }) {
-  log('getTabsByQuery: ', { query, activeWindow, queryOptions, sender });
-  if (query && typeof query == 'object' && typeof query.id == 'number') // tabs.Tab
+  log("getTabsByQuery: ", { query, activeWindow, queryOptions, sender });
+  if (query && typeof query === "object" && typeof query.id === "number")
+    // tabs.Tab
     query = query.id;
   let id = query;
   query = String(query).toLowerCase();
   let baseTab = Tab.getActiveTab(activeWindow.id);
 
   // this sometimes happen when the active tab was detached from the window
-  if (!baseTab)
-    return null;
+  if (!baseTab) return null;
 
   const nonActiveTabMatched = query.match(/^([^-]+)-of-(.+)$/i);
   if (nonActiveTabMatched) {
     query = nonActiveTabMatched[1];
-    id    = nonActiveTabMatched[2];
-    if (/^\d+$/.test(id))
-      id = parseInt(id);
+    id = nonActiveTabMatched[2];
+    if (/^\d+$/.test(id)) id = parseInt(id);
     baseTab = Tab.get(id) || Tab.getByUniqueId(id);
-    if (!baseTab)
-      return null;
+    if (!baseTab) return null;
   }
   switch (query) {
-    case 'active':
-    case 'current':
+    case "active":
+    case "current":
       return baseTab;
 
-    case 'parent':
+    case "parent":
       return baseTab.$TST.parent;
 
-    case 'root':
+    case "root":
       return baseTab.$TST.rootTab;
 
-    case 'next':
+    case "next":
       return baseTab.$TST.nextTab;
-    case 'nextcyclic':
-      return baseTab.$TST.nextTab || Tab.getFirstTab(baseTab.windowId, queryOptions || {});
+    case "nextcyclic":
+      return (
+        baseTab.$TST.nextTab ||
+        Tab.getFirstTab(baseTab.windowId, queryOptions || {})
+      );
 
-    case 'previous':
-    case 'prev':
+    case "previous":
+    case "prev":
       return baseTab.$TST.previousTab;
-    case 'previouscyclic':
-    case 'prevcyclic':
-      return baseTab.$TST.previousTab || Tab.getLastTab(baseTab.windowId, queryOptions || {});
+    case "previouscyclic":
+    case "prevcyclic":
+      return (
+        baseTab.$TST.previousTab ||
+        Tab.getLastTab(baseTab.windowId, queryOptions || {})
+      );
 
-    case 'nextsibling':
+    case "nextsibling":
       return baseTab.$TST.nextSiblingTab;
-    case 'nextsiblingcyclic': {
+    case "nextsiblingcyclic": {
       const nextSibling = baseTab.$TST.nextSiblingTab;
-      if (nextSibling)
-        return nextSibling;
+      if (nextSibling) return nextSibling;
       const parent = baseTab.$TST.parent;
-      if (parent)
-        return parent.$TST.firstChild;
+      if (parent) return parent.$TST.firstChild;
       return Tab.getFirstTab(baseTab.windowId, queryOptions || {});
     }
 
-    case 'previoussibling':
-    case 'prevsibling':
+    case "previoussibling":
+    case "prevsibling":
       return baseTab.$TST.previousSiblingTab;
-    case 'previoussiblingcyclic':
-    case 'prevsiblingcyclic': {
+    case "previoussiblingcyclic":
+    case "prevsiblingcyclic": {
       const previousSiblingTab = baseTab.$TST.previousSiblingTab;
-      if (previousSiblingTab)
-        return previousSiblingTab;
+      if (previousSiblingTab) return previousSiblingTab;
       const parent = baseTab.$TST.parent;
-      if (parent)
-        return parent.$TST.lastChild;
+      if (parent) return parent.$TST.lastChild;
       return Tab.getLastRootTab(baseTab.windowId, queryOptions || {});
     }
 
-    case 'nextvisible':
+    case "nextvisible":
       return baseTab.$TST.nearestVisibleFollowingTab;
-    case 'nextvisiblecyclic':
-      return baseTab.$TST.nearestVisibleFollowingTab || Tab.getFirstVisibleTab(baseTab.windowId, queryOptions || {});
+    case "nextvisiblecyclic":
+      return (
+        baseTab.$TST.nearestVisibleFollowingTab ||
+        Tab.getFirstVisibleTab(baseTab.windowId, queryOptions || {})
+      );
 
-    case 'previousvisible':
-    case 'prevvisible':
+    case "previousvisible":
+    case "prevvisible":
       return baseTab.$TST.nearestVisiblePrecedingTab;
-    case 'previousvisiblecyclic':
-    case 'prevvisiblecyclic':
-      return baseTab.$TST.nearestVisiblePrecedingTab || Tab.getLastVisibleTab(baseTab.windowId, queryOptions || {});
+    case "previousvisiblecyclic":
+    case "prevvisiblecyclic":
+      return (
+        baseTab.$TST.nearestVisiblePrecedingTab ||
+        Tab.getLastVisibleTab(baseTab.windowId, queryOptions || {})
+      );
 
-    case 'lastdescendant':
+    case "lastdescendant":
       return baseTab.$TST.lastDescendant;
 
-    case 'sendertab':
-      return sender && sender.tab && Tab.get(sender.tab.id) || null;
+    case "sendertab":
+      return (sender?.tab && Tab.get(sender.tab.id)) || null;
 
-
-    case 'highlighted':
-    case 'multiselected':
+    case "highlighted":
+    case "multiselected":
       return Tab.getHighlightedTabs(baseTab.windowId, queryOptions || {});
 
-    case 'allvisibles':
+    case "allvisibles":
       return Tab.getVisibleTabs(baseTab.windowId, queryOptions || {});
 
-    case 'normalvisibles':
-      return Tab.getVisibleTabs(baseTab.windowId, { ...(queryOptions || {}), normal: true });
-
+    case "normalvisibles":
+      return Tab.getVisibleTabs(baseTab.windowId, {
+        ...(queryOptions || {}),
+        normal: true,
+      });
 
     default:
       return Tab.get(id) || Tab.getByUniqueId(id);
@@ -1474,12 +1616,13 @@ async function getTabsByQuery(query, { activeWindow, queryOptions, sender }) {
 }
 
 export function formatResult(results, originalMessage) {
-  if (Array.isArray(originalMessage.tabs) ||
-      originalMessage.tab == '*' ||
-      originalMessage.tabs == '*')
+  if (
+    Array.isArray(originalMessage.tabs) ||
+    originalMessage.tab === "*" ||
+    originalMessage.tabs === "*"
+  )
     return results;
-  if (originalMessage.tab)
-    return results[0];
+  if (originalMessage.tab) return results[0];
   return results;
 }
 
@@ -1487,11 +1630,11 @@ const TABS_ARRAY_QUERY_MATCHER = /^(\*|allvisibles|normalvisibles)$/i;
 
 export async function formatTabResult(exportedTabs, originalMessage) {
   exportedTabs = await Promise.all(exportedTabs);
-  if (Array.isArray(originalMessage.tabs) ||
-      TABS_ARRAY_QUERY_MATCHER.test(originalMessage.tab) ||
-      TABS_ARRAY_QUERY_MATCHER.test(originalMessage.tabs))
-    return exportedTabs.filter(tab => !!tab);
-  return exportedTabs.length == 0 ?
-    null :
-    exportedTabs[0];
+  if (
+    Array.isArray(originalMessage.tabs) ||
+    TABS_ARRAY_QUERY_MATCHER.test(originalMessage.tab) ||
+    TABS_ARRAY_QUERY_MATCHER.test(originalMessage.tabs)
+  )
+    return exportedTabs.filter((tab) => !!tab);
+  return exportedTabs.length === 0 ? null : exportedTabs[0];
 }

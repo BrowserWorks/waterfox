@@ -13,10 +13,8 @@ var l10n = {
 
   $log(message, ...args) {
     message = `l10s: ${message}`;
-    if (typeof window.log === 'function')
-      log(message, ...args);
-    else
-      console.log(message, ...args);
+    if (typeof window.log === "function") log(message, ...args);
+    else console.log(message, ...args);
   },
 
   updateSubtree(node) {
@@ -41,17 +39,21 @@ var l10n = {
     );
     for (let i = 0, maxi = attributes.snapshotLength; i < maxi; i++) {
       const attribute = attributes.snapshotItem(i);
-      this.$log('apply', attribute);
+      this.$log("apply", attribute);
       attribute.value = this.updateString(attribute.value);
     }
   },
 
   updateDocument() {
     this.updateSubtree(document);
-  }
+  },
 };
 
-document.addEventListener('DOMContentLoaded', () => {
-  l10n.updateDocument();
-}, { once: true });
+document.addEventListener(
+  "DOMContentLoaded",
+  () => {
+    l10n.updateDocument();
+  },
+  { once: true }
+);
 window.l10n = l10n;

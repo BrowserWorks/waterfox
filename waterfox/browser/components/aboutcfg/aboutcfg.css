@@ -19,7 +19,7 @@
   font-weight: lighter;
   line-height: 1.2;
   margin: 0;
-  margin-bottom: .5em;
+  margin-bottom: 0.5em;
 }
 
 #warningText {
@@ -48,11 +48,13 @@
   font-style: italic;
 }
 
-#prefCol, #valueCol {
+#prefCol,
+#valueCol {
   width: 40%;
 }
 
-#lockCol, #typeCol {
+#lockCol,
+#typeCol {
   width: 70px;
 }
 

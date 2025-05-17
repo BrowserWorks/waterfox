@@ -2,12 +2,10 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-var { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
+const kStringBlockSize = 4096;
+const kStreamBlockSize = 8192;
 
-var kStringBlockSize = 4096;
-var kStreamBlockSize = 8192;
-
-export var IOUtils = {
+export const IOUtils = {
   /**
    * Read a file containing ASCII text into a string.
    *
@@ -29,13 +27,13 @@ export var IOUtils = {
       return null;
     }
 
-    let fstream = Cc["@mozilla.org/network/file-input-stream;1"].createInstance(
+    const fstream = Cc["@mozilla.org/network/file-input-stream;1"].createInstance(
       Ci.nsIFileInputStream
     );
     // PR_RDONLY
     fstream.init(file, 0x01, 0, 0);
 
-    let sstream = Cc["@mozilla.org/scriptableinputstream;1"].createInstance(
+    const sstream = Cc["@mozilla.org/scriptableinputstream;1"].createInstance(
       Ci.nsIScriptableInputStream
     );
     sstream.init(fstream);
@@ -70,7 +68,7 @@ export var IOUtils = {
       file = aFile;
     }
 
-    let foStream = Cc[
+    const foStream = Cc[
       "@mozilla.org/network/safe-file-output-stream;1"
     ].createInstance(Ci.nsIFileOutputStream);
 
@@ -101,10 +99,10 @@ export var IOUtils = {
       throw new Error("Invalid file passed to saveStreamToFile");
     }
 
-    let fstream = Cc[
+    const fstream = Cc[
       "@mozilla.org/network/safe-file-output-stream;1"
     ].createInstance(Ci.nsIFileOutputStream);
-    let buffer = Cc[
+    const buffer = Cc[
       "@mozilla.org/network/buffered-output-stream;1"
     ].createInstance(Ci.nsIBufferedOutputStream);
 
