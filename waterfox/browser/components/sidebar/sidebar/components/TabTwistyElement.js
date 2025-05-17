@@ -4,12 +4,12 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
-const EXPANDED_TOOLTIP  = 'tab_twisty_expanded_tooltip';
-const COLLAPSED_TOOLTIP = 'tab_twisty_collapsed_tooltip';
+const EXPANDED_TOOLTIP = "tab_twisty_expanded_tooltip";
+const COLLAPSED_TOOLTIP = "tab_twisty_collapsed_tooltip";
 
-export const kTAB_TWISTY_ELEMENT_NAME = 'tab-twisty';
+export const kTAB_TWISTY_ELEMENT_NAME = "tab-twisty";
 
-const kTAB_TWISTY_CLASS_NAME = 'twisty';
+const kTAB_TWISTY_CLASS_NAME = "twisty";
 
 export class TabTwistyElement extends HTMLElement {
   static define() {
@@ -42,7 +42,7 @@ export class TabTwistyElement extends HTMLElement {
     // We preserve this class for backward compatibility with other addons.
     this.classList.add(kTAB_TWISTY_CLASS_NAME);
 
-    this.setAttribute('role', 'button');
+    this.setAttribute("role", "button");
     //this.setAttribute('tabindex', '0');
 
     this.invalidate();
@@ -52,36 +52,36 @@ export class TabTwistyElement extends HTMLElement {
 
   disconnectedCallback() {
     if (this._reservedUpdate) {
-      this.removeEventListener('mouseover', this._reservedUpdate);
+      this.removeEventListener("mouseover", this._reservedUpdate);
       this._reservedUpdate = null;
     }
   }
 
   invalidate() {
-    if (this._reservedUpdate)
-      return;
+    if (this._reservedUpdate) return;
 
     this._reservedUpdate = () => {
       this._reservedUpdate = null;
       this._updateTooltip();
     };
-    this.addEventListener('mouseover', this._reservedUpdate, { once: true });
+    this.addEventListener("mouseover", this._reservedUpdate, { once: true });
   }
 
   _updateTooltip() {
     const tab = this.owner;
 
     let key;
-    if (tab && tab.$TST.subtreeCollapsed)
-      key = COLLAPSED_TOOLTIP;
-    else
-      key = EXPANDED_TOOLTIP;
+    if (tab?.$TST.subtreeCollapsed) key = COLLAPSED_TOOLTIP;
+    else key = EXPANDED_TOOLTIP;
 
     const tooltip = browser.i18n.getMessage(key);
-    this.setAttribute('title', tooltip);
+    this.setAttribute("title", tooltip);
   }
 
   makeAccessible() {
-    this.setAttribute('aria-label', browser.i18n.getMessage('tab_twisty_aria_label', [this.owner.id]));
+    this.setAttribute(
+      "aria-label",
+      browser.i18n.getMessage("tab_twisty_aria_label", [this.owner.id])
+    );
   }
 }

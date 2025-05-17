@@ -4,13 +4,13 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
-import * as Constants from '/common/constants.js';
+import * as Constants from "/common/constants.js";
 
-export const kTAB_FAVICON_ELEMENT_NAME = 'tab-favicon';
+export const kTAB_FAVICON_ELEMENT_NAME = "tab-favicon";
 
-const KFAVICON_CLASS_NAME = 'favicon';
+const KFAVICON_CLASS_NAME = "favicon";
 
-const kATTR_NAME_SRC = 'src';
+const kATTR_NAME_SRC = "src";
 
 export class TabFaviconElement extends HTMLElement {
   static define() {
@@ -19,10 +19,6 @@ export class TabFaviconElement extends HTMLElement {
 
   static get observedAttributes() {
     return [kATTR_NAME_SRC];
-  }
-
-  constructor() {
-    super();
   }
 
   connectedCallback() {
@@ -50,23 +46,23 @@ export class TabFaviconElement extends HTMLElement {
     // We preserve this class for backward compatibility with other addons.
     this.classList.add(KFAVICON_CLASS_NAME);
 
-    const faviconImage = this.appendChild(document.createElement('img'));
+    const faviconImage = this.appendChild(document.createElement("img"));
     faviconImage.classList.add(Constants.kFAVICON_IMAGE);
     const src = this.getAttribute(kATTR_NAME_SRC);
     faviconImage.setAttribute(kATTR_NAME_SRC, src);
 
-    const defaultIcon = this.appendChild(document.createElement('span'));
+    const defaultIcon = this.appendChild(document.createElement("span"));
     defaultIcon.classList.add(Constants.kFAVICON_BUILTIN);
     defaultIcon.classList.add(Constants.kFAVICON_DEFAULT); // just for backward compatibility, and this should be removed from future versions
 
     /* for faviconized tabs */
-    const sharingStateIcon = this.appendChild(document.createElement('span'));
+    const sharingStateIcon = this.appendChild(document.createElement("span"));
     sharingStateIcon.classList.add(Constants.kFAVICON_SHARING_STATE);
 
-    const stickyStateIcon = this.appendChild(document.createElement('span'));
+    const stickyStateIcon = this.appendChild(document.createElement("span"));
     stickyStateIcon.classList.add(Constants.kFAVICON_STICKY_STATE);
 
-    const throbber = this.appendChild(document.createElement('span'));
+    const throbber = this.appendChild(document.createElement("span"));
     throbber.classList.add(Constants.kTHROBBER);
 
     this._applySrc();
@@ -87,19 +83,18 @@ export class TabFaviconElement extends HTMLElement {
         break;
 
       default:
-        throw new RangeError(`Handling \`${name}\` attribute has not been defined.`);
+        throw new RangeError(
+          `Handling \`${name}\` attribute has not been defined.`
+        );
     }
   }
 
   _applySrc() {
     const img = this._imgElement;
-    if (!img)
-      return;
+    if (!img) return;
     const url = this.src;
-    if (url)
-      img.setAttribute('src', url);
-    else
-      img.removeAttribute('src');
+    if (url) img.setAttribute("src", url);
+    else img.removeAttribute("src");
   }
 
   get _imgElement() {
@@ -111,9 +106,7 @@ export class TabFaviconElement extends HTMLElement {
     return this.getAttribute(kATTR_NAME_SRC);
   }
   set src(value) {
-    if (value)
-      this.setAttribute(kATTR_NAME_SRC, value);
-    else
-      this.removeAttribute(kATTR_NAME_SRC);
+    if (value) this.setAttribute(kATTR_NAME_SRC, value);
+    else this.removeAttribute(kATTR_NAME_SRC);
   }
 }

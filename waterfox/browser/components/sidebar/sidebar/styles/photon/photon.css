@@ -7,7 +7,6 @@
 @import url("/resources/ui-color.css");
 @import url("base.css");
 
-
 /* Coloring */
 
 :root {
@@ -15,18 +14,45 @@
   --toolbar-non-lwt-textcolor: var(--in-content-page-color);
 
   --tab-like-surface: var(--browser-bg-base, var(--toolbar-non-lwt-bgcolor));
-  --tab-surface-regular: var(--browser-bg-for-header-image, var(--tab-like-surface));
+  --tab-surface-regular: var(
+    --browser-bg-for-header-image,
+    var(--tab-like-surface)
+  );
   --tab-text-regular: var(--browser-fg, var(--toolbar-non-lwt-textcolor));
-  --tab-text-inverted: var(--browser-bg-more-lighter, var(--toolbar-non-lwt-bgcolor));
+  --tab-text-inverted: var(
+    --browser-bg-more-lighter,
+    var(--toolbar-non-lwt-bgcolor)
+  );
   --tab-text-active: var(--tab-text);
   --tab-text-active-inverted: var(--toolbar-non-lwt-bgcolor);
-  --tab-border: var(--browser-border, var(--browser-bg-more-darker, var(--in-content-box-border-color-mixed)));
-  --tab-surface-hover: var(--browser-bg-hover-for-header-image, var(--browser-bg-more-lighter, var(--in-content-box-background-hover)));
-  --tab-surface-active: var(--browser-bg-active-for-header-image, var(--face-highlight-more-lighter, var(--in-content-button-background-mixed)));
-  --tab-surface-active-hover: var(--browser-bg-active-for-header-image, var(--face-highlight-more-more-lighter, var(--in-content-button-background-active-mixed)));
+  --tab-border: var(
+    --browser-border,
+    var(--browser-bg-more-darker, var(--in-content-box-border-color-mixed))
+  );
+  --tab-surface-hover: var(
+    --browser-bg-hover-for-header-image,
+    var(--browser-bg-more-lighter, var(--in-content-box-background-hover))
+  );
+  --tab-surface-active: var(
+    --browser-bg-active-for-header-image,
+    var(
+      --face-highlight-more-lighter,
+      var(--in-content-button-background-mixed)
+    )
+  );
+  --tab-surface-active-hover: var(
+    --browser-bg-active-for-header-image,
+    var(
+      --face-highlight-more-more-lighter,
+      var(--in-content-button-background-active-mixed)
+    )
+  );
   --tab-dropmarker: var(--browser-fg, var(--toolbar-non-lwt-textcolor));
   --throbber-color: var(--browser-loading-indicator, var(--tab-text));
-  --throbber-color-active: var(--browser-loading-indicator, var(--tab-text-active));
+  --throbber-color-active: var(
+    --browser-loading-indicator,
+    var(--tab-text-active)
+  );
 
   --tabbar-bg: var(--browser-bg-darker, darkgray);
 }
@@ -47,20 +73,35 @@ body,
 
 @media not (prefers-color-scheme: dark) {
   :root[color-scheme="system-color"] {
-    --tab-surface-regular: var(--browser-bg-for-header-image, var(--browser-bg-base, -moz-dialog));
+    --tab-surface-regular: var(
+      --browser-bg-for-header-image,
+      var(--browser-bg-base, -moz-dialog)
+    );
     --tab-text-regular: var(--browser-fg, -moz-dialogtext);
     --tab-text-inverted: var(--browser-bg-more-lighter, -moz-dialog);
     --tab-text-active: var(--tab-text-regular);
     --tab-text-active-inverted: Highlight;
-    --tab-border: var(--browser-border, var(--browser-bg-more-darker, var(--ThreeDShadow)));
-    --tab-surface-hover: var(--browser-bg-hover-for-header-image, var(--browser-bg-more-lighter, var(--ThreeDHighlight)));
-    --tab-surface-active: var(--browser-bg-active-for-header-image, var(--face-highlight-more-lighter, Highlight));
-    --tab-surface-active-hover: var(--browser-bg-active-for-header-image, var(--face-highlight-more-more-lighter, Highlight));
+    --tab-border: var(
+      --browser-border,
+      var(--browser-bg-more-darker, var(--ThreeDShadow))
+    );
+    --tab-surface-hover: var(
+      --browser-bg-hover-for-header-image,
+      var(--browser-bg-more-lighter, var(--ThreeDHighlight))
+    );
+    --tab-surface-active: var(
+      --browser-bg-active-for-header-image,
+      var(--face-highlight-more-lighter, Highlight)
+    );
+    --tab-surface-active-hover: var(
+      --browser-bg-active-for-header-image,
+      var(--face-highlight-more-more-lighter, Highlight)
+    );
     --tab-dropmarker: var(--browser-fg, -moz-dialogtext);
     --tabbar-bg: var(--browser-bg-darker, var(--ThreeDShadow));
   }
   :root[color-scheme="system-color"] #background::after {
-    background: var(--browser-bg-darker,var(--AppWorkspace));
+    background: var(--browser-bg-darker, var(--AppWorkspace));
     opacity: 0.15;
 
     bottom: 0;
@@ -78,8 +119,14 @@ body,
 
 #tabbar:not(.scrollbar-autohide) #pinned-tabs-container,
 #tabbar:not(.scrollbar-autohide) #normal-tabs-container {
-  scrollbar-color: var(--browser-toolbar_text-darker, var(--theme-colors-toolbar_bottom_separator, var(--in-content-button-background-hover-mixed)))
-                   var(--theme-colors-toolbar, var(--in-content-box-background));
+  scrollbar-color: var(
+      --browser-toolbar_text-darker,
+      var(
+        --theme-colors-toolbar_bottom_separator,
+        var(--in-content-button-background-hover-mixed)
+      )
+    )
+    var(--theme-colors-toolbar, var(--in-content-box-background));
 }
 
 @media (prefers-color-scheme: dark) {
@@ -146,8 +193,6 @@ tab-item .burster {
   --throbber-color: var(--tab-loading-fill);
 }
 
-
-
 /* Dropshadow */
 
 :root {
@@ -155,11 +200,15 @@ tab-item .burster {
   --shadow-blur: 0.2em;
 }
 
-:root.left tab-item:not(.pinned):not(collapsed):not(#dummy-tab) tab-item-substance {
+:root.left
+  tab-item:not(.pinned):not(collapsed):not(#dummy-tab)
+  tab-item-substance {
   box-shadow: -0.3em 0.3em var(--shadow-blur) var(--shadow-color);
 }
 
-:root.right tab-item:not(.pinned):not(collapsed):not(#dummy-tab) tab-item-substance {
+:root.right
+  tab-item:not(.pinned):not(collapsed):not(#dummy-tab)
+  tab-item-substance {
   box-shadow: 0.3em 0.3em var(--shadow-blur) var(--shadow-color);
 }
 
@@ -168,7 +217,6 @@ tab-item .burster {
   box-shadow: 0 0.3em var(--shadow-blur) var(--shadow-color);
 }
 
-
 :root.left #tabbar {
   box-shadow: inset -0.2em 0.2em var(--shadow-blur) var(--shadow-color);
 }
@@ -176,7 +224,6 @@ tab-item .burster {
 :root.right #tabbar {
   box-shadow: inset 0.2em 0.2em var(--shadow-blur) var(--shadow-color);
 }
-
 
 /* Transparent tabs are shown above solid tabs.
    We have to set z-index to show all tabs in the same layer. */
@@ -188,4 +235,3 @@ tab-item {
 .after-tabs [role="button"] {
   z-index: 100;
 }
-

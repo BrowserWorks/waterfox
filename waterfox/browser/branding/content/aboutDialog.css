@@ -54,7 +54,9 @@
 }
 
 @media (-moz-platform: macos) {
-  #checkForUpdatesButton, #downloadAndInstallButton, #updateButton {
+  #checkForUpdatesButton,
+  #downloadAndInstallButton,
+  #updateButton {
     color: #053361;
   }
 }

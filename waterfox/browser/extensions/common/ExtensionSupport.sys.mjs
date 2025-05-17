@@ -2,6 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+import { IOUtils } from "resource:///modules/IOUtils.sys.mjs";
+import { fixIterator } from "resource:///modules/iteratorUtils.sys.mjs";
 /**
  * Helper functions for use by extensions that should ease them plug
  * into the application.
@@ -9,14 +11,11 @@
 import { AddonManager } from "resource://gre/modules/AddonManager.sys.mjs";
 import { NetUtil } from "resource://gre/modules/NetUtil.sys.mjs";
 
-import { fixIterator } from "resource:///modules/iteratorUtils.sys.mjs";
-import { IOUtils } from "resource:///modules/IOUtils.sys.mjs";
+const extensionHooks = new Map();
+const legacyExtensions = new Map();
+let openWindowList;
 
-var extensionHooks = new Map();
-var legacyExtensions = new Map();
-var openWindowList;
-
-export var ExtensionSupport = {
+export const ExtensionSupport = {
   /**
    * A Map-like object which tracks legacy extension status. The "has" method
    * returns only active extensions for compatibility with existing code.
@@ -33,7 +32,7 @@ export var ExtensionSupport = {
         return false;
       }
 
-      let state = legacyExtensions.get(id);
+      const state = legacyExtensions.get(id);
       return !["install", "enable"].includes(state.pendingOperation);
     },
     hasAnyState(id) {
@@ -44,23 +43,23 @@ export var ExtensionSupport = {
         return;
       }
 
-      let state = legacyExtensions.get(id);
+      const state = legacyExtensions.get(id);
       if (
-        state.pendingOperation == "enable" &&
-        newPendingOperation == "disable"
+        state.pendingOperation === "enable" &&
+        newPendingOperation === "disable"
       ) {
         legacyExtensions.delete(id);
         this.notifyObservers(state);
       } else if (
-        state.pendingOperation == "install" &&
-        newPendingOperation == "uninstall"
+        state.pendingOperation === "install" &&
+        newPendingOperation === "uninstall"
       ) {
         legacyExtensions.delete(id);
         this.notifyObservers(state);
       }
     },
     notifyObservers(state) {
-      let wrappedState = { wrappedJSObject: state };
+      const wrappedState = { wrappedJSObject: state };
       Services.obs.notifyObservers(wrappedState, "legacy-addon-status-changed");
     },
     // AddonListener
@@ -74,15 +73,15 @@ export var ExtensionSupport = {
 
   loadAddonPrefs(addonFile) {
     function setPref(preferDefault, name, value) {
-      let branch = preferDefault
+      const branch = preferDefault
         ? Services.prefs.getDefaultBranch("")
         : Services.prefs.getBranch("");
 
-      if (typeof value == "boolean") {
+      if (typeof value === "boolean") {
         branch.setBoolPref(name, value);
-      } else if (typeof value == "string") {
+      } else if (typeof value === "string") {
         if (value.startsWith("chrome://") && value.endsWith(".properties")) {
-          let valueLocal = Cc[
+          const valueLocal = Cc[
             "@mozilla.org/pref-localizedstring;1"
           ].createInstance(Ci.nsIPrefLocalizedString);
           valueLocal.data = value;
@@ -90,17 +89,17 @@ export var ExtensionSupport = {
         } else {
           branch.setStringPref(name, value);
         }
-      } else if (typeof value == "number" && Number.isInteger(value)) {
+      } else if (typeof value === "number" && Number.isInteger(value)) {
         branch.setIntPref(name, value);
-      } else if (typeof value == "number" && Number.isFloat(value)) {
+      } else if (typeof value === "number" && Number.isFloat(value)) {
         // Floats are set as char prefs, then retrieved using getFloatPref
         branch.setCharPref(name, value);
       }
     }
 
     function walkExtensionPrefs(extensionRoot) {
-      let prefFile = extensionRoot.clone();
-      let foundPrefStrings = [];
+      const prefFile = extensionRoot.clone();
+      const foundPrefStrings = [];
       if (!prefFile.exists()) {
         return [];
       }
@@ -112,34 +111,34 @@ export var ExtensionSupport = {
           return [];
         }
 
-        let unsortedFiles = [];
-        for (let file of fixIterator(prefFile.directoryEntries, Ci.nsIFile)) {
+        const unsortedFiles = [];
+        for (const file of fixIterator(prefFile.directoryEntries, Ci.nsIFile)) {
           if (file.isFile() && file.leafName.toLowerCase().endsWith(".js")) {
             unsortedFiles.push(file);
           }
         }
 
-        for (let file of unsortedFiles.sort((a, b) =>
+        for (const file of unsortedFiles.sort((a, b) =>
           a.path < b.path ? 1 : -1
         )) {
           foundPrefStrings.push(IOUtils.loadFileToString(file));
         }
       } else if (prefFile.isFile() && prefFile.leafName.endsWith("xpi")) {
-        let zipReader = Cc["@mozilla.org/libjar/zip-reader;1"].createInstance(
+        const zipReader = Cc["@mozilla.org/libjar/zip-reader;1"].createInstance(
           Ci.nsIZipReader
         );
         zipReader.open(prefFile);
-        let entries = zipReader.findEntries("defaults/preferences/*.js");
-        let unsortedEntries = [];
+        const entries = zipReader.findEntries("defaults/preferences/*.js");
+        const unsortedEntries = [];
         while (entries.hasMore()) {
           unsortedEntries.push(entries.getNext());
         }
 
-        for (let entryName of unsortedEntries.sort().reverse()) {
-          let stream = zipReader.getInputStream(entryName);
-          let entrySize = zipReader.getEntry(entryName).realSize;
+        for (const entryName of unsortedEntries.sort().reverse()) {
+          const stream = zipReader.getInputStream(entryName);
+          const entrySize = zipReader.getEntry(entryName).realSize;
           if (entrySize > 0) {
-            let content = NetUtil.readInputStreamToString(stream, entrySize, {
+            const content = NetUtil.readInputStreamToString(stream, entrySize, {
               charset: "utf-8",
               replacement: "?",
             });
@@ -151,12 +150,12 @@ export var ExtensionSupport = {
       return foundPrefStrings;
     }
 
-    let sandbox = new Cu.Sandbox(null);
+    const sandbox = new Cu.Sandbox(null);
     sandbox.pref = setPref.bind(undefined, true);
     sandbox.user_pref = setPref.bind(undefined, false);
 
-    let prefDataStrings = walkExtensionPrefs(addonFile);
-    for (let prefDataString of prefDataStrings) {
+    const prefDataStrings = walkExtensionPrefs(addonFile);
+    for (const prefDataString of prefDataStrings) {
       try {
         Cu.evalInSandbox(prefDataString, sandbox);
       } catch (e) {
@@ -197,62 +196,62 @@ export var ExtensionSupport = {
    * @returns {boolean}  True if the passed arguments were valid and the caller could be registered.
    *                    False otherwise.
    */
-  registerWindowListener(aID, aExtensionHook) {
-    if (!aID) {
-      console.error("No extension ID provided for the window listener");
-      return false;
-    }
+   registerWindowListener(aID, aExtensionHook) {
+       if (!aID) {
+         console.error("No extension ID provided for the window listener");
+         return false;
+       }
 
-    if (extensionHooks.has(aID)) {
-      console.error(
-        "Window listener for extension + '",
-        aID,
-        "' already registered"
-      );
-      return false;
-    }
+       if (extensionHooks.has(aID)) {
+         console.error(
+           "Window listener for extension + '",
+           aID,
+           "' already registered"
+         );
+         return false;
+       }
 
-    if (
-      !("onLoadWindow" in aExtensionHook) &&
-      !("onUnloadWindow" in aExtensionHook)
-    ) {
-      console.error(
-        "The extension + '",
-        aID,
-        "' does not provide any callbacks"
-      );
-      return false;
-    }
+       if (
+         !("onLoadWindow" in aExtensionHook) &&
+         !("onUnloadWindow" in aExtensionHook)
+       ) {
+         console.error(
+           "The extension + '",
+           aID,
+           "' does not provide any callbacks"
+         );
+         return false;
+       }
 
-    extensionHooks.set(aID, aExtensionHook);
+       extensionHooks.set(aID, aExtensionHook);
 
-    // Add our global listener if there isn't one already
-    // (only when we have first caller).
-    if (extensionHooks.size == 1) {
-      Services.wm.addListener(this._windowListener);
-    }
+       // Add our global listener if there isn't one already
+       // (only when we have first caller).
+       if (extensionHooks.size === 1) {
+         Services.wm.addListener(this._windowListener);
+       }
 
-    if (openWindowList) {
-      // We already have a list of open windows, notify the caller about them.
-      openWindowList.forEach(domWindow =>
-        ExtensionSupport._checkAndRunMatchingExtensions(domWindow, "load", aID)
-      );
-    } else {
-      openWindowList = new Set();
-      // Get the list of windows already open.
-      let windows = Services.wm.getEnumerator(null);
-      while (windows.hasMoreElements()) {
-        let domWindow = windows.getNext().QueryInterface(Ci.nsIDOMWindow);
-        if (domWindow.document.location.href === "about:blank") {
-          ExtensionSupport._waitForLoad(domWindow, aID);
-        } else {
-          ExtensionSupport._addToListAndNotify(domWindow, aID);
-        }
-      }
-    }
+       if (openWindowList) {
+         // We already have a list of open windows, notify the caller about them.
+         for (const domWindow of openWindowList) {
+           ExtensionSupport._checkAndRunMatchingExtensions(domWindow, "load", aID);
+         }
+       } else {
+         openWindowList = new Set();
+         // Get the list of windows already open.
+         const windows = Services.wm.getEnumerator(null);
+         while (windows.hasMoreElements()) {
+           const domWindow = windows.getNext().QueryInterface(Ci.nsIDOMWindow);
+           if (domWindow.document.location.href === "about:blank") {
+             ExtensionSupport._waitForLoad(domWindow, aID);
+           } else {
+             ExtensionSupport._addToListAndNotify(domWindow, aID);
+           }
+         }
+       }
 
-    return true;
-  },
+       return true;
+     },
 
   /**
    * Unregister listening for windows for the given caller.
@@ -268,7 +267,7 @@ export var ExtensionSupport = {
       return false;
     }
 
-    let windowListener = extensionHooks.get(aID);
+    const windowListener = extensionHooks.get(aID);
     if (!windowListener) {
       console.error(
         "Couldn't remove window listener for extension + '",
@@ -280,7 +279,7 @@ export var ExtensionSupport = {
 
     extensionHooks.delete(aID);
     // Remove our global listener if there are no callers registered anymore.
-    if (extensionHooks.size == 0) {
+    if (extensionHooks.size === 0) {
       Services.wm.removeListener(this._windowListener);
       openWindowList.clear();
       openWindowList = undefined;
@@ -297,7 +296,7 @@ export var ExtensionSupport = {
     // nsIWindowMediatorListener functions
     onOpenWindow(xulWindow) {
       // A new window has opened.
-      let domWindow = xulWindow.docShell.domWindow;
+      const domWindow = xulWindow.docShell.domWindow;
 
       // Here we pass no caller ID, so all registered callers get notified.
       ExtensionSupport._waitForLoad(domWindow);
@@ -305,7 +304,7 @@ export var ExtensionSupport = {
 
     onCloseWindow(xulWindow) {
       // One of the windows has closed.
-      let domWindow = xulWindow.docShell.domWindow;
+      const domWindow = xulWindow.docShell.domWindow;
       openWindowList.delete(domWindow);
     },
   },
@@ -321,7 +320,7 @@ export var ExtensionSupport = {
     // aWindow.document.location.href will not be "about:blank" any more.
     aWindow.addEventListener(
       "load",
-      function () {
+      () => {
         ExtensionSupport._addToListAndNotify(aWindow, aID);
       },
       { once: true }
@@ -340,7 +339,7 @@ export var ExtensionSupport = {
     openWindowList.add(aWindow);
     aWindow.addEventListener(
       "unload",
-      function () {
+      () => {
         ExtensionSupport._checkAndRunMatchingExtensions(aWindow, "unload");
       },
       { once: true }
@@ -360,7 +359,7 @@ export var ExtensionSupport = {
     if (aID) {
       checkAndRunExtensionCode(extensionHooks.get(aID));
     } else {
-      for (let extensionHook of extensionHooks.values()) {
+      for (const extensionHook of extensionHooks.values()) {
         checkAndRunExtensionCode(extensionHook);
       }
     }
@@ -373,11 +372,11 @@ export var ExtensionSupport = {
      *                                 has registered.
      */
     function checkAndRunExtensionCode(aExtensionHook) {
-      let windowChromeURL = aWindow.document.location.href;
+      const windowChromeURL = aWindow.document.location.href;
       // Check if extension applies to this document URL.
       if (
         "chromeURLs" in aExtensionHook &&
-        !aExtensionHook.chromeURLs.some(url => url == windowChromeURL)
+        !aExtensionHook.chromeURLs.some((url) => url === windowChromeURL)
       ) {
         return;
       }
