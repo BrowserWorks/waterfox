@@ -90,6 +90,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install msitools
+          rustup update
           rustup target add x86_64-pc-windows-msvc
           mkdir -p $HOME/.mozbuild
           curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-20.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
@@ -424,6 +425,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install nasm
+          rustup update
           rustup target add ${{ matrix.arch }}
           mkdir -p $HOME/.mozbuild
           curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-20.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
@@ -545,6 +547,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install nasm
+          rustup update
           rustup target add ${{ matrix.arch }}
           mkdir -p $HOME/.mozbuild
           curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-20.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
@@ -760,6 +763,7 @@ jobs:
           curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-20.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
           tar -xvf clang.tar.zst -C $HOME/.mozbuild
           curl -L "https://www.7-zip.org/a/7z2409-linux-x64.tar.xz" | tar xJ
+          rustup update
           sudo mv 7zz /usr/local/bin/7z
           sudo apt install patchelf
           python3 -m pip install cryptography
