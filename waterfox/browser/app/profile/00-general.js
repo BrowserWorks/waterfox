@@ -37,6 +37,8 @@ pref("browser.tabs.warnOnClose", true); // Warn user when attempting to close mu
 // Stores the state of toolbar customizations (e.g., button placements).
 // It's a JSON string, generally best modified through the UI.
 pref("browser.uiCustomization.state", "{\"placements\":{\"widget-overflow-fixed-list\":[],\"unified-extensions-area\":[],\"nav-bar\":[\"back-button\",\"forward-button\",\"stop-reload-button\",\"urlbar-container\",\"save-to-pocket-button\",\"search-container\",\"downloads-button\",\"fxa-toolbar-menu-button\",\"unified-extensions-button\"],\"TabsToolbar\":[\"firefox-view-button\",\"tabbrowser-tabs\",\"new-tab-button\",\"alltabs-button\"],\"PersonalToolbar\":[\"import-button\",\"personal-bookmarks\"],\"status-bar\":[\"screenshot-button\",\"fullscreen-button\",\"status-text\"]},\"seen\":[\"developer-button\"],\"dirtyAreaCache\":[\"nav-bar\",\"status-bar\",\"PersonalToolbar\",\"TabsToolbar\"],\"currentVersion\":19,\"newElementCount\":3}");
+// Alternative smooth scroll physics. ("MSD" = Mass-Spring-Damper)
+pref("general.smoothScroll.msdPhysics.enabled", true);
 
 // --- URL Bar Behavior ---
 // Platform-specific settings for how clicks interact with the URL bar.
@@ -50,6 +52,11 @@ pref("browser.urlbar.doubleClickSelectsAll", true);
 pref("browser.urlbar.clickSelectsAll", true);
 // On other operating systems, double click behavior might be different or not specifically set to select all.
 pref("browser.urlbar.doubleClickSelectsAll", false);
+#endif
+
+#ifdef XP_MACOSX
+// Whether to disable treating ctrl click as right click
+pref("dom.event.treat_ctrl_click_as_right_click.disabled", true);
 #endif
 
 // --- Top Sites and Partner Integrations ---
@@ -78,6 +85,8 @@ pref("network.trr.ohttp.config_uri", "https://dooh.cloudflare-dns.com/.well-know
 pref("network.trr.ohttp.uri", "https://dooh.cloudflare-dns.com/dns-query"); // URI for OHTTP DoH queries.
 pref("network.trr.request_timeout_mode_trronly_ms", 1500); // Timeout (ms) when TRR mode is TRR-only.
 pref("network.trr.use_ohttp", true); // Enable Oblivious HTTP for DoH requests.
+// Include an idempotency-key header for POST requests
+pref("network.http.idempotencyKey.enabled", true);
 
 // --- Extension System and Web Compatibility ---
 // Settings related to browser extensions and web compatibility measures.
@@ -98,10 +107,30 @@ pref("browser.tabs.remote.separatedMozillaDomains", "", locked);
 pref("signon.firefoxRelay.feature", "unavailable"); // Mark Firefox Relay feature as unavailable.
 pref("signon.management.page.mobileAndroidURL", "", locked); // URL for managing passwords on Android (locked).
 pref("signon.management.page.mobileAppleURL", "", locked); // URL for managing passwords on iOS (locked).
+pref("identity.mobilepromo.android", "", locked);
+pref("identity.mobilepromo.ios", "", locked);
 pref("signon.recipes.remoteRecipes.enabled", false, locked); // Disable fetching of remote recipes for password generation.
 
 // SVG Rendering
 pref("svg.context-properties.content.enabled", true); // Enable use of CSS context-properties within SVG content.
+
+// --- MathML Rendering ---
+// Whether to disable legacy names "thickmathspace", "mediummathspace",
+// "thickmathspace" etc for length attributes.
+pref("mathml.mathspace_names.disabled", true);
+// Whether to disable the MathML3 support for the mathvariant attribute. For
+// MathML Core, support is restricted to the <mi> element and to value "normal".
+// Corresponding automatic italicization on single-char <mi> element is also
+// implemented via text-transform: auto when that flag is enabled.
+pref("mathml.legacy_mathvariant_attribute.disabled", true);
+
+// --- Media Features ---
+// Use MediaDataDecoder API for VP8/VP9 in WebRTC. This includes hardware
+// acceleration for decoding.
+pref("media.navigator.mediadatadecoder_vpx_enabled", true);
+// HTMLMediaElement.allowedToPlay should be exposed to web content when
+// block autoplay rides the trains to release. Until then, Nightly only.
+pref("media.allowed-to-play.enabled", true);
 
 // --- Security Settings (General) ---
 // General security preferences not fitting into more specific categories.
