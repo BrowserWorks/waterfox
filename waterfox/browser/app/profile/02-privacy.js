@@ -24,6 +24,10 @@ pref("privacy.resistFingerprinting.block_mozAddonManager", true);
 pref("network.cookie.sameSite.noneRequiresSecure", true);
 // Prevent media cache from writing to disk in Private Browsing mode, forcing it to memory.
 pref("browser.privatebrowsing.forceMediaMemoryCache", true);
+pref("dom.cookieStore.extra.enabled", true);
+// Whether to support CHIPS(Cookies Having Independent Partitioned State).
+pref("network.cookie.CHIPS.enabled", true);
+pref("network.cookie.sameSite.schemeful", true);
 
 // --- Certificate & Connection Security ---
 // OCSP (Online Certificate Status Protocol)
@@ -105,6 +109,9 @@ pref("extensions.quarantinedDomains.enabled", false, locked);
 pref("browser.discovery.enabled", false, locked); // Also affects other "discovery" features.
 // Disable extension abuse reporting feature.
 pref("extensions.abuseReport.enabled", false);
+// Whether we block opening pickers from hidden extension pages in WebExtensions.
+// This includes background pages and devtools pages, but not background tabs.
+pref("browser.disable_pickers_in_hidden_extension_pages", true);
 
 
 // --- Container Tabs ---
@@ -190,3 +197,4 @@ pref("network.IDN_show_punycode", true);
 pref("webchannel.allowObject.urlWhitelist", "");
 // Enable the HTML Sanitizer API, which provides a standards-based way to sanitize HTML fragments.
 pref("dom.security.sanitizer.enabled", true);
+pref("dom.w3c_pointer_events.getcoalescedevents_only_in_securecontext", true);
