@@ -845,10 +845,10 @@ function _escapeKeyHandler() {
 }
 
 function _OpenMigrator() {
-  const { MigrationUtils } = ChromeUtils.import(
-    "resource:///modules/MigrationUtils.jsm"
-  );
-  MigrationUtils.showMigrationWizard(window, [
+    ChromeUtils.defineESModuleGetters(this, {
+      MigrationUtils: "resource:///modules/MigrationUtils.sys.mjs",
+    });
+    MigrationUtils.showMigrationWizard(window, [
     MigrationUtils.MIGRATION_ENTRYPOINT_PASSWORDS,
   ]);
 }
