@@ -53,6 +53,7 @@ ac_add_options --with-distribution-id=net.waterfox
 if [ -d "$PWD"/waterfox/browser/locales/en-GB ]; then
     ac_add_options --with-l10n-base="$PWD"/waterfox/browser/locales
 fi
+ac_add_options --with-macos-sdk=$HOME/.mozbuild/MacOSX15.5.sdk
 
 export MOZ_INCLUDE_SOURCE_INFO=1
 export MOZ_REQUIRE_SIGNING=

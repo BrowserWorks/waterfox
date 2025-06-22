@@ -428,6 +428,8 @@ jobs:
           mkdir -p $HOME/.mozbuild
           curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-19.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
           tar -xvf clang.tar.zst -C $HOME/.mozbuild
+          curl -L https://github.com/joseluisq/macosx-sdks/releases/download/15.5/MacOSX15.5.sdk.tar.xz -o MacOSX15.5.sdk.tar.xz
+          tar -xvf MacOSX15.5.sdk.tar.xz -C $HOME/.mozbuild
           curl -L "https://www.7-zip.org/a/7z2408-linux-x64.tar.xz" | tar xJ
           sudo mv 7zz /usr/local/bin/7z
           curl https://rclone.org/install.sh | sudo bash
@@ -549,6 +551,8 @@ jobs:
           mkdir -p $HOME/.mozbuild
           curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-19.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
           tar -xvf clang.tar.zst -C $HOME/.mozbuild
+          curl -L https://github.com/joseluisq/macosx-sdks/releases/download/15.5/MacOSX15.5.sdk.tar.xz -o MacOSX15.5.sdk.tar.xz
+          tar -xvf MacOSX15.5.sdk.tar.xz -C $HOME/.mozbuild
           curl -L "https://www.7-zip.org/a/7z2408-linux-x64.tar.xz" | tar xJ
           sudo mv 7zz /usr/local/bin/7z
           curl https://rclone.org/install.sh | sudo bash
