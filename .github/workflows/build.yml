@@ -90,6 +90,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install msitools
+          rustup override set 1.86.0
           rustup target add x86_64-pc-windows-msvc
           mkdir -p $HOME/.mozbuild
           curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-19.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
@@ -209,6 +210,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install msitools
+          rustup override set 1.86.0
           rustup target add x86_64-pc-windows-msvc
           mkdir -p $HOME/.mozbuild
           curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-19.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
@@ -424,6 +426,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install nasm
+          rustup override set 1.86.0
           rustup target add ${{ matrix.arch }}
           mkdir -p $HOME/.mozbuild
           curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-19.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
@@ -545,6 +548,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install nasm
+          rustup override set 1.86.0
           rustup target add ${{ matrix.arch }}
           mkdir -p $HOME/.mozbuild
           curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-19.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
@@ -763,6 +767,7 @@ jobs:
           sudo mv 7zz /usr/local/bin/7z
           sudo apt install patchelf
           python3 -m pip install cryptography
+          rustup override set 1.86.0
       - name: "\U0001F4E4 Checkout"
         uses: actions/checkout@v4
         with:
