@@ -108,8 +108,10 @@ def forced_pgo_optimization_level(target):
 @imports(_from="mozbuild.shellutil", _import="quote")
 def check_optimize_flags(src, flags):
     for flag in reversed(flags):
-        if flag.startswith(("-O", "/O")):
-            if flag[2:] == "0":
+        # The optimization flag may be prefixed, e.g. -clang:-O3.
+        opt_flag = flag.split(":")[-1]
+        if opt_flag.startswith(("-O", "/O")):
+            if opt_flag[2:] == "0":
                 die(
                     f"Optimization enabled through {src} but last optimization flag is {flag} which disables optimizations"
                 )
