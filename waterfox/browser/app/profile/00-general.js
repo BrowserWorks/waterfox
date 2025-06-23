@@ -87,6 +87,11 @@ pref("network.trr.request_timeout_mode_trronly_ms", 1500); // Timeout (ms) when 
 pref("network.trr.use_ohttp", true); // Enable Oblivious HTTP for DoH requests.
 // Include an idempotency-key header for POST requests
 pref("network.http.idempotencyKey.enabled", true);
+// Disable requests to 0.0.0.0
+pref("network.socket.ip_addr_any.disabled", true);
+pref("network.http.http3.ecn_mark", true);
+pref("network.http.http3.retry_different_ip_family", true);
+pref("network.http.retry_with_another_half_open", true);
 
 // --- Extension System and Web Compatibility ---
 // Settings related to browser extensions and web compatibility measures.
@@ -131,6 +136,8 @@ pref("media.navigator.mediadatadecoder_vpx_enabled", true);
 // HTMLMediaElement.allowedToPlay should be exposed to web content when
 // block autoplay rides the trains to release. Until then, Nightly only.
 pref("media.allowed-to-play.enabled", true);
+pref("media.webrtc.enable_pq_dtls", true);
+pref("media.webrtc.simulcast.vp9.enabled", true);
 
 // --- Security Settings (General) ---
 // General security preferences not fitting into more specific categories.

@@ -201,6 +201,7 @@ pref("layout.css.moz-document.content.enabled", true);
 pref("view_source.wrap_long_lines", true);
 // Wrap long lines in the code editor within the DevTools debugger.
 pref("devtools.debugger.ui.editor-wrapping", true);
+pref("layout.dynamic-reflow-roots.enabled", true); // Enable dynamic reflow roots for improved rendering performance.
 
 // --- AI & Machine Learning Features ---
 // Controls for features utilizing AI or Machine Learning.
@@ -248,6 +249,9 @@ pref("dom.shadowdom.selection_across_boundary.enabled", true);
 // https://drafts.csswg.org/cssom-view/#dom-document-caretpositionfrompoint
 pref("dom.shadowdom.new_caretPositionFromPoint_behavior.enabled", true);
 pref("dom.webnotifications.actions.enabled", true);
+pref("dom.webgpu.enabled", true); // Enable WebGPU API.
+pref("dom.webgpu.workers.enabled", true); // Enable WebGPU in Web Workers.
+pref("dom.webshare.enabled", true); // Enable Web Share API.
 
 // --- CSS Experimental Features ---
 // Is support for shape() enabled?
