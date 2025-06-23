@@ -3,8 +3,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 MOZ_APP_DISPLAYNAME=Waterfox
-MOZ_APP_NAME=Waterfox
-MOZ_APP_VENDOR="BrowserWorks"
+MOZ_APP_NAME=waterfox
 MOZ_DISTRIBUTION_ID=net.waterfox
 MOZ_INCLUDE_SOURCE_INFO=1
 MOZ_REQUIRE_SIGNING=
