@@ -37,6 +37,8 @@ pref("widget.macos.titlebar-blend-mode.behind-window", true); // Blends titlebar
 pref("widget.windows.mica", true); // Enable Mica effect for the main window.
 pref("widget.windows.mica.popups", 1); // Mica for popups: 0=none, 1=auto, 2=acrylic, 3=tabbed.
 pref("widget.windows.mica.toplevel-backdrop", 3); // Mica for other top-level windows (e.g., Picture-in-Picture).
+// Only load keyboard layout when first needed, which is more efficient for Windows.
+pref("ui.key.layout.load_when_first_needed", true);
 #endif
 
 // =========================================================================================
