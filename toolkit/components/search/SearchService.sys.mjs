@@ -2615,8 +2615,8 @@ export class SearchService {
     }
 
     const engines = [
-      { webExtension: { id: "bing@search.waterfox.net" }, orderHint: 100 },
-      { webExtension: { id: "startpage@search.waterfox.net" }, orderHint: 90 },
+      { webExtension: { id: "startpage@search.waterfox.net" }, orderHint: 100 },
+      { webExtension: { id: "bing@search.waterfox.net" }, orderHint: 90 },
       { webExtension: { id: "mojeek@search.waterfox.net" }, orderHint: 80 },
       { webExtension: { id: "yahoo@search.waterfox.net" }, orderHint: 70 },
       { webExtension: { id: "google@search.waterfox.net" }, orderHint: 60 },
