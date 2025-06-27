@@ -1,0 +1,15 @@
+#!/bin/sh
+
+ac_add_options --disable-debug
+ac_add_options --disable-tests
+
+ac_add_options --enable-application=mobile/android
+ac_add_options --enable-bootstrap=-clang
+ac_add_options --enable-jxl
+ac_add_options --enable-lto
+ac_add_options --enable-optimize="-O3 -w"
+
+mk_add_options AUTOCLOBBER=1
+mk_add_options MOZ_OBJDIR=./obj-android
+export MOZ_REQUIRE_SIGNING=
+export MOZ_TELEMETRY_REPORTING=
