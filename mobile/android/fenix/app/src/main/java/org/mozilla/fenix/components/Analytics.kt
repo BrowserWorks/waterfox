@@ -49,7 +49,7 @@ class Analytics(
 ) {
     val crashReporter: CrashReporter by lazyMonitored {
         val services = mutableListOf<CrashReporterService>()
-        val distributionId = "Mozilla"
+        val distributionId = "BrowserWorks"
 
         if (isSentryEnabled()) {
             // We treat caught exceptions similar to debug logging.
@@ -64,7 +64,7 @@ class Analytics(
                 BuildConfig.SENTRY_TOKEN,
                 tags = mapOf(
                     "geckoview" to "$MOZ_APP_VERSION-$MOZ_APP_BUILDID",
-                    "fenix.git" to BuildConfig.VCS_HASH,
+                    "waterfox.git" to BuildConfig.VCS_HASH,
                 ),
                 environment = BuildConfig.BUILD_TYPE,
                 sendEventForNativeCrashes = false, // Do not send native crashes to Sentry
@@ -163,12 +163,6 @@ class Analytics(
 
 private fun isSentryEnabled() = !BuildConfig.SENTRY_TOKEN.isNullOrEmpty()
 
-private fun getSentryProjectUrl(): String? {
-    val baseUrl = "https://sentry.io/organizations/mozilla/issues"
-    return when (Config.channel) {
-        ReleaseChannel.Nightly -> "$baseUrl/?project=6295546"
-        ReleaseChannel.Release -> "$baseUrl/?project=6375561"
-        ReleaseChannel.Beta -> "$baseUrl/?project=6295551"
-        else -> null
-    }
-}
+private fun getSentryProjectUrl() =
+    if (Config.channel == ReleaseChannel.Release) "https://sentry.io/organizations/browserworks/issues/?project=4506314635280384"
+    else null
