@@ -64,7 +64,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "org.mozilla"
+        applicationId "net.waterfox.android"
         minSdkVersion config.minSdkVersion
         compileSdk config.compileSdkVersion
         targetSdkVersion config.targetSdkVersion
@@ -85,7 +85,7 @@ android {
         // This should be the base URL used to call the AMO API.
         buildConfigField "String", "AMO_SERVER_URL", "\"https://services.addons.mozilla.org\""
 
-        def deepLinkSchemeValue = "fenix-dev"
+        def deepLinkSchemeValue = "waterfox-dev"
         buildConfigField "String", "DEEP_LINK_SCHEME", "\"$deepLinkSchemeValue\""
 
         manifestPlaceholders = [
@@ -123,7 +123,7 @@ android {
         debug {
             shrinkResources = false
             minifyEnabled = false
-            applicationIdSuffix ".fenix.debug"
+            applicationIdSuffix ".waterfox.debug"
             resValue "bool", "IS_DEBUG", "true"
             pseudoLocalesEnabled = true
         }
@@ -155,8 +155,8 @@ android {
         }
         release releaseTemplate >> {
             buildConfigField "boolean", "USE_RELEASE_VERSIONING", "true"
-            applicationIdSuffix ".firefox"
-            def deepLinkSchemeValue = "fenix"
+            applicationIdSuffix ".release"
+            def deepLinkSchemeValue = "waterfox"
             buildConfigField "String", "DEEP_LINK_SCHEME", "\"$deepLinkSchemeValue\""
             manifestPlaceholders.putAll([
                     // This release type is meant to replace Firefox (Release channel) and therefore needs to inherit
@@ -166,13 +166,13 @@ android {
                     // fatal consequences. For example see:
                     //  - https://issuetracker.google.com/issues/36924841
                     //  - https://issuetracker.google.com/issues/36905922
-                    "sharedUserId": "org.mozilla.firefox.sharedID",
+                    "sharedUserId": "net.waterfox.android.sharedID",
                     "deepLinkScheme": deepLinkSchemeValue,
             ])
         }
         benchmark releaseTemplate >> {
             initWith buildTypes.nightly
-            applicationIdSuffix ".fenix"
+            applicationIdSuffix ".release"
             signingConfig = signingConfigs.debug
             debuggable false
         }
@@ -341,8 +341,8 @@ android.applicationVariants.configureEach { variant ->
             }
             output.versionCodeOverride = versionCodeOverride
         }
-    } else if (gradle.hasProperty("localProperties.branchBuild.fenix.version")) {
-        def versionName = gradle.getProperty("localProperties.branchBuild.fenix.version")
+    } else if (gradle.hasProperty("localProperties.branchBuild.waterfox.version")) {
+        def versionName = gradle.getProperty("localProperties.branchBuild.waterfox.version")
         project.logger.debug("versionName override: $versionName")
         variant.outputs.each { output ->
             output.versionNameOverride = versionName
