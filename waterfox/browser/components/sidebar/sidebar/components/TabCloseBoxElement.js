@@ -4,20 +4,17 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
-const NORMAL_TOOLTIP = "tab_closebox_tab_tooltip";
-const MULTISELECTED_TOOLTIP = "tab_closebox_tab_tooltip_multiselected";
-const TREE_TOOLTIP = "tab_closebox_tree_tooltip";
+const NORMAL_TOOLTIP        = 'tab_closebox_tab_tooltip';
+const MULTISELECTED_TOOLTIP = 'tab_closebox_tab_tooltip_multiselected';
+const TREE_TOOLTIP          = 'tab_closebox_tree_tooltip';
 
-export const kTAB_CLOSE_BOX_ELEMENT_NAME = "tab-closebox";
+export const kTAB_CLOSE_BOX_ELEMENT_NAME = 'tab-closebox';
 
-const kTAB_CLOSE_BOX_CLASS_NAME = "closebox";
+const kTAB_CLOSE_BOX_CLASS_NAME = 'closebox';
 
 export class TabCloseBoxElement extends HTMLElement {
   static define() {
-    window.customElements.define(
-      kTAB_CLOSE_BOX_ELEMENT_NAME,
-      TabCloseBoxElement
-    );
+    window.customElements.define(kTAB_CLOSE_BOX_ELEMENT_NAME, TabCloseBoxElement);
   }
 
   constructor() {
@@ -46,49 +43,51 @@ export class TabCloseBoxElement extends HTMLElement {
     // We preserve this class for backward compatibility with other addons.
     this.classList.add(kTAB_CLOSE_BOX_CLASS_NAME);
 
-    this.setAttribute("role", "button");
+    this.setAttribute('role', 'button');
     //this.setAttribute('tabindex', '0');
 
     this.invalidate();
-    this.setAttribute("draggable", true); // this is required to cancel click by dragging
+    this.setAttribute('draggable', true); // this is required to cancel click by dragging
 
     this.initialized = true;
   }
 
   disconnectedCallback() {
     if (this._reservedUpdate) {
-      this.removeEventListener("mouseover", this._reservedUpdate);
+      this.removeEventListener('mouseover', this._reservedUpdate);
       this._reservedUpdate = null;
     }
   }
 
   invalidate() {
-    if (this._reservedUpdate) return;
+    if (this._reservedUpdate)
+      return;
 
     this._reservedUpdate = () => {
       this._reservedUpdate = null;
       this._updateTooltip();
     };
-    this.addEventListener("mouseover", this._reservedUpdate, { once: true });
+    this.addEventListener('mouseover', this._reservedUpdate, { once: true });
   }
 
   _updateTooltip() {
     const tab = this.owner;
-    if (!tab || !tab.$TST) return;
+    if (!tab || !tab.$TST)
+      return;
 
     let key;
-    if (tab.$TST.multiselected) key = MULTISELECTED_TOOLTIP;
-    else if (tab.$TST.hasChild && tab.$TST.subtreeCollapsed) key = TREE_TOOLTIP;
-    else key = NORMAL_TOOLTIP;
+    if (tab.$TST.multiselected)
+      key = MULTISELECTED_TOOLTIP;
+    else if (tab.$TST.hasChild && tab.$TST.subtreeCollapsed)
+      key = TREE_TOOLTIP;
+    else
+      key = NORMAL_TOOLTIP;
 
     const tooltip = browser.i18n.getMessage(key);
-    this.setAttribute("title", tooltip);
+    this.setAttribute('title', tooltip);
   }
 
   makeAccessible() {
-    this.setAttribute(
-      "aria-label",
-      browser.i18n.getMessage("tab_closebox_aria_label", [this.owner.id])
-    );
+    this.setAttribute('aria-label', browser.i18n.getMessage('tab_closebox_aria_label', [this.owner.id]));
   }
 }

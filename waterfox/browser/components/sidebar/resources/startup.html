@@ -14,10 +14,15 @@
     opacity: 0;
   }
 
+  :root.rtl {
+    direction: rtl;
+  }
+
   body {
     background: var(--bg-color);
     color: var(--text-color);
-    padding: 2em 12%;
+    padding-block: 2em;
+    padding-inline: 12%;
     font: message-box;
   }
 
@@ -42,13 +47,18 @@
   }
 
   .permissions {
-    text-align: left;
-    margin-left: 8%;
-    margin-right: 8%;
+    text-align: start;
+    margin-inline: 8%;
+    padding-block: 0;
+    padding-inline: 0;
+  }
+  ul.permissions,
+  ul.permissions > li {
+    list-style: none;
   }
   label.has-checkbox:not(.inline),
   label.has-radio:not(.inline) {
-    margin-left: 2em;
+    margin-inline-start: 2em;
     text-indent: -2em;
     display: block;
   }
@@ -62,9 +72,9 @@
   .user-chrome-css {
     position: fixed;
     top: 0;
-    left: 0;
     font-size: 95%;
-    text-align: left;
+    inset-inline-start: 0;
+    text-align: start;
     transition: opacity 0.3s ease;
   }
   .user-chrome-css:not(:hover) {
@@ -79,22 +89,24 @@
     line-height: 1;
   }
   .user-chrome-css .arrow.top-tabbar {
+    inset-inline-start: 2em;
     top: 0;
-    left: 2em;
     transform: rotate(180deg);
   }
   .user-chrome-css .arrow.sidebar-header {
+    inset-inline-start: 0;
     top: 1.8em;
-    left: 0;
     transform: rotate(90deg);
   }
   .user-chrome-css p {
-    margin: 1em 0 0 1em;
+    margin-block: 1em 0;
+    margin-inline: 1em 0;
     color: #efefef;
     background: #0c0c0d;
     border: 1px solid;
     border-radius: 0.5em;
-    padding: 0.5em;
+    padding-block: 0.5em;
+    padding-inline: 0.5em;
     box-shadow: 0.2em 0.2em 0.5em rgba(0, 0, 0, 0.35);
     min-width: 2em
   }
@@ -138,20 +150,36 @@
   >__MSG_message_startup_history_after__</p>
 
 <p>__MSG_message_startup_requestPermissions_description__</p>
-<div class="permissions">
-  <p><label class="has-checkbox"
-           ><input id="bookmarksPermissionGranted"
-                   type="checkbox">
-           __MSG_message_startup_requestPermissions_bookmarks__</label></p>
-  <p><label class="has-checkbox"
-           ><input id="allUrlsPermissionGranted"
-                   type="checkbox">
-           __MSG_message_startup_requestPermissions_allUrls__</label></p>
-  <p><label class="has-checkbox"
-           ><input id="clipboardReadPermissionGranted"
-                   type="checkbox">
-           __MSG_message_startup_requestPermissions_clipboardRead__</label></p>
-</div>
+<ul class="permissions">
+  <li><label class="has-checkbox"
+            ><input id="bookmarksPermissionGranted"
+                    type="checkbox">
+             __MSG_message_startup_requestPermissions_bookmarks__</label>
+      <ul>
+        <li><label for="bookmarksPermissionGranted">__MSG_message_startup_requestPermissions_bookmarks_contextMenuItems__</label></li>
+        <li><label for="bookmarksPermissionGranted">__MSG_message_startup_requestPermissions_bookmarks_migrationForImportedBookmarks__</label></li>
+        <li><label for="bookmarksPermissionGranted">__MSG_message_startup_requestPermissions_bookmarks_detectTabsFromBookmarks__</label></li>
+      </ul>
+  </li>
+  <li><label class="has-checkbox"
+            ><input id="allUrlsPermissionGranted"
+                    type="checkbox">
+             __MSG_message_startup_requestPermissions_allUrls__</label>
+      <ul>
+        <li><label for="allUrlsPermissionGranted">__MSG_message_startup_requestPermissions_allUrls_tabPreviewPanel__</label></li>
+        <li><label for="allUrlsPermissionGranted">__MSG_message_startup_requestPermissions_allUrls_skipCollapsedTabsWithCtrlTab__</label></li>
+        <li><label for="allUrlsPermissionGranted">__MSG_message_startup_requestPermissions_allUrls_preventBlankDialogRestoration__</label></li>
+      </ul>
+  </li>
+  <li><label class="has-checkbox"
+            ><input id="clipboardReadPermissionGranted"
+                    type="checkbox">
+             __MSG_message_startup_requestPermissions_clipboardRead__</label>
+      <ul>
+        <li><label for="clipboardReadPermissionGranted">__MSG_message_startup_requestPermissions_clipboardRead_newTabButtonMiddleClick__</label></li>
+      </ul>
+  </li>
+</ul>
 
 <div class="user-chrome-css">
   <span class="arrow top-tabbar">▼</span>

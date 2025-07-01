@@ -7,6 +7,10 @@
 @import url(/resources/ui-base.css);
 @import url(/resources/ui-color.css);
 
+:root.rtl {
+  direction: rtl;
+}
+
 :root > * {
   transition: opacity 0.25s ease-out;
 }
@@ -36,8 +40,10 @@ body.independent {
   display: flex;
   flex-direction: column;
   font: caption;
-  margin: 0;
-  padding: 1em 1em 100%;
+  margin-block: 0;
+  margin-inline: 0;
+  padding-block: 1em 100%;
+  padding-inline: 1em;
   -moz-user-select: none;
 }
 
@@ -46,10 +52,11 @@ em {
   font-weight: bold;
 }
 
-p,
-ul {
-  margin: 0 0 0.5em 0;
-  padding: 0;
+p, ul {
+  margin-block: 0 0.5em;
+  margin-inline: 0;
+  padding-block: 0;
+  padding-inline: 0;
 }
 
 ul,
@@ -59,13 +66,12 @@ ul li {
 
 p.sub,
 div.sub {
-  padding-left: 2em;
+  padding-inline-start: 2em;
 }
 
 ul p.sub,
 ul div.sub p {
-  margin-top: 0;
-  margin-bottom: 0;
+  margin-block: 0;
 }
 
 pre {
@@ -83,7 +89,7 @@ label[disabled="true"] button {
 
 label.has-checkbox:not(.inline),
 label.has-radio:not(.inline) {
-  margin-left: 2em;
+  margin-inline-start: 2em;
   text-indent: -2em;
   display: block;
   width: -moz-fit-content;
@@ -94,13 +100,15 @@ label.has-radio:not(.inline) {
   display: none;
 }
 
+
 #style-radiogroup {
   align-content: flex-start;
   align-items: center;
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  padding: 0;
+  padding-block: 0;
+  padding-inline: 0;
 }
 
 #style-radiogroup li {
@@ -108,8 +116,9 @@ label.has-radio:not(.inline) {
   display: flex;
   flex-direction: row;
   flex-wrap: nowrap;
-  margin-bottom: 0.5em;
-  padding: 0;
+  margin-block-end: 0.5em;
+  padding-block: 0;
+  padding-inline: 0;
   width: calc(1em + 100px + 8em); /* radio + image + label */
 }
 
@@ -133,8 +142,7 @@ label input[type="radio"] ~ img,
 label input[type="checkbox"] ~ img {
   border: 1px solid var(--ThreeDShadow);
   vertical-align: middle;
-  margin-top: 0.15em;
-  margin-bottom: 0.15em;
+  margin-block: 0.15em;
 }
 
 #syncTabsToDeviceOptions label input[type="radio"] ~ img {
@@ -147,11 +155,11 @@ label input[type="checkbox"] ~ img {
   box-shadow: 0.25em 0.25em 0.5em rgba(0, 0, 0, 0.45);
   display: inline-block;
   height: 125px /*83px*/;
-  margin-left: 0.5em;
+  inset-inline-end: 0;
+  margin-inline-start: 0.5em;
   opacity: 0;
   pointer-events: none;
   position: fixed;
-  right: 0;
   top: 1.5em;
   transition: opacity 0.25s ease-out;
   width: 120px /*80px*/;
@@ -176,6 +184,8 @@ label input[type="checkbox"] ~ img {
   background-image: url("as-next-sibling.png");
 }
 
+
+
 #browserThemeCustomRules {
   -moz-user-select: text;
   cursor: text;
@@ -183,7 +193,7 @@ label input[type="checkbox"] ~ img {
 
 #tooLargeUserStyleRulesCaution {
   color: var(--red-50);
-  margin-bottom: 0;
+  margin-block-end: 0;
   visibility: hidden;
 }
 #tooLargeUserStyleRulesCaution.invalid {
@@ -191,7 +201,8 @@ label input[type="checkbox"] ~ img {
 }
 
 #userStyleRulesField {
-  margin: 0 -5px;
+  margin-block: 0;
+  margin-inline: -5px;
   min-height: 10em;
   overflow: hidden;
   resize: vertical;
@@ -200,14 +211,14 @@ label input[type="checkbox"] ~ img {
 #userStyleRulesField > .CodeMirror {
   border: thin solid;
   height: calc(100% - 10px);
-  margin: 5px;
+  margin-block: 5px;
+  margin-inline: 5px;
 }
 
 #userStyleRulesField > .CodeMirror.CodeMirror-focused {
   border-color: var(--in-content-border-focus);
-  box-shadow:
-    0 0 0 1px var(--in-content-border-active),
-    0 0 0 4px var(--in-content-border-active-shadow);
+  box-shadow: 0 0 0 1px var(--in-content-border-active),
+              0 0 0 4px var(--in-content-border-active-shadow);
 }
 
 #userStyleRulesField.invalid > .CodeMirror {
@@ -231,7 +242,7 @@ label input[type="checkbox"] ~ img {
 }
 
 #userStyleRules-footer-bar button {
-  margin-right: 0.5em;
+  margin-inline-end: 0.5em;
 }
 
 #userStyleRules-footer-bar .spacer {
@@ -239,25 +250,18 @@ label input[type="checkbox"] ~ img {
   flex-grow: 1;
 }
 
+
 table {
   border-collapse: collapse;
 }
 th + *,
 td + * {
-  border-left: 1px solid rgba(0, 0, 0, 0.1);
+  border-inline-start: 1px solid light-dark(rgba(0, 0, 0, 0.1), rgba(255, 255, 255, 0.1));
 }
 tbody tr {
-  border-top: 1px solid rgba(0, 0, 0, 0.2);
+  border-block-start: 1px solid light-dark(rgba(0, 0, 0, 0.2), rgba(255, 255, 255, 0.2));
 }
-@media (prefers-color-scheme: dark) {
-  th + *,
-  td + * {
-    border-left-color: rgba(255, 255, 255, 0.1);
-  }
-  tbody tr {
-    border-top-color: rgba(255, 255, 255, 0.2);
-  }
-}
+
 
 .contextConfigs tbody th,
 .tabDragBehaviorConfigs tbody th {
@@ -267,7 +271,7 @@ tbody tr {
 .contextConfigs tbody th,
 .tabDragBehaviorConfigs thead th,
 .tabDragBehaviorConfigs tbody th {
-  text-align: left;
+  text-align: start;
 }
 
 .contextConfigs td,
@@ -277,22 +281,19 @@ tbody tr {
 
 .contextConfigs table input[type="checkbox"],
 .tabDragBehaviorConfigs table input[type="radio"] {
-  margin-left: 1.5em;
-  margin-right: 1.5em;
+  margin-inline: 1.5em;
 }
+
 
 #externalAddonPermissionsGroup td:nth-child(2) {
   text-align: center;
 }
 #externalAddonPermissionsGroup td:nth-child(2) input[type="checkbox"] {
-  margin-left: 3em;
-  margin-right: 3em;
+  margin-inline: 3em;
 }
 
-fieldset.collapsible.collapsed
-  > *:not(legend):not(
-    div
-  ) /* "div" is for the container of "import" and "export" buttons */ {
+
+fieldset.collapsible.collapsed > *:not(legend):not(div) /* "div" is for the container of "import" and "export" buttons */ {
   display: none;
 }
 
@@ -301,7 +302,7 @@ body > section > h1:first-child::before {
   content: "▼";
   display: inline-block;
   font-size: 65%;
-  margin-right: 0.5em;
+  margin-inline-end: 0.5em;
   position: relative;
   transition: transform 0.2s ease;
 }
@@ -311,13 +312,20 @@ body > section.collapsed > h1:first-child::before {
   transform: rotate(-90deg);
 }
 
+:root.rtl fieldset.collapsible.collapsed > legend::before,
+:root.rtl body > section.collapsed > h1:first-child::before {
+  transform: rotate(90deg);
+}
+
+
 :root.successor-tab-support .without-successor-tab-support,
 :root:not(.successor-tab-support) .with-successor-tab-support {
   display: none;
 }
 
+
 body > section {
-  margin-top: 1em;
+  margin-block-start: 1em;
   overflow: hidden;
   transition: max-height 0.2s ease-out;
 }
@@ -326,7 +334,7 @@ body > section:not(.collapsed) {
 }
 
 body > section > h1:first-child {
-  margin-top: 0;
+  margin-block-start: 0;
   cursor: pointer;
 }
 
@@ -338,15 +346,16 @@ body > section.collapsed > h1:first-child ~ * {
   opacity: 0;
 }
 
+
 #defaultBookmarkParentChooser {
   max-width: 100%;
 }
 
 :target {
   box-shadow: 0 0 0.5em highlight;
-  margin-top: 0.5em;
-  margin-bottom: 0.5em;
+  margin-block: 0.5em;
 }
+
 
 :root:not(.show-expert-options) .expert:not(option.expert[selected]) {
   display: none;
@@ -354,20 +363,21 @@ body > section.collapsed > h1:first-child ~ * {
 
 .expert:not(option) {
   background: var(--in-content-box-info-background);
-  box-shadow:
-    0 0 0.5em var(--in-content-box-info-background),
-    0 0 0.5em var(--in-content-box-info-background),
-    0 0 0.5em var(--in-content-box-info-background);
+  box-shadow: 0 0 0.5em var(--in-content-box-info-background),
+              0 0 0.5em var(--in-content-box-info-background),
+              0 0 0.5em var(--in-content-box-info-background);
 }
 
+
 #link-optionsPage-top {
-  float: right;
-  padding-right: 1em;
+  float: inline-end;
+  padding-inline-end: 1em;
 }
 
 body.independent #link-optionsPage-top {
   display: none;
 }
+
 
 input[type="checkbox"].missing-permission {
   opacity: 0.5;

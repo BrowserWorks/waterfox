@@ -23,6 +23,7 @@
       <div id="tabbar" class="vbox">
         <div id="pinned-tabs-container" class="vbox">
         </div>
+        <div id="pinned-tabs-container-resizer"></div>
         <div id="normal-tabs-container" class="vbox">
           <div class="virtual-scroll-container vbox"></div>
           <div class="tabs-spacer"></div>
@@ -107,10 +108,10 @@
          >__MSG_tabbar_newTabAction_nextSibling_label__</li>
     </ul>
     <ul id="contextual-identities-selector"></ul>
-    <div class="tab-drop-blocker" id="tab-drop-blocker-top"></div>
-    <div class="tab-drop-blocker" id="tab-drop-blocker-right"></div>
-    <div class="tab-drop-blocker" id="tab-drop-blocker-bottom"></div>
-    <div class="tab-drop-blocker" id="tab-drop-blocker-left"></div>
+    <div class="item-drop-blocker" id="item-drop-blocker-top"></div>
+    <div class="item-drop-blocker" id="item-drop-blocker-right"></div>
+    <div class="item-drop-blocker" id="item-drop-blocker-bottom"></div>
+    <div class="item-drop-blocker" id="item-drop-blocker-left"></div>
     <div id="notifications" class="vbox"></div>
     <div id="background"></div><!-- This is required to hide dummy elements without offscreen rendering outside of the viewport. See also: https://github.com/piroor/treestyletab/issues/1703#issuecomment-354646405 -->
     <ul id="dummy-tabs">
@@ -179,7 +180,9 @@
       <progress max="100" value="0"></progress>
     </div>
 
+    <div id="tabPreviewRoot"></div>
     <ul id="tabContextMenu"></ul>
     <ul id="newTabButtonContextMenu"></ul>
+    <div id="tabGroupContextMenuRoot"></div>
   </body>
 </html>

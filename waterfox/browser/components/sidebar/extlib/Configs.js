@@ -1,4 +1,12 @@
 /*
+ license: The MIT License, Copyright (c) 2016-2023 YUKI "Piro" Hiroshi
+ original:
+   http://github.com/piroor/webextensions-lib-configs
+*/
+
+'use strict';
+
+/*
 There are multiple level values:
 
 (higher priority)
@@ -15,14 +23,18 @@ There are multiple level values:
 Only values different from [default] are stored and synchronized.
 */
 
+const OBSERVABLE_AREA = new Set([
+  'internal', // TST internal
+  'local',
+  'sync',
+  'managed',
+]);
+
 // eslint-disable-next-line no-unused-vars
 class Configs {
   constructor(
     defaults,
-    { logging, logger, localKeys, syncKeys, sync } = {
-      syncKeys: [],
-      logger: null,
-    }
+    { logging, logger, localKeys, syncKeys, sync } = { syncKeys: [], logger: null }
   ) {
     this._defaultValues = {
       ...this._clone(defaults),
@@ -57,8 +69,10 @@ class Configs {
     }
 
     for (const [key, locked] of Object.entries(defaults)) {
-      if (!key.endsWith(":locked")) continue;
-      if (locked) this._lockedDefaultKeys.add(key.replace(/:locked$/, ""));
+      if (!key.endsWith(':locked'))
+        continue;
+      if (locked)
+        this._lockedDefaultKeys.add(key.replace(/:locked$/, ''));
       delete defaults[key];
     }
 
@@ -71,10 +85,10 @@ class Configs {
     this._changedObservers = new Set();
     this._localLoadedObservers = new Set();
     this._syncKeys = [
-      ...(localKeys
-        ? Object.keys(defaults).filter((x) => !localKeys.includes(x))
-        : syncKeys || []),
-      "__ConfigsMigration__userValeusSameToDefaultAreCleared",
+      ...(localKeys ?
+        Object.keys(defaults).filter(x => !localKeys.includes(x)) :
+        (syncKeys || [])),
+      '__ConfigsMigration__userValeusSameToDefaultAreCleared',
     ];
     this.$loaded = this._load();
 
@@ -95,7 +109,7 @@ class Configs {
       return;
     }
 
-    if (!Object.hasOwn(this._defaultValues, key))
+    if (!this._defaultValues.hasOwnProperty(key))
       throw new Error(`failed to reset unknown key: ${key}`);
 
     this._setValue(key, this._getDefaultValue(key), true, { broadcast });
@@ -103,27 +117,27 @@ class Configs {
 
   $cleanUp({ broadcast } = {}) {
     for (const [key, defaultValue] of Object.entries(this.$default)) {
-      if (!Object.hasOwn(this._userValues, key)) continue;
+      if (!this._userValues.hasOwnProperty(key))
+        continue;
       const value = JSON.stringify(this._getNonDefaultValue(key));
-      if (
-        value === JSON.stringify(defaultValue) ||
-        (Object.hasOwn(this._managedValues, key) &&
-          value === JSON.stringify(this._managedValues[key]))
-      )
+      if (value == JSON.stringify(defaultValue) ||
+          (this._managedValues.hasOwnProperty(key) &&
+           value == JSON.stringify(this._managedValues[key])))
         this.$reset(key, { broadcast });
     }
   }
 
   _getDefaultValue(key) {
-    if (Object.hasOwn(this._managedValues, key))
+    if (this._managedValues.hasOwnProperty(key))
       return this._managedValues[key];
     return this._defaultValues[key];
   }
 
   _setDefaultValue(key, value, { broadcast } = {}) {
-    if (!key) throw new Error(`missing key for default value ${value}`);
+    if (!key)
+      throw new Error(`missing key for default value ${value}`);
 
-    if (!Object.hasOwn(this._defaultValues, key))
+    if (!this._defaultValues.hasOwnProperty(key))
       throw new Error(`failed to set default value for unknown key: ${key}`);
 
     const currentValue = this[key];
@@ -131,41 +145,36 @@ class Configs {
 
     this._defaultValues[key] = this._clone(value);
     const defaultValue = this._getDefaultValue(key);
-    if (
-      JSON.stringify(defaultValue) ===
-      JSON.stringify(this._getNonDefaultValue[key])
-    )
+    if (JSON.stringify(defaultValue) == JSON.stringify(this._getNonDefaultValue[key]))
       this.$reset(key, { broadcast });
 
     const newDefaultValue = this._getDefaultValue(key);
-    if (
-      currentValue === currentDefaultValue &&
-      currentValue !== newDefaultValue &&
-      this[key] === newDefaultValue
-    ) {
+    if (currentValue == currentDefaultValue &&
+        currentValue != newDefaultValue &&
+        this[key] == newDefaultValue) {
       const observers = [...this._observers, ...this._changedObservers];
-      this.$notifyToObservers(key, value, observers, "onChangeConfig");
+      this.$notifyToObservers(key, value, observers, 'onChangeConfig');
     }
 
-    if (broadcast === false) return;
+    if (broadcast === false)
+      return;
 
     try {
-      browser.runtime
-        .sendMessage({
-          type: "Configs:updateDefaultValue",
-          key: key,
-          value: defaultValue,
-        })
-        .catch((_error) => {});
-    } catch (_error) {}
+      browser.runtime.sendMessage({
+        type:  'Configs:updateDefaultValue',
+        key:   key,
+        value: defaultValue,
+      }).catch(_error => {});
+    }
+    catch(_error) {
+    }
   }
 
   _getNonDefaultValue(key) {
-    if (Object.hasOwn(this._userValues, key)) return this._userValues[key];
-    if (
-      Object.hasOwn(this._managedValues, key) &&
-      !this._lockedManagedKeys.has(key)
-    )
+    if (this._userValues.hasOwnProperty(key))
+      return this._userValues[key];
+    if (this._managedValues.hasOwnProperty(key) &&
+        !this._lockedManagedKeys.has(key))
       return this._managedValues[key];
     return undefined;
   }
@@ -188,85 +197,88 @@ class Configs {
 
   $addObserver(observer) {
     // for backward compatibility
-    if (typeof observer === "function") this.$addChangedObserver(observer);
-    else if (!this._observers.has(observer)) this._observers.add(observer);
+    if (typeof observer == 'function')
+      this.$addChangedObserver(observer);
+    else if (!this._observers.has(observer))
+      this._observers.add(observer);
   }
   $removeObserver(observer) {
     // for backward compatibility
-    if (typeof observer === "function") this.$removeChangedObserver(observer);
-    else this._observers.delete(observer);
+    if (typeof observer == 'function')
+      this.$removeChangedObserver(observer);
+    else
+      this._observers.delete(observer);
   }
 
   _log(message, ...args) {
     message = `Configs[${location.href}] ${message}`;
     this.$logs = this.$logs.slice(-1000);
 
-    if (!this.$logging) return;
+    if (!this.$logging)
+      return;
 
-    if (typeof this.$logger === "function") this.$logger(message, ...args);
-    else console.log(message, ...args);
+    if (typeof this.$logger === 'function')
+      this.$logger(message, ...args);
+    else
+      console.log(message, ...args);
   }
 
   _load() {
-    return this.$_promisedLoad || (this.$_promisedLoad = this._tryLoad());
+    return this.$_promisedLoad ||
+             (this.$_promisedLoad = this._tryLoad());
   }
 
   async _tryLoad() {
-    this._log("load");
+    this._log('load');
     try {
       this._log(`load: try load from storage on ${location.href}`);
       const [localValues, managedValues, lockedKeys] = await Promise.all([
         (async () => {
           try {
             const localValues = await browser.storage.local.get(null); // keys must be "null" to get only stored values
-            this._log("load: successfully loaded local storage");
-            const observers = [
-              ...this._observers,
-              ...this._localLoadedObservers,
-            ];
+            this._log('load: successfully loaded local storage');
+            const observers = [...this._observers, ...this._localLoadedObservers];
             for (const [key, value] of Object.entries(localValues)) {
-              this.$notifyToObservers(key, value, observers, "onLocalLoaded");
+              this.$notifyToObservers(key, value, observers, 'onLocalLoaded');
             }
             return localValues;
-          } catch (e) {
-            this._log("load: failed to load local storage: ", String(e));
+          }
+          catch(e) {
+            this._log('load: failed to load local storage: ', String(e));
           }
           return {};
         })(),
         (async () => {
           if (!browser.storage.managed) {
-            this._log("load: skip managed storage");
+            this._log('load: skip managed storage');
             return null;
           }
           return new Promise(async (resolve, _reject) => {
             const loadManagedStorage = () => {
               let resolved = false;
               return new Promise((resolve, reject) => {
-                browser.storage.managed
-                  .get()
-                  .then((managedValues) => {
-                    if (resolved) return;
-                    resolved = true;
-                    this._log("load: successfully loaded managed storage");
-                    resolve(managedValues || null);
-                  })
-                  .catch((error) => {
-                    if (resolved) return;
-                    resolved = true;
-                    this._log(
-                      "load: failed to load managed storage: ",
-                      String(error)
-                    );
-                    reject(error);
-                  });
+                browser.storage.managed.get().then(managedValues => {
+                  if (resolved)
+                    return;
+                  resolved = true;
+                  this._log('load: successfully loaded managed storage');
+                  resolve(managedValues || null);
+                }).catch(error => {
+                  if (resolved)
+                    return;
+                  resolved = true;
+                  this._log('load: failed to load managed storage: ', String(error));
+                  reject(error);
+                });
 
                 // storage.managed.get() fails on options page in Thunderbird.
                 // The problem should be fixed by Thunderbird side.
                 setTimeout(() => {
-                  if (resolved) return;
+                  if (resolved)
+                    return;
                   resolved = true;
-                  this._log("load: failed to load managed storage: timeout");
-                  reject(new Error("timeout"));
+                  this._log('load: failed to load managed storage: timeout');
+                  reject(new Error('timeout'));
                 }, 250);
               });
             };
@@ -279,53 +291,54 @@ class Configs {
                 // thus we need to parse it by self.
                 for (const [key, value] of Object.entries(result)) {
                   const defaultValue = this._defaultValues[key];
-                  if (typeof value !== "string") continue;
+                  if (typeof value != 'string')
+                    continue;
 
                   const trimmed = value.trim();
                   if (Array.isArray(defaultValue)) {
-                    result[key] =
-                      trimmed.startsWith("[") && trimmed.endsWith("]")
-                        ? JSON.parse(value)
-                        : trimmed.includes("\n")
-                          ? trimmed.split("\n")
-                          : trimmed.split(",");
-                  } else if (
-                    defaultValue &&
-                    typeof defaultValue === "object" &&
-                    trimmed.startsWith("{") &&
-                    trimmed.endsWith("}")
-                  ) {
+                    result[key] = (trimmed.startsWith('[') && trimmed.endsWith(']')) ?
+                      JSON.parse(value) :
+                      trimmed.includes('\n') ?
+                        trimmed.split('\n') :
+                        trimmed.split(',');
+                  }
+                  else if (defaultValue &&
+                           typeof defaultValue == 'object' &&
+                           trimmed.startsWith('{') &&
+                           trimmed.endsWith('}')) {
                     result[key] = JSON.parse(trimmed);
                   }
                 }
                 resolve(result);
                 return;
-              } catch (error) {
-                if (error.message !== "timeout") {
-                  console.log("managed storage is not provided");
+              }
+              catch(error) {
+                if (error.message != 'timeout') {
+                  console.log('managed storage is not provided');
                   resolve(null);
                   return;
                 }
-                console.log("failed to load managed storage ", error);
+                console.log('failed to load managed storage ', error);
               }
-              await new Promise((resolve) => setTimeout(resolve, 250));
+              await new Promise(resolve => setTimeout(resolve, 250));
             }
-            console.log("failed to load managed storage with 10 times retly");
+            console.log('failed to load managed storage with 10 times retly');
             resolve(null);
           });
         })(),
         (async () => {
           try {
             const lockedKeys = await browser.runtime.sendMessage({
-              type: "Configs:getLockedKeys",
+              type: 'Configs:getLockedKeys'
             });
-            this._log("load: successfully synchronized locked state");
+            this._log('load: successfully synchronized locked state');
             return lockedKeys || [];
-          } catch (e) {
-            this._log("load: failed to synchronize locked state: ", String(e));
+          }
+          catch(e) {
+            this._log('load: failed to synchronize locked state: ', String(e));
           }
           return [];
-        })(),
+        })()
       ]);
       this._log(`load: loaded:`, { localValues, managedValues, lockedKeys });
 
@@ -333,32 +346,38 @@ class Configs {
 
       if (managedValues) {
         for (const [key, value] of Object.entries(managedValues)) {
-          if (key.endsWith(":locked")) continue;
+          if (key.endsWith(':locked'))
+            continue;
           const locked = managedValues[`${key}:locked`] !== false;
           this._managedValues[key] = value;
-          if (locked) this._lockedManagedKeys.add(key);
+          if (locked)
+            this._lockedManagedKeys.add(key);
         }
       }
 
       this._userValues = this._clone({ ...(localValues || {}) });
-      this._log("load: values are applied");
+      this._log('load: values are applied');
 
       for (const key of new Set(lockedKeys)) {
         this._updateLocked(key, true);
       }
-      this._log("load: locked state is applied");
+      this._log('load: locked state is applied');
       this.$listeningChanges = true;
-      if (this.sync && (this._syncKeys || this._syncKeys.length > 0)) {
+      if (this.sync &&
+          (this._syncKeys ||
+           this._syncKeys.length > 0)) {
         try {
-          browser.storage.sync.get(this._syncKeys).then((syncedValues) => {
-            this._log("load: successfully loaded sync storage");
-            if (!syncedValues) return;
+          browser.storage.sync.get(this._syncKeys).then(syncedValues => {
+            this._log('load: successfully loaded sync storage');
+            if (!syncedValues)
+              return;
             for (const key of Object.keys(syncedValues)) {
               this[key] = syncedValues[key];
             }
           });
-        } catch (e) {
-          this._log("load: failed to read sync storage: ", String(e));
+        }
+        catch(e) {
+          this._log('load: failed to read sync storage: ', String(e));
           return null;
         }
       }
@@ -374,7 +393,7 @@ class Configs {
           const changes = [...this.$preReceivedChanges];
           this.$preReceivedChanges = [];
           for (const change of changes) {
-            this._onChanged(change);
+            this._onChanged(change, 'internal');
           }
         }
         if (this.$preReceivedMessages.length > 0) {
@@ -387,21 +406,25 @@ class Configs {
       });
 
       return this.$all;
-    } catch (e) {
-      this._log("load: fatal error: ", e, e.stack);
+    }
+    catch(e) {
+      this._log('load: fatal error: ', e, e.stack);
       throw e;
     }
   }
 
   _getValue(key) {
-    if (this._lockedManagedKeys.has(key)) return this._managedValues[key];
-    if (this._lockedDefaultKeys.has(key)) return this._defaultValues[key];
+    if (this._lockedManagedKeys.has(key))
+      return this._managedValues[key];
+    if (this._lockedDefaultKeys.has(key))
+      return this._defaultValues[key];
     if (this._lockedUserKeys.has(key))
       return this._userValues[key] || this._getDefaultValue(key);
-    if (Object.hasOwn(this._userValues, key)) return this._userValues[key];
-    if (Object.hasOwn(this._managedValues, key))
+    if (this._userValues.hasOwnProperty(key))
+      return this._userValues[key];
+    if (this._managedValues.hasOwnProperty(key))
       return this._managedValues[key];
-    if (Object.hasOwn(this._defaultValues, key))
+    if (this._defaultValues.hasOwnProperty(key))
       return this._defaultValues[key];
     throw new Error(`invalid access: unknown key ${key}`);
   }
@@ -409,32 +432,30 @@ class Configs {
   _setValue(key, value, force = false, { broadcast } = {}) {
     const newValue = this._clone(value);
 
-    if (
-      this._lockedDefaultKeys.has(key) ||
-      this._lockedManagedKeys.has(key) ||
-      this._lockedUserKeys.has(key)
-    ) {
+    if (this._lockedDefaultKeys.has(key) ||
+        this._lockedManagedKeys.has(key) ||
+        this._lockedUserKeys.has(key)) {
       this._log(`warning: ${key} is locked and not updated`);
       return newValue;
     }
 
     const stringified = JSON.stringify(value);
-    if (stringified === JSON.stringify(this._userValues[key]) && !force) {
+    if (stringified == JSON.stringify(this._userValues[key]) && !force) {
       this._log(`skip: ${key} is not changed`);
       return newValue;
     }
 
     const oldValue = this._getValue(key);
 
-    const shouldReset =
-      stringified === JSON.stringify(this._getDefaultValue(key));
-    this._log(
-      `set: ${key} = ${value}${shouldReset ? " (reset to default)" : ""}`
-    );
-    if (shouldReset) delete this._userValues[key];
-    else this._userValues[key] = newValue;
+    const shouldReset = stringified == JSON.stringify(this._getDefaultValue(key));
+    this._log(`set: ${key} = ${value}${shouldReset ? ' (reset to default)' : ''}`);
+    if (shouldReset)
+      delete this._userValues[key];
+    else
+      this._userValues[key] = newValue;
 
-    if (broadcast === false) return newValue;
+    if (broadcast === false)
+      return newValue;
 
     const update = {};
     update[key] = newValue;
@@ -442,53 +463,58 @@ class Configs {
       const updatingValues = this._updating.get(key) || [];
       updatingValues.push(newValue);
       this._updating.set(key, updatingValues);
-      const updated = shouldReset
-        ? browser.storage.local.remove([key]).then(() => {
-            this._log("local: successfully removed ", key);
-          })
-        : browser.storage.local.set(update).then(() => {
-            this._log("local: successfully saved ", update);
-          });
-      updated.then(() => {
-        setTimeout(() => {
-          const updatingValues = this._updating.get(key);
-          if (!updatingValues || !updatingValues.includes(newValue)) return;
-          // failsafe: on Thunderbird updates sometimes won't be notified to the page itself.
-          const changes = {};
-          changes[key] = {
-            oldValue,
-            newValue,
-          };
-          this._onChanged(changes);
-        }, 250);
-      });
-    } catch (e) {
-      this._log("save: failed", e);
+      const updated = shouldReset ?
+        browser.storage.local.remove([key]).then(() => {
+          this._log('local: successfully removed ', key);
+        }) :
+        browser.storage.local.set(update).then(() => {
+          this._log('local: successfully saved ', update);
+        });
+      updated
+        .then(() => {
+          setTimeout(() => {
+            const updatingValues = this._updating.get(key);
+            if (!updatingValues ||
+                !updatingValues.includes(newValue))
+              return;
+            // failsafe: on Thunderbird updates sometimes won't be notified to the page itself.
+            const changes = {};
+            changes[key] = {
+              oldValue,
+              newValue,
+            };
+            this._onChanged(changes, 'internal');
+          }, 250);
+        });
+    }
+    catch(e) {
+      this._log('save: failed', e);
     }
     try {
       if (this.sync && this._syncKeys.includes(key)) {
         if (shouldReset)
           browser.storage.sync.remove([key]).then(() => {
-            this._log("sync: successfully removed", update);
+            this._log('sync: successfully removed', update);
           });
         else
           browser.storage.sync.set(update).then(() => {
-            this._log("sync: successfully synced", update);
+            this._log('sync: successfully synced', update);
           });
       }
-    } catch (e) {
-      this._log("sync: failed", e);
+    }
+    catch(e) {
+      this._log('sync: failed', e);
     }
     return newValue;
   }
 
   $lock(key) {
-    this._log(`locking: ${key}`);
+    this._log('locking: ' + key);
     this._updateLocked(key, true);
   }
 
   $unlock(key) {
-    this._log(`unlocking: ${key}`);
+    this._log('unlocking: ' + key);
     this._updateLocked(key, false);
   }
 
@@ -497,24 +523,29 @@ class Configs {
   }
 
   _updateLocked(key, locked, { broadcast } = {}) {
-    if (locked) this._lockedUserKeys.add(key);
-    else this._lockedUserKeys.delete(key);
+    if (locked)
+      this._lockedUserKeys.add(key);
+    else
+      this._lockedUserKeys.delete(key);
 
-    if (browser.runtime && broadcast !== false) {
+    if (browser.runtime &&
+        broadcast !== false) {
       try {
-        browser.runtime
-          .sendMessage({
-            type: "Configs:updateLocked",
-            key: key,
-            locked: this._lockedUserKeys.has(key),
-          })
-          .catch((_error) => {});
-      } catch (_error) {}
+        browser.runtime.sendMessage({
+          type:   'Configs:updateLocked',
+          key:    key,
+          locked: this._lockedUserKeys.has(key),
+        }).catch(_error => {});
+      }
+      catch(_error) {
+      }
     }
   }
 
   _onMessage(message, sender) {
-    if (!message || typeof message.type !== "string") return;
+    if (!message ||
+        typeof message.type != 'string')
+      return;
 
     if (!this.$listeningMessages) {
       this.$preReceivedMessages.push({ message, sender });
@@ -523,26 +554,29 @@ class Configs {
 
     this._log(`onMessage: ${message.type}`, message, sender);
     switch (message.type) {
-      case "Configs:getLockedKeys":
+      case 'Configs:getLockedKeys':
         return Promise.resolve(Array.from(this._lockedUserKeys));
 
-      case "Configs:updateLocked":
+      case 'Configs:updateLocked':
         this._updateLocked(message.key, message.locked, { broadcast: false });
         break;
 
-      case "Configs:updateDefaultValue":
+      case 'Configs:updateDefaultValue':
         this._setDefaultValue(message.key, message.value, { broadcast: false });
         break;
     }
   }
 
-  _onChanged(changes) {
+  _onChanged(changes, areaName) {
+    if (!OBSERVABLE_AREA.has(areaName))
+      return;
+
     if (!this.$listeningChanges) {
       this.$preReceivedChanges.push(changes);
       return;
     }
 
-    this._log("_onChanged", changes);
+    this._log('_onChanged ', areaName, changes);
     const observers = [...this._observers, ...this._changedObservers];
     for (const [key, change] of Object.entries(changes)) {
       // storage.local.onChanged is sometimes notified with delay, and it
@@ -555,31 +589,36 @@ class Configs {
       // To avoid such problems, we need to skip applying notified new value
       // if the notification is from a local change.
       const updatingValues = this._updating.get(key);
-      if (updatingValues && updatingValues[0] === change.newValue) {
+      if (updatingValues &&
+          updatingValues[0] == change.newValue) {
         updatingValues.shift();
-      } else {
-        if ("newValue" in change)
+      }
+      else {
+        if ('newValue' in change)
           this._userValues[key] = this._clone(change.newValue);
-        else delete this._userValues[key];
+        else
+          delete this._userValues[key];
       }
 
-      if (!updatingValues || updatingValues.length === 0)
+      if (!updatingValues || updatingValues.length == 0)
         this._updating.delete(key);
-      else this._updating.set(key, updatingValues);
+      else
+        this._updating.set(key, updatingValues);
 
       const value = this._getNonDefaultValue(key);
 
-      if (JSON.stringify(value) === JSON.stringify(this._getDefaultValue(key)))
+      if (JSON.stringify(value) == JSON.stringify(this._getDefaultValue(key)))
         return;
 
-      this.$notifyToObservers(key, value, observers, "onChangeConfig");
+      this.$notifyToObservers(key, value, observers, 'onChangeConfig');
     }
   }
 
   $notifyToObservers(key, value, observers, observerMethod) {
     for (const observer of observers) {
-      if (typeof observer === "function") observer(key, value);
-      else if (observer && typeof observer[observerMethod] === "function")
+      if (typeof observer === 'function')
+        observer(key, value);
+      else if (observer && typeof observer[observerMethod] === 'function')
         observer[observerMethod](key, value);
     }
   }
@@ -587,5 +626,5 @@ class Configs {
   _clone(value) {
     return JSON.parse(JSON.stringify(value));
   }
-}
+};
 export default Configs;

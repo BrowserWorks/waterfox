@@ -15,6 +15,10 @@
     opacity: 0;
   }
 
+  :root.rtl {
+    direction: rtl;
+  }
+
   :root {
     background: var(--bg-color);
     color: var(--text-color);
@@ -28,10 +32,11 @@
     bottom: 0;
     display: flex;
     flex-direction: column;
-    left: 0;
-    padding: 1em 0 0;
+    inset-inline-start: 0;
+    inset-inline-end: 0;
+    padding-block: 1em 0;
+    padding-inline: 0;
     position: fixed;
-    right: 0;
     top: 0;
   }
 
@@ -39,7 +44,8 @@
     display: flex;
     flex-direction: row;
     line-height: 1.25;
-    margin: 0;
+    margin-block: 0;
+    margin-inline: 0;
   }
 
   h1::before {
@@ -47,7 +53,7 @@
     content: "";
     display: inline-block;
     height: 1.25em;
-    margin-right: 0.25em;
+    margin-inline-end: 0.25em;
     mask: url("./icons/folder.svg") no-repeat center / 100%;
     width: 1.25em;
   }
@@ -61,46 +67,53 @@
   }
 
   header p {
-    margin: 0.5em 0 1em;
+    margin-block: 0.5em 1em;
+    margin-inline: 0;
   }
 
   header {
-    border-bottom: 1px solid;
-    margin: 0 1em 1em;
+    border-block-end: 1px solid;
+    margin-block: 0 1em;
+    margin-inline: 1em;
   }
 
   #tabs {
     display: flex;
     flex-grow: 1;
     overflow-x: auto;
-    padding: 0 1em 0 0;
+    padding-block: 0;
+    padding-inline: 0 1em;
   }
 
-  ul {
-    margin: 0 0 0 20px;
-    padding: 0;
+  #tabs ul {
+    margin-block: 0;
+    margin-inline: 20px 0;
+    padding-block: 0;
+    padding-inline: 0;
   }
 
-  li {
+  #tabs li {
     display: flex;
     flex-direction: row;
     flex-grow: 1;
     list-style: none;
-    margin: 0 0 0 0.15em;
-    padding: 0;
+    margin-block: 0;
+    margin-inline: 0.15em 0;
+    padding-block: 0;
+    padding-inline: 0;
     white-space: pre;
   }
 
-  li ul {
+  #tabs li ul {
     width: 100%;
   }
 
-  li img,
-  li.use-default-favicon .default-favicon,
-  li.favicon-loading .default-favicon,
-  li .closebox,
-  li .closebox::before,
-  li .closebox::after {
+  #tabs li img,
+  #tabs li.use-default-favicon .default-favicon,
+  #tabs li.favicon-loading .default-favicon,
+  #tabs li .closebox,
+  #tabs li .closebox::before,
+  #tabs li .closebox::after {
     height: var(--favicon-size);
     max-width: var(--favicon-size);
     max-height: var(--favicon-size);
@@ -108,20 +121,20 @@
     width: var(--favicon-size);
   }
 
-  li.use-default-favicon img,
-  li.favicon-loading img {
+  #tabs li.use-default-favicon img,
+  #tabs li.favicon-loading img {
     display: none;
   }
 
-  li.use-default-favicon .default-favicon,
-  li.favicon-loading .default-favicon {
+  #tabs li.use-default-favicon .default-favicon,
+  #tabs li.favicon-loading .default-favicon {
     background: var(--text-color);
     break-inside: avoid; /* This is required to avoid unexpected slicing. See also: https://github.com/piroor/treestyletab/issues/3361 */
     display: inline-block;
     mask: url("./icons/defaultFavicon.svg") no-repeat center / 100%;
   }
 
-  li.use-default-favicon.group-tab .default-favicon {
+  #tabs li.use-default-favicon.group-tab .default-favicon {
     mask-image: url("./icons/folder.svg");
   }
 
@@ -130,7 +143,7 @@
     opacity: 0;
   }
 
-  li:hover > .closebox {
+  #tabs li:hover > .closebox {
     opacity: 1;
   }
 
@@ -139,9 +152,9 @@
     box-shadow: 0 0 0.1em rgba(255, 255, 255, 0.3);
     content: " ";
     display: inline-block;
+    inset-inline-end: 0;
     opacity: 0;
     position: absolute;
-    right: 0;
     top: 0;
   }
 
@@ -153,9 +166,9 @@
     background: var(--text-color);
     content: " ";
     display: inline-block;
+    inset-inline-end: 0;
     mask: url("/sidebar/styles/icons/close-16.svg") no-repeat center / 100%;
     position: absolute;
-    right: 0;
     top: 0;
   }
 
@@ -168,7 +181,8 @@
     flex-direction: row;
     flex-grow: 1;
     text-decoration: none;
-    padding: 0.25em 0;
+    padding-block: 0.25em;
+    padding-inline: 0;
   }
 
   #tabs a:hover,
@@ -181,7 +195,7 @@
     content: ' ';
     display: inline-bock;
     height: var(--favicon-size);
-    margin-right: 0.25em;
+    margin-inline-end: 0.25em;
     width: calc(var(--favicon-size) / 5);
   }
 
@@ -189,8 +203,10 @@
   #tabs span.link span.label {
     display: inline-block;
     vertical-align: calc(var(--favicon-size) - 1em);
-    margin: 0;
-    padding: 0 0 0 0.25em;
+    margin-block: 0;
+    margin-inline: 0;
+    padding-block: 0;
+    padding-inline: 0.25em 0;
     white-space: pre-wrap;
   }
 
@@ -215,14 +231,15 @@
     max-height: var(--throbber-size);
     max-width: var(--throbber-size);
     overflow: hidden;
-    padding: 0;
+    padding-block: 0;
+    padding-inline: 0;
     pointer-events: none;
     position: relative;
     width: var(--throbber-size);
 
     position: absolute;
     top: calc(50% - var(--throbber-size));
-    left: calc(50% - var(--throbber-size));
+    inset-inline-start: calc(50% - var(--throbber-size));
     transform: scale(2, 2);
   }
 
@@ -235,7 +252,12 @@
     height: var(--throbber-size);
     position: absolute;
     width: calc(var(--throbber-size) * 60);
+  }
+  :root.updating:not(.has-contents):not(.rtl) .throbber::before {
     mask: url("/sidebar/styles/throbber.svg") no-repeat left center / 100%;
+  }
+  :root.updating:not(.has-contents).rtl .throbber::before {
+    mask: url("/sidebar/styles/throbber.svg") no-repeat right center / 100%;
   }
 
 
@@ -245,12 +267,14 @@
     box-shadow: 0.2em 0.2em 0.5em rgba(0, 0, 0, 0.35);
     color: #efefef;
     display: none;
+    inset-inline-end: 0.5em;
     line-height: 1;
-    margin: 1em 0 0 1em;
+    margin-block: 1em 0;
+    margin-inline: 1em 0;
     opacity: 0.75;
-    padding: 0.5em;
+    padding-block: 0.5em;
+    padding-inline: 0.5em;
     position: fixed;
-    right: 0.5em;
     top: 0.5em;
     transition: opacity 150ms ease-out;
     z-idnex: 1000;

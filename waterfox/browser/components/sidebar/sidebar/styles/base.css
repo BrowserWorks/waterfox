@@ -11,11 +11,12 @@
   /* default size, they will be overridden. */
   --favicon-size: 16px;
   --tab-size: unset;
+  --tab-group-member-indent: 0px;
   --tab-indent: 0px;
-  --tab-margin-bottom: 0px;
-  --tab-margin-left: 0px;
-  --tab-margin-right: 0px;
-  --tab-margin-top: 0px;
+  --tab-margin-block-start: 0px;
+  --tab-margin-block-end: 0px;
+  --tab-margin-inline-start: 0px;
+  --tab-margin-inline-end: 0px;
   --faviconized-tab-size: 28px;
   --svg-small-icon-size: 16px;
   --new-tab-button-anchor-size: 1.5em;
@@ -23,29 +24,34 @@
   --tabbar-bottom-area-size: 0px;
   --after-tabs-area-size: 0px;
   --pinned-tabs-area-size: 0px;
+  --pinned-tabs-container-resizer-size: 2px;
   --subpanel-area-size: 0px;
   --subpanel-content-size: auto;
 
   --color-animation: 0.25s ease-out;
   --indent-animation: var(--indent-duration) ease-out;
   --collapse-animation: var(--collapse-duration) ease-out;
-  --tab-basic-animation:
-    background var(--color-animation),
-    color var(--color-animation),
-    left var(--collapse-animation),
-    margin-bottom var(--collapse-animation),
-    margin-top var(--collapse-animation),
-    max-height var(--collapse-animation),
-    max-width var(--collapse-animation),
-    min-height var(--collapse-animation),
-    min-width var(--collapse-animation),
-    opacity var(--collapse-animation),
-    padding var(--collapse-animation), /* for extra margin on overlay-scrollbar mode */
-    right var(--collapse-animation);
-  --tab-animation: var(--tab-basic-animation), background var(--color-animation),
-    top var(--collapse-animation);
-  --tab-indent-animation: margin-left var(--indent-animation), margin-right
-    var(--indent-animation);
+  --tab-basic-animation: background    var(--color-animation),
+                         color         var(--color-animation),
+                         inset-inline-start var(--collapse-animation),
+                         inset-inline-end   var(--collapse-animation),
+                         margin-block-start var(--collapse-animation),
+                         margin-block-end   var(--collapse-animation),
+                         max-height    var(--collapse-animation),
+                         max-width     var(--collapse-animation),
+                         min-height    var(--collapse-animation),
+                         min-width     var(--collapse-animation),
+                         opacity       var(--collapse-animation),
+                         /* for extra margin on overlay-scrollbar mode */
+                         padding-inline-start var(--collapse-animation),
+                         padding-inline-end   var(--collapse-animation);
+  --tab-animation: var(--tab-basic-animation),
+                   background    var(--color-animation),
+                   top           var(--collapse-animation);
+  --tab-indent-animation: margin-inline-start var(--indent-animation),
+                          margin-inline-end   var(--indent-animation);
+  --tab-indent-positioning-animation: inset-inline-start var(--indent-animation),
+                                      inset-inline-end   var(--indent-animation);
 
   --button-opacity: 0.75;
   --button-hover-opacity: 1;
@@ -66,49 +72,91 @@
   --multiselected-color-opacity: 0.35;
 
   /* z-index of elements: we should define them here to keep their strict priorities */
-  --invisible-z-index: -100;
-  --dummy-element-z-index: 1; /* dummy tab */
-  --background-z-index: 10; /* background screen */
-  --accessible-ui-z-index: 100; /* tabbar itself, and others */
-  --over-tabs-z-index: 200; /* buttons after tabs, pinned tabs (required to make pinned tabs clickable) */
-  --over-buttons-z-index: 300; /* buttons on buttons after tabs */
+  --invisible-z-index:       -100;
+  --dummy-element-z-index:   1; /* dummy tab */
+  --background-z-index:      10; /* background screen */
+  --accessible-ui-z-index:   100; /* tabbar itself, and others */
+  --over-tabs-z-index:       200; /* buttons after tabs, pinned tabs (required to make pinned tabs clickable) */
+  --over-buttons-z-index:    300; /* buttons on buttons after tabs */
   --notification-ui-z-index: 9000;
-  --blocking-ui-z-index: 10000; /* frontmost of others */
+  --tooltip-ui-z-index:      10000;
+  --blocking-ui-z-index:     20000; /* frontmost of others */
 
-  --tab-background-z-index: 10;
+  --tab-background-z-index:            10;
   --tab-extra-contents-behind-z-index: 20;
-  --tab-indent-z-index: 90;
-  --tab-base-z-index: 100;
+  --tab-indent-z-index:                90;
+  --tab-base-z-index:                  100;
   --tab-extra-contents-beside-z-index: 150;
-  --tab-favicon-z-index: 200;
-  --tab-burster-z-index: 4000;
-  --tab-highlighter-z-index: 5000;
-  --tab-extra-contents-front-z-index: 6000;
-  --tab-ui-z-index: 9000;
-  --tab-drop-marker-z-index: 10000;
+  --tab-favicon-z-index:               200;
+  --tab-burster-z-index:               4000;
+  --tab-highlighter-z-index:           5000;
+  --tab-extra-contents-front-z-index:  6000;
+  --tab-ui-z-index:                    9000;
+  --tab-drop-marker-z-index:           10000;
 
   --visual-gap-offset: 0px;
   --visual-gap-animation: top var(--collapse-animation);
-  --visual-gap-hover-animation: top var(--collapse-animation)
-    var(--visual-gap-hover-animation-delay);
+  --visual-gap-hover-animation: top var(--collapse-animation) var(--visual-gap-hover-animation-delay);
+
+  /* Some users may use physical properties to customize tab margins, so we should map them to logical propertis for better compatibility.
+     https://github.com/piroor/treestyletab/wiki/Code-snippets-for-custom-style-rules#change-tab-margin */
+  &:not(.rtl),
+  &:not(.rtl) tab-item {
+    --tab-margin-block-start: var(--tab-margin-top, 0px);
+    --tab-margin-block-end: var(--tab-margin-bottom, 0px);
+    --tab-margin-inline-start: var(--tab-margin-left, 0px);
+    --tab-margin-inline-end: var(--tab-margin-right, 0px);
+  }
+  &.rtl,
+  &.rtl tab-item {
+    --tab-margin-block-start: var(--tab-margin-top, 0px);
+    --tab-margin-block-end: var(--tab-margin-bottom, 0px);
+    --tab-margin-inline-start: var(--tab-margin-right, 0px);
+    --tab-margin-inline-end: var(--tab-margin-left, 0px);
+  }
+
+  &.debug {
+    * {
+      outline: 1px dotted rgba(255, 0, 0, 0.5);
+    }
+
+    /* Show internal tab id in the debug mode */
+    tab-item::after {
+      bottom: 0;
+      inset-inline-end: 0;
+      opacity: 0.65;
+      overflow: hidden;
+      pointer-events: none;
+      position: absolute;
+      text-align: end;
+      z-index: var(--tab-favicon-z-index);
+    }
+    /* override definition for the highlighting marker */
+    tab-item[data-tab-id]::after {
+      content: attr(data-tab-id) !important;
+    }
+    tab-item[data-native-tab-group-id]::after {
+      content: attr(data-native-tab-group-id) !important;
+    }
+  }
+}
+
+
+body {
+  margin-block: 0;
+  margin-inline: 0;
+  padding-block: 0;
+  padding-inline: 0;
 }
 
 tab-item {
   --tab-current-size: var(--tab-size);
-  --attention-marker-x-offset: calc(
-    0px -
-    ((var(--tab-current-size) - var(--favicon-size)) / 2)
-  );
-  --attention-marker-y-offset: calc(
-    0px -
-    ((var(--tab-current-size) - var(--favicon-size)) / 2)
-  );
-  --attention-marker-gradient: radial-gradient(
-    circle farthest-corner at 50% calc(100% - 14% + 1px),
-    var(--tab-highlighted-glow) 0,
-    var(--tab-highlighted-glow) 7%,
-    rgba(255, 255, 255, 0) 7%
-  );
+  --attention-marker-x-offset: calc(0px - ((var(--tab-current-size) - var(--favicon-size)) / 2));
+  --attention-marker-y-offset: calc(0px - ((var(--tab-current-size) - var(--favicon-size)) / 2));
+  --attention-marker-gradient: radial-gradient(circle farthest-corner at 50% calc(100% - 14% + 1px),
+                                               var(--tab-highlighted-glow) 0,
+                                               var(--tab-highlighted-glow) 7%,
+                                               rgba(255, 255, 255, 0) 7%);
   --attention-marker-gradient-hover: var(--attention-marker-gradient);
   /* old style
   --attention-marker-gradient: radial-gradient(circle farthest-corner at 50% calc(100% - 3px),
@@ -120,65 +168,42 @@ tab-item {
                                                      var(--tab-highlighted-glow) 10%,
                                                      rgba(255, 255, 255, 0) 23%);
   */
-}
-tab-item.faviconized {
-  --attention-marker-x-offset: calc(
-    0px -
-    ((var(--tab-current-size) - var(--favicon-size)) / 2) +
-    ((var(--tab-current-size) - var(--faviconized-tab-size)) / 2)
-  );
-  --attention-marker-y-offset: calc(
-    0px -
-    ((var(--tab-current-size) - var(--favicon-size)) / 2) +
-    ((var(--tab-current-size) - var(--faviconized-tab-size)))
-  );
+  --tab-label-width: 100%;
+
+  &.faviconized {
+    --attention-marker-x-offset: calc(0px - ((var(--tab-current-size) - var(--favicon-size)) / 2) + ((var(--tab-current-size) - var(--faviconized-tab-size)) / 2));
+    --attention-marker-y-offset: calc(0px - ((var(--tab-current-size) - var(--favicon-size)) / 2) + ((var(--tab-current-size) - var(--faviconized-tab-size))));
+  }
+
+  &:not(.faviconized):not(.dummy) {
+    height: var(--tab-size); /* make tab height consistent even if only some tabs have extra contents */
+
+    tab-item-substance {
+      height: 100%; /* tab substance should be expanded if it has no extra contents */
+    }
+  }
+
+  &:focus {
+    outline: none;
+  }
+
+  &:not(.faviconized):focus tab-label,
+  &.faviconized:focus tab-favicon {
+    outline: 1px dotted;
+  }
 }
 
-tab-item:not(.faviconized):not(.dummy),
 .sticky-tab-spacer {
   height: var(--tab-size); /* make tab height consistent even if only some tabs have extra contents */
 }
-tab-item:not(.faviconized):not(.dummy) tab-item-substance {
-  height: 100%; /* tab substance should be expanded if it has no extra contents */
-}
 
-tab-item:focus {
-  outline: none;
-}
-
-tab-item:not(.faviconized):focus tab-label,
-tab-item.faviconized:focus tab-favicon {
-  outline: 1px dotted;
-}
 
 @keyframes blink {
-  0% {
-    opacity: 0;
-  }
-  50% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
+  0% { opacity: 0; }
+  50% { opacity: 1; }
+  100% { opacity: 0; }
 }
 
-:root.debug * {
-  outline: 1px dotted rgba(255, 0, 0, 0.5);
-}
-
-/* Show internal tab id in the debug mode */
-:root.debug tab-item::after {
-  bottom: 0;
-  content: attr(data-tab-id) !important; /* override definition for the highlighting marker */
-  opacity: 0.65;
-  overflow: hidden;
-  pointer-events: none;
-  position: absolute;
-  right: 0;
-  text-align: right;
-  z-index: var(--tab-favicon-z-index);
-}
 
 /* This is required to prevent dragging of images (ex. favicon).
    Otherwise they are unexpectedly dragged just as an image and
@@ -188,8 +213,7 @@ img {
 }
 
 button,
-.after-tabs
-  [role="button"] /*,
+.after-tabs [role="button"] /*,
 tab-item,
 tab-twisty,
 tab-closebox,
@@ -217,6 +241,7 @@ tab-sound-button */ {
   height: 100%; /* to make #content flexible */
 }
 
+
 /* tabbar */
 
 :root,
@@ -228,17 +253,20 @@ body {
 #tabbar-container,
 #tabbar,
 #pinned-tabs-container,
+#pinned-tabs-container-resizer,
 #tabbar-top,
 #tabbar-bottom,
 #background,
 #subpanel-container {
   bottom: 0;
-  left: 0;
-  margin: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  margin-block: 0;
+  margin-inline: 0;
   overflow: hidden;
-  padding: 0;
+  padding-block: 0;
+  padding-inline: 0;
   position: fixed;
-  right: 0;
   top: 0;
   z-index: var(--accessible-ui-z-index);
 }
@@ -247,36 +275,51 @@ body {
   bottom: var(--subpanel-area-size);
   top: calc(var(--tabbar-top-area-size) + var(--visual-gap-offset));
   transition: var(--visual-gap-animation);
-}
-:root.hover-on-top-edge:hover #tabbar-container {
-  top: var(--tabbar-top-area-size) !important;
-  transition: var(--visual-gap-hover-animation);
+
+  :root.hover-on-top-edge:hover & {
+    top: var(--tabbar-top-area-size) !important;
+    transition: var(--visual-gap-hover-animation);
+  }
 }
 
 #tabbar {
   position: absolute;
+
+  &.overflow {
+    bottom: calc(var(--after-tabs-area-size) + var(--tabbar-bottom-area-size));
+  }
+
+  :root.initializing & {
+    opacity: 0;
+  }
+
+  :root.animation:not(.minimized) & {
+    transition: margin-block-start var(--collapse-animation);
+  }
 }
 
 #normal-tabs-container {
-  margin-top: var(--pinned-tabs-area-size);
+  margin-block-start: var(--pinned-tabs-area-size);
   max-height: 100%;
   min-height: 0;
   overflow: hidden;
+}
+
+:root.rtl,
+:root.rtl tab-item-substance .caption {
+  direction: rtl;
 }
 
 .virtual-scroll-container {
   /* We need to use min-height instead of height for a flexbox. */
   min-height: 0px; /* this will be updated dynamically by scroll.js */
   overflow: hidden;
+
+  :root.animation & {
+    transition: min-height var(--collapse-animation);
+  }
 }
 
-:root.animation .virtual-scroll-container {
-  transition: min-height var(--collapse-animation);
-}
-
-#tabbar.overflow {
-  bottom: calc(var(--after-tabs-area-size) + var(--tabbar-bottom-area-size));
-}
 
 #normal-tabs-container.overflow {
   /* Scroll anchoring by Firefox itself may break virtual scrolling, so I disable anchoring and control all by myself. */
@@ -290,27 +333,26 @@ body {
   background-repeat: no-repeat;
   opacity: 0;
   position: fixed;
-  left: 0;
-  right: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   pointer-events: none;
   z-index: var(--over-tabs-z-index);
-}
-:root.animation .overflow-indicator {
-  transition: opacity 150ms ease;
-}
-.overflow-indicator.start {
-  top: calc(var(--tabbar-top-area-size) + var(--pinned-tabs-area-size));
-}
-.overflow-indicator.end {
-  bottom: calc(
-    var(--subpanel-area-size) +
-    var(--tabbar-bottom-area-size) +
-    var(--after-tabs-area-size)
-  );
-}
-#normal-tabs-container.overflow.scrolled .overflow-indicator.start,
-#normal-tabs-container.overflow:not(.fully-scrolled) .overflow-indicator.end {
-  opacity: 1;
+
+  :root.animation & {
+    transition: opacity 150ms ease;
+  }
+
+  &.start {
+    top: calc(var(--tabbar-top-area-size) + var(--pinned-tabs-area-size));
+  }
+  &.end {
+    bottom: calc(var(--subpanel-area-size) + var(--tabbar-bottom-area-size) + var(--after-tabs-area-size));
+  }
+
+  #normal-tabs-container.overflow.scrolled &.start,
+  #normal-tabs-container.overflow:not(.fully-scrolled) &.end {
+    opacity: 1;
+  }
 }
 
 .tabs-spacer {
@@ -318,43 +360,32 @@ body {
   min-height: 0;
   pointer-events: none;
   visibility: hidden;
+
+  :root.animation:not(.minimized) & {
+    transition: min-height var(--collapse-animation);
+  }
+
+  #normal-tabs-container.overflow & {
+    display: block;
+  }
 }
 
 .sticky-tabs-container {
-  left: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   min-height: 0;
   pointer-events: none;
   position: fixed;
-  right: 0;
   z-index: var(--tab-ui-z-index);
-}
-.sticky-tabs-container.above {
-  top: calc(var(--tabbar-top-area-size) + var(--pinned-tabs-area-size));
-}
-.sticky-tabs-container.below {
-  bottom: calc(
-    var(--after-tabs-area-size) +
-    var(--tabbar-bottom-area-size) +
-    var(--tabbar-bottom-area-size) +
-    var(--subpanel-area-size)
-  );
+
+  &.above {
+    top: calc(var(--tabbar-top-area-size) + var(--pinned-tabs-area-size));
+  }
+  &.below {
+    bottom: calc(var(--after-tabs-area-size) + var(--tabbar-bottom-area-size) + var(--tabbar-bottom-area-size) + var(--subpanel-area-size));
+  }
 }
 
-:root.animation:not(.minimized) .tabs-spacer {
-  transition: min-height var(--collapse-animation);
-}
-
-#normal-tabs-container.overflow .tabs-spacer {
-  display: block;
-}
-
-:root.initializing #tabbar {
-  opacity: 0;
-}
-
-:root.animation:not(.minimized) #tabbar {
-  transition: margin-top var(--collapse-animation);
-}
 
 #background {
   background-color: -moz-dialog; /* This is required to cover dummy elements. See also: https://github.com/piroor/treestyletab/issues/1703#issuecomment-354646405 */
@@ -362,41 +393,66 @@ body {
   z-index: var(--background-z-index);
 }
 
-/* put scrollbar leftside */
-:root.left #tabbar {
-  direction: rtl;
+
+/* put scrollbar farside from the content area */
+:root.left:not(.rtl) {
+  #tabbar {
+    direction: rtl;
+    .after-tabs {
+      direction: ltr;
+    }
+  }
+  #pinned-tabs-container > *,
+  #normal-tabs-container > * {
+    direction: ltr;
+  }
 }
-:root.left #pinned-tabs-container > *,
-:root.left #normal-tabs-container > *,
-:root.left #tabbar .after-tabs {
-  direction: ltr;
+:root.right.rtl {
+  /* put scrollbar farside from the content area */
+  #tabbar {
+    direction: ltr;
+    .after-tabs {
+      direction: rtl;
+    }
+  }
+  #pinned-tabs-container > *,
+  #normal-tabs-container > * {
+    direction: rtl;
+  }
 }
+
+
 
 #pinned-tabs-container,
 #normal-tabs-container {
   scrollbar-width: thin;
 }
 
+
 ul {
   flex-grow: 1;
   list-style: none;
-  margin: 0;
-  padding: 0;
+  margin-block: 0;
+  margin-inline: 0;
+  padding-block: 0;
+  padding-inline: 0;
 }
+
 
 /* dummy elements to calculate actual size of boxes */
 
 #dummy-tabs {
   bottom: 0;
-  left: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   overflow-y: scroll;
   pointer-events: none;
   position: fixed;
-  right: 0;
   z-index: var(--dummy-element-z-index); /* Put it below the background. See also: https://github.com/piroor/treestyletab/issues/1703#issuecomment-354646405 */
-}
-:root:not(.have-unsynchronized-throbber) #dummy-tabs {
-  clip: rect(0, 0, 0, 0); /* Don't hide animated throbber when its appearance is copied with -moz-element since doing so causes stuttering in the copied animation */
+
+  :root:not(.have-unsynchronized-throbber) & {
+    clip: rect(0, 0, 0, 0); /* Don't hide animated throbber when its appearance is copied with -moz-element since doing so causes stuttering in the copied animation */
+  }
 }
 
 #dummy-favicon-size-box {
@@ -423,6 +479,7 @@ ul {
   width: var(--shift-tabs-for-scrollbar-distance, 0);
 }
 
+
 /* tabs */
 
 tab-item,
@@ -434,7 +491,8 @@ tab-item,
   justify-content: stretch;
   line-height: 1;
   list-style: none;
-  margin: 0;
+  margin-block: 0;
+  margin-inline: 0;
   max-width: 100%;
   /*overflow: hidden;*/ /* we should not apply overflow:hidden here to allow rendering box-shadow of contents */
   pointer-events: none;
@@ -448,8 +506,8 @@ tab-item-substance {
   flex-wrap: nowrap;
   justify-content: flex-start;
   line-height: 1;
-  margin: var(--tab-margin-top) var(--tab-margin-right) var(--tab-margin-bottom)
-    var(--tab-margin-left);
+  margin-block: var(--tab-margin-block-start) var(--tab-margin-block-end);
+  margin-inline: var(--tab-margin-inline-start) var(--tab-margin-inline-end);
   max-width: 100%;
   min-height: 0;
   /*overflow: hidden;*/ /* we should not apply overflow:hidden here to allow rendering box-shadow of contents */
@@ -457,279 +515,338 @@ tab-item-substance {
   pointer-events: auto;
   position: relative;
   z-index: var(--tab-base-z-index);
+
+  .ui {
+    align-items: stretch;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    max-width: calc(100% - var(--favicon-size));
+  }
+
+  .caption {
+    align-items: center;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    line-height: 1;
+    margin-block: 0;
+    margin-inline: 0;
+    width: 100%;
+    max-height: var(--tab-size); /* Limit tab contents height for tabs customized as thinner. See also https://github.com/piroor/treestyletab/issues/3478 */
+    min-height: 0;
+    pointer-events: auto;
+    position: static;
+  }
+
+  :root:not(.rtl).left tab-item:not(.pinned) &,
+  :root.rtl.right tab-item:not(.pinned) & {
+    margin-inline-start: calc(var(--tab-margin-inline-start) + var(--tab-group-member-indent) + var(--tab-indent));
+  }
+
+  tab-item.removing &,
+  tab-item:not(.pinned).collapsed &,
+  tab-item.duplicating & {
+    opacity: 0;
+  }
+
+  tab-item.duplicating & {
+    transition: none;
+  }
 }
 
-tab-item-substance .ui {
-  align-items: stretch;
-  display: flex;
-  flex-direction: column;
-  flex-grow: 1;
-  flex-wrap: nowrap;
-  justify-content: flex-start;
-  max-width: calc(100% - var(--favicon-size));
+
+/* auto-hidden scrollbar placeholder workaround */
+:root:not(.rtl).left.shift-tabs-for-scrollbar-only-on-hover.on-scrollbar-area:hover,
+:root:not(.rtl).left:not(.shift-tabs-for-scrollbar-only-on-hover),
+:root.rtl.right.shift-tabs-for-scrollbar-only-on-hover.on-scrollbar-area:hover,
+:root.rtl.right:not(.shift-tabs-for-scrollbar-only-on-hover) {
+  #tabbar.scrollbar-autohide
+    #normal-tabs-container.overflow
+    tab-item:not(.pinned)
+    tab-item-substance {
+    margin-inline-start: calc(var(--tab-margin-inline-start) + var(--tab-group-member-indent) + var(--tab-indent) + var(--shift-tabs-for-scrollbar-distance));
+  }
+
+  #normal-tabs-container.overflow
+    .native-tab-group-line {
+    inset-inline-start: calc(var(--tab-group-member-indent) * 0.5 + var(--shift-tabs-for-scrollbar-distance));
+  }
 }
 
-tab-item-substance .caption {
-  align-items: center;
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  justify-content: flex-start;
-  line-height: 1;
-  margin: 0;
-  width: 100%;
-  max-height: var(--tab-size); /* Limit tab contents height for tabs customized as thinner. See also https://github.com/piroor/treestyletab/issues/3478 */
-  min-height: 0;
-  pointer-events: auto;
-  position: static;
-}
-
-:root.left tab-item:not(.pinned) tab-item-substance {
-  margin-left: calc(var(--tab-margin-left) + var(--tab-indent));
+:root:not(.rtl).right tab-item:not(.pinned),
+:root.rtl.left tab-item:not(.pinned) {
+  tab-item-substance {
+    margin-inline-end: calc(var(--tab-margin-inline-end) + var(--tab-group-member-indent) + var(--tab-indent));
+  }
 }
 
 /* auto-hidden scrollbar placeholder workaround */
-:root.left.shift-tabs-for-scrollbar-only-on-hover.on-scrollbar-area:hover
+:root:not(.rtl).right.shift-tabs-for-scrollbar-only-on-hover.on-scrollbar-area:hover,
+:root:not(.rtl).right:not(.shift-tabs-for-scrollbar-only-on-hover),
+:root.rtl.left.shift-tabs-for-scrollbar-only-on-hover.on-scrollbar-area:hover,
+:root.rtl.left:not(.shift-tabs-for-scrollbar-only-on-hover) {
   #tabbar.scrollbar-autohide
+    #normal-tabs-container.overflow
+    tab-item:not(.pinned)
+    tab-item-substance {
+    margin-inline-end: calc(var(--tab-margin-inline-end) + var(--tab-group-member-indent) + var(--tab-indent) + var(--shift-tabs-for-scrollbar-distance));
+  }
+
   #normal-tabs-container.overflow
-  tab-item:not(.pinned)
-  tab-item-substance,
-:root.left:not(.shift-tabs-for-scrollbar-only-on-hover)
-  #tabbar.scrollbar-autohide
-  #normal-tabs-container.overflow
-  tab-item:not(.pinned)
-  tab-item-substance {
-  margin-left: calc(
-    var(--tab-margin-left) +
-    var(--tab-indent) +
-    var(--shift-tabs-for-scrollbar-distance)
-  );
+    .native-tab-group-line {
+    inset-inline-end: calc(var(--tab-group-member-indent) * 0.5 + var(--shift-tabs-for-scrollbar-distance));
+  }
 }
 
-:root.right tab-item:not(.pinned) tab-item-substance {
-  margin-right: calc(var(--tab-margin-right) + var(--tab-indent));
-}
-
-/* auto-hidden scrollbar placeholder workaround */
-:root.right.shift-tabs-for-scrollbar-only-on-hover.on-scrollbar-area:hover
-  #tabbar.scrollbar-autohide
-  #normal-tabs-container.overflow
-  tab-item:not(.pinned)
-  tab-item-substance,
-:root.right:not(.shift-tabs-for-scrollbar-only-on-hover)
-  #tabbar.scrollbar-autohide
-  #normal-tabs-container.overflow
-  tab-item:not(.pinned)
-  tab-item-substance {
-  margin-right: calc(
-    var(--tab-margin-right) +
-    var(--tab-indent) +
-    var(--shift-tabs-for-scrollbar-distance)
-  );
-}
-
-tab-item,
-tab-item * {
+tab-item {
   vertical-align: middle;
+
+  * {
+    vertical-align: middle;
+  }
+
+  tab-favicon {
+    z-index: var(--tab-favicon-z-index);
+  }
+
+  &.hidden {
+    opacity: 0.6;
+  }
+
+  &.removing,
+  &:not(.pinned).collapsed,
+  &.duplicating {
+    pointer-events: none;
+    z-index: var(--invisible-z-index);
+  }
+  &.removing:not(.pinned.faviconized),
+  &:not(.pinned.faviconized).collapsed,
+  &.duplicating {
+    margin-block-start: calc(0px - var(--tab-current-size) - var(--tab-margin-block-end));
+  }
+  :root.left &.removing.pinned.faviconized {
+    margin-inline-start: calc(0px - var(--tab-current-size) - var(--tab-margin-inline-end));
+  }
+  :root.right &.removing.pinned.faviconized {
+    margin-inline-end: calc(0px - var(--tab-current-size) - var(--tab-margin-inline-start));
+  }
+
+  &:not(.pinned).collapsed.collapsed-completely {
+    visibility: hidden;
+  }
+
+  &.duplicating {
+    transition: none;
+  }
 }
 
-tab-item tab-favicon {
-  z-index: var(--tab-favicon-z-index);
+:root.animation:not(.minimized) {
+  tab-item.animation-ready,
+  tab-item.animation-ready tab-item-substance,
+  .after-tabs button,
+  .after-tabs [role="button"] {
+    transition: var(--tab-animation);
+  }
+
+  tab-item.animation-ready {
+    &:not(.expanding),
+    &:not(.expanding) tab-item-substance,
+    &.expanding.moving,
+    &.expanding.moving tab-item-substance {
+      transition: var(--tab-animation),
+                  var(--tab-indent-animation);
+    }
+  }
 }
 
-tab-item.hidden {
-  opacity: 0.6;
+
+tab-item tab-twisty {
+  :root.left:not(.rtl) &,
+  :root.right.rtl & {
+    order: -1;
+  }
+  :root.right:not(.rtl) &,
+  :root.left.rtl & {
+    order: 10000;
+  }
+}
+tab-item tab-closebox {
+  :root.left:not(.rtl) &,
+  :root.right.rtl & {
+    order: 10000;
+  }
+  :root.right:not(.rtl) &,
+  :root.left.rtl & {
+    order: -1;
+  }
 }
 
-:root.animation:not(.minimized) tab-item.animation-ready,
-:root.animation:not(.minimized) tab-item.animation-ready tab-item-substance,
-:root.animation:not(.minimized) .after-tabs button,
-:root.animation:not(.minimized) .after-tabs [role="button"] {
-  transition: var(--tab-animation);
-}
-:root.animation:not(.minimized) tab-item.animation-ready:not(.expanding),
-:root.animation:not(.minimized)
-  tab-item.animation-ready:not(.expanding)
-  tab-item-substance,
-:root.animation:not(.minimized) tab-item.animation-ready.expanding.moving,
-:root.animation:not(.minimized)
-  tab-item.animation-ready.expanding.moving
-  tab-item-substance {
-  transition: var(--tab-animation), var(--tab-indent-animation);
-}
-
-tab-item.removing,
-tab-item:not(.pinned).collapsed,
-tab-item.duplicating {
-  pointer-events: none;
-  z-index: var(--invisible-z-index);
-}
-tab-item.removing:not(.pinned.faviconized),
-tab-item:not(.pinned.faviconized).collapsed,
-tab-item.duplicating {
-  margin-top: calc(0px - var(--tab-current-size) - var(--tab-margin-bottom));
-}
-:root.left tab-item.removing.pinned.faviconized {
-  margin-left: calc(0px - var(--tab-current-size) - var(--tab-margin-right));
-}
-:root.right tab-item.removing.pinned.faviconized {
-  margin-right: calc(0px - var(--tab-current-size) - var(--tab-margin-left));
-}
-tab-item.removing tab-item-substance,
-tab-item:not(.pinned).collapsed tab-item-substance,
-tab-item.duplicating tab-item-substance {
-  opacity: 0;
-}
-
-tab-item:not(.pinned).collapsed.collapsed-completely {
-  visibility: hidden;
-}
-
-tab-item.duplicating,
-tab-item.duplicating tab-item-substance {
-  transition: none;
-}
-
-:root.left tab-item tab-twisty {
-  order: -1;
-}
-:root.left tab-item tab-closebox {
-  order: 10000;
-}
-
-:root.right tab-item tab-twisty {
-  order: 10000;
-}
-:root.right tab-item tab-closebox {
-  order: -1;
-}
 
 tab-item .highlighter,
 tab-item .burster,
 tab-item.faviconized.unread tab-favicon::before,
 tab-item.attention tab-favicon::before,
 tab-item .background,
-tab-item .extra-items-container.indent,
-tab-item .extra-items-container.behind,
-tab-item .extra-items-container.front,
-.newtab-button .extra-items-container {
+tab-item .native-tab-group-line {
   bottom: 0;
-  left: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   pointer-events: none;
   position: absolute;
-  right: 0;
   top: 0;
 }
-tab-item .extra-items-container.above,
-tab-item .extra-items-container.below {
-  align-items: stretch;
-  display: flex;
-  flex-direction: column;
-  flex-wrap: nowrap;
-  justify-content: flex-start;
-  overflow: visible;
-  pointer-events: none;
-  position: relative;
-  z-index: var(--tab-extra-contents-beside-z-index);
+
+.extra-items-container {
+  tab-item &.indent,
+  tab-item &.behind,
+  tab-item &.front,
+  .newtab-button & {
+    bottom: 0;
+    inset-inline-start: 0;
+    inset-inline-end: 0;
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+  }
+
+  tab-item &.above,
+  tab-item &.below {
+    align-items: stretch;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow: visible;
+    pointer-events: none;
+    position: relative;
+    z-index: var(--tab-extra-contents-beside-z-index);
+  }
+
+  tab-item &,
+  .newtab-button & {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow: hidden;
+  }
+
+  tab-item &.indent {
+    width: var(--tab-indent);
+    z-index: var(--tab-indent-z-index);
+
+    :root:not(.rtl).left &,
+    :root.rtl.right & {
+      inset-inline-start: var(--tab-group-member-indent);
+    }
+    :root:not(.rtl).right &,
+    :root.rtl.left & {
+      inset-inline-end: var(--tab-group-member-indent);
+    }
+
+    .sticky-tabs-container & {
+      display: none;
+    }
+  }
+
+  /* auto-hidden scrollbar placeholder workaround */
+  #tabbar.scrollbar-autohide
+    #normal-tabs-container.overflow tab-item &.indent{
+    width: calc(var(--tab-group-member-indent) + var(--tab-indent) + var(--shift-tabs-for-scrollbar-distance));
+  }
+  :root:not(.rtl).left tab-item &.indent,
+  :root.rtl.right tab-item &.indent {
+    inset-inline-end: auto;
+  }
+  :root:not(.rtl).right tab-item &.indent,
+  :root.rtl.left tab-item &.indent {
+    inset-inline-start: auto;
+  }
+
+  tab-item &.front {
+    inset-inline-start: var(--tab-label-start-offset);
+    inset-inline-end: var(--tab-label-end-offset);
+    justify-content: flex-end;
+    pointer-events: auto;
+    z-index: var(--tab-extra-contents-front-z-index);
+  }
+  tab-item:not(.faviconized).sound-playing &.front,
+  tab-item:not(.faviconized).muted &.front {
+    inset-inline-start: calc(var(--tab-label-start-offset) + var(--svg-small-icon-size));
+  }
+  tab-item.faviconized &.front {
+    inset-inline-start: var(--faviconized-tab-padding);
+    inset-inline-end: var(--faviconized-tab-padding);
+  }
+
+  tab-item &.behind {
+    z-index: var(--tab-extra-contents-behind-z-index);
+  }
+
+  .newtab-button & {
+    pointer-events: auto;
+    z-index: var(--tab-extra-contents-front-z-index);
+  }
+
+  :root.newtab-action-selectable
+    .newtab-button
+    &,
+  :root:not(.newtab-action-selectable).contextual-identity-selectable:not(.incognito)
+    .newtab-button
+    &,
+  :root.newtab-action-selectable.contextual-identity-selectable:not(.incognito)
+    .newtab-button
+    & {
+    inset-inline-end: var(--new-tab-button-anchor-size);
+  }
 }
 
-tab-item .extra-items-container,
-.newtab-button .extra-items-container {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  justify-content: flex-start;
-  overflow: hidden;
-}
 
-tab-item .extra-items-container.indent {
-  width: var(--tab-indent);
-  z-index: var(--tab-indent-z-index);
-}
-/* auto-hidden scrollbar placeholder workaround */
-#tabbar.scrollbar-autohide
-  #normal-tabs-container.overflow
-  tab-item
-  .extra-items-container.indent {
-  width: calc(var(--tab-indent) + var(--shift-tabs-for-scrollbar-distance));
-}
-:root.left tab-item .extra-items-container.indent {
-  right: auto;
-}
-:root.right tab-item .extra-items-container.indent {
-  left: auto;
-}
+.burster {
+  tab-item & {
+    z-index: var(--tab-burster-z-index);
+  }
 
-tab-item .extra-items-container.front {
-  justify-content: flex-end;
-  left: var(--tab-label-start-offset);
-  pointer-events: auto;
-  right: var(--tab-label-end-offset);
-  z-index: var(--tab-extra-contents-front-z-index);
-}
-tab-item.faviconized .extra-items-container.front {
-  left: var(--faviconized-tab-padding);
-  right: var(--faviconized-tab-padding);
-}
-
-tab-item:not(.bursting) .burster {
-  display: none;
+  tab-item:not(.bursting) & {
+    display: none;
+  }
 }
 
 tab-item .highlighter {
   z-index: var(--tab-highlighter-z-index);
 }
 
-tab-item .burster {
-  z-index: var(--tab-burster-z-index);
-}
 
 tab-item.faviconized.unread tab-favicon::before,
 tab-item.attention tab-favicon::before {
   bottom: auto;
-  content: "";
+  content: '';
   height: var(--tab-current-size);
-  left: var(--attention-marker-x-offset);
-  right: auto;
+  inset-inline-start: var(--attention-marker-x-offset);
+  inset-inline-end: auto;
   top: var(--attention-marker-y-offset);
   width: var(--tab-current-size);
 }
 
-tab-item .background {
-  overflow: hidden; /* to crop burster*/
-  z-index: var(--tab-background-z-index);
+.background {
+  tab-item & {
+    overflow: hidden; /* to crop burster*/
+    z-index: var(--tab-background-z-index);
+
+    &.base {
+      display: none;
+
+      .sticky-tabs-container & {
+        display: inline-block;
+      }
+    }
+  }
 }
 
-tab-item .background.base {
-  display: none;
-}
-.sticky-tabs-container tab-item .background.base {
-  display: inline-block;
-}
-
-tab-item .extra-items-container.behind {
-  z-index: var(--tab-extra-contents-behind-z-index);
-}
-
-.newtab-button .extra-items-container {
-  pointer-events: auto;
-  z-index: var(--tab-extra-contents-front-z-index);
-}
-
-:root.newtab-action-selectable .newtab-button .extra-items-container,
-:root:not(.newtab-action-selectable).contextual-identity-selectable:not(
-    .incognito
-  )
-  .newtab-button
-  .extra-items-container {
-  right: var(--new-tab-button-anchor-size);
-}
-
-:root.newtab-action-selectable.contextual-identity-selectable:not(.incognito)
-  .newtab-button
-  .extra-items-container {
-  left: var(--new-tab-button-anchor-size);
-}
 
 /* pinned tabs */
 
@@ -740,20 +857,36 @@ tab-item .extra-items-container.behind {
   max-height: var(--pinned-tabs-area-size);
   overflow: hidden;
   top: calc(var(--tabbar-top-area-size) + var(--visual-gap-offset));
-  transition:
-    max-height var(--collapse-animation),
-    var(--visual-gap-animation);
+  transition: max-height var(--collapse-animation),
+              var(--visual-gap-animation);
   z-index: var(--over-tabs-z-index);
-}
-:root.hover-on-top-edge:hover #pinned-tabs-container {
-  top: 0 !important;
-  transition:
-    max-height var(--collapse-animation),
-    var(--visual-gap-hover-animation);
+
+  :root.hover-on-top-edge:hover & {
+    top: 0 !important;
+    transition: max-height var(--collapse-animation),
+                var(--visual-gap-hover-animation);
+  }
+
+  &.overflow {
+    overflow-y: scroll;
+  }
 }
 
-#pinned-tabs-container.overflow {
-  overflow-y: scroll;
+#pinned-tabs-container-resizer {
+  background-color: transparent;
+  cursor: ns-resize;
+  height: var(--pinned-tabs-container-resizer-size);
+  top: calc(var(--tabbar-top-area-size) + var(--visual-gap-offset) + max(0px, var(--pinned-tabs-area-size) - var(--pinned-tabs-container-resizer-size)));
+  transition: background-color var(--color-animation);
+  z-index: var(--over-tabs-z-index);
+
+  &:hover {
+    background-color: Highlight;
+  }
+
+  :root:not(.have-pinned-tabs) & {
+    display: none;
+  }
 }
 
 .tabs.pinned {
@@ -763,103 +896,93 @@ tab-item .extra-items-container.behind {
   flex-grow: 0;
   flex-wrap: wrap;
   justify-content: flex-start;
-  padding-right: max(
-    1px,
-    calc(
-      100% -
-      (var(--pinned-tab-width, 100%) * var(--pinned-tabs-max-column, 99999)) -
-      (var(--pinned-tab-width, 100%) / 2)
-    )
-  );
-  transition: padding-right var(--collapse-animation);
+  padding-inline-end: max(1px, calc(100% - (var(--pinned-tab-width, 100%) * var(--pinned-tabs-max-column, 99999)) - (var(--pinned-tab-width, 100%) / 2)));
+  transition: padding-inline-end var(--collapse-animation);
+
+  :root.faviconize-pinned-tabs & {
+    align-items: flex-start;
+    flex-direction: row;
+  }
+
+  /* auto-hidden scrollbar placeholder workaround */
+  :root.left.shift-tabs-for-scrollbar-only-on-hover.on-scrollbar-area:hover
+    #tabbar.scrollbar-autohide
+    #pinned-tabs-container.overflow &,
+  :root.left:not(.shift-tabs-for-scrollbar-only-on-hover)
+    #tabbar.scrollbar-autohide
+    #pinned-tabs-container.overflow & {
+    padding-inline-start: var(--shift-tabs-for-scrollbar-distance);
+  }
+  :root.right.shift-tabs-for-scrollbar-only-on-hover.on-scrollbar-area:hover
+    #tabbar.scrollbar-autohide
+    #pinned-tabs-container.overflow &,
+  :root.right:not(.shift-tabs-for-scrollbar-only-on-hover)
+    #tabbar.scrollbar-autohide
+    #pinned-tabs-container.overflow & {
+    padding-inline-end: var(--shift-tabs-for-scrollbar-distance);
+  }
+
+  :root.hover-on-top-edge:hover & {
+    top: var(--pinned-position-top) !important;
+  }
+  :root.hover-on-top-edge:hover &,
+  :root.hover-on-top-edge.animation:not(.minimized):hover & {
+    transition: var(--visual-gap-hover-animation);
+  }
+
+  tab-closebox {
+    display: none;
+  }
 }
 
-:root.faviconize-pinned-tabs .tabs.pinned {
-  align-items: flex-start;
-  flex-direction: row;
-}
-
-/* auto-hidden scrollbar placeholder workaround */
-:root.left.shift-tabs-for-scrollbar-only-on-hover.on-scrollbar-area:hover
-  #tabbar.scrollbar-autohide
-  #pinned-tabs-container.overflow
-  .tabs.pinned,
-:root.left:not(.shift-tabs-for-scrollbar-only-on-hover)
-  #tabbar.scrollbar-autohide
-  #pinned-tabs-container.overflow
-  .tabs.pinned {
-  padding-left: var(--shift-tabs-for-scrollbar-distance);
-}
-:root.right.shift-tabs-for-scrollbar-only-on-hover.on-scrollbar-area:hover
-  #tabbar.scrollbar-autohide
-  #pinned-tabs-container.overflow
-  .tabs.pinned,
-:root.right:not(.shift-tabs-for-scrollbar-only-on-hover)
-  #tabbar.scrollbar-autohide
-  #pinned-tabs-container.overflow
-  .tabs.pinned {
-  padding-right: var(--shift-tabs-for-scrollbar-distance);
-}
-
-:root.hover-on-top-edge:hover .tabs.pinned {
-  top: var(--pinned-position-top) !important;
-}
-:root.hover-on-top-edge:hover .tabs.pinned,
-:root.hover-on-top-edge.animation:not(.minimized):hover .tabs.pinned {
-  transition: var(--visual-gap-hover-animation);
-}
 
 tab-item.faviconized {
-  --faviconized-tab-padding: calc(
-    (var(--tab-current-size) - var(--favicon-size)) /
-    2
-  );
+  --faviconized-tab-padding: calc((var(--tab-current-size) - var(--favicon-size)) / 2);
   --tab-current-size: var(--faviconized-tab-size);
   height: var(--tab-current-size);
-  margin: 0;
+  margin-block: 0;
+  margin-inline: 0;
   max-height: var(--tab-current-size);
   max-width: var(--tab-current-size);
   width: var(--tab-current-size);
-}
-tab-item.faviconized tab-item-substance {
-  border-top: none;
-  border-left: none;
-  margin: 0;
-  padding: var(--faviconized-tab-padding);
+
+  tab-item-substance {
+    border-block-start: none;
+    border-inline-start: none;
+    margin-block: 0;
+    margin-inline: 0;
+    padding-block: var(--faviconized-tab-padding);
+    padding-inline: var(--faviconized-tab-padding);
+  }
+
+  tab-twisty,
+  .extra-items-container.indent,
+  .extra-items-container.above,
+  .extra-items-container.below {
+    display: none;
+  }
 }
 
-tab-item.pinned tab-closebox,
-tab-item.faviconized tab-twisty,
-tab-item.faviconized .extra-items-container.indent,
-.sticky-tabs-container .extra-items-container.indent,
-tab-item.faviconized .extra-items-container.above,
-tab-item.faviconized .extra-items-container.below {
-  display: none;
-}
 
 /* Keep label in faviconized tabs for voice operations. See also: https://github.com/piroor/treestyletab/issues/2864 */
 tab-item.faviconized tab-label,
 tab-item.faviconized tab-label * {
   bottom: 0;
   display: flex;
-  left: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   opacity: 0;
   overflow: hidden;
   position: absolute;
-  right: 0;
   top: 0;
 }
 
-tab-item.faviconized.unread:not(.active)
-  tab-item-substance:not(:hover)
-  tab-favicon::before,
+tab-item.faviconized.unread:not(.active) tab-item-substance:not(:hover) tab-favicon::before,
 tab-item.attention tab-item-substance:not(:hover) tab-favicon::before {
   background-image: var(--attention-marker-gradient);
 }
 
-tab-item.faviconized.unread:not(.active)
-  tab-item-substance:hover
-  tab-favicon::before,
+tab-item.faviconized.unread:not(.active) tab-item-substance:hover tab-favicon::before,
 tab-item.attention tab-item-substance:hover tab-favicon::before {
   background-image: var(--attention-marker-gradient-hover);
 }
@@ -874,6 +997,7 @@ tab-item.faviconized.active:not([data-drop-position]) tab-item-substance {
   outline-offset: -2px;
 }
 
+
 /* tab label */
 
 tab-item tab-label {
@@ -882,37 +1006,41 @@ tab-item tab-label {
   position: relative;
   white-space: nowrap;
   z-index: var(--tab-base-z-index);
+
+  :root:not([data-label-overflow="fade"]) & {
+    text-overflow: ".."; /*ellipsis*/;
+  }
+
+  :root[data-label-overflow="fade"] &.overflow {
+    mask-image: linear-gradient(to left, transparent 0, black 2em);
+  }
+  :root[data-label-overflow="fade"] &.overflow.rtl {
+    direction: rtl;
+    mask-image: linear-gradient(to right, transparent 0, black 2em);
+  }
 }
 
-:root:not([data-label-overflow="fade"]) tab-item tab-label {
-  text-overflow: ".."; /*ellipsis*/
-}
-
-:root[data-label-overflow="fade"] tab-item tab-label.overflow {
-  mask-image: linear-gradient(to left, transparent 0, black 2em);
-}
-:root[data-label-overflow="fade"] tab-item tab-label.overflow.rtl {
-  direction: rtl;
-  mask-image: linear-gradient(to right, transparent 0, black 2em);
-}
 
 /* This is for backward compatibility about custom user style rules like https://github.com/piroor/treestyletab/issues/1363 */
 tab-item .label-content {
   color: inherit;
 }
 
-tab-item:not([data-child-ids]) .counter,
-tab-item:not(.subtree-collapsed) .counter {
-  display: none;
+.counter {
+  tab-item:not([data-child-ids]) &,
+  tab-item:not(.subtree-collapsed) & {
+    display: none;
+  }
+
+  &::before {
+    content: "(";
+  }
+
+  &::after {
+    content: ")";
+  }
 }
 
-.counter::before {
-  content: "(";
-}
-
-.counter::after {
-  content: ")";
-}
 
 /* tab-closebox */
 
@@ -921,65 +1049,81 @@ tab-closebox {
   opacity: var(--button-opacity);
   position: relative;
   z-index: var(--tab-ui-z-index);
-}
-tab-closebox:hover {
-  /* For high contrast mode */
-  outline: thin solid transparent;
+
+  &:hover {
+    /* For high contrast mode */
+    outline: thin solid transparent;
+  }
+
+  &::after {
+    /*
+      There are some possible characters for this purpose:
+      https://en.wikipedia.org/wiki/X_mark
+      - X: upper case X
+        * Too narrow
+      - ×: U+00D7 MULTIPLICATION SIGN (z notation Cartesian product)
+        * Too small on macOS
+      - ╳: U+2573 BOX DRAWINGS LIGHT DIAGONAL CROSS
+        * Too large on Ubuntu
+      - ☓ : U+2613 SALTIRE (St Andrew's Cross)
+        * Narrow a little on Windows and macOS
+      - ✕: U+2715 MULTIPLICATION X
+        * Too small on macOS
+      - ✖: U+2716 HEAVY MULTIPLICATION X
+        * Too small on macOS
+      - ❌ : U+274C CROSS MARK
+        * Colored on macOS
+      - ❎ : U+274E NEGATIVE SQUARED CROSS MARK
+        * Colored on macOS
+        * Box around the mark is unnecessary
+      - ⨉ : U+2A09 N-ARY TIMES OPERATOR
+      - ⨯: U+2A2F VECTOR OR CROSS PRODUCT
+        * Too small on macOS
+      - 🗙: U+1F5D9 CANCELLATION X
+        * Unavailable on macOS
+      - 🗴 : U+1F5F4 BALLOT SCRIPT X
+        * Unavailable on macOS
+      - 🞩: U+1F7A9 LIGHT SALTIRE
+        * Unavailable on macOS
+      So ⨉ (U+2A09) looks good for me on Windows, macOS, and Linux (tested on Ubuntu).
+      But it is not guaranteed, so now we use SVG icon instead.
+    */
+    -moz-context-properties: fill;
+    background: url("./icons/close-16.svg") no-repeat center / 100%;
+    content: "";
+    display: inline-block;
+    fill: var(--tab-text);
+    height: var(--svg-small-icon-size);
+    width: var(--svg-small-icon-size);
+  }
+
+  :root.simulate-svg-context-fill &::after {
+    background: var(--tab-text);
+    mask: url("./icons/close-16.svg") no-repeat center / 100%;
+  }
+
+  tab-item:not(.collapsed) & {
+    &:hover {
+      opacity: var(--button-hover-opacity);
+    }
+
+    &:active {
+      opacity: var(--button-active-opacity);
+    }
+  }
+
+  /* hide closebox on non-active and non-hover tabs, like vertical tabs of Firefox itself */
+  tab-item:not(.active):not(#dummy-tab) tab-item-substance:not(:hover) & {
+    /* but only on regular mode. On the inverted mode, auto-hiding closeboxes produces jumping
+       of favicons and labels - it is too painful.
+       See also: https://github.com/piroor/treestyletab/issues/3736 */
+    :root.left:not(.rtl) &,
+    :root.right.rtl & {
+      display: none;
+    }
+  }
 }
 
-tab-closebox::after {
-  /*
-    There are some possible characters for this purpose:
-    https://en.wikipedia.org/wiki/X_mark
-    - X: upper case X
-      * Too narrow
-    - ×: U+00D7 MULTIPLICATION SIGN (z notation Cartesian product)
-      * Too small on macOS
-    - ╳: U+2573 BOX DRAWINGS LIGHT DIAGONAL CROSS
-      * Too large on Ubuntu
-    - ☓ : U+2613 SALTIRE (St Andrew's Cross)
-      * Narrow a little on Windows and macOS
-    - ✕: U+2715 MULTIPLICATION X
-      * Too small on macOS
-    - ✖: U+2716 HEAVY MULTIPLICATION X
-      * Too small on macOS
-    - ❌ : U+274C CROSS MARK
-      * Colored on macOS
-    - ❎ : U+274E NEGATIVE SQUARED CROSS MARK
-      * Colored on macOS
-      * Box around the mark is unnecessary
-    - ⨉ : U+2A09 N-ARY TIMES OPERATOR
-    - ⨯: U+2A2F VECTOR OR CROSS PRODUCT
-      * Too small on macOS
-    - 🗙: U+1F5D9 CANCELLATION X
-      * Unavailable on macOS
-    - 🗴 : U+1F5F4 BALLOT SCRIPT X
-      * Unavailable on macOS
-    - 🞩: U+1F7A9 LIGHT SALTIRE
-      * Unavailable on macOS
-    So ⨉ (U+2A09) looks good for me on Windows, macOS, and Linux (tested on Ubuntu).
-    But it is not guaranteed, so now we use SVG icon instead.
-  */
-  -moz-context-properties: fill;
-  background: url("./icons/close-16.svg") no-repeat center / 100%;
-  content: "";
-  display: inline-block;
-  fill: var(--tab-text);
-  height: var(--svg-small-icon-size);
-  width: var(--svg-small-icon-size);
-}
-:root.simulate-svg-context-fill tab-closebox::after {
-  background: var(--tab-text);
-  mask: url("./icons/close-16.svg") no-repeat center / 100%;
-}
-
-tab-item:not(.collapsed) tab-closebox:hover {
-  opacity: var(--button-hover-opacity);
-}
-
-tab-item:not(.collapsed) tab-closebox:active {
-  opacity: var(--button-active-opacity);
-}
 
 /* contextual identity (aka Container Tab) */
 
@@ -987,36 +1131,126 @@ tab-item:not(.collapsed) tab-closebox:active {
   --contextual-identity-marker-width: calc(var(--favicon-size) / 5.5);
   position: absolute;
   z-index: var(--tab-ui-z-index);
+
+  tab-item:not(.faviconized) & {
+    --contextual-identity-marker-margin: min(calc((var(--tab-current-size) - var(--favicon-size)) / 2), calc(var(--tab-current-size) * 0.15));
+    bottom: var(--contextual-identity-marker-margin);
+    inset-inline-end: 0;
+    top: var(--contextual-identity-marker-margin);
+    width: var(--contextual-identity-marker-width);
+  }
+
+  tab-item.faviconized & {
+    --contextual-identity-marker-margin: min(calc((var(--tab-current-size) - var(--favicon-size)) / 2), calc(var(--tab-current-size) * 0.33));
+    bottom: 0;
+    height: var(--contextual-identity-marker-width);
+    inset-inline-start: var(--contextual-identity-marker-margin);
+    inset-inline-end: var(--contextual-identity-marker-margin);
+  }
 }
 
-tab-item:not(.faviconized) .contextual-identity-marker {
-  --contextual-identity-marker-margin: min(
-    calc((var(--tab-current-size) - var(--favicon-size)) / 2),
-    calc(var(--tab-current-size) * 0.15)
-  );
-  bottom: var(--contextual-identity-marker-margin);
-  top: var(--contextual-identity-marker-margin);
-  width: var(--contextual-identity-marker-width);
+
+
+/* tab groups */
+
+tab-item[type="group"] {
+  tab-twisty,
+  tab-favicon,
+  tab-closebox,
+  .highlighter,
+  .contextual-identity-marker {
+    display: none;
+  }
+
+  .ui {
+    max-width: 100%;
+  }
+
+  tab-item-substance {
+    max-width: calc(max(var(--tab-label-width), calc(var(--favicon-size) / 2)) +
+                    0.25em /* margin-inline of tab-label */);
+  }
+
+  tab-label {
+    font-weight: bold;
+  }
+
+  &,
+  &:hover,
+  tab-item-substance,
+  tab-item-substance:hover {
+    --tab-surface: light-dark(var(--tab-group-color), var(--tab-group-color-invert)) !important;
+    --tab-border: light-dark(var(--tab-group-color), var(--tab-group-color-invert)) !important;
+    --tab-text: light-dark(var(--tab-group-color-pale), var(--tab-group-label-text-dark)) !important;
+  }
+
+  &.subtree-collapsed {
+    &,
+    &:hover,
+    tab-item-substance,
+    tab-item-substance:hover {
+      --tab-surface: light-dark(var(--tab-group-color-pale), var(--tab-group-color)) !important;
+      --tab-text: light-dark(var(--tab-group-color), var(--tab-group-color-pale)) !important;
+    }
+  }
 }
 
-:root.left tab-item:not(.faviconized) .contextual-identity-marker {
-  right: 0;
+tab-item[data-group-id]:not([data-group-id="-1"]) {
+  --space-xsmall: 0.267rem; /* https://searchfox.org/mozilla-central/rev/7d73613454bfe426fdceb635b33cd3061a69def4/toolkit/themes/shared/design-system/tokens-shared.css#273 */
+  --space-xxsmall: calc(0.5 * var(--space-xsmall)); /* https://searchfox.org/mozilla-central/rev/7d73613454bfe426fdceb635b33cd3061a69def4/toolkit/themes/shared/design-system/tokens-shared.css#272 */
+  --space-medium: calc(3 * var(--space-xsmall)); /* https://searchfox.org/mozilla-central/rev/7d73613454bfe426fdceb635b33cd3061a69def4/toolkit/themes/shared/design-system/tokens-shared.css#275 */
+  --tab-group-member-indent: var(--space-medium); /* https://searchfox.org/mozilla-central/rev/7d73613454bfe426fdceb635b33cd3061a69def4/browser/themes/shared/tabbrowser/tabs.css#1016 */
+  --tab-group-line-color: light-dark(var(--tab-group-color), var(--tab-group-color-invert));
+
+  .native-tab-group-line {
+    background: var(--tab-group-line-color);
+    display: block;
+    max-width: 2px;
+    min-width: 2px;
+    opacity: 1;
+  }
+  &.collapsed .native-tab-group-line {
+    opacity: 0;
+  }
+  &.animation-ready .native-tab-group-line {
+    transition: var(--tab-indent-positioning-animation),
+                opacity var(--collapse-animation);
+  }
 }
 
-:root.right tab-item:not(.faviconized) .contextual-identity-marker {
-  left: 0;
+.native-tab-group-line {
+  :root:not(.rtl).left &,
+  :root.rtl.right & {
+    inset-inline-start: calc(var(--tab-group-member-indent) * 0.5);
+    inset-inline-end: auto;
+  }
+
+  :root:not(.rtl).right &,
+  :root.rtl.left & {
+    inset-inline-start: auto;
+    inset-inline-end: calc(var(--tab-group-member-indent) * 0.5);
+  }
 }
 
-tab-item.faviconized .contextual-identity-marker {
-  --contextual-identity-marker-margin: min(
-    calc((var(--tab-current-size) - var(--favicon-size)) / 2),
-    calc(var(--tab-current-size) * 0.33)
-  );
-  bottom: 0;
-  height: var(--contextual-identity-marker-width);
-  left: var(--contextual-identity-marker-margin);
-  right: var(--contextual-identity-marker-margin);
+tab-item[type="group-collapsed-members-counter"] {
+  tab-twisty,
+  tab-favicon,
+  tab-closebox,
+  .highlighter,
+  .contextual-identity-marker {
+    display: none;
+  }
+
+  &,
+  &:hover,
+  tab-item-substance,
+  tab-item-substance:hover {
+    --tab-surface: transparent !important;
+    --tab-border: transparent !important;
+    --tab-text: light-dark(var(--tab-group-color), var(--tab-group-color-pale)) !important;
+  }
 }
+
 
 /* non-tab items */
 
@@ -1024,10 +1258,10 @@ tab-item.faviconized .contextual-identity-marker {
 #tabbar-bottom,
 #tabbar ~ .after-tabs {
   height: 0;
-  left: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   overflow: visible;
   position: absolute;
-  right: 0;
   z-index: var(--over-tabs-z-index);
 }
 
@@ -1041,15 +1275,36 @@ tab-item.faviconized .contextual-identity-marker {
   top: auto;
 }
 
-#tabbar.overflow .after-tabs,
-#tabbar:not(.overflow) ~ .after-tabs {
-  display: none;
+.after-tabs {
+  #tabbar.overflow &,
+  #tabbar:not(.overflow) ~ & {
+    display: none;
+  }
+
+  #tabbar ~ & {
+    bottom: var(--tabbar-bottom-area-size);
+    justify-content: flex-end;
+  }
+
+  .newtab-action-selector-anchor,
+  .contextual-identities-selector-anchor {
+    background: none;
+    bottom: 0;
+    color: var(--tab-text);
+    display: none;
+    max-width: var(--new-tab-button-anchor-size);
+    opacity: 0;
+    overflow: hidden;
+    padding-block: calc((var(--new-tab-button-anchor-size) - var(--svg-small-icon-size)) / 2);
+    padding-inline: calc((var(--new-tab-button-anchor-size) - var(--svg-small-icon-size)) / 2);
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    transition: opacity var(--collapse-animation);
+    z-index: var(--over-buttons-z-index);
+  }
 }
 
-#tabbar ~ .after-tabs {
-  bottom: var(--tabbar-bottom-area-size);
-  justify-content: flex-end;
-}
 
 .newtab-button-box {
   position: relative;
@@ -1057,78 +1312,60 @@ tab-item.faviconized .contextual-identity-marker {
 
 .newtab-button {
   background: none transparent;
-  margin: 0;
+  margin-block: 0;
+  margin-inline: 0;
   text-align: center;
+
+  &::after {
+    -moz-context-properties: fill;
+    background: url("./icons/new-16.svg") no-repeat center / 100%;
+    content: "";
+    display: inline-block;
+    fill: var(--tab-text);
+    height: var(--svg-small-icon-size);
+    opacity: var(--button-opacity);
+    width: var(--svg-small-icon-size);
+  }
+  :root.simulate-svg-context-fill &::after {
+    background: var(--tab-text);
+    mask: url("./icons/new-16.svg") no-repeat center / 100%;
+  }
+
+  &:hover::before {
+    opacity: var(--button-hover-opacity);
+  }
 }
 
-.newtab-button::after {
-  -moz-context-properties: fill;
-  background: url("./icons/new-16.svg") no-repeat center / 100%;
-  content: "";
-  display: inline-block;
-  fill: var(--tab-text);
-  height: var(--svg-small-icon-size);
-  opacity: var(--button-opacity);
-  width: var(--svg-small-icon-size);
-}
-:root.simulate-svg-context-fill .newtab-button::after {
-  background: var(--tab-text);
-  mask: url("./icons/new-16.svg") no-repeat center / 100%;
-}
-
-.newtab-button:hover::before {
-  opacity: var(--button-hover-opacity);
-}
 
 :root.newtab-action-selectable
   .after-tabs
   .newtab-button-box:hover
   .newtab-action-selector-anchor,
-.after-tabs .newtab-action-selector-anchor.open,
+.after-tabs
+  .newtab-action-selector-anchor.open,
 :root.contextual-identity-selectable:not(.incognito)
   .after-tabs
   .newtab-button-box:hover
   .contextual-identities-selector-anchor:not([disabled="true"]),
-.after-tabs .contextual-identities-selector-anchor.open {
+.after-tabs
+  .contextual-identities-selector-anchor.open {
   pointer-events: auto;
   opacity: 1;
 }
 
-.after-tabs .newtab-action-selector-anchor,
-.after-tabs .contextual-identities-selector-anchor {
-  background: none;
-  bottom: 0;
-  color: var(--tab-text);
-  display: none;
-  max-width: var(--new-tab-button-anchor-size);
-  opacity: 0;
-  overflow: hidden;
-  padding: calc(
-    (var(--new-tab-button-anchor-size) - var(--svg-small-icon-size)) /
-    2
-  );
-  pointer-events: none;
-  position: absolute;
-  top: 0;
-  transition: opacity var(--collapse-animation);
-  z-index: var(--over-buttons-z-index);
-}
 :root.contextual-identity-selectable
   .after-tabs
-  .newtab-action-selector-anchor {
-  border-width: 0 1px 0 0;
-  display: flex;
-  left: 0;
-}
+  .newtab-action-selector-anchor,
 :root:not(.contextual-identity-selectable)
   .after-tabs
   .newtab-action-selector-anchor,
 :root.contextual-identity-selectable
   .after-tabs
   .contextual-identities-selector-anchor {
-  border-width: 0 0 0 1px;
+  border-width: 0;
+  border-inline-end-width: 1px;
   display: flex;
-  right: 0;
+  inset-inline-start: 0;
 }
 
 .newtab-action-selector-anchor::-moz-focus-inner,
@@ -1139,7 +1376,8 @@ tab-item.faviconized .contextual-identity-marker {
 #subpanel-toggler::before {
   content: "▼";
   font-size: 0.65em;
-  margin: 0.125em;
+  margin-block: 0.125em;
+  margin-inline: 0.125em;
 }
 
 .newtab-action-selector-anchor::after,
@@ -1152,7 +1390,7 @@ tab-item.faviconized .contextual-identity-marker {
   fill: var(--tab-text);
   height: var(--svg-small-icon-size);
   line-height: 1;
-  margin-top: calc((var(--favicon-size) - var(--svg-small-icon-size)) / 2);
+  margin-block-start: calc((var(--favicon-size) - var(--svg-small-icon-size)) / 2);
   max-height: var(--favicon-size);
   max-width: var(--favicon-size);
   width: var(--svg-small-icon-size);
@@ -1164,32 +1402,34 @@ tab-item.faviconized .contextual-identity-marker {
   mask: url("./icons/ArrowheadDown.svg") no-repeat center / 60%;
 }
 
+
 #out-of-view-tab-notifier {
   background: transparent repeat-x bottom;
   background-image: linear-gradient(
-    to top,
-    var(--tab-highlighted-glow) 0,
-    transparent 100%
-  );
+                      to top,
+                      var(--tab-highlighted-glow) 0,
+                      transparent 100%
+                    );
   display: none;
-  margin-top: calc(0 - var(--tab-size));
+  margin-block-start: calc(0 - var(--tab-size));
   min-height: var(--tab-size);
   pointer-events: none;
   position: relative;
   opacity: 0;
+
+  &.notifying {
+    display: block;
+
+    :root:not(.animation) & {
+      opacity: 1;
+    }
+
+    :root.animation:not(.minimized) & {
+      animation: blink var(--out-of-view-tab-notify-duration) ease-in-out 1;
+    }
+  }
 }
 
-#out-of-view-tab-notifier.notifying {
-  display: block;
-}
-
-:root:not(.animation) #out-of-view-tab-notifier.notifying {
-  opacity: 1;
-}
-
-:root.animation:not(.minimized) #out-of-view-tab-notifier.notifying {
-  animation: blink var(--out-of-view-tab-notify-duration) ease-in-out 1;
-}
 
 /* notification message */
 
@@ -1199,28 +1439,30 @@ tab-item.faviconized .contextual-identity-marker {
   color: var(--tab-text);
   font-size: var(--svg-small-icon-size);
   height: calc(var(--svg-small-icon-size) * 1.5);
-  left: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   line-height: 1;
   opacity: 0;
-  padding: calc(var(--svg-small-icon-size) * 0.25) 0;
+  padding-block: calc(var(--svg-small-icon-size) * 0.25);
+  padding-inline: 0;
   pointer-events: none;
   position: fixed;
   transition: opacity var(--collapse-animation);
-  right: 0;
   z-index: var(--notification-ui-z-index);
-}
 
-#notifications.shown {
-  opacity: 0.85;
-}
-#notifications.shown:hover {
-  opacity: 1;
-}
+  &.shown {
+    opacity: 0.85;
 
-#notifications::before {
-  content: "";
-  display: inline-block;
-  white-space: nowrap;
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  &::before {
+    content: "";
+    display: inline-block;
+    white-space: nowrap;
+  }
 }
 
 #notification_tabs-highlighing-progress {
@@ -1228,9 +1470,10 @@ tab-item.faviconized .contextual-identity-marker {
   background-repeat: no-repeat;
   background-size: 100% 0.2em;
   font: message-box;
-  padding-bottom: 0.25em;
+  padding-block-end: 0.25em;
   width: 100%;
 }
+
 
 /* sub panel */
 
@@ -1239,38 +1482,43 @@ tab-item.faviconized .contextual-identity-marker {
   height: var(--subpanel-area-size);
 }
 
-#subpanel-container.collapsed iframe#subpanel {
-  visibility: collapse;
-}
-
 iframe#subpanel {
   border: none;
   height: var(--subpanel-content-size);
-  margin: 0;
+  margin-block: 0;
+  margin-inline: 0;
   max-height: none;
   max-width: 100%;
   min-height: 0;
   min-width: 0;
-  padding: 0;
+  padding-block: 0;
+  padding-inline: 0;
   width: 100%;
+
+  #subpanel-container.collapsed & {
+    visibility: collapse;
+  }
 }
 
 #subpanel-header {
   background: var(--tab-surface);
-  border-top: 1px solid var(--tab-border);
+  border-block-start: 1px solid var(--tab-border);
   display: flex;
   flex-direction: row;
   justify-content: space-between;
   line-height: 1;
-  margin: 0;
-  padding: 0.3em 0.2em 0.2em;
-}
-#subpanel-header.resizable {
-  cursor: ns-resize;
-}
+  margin-block: 0;
+  margin-inline: 0;
+  padding-block: 0.3em 0.2em;
+  padding-inline: 0.2em;
 
-#subpanel-container:not(.collapsed) #subpanel-header {
-  border-bottom: 1px solid var(--tab-border);
+  &.resizable {
+    cursor: ns-resize;
+  }
+
+  #subpanel-container:not(.collapsed) & {
+    border-block-end: 1px solid var(--tab-border);
+  }
 }
 
 #subpanel-header-main {
@@ -1290,46 +1538,53 @@ iframe#subpanel {
   display: flex;
   flex-direction: row;
   font: -moz-button;
-  padding: 0 0 0 0.5em;
+  padding-block: 0;
+  padding-inline: 0.5em 0;
 }
 
 #subpanel-selector-anchor {
   cursor: default;
+
+  > * {
+    pointer-events: none;
+  }
 }
 
-#subpanel-selector-anchor > * {
-  pointer-events: none;
-}
+span.icon {
+  #subpanel-selector-anchor &,
+  #subpanel-selector & {
+    > img {
+      height: 1em;
+      max-height: 1em;
+      max-width: 1em;
+      width: 1em;
+    }
+  }
 
-#subpanel-selector-anchor span.icon > img,
-#subpanel-selector span.icon > img {
-  height: 1em;
-  max-height: 1em;
-  max-width: 1em;
-  width: 1em;
-}
+  #subpanel-selector-anchor & > img:not([src]) {
+    display: none;
+  }
 
-#subpanel-selector-anchor span.icon > img:not([src]) {
-  display: none;
-}
+  #subpanel-selector & > :not([src]) {
+    visibility: hidden;
+  }
 
-#subpanel-selector span.icon > :not([src]) {
-  visibility: hidden;
-}
-
-#subpanel-selector span.icon {
-  margin-right: 0.25em;
+  #subpanel-selector & {
+    margin-inline-end: 0.25em;
+  }
 }
 
 #subpanel-toggler {
   cursor: default;
-  padding: 0 0.5em;
+  padding-block: 0;
+  padding-inline: 0.5em;
   max-width: 1.5em;
+
+  #subpanel-container.collapsed &::before {
+    content: "▲";
+  }
 }
 
-#subpanel-container.collapsed #subpanel-toggler::before {
-  content: "▲";
-}
 
 /* fake context menu */
 
@@ -1337,42 +1592,47 @@ iframe#subpanel {
   display: none !important;
 }
 
+
 /* bookmark dialog */
 
-.rich-confirm .bookmark-dialog input[type="text"],
-.rich-confirm .bookmark-dialog button {
-  max-width: 100%;
+.rich-confirm .bookmark-dialog {
+  input[type="text"],
+  button {
+    max-width: 100%;
+  }
 }
+
 
 /* blocking UI */
 
 #blocking-screen {
   bottom: 0;
   display: none;
-  left: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
   position: fixed;
-  right: 0;
   top: 0;
   z-index: var(--blocking-ui-z-index);
+
+  :root.blocking-throbber &,
+  :root.blocking-shade & {
+    background: rgba(0, 0, 0, 0.01);
+  }
+  :root.animation.blocking-throbber:not(.minimized) &,
+  :root.animation.blocking-shade:not(.minimized) & {
+    background: rgba(0, 0, 0, 0.35);
+  }
+
+  :root.blocking & {
+    display: block;
+  }
+
+  :root:not(.animation).blocking-throbber & *,
+  :root:not(.animation).blocking-shade & * {
+    visibility: hidden;
+  }
 }
 
-:root.blocking-throbber #blocking-screen,
-:root.blocking-shade #blocking-screen {
-  background: rgba(0, 0, 0, 0.01);
-}
-:root.animation.blocking-throbber:not(.minimized) #blocking-screen,
-:root.animation.blocking-shade:not(.minimized) #blocking-screen {
-  background: rgba(0, 0, 0, 0.35);
-}
-
-:root.blocking #blocking-screen {
-  display: block;
-}
-
-:root:not(.animation).blocking-throbber #blocking-screen *,
-:root:not(.animation).blocking-shade #blocking-screen * {
-  visibility: hidden;
-}
 
 /*
 MenuUI.js workaround: prevent menu elements revealed by the custom user styles.
@@ -1381,6 +1641,7 @@ See also: https://github.com/piroor/treestyletab/issues/2777
 body > ul[id$="selector"] {
   opacity: 0;
 }
+
 
 /* Workaround for issues */
 
@@ -1396,3 +1657,4 @@ body > ul[id$="selector"] {
   --browser-bg-images: none !important;
   --theme-images-theme_frame: none !important;
 }
+

@@ -1,25 +1,34 @@
-import * as ApiTabs from "/common/api-tabs.js";
-import * as CacheStorage from "/common/cache-storage.js";
-import {
-  configs,
-  dumpTab,
-  log as internalLogger,
-  mapAndFilter,
-  wait,
-} from "/common/common.js";
-import * as Constants from "/common/constants.js";
-import MetricsData from "/common/MetricsData.js";
-import Tab from "/common/Tab.js";
-import * as TabsInternalOperation from "/common/tabs-internal-operation.js";
-import * as TabsStore from "/common/tabs-store.js";
-import * as TabsUpdate from "/common/tabs-update.js";
-import * as UniqueId from "/common/unique-id.js";
-import { SequenceMatcher } from "/extlib/diff.js";
+/*
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+'use strict';
 
-import * as Tree from "./tree.js";
+import { SequenceMatcher } from '/extlib/diff.js';
+
+import {
+  log as internalLogger,
+  dumpTab,
+  wait,
+  mapAndFilter,
+  configs
+} from '/common/common.js';
+import * as ApiTabs from '/common/api-tabs.js';
+import * as CacheStorage from '/common/cache-storage.js';
+import * as Constants from '/common/constants.js';
+import * as TabsInternalOperation from '/common/tabs-internal-operation.js';
+import * as TabsStore from '/common/tabs-store.js';
+import * as TabsUpdate from '/common/tabs-update.js';
+import * as UniqueId from '/common/unique-id.js';
+
+import MetricsData from '/common/MetricsData.js';
+import { Tab } from '/common/TreeItem.js';
+
+import * as Tree from './tree.js';
 
 function log(...args) {
-  internalLogger("background/background-cache", ...args);
+  internalLogger('background/background-cache', ...args);
 }
 
 const kCONTENTS_VERSION = 5;
@@ -33,31 +42,22 @@ export function activate() {
 
   if (!configs.persistCachedTree) {
     // clear obsolete cache
-    browser.windows.getAll().then((windows) => {
+    browser.windows.getAll().then(windows => {
       for (const win of windows) {
-        browser.sessions
-          .removeWindowValue(win.id, Constants.kWINDOW_STATE_CACHED_TABS)
-          .catch(ApiTabs.createErrorSuppressor());
-        browser.sessions
-          .removeWindowValue(
-            win.id,
-            Constants.kWINDOW_STATE_CACHED_SIDEBAR_TABS_DIRTY
-          )
-          .catch(ApiTabs.createErrorSuppressor());
+        browser.sessions.removeWindowValue(win.id, Constants.kWINDOW_STATE_CACHED_TABS).catch(ApiTabs.createErrorSuppressor());
+        browser.sessions.removeWindowValue(win.id, Constants.kWINDOW_STATE_CACHED_SIDEBAR_TABS_DIRTY).catch(ApiTabs.createErrorSuppressor());
       }
     });
   }
 }
 
+
 // ===================================================================
 // restoring tabs from cache
 // ===================================================================
 
-export async function restoreWindowFromEffectiveWindowCache(
-  windowId,
-  options = {}
-) {
-  MetricsData.add("restoreWindowFromEffectiveWindowCache: start");
+export async function restoreWindowFromEffectiveWindowCache(windowId, options = {}) {
+  MetricsData.add('restoreWindowFromEffectiveWindowCache: start');
   log(`restoreWindowFromEffectiveWindowCache for ${windowId} start`);
   const owner = options.owner || getWindowCacheOwner(windowId);
   if (!owner) {
@@ -65,247 +65,185 @@ export async function restoreWindowFromEffectiveWindowCache(
     return false;
   }
   cancelReservedCacheTree(windowId); // prevent to break cache before loading
-  const tabs =
-    options.tabs ||
-    (await browser.tabs
-      .query({ windowId })
-      .catch(ApiTabs.createErrorHandler()));
+  const tabs = options.tabs || await browser.tabs.query({ windowId }).catch(ApiTabs.createErrorHandler());
   if (configs.debug)
-    log(`restoreWindowFromEffectiveWindowCache for ${windowId} tabs: `, () =>
-      tabs.map(dumpTab)
-    );
+    log(`restoreWindowFromEffectiveWindowCache for ${windowId} tabs: `, () => tabs.map(dumpTab));
   const actualSignature = getWindowSignature(tabs);
-  let cache =
-    options.caches?.get(`window-${owner.windowId}`) ||
-    (await MetricsData.addAsync(
-      "restoreWindowFromEffectiveWindowCache: window cache",
-      getWindowCache(owner, Constants.kWINDOW_STATE_CACHED_TABS)
-    ));
+  let cache = options.caches?.get(`window-${owner.windowId}`) || await MetricsData.addAsync('restoreWindowFromEffectiveWindowCache: window cache', getWindowCache(owner, Constants.kWINDOW_STATE_CACHED_TABS));
   if (!cache) {
     log(`restoreWindowFromEffectiveWindowCache for ${windowId} fail: no cache`);
     return false;
   }
-  const promisedPermanentStates = Promise.all(
-    tabs.map((tab) => Tab.get(tab.id).$TST.getPermanentStates())
-  ); // don't await at here for better performance
-  MetricsData.add(
-    "restoreWindowFromEffectiveWindowCache: validity check: start"
-  );
+  const promisedPermanentStates = Promise.all(tabs.map(tab => Tab.get(tab.id).$TST.getPermanentStates())); // don't await at here for better performance
+  MetricsData.add('restoreWindowFromEffectiveWindowCache: validity check: start');
   let cachedSignature = cache?.signature;
-  log(
-    `restoreWindowFromEffectiveWindowCache for ${windowId}: got from the owner `,
-    {
-      owner,
-      cachedSignature,
-      cache,
-    }
-  );
-  const signatureGeneratedFromCache = getWindowSignature(cache.tabs).join("\n");
-  if (
-    cache?.tabs &&
-    cachedSignature &&
-    cachedSignature.join("\n") !== signatureGeneratedFromCache
-  ) {
-    log(
-      `restoreWindowFromEffectiveWindowCache for ${windowId}: cache is broken.`,
-      {
-        cachedSignature: cachedSignature.join("\n"),
-        signatureGeneratedFromCache,
-      }
-    );
+  log(`restoreWindowFromEffectiveWindowCache for ${windowId}: got from the owner `, {
+    owner, cachedSignature, cache
+  });
+  const signatureGeneratedFromCache = getWindowSignature(cache.tabs).join('\n');
+  if (cache &&
+      cache.tabs &&
+      cachedSignature &&
+      cachedSignature.join('\n') != signatureGeneratedFromCache) {
+    log(`restoreWindowFromEffectiveWindowCache for ${windowId}: cache is broken.`, {
+      cachedSignature: cachedSignature.join('\n'),
+      signatureGeneratedFromCache
+    });
     cache = cachedSignature = null;
     TabsInternalOperation.clearCache(owner);
-    MetricsData.add(
-      "restoreWindowFromEffectiveWindowCache: validity check: signature failed."
-    );
-  } else {
-    MetricsData.add(
-      "restoreWindowFromEffectiveWindowCache: validity check: signature passed."
-    );
+    MetricsData.add('restoreWindowFromEffectiveWindowCache: validity check: signature failed.');
   }
-  if (options.ignorePinnedTabs && cache && cache.tabs && cachedSignature) {
-    cache.tabs = trimTabsCache(cache.tabs, cache.pinnedTabsCount);
+  else {
+    MetricsData.add('restoreWindowFromEffectiveWindowCache: validity check: signature passed.');
+  }
+  if (options.ignorePinnedTabs &&
+      cache &&
+      cache.tabs &&
+      cachedSignature) {
+    cache.tabs      = trimTabsCache(cache.tabs, cache.pinnedTabsCount);
     cachedSignature = trimSignature(cachedSignature, cache.pinnedTabsCount);
   }
-  MetricsData.add(
-    "restoreWindowFromEffectiveWindowCache: validity check: matching actual signature of got cache"
-  );
+  MetricsData.add('restoreWindowFromEffectiveWindowCache: validity check: matching actual signature of got cache');
   const signatureMatchResult = matcheSignatures({
     actual: actualSignature,
-    cached: cachedSignature,
+    cached: cachedSignature
   });
   log(`restoreWindowFromEffectiveWindowCache for ${windowId}: verify cache`, {
-    cache,
-    actualSignature,
-    cachedSignature,
+    cache, actualSignature, cachedSignature,
     ...signatureMatchResult,
   });
-  if (
-    !cache ||
-    cache.version !== kCONTENTS_VERSION ||
-    !signatureMatchResult.matched
-  ) {
-    log(
-      `restoreWindowFromEffectiveWindowCache for ${windowId}: no effective cache`
-    );
+  if (!cache ||
+      cache.version != kCONTENTS_VERSION ||
+      !signatureMatchResult.matched) {
+    log(`restoreWindowFromEffectiveWindowCache for ${windowId}: no effective cache`);
     TabsInternalOperation.clearCache(owner);
-    MetricsData.add(
-      "restoreWindowFromEffectiveWindowCache: validity check: actual signature failed."
-    );
+    MetricsData.add('restoreWindowFromEffectiveWindowCache: validity check: actual signature failed.');
     return false;
   }
-  MetricsData.add(
-    "restoreWindowFromEffectiveWindowCache: validity check: actual signature passed."
-  );
+  MetricsData.add('restoreWindowFromEffectiveWindowCache: validity check: actual signature passed.');
   cache.offset = signatureMatchResult.offset;
 
-  log(
-    `restoreWindowFromEffectiveWindowCache for ${windowId}: restore from cache`
-  );
+  log(`restoreWindowFromEffectiveWindowCache for ${windowId}: restore from cache`);
 
-  const permanentStates = await MetricsData.addAsync(
-    "restoreWindowFromEffectiveWindowCache: permanentStatus",
-    promisedPermanentStates
-  ); // await at here for better performance
-  const restored = await MetricsData.addAsync(
-    "restoreWindowFromEffectiveWindowCache: restoreTabsFromCache",
-    restoreTabsFromCache(windowId, { cache, tabs, permanentStates })
-  );
+  const permanentStates = await MetricsData.addAsync('restoreWindowFromEffectiveWindowCache: permanentStatus', promisedPermanentStates); // await at here for better performance
+  const restored = await MetricsData.addAsync('restoreWindowFromEffectiveWindowCache: restoreTabsFromCache', restoreTabsFromCache(windowId, { cache, tabs, permanentStates }));
   if (restored) {
-    MetricsData.add(
-      `restoreWindowFromEffectiveWindowCache: window ${windowId} succeeded`
-    );
+    MetricsData.add(`restoreWindowFromEffectiveWindowCache: window ${windowId} succeeded`);
     // Now we reload the sidebar if it is opened, because it is the easiest way
     // to synchronize state of tabs completely.
-    log("reload sidebar for a tree restored from cache");
-    browser.runtime
-      .sendMessage({
-        type: Constants.kCOMMAND_RELOAD,
-        windowId,
-      })
-      .catch(ApiTabs.createErrorSuppressor());
-  } else {
-    MetricsData.add(
-      `restoreWindowFromEffectiveWindowCache: window ${windowId} failed`
-    );
+    log('reload sidebar for a tree restored from cache');
+    browser.runtime.sendMessage({
+      type: Constants.kCOMMAND_RELOAD,
+      windowId,
+    }).catch(ApiTabs.createErrorSuppressor());
+  }
+  else {
+    MetricsData.add(`restoreWindowFromEffectiveWindowCache: window ${windowId} failed`);
   }
 
-  log(
-    `restoreWindowFromEffectiveWindowCache for ${windowId}: restored = ${restored}`
-  );
+  log(`restoreWindowFromEffectiveWindowCache for ${windowId}: restored = ${restored}`);
   return restored;
 }
 
 function getWindowSignature(tabs) {
-  return tabs.map(
-    (tab) => `${tab.cookieStoreId},${tab.incognito},${tab.pinned},${tab.url}`
-  );
+  return tabs.map(tab => `${tab.cookieStoreId},${tab.incognito},${tab.pinned},${tab.url}`);
 }
 
 function trimSignature(signature, ignoreCount) {
-  if (!ignoreCount || ignoreCount < 0) return signature;
+  if (!ignoreCount || ignoreCount < 0)
+    return signature;
   return signature.slice(ignoreCount);
 }
 
 function trimTabsCache(cache, ignoreCount) {
-  if (!ignoreCount || ignoreCount < 0) return cache;
+  if (!ignoreCount || ignoreCount < 0)
+    return cache;
   return cache.slice(ignoreCount);
 }
 
 function matcheSignatures(signatures) {
-  const operations = new SequenceMatcher(
-    signatures.cached,
-    signatures.actual
-  ).operations();
-  log("matcheSignatures: operations ", operations);
+  const operations = (new SequenceMatcher(signatures.cached, signatures.actual)).operations();
+  log('matcheSignatures: operations ', operations);
   let matched = false;
-  let offset = 0;
+  let offset  = 0;
   for (const operation of operations) {
     const [tag, fromStart, fromEnd, toStart, toEnd] = operation;
-    if (tag === "equal" && fromEnd - fromStart === signatures.cached.length) {
+    if (tag == 'equal' &&
+        fromEnd - fromStart == signatures.cached.length) {
       matched = true;
       break;
     }
     offset += toEnd - toStart;
   }
-  log("matcheSignatures: ", { matched, offset });
+  log('matcheSignatures: ', { matched, offset });
   return { matched, offset };
 }
 
-async function restoreTabsFromCache(windowId, params = {}) {
-  if (!params.cache || params.cache.version !== kCONTENTS_VERSION) return false;
 
-  return (
-    (
-      await restoreTabsFromCacheInternal({
-        windowId,
-        tabs: params.tabs,
-        permanentStates: params.permanentStates,
-        offset: params.cache.offset || 0,
-        cache: params.cache.tabs,
-      })
-    ).length > 0
-  );
+async function restoreTabsFromCache(windowId, params = {}) {
+  if (!params.cache ||
+      params.cache.version != kCONTENTS_VERSION)
+    return false;
+
+  return (await restoreTabsFromCacheInternal({
+    windowId,
+    tabs:         params.tabs,
+    permanentStates: params.permanentStates,
+    offset:       params.cache.offset || 0,
+    cache:        params.cache.tabs
+  })).length > 0;
 }
 
 async function restoreTabsFromCacheInternal(params) {
-  MetricsData.add("restoreTabsFromCacheInternal: start");
-  log(
-    `restoreTabsFromCacheInternal: restore tabs for ${params.windowId} from cache`
-  );
+  MetricsData.add('restoreTabsFromCacheInternal: start');
+  log(`restoreTabsFromCacheInternal: restore tabs for ${params.windowId} from cache`);
   const offset = params.offset || 0;
-  const win = TabsStore.windows.get(params.windowId);
-  const tabs = params.tabs.slice(offset).map((tab) => Tab.get(tab.id));
-  if (offset > 0 && tabs.length <= offset) {
-    log("restoreTabsFromCacheInternal: missing window");
+  const win    = TabsStore.windows.get(params.windowId);
+  const tabs   = params.tabs.slice(offset).map(tab => Tab.get(tab.id));
+  if (offset > 0 &&
+      tabs.length <= offset) {
+    log('restoreTabsFromCacheInternal: missing window');
     return [];
   }
   log(`restoreTabsFromCacheInternal: there is ${win.tabs.size} tabs`);
-  if (params.cache.length !== tabs.length) {
-    log("restoreTabsFromCacheInternal: Mismatched number of restored tabs?");
+  if (params.cache.length != tabs.length) {
+    log('restoreTabsFromCacheInternal: Mismatched number of restored tabs?');
     return [];
   }
   try {
-    await MetricsData.addAsync(
-      "rebuildAll: fixupTabsRestoredFromCache",
-      fixupTabsRestoredFromCache(tabs, params.permanentStates, params.cache)
-    );
-  } catch (e) {
+    await MetricsData.addAsync('rebuildAll: fixupTabsRestoredFromCache', fixupTabsRestoredFromCache(tabs, params.permanentStates, params.cache));
+  }
+  catch(e) {
     log(String(e), e.stack);
     throw e;
   }
-  log("restoreTabsFromCacheInternal: done");
-  if (configs.debug) Tab.dumpAll();
+  log('restoreTabsFromCacheInternal: done');
+  if (configs.debug)
+    Tab.dumpAll();
   return tabs;
 }
 
 async function fixupTabsRestoredFromCache(tabs, permanentStates, cachedTabs) {
-  MetricsData.add("fixupTabsRestoredFromCache: start");
-  if (tabs.length !== cachedTabs.length)
-    throw new Error(
-      `fixupTabsRestoredFromCache: Mismatched number of tabs restored from cache, tabs=${tabs.length}, cachedTabs=${cachedTabs.length}`
-    );
-  log("fixupTabsRestoredFromCache start ", () => ({
-    tabs: tabs.map(dumpTab),
-    cachedTabs,
-  }));
+  MetricsData.add('fixupTabsRestoredFromCache: start');
+  if (tabs.length != cachedTabs.length)
+    throw new Error(`fixupTabsRestoredFromCache: Mismatched number of tabs restored from cache, tabs=${tabs.length}, cachedTabs=${cachedTabs.length}`);
+  log('fixupTabsRestoredFromCache start ', () => ({ tabs: tabs.map(dumpTab), cachedTabs }));
   const idMap = new Map();
   let remappedCount = 0;
   // step 1: build a map from old id to new id
   tabs = tabs.map((tab, index) => {
     const cachedTab = cachedTabs[index];
-    const oldId = cachedTab.id;
+    const oldId     = cachedTab.id;
     tab = Tab.get(tab.id);
     log(`fixupTabsRestoredFromCache: remap ${oldId} => ${tab.id}`);
     idMap.set(oldId, tab);
-    if (oldId !== tab.id) remappedCount++;
+    if (oldId != tab.id)
+      remappedCount++;
     return tab;
   });
   if (remappedCount && remappedCount < tabs.length)
-    throw new Error(
-      `fixupTabsRestoredFromCache: not a window restoration, only ${remappedCount} tab(s) are restored (maybe restoration of closed tabs)`
-    );
-  MetricsData.add("fixupTabsRestoredFromCache: step 1 done.");
+    throw new Error(`fixupTabsRestoredFromCache: not a window restoration, only ${remappedCount} tab(s) are restored (maybe restoration of closed tabs)`);
+  MetricsData.add('fixupTabsRestoredFromCache: step 1 done.');
   // step 2: restore information of tabs
   // Do this from bottom to top, to reduce post operations for modified trees.
   // (Attaching a tab to an existing tree will trigger "update" task for
@@ -313,12 +251,7 @@ async function fixupTabsRestoredFromCache(tabs, permanentStates, cachedTabs) {
   // trigger such tasks.)
   // See also: https://github.com/piroor/treestyletab/issues/2278#issuecomment-519387792
   for (let i = tabs.length - 1; i > -1; i--) {
-    fixupTabRestoredFromCache(
-      tabs[i],
-      permanentStates[i],
-      cachedTabs[i],
-      idMap
-    );
+    fixupTabRestoredFromCache(tabs[i], permanentStates[i], cachedTabs[i], idMap);
   }
   // step 3: restore collapsed/expanded state of tabs and finalize the
   // restoration process
@@ -327,7 +260,7 @@ async function fixupTabsRestoredFromCache(tabs, permanentStates, cachedTabs) {
   for (const tab of tabs) {
     fixupTabRestoredFromCachePostProcess(tab);
   }
-  MetricsData.add("fixupTabsRestoredFromCache: step 2 done.");
+  MetricsData.add('fixupTabsRestoredFromCache: step 2 done.');
 }
 
 function fixupTabRestoredFromCache(tab, permanentStates, cachedTab, idMap) {
@@ -339,39 +272,43 @@ function fixupTabRestoredFromCache(tab, permanentStates, cachedTab, idMap) {
   tab.$TST.states = tabStates;
   tab.$TST.attributes = cachedTab.$TST.attributes;
 
-  log("fixupTabRestoredFromCache children: ", cachedTab.$TST.childIds);
-  const childIds = mapAndFilter(cachedTab.$TST.childIds, (oldId) => {
+  log('fixupTabRestoredFromCache children: ', cachedTab.$TST.childIds);
+  const childIds = mapAndFilter(cachedTab.$TST.childIds, oldId => {
     const tab = idMap.get(oldId);
     return tab?.id || undefined;
   });
   tab.$TST.children = childIds;
   if (childIds.length > 0)
-    tab.$TST.setAttribute(Constants.kCHILDREN, `|${childIds.join("|")}|`);
-  else tab.$TST.removeAttribute(Constants.kCHILDREN);
-  log("fixupTabRestoredFromCache children: => ", tab.$TST.childIds);
+    tab.$TST.setAttribute(Constants.kCHILDREN, `|${childIds.join('|')}|`);
+  else
+    tab.$TST.removeAttribute(Constants.kCHILDREN);
+  log('fixupTabRestoredFromCache children: => ', tab.$TST.childIds);
 
-  log("fixupTabRestoredFromCache parent: ", cachedTab.$TST.parentId);
+  log('fixupTabRestoredFromCache parent: ', cachedTab.$TST.parentId);
   const parentTab = idMap.get(cachedTab.$TST.parentId) || null;
   tab.$TST.parent = parentTab;
-  if (parentTab) tab.$TST.setAttribute(Constants.kPARENT, parentTab.id);
-  else tab.$TST.removeAttribute(Constants.kPARENT);
-  log("fixupTabRestoredFromCache parent: => ", tab.$TST.parentId);
+  if (parentTab)
+    tab.$TST.setAttribute(Constants.kPARENT, parentTab.id);
+  else
+    tab.$TST.removeAttribute(Constants.kPARENT);
+  log('fixupTabRestoredFromCache parent: => ', tab.$TST.parentId);
 
-  tab.$TST.temporaryMetadata.set(
-    "treeStructureAlreadyRestoredFromSessionData",
-    true
-  );
+  if (tab.discarded) {
+    tab.$TST.addState(Constants.kTAB_STATE_PENDING);
+  }
+
+  tab.$TST.temporaryMetadata.set('treeStructureAlreadyRestoredFromSessionData', true);
 }
 
 function fixupTabRestoredFromCachePostProcess(tab) {
   const parentTab = tab.$TST.parent;
-  if (
-    parentTab &&
-    (parentTab.$TST.collapsed || parentTab.$TST.subtreeCollapsed)
-  ) {
+  if (parentTab &&
+      (parentTab.$TST.collapsed ||
+       parentTab.$TST.subtreeCollapsed)) {
     tab.$TST.addState(Constants.kTAB_STATE_COLLAPSED);
     tab.$TST.addState(Constants.kTAB_STATE_COLLAPSED_DONE);
-  } else {
+  }
+  else {
     tab.$TST.removeState(Constants.kTAB_STATE_COLLAPSED);
     tab.$TST.removeState(Constants.kTAB_STATE_COLLAPSED_DONE);
   }
@@ -380,12 +317,14 @@ function fixupTabRestoredFromCachePostProcess(tab) {
   TabsUpdate.updateTab(tab, tab, { forceApply: true, onlyApply: true });
 }
 
+
 // ===================================================================
 // updating cache
 // ===================================================================
 
 async function updateWindowCache(owner, key, value) {
-  if (!owner) return;
+  if (!owner)
+    return;
 
   if (configs.persistCachedTree) {
     try {
@@ -403,25 +342,22 @@ async function updateWindowCache(owner, key, value) {
           store: CacheStorage.BACKGROUND,
         });
       return;
-    } catch (error) {
-      console.log(
-        `BackgroundCache.updateWindowCache for ${owner.windowId}/${key} failed: `,
-        error.message,
-        error.stack,
-        error
-      );
+    }
+    catch(error) {
+      console.log(`BackgroundCache.updateWindowCache for ${owner.windowId}/${key} failed: `, error.message, error.stack, error);
     }
   }
 
   const storageKey = `backgroundCache-${await UniqueId.ensureWindowId(owner.windowId)}-${key}`;
-  if (value) mCaches[storageKey] = value;
-  else delete mCaches[storageKey];
+  if (value)
+    mCaches[storageKey] = value;
+  else
+    delete mCaches[storageKey];
 }
 
 export function markWindowCacheDirtyFromTab(tab, akey) {
   const win = TabsStore.windows.get(tab.windowId);
-  if (!win)
-    // the window may be closed
+  if (!win) // the window may be closed
     return;
   if (win.markWindowCacheDirtyFromTabTimeout)
     clearTimeout(win.markWindowCacheDirtyFromTabTimeout);
@@ -440,13 +376,9 @@ async function getWindowCache(owner, key) {
         store: CacheStorage.BACKGROUND,
       });
       return value;
-    } catch (error) {
-      console.log(
-        `BackgroundCache.getWindowCache for ${owner.windowId}/${key} failed: `,
-        error.message,
-        error.stack,
-        error
-      );
+    }
+    catch(error) {
+      console.log(`BackgroundCache.getWindowCache for ${owner.windowId}/${key} failed: `, error.message, error.stack, error);
     }
   }
 
@@ -456,37 +388,44 @@ async function getWindowCache(owner, key) {
 
 function getWindowCacheOwner(windowId) {
   const tab = Tab.getFirstTab(windowId);
-  if (!tab) return null;
+  if (!tab)
+    return null;
   return {
-    id: tab.id,
-    windowId: tab.windowId,
+    id:       tab.id,
+    windowId: tab.windowId
   };
 }
 
 export async function reserveToCacheTree(windowId, trigger) {
-  if (!mActivated || !configs.useCachedTree) return;
+  if (!mActivated ||
+      !configs.useCachedTree)
+    return;
 
   const win = TabsStore.windows.get(windowId);
-  if (!win) return;
+  if (!win)
+    return;
 
   // If there is any opening (but not resolved its unique id yet) tab,
   // we are possibly restoring tabs. To avoid cache breakage before
   // restoration, we must wait until we know whether there is any other
   // restoring tab or not.
-  if (Tab.needToWaitTracked(windowId)) await Tab.waitUntilTrackedAll(windowId);
+  if (Tab.needToWaitTracked(windowId))
+    await Tab.waitUntilTrackedAll(windowId);
 
-  if (win.promisedAllTabsRestored)
-    // not restored yet
+  if (win.promisedAllTabsRestored) // not restored yet
     return;
 
-  if (!trigger && configs.debug) trigger = new Error().stack;
+  if (!trigger && configs.debug)
+    trigger = new Error().stack;
 
-  log("reserveToCacheTree for window ", windowId, trigger);
+  log('reserveToCacheTree for window ', windowId, trigger);
   TabsInternalOperation.clearCache(win.lastWindowCacheOwner);
 
-  if (trigger) reserveToCacheTree.triggers.add(trigger);
+  if (trigger)
+    reserveToCacheTree.triggers.add(trigger);
 
-  if (win.waitingToCacheTree) clearTimeout(win.waitingToCacheTree);
+  if (win.waitingToCacheTree)
+    clearTimeout(win.waitingToCacheTree);
   win.waitingToCacheTree = setTimeout(() => {
     const triggers = [...reserveToCacheTree.triggers];
     reserveToCacheTree.triggers.clear();
@@ -504,130 +443,109 @@ function cancelReservedCacheTree(windowId) {
 }
 
 async function cacheTree(windowId, triggers) {
-  if (Tab.needToWaitTracked(windowId)) await Tab.waitUntilTrackedAll(windowId);
+  if (Tab.needToWaitTracked(windowId))
+    await Tab.waitUntilTrackedAll(windowId);
   const win = TabsStore.windows.get(windowId);
-  if (!win || !configs.useCachedTree) return;
+  if (!win ||
+      !configs.useCachedTree)
+    return;
   const signature = getWindowSignature(Tab.getAllTabs(windowId));
-  if (win.promisedAllTabsRestored)
-    // not restored yet
+  if (win.promisedAllTabsRestored) // not restored yet
     return;
   //log('save cache for ', windowId);
   win.lastWindowCacheOwner = getWindowCacheOwner(windowId);
-  if (!win.lastWindowCacheOwner) return;
+  if (!win.lastWindowCacheOwner)
+    return;
   const firstTab = Tab.getFirstTab(windowId);
-  if (firstTab.incognito) {
-    // never save cache for incognito windows
-    updateWindowCache(
-      win.lastWindowCacheOwner,
-      Constants.kWINDOW_STATE_CACHED_TABS,
-      null
-    );
+  if (firstTab.incognito) { // never save cache for incognito windows
+    updateWindowCache(win.lastWindowCacheOwner, Constants.kWINDOW_STATE_CACHED_TABS, null);
     return;
   }
-  log(
-    "cacheTree for window ",
-    windowId,
-    triggers /*{ stack: configs.debug && new Error().stack }*/
-  );
-  updateWindowCache(
-    win.lastWindowCacheOwner,
-    Constants.kWINDOW_STATE_CACHED_TABS,
-    {
-      version: kCONTENTS_VERSION,
-      tabs: TabsStore.windows.get(windowId).export(true),
-      pinnedTabsCount: Tab.getPinnedTabs(windowId).length,
-      signature,
-    }
-  );
+  log('cacheTree for window ', windowId, triggers/*{ stack: configs.debug && new Error().stack }*/);
+  updateWindowCache(win.lastWindowCacheOwner, Constants.kWINDOW_STATE_CACHED_TABS, {
+    version:         kCONTENTS_VERSION,
+    tabs:            TabsStore.windows.get(windowId).export(true).tabs,
+    pinnedTabsCount: Tab.getPinnedTabs(windowId).length,
+    signature
+  });
 }
+
 
 // update cache on events
 
 Tab.onCreated.addListener((tab, _info = {}) => {
-  if (!tab.$TST.previousTab) {
-    // it is a new cache owner
+  if (!tab.$TST.previousTab) { // it is a new cache owner
     const win = TabsStore.windows.get(tab.windowId);
     if (win.lastWindowCacheOwner)
       TabsInternalOperation.clearCache(win.lastWindowCacheOwner);
   }
-  reserveToCacheTree(tab.windowId, "tab created");
+  reserveToCacheTree(tab.windowId, 'tab created');
 });
 
 // Tree restoration for "Restore Previous Session"
 Tab.onWindowRestoring.addListener(async ({ windowId, restoredCount }) => {
-  if (!configs.useCachedTree) return;
+  if (!configs.useCachedTree)
+    return;
 
-  log("Tabs.onWindowRestoring ", { windowId, restoredCount });
-  if (restoredCount === 1) {
-    log("Tabs.onWindowRestoring: single tab restored");
+  log('Tabs.onWindowRestoring ', { windowId, restoredCount });
+  if (restoredCount == 1) {
+    log('Tabs.onWindowRestoring: single tab restored');
     return;
   }
 
-  log("Tabs.onWindowRestoring: continue ", windowId);
-  MetricsData.add("Tabs.onWindowRestoring restore start");
+  log('Tabs.onWindowRestoring: continue ', windowId);
+  MetricsData.add('Tabs.onWindowRestoring restore start');
 
-  const tabs = await browser.tabs
-    .query({ windowId })
-    .catch(ApiTabs.createErrorHandler());
+  const tabs = await browser.tabs.query({ windowId }).catch(ApiTabs.createErrorHandler());
   try {
     await restoreWindowFromEffectiveWindowCache(windowId, {
       ignorePinnedTabs: true,
       owner: tabs[tabs.length - 1],
-      tabs,
+      tabs
     });
-    MetricsData.add("Tabs.onWindowRestoring restore end");
-  } catch (e) {
-    log(
-      "Tabs.onWindowRestoring: FATAL ERROR while restoring tree from cache",
-      String(e),
-      e.stack
-    );
+    MetricsData.add('Tabs.onWindowRestoring restore end');
+  }
+  catch(e) {
+    log('Tabs.onWindowRestoring: FATAL ERROR while restoring tree from cache', String(e), e.stack);
   }
 });
 
 Tab.onRemoved.addListener((tab, info) => {
-  if (!tab.$TST.previousTab)
-    // the tab was the cache owner
+  if (!tab.$TST.previousTab) // the tab was the cache owner
     TabsInternalOperation.clearCache(tab);
   wait(0).then(() => {
-    // "Restore Previous Session" closes some tabs at first, so we should not clear the old cache yet.
-    // See also: https://dxr.mozilla.org/mozilla-central/rev/5be384bcf00191f97d32b4ac3ecd1b85ec7b18e1/browser/components/sessionstore/SessionStore.jsm#3053
-    reserveToCacheTree(info.windowId, "tab removed");
+  // "Restore Previous Session" closes some tabs at first, so we should not clear the old cache yet.
+  // See also: https://dxr.mozilla.org/mozilla-central/rev/5be384bcf00191f97d32b4ac3ecd1b85ec7b18e1/browser/components/sessionstore/SessionStore.jsm#3053
+    reserveToCacheTree(info.windowId, 'tab removed');
   });
 });
 
 Tab.onMoved.addListener((tab, info) => {
-  if (info.fromIndex === 0)
-    // the tab is not the cache owner anymore
+  if (info.fromIndex == 0) // the tab is not the cache owner anymore
     TabsInternalOperation.clearCache(tab);
-  reserveToCacheTree(info.windowId, "tab moved");
+  reserveToCacheTree(info.windowId, 'tab moved');
 });
 
 Tab.onUpdated.addListener((tab, info) => {
-  markWindowCacheDirtyFromTab(
-    tab,
-    Constants.kWINDOW_STATE_CACHED_SIDEBAR_TABS_DIRTY
-  );
-  if ("url" in info) reserveToCacheTree(tab.windowId, "tab updated");
+  markWindowCacheDirtyFromTab(tab, Constants.kWINDOW_STATE_CACHED_SIDEBAR_TABS_DIRTY);
+  if ('url' in info)
+    reserveToCacheTree(tab.windowId, 'tab updated');
 });
 
 Tab.onStateChanged.addListener((tab, state, _has) => {
-  if (state === Constants.kTAB_STATE_STICKY)
-    markWindowCacheDirtyFromTab(
-      tab,
-      Constants.kWINDOW_STATE_CACHED_SIDEBAR_TABS_DIRTY
-    );
+  if (state == Constants.kTAB_STATE_STICKY)
+    markWindowCacheDirtyFromTab(tab, Constants.kWINDOW_STATE_CACHED_SIDEBAR_TABS_DIRTY);
 });
 
-Tree.onSubtreeCollapsedStateChanging.addListener((tab) => {
-  reserveToCacheTree(tab.windowId, "subtree collapsed/expanded");
+Tree.onSubtreeCollapsedStateChanging.addListener(tab => {
+  reserveToCacheTree(tab.windowId, 'subtree collapsed/expanded');
 });
 
 Tree.onAttached.addListener((tab, _info) => {
   wait(0).then(() => {
     // "Restore Previous Session" closes some tabs at first and it causes tree changes, so we should not clear the old cache yet.
     // See also: https://dxr.mozilla.org/mozilla-central/rev/5be384bcf00191f97d32b4ac3ecd1b85ec7b18e1/browser/components/sessionstore/SessionStore.jsm#3053
-    reserveToCacheTree(tab.windowId, "tab attached to tree");
+    reserveToCacheTree(tab.windowId, 'tab attached to tree');
   });
 });
 
@@ -636,61 +554,61 @@ Tree.onDetached.addListener((tab, _info) => {
   wait(0).then(() => {
     // "Restore Previous Session" closes some tabs at first and it causes tree changes, so we should not clear the old cache yet.
     // See also: https://dxr.mozilla.org/mozilla-central/rev/5be384bcf00191f97d32b4ac3ecd1b85ec7b18e1/browser/components/sessionstore/SessionStore.jsm#3053
-    reserveToCacheTree(tab.windowId, "tab detached from tree");
+    reserveToCacheTree(tab.windowId, 'tab detached from tree');
   });
 });
 
-Tab.onPinned.addListener((tab) => {
-  reserveToCacheTree(tab.windowId, "tab pinned");
+Tab.onPinned.addListener(tab => {
+  reserveToCacheTree(tab.windowId, 'tab pinned');
 });
 
-Tab.onUnpinned.addListener((tab) => {
-  if (tab.$TST.previousTab)
-    // the tab was the cache owner
+Tab.onUnpinned.addListener(tab => {
+  if (tab.$TST.previousTab) // the tab was the cache owner
     TabsInternalOperation.clearCache(tab);
-  reserveToCacheTree(tab.windowId, "tab unpinned");
+  reserveToCacheTree(tab.windowId, 'tab unpinned');
 });
 
-Tab.onShown.addListener((tab) => {
-  reserveToCacheTree(tab.windowId, "tab shown");
+Tab.onShown.addListener(tab => {
+  reserveToCacheTree(tab.windowId, 'tab shown');
 });
 
-Tab.onHidden.addListener((tab) => {
-  reserveToCacheTree(tab.windowId, "tab hidden");
+Tab.onHidden.addListener(tab => {
+  reserveToCacheTree(tab.windowId, 'tab hidden');
 });
 
-browser.windows.onRemoved.addListener(async (windowId) => {
+browser.windows.onRemoved.addListener(async windowId => {
   try {
     CacheStorage.clearForWindow(windowId);
-  } catch (_error) {}
+  }
+  catch(_error) {
+  }
 
   const storageKeyPart = `Cache-${await UniqueId.ensureWindowId(windowId)}-`;
   for (const key in mCaches) {
-    if (key.includes(storageKeyPart)) delete mCaches[key];
+    if (key.includes(storageKeyPart))
+      delete mCaches[key];
   }
 });
 
 function onConfigChange(key) {
   switch (key) {
-    case "useCachedTree":
-    case "persistCachedTree":
-      browser.windows
-        .getAll({
-          populate: true,
-          windowTypes: ["normal"],
-        })
-        .then((windows) => {
-          for (const win of windows) {
-            const owner = win.tabs[win.tabs.length - 1];
-            if (configs[key]) {
-              reserveToCacheTree(win.id, "config change");
-            } else {
-              TabsInternalOperation.clearCache(owner);
-              location.reload();
-            }
+    case 'useCachedTree':
+    case 'persistCachedTree':
+      browser.windows.getAll({
+        populate:    true,
+        windowTypes: ['normal']
+      }).then(windows => {
+        for (const win of windows) {
+          const owner = win.tabs[win.tabs.length - 1];
+          if (configs[key]) {
+            reserveToCacheTree(win.id, 'config change');
           }
-        })
-        .catch(ApiTabs.createErrorSuppressor());
+          else {
+            TabsInternalOperation.clearCache(owner);
+            location.reload();
+          }
+        }
+      }).catch(ApiTabs.createErrorSuppressor());
       break;
   }
 }

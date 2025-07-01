@@ -1,67 +1,74 @@
+/*
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+'use strict';
+
 // workaround for https://bugzilla.mozilla.org/show_bug.cgi?id=727668
 
 import {
-  configs,
   log as internalLogger,
+  configs,
   isNewTabCommandTab,
-} from "/common/common.js";
-import * as Constants from "/common/constants.js";
-import Tab from "/common/Tab.js";
-import * as TabsStore from "/common/tabs-store.js";
+} from '/common/common.js';
+import * as Constants from '/common/constants.js';
+import * as TabsStore from '/common/tabs-store.js';
 
-import * as BackgroundConnection from "./background-connection.js";
+import { Tab } from '/common/TreeItem.js';
+
+import * as BackgroundConnection from './background-connection.js';
 
 function log(...args) {
-  internalLogger("sidebar/gap-canceller", ...args);
+  internalLogger('sidebar/gap-canceller', ...args);
 }
 
 let mWindowId;
 const mStyle = document.documentElement.style;
 const mDataset = document.documentElement.dataset;
 
-let mByMouseOperation = false;
+let mByMouseOperation    = false;
 let mLastWindowDimension = getWindowDimension();
 let mLastMozInnerScreenY = window.mozInnerScreenY;
-let mOffset = 0;
+let mOffset              = 0;
 
 export function init() {
   mWindowId = TabsStore.getCurrentWindowId();
 
-  browser.tabs
-    .query({ active: true, windowId: mWindowId })
-    .then(async (tabs) => {
-      if (tabs.length === 0)
-        tabs = await browser.tabs.query({ windowId: mWindowId });
-      onLocationChange(tabs[0]);
-    });
-  BackgroundConnection.onMessage.addListener(async (message) => {
+  browser.tabs.query({ active: true, windowId: mWindowId }).then(async tabs => {
+    if (tabs.length == 0)
+      tabs = await browser.tabs.query({ windowId: mWindowId });
+    onLocationChange(tabs[0]);
+  });
+  BackgroundConnection.onMessage.addListener(async message => {
     switch (message.type) {
-      case Constants.kCOMMAND_NOTIFY_TAB_ACTIVATING: {
+      case Constants.kCOMMAND_NOTIFY_TAB_ACTIVATING:
         const tab = Tab.get(message.tabId);
         if (tab) {
           onLocationChange(tab, { byMouseOperation: message.byMouseOperation });
-          if (!message.byMouseOperation) updateOffset();
+          if (!message.byMouseOperation)
+            updateOffset();
         }
         break;
-      }
     }
   });
-  browser.tabs.onUpdated.addListener(
-    (_tabId, changeInfo, tab) => {
-      if (tab.active && changeInfo.status === "complete") onLocationChange(tab);
-    },
-    { windowId: mWindowId, properties: ["status"] }
-  );
+  browser.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
+    if (tab.active && changeInfo.status == 'complete')
+      onLocationChange(tab);
+  }, { windowId: mWindowId, properties: ['status'] });
 
-  if (shouldWatchVisualGap()) startWatching();
+  if (shouldWatchVisualGap())
+    startWatching();
 
-  configs.$addObserver((changedKey) => {
+  configs.$addObserver(changedKey => {
     switch (changedKey) {
-      case "suppressGapFromShownOrHiddenToolbarOnFullScreen":
-      case "suppressGapFromShownOrHiddenToolbarOnNewTab":
-      case "suppressGapFromShownOrHiddenToolbarInterval":
-        if (shouldWatchVisualGap()) startWatching();
-        else stopWatching();
+      case 'suppressGapFromShownOrHiddenToolbarOnFullScreen':
+      case 'suppressGapFromShownOrHiddenToolbarOnNewTab':
+      case 'suppressGapFromShownOrHiddenToolbarInterval':
+        if (shouldWatchVisualGap())
+          startWatching();
+        else
+          stopWatching();
         break;
     }
   });
@@ -85,79 +92,79 @@ export function getOffset() {
 function updateOffset() {
   const dimension = getWindowDimension();
 
-  const isNewTab = isNewTabCommandTab({
+  const isNewTab     = isNewTabCommandTab({
     title: mDataset.activeTabTitle,
-    url: mDataset.activeTabUrl,
+    url:   mDataset.activeTabUrl,
   });
-  const isFullScreen = mDataset.ownerWindowState === "fullscreen";
-  const shouldSuppressGapOnNewTab =
+  const isFullScreen = mDataset.ownerWindowState == 'fullscreen'
+  const shouldSuppressGapOnNewTab = (
     configs.suppressGapFromShownOrHiddenToolbarOnNewTab &&
     isNewTab &&
-    !isFullScreen;
-  const shouldSuppressGapOnFullScreen =
-    configs.suppressGapFromShownOrHiddenToolbarOnFullScreen && isFullScreen;
-  const shouldSuppressGap =
+    !isFullScreen
+  );
+  const shouldSuppressGapOnFullScreen = (
+    configs.suppressGapFromShownOrHiddenToolbarOnFullScreen &&
+    isFullScreen
+  );
+  const shouldSuppressGap = (
     (shouldSuppressGapOnNewTab || shouldSuppressGapOnFullScreen) &&
-    (mByMouseOperation ||
-      !configs.suppressGapFromShownOrHiddenToolbarOnlyOnMouseOperation);
-  log("updateOffset: ", {
-    title: mDataset.activeTabTitle,
-    url: mDataset.activeTabUrl,
+    (mByMouseOperation || !configs.suppressGapFromShownOrHiddenToolbarOnlyOnMouseOperation)
+  );
+  log('updateOffset: ', {
+    title:             mDataset.activeTabTitle,
+    url:               mDataset.activeTabUrl,
     isNewTab,
-    state: mDataset.ownerWindowState,
+    state:             mDataset.ownerWindowState,
     mByMouseOperation,
     dimension,
-    lastDimension: mLastWindowDimension,
-    innerScreenY: window.mozInnerScreenY,
-    lastInnerScreenY: mLastMozInnerScreenY,
-    windowNotChanged: dimension === mLastWindowDimension,
-    sidebarMoved: mLastMozInnerScreenY !== window.mozInnerScreenY,
+    lastDimension:     mLastWindowDimension,
+    innerScreenY:      window.mozInnerScreenY,
+    lastInnerScreenY:  mLastMozInnerScreenY,
+    windowNotChanged:  dimension == mLastWindowDimension,
+    sidebarMoved:      mLastMozInnerScreenY != window.mozInnerScreenY
   });
-  if (
-    dimension === mLastWindowDimension &&
-    mLastMozInnerScreenY !== window.mozInnerScreenY
-  ) {
+  if (dimension == mLastWindowDimension &&
+      mLastMozInnerScreenY != window.mozInnerScreenY) {
     if (shouldSuppressGap) {
       mOffset = Math.min(0, mLastMozInnerScreenY - window.mozInnerScreenY);
-      mStyle.setProperty("--visual-gap-offset", `${mOffset}px`);
-      const currentState = document.documentElement.classList.contains(
-        Constants.kTABBAR_STATE_HAS_VISUAL_GAP
-      );
+      mStyle.setProperty('--visual-gap-offset', `${mOffset}px`);
+      const currentState = document.documentElement.classList.contains(Constants.kTABBAR_STATE_HAS_VISUAL_GAP);
       const newState = mOffset < 0;
-      document.documentElement.classList.toggle(
-        Constants.kTABBAR_STATE_HAS_VISUAL_GAP,
-        newState
-      );
-      log(" => should suppress visual gap: offset = ", mOffset);
-      if (currentState !== newState) {
+      document.documentElement.classList.toggle(Constants.kTABBAR_STATE_HAS_VISUAL_GAP, newState);
+      log(' => should suppress visual gap: offset = ', mOffset);
+      if (currentState != newState) {
         cancelUpdateOffset();
-        if (newState) startListenMouseEvents();
-        else endListenMouseEvents();
+        if (newState)
+          startListenMouseEvents()
+        else
+          endListenMouseEvents();
       }
       cancelUpdateOffset();
-    } else {
-      mStyle.setProperty("--visual-gap-offset", "0px");
-      log(" => should not suppress, but there is a visual gap ");
     }
-  } else if (!shouldSuppressGap) {
-    mStyle.setProperty("--visual-gap-offset", "0px");
-    log(" => should not suppress, no visual gap ");
+    else {
+      mStyle.setProperty('--visual-gap-offset', '0px');
+      log(' => should not suppress, but there is a visual gap ');
+    }
+  }
+  else if (!shouldSuppressGap) {
+    mStyle.setProperty('--visual-gap-offset', '0px');
+    log(' => should not suppress, no visual gap ');
   }
   mLastWindowDimension = dimension;
   mLastMozInnerScreenY = window.mozInnerScreenY;
-  browser.windows.get(mWindowId).then((win) => {
+  browser.windows.get(mWindowId).then(win => {
     mDataset.ownerWindowState = win.state;
   });
 }
 
 function startWatching() {
   stopWatching();
-  window.addEventListener("resize", onResize);
+  window.addEventListener('resize', onResize);
 }
 
 function stopWatching() {
   cancelUpdateOffset();
-  window.removeEventListener("resize", onResize);
+  window.removeEventListener('resize', onResize);
 }
 
 function onResize() {
@@ -189,22 +196,23 @@ function cancelUpdateOffset() {
 
 function onLocationChange(tab, { byMouseOperation } = {}) {
   mDataset.activeTabTitle = tab.title;
-  mDataset.activeTabUrl = tab.url;
-  if (byMouseOperation) mByMouseOperation = true;
+  mDataset.activeTabUrl   = tab.url;
+  if (byMouseOperation)
+    mByMouseOperation = true;
 }
 
 function startListenMouseEvents() {
   if (!onMouseMove.listening) {
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseout", onMouseMove);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseout', onMouseMove);
     onMouseMove.listening = true;
   }
 }
 
 function endListenMouseEvents() {
   if (onMouseMove.listening) {
-    window.removeEventListener("mousemove", onMouseMove);
-    window.removeEventListener("mouseout", onMouseMove);
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('mouseout', onMouseMove);
     onMouseMove.listening = false;
   }
 }
@@ -212,18 +220,16 @@ function endListenMouseEvents() {
 let mClearHoverTopEdgeTimer;
 
 function onMouseMove(event) {
-  if (mClearHoverTopEdgeTimer) clearTimeout(mClearHoverTopEdgeTimer);
+  if (mClearHoverTopEdgeTimer)
+    clearTimeout(mClearHoverTopEdgeTimer);
   const onTopEdge = event.screenY < window.mozInnerScreenY - mOffset;
   if (onTopEdge) {
-    document.documentElement.classList.add(
-      Constants.kTABBAR_STATE_HOVER_ON_TOP_EDGE
-    );
-  } else {
+    document.documentElement.classList.add(Constants.kTABBAR_STATE_HOVER_ON_TOP_EDGE);
+  }
+  else {
     mClearHoverTopEdgeTimer = setTimeout(() => {
       mClearHoverTopEdgeTimer = null;
-      document.documentElement.classList.remove(
-        Constants.kTABBAR_STATE_HOVER_ON_TOP_EDGE
-      );
+      document.documentElement.classList.remove(Constants.kTABBAR_STATE_HOVER_ON_TOP_EDGE);
     }, configs.cancelGapSuppresserHoverDelay);
   }
 }

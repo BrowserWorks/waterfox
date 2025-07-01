@@ -18,16 +18,16 @@
 		fill: transparent /* TO BE REPLACED WITH THEME COLOR */;
 	}
 	g.prefer-color-scheme.default:target {
-		fill: rgb(21, 20, 26); /* https://searchfox.org/mozilla-central/rev/d6576544301cacc0e393fbc919c53e4e6b0d46ec/toolkit/themes/shared/in-content/common-shared.css#16 */
+		fill: light-dark(
+			rgb(21, 20, 26), /* https://searchfox.org/mozilla-central/rev/d6576544301cacc0e393fbc919c53e4e6b0d46ec/toolkit/themes/shared/in-content/common-shared.css#16 */
+			rgb(251, 251, 254) /* https://searchfox.org/mozilla-central/rev/d6576544301cacc0e393fbc919c53e4e6b0d46ec/browser/themes/shared/browser-custom-colors.css#74 */
+		);
 	}
 	g.prefer-color-scheme.toolbar:target {
-		fill: rgb(91, 91, 102); /* https://searchfox.org/mozilla-central/rev/d6576544301cacc0e393fbc919c53e4e6b0d46ec/browser/themes/shared/browser-custom-colors.css#74 */
-	}
-	@media (prefers-color-scheme: dark) {
-		g.prefer-color-scheme.default:target,
-		g.prefer-color-scheme.toolbar:target {
-			fill: rgb(251, 251, 254); /* https://searchfox.org/mozilla-central/rev/d6576544301cacc0e393fbc919c53e4e6b0d46ec/browser/themes/shared/browser-custom-colors.css#74 */
-		}
+		fill: light-dark(
+			rgb(91, 91, 102), /* https://searchfox.org/mozilla-central/rev/d6576544301cacc0e393fbc919c53e4e6b0d46ec/browser/themes/shared/browser-custom-colors.css#74 */
+			rgb(251, 251, 254) /* https://searchfox.org/mozilla-central/rev/d6576544301cacc0e393fbc919c53e4e6b0d46ec/browser/themes/shared/browser-custom-colors.css#74 */
+		);
 	}
 	g.mask {
 		fill: black;

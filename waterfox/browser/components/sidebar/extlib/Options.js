@@ -5,52 +5,52 @@
 */
 
 class Options {
-  constructor(
-    configs,
-    { steps, onImporting, onImported, onExporting, onExported } = {}
-  ) {
+  constructor(configs, { steps, onImporting, onImported, onExporting, onExported } = {}) {
     this.configs = configs;
     this.steps = steps || {};
     this.$onImporting = onImporting;
-    this.$onImported = onImported;
+    this.$onImported  = onImported;
     this.$onExporting = onExporting;
-    this.$onExported = onExported;
+    this.$onExported  = onExported;
     this.uiNodes = new Map();
     this.throttleTimers = new Map();
 
     this.onReady = this.onReady.bind(this);
-    this.onConfigChanged = this.onConfigChanged.bind(this);
-    document.addEventListener("DOMContentLoaded", this.onReady);
+    this.onConfigChanged = this.onConfigChanged.bind(this)
+    document.addEventListener('DOMContentLoaded', this.onReady);
   }
 
   findUIsForKey(key) {
     key = this._sanitizeForSelector(key);
-    if (!key) return [];
-    return document.querySelectorAll(
-      `[name="${key}"], #${key}, [data-config-key="${key}"]`
-    );
+    if (!key)
+      return [];
+    return document.querySelectorAll(`[name="${key}"], #${key}, [data-config-key="${key}"]`);
   }
 
   detectUIType(node) {
-    if (!node) return this.UI_MISSING;
+    if (!node)
+      return this.UI_MISSING;
 
-    if (node.localName === "textarea") return this.UI_TYPE_TEXT_FIELD;
+    if (node.localName == 'textarea')
+      return this.UI_TYPE_TEXT_FIELD;
 
-    if (node.localName === "select") return this.UI_TYPE_SELECTBOX;
+    if (node.localName == 'select')
+      return this.UI_TYPE_SELECTBOX;
 
-    if (node.localName !== "input") return this.UI_TYPE_UNKNOWN;
+    if (node.localName != 'input')
+      return this.UI_TYPE_UNKNOWN;
 
     switch (node.type) {
-      case "text":
-      case "password":
-      case "number":
-      case "color":
+      case 'text':
+      case 'password':
+      case 'number':
+      case 'color':
         return this.UI_TYPE_TEXT_FIELD;
 
-      case "checkbox":
+      case 'checkbox':
         return this.UI_TYPE_CHECKBOX;
 
-      case "radio":
+      case 'radio':
         return this.UI_TYPE_RADIO;
 
       default:
@@ -62,59 +62,60 @@ class Options {
     if (this.throttleTimers.has(key))
       clearTimeout(this.throttleTimers.get(key));
     uiNode.dataset.configValueUpdating = true;
-    this.throttleTimers.set(
-      key,
+    this.throttleTimers.set(key, setTimeout(() => {
+      this.throttleTimers.delete(key);
+      this.configs[key] = this.UIValueToConfigValue(key, value);
       setTimeout(() => {
-        this.throttleTimers.delete(key);
-        this.configs[key] = this.UIValueToConfigValue(key, value);
-        setTimeout(() => {
-          uiNode.dataset.configValueUpdating = false;
-        }, 50);
-      }, 250)
-    );
+        uiNode.dataset.configValueUpdating = false;
+      }, 50);
+    }, 250));
   }
 
   UIValueToConfigValue(key, value) {
     switch (typeof this.configs.$default[key]) {
-      case "string":
+      case 'string':
         return String(value);
 
-      case "number":
+      case 'number':
         return Number(value);
 
-      case "boolean":
-        if (typeof value === "string") return value !== "false";
-        else return Boolean(value);
+      case 'boolean':
+        if (typeof value == 'string')
+          return value != 'false';
+        else
+          return Boolean(value);
 
       default: // object
-        if (typeof value === "string") return JSON.parse(value || "null");
-        else return value;
+        if (typeof value == 'string')
+          return JSON.parse(value || 'null');
+        else
+          return value;
     }
   }
 
   configValueToUIValue(value) {
-    if (typeof value === "object") {
+    if (typeof value == 'object') {
       value = JSON.stringify(value);
-      if (value === "null") value = "";
+      if (value == 'null')
+        value = '';
       return value;
-    } else return value;
+    }
+    else
+      return value;
   }
 
   applyLocked(node, key) {
     const locked = this.configs.$isLocked(key);
     node.disabled = locked;
-    const selector =
-      node.id && `label[for="${this._sanitizeForSelector(node.id)}"]`;
-    const label =
-      node.closest("label") ||
-      (node.id && node.ownerDocument.querySelector(selector)) ||
-      node;
-    if (label) label.classList.toggle("locked", locked);
+    const selector = node.id && `label[for="${this._sanitizeForSelector(node.id)}"]`;
+    const label = node.closest('label') || (node.id && node.ownerDocument.querySelector(selector)) || node;
+    if (label)
+      label.classList.toggle('locked', locked);
   }
 
   bindToCheckbox(key, node) {
     node.checked = this.configValueToUIValue(this.configs[key]);
-    node.addEventListener("change", () => {
+    node.addEventListener('change', () => {
       this.throttledUpdate(key, node, node.checked);
     });
     this.applyLocked(node, key);
@@ -124,39 +125,35 @@ class Options {
     this.uiNodes.set(key, nodes);
   }
   bindToRadio(key, node) {
-    const group = node.getAttribute("name");
-    const radios = document.querySelectorAll(
-      `input[name="${this._sanitizeForSelector(group)}"]`
-    );
+    const group  = node.getAttribute('name');
+    const radios = document.querySelectorAll(`input[name="${this._sanitizeForSelector(group)}"]`);
     let activated = false;
     for (const radio of radios) {
       const nodes = this.uiNodes.get(key) || [];
-      if (nodes.includes(radio)) continue;
+      if (nodes.includes(radio))
+        continue;
       this.applyLocked(radio, key);
       nodes.push(radio);
       this.uiNodes.set(key, nodes);
-      radio.addEventListener("change", () => {
-        if (!activated) return;
+      radio.addEventListener('change', () => {
+        if (!activated)
+          return;
         const stringifiedValue = this.configs[key];
-        if (stringifiedValue !== radio.value)
+        if (stringifiedValue != radio.value)
           this.throttledUpdate(key, radio, radio.value);
       });
     }
     const selector = `input[type="radio"][value=${JSON.stringify(String(this.configs[key]))}]`;
-    const chosens = (this.uiNodes.get(key) || []).filter((node) =>
-      node.matches(selector)
-    );
+    const chosens = (this.uiNodes.get(key) || []).filter(node => node.matches(selector));
     if (chosens && chosens.length > 0)
-      chosens.map((chosen) => {
-        chosen.checked = true;
-      });
+      chosens.map(chosen => { chosen.checked = true; });
     setTimeout(() => {
       activated = true;
     }, 0);
   }
   bindToTextField(key, node) {
     node.value = this.configValueToUIValue(this.configs[key]);
-    node.addEventListener("input", () => {
+    node.addEventListener('input', () => {
       this.throttledUpdate(key, node, node.value);
     });
     this.applyLocked(node, key);
@@ -167,7 +164,7 @@ class Options {
   }
   bindToSelectBox(key, node) {
     node.value = this.configValueToUIValue(this.configs[key]);
-    node.addEventListener("change", () => {
+    node.addEventListener('change', () => {
       this.throttledUpdate(key, node, node.value);
     });
     this.applyLocked(node, key);
@@ -180,23 +177,25 @@ class Options {
     node.$reset = () => {
       this.configs.$reset(key);
       const value = this.configs.$default[key];
-      if (this.detectUIType(node) === this.UI_TYPE_CHECKBOX)
+      if (this.detectUIType(node) == this.UI_TYPE_CHECKBOX)
         node.checked = value;
-      else node.value = value;
+      else
+        node.value = value;
     };
   }
 
   async onReady() {
-    document.removeEventListener("DOMContentLoaded", this.onReady);
+    document.removeEventListener('DOMContentLoaded', this.onReady);
 
     if (!this.configs || !this.configs.$loaded)
-      throw new Error("you must give configs!");
+      throw new Error('you must give configs!');
 
     this.configs.$addObserver(this.onConfigChanged);
     await this.configs.$loaded;
     for (const key of Object.keys(this.configs.$default)) {
       const nodes = this.findUIsForKey(key);
-      if (!nodes.length) continue;
+      if (!nodes.length)
+        continue;
       for (const node of nodes) {
         switch (this.detectUIType(node)) {
           case this.UI_TYPE_CHECKBOX:
@@ -227,15 +226,19 @@ class Options {
 
   onConfigChanged(key) {
     const nodes = this.uiNodes.get(key);
-    if (!nodes || !nodes.length) return;
+    if (!nodes || !nodes.length)
+      return;
 
     for (const node of nodes) {
-      if (node.dataset.configValueUpdating === "true") continue;
+      if (node.dataset.configValueUpdating == 'true')
+        continue;
       if (node.matches('input[type="radio"]')) {
-        node.checked = this.configs[key] === node.value;
-      } else if (node.matches('input[type="checkbox"]')) {
+        node.checked = this.configs[key] == node.value;
+      }
+      else if (node.matches('input[type="checkbox"]')) {
         node.checked = !!this.configs[key];
-      } else {
+      }
+      else {
         node.value = this.configValueToUIValue(this.configs[key]);
       }
       this.applyLocked(node, key);
@@ -250,31 +253,22 @@ class Options {
     const rows = [];
     for (const key of Object.keys(this.configs.$default).sort()) {
       const value = this.configs.$default[key];
-      const type =
-        typeof value === "number"
-          ? "number"
-          : typeof value === "boolean"
-            ? "checkbox"
-            : "text";
+      const type = typeof value == 'number' ? 'number' :
+        typeof value == 'boolean' ? 'checkbox' :
+          'text' ;
       // To accept decimal values like "1.1", we need to set "step" with decmimal values.
       // https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/number
-      const step =
-        type !== "number"
-          ? ""
-          : `step="${this.sanitizeForHTMLText(key in this.steps ? this.steps[key] : String(1.75).replace(/[1-9]/g, "0").replace(/0$/, "1"))}"`;
-      const placeholder =
-        type === "checkbox"
-          ? ""
-          : `placeholder=${JSON.stringify(this.sanitizeForHTMLText(String(value)))}`;
+      const step = type != 'number' ? '' : `step="${this.sanitizeForHTMLText(key in this.steps ? this.steps[key] : String(1.75).replace(/[1-9]/g, '0').replace(/0$/, '1'))}"`;
+      const placeholder = type == 'checkbox' ? '' : `placeholder=${JSON.stringify(this.sanitizeForHTMLText(String(value)))}`;
       rows.push(`
-        <tr ${rows.length > 0 ? 'style="border-top: 1px solid rgba(0, 0, 0, 0.2);"' : ""}>
+        <tr ${rows.length > 0 ? 'style="border-top: 1px solid rgba(0, 0, 0, 0.2);"' : ''}>
           <td style="width: 45%; word-break: break-all;">
             <label for="allconfigs-field-${this.sanitizeForHTMLText(key)}">${this.sanitizeForHTMLText(key)}</label>
           </td>
           <td style="width: 35%;">
             <input id="allconfigs-field-${this.sanitizeForHTMLText(key)}"
                    type="${type}"
-                   ${type !== "checkbox" && type !== "radio" ? 'style="width: 100%;"' : ""}
+                   ${type != 'checkbox' && type != 'radio' ? 'style="width: 100%;"' : ''}
                    ${step}
                    ${placeholder}>
           </td>
@@ -287,7 +281,7 @@ class Options {
     const fragment = range.createContextualFragment(`
       <table id="allconfigs-table"
              style="border-collapse: collapse">
-        <tbody>${rows.join("")}</tbody>
+        <tbody>${rows.join('')}</tbody>
       </table>
       <div>
         <button id="allconfigs-reset-all">Reset All</button>
@@ -305,9 +299,9 @@ class Options {
     `);
     range.insertNode(fragment);
     range.detach();
-    const table = document.getElementById("allconfigs-table");
-    for (const input of table.querySelectorAll("input")) {
-      const key = input.id.replace(/^allconfigs-field-/, "");
+    const table = document.getElementById('allconfigs-table');
+    for (const input of table.querySelectorAll('input')) {
+      const key = input.id.replace(/^allconfigs-field-/, '');
       switch (this.detectUIType(input)) {
         case this.UI_TYPE_CHECKBOX:
           this.bindToCheckbox(key, input);
@@ -317,58 +311,61 @@ class Options {
           this.bindToTextField(key, input);
           break;
       }
-      const button = table.querySelector(
-        `#allconfigs-reset-${this._sanitizeForSelector(key)}`
-      );
-      button.addEventListener("click", () => {
+      const button = table.querySelector(`#allconfigs-reset-${this._sanitizeForSelector(key)}`);
+      button.addEventListener('click', () => {
         input.$reset();
       });
-      button.addEventListener("keyup", (event) => {
-        if (event.key === "Enter" || event.key === " ") input.$reset();
+      button.addEventListener('keyup', event => {
+        if (event.key == 'Enter' || event.key == ' ')
+          input.$reset();
       });
     }
-    const resetAllButton = document.getElementById("allconfigs-reset-all");
-    resetAllButton.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") this.resetAll();
+    const resetAllButton = document.getElementById('allconfigs-reset-all');
+    resetAllButton.addEventListener('keydown', event => {
+      if (event.key == 'Enter' || event.key == ' ')
+        this.resetAll();
     });
-    resetAllButton.addEventListener("click", (event) => {
-      if (event.button === 0) this.resetAll();
+    resetAllButton.addEventListener('click', event => {
+      if (event.button == 0)
+        this.resetAll();
     });
-    const exportButton = document.getElementById("allconfigs-export");
-    exportButton.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") this.exportToFile();
+    const exportButton = document.getElementById('allconfigs-export');
+    exportButton.addEventListener('keydown', event => {
+      if (event.key == 'Enter' || event.key == ' ')
+        this.exportToFile();
     });
-    exportButton.addEventListener("click", (event) => {
-      if (event.button === 0) this.exportToFile();
+    exportButton.addEventListener('click', event => {
+      if (event.button == 0)
+        this.exportToFile();
     });
-    const importButton = document.getElementById("allconfigs-import");
-    importButton.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") this.importFromFile();
+    const importButton = document.getElementById('allconfigs-import');
+    importButton.addEventListener('keydown', event => {
+      if (event.key == 'Enter' || event.key == ' ')
+        this.importFromFile();
     });
-    importButton.addEventListener("click", (event) => {
-      if (event.button === 0) this.importFromFile();
+    importButton.addEventListener('click', event => {
+      if (event.button == 0)
+        this.importFromFile();
     });
-    const fileField = document.getElementById("allconfigs-import-file");
-    fileField.addEventListener("change", async (_event) => {
+    const fileField = document.getElementById('allconfigs-import-file');
+    fileField.addEventListener('change', async _event => {
       const text = await fileField.files.item(0).text();
       let values = JSON.parse(text);
-      if (typeof this.$onImporting === "function")
+      if (typeof this.$onImporting == 'function')
         values = await this.$onImporting(values);
       for (const key of Object.keys(this.configs.$default)) {
-        const value =
-          values[key] !== undefined ? values[key] : this.configs.$default[key];
-        const changed = value !== this.configs[key];
+        const value = values[key] !== undefined ? values[key] : this.configs.$default[key];
+        const changed = value != this.configs[key];
         this.configs[key] = value;
-        if (changed) this.onConfigChanged(key);
+        if (changed)
+          this.onConfigChanged(key);
       }
-      if (typeof this.$onImported === "function") await this.$onImported();
+      if (typeof this.$onImported == 'function')
+        await this.$onImported();
     });
   }
   sanitizeForHTMLText(text) {
-    return text
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;");
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
   resetAll() {
@@ -376,7 +373,7 @@ class Options {
   }
 
   importFromFile() {
-    document.getElementById("allconfigs-import-file").click();
+    document.getElementById('allconfigs-import-file').click();
   }
 
   async exportToFile() {
@@ -388,40 +385,36 @@ class Options {
         values[key] = this.configs[key];
       }
     }
-    if (typeof this.$onExporting === "function")
+    if (typeof this.$onExporting == 'function')
       values = await this.$onExporting(values);
     // Pretty print the exported JSON, because some major addons
     // including Stylus and uBlock do that.
     const exported = JSON.stringify(values, null, 2);
-    const browserInfo =
-      browser.runtime.getBrowserInfo &&
-      (await browser.runtime.getBrowserInfo());
-    switch (browserInfo?.name) {
-      case "Thunderbird":
+    const browserInfo = browser.runtime.getBrowserInfo && await browser.runtime.getBrowserInfo();
+    switch (browserInfo && browserInfo.name) {
+      case 'Thunderbird':
         window.open(`data:application/json,${encodeURIComponent(exported)}`);
         break;
 
-      default: {
-        const link = document.getElementById("allconfigs-export-file");
-        link.href = URL.createObjectURL(
-          new Blob([exported], { type: "application/json" })
-        );
+      default:
+        const link = document.getElementById('allconfigs-export-file');
+        link.href = URL.createObjectURL(new Blob([exported], { type: 'application/json' }));
         link.click();
         break;
-      }
     }
-    if (typeof this.$onExported === "function") await this.$onExported();
+    if (typeof this.$onExported == 'function')
+      await this.$onExported();
   }
 
   _sanitizeForSelector(string) {
-    return string.replace(/[:[\]()]/g, "\\$&");
+    return string.replace(/[:\[\]()]/g, '\\$&');
   }
-}
+};
 
-Options.prototype.UI_TYPE_UNKNOWN = 0;
+Options.prototype.UI_TYPE_UNKNOWN    = 0;
 Options.prototype.UI_TYPE_TEXT_FIELD = 1 << 0;
-Options.prototype.UI_TYPE_CHECKBOX = 1 << 1;
-Options.prototype.UI_TYPE_RADIO = 1 << 2;
-Options.prototype.UI_TYPE_SELECTBOX = 1 << 3;
+Options.prototype.UI_TYPE_CHECKBOX   = 1 << 1;
+Options.prototype.UI_TYPE_RADIO      = 1 << 2;
+Options.prototype.UI_TYPE_SELECTBOX  = 1 << 3;
 
 export default Options;

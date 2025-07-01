@@ -1,3 +1,8 @@
+/*
+ license: The MIT License, Copyright (c) 2022 YUKI "Piro" Hiroshi
+*/
+'use strict';
+
 export class PlaceHolderParserError extends Error {
   constructor(message, originalError) {
     super(message);
@@ -5,15 +10,10 @@ export class PlaceHolderParserError extends Error {
   }
 }
 
-export function process(
-  input,
-  processor,
-  processedInput = "",
-  logger = () => {}
-) {
-  let output = "";
+export function process(input, processor, processedInput = '', logger = (() => {})) {
+  let output = '';
 
-  let lastToken = "";
+  let lastToken = '';
   let inPlaceHolder = false;
   let inArgsPart = false;
   let inSingleQuoteString = false;
@@ -21,45 +21,45 @@ export function process(
   let inBackQuoteString = false;
   let escaped = false;
 
-  let name = "";
+  let name = '';
   let args = [];
-  let rawArgs = "";
+  let rawArgs = '';
 
   for (const character of input) {
     processedInput += character;
     //console.log({input, character, lastToken, inPlaceHolder, inSingleQuoteString, inDoubleQuoteString, inArgsPart, escaped, output, name, rawArgs, args});
 
     if (escaped) {
-      if (
-        (inDoubleQuoteString && character === '"') ||
-        (inSingleQuoteString && character === "'") ||
-        (inBackQuoteString && character === "`")
-      ) {
-        if (inArgsPart) rawArgs += "\\";
-      } else if (
-        (inDoubleQuoteString && character !== '"') ||
-        (inSingleQuoteString && character !== "'") ||
-        (inBackQuoteString && character !== "`") ||
-        (!inDoubleQuoteString &&
-          !inSingleQuoteString &&
-          !inBackQuoteString &&
-          inArgsPart &&
-          character !== ")")
-      ) {
-        if (inArgsPart) rawArgs += "\\";
-        lastToken += "\\";
+      if ((inDoubleQuoteString && character == '"') ||
+          (inSingleQuoteString && character == "'") ||
+          (inBackQuoteString && character == '`')) {
+        if (inArgsPart)
+          rawArgs += '\\';
+      }
+      else if ((inDoubleQuoteString && character != '"') ||
+               (inSingleQuoteString && character != "'") ||
+               (inBackQuoteString && character != '`') ||
+               (!inDoubleQuoteString &&
+                !inSingleQuoteString &&
+                !inBackQuoteString &&
+                inArgsPart &&
+                character != ')')) {
+        if (inArgsPart)
+          rawArgs += '\\';
+        lastToken += '\\';
       }
       lastToken += character;
-      if (inArgsPart) rawArgs += character;
+      if (inArgsPart)
+        rawArgs += character;
       escaped = false;
       continue;
     }
 
     switch (character) {
-      case "\\":
+      case '\\':
         if (!inPlaceHolder) {
           output += character;
-          lastToken = "";
+          lastToken = '';
           continue;
         }
 
@@ -68,152 +68,146 @@ export function process(
           continue;
         }
 
-        if (inArgsPart) rawArgs += character;
+        if (inArgsPart)
+          rawArgs += character;
 
         lastToken += character;
         continue;
 
-      case "%":
+      case '%':
         if (!inPlaceHolder) {
           inPlaceHolder = true;
           output += lastToken;
-          lastToken = "";
+          lastToken = '';
           continue;
         }
 
-        if (inArgsPart) rawArgs += character;
+        if (inArgsPart)
+          rawArgs += character;
 
-        if (
-          inSingleQuoteString ||
-          inDoubleQuoteString ||
-          inBackQuoteString ||
-          inArgsPart
-        ) {
+        if (inSingleQuoteString ||
+            inDoubleQuoteString ||
+            inBackQuoteString ||
+            inArgsPart) {
           lastToken += character;
           continue;
         }
 
         if (!name) {
-          if (lastToken !== "") name = lastToken;
+          if (lastToken != '')
+            name = lastToken;
           else
-            throw new PlaceHolderParserError(
-              `Missing placeholder name: ${processedInput}`
-            );
+            throw new PlaceHolderParserError(`Missing placeholder name: ${processedInput}`);
         }
 
         inPlaceHolder = false;
         try {
-          logger("parser: placeholder ", { name, rawArgs, args });
+          logger('parser: placeholder ', { name, rawArgs, args });
           output += processor(name, rawArgs, ...args);
-        } catch (error) {
-          throw new PlaceHolderParserError(
-            `Unhandled error: ${error.message}\n${error.stack}`,
-            error
-          );
         }
-        lastToken = "";
-        name = "";
+        catch(error) {
+          throw new PlaceHolderParserError(`Unhandled error: ${error.message}\n${error.stack}`, error);
+        }
+        lastToken = '';
+        name = '';
         args = [];
-        rawArgs = "";
+        rawArgs = '';
         continue;
 
-      case "(":
+      case '(':
         if (!inPlaceHolder) {
           output += character;
-          lastToken = "";
+          lastToken = '';
           continue;
         }
 
-        if (inArgsPart) rawArgs += character;
-        else if (rawArgs !== "") rawArgs += ", ";
+        if (inArgsPart)
+          rawArgs += character;
+        else if (rawArgs != '')
+          rawArgs += ', ';
 
-        if (
-          inSingleQuoteString ||
-          inDoubleQuoteString ||
-          inBackQuoteString ||
-          inArgsPart
-        ) {
+        if (inSingleQuoteString ||
+            inDoubleQuoteString ||
+            inBackQuoteString ||
+            inArgsPart) {
           lastToken += character;
           continue;
         }
 
         inArgsPart = true;
-        if (name === "" && lastToken !== "") name = lastToken;
-        lastToken = "";
+        if (name == '' && lastToken != '')
+          name = lastToken;
+        lastToken = '';
         continue;
 
-      case ")":
+      case ')':
         if (!inPlaceHolder) {
           output += character;
-          lastToken = "";
+          lastToken = '';
           continue;
         }
 
-        if (
-          inSingleQuoteString ||
-          inDoubleQuoteString ||
-          inBackQuoteString ||
-          !inArgsPart
-        ) {
-          if (inArgsPart) rawArgs += character;
+        if (inSingleQuoteString ||
+            inDoubleQuoteString ||
+            inBackQuoteString ||
+            !inArgsPart) {
+          if (inArgsPart)
+            rawArgs += character;
           lastToken += character;
           continue;
         }
 
         inArgsPart = false;
-        if (rawArgs.trim() !== "") {
+        if (rawArgs.trim() != '') {
           try {
             args.push(process(lastToken, processor, processedInput));
-          } catch (error) {
-            throw new PlaceHolderParserError(
-              `Unhandled error: ${error.message}\n${error.stack}`,
-              error
-            );
+          }
+          catch(error) {
+            throw new PlaceHolderParserError(`Unhandled error: ${error.message}\n${error.stack}`, error);
           }
         }
-        lastToken = "";
+        lastToken = '';
         continue;
 
-      case ",":
+      case ',':
         if (!inPlaceHolder) {
           output += character;
-          lastToken = "";
+          lastToken = '';
           continue;
         }
 
-        if (inArgsPart) rawArgs += character;
+        if (inArgsPart)
+          rawArgs += character;
 
-        if (
-          inSingleQuoteString ||
-          inDoubleQuoteString ||
-          inBackQuoteString ||
-          !inArgsPart
-        ) {
+        if (inSingleQuoteString ||
+            inDoubleQuoteString ||
+            inBackQuoteString ||
+            !inArgsPart) {
           lastToken += character;
           continue;
         }
 
         try {
           args.push(process(lastToken, processor, processedInput));
-        } catch (error) {
-          throw new PlaceHolderParserError(
-            `Unhandled error: ${error.message}\n${error.stack}`,
-            error
-          );
         }
-        lastToken = "";
+        catch(error) {
+          throw new PlaceHolderParserError(`Unhandled error: ${error.message}\n${error.stack}`, error);
+        }
+        lastToken = '';
         continue;
 
       case '"':
         if (!inPlaceHolder) {
           output += character;
-          lastToken = "";
+          lastToken = '';
           continue;
         }
 
-        if (inArgsPart) rawArgs += character;
+        if (inArgsPart)
+          rawArgs += character;
 
-        if (inSingleQuoteString || inBackQuoteString) {
+        if (inSingleQuoteString ||
+            inBackQuoteString) {
           lastToken += character;
           continue;
         }
@@ -229,13 +223,15 @@ export function process(
       case "'":
         if (!inPlaceHolder) {
           output += character;
-          lastToken = "";
+          lastToken = '';
           continue;
         }
 
-        if (inArgsPart) rawArgs += character;
+        if (inArgsPart)
+          rawArgs += character;
 
-        if (inDoubleQuoteString || inBackQuoteString) {
+        if (inDoubleQuoteString ||
+            inBackQuoteString) {
           lastToken += character;
           continue;
         }
@@ -248,16 +244,18 @@ export function process(
         inSingleQuoteString = true;
         continue;
 
-      case "`":
+      case '`':
         if (!inPlaceHolder) {
           output += character;
-          lastToken = "";
+          lastToken = '';
           continue;
         }
 
-        if (inArgsPart) rawArgs += character;
+        if (inArgsPart)
+          rawArgs += character;
 
-        if (inDoubleQuoteString || inSingleQuoteString) {
+        if (inDoubleQuoteString ||
+            inSingleQuoteString) {
           lastToken += character;
           continue;
         }
@@ -273,23 +271,22 @@ export function process(
       default:
         if (!inPlaceHolder) {
           output += character;
-          lastToken = "";
+          lastToken = '';
           continue;
         }
 
-        if (inArgsPart) rawArgs += character;
+        if (inArgsPart)
+          rawArgs += character;
 
-        if (character.trim() === "") {
-          // whitespace
-          if (
-            inSingleQuoteString ||
-            inDoubleQuoteString ||
-            inBackQuoteString ||
-            !inArgsPart
-          ) {
+        if (character.trim() == '') { // whitespace
+          if (inSingleQuoteString ||
+              inDoubleQuoteString ||
+              inBackQuoteString ||
+              !inArgsPart) {
             lastToken += character;
           }
-        } else {
+        }
+        else {
           lastToken += character;
         }
         continue;
@@ -297,19 +294,18 @@ export function process(
   }
 
   if (inPlaceHolder)
-    throw new PlaceHolderParserError(
-      `Unterminated placeholder: ${processedInput}`
-    );
+    throw new PlaceHolderParserError(`Unterminated placeholder: ${processedInput}`);
 
   if (inArgsPart)
-    throw new PlaceHolderParserError(
-      `Unterminated arguments for the placeholder "${name}": ${processedInput}`
-    );
+    throw new PlaceHolderParserError(`Unterminated arguments for the placeholder "${name}": ${processedInput}`);
 
-  if (inSingleQuoteString || inDoubleQuoteString || inBackQuoteString)
+  if (inSingleQuoteString ||
+      inDoubleQuoteString ||
+      inBackQuoteString)
     throw new PlaceHolderParserError(`Unterminated string: ${processedInput}`);
 
-  if (escaped) output += "\\";
+  if (escaped)
+    output += '\\';
 
   return output;
 }

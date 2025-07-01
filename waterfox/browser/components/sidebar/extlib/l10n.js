@@ -1,20 +1,22 @@
 /*
- license: The MIT License, Copyright (c) 2016-2019 YUKI "Piro" Hiroshi
+ license: The MIT License, Copyright (c) 2016-2024 YUKI "Piro" Hiroshi
  original:
    http://github.com/piroor/webextensions-lib-l10n
 */
 
 var l10n = {
   updateString(string) {
-    return string.replace(/__MSG_([@\w]+)__/g, (matched, key) => {
+    return string.replace(/__MSG_([-@\.\w]+)__/g, (matched, key) => {
       return chrome.i18n.getMessage(key) || matched;
     });
   },
 
   $log(message, ...args) {
     message = `l10s: ${message}`;
-    if (typeof window.log === "function") log(message, ...args);
-    else console.log(message, ...args);
+    if (typeof window.log === 'function')
+      log(message, ...args);
+    else
+      console.log(message, ...args);
   },
 
   updateSubtree(node) {
@@ -39,21 +41,17 @@ var l10n = {
     );
     for (let i = 0, maxi = attributes.snapshotLength; i < maxi; i++) {
       const attribute = attributes.snapshotItem(i);
-      this.$log("apply", attribute);
+      this.$log('apply', attribute);
       attribute.value = this.updateString(attribute.value);
     }
   },
 
   updateDocument() {
     this.updateSubtree(document);
-  },
+  }
 };
 
-document.addEventListener(
-  "DOMContentLoaded",
-  () => {
-    l10n.updateDocument();
-  },
-  { once: true }
-);
+document.addEventListener('DOMContentLoaded', () => {
+  l10n.updateDocument();
+}, { once: true });
 export default l10n;
