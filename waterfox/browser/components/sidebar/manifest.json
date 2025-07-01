@@ -1,11 +1,11 @@
 {
   "manifest_version": 2,
   "name": "__MSG_extensionName__",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "browser_specific_settings": {
     "gecko": {
       "id": "sidebar@waterfox.net",
-      "strict_min_version": "128.0"
+      "strict_min_version": "139.0"
     }
   },
   "author": "Waterfox",
@@ -23,6 +23,7 @@
     "search",
     "sessions",
     "storage",
+    "tabGroups",
     "tabs",
     "theme",
     "<all_urls>"
@@ -158,28 +159,28 @@
       "description": "__MSG_command_simulateUpOnTree__",
       "suggested_key": {
         "default": "Alt+Shift+Up",
-        "mac": "MacCtrl+Shift+Up"
+        "mac":     "MacCtrl+Shift+Up"
       }
     },
     "simulateDownOnTree": {
       "description": "__MSG_command_simulateDownOnTree__",
       "suggested_key": {
         "default": "Alt+Shift+Down",
-        "mac": "MacCtrl+Shift+Down"
+        "mac":     "MacCtrl+Shift+Down"
       }
     },
     "simulateLeftOnTree": {
       "description": "__MSG_command_simulateLeftOnTree__",
       "suggested_key": {
         "default": "Alt+Shift+Left",
-        "mac": "MacCtrl+Shift+Left"
+        "mac":     "MacCtrl+Shift+Left"
       }
     },
     "simulateRightOnTree": {
       "description": "__MSG_command_simulateRightOnTree__",
       "suggested_key": {
         "default": "Alt+Shift+Right",
-        "mac": "MacCtrl+Shift+Right"
+        "mac":     "MacCtrl+Shift+Right"
       }
     },
     "tabbarUp": {
@@ -234,13 +235,16 @@
       "description": "__MSG_command_decreaseSubPanel__"
     }
   },
-  "web_accessible_resources": ["/resources/group-tab.html*"],
+  "web_accessible_resources": [
+    "/resources/blank.html",
+    "/resources/group-tab.html*",
+    "/resources/icons/*",
+    "/sidebar/styles/icons/*"
+  ],
   "protocol_handlers": [
-    {
-      "protocol": "ext+ws",
-      "name": "Waterfox",
-      "uriTemplate": "/resources/protocol-handler.html?%s"
-    }
+    { "protocol":    "ext+ws",
+      "name":        "Waterfox",
+      "uriTemplate": "/resources/protocol-handler.html?%s" }
   ],
   "experiment_apis": {
     "prefs": {
@@ -267,11 +271,6 @@
         "script": "experiments/waterfoxBridge.js"
       }
     }
-  },
-  "sidebar_action": {
-    "default_title": "Tabs Sidebar",
-    "default_panel": "sidebar/sidebar.html",
-    "open_at_install": false
   },
   "default_locale": "en"
 }

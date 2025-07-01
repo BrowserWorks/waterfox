@@ -117,9 +117,43 @@
                           max="100">
                    __MSG_config_maxPinnedTabsRowsAreaPercentage_label_after__</label></p>
     <p><label class="has-checkbox"
+             ><input id="fadeOutPendingTabs"
+                     type="checkbox">
+             __MSG_config_fadeOutPendingTabs_label__</label></p>
+    <p><label class="has-checkbox"
+             ><input id="fadeOutDiscardedTabs"
+                     type="checkbox">
+             __MSG_config_fadeOutDiscardedTabs_label__</label></p>
+    </div>
+    <p><label class="has-checkbox"
+             ><input id="allUrlsPermissionGranted_tabPreviewTooltip"
+                     type="checkbox"
+                     data-related-config-key="tabPreviewTooltip">
+             __MSG_config_tabPreviewTooltip_label__</label></p>
+    <div class="expert">
+    <p class="sub"
+      ><label>__MSG_config_tabPreviewTooltipRenderIn_label_before__
+              <select id="tabPreviewTooltipRenderIn">
+                <option value="3">__MSG_config_tabPreviewTooltipRenderIn_anywhere__</option>
+                <option value="2">__MSG_config_tabPreviewTooltipRenderIn_content__</option>
+                <option value="1">__MSG_config_tabPreviewTooltipRenderIn_sidebar__</option>
+              </select>
+             __MSG_config_tabPreviewTooltipRenderIn_label_after__</label></p>
+    <p class="sub"
+      ><label>__MSG_config_inContentUIOffsetTop_label_before__
+              <input id="inContentUIOffsetTop"
+                     type="number"
+                     size="5">
+              __MSG_config_inContentUIOffsetTop_label_after__</label></p>
+    <p><label class="has-checkbox"
              ><input id="showCollapsedDescendantsByTooltip"
                      type="checkbox">
              __MSG_config_showCollapsedDescendantsByTooltip_label__</label></p>
+    <p class="sub"
+      ><label class="has-checkbox"
+             ><input id="showCollapsedDescendantsByLegacyTooltipOnSidebar"
+                     type="checkbox">
+             __MSG_config_showCollapsedDescendantsByLegacyTooltipOnSidebar_label__</label></p>
     <p><label>__MSG_config_shiftTabsForScrollbarDistance_label_before__
        <input id="shiftTabsForScrollbarDistance"
               size="8"
@@ -343,9 +377,27 @@
                           __MSG_config_bookmarkTreeFolderName_after__</label></p>
     <p class="with-bookmarks-permission"><label for="bookmarkTreeFolderName">__MSG_config_bookmarkTreeFolderName_description__</label></p>
     </div>
-    <p class="with-bookmarks-permission"><label>__MSG_config_defaultBookmarkParentId_label_before__
-                          <button id="defaultBookmarkParentChooser"></button>
-                          __MSG_config_defaultBookmarkParentId_label_after__</label></p>
+    <div class="with-bookmarks-permission"
+         id="defaultBookmarkParentGroup">
+      <style type="text/css" id="defaultBookmarkParentChooserStyle"></style>
+      <p><label for="defaultBookmarkParentChooser">__MSG_config_defaultBookmarkParentId_label__</label>
+         <span class="parentIdChooserMiniContainer">
+           <select id="defaultBookmarkParentId"
+                   class="parentIdChooserMini"></select>
+           <button class="showAllFolders"
+                   title="__MSG_bookmarkDialog_showAllFolders_tooltip__"></button>
+         </span></p>
+      <div class="parentIdChooserFullContainer">
+        <div class="parentIdChooserFullTreeContainer"
+             tabindex="0"
+             data-no-accept-by-enter="true">
+          <ul class="parentIdChooserFull"></ul>
+        </div>
+        <span><button class="newFolder"
+                      accesskey="__MSG_bookmarkDialog_newFolder_accessKey__"
+                      data-no-accept-by-enter="true">__MSG_bookmarkDialog_newFolder__</button></span>
+      </div>
+    </div>
     </fieldset>
     <fieldset id="syncTabsToDeviceOptions">
       <legend>__MSG_config_sendTabsToDevice_caption__</legend>
@@ -575,7 +627,8 @@
               <span class="preview-image"></span></label></p>
     <p><label class="sub has-checkbox"
              ><input id="clipboardReadPermissionGranted_middleClickPasteURLOnNewTabButton"
-                     type="checkbox">
+                     type="checkbox"
+                     data-related-config-key="middleClickPasteURLOnNewTabButton">
              __MSG_config_middleClickPasteURLOnNewTabButton_label__</label></p>
     <p><label>__MSG_config_autoAttachOnNewTabButtonAccelClick_before__
               <select id="autoAttachOnNewTabButtonAccelClick">
@@ -821,7 +874,8 @@
 
     <p><label class="has-checkbox"
              ><input id="allUrlsPermissionGranted_ctrlTabTracking"
-                     type="checkbox">
+                     type="checkbox"
+                     data-related-config-key="skipCollapsedTabsForTabSwitchingShortcuts">
               __MSG_config_requestPermissions_allUrls_ctrlTabTracking__</label></p>
     <div id="ctrlTabSubItemsContainer" class="expert">
       <p class="sub"><label class="has-checkbox"
@@ -1278,6 +1332,11 @@
                ><input id="simulateTabsLoadInBackgroundInverted"
                        type="checkbox">
                 __MSG_config_simulateTabsLoadInBackgroundInverted_label__</label></p>
+      <p class="sub"
+        ><label class="has-checkbox"
+               ><input id="tabsLoadInBackgroundDiscarded"
+                       type="checkbox">
+                __MSG_config_tabsLoadInBackgroundDiscarded_label__</label></p>
     </fieldset>
     <fieldset>
       <legend>__MSG_config_insertDroppedTabsAt_caption__</legend>
@@ -1353,9 +1412,9 @@
       <p class="sub">__MSG_config_persistCachedTree_description__</p>
     </div>
     <p><label class="has-checkbox"
-             ><input id="supportTabsMultiselect"
+             ><input id="tabGroupsEnabled"
                      type="checkbox">
-              __MSG_config_supportTabsMultiselect_label__</label></p>
+              __MSG_config_tabGroupsEnabled_label__</label></p>
     <p><label class="has-checkbox"
              ><input id="undoMultipleTabsClose"
                      type="checkbox">
@@ -1531,7 +1590,7 @@
                      id="logFor-\1" type="checkbox">\1</label></p>;' -->
       <fieldset>
         <legend><label class="has-checkbox"><input id="logFor-common" type="checkbox">__MSG_config_logFor_common__</label></legend>
-          <p><label class="has-checkbox"><input id="logFor-common/Tab" type="checkbox">common/Tab</label></p>
+          <p><label class="has-checkbox"><input id="logFor-common/TreeItem" type="checkbox">common/TreeItem</label></p>
           <p><label class="has-checkbox"><input id="logFor-common/Window" type="checkbox">common/Window</label></p>
           <p><label class="has-checkbox"><input id="logFor-common/api-tabs" type="checkbox">common/api-tabs</label></p>
           <p><label class="has-checkbox"><input id="logFor-common/bookmark" type="checkbox">common/bookmark</label></p>
@@ -1564,6 +1623,7 @@
           <p><label class="has-checkbox"><input id="logFor-background/handle-tab-multiselect" type="checkbox">background/handle-tab-multiselect</label></p>
           <p><label class="has-checkbox"><input id="logFor-background/handle-tree-changes" type="checkbox">background/handle-tree-changes</label></p>
           <p><label class="has-checkbox"><input id="logFor-background/migration" type="checkbox">background/migration</label></p>
+          <p><label class="has-checkbox"><input id="logFor-background/native-tab-groups" type="checkbox">background/native-tab-groups</label></p>
           <p><label class="has-checkbox"><input id="logFor-background/successor-tab" type="checkbox">background/successor-tab</label></p>
           <p><label class="has-checkbox"><input id="logFor-background/tab-context-menu" type="checkbox">background/tab-context-menu</label></p>
           <p><label class="has-checkbox"><input id="logFor-background/tabs-group" type="checkbox">background/tabs-group</label></p>
@@ -1583,11 +1643,13 @@
           <p><label class="has-checkbox"><input id="logFor-sidebar/mouse-event-listener" type="checkbox">sidebar/mouse-event-listener</label></p>
           <p><label class="has-checkbox"><input id="logFor-sidebar/pinned-tabs" type="checkbox">sidebar/pinned-tabs</label></p>
           <p><label class="has-checkbox"><input id="logFor-sidebar/scroll" type="checkbox">sidebar/scroll</label></p>
-          <p><label class="has-checkbox"><input id="logFor-sidebar/sidebar-tabs" type="checkbox">sidebar/sidebar-tabs</label></p>
+          <p><label class="has-checkbox"><input id="logFor-sidebar/sidebar-items" type="checkbox">sidebar/sidebar-items</label></p>
           <p><label class="has-checkbox"><input id="logFor-sidebar/sidebar" type="checkbox">sidebar/sidebar</label></p>
           <p><label class="has-checkbox"><input id="logFor-sidebar/size" type="checkbox">sidebar/size</label></p>
           <p><label class="has-checkbox"><input id="logFor-sidebar/subpanel" type="checkbox">sidebar/subpanel</label></p>
           <p><label class="has-checkbox"><input id="logFor-sidebar/tab-context-menu" type="checkbox">sidebar/tab-context-menu</label></p>
+          <p><label class="has-checkbox"><input id="logFor-sidebar/tab-group-context-menu" type="checkbox">sidebar/tab-group-context-menu</label></p>
+          <p><label class="has-checkbox"><input id="logFor-sidebar/tab-preview-tooltip" type="checkbox">sidebar/tab-preview-tooltip</label></p>
           <p><label class="has-checkbox"><input id="logFor-sidebar/tst-api-frontend" type="checkbox">sidebar/tst-api-frontend</label></p>
       </fieldset>
     </fieldset>

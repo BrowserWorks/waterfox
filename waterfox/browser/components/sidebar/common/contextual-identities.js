@@ -1,10 +1,22 @@
-import * as ApiTabs from "/common/api-tabs.js";
-import EventListenerManager from "/extlib/EventListenerManager.js";
-import { configs, log as internalLogger, isWindows } from "./common.js";
+/*
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+'use strict';
+
+import EventListenerManager from '/extlib/EventListenerManager.js';
+
+import {
+  configs,
+  log as internalLogger,
+  isWindows,
+} from './common.js';
+import * as ApiTabs from '/common/api-tabs.js';
 
 // eslint-disable-next-line no-unused-vars
-function _log(...args) {
-  internalLogger("common/contextual-identities", ...args);
+function log(...args) {
+  internalLogger('common/contextual-identities', ...args);
 }
 
 const mContextualIdentities = new Map();
@@ -16,7 +28,7 @@ export function get(id) {
 
 export function getIdFromName(name) {
   for (const identity of mContextualIdentities.values()) {
-    if (identity.name.toLowerCase() === name.toLowerCase())
+    if (identity.name.toLowerCase() == name.toLowerCase())
       return identity.cookieStoreId;
   }
   return null;
@@ -27,10 +39,11 @@ export function getIdFromName(name) {
 export function getIdFromBookmark(bookmark) {
   const containerMatcher = new RegExp(`#${configs.containerRedirectKey}-(.+)$`);
   const matchedContainer = bookmark.url.match(containerMatcher);
-  if (!matchedContainer) return {};
+  if (!matchedContainer)
+    return {};
 
-  const idPart = matchedContainer[matchedContainer.length - 1];
-  const url = bookmark.url.replace(containerMatcher, "");
+  const idPart = matchedContainer[matchedContainer.length-1];
+  const url    = bookmark.url.replace(containerMatcher, '');
 
   // old method
   const identity = mContextualIdentities.get(decodeURIComponent(idPart));
@@ -42,10 +55,7 @@ export function getIdFromBookmark(bookmark) {
   }
 
   for (const [cookieStoreId, identity] of mContextualIdentities.entries()) {
-    if (
-      idPart !==
-      encodeURIComponent(identity.name.toLowerCase().replace(/\s/g, "-"))
-    )
+    if (idPart != encodeURIComponent(identity.name.toLowerCase().replace(/\s/g, '-')))
       continue;
     return {
       cookieStoreId,
@@ -59,8 +69,9 @@ export function getIdFromBookmark(bookmark) {
 export function getColorInfo() {
   const colors = {};
   const customColors = [];
-  forEach((identity) => {
-    if (!identity.colorCode) return;
+  forEach(identity => {
+    if (!identity.colorCode)
+      return;
     let colorValue = identity.colorCode;
     if (identity.color) {
       const customColor = `--contextual-identity-color-${identity.color}`;
@@ -72,8 +83,7 @@ export function getColorInfo() {
 
   return {
     colors,
-    colorDeclarations:
-      customColors.length > 0 ? `:root { ${customColors.join("\n")} }` : "",
+    colorDeclarations: customColors.length > 0 ? `:root { ${customColors.join('\n')} }` : ''
   };
 }
 
@@ -87,52 +97,36 @@ export function forEach(callback) {
   }
 }
 
-if (browser.contextualIdentities) {
-  // already granted
-  browser.contextualIdentities.onCreated.addListener(
-    onContextualIdentityCreated
-  );
-  browser.contextualIdentities.onRemoved.addListener(
-    onContextualIdentityRemoved
-  );
-  browser.contextualIdentities.onUpdated.addListener(
-    onContextualIdentityUpdated
-  );
+if (browser.contextualIdentities) { // already granted
+  browser.contextualIdentities.onCreated.addListener(onContextualIdentityCreated);
+  browser.contextualIdentities.onRemoved.addListener(onContextualIdentityRemoved);
+  browser.contextualIdentities.onUpdated.addListener(onContextualIdentityUpdated);
   mIsObserving = true;
 }
 
 export function startObserve() {
-  if (!browser.contextualIdentities || mIsObserving) return;
+  if (!browser.contextualIdentities ||
+      mIsObserving)
+    return;
   mIsObserving = true;
-  browser.contextualIdentities.onCreated.addListener(
-    onContextualIdentityCreated
-  );
-  browser.contextualIdentities.onRemoved.addListener(
-    onContextualIdentityRemoved
-  );
-  browser.contextualIdentities.onUpdated.addListener(
-    onContextualIdentityUpdated
-  );
+  browser.contextualIdentities.onCreated.addListener(onContextualIdentityCreated);
+  browser.contextualIdentities.onRemoved.addListener(onContextualIdentityRemoved);
+  browser.contextualIdentities.onUpdated.addListener(onContextualIdentityUpdated);
 }
 
 export function endObserve() {
-  if (!browser.contextualIdentities || !mIsObserving) return;
-  browser.contextualIdentities.onCreated.removeListener(
-    onContextualIdentityCreated
-  );
-  browser.contextualIdentities.onRemoved.removeListener(
-    onContextualIdentityRemoved
-  );
-  browser.contextualIdentities.onUpdated.removeListener(
-    onContextualIdentityUpdated
-  );
+  if (!browser.contextualIdentities ||
+      !mIsObserving)
+    return;
+  browser.contextualIdentities.onCreated.removeListener(onContextualIdentityCreated);
+  browser.contextualIdentities.onRemoved.removeListener(onContextualIdentityRemoved);
+  browser.contextualIdentities.onUpdated.removeListener(onContextualIdentityUpdated);
 }
 
 export async function init() {
-  if (!browser.contextualIdentities) return;
-  const identities = await browser.contextualIdentities
-    .query({})
-    .catch(ApiTabs.createErrorHandler());
+  if (!browser.contextualIdentities)
+    return;
+  const identities = await browser.contextualIdentities.query({}).catch(ApiTabs.createErrorHandler());
   for (const identity of identities) {
     mContextualIdentities.set(identity.cookieStoreId, fixupIcon(identity));
   }
@@ -144,36 +138,35 @@ function fixupIcon(identity) {
   return identity;
 }
 
-const mDarkModeMedia = window.matchMedia("(prefers-color-scheme: dark)");
-mDarkModeMedia.addListener(async (_event) => {
+const mDarkModeMedia = window.matchMedia('(prefers-color-scheme: dark)');
+mDarkModeMedia.addListener(async _event => {
   await init();
-  forEach((identity) =>
-    onContextualIdentityUpdated({ contextualIdentity: identity })
-  );
+  forEach(identity => onContextualIdentityUpdated({ contextualIdentity: identity }));
 });
 
 function safeColor(color) {
   switch (color) {
-    case "blue":
-    case "turquoise":
-    case "green":
-    case "yellow":
-    case "orange":
-    case "red":
-    case "pink":
-    case "purple":
+    case 'blue':
+    case 'turquoise':
+    case 'green':
+    case 'yellow':
+    case 'orange':
+    case 'red':
+    case 'pink':
+    case 'purple':
       return color;
+
+    case 'toolbar':
     default:
-      return !isWindows() && mDarkModeMedia.matches
-        ? "toolbar-dark"
-        : "toolbar-light";
+      return !isWindows() && mDarkModeMedia.matches ? 'toolbar-dark' : 'toolbar-light';
   }
 }
 
 export const onUpdated = new EventListenerManager();
 
 function onContextualIdentityCreated(createdInfo) {
-  if (!mIsObserving) return;
+  if (!mIsObserving)
+    return;
 
   const identity = createdInfo.contextualIdentity;
   mContextualIdentities.set(identity.cookieStoreId, fixupIcon(identity));
@@ -181,7 +174,8 @@ function onContextualIdentityCreated(createdInfo) {
 }
 
 function onContextualIdentityRemoved(removedInfo) {
-  if (!mIsObserving) return;
+  if (!mIsObserving)
+    return;
 
   const identity = removedInfo.contextualIdentity;
   delete mContextualIdentities.delete(identity.cookieStoreId);
@@ -189,31 +183,31 @@ function onContextualIdentityRemoved(removedInfo) {
 }
 
 function onContextualIdentityUpdated(updatedInfo) {
-  if (!mIsObserving) return;
+  if (!mIsObserving)
+    return;
 
   const identity = updatedInfo.contextualIdentity;
   mContextualIdentities.set(identity.cookieStoreId, fixupIcon(identity));
   onUpdated.dispatch();
 }
 
+
 export function generateMenuItems({ hasDefault } = {}) {
   const fragment = document.createDocumentFragment();
 
   if (hasDefault) {
-    const defaultCotnainerItem = document.createElement("li");
-    defaultCotnainerItem.dataset.value = "firefox-default";
-    defaultCotnainerItem.textContent = browser.i18n.getMessage(
-      "tabbar_newTabWithContexualIdentity_default"
-    );
+    const defaultCotnainerItem = document.createElement('li');
+    defaultCotnainerItem.dataset.value = 'firefox-default';
+    defaultCotnainerItem.textContent = browser.i18n.getMessage('tabbar_newTabWithContexualIdentity_default');
     fragment.appendChild(defaultCotnainerItem);
 
-    const separator = document.createElement("li");
-    separator.classList.add("separator");
+    const separator = document.createElement('li');
+    separator.classList.add('separator');
     fragment.appendChild(separator);
   }
 
-  forEach((identity) => {
-    const item = document.createElement("li");
+  forEach(identity => {
+    const item = document.createElement('li');
     item.dataset.value = identity.cookieStoreId;
     item.textContent = identity.name;
     item.dataset.icon = identity.iconUrl;

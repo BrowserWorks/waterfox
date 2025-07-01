@@ -1,19 +1,28 @@
-import * as Constants from "/common/constants.js";
-import Tab from "/common/Tab.js";
-import * as TreeBehavior from "/common/tree-behavior.js";
-import EventListenerManager from "/extlib/EventListenerManager.js";
+/*
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+'use strict';
+
+import EventListenerManager from '/extlib/EventListenerManager.js';
+
 import {
-  configs,
-  getChunkedConfig,
   log as internalLogger,
-  isLinux,
+  configs,
   notify,
-  setChunkedConfig,
   wait,
-} from "./common.js";
+  getChunkedConfig,
+  setChunkedConfig,
+  isLinux,
+} from './common.js';
+import * as Constants from '/common/constants.js';
+import * as TreeBehavior from '/common/tree-behavior.js';
+
+import { Tab } from '/common/TreeItem.js';
 
 function log(...args) {
-  internalLogger("common/sync", ...args);
+  internalLogger('common/sync', ...args);
 }
 
 export const onMessage = new EventListenerManager();
@@ -21,8 +30,7 @@ export const onNewDevice = new EventListenerManager();
 export const onUpdatedDevice = new EventListenerManager();
 export const onObsoleteDevice = new EventListenerManager();
 
-const SEND_TABS_SIMULATOR_ID =
-  "send-tabs-to-device-simulator@piro.sakura.ne.jp";
+const SEND_TABS_SIMULATOR_ID = 'send-tabs-to-device-simulator@piro.sakura.ne.jp';
 
 // Workaround for https://github.com/piroor/treestyletab/blob/trunk/README.md#user-content-feature-requests-send-tab-tree-to-device-does-not-work
 // and https://bugzilla.mozilla.org/show_bug.cgi?id=1417183 (resolved as WONTFIX)
@@ -62,9 +70,10 @@ let mMyDeviceInfo = null;
 async function getMyDeviceInfo() {
   if (!configs.syncDeviceInfo || !configs.syncDeviceInfo.id) {
     const newDeviceInfo = await generateDeviceInfo();
-    if (!configs.syncDeviceInfo) configs.syncDeviceInfo = newDeviceInfo;
+    if (!configs.syncDeviceInfo)
+      configs.syncDeviceInfo = newDeviceInfo;
   }
-  return (mMyDeviceInfo = configs.syncDeviceInfo);
+  return mMyDeviceInfo = configs.syncDeviceInfo;
 }
 
 async function ensureDeviceInfoInitialized() {
@@ -87,64 +96,59 @@ function onConfigChanged(key, value = undefined) {
     return;
   }
   switch (key) {
-    case "syncOtherDevicesDetected":
+    case 'syncOtherDevicesDetected':
       if (!configs.syncAvailableNotified) {
         configs.syncAvailableNotified = true;
         notify({
-          title: browser.i18n.getMessage("syncAvailable_notification_title"),
-          message: browser.i18n.getMessage(
-            `syncAvailable_notification_message${isLinux() ? "_linux" : ""}`
-          ),
-          url: `${Constants.kSHORTHAND_URIS.options}#syncTabsToDeviceOptions`,
-          timeout: configs.syncAvailableNotificationTimeout,
+          title:   browser.i18n.getMessage('syncAvailable_notification_title'),
+          message: browser.i18n.getMessage(`syncAvailable_notification_message${isLinux() ? '_linux' : ''}`),
+          url:     `${Constants.kSHORTHAND_URIS.options}#syncTabsToDeviceOptions`,
+          timeout: configs.syncAvailableNotificationTimeout
         });
       }
       return;
 
-    case "syncDevices":
+    case 'syncDevices':
       // This may happen when all configs are reset.
       // We need to try updating devices after syncDeviceInfo is completely cleared.
       wait(100).then(updateDevices);
       break;
 
-    case "syncDeviceInfo":
-      if (
-        configs.syncDeviceInfo &&
-        mMyDeviceInfo &&
-        configs.syncDeviceInfo.id === mMyDeviceInfo.id &&
-        configs.syncDeviceInfo.timestamp === mMyDeviceInfo.timestamp
-      )
+    case 'syncDeviceInfo':
+      if (configs.syncDeviceInfo &&
+          mMyDeviceInfo &&
+          configs.syncDeviceInfo.id == mMyDeviceInfo.id &&
+          configs.syncDeviceInfo.timestamp == mMyDeviceInfo.timestamp)
         return; // ignore updating triggered by myself
       mMyDeviceInfo = null;
       updateSelf();
       break;
 
     default:
-      if (key.startsWith("chunkedSyncData")) reserveToReceiveMessage();
+      if (key.startsWith('chunkedSyncData'))
+        reserveToReceiveMessage();
       break;
   }
 }
 
 browser.runtime.onMessageExternal.addListener((message, sender) => {
-  if (
-    !initialized ||
-    !message ||
-    typeof message !== "object" ||
-    typeof message.type !== "string" ||
-    sender.id !== SEND_TABS_SIMULATOR_ID
-  )
+  if (!initialized ||
+      !message ||
+      typeof message != 'object' ||
+      typeof message.type != 'string' ||
+      sender.id != SEND_TABS_SIMULATOR_ID)
     return;
 
   switch (message.type) {
-    case "ready":
+    case 'ready':
       try {
-        browser.runtime
-          .sendMessage(SEND_TABS_SIMULATOR_ID, { type: "register-self" })
-          .catch((_error) => {});
-      } catch (_error) {}
-    case "device-added":
-    case "device-updated":
-    case "device-removed":
+        browser.runtime.sendMessage(SEND_TABS_SIMULATOR_ID, { type: 'register-self' }).catch(_error => {});
+      }
+      catch(_error) {
+      }
+    case 'device-added':
+    case 'device-updated':
+    case 'device-removed':
       updateSelf();
       break;
   }
@@ -166,53 +170,42 @@ export async function init() {
   preChanges = [];
 
   try {
-    browser.runtime
-      .sendMessage(SEND_TABS_SIMULATOR_ID, { type: "register-self" })
-      .catch((_error) => {});
-  } catch (_error) {}
+    browser.runtime.sendMessage(SEND_TABS_SIMULATOR_ID, { type: 'register-self' }).catch(_error => {});
+  }
+  catch(_error) {
+  }
 }
 
 export async function generateDeviceInfo({ name, icon } = {}) {
   const [platformInfo, browserInfo] = await Promise.all([
     browser.runtime.getPlatformInfo(),
-    browser.runtime.getBrowserInfo(),
+    browser.runtime.getBrowserInfo()
   ]);
   return {
-    id: `device-${Date.now()}-${Math.round(Math.random() * 65000)}`,
-    name:
-      name === undefined
-        ? browser.i18n.getMessage("syncDeviceDefaultName", [
-            toHumanReadableOSName(platformInfo.os),
-            browserInfo.name,
-          ])
-        : name || null,
-    icon: icon || "device-desktop",
+    id:   `device-${Date.now()}-${Math.round(Math.random() * 65000)}`,
+    name: name === undefined ?
+      browser.i18n.getMessage('syncDeviceDefaultName', [toHumanReadableOSName(platformInfo.os), browserInfo.name]) :
+      (name || null),
+    icon: icon || 'device-desktop'
   };
 }
 
 // https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/runtime/PlatformOs
 function toHumanReadableOSName(os) {
   switch (os) {
-    case "mac":
-      return "macOS";
-    case "win":
-      return "Windows";
-    case "android":
-      return "Android";
-    case "cros":
-      return "Chrome OS";
-    case "linux":
-      return "Linux";
-    case "openbsd":
-      return "Open/FreeBSD";
-    default:
-      return "Unknown Platform";
+    case 'mac': return 'macOS';
+    case 'win': return 'Windows';
+    case 'android': return 'Android';
+    case 'cros': return 'Chrome OS';
+    case 'linux': return 'Linux';
+    case 'openbsd': return 'Open/FreeBSD';
+    default: return 'Unknown Platform';
   }
 }
 
-configs.$addObserver((key) => {
+configs.$addObserver(key => {
   switch (key) {
-    case "syncUnsendableUrlPattern":
+    case 'syncUnsendableUrlPattern':
       isSendableTab.unsendableUrlMatcher = null;
       break;
 
@@ -222,23 +215,24 @@ configs.$addObserver((key) => {
 });
 
 async function updateSelf() {
-  if (updateSelf.updating) return;
+  if (updateSelf.updating)
+    return;
 
   updateSelf.updating = true;
 
   const [devices] = await Promise.all([
     (async () => {
       try {
-        return await browser.runtime.sendMessage(SEND_TABS_SIMULATOR_ID, {
-          type: "list-devices",
-        });
-      } catch (_error) {}
+        return await browser.runtime.sendMessage(SEND_TABS_SIMULATOR_ID, { type: 'list-devices' });
+      }
+      catch(_error) {
+      }
     })(),
     ensureDeviceInfoInitialized(),
   ]);
   if (devices) {
-    const myDeviceFromSimulator = devices.find((device) => device.myself);
-    if (mMyDeviceInfo.simulatorId !== myDeviceFromSimulator.id)
+    const myDeviceFromSimulator = devices.find(device => device.myself);
+    if (mMyDeviceInfo.simulatorId != myDeviceFromSimulator.id)
       mMyDeviceInfo.simulatorId = myDeviceFromSimulator.id;
   }
 
@@ -255,42 +249,42 @@ async function updateSelf() {
 }
 
 async function updateDevices() {
-  if (updateDevices.updating) return;
+  if (updateDevices.updating)
+    return;
   updateDevices.updating = true;
   const [devicesFromSimulator] = await Promise.all([
     (async () => {
       try {
-        return await browser.runtime.sendMessage(SEND_TABS_SIMULATOR_ID, {
-          type: "list-devices",
-        });
-      } catch (_error) {}
+        return await browser.runtime.sendMessage(SEND_TABS_SIMULATOR_ID, { type: 'list-devices' });
+      }
+      catch(_error) {
+      }
     })(),
     waitUntilDeviceInfoInitialized(),
   ]);
 
   const remote = clone(configs.syncDevices);
-  const local = clone(configs.syncDevicesLocalCache);
-  log("devices updated: ", local, remote);
+  const local  = clone(configs.syncDevicesLocalCache);
+  log('devices updated: ', local, remote);
   for (const [id, info] of Object.entries(remote)) {
-    if (id === mMyDeviceInfo.id) continue;
+    if (id == mMyDeviceInfo.id)
+      continue;
     local[id] = info;
     if (id in local) {
-      log("updated device: ", info);
+      log('updated device: ', info);
       onUpdatedDevice.dispatch(info);
-    } else {
-      log("new device: ", info);
+    }
+    else {
+      log('new device: ', info);
       onNewDevice.dispatch(info);
     }
   }
 
   if (devicesFromSimulator) {
-    const knownDeviceIdsFromSimulator = new Set(
-      Object.values(local)
-        .map((device) => device.simulatorId)
-        .filter((id) => !!id)
-    );
+    const knownDeviceIdsFromSimulator = new Set(Object.values(local).map(device => device.simulatorId).filter(id => !!id));
     for (const deviceFromSimulator of devicesFromSimulator) {
-      if (knownDeviceIdsFromSimulator.has(deviceFromSimulator.id)) continue;
+      if (knownDeviceIdsFromSimulator.has(deviceFromSimulator.id))
+        continue;
       const localId = `device-from-simulator:${deviceFromSimulator.id}`;
       local[localId] = {
         ...deviceFromSimulator,
@@ -300,26 +294,28 @@ async function updateDevices() {
   }
 
   for (const [id, info] of Object.entries(local)) {
-    if (id in remote || id === mMyDeviceInfo.id) continue;
-    log("obsolete device: ", info);
+    if (id in remote ||
+        id == mMyDeviceInfo.id)
+      continue;
+    log('obsolete device: ', info);
     delete local[id];
     onObsoleteDevice.dispatch(info);
   }
 
   if (configs.syncDeviceExpirationDays > 0) {
-    const expireDateInSeconds =
-      Date.now() - 1000 * 60 * 60 * configs.syncDeviceExpirationDays;
+    const expireDateInSeconds = Date.now() - (1000 * 60 * 60 * configs.syncDeviceExpirationDays);
     for (const [id, info] of Object.entries(local)) {
-      if (info && info.timestamp < expireDateInSeconds) {
+      if (info &&
+          info.timestamp < expireDateInSeconds) {
         delete local[id];
-        log("expired device: ", info);
+        log('expired device: ', info);
         onObsoleteDevice.dispatch(info);
       }
     }
   }
 
   local[mMyDeviceInfo.id] = clone(mMyDeviceInfo);
-  log("store myself: ", mMyDeviceInfo, local[mMyDeviceInfo.id]);
+  log('store myself: ', mMyDeviceInfo, local[mMyDeviceInfo.id]);
 
   if (!configs.syncOtherDevicesDetected && Object.keys(local).length > 1)
     configs.syncOtherDevicesDetected = true;
@@ -344,21 +340,24 @@ async function receiveMessage() {
   const myDeviceInfo = await getMyDeviceInfo();
   try {
     const messages = readMessages();
-    log("receiveMessage: queued messages => ", messages);
-    const restMessages = messages.filter((message) => {
-      if (message.timestamp <= configs.syncLastMessageTimestamp) return false;
-      if (message.to === myDeviceInfo.id) {
-        log("receiveMessage receive: ", message);
+    log('receiveMessage: queued messages => ', messages);
+    const restMessages = messages.filter(message => {
+      if (message.timestamp <= configs.syncLastMessageTimestamp)
+        return false;
+      if (message.to == myDeviceInfo.id) {
+        log('receiveMessage receive: ', message);
         configs.syncLastMessageTimestamp = message.timestamp;
         onMessage.dispatch(message);
         return false;
       }
       return true;
     });
-    log("receiveMessage: restMessages => ", restMessages);
-    if (restMessages.length !== messages.length) writeMessages(restMessages);
-  } catch (error) {
-    log("receiveMessage fatal error: ", error);
+    log('receiveMessage: restMessages => ', restMessages);
+    if (restMessages.length != messages.length)
+      writeMessages(restMessages);
+  }
+  catch(error) {
+    log('receiveMessage fatal error: ', error);
     writeMessages([]);
   }
 }
@@ -369,14 +368,15 @@ export async function sendMessage(to, data) {
     const messages = readMessages();
     messages.push({
       timestamp: Date.now(),
-      from: myDeviceInfo.id,
+      from:      myDeviceInfo.id,
       to,
-      data,
+      data
     });
-    log("sendMessage: queued messages => ", messages);
+    log('sendMessage: queued messages => ', messages);
     writeMessages(messages);
-  } catch (error) {
-    console.log("Sync.sendMessage: failed to send message ", error);
+  }
+  catch(error) {
+    console.log('Sync.sendMessage: failed to send message ', error);
     writeMessages([]);
   }
 }
@@ -384,26 +384,28 @@ export async function sendMessage(to, data) {
 function readMessages() {
   try {
     return uniqMessages([
-      ...JSON.parse(getChunkedConfig("chunkedSyncDataLocal") || "[]"),
-      ...JSON.parse(getChunkedConfig("chunkedSyncData") || "[]"),
+      ...JSON.parse(getChunkedConfig('chunkedSyncDataLocal') || '[]'),
+      ...JSON.parse(getChunkedConfig('chunkedSyncData') || '[]')
     ]);
-  } catch (error) {
-    log("failed to read messages: ", error);
+  }
+  catch(error) {
+    log('failed to read messages: ', error);
     return [];
   }
 }
 
 function writeMessages(messages) {
   const stringified = JSON.stringify(messages || []);
-  setChunkedConfig("chunkedSyncDataLocal", stringified);
-  setChunkedConfig("chunkedSyncData", stringified);
+  setChunkedConfig('chunkedSyncDataLocal', stringified);
+  setChunkedConfig('chunkedSyncData', stringified);
 }
 
 function uniqMessages(messages) {
   const knownMessages = new Set();
-  return messages.filter((message) => {
+  return messages.filter(message => {
     const key = JSON.stringify(message);
-    if (knownMessages.has(key)) return false;
+    if (knownMessages.has(key))
+      return false;
     knownMessages.add(key);
     return true;
   });
@@ -414,17 +416,16 @@ function clone(value) {
 }
 
 export async function getOtherDevices() {
-  if (mExternalProvider) return mExternalProvider.getOtherDevices();
+  if (mExternalProvider)
+    return mExternalProvider.getOtherDevices();
 
   await waitUntilDeviceInfoInitialized();
 
   const devices = configs.syncDevices || {};
   const result = [];
   for (const [id, info] of Object.entries(devices)) {
-    if (
-      id === mMyDeviceInfo.id ||
-      !info.id /* ignore invalid device info accidentally saved (see also https://github.com/piroor/treestyletab/issues/2922 ) */
-    )
+    if (id == mMyDeviceInfo.id ||
+        !info.id /* ignore invalid device info accidentally saved (see also https://github.com/piroor/treestyletab/issues/2922 ) */)
       continue;
     result.push(info);
   }
@@ -434,58 +435,52 @@ export async function getOtherDevices() {
 export function getDeviceName(id) {
   const devices = configs.syncDevices || {};
   if (!(id in devices) || !devices[id])
-    return browser.i18n.getMessage("syncDeviceUnknownDevice");
-  return (
-    String(devices[id].name || "").trim() ||
-    browser.i18n.getMessage("syncDeviceMissingDeviceName")
-  );
+    return browser.i18n.getMessage('syncDeviceUnknownDevice');
+  return String(devices[id].name || '').trim() || browser.i18n.getMessage('syncDeviceMissingDeviceName');
 }
 
 // https://searchfox.org/mozilla-central/rev/d866b96d74ec2a63f09ee418f048d23f4fd379a2/browser/base/content/browser-sync.js#1176
 export function isSendableTab(tab) {
-  if (!tab.url || tab.url.length > 65535) return false;
+  if (!tab.url ||
+      tab.url.length > 65535)
+    return false;
 
   if (!isSendableTab.unsendableUrlMatcher)
-    isSendableTab.unsendableUrlMatcher = new RegExp(
-      configs.syncUnsendableUrlPattern
-    );
+    isSendableTab.unsendableUrlMatcher = new RegExp(configs.syncUnsendableUrlPattern);
   return !isSendableTab.unsendableUrlMatcher.test(tab.url);
 }
 
 export function sendTabsToDevice(tabs, { to, recursively } = {}) {
   if (recursively)
-    tabs = Tab.collectRootTabs(tabs).flatMap((tab) => [
-      tab,
-      ...tab.$TST.descendants,
-    ]);
+    tabs = Tab.collectRootTabs(tabs).map(tab => [tab, ...tab.$TST.descendants]).flat();
   tabs = tabs.filter(isSendableTab);
 
-  if (mExternalProvider) return mExternalProvider.sendTabsToDevice(tabs, to);
+  if (mExternalProvider)
+    return mExternalProvider.sendTabsToDevice(tabs, to);
 
   sendMessage(to, getTabsDataToSend(tabs));
 
-  const multiple = tabs.length > 1 ? "_multiple" : "";
+  const multiple = tabs.length > 1 ? '_multiple' : '';
   notify({
-    title: browser.i18n.getMessage(`sentTabs_notification_title${multiple}`, [
-      getDeviceName(to),
-    ]),
+    title: browser.i18n.getMessage(
+      `sentTabs_notification_title${multiple}`,
+      [getDeviceName(to)]
+    ),
     message: browser.i18n.getMessage(
       `sentTabs_notification_message${multiple}`,
       [getDeviceName(to)]
     ),
-    timeout: configs.syncSentTabsNotificationTimeout,
+    timeout: configs.syncSentTabsNotificationTimeout
   });
 }
 
 export async function sendTabsToAllDevices(tabs, { recursively } = {}) {
   if (recursively)
-    tabs = Tab.collectRootTabs(tabs).flatMap((tab) => [
-      tab,
-      ...tab.$TST.descendants,
-    ]);
+    tabs = Tab.collectRootTabs(tabs).map(tab => [tab, ...tab.$TST.descendants]).flat();
   tabs = tabs.filter(isSendableTab);
 
-  if (mExternalProvider) return mExternalProvider.sendTabsToAllDevices(tabs);
+  if (mExternalProvider)
+    return mExternalProvider.sendTabsToAllDevices(tabs);
 
   const data = getTabsDataToSend(tabs);
   const devices = await getOtherDevices();
@@ -493,36 +488,28 @@ export async function sendTabsToAllDevices(tabs, { recursively } = {}) {
     sendMessage(device.id, data);
   }
 
-  const multiple = tabs.length > 1 ? "_multiple" : "";
+  const multiple = tabs.length > 1 ? '_multiple' : '';
   notify({
-    title: browser.i18n.getMessage(
-      `sentTabsToAllDevices_notification_title${multiple}`
-    ),
-    message: browser.i18n.getMessage(
-      `sentTabsToAllDevices_notification_message${multiple}`
-    ),
-    timeout: configs.syncSentTabsNotificationTimeout,
+    title:   browser.i18n.getMessage(`sentTabsToAllDevices_notification_title${multiple}`),
+    message: browser.i18n.getMessage(`sentTabsToAllDevices_notification_message${multiple}`),
+    timeout: configs.syncSentTabsNotificationTimeout
   });
 }
 
 function getTabsDataToSend(tabs) {
   return {
-    type: Constants.kSYNC_DATA_TYPE_TABS,
-    tabs: tabs.map((tab) => ({
-      url: tab.url,
-      cookieStoreId: tab.cookieStoreId,
-    })),
-    structure: TreeBehavior.getTreeStructureFromTabs(tabs).map(
-      (item) => item.parent
-    ),
+    type:       Constants.kSYNC_DATA_TYPE_TABS,
+    tabs:       tabs.map(tab => ({ url: tab.url, cookieStoreId: tab.cookieStoreId })),
+    structure : TreeBehavior.getTreeStructureFromTabs(tabs).map(item => item.parent)
   };
 }
 
 export function manageDevices(windowId) {
-  if (mExternalProvider) return mExternalProvider.manageDevices(windowId);
+  if (mExternalProvider)
+    return mExternalProvider.manageDevices(windowId);
 
   browser.tabs.create({
     windowId,
-    url: `${Constants.kSHORTHAND_URIS.options}#syncTabsToDeviceOptions`,
+    url: `${Constants.kSHORTHAND_URIS.options}#syncTabsToDeviceOptions`
   });
 }

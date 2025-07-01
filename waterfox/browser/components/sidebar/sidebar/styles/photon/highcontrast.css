@@ -19,6 +19,7 @@
   --tab-dropmarker: ButtonText;
 }
 
+
 /* Tab Bar */
 
 :root,
@@ -32,15 +33,18 @@
 
   bottom: 0;
   content: "";
-  left: 0;
-  margin: 0;
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  margin-block: 0;
+  margin-inline: 0;
   overflow: hidden;
-  padding: 0;
+  padding-block: 0;
+  padding-inline: 0;
   position: fixed;
-  right: 0;
   top: 0;
   z-index: 20;
 }
+
 
 /* Tab */
 
@@ -81,6 +85,7 @@ tab-item:not(.active) {
   border-width: 1px;
 }
 
+
 /* tab-closebox */
 
 tab-item tab-closebox:hover {
@@ -91,8 +96,8 @@ tab-item tab-closebox:hover::before {
   --tab-text: Highlight;
   border-radius: 0;
   height: calc(var(--svg-small-icon-size) + 0.3em);
-  margin-left: -0.15em;
-  margin-top: -0.15em;
+  margin-block-start: -0.15em;
+  margin-inline-start: -0.15em;
   opacity: 1;
   width: calc(var(--svg-small-icon-size) + 0.3em);
 }
@@ -105,6 +110,7 @@ tab-item.active tab-closebox:hover::before {
   --tab-text: HighlightText;
 }
 
+
 /* hide regular active tab marker */
 tab-item:not(.bundled-active) .highlighter::before {
   display: none !important;
@@ -113,6 +119,7 @@ tab-item:not(.bundled-active) .highlighter::before {
 tab-item.bundled-active:not(.highlighted) .highlighter::before {
   opacity: 1;
 }
+
 
 tab-item.active tab-label {
   text-decoration: underline;

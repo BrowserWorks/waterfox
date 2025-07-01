@@ -1,20 +1,31 @@
+/*
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+'use strict';
+
 import {
-  configs,
-  countMatched,
   log as internalLogger,
+  countMatched,
+  configs,
   isMacOS,
-} from "/common/common.js";
-import * as Constants from "/common/constants.js";
-import { kTAB_CLOSE_BOX_ELEMENT_NAME } from "./components/TabCloseBoxElement.js";
-import { kTAB_SHARING_STATE_ELEMENT_NAME } from "./components/TabSharingStateElement.js";
-import { kTAB_SOUND_BUTTON_ELEMENT_NAME } from "./components/TabSoundButtonElement.js";
-import { kTAB_TWISTY_ELEMENT_NAME } from "./components/TabTwistyElement.js";
-import * as SidebarTabs from "./sidebar-tabs.js";
-import * as Size from "./size.js";
+} from '/common/common.js';
+import * as Constants from '/common/constants.js';
+import * as SidebarItems from './sidebar-items.js';
+import * as Size from './size.js';
+
+import { TreeItem } from '/common/TreeItem.js';
+
+import { kTAB_CLOSE_BOX_ELEMENT_NAME } from './components/TabCloseBoxElement.js';
+import { kTAB_FAVICON_ELEMENT_NAME } from './components/TabFaviconElement.js';
+import { kTAB_SOUND_BUTTON_ELEMENT_NAME } from './components/TabSoundButtonElement.js';
+import { kTAB_TWISTY_ELEMENT_NAME } from './components/TabTwistyElement.js';
+import { kTREE_ITEM_ELEMENT_NAME } from './components/TreeItemElement.js';
 
 // eslint-disable-next-line no-unused-vars
-function _log(...args) {
-  internalLogger("sidebar/event-utils", ...args);
+function log(...args) {
+  internalLogger('sidebar/event-utils', ...args);
 }
 
 let mTargetWindow;
@@ -23,56 +34,59 @@ export function setTargetWindowId(windowId) {
   mTargetWindow = windowId;
 }
 
+
 export function isMiddleClick(event) {
-  return event.button === 1;
+  return event.button == 1;
 }
 
 export function isAccelAction(event) {
-  return (
-    isMiddleClick(event) || (event.button === 0 && isAccelKeyPressed(event))
-  );
+  return isMiddleClick(event) || (event.button == 0 && isAccelKeyPressed(event));
 }
 
 export function isAccelKeyPressed(event) {
-  return isMacOS()
-    ? event.metaKey || event.key === "Meta"
-    : event.ctrlKey || event.key === "Control";
+  return isMacOS() ?
+    (event.metaKey || event.key == 'Meta') :
+    (event.ctrlKey || event.key == 'Control') ;
 }
 
 export function isCopyAction(event) {
-  return (
-    isAccelKeyPressed(event) ||
-    (event.dataTransfer && event.dataTransfer.dropEffect === "copy")
-  );
+  return isAccelKeyPressed(event) ||
+           (event.dataTransfer?.dropEffect == 'copy');
 }
 
 export function getElementTarget(eventOrTarget) {
-  const target =
-    eventOrTarget instanceof Node ? eventOrTarget : eventOrTarget.target;
-  if (target.nodeType === Node.TEXT_NODE) return target.parentNode;
+  const target = eventOrTarget instanceof Node ?
+    eventOrTarget :
+    eventOrTarget.target;
+  if (target.nodeType == Node.TEXT_NODE)
+    return target.parentNode;
   return target instanceof Element ? target : null;
 }
 
 export function getElementOriginalTarget(eventOrTarget) {
-  const target =
-    eventOrTarget instanceof Node
-      ? eventOrTarget
-      : ((event) => {
-          try {
-            if (event.originalTarget?.nodeType) return event.originalTarget;
-          } catch (_error) {
-            // Access to the origianlTarget can be restricted on some cases,
-            // ex. mousedown in extra contents of the new tab button. Why?
-          }
-          return event.explicitOriginalTarget || eventOrTarget.target;
-        })(eventOrTarget);
-  if (target.nodeType === Node.TEXT_NODE) return target.parentNode;
+  const target = eventOrTarget instanceof Node ?
+    eventOrTarget :
+    (event => {
+      try {
+        if (event.originalTarget &&
+            event.originalTarget.nodeType)
+          return event.originalTarget;
+      }
+      catch(_error) {
+        // Access to the origianlTarget can be restricted on some cases,
+        // ex. mousedown in extra contents of the new tab button. Why?
+      }
+      return event.explicitOriginalTarget || eventOrTarget.target;
+    })(eventOrTarget);
+  if (target.nodeType == Node.TEXT_NODE)
+    return target.parentNode;
   return target instanceof Element ? target : null;
 }
 
 export function isEventFiredOnTwisty(event) {
-  const tab = getTabFromEvent(event);
-  if (!tab || !tab.$TST.hasChild) return false;
+  const tab = getTreeItemFromEvent(event);
+  if (!tab || !tab.$TST.hasChild)
+    return false;
 
   const target = getElementTarget(event);
   return target?.closest && !!target.closest(kTAB_TWISTY_ELEMENT_NAME);
@@ -80,7 +94,12 @@ export function isEventFiredOnTwisty(event) {
 
 export function isEventFiredOnSharingState(event) {
   const target = getElementTarget(event);
-  return target?.closest && !!target.closest(kTAB_SHARING_STATE_ELEMENT_NAME);
+  if (!target?.closest(kTAB_FAVICON_ELEMENT_NAME)) {
+    return false;
+  }
+  const tab = target.closest(kTREE_ITEM_ELEMENT_NAME);
+  const sharingState = tab?.raw?.sharingState;
+  return !!(sharingState?.microphone || sharingState?.camera || sharingState?.screen);
 }
 
 export function isEventFiredOnSoundButton(event) {
@@ -100,7 +119,7 @@ export function isEventFiredOnNewTabButton(event) {
 
 export function isEventFiredOnMenuOrPanel(event) {
   const target = getElementTarget(event);
-  return target?.closest && !!target.closest("ul.menu, ul.panel");
+  return target?.closest && !!target.closest('ul.menu, ul.panel');
 }
 
 export function isEventFiredOnAnchor(event) {
@@ -115,85 +134,78 @@ export function isEventFiredOnClickable(event) {
 
 export function isEventFiredOnTabbarTop(event) {
   const target = getElementTarget(event);
-  return target?.closest && !!target.closest("#tabbar-top");
+  return target?.closest && !!target.closest('#tabbar-top');
 }
 
 export function isEventFiredOnTabbarBottom(event) {
   const target = getElementTarget(event);
-  return target?.closest && !!target.closest("#tabbar-bottom");
+  return target?.closest && !!target.closest('#tabbar-bottom');
 }
 
-export function getTabFromEvent(event, options = {}) {
-  return SidebarTabs.getTabFromDOMNode(event.target, options);
+
+export function getTreeItemFromEvent(event, options = {}) {
+  return SidebarItems.getItemFromDOMNode(event.target, options);
 }
 
 function getTabbarFromEvent(event) {
   let node = event.target;
-  if (!node) return null;
-  if (!(node instanceof Element)) node = node.parentNode;
-  return node?.closest(".tabs");
-}
-
-export function getTabFromTabbarEvent(event, options = {}) {
-  if (
-    !configs.shouldDetectClickOnIndentSpaces ||
-    isEventFiredOnClickable(event)
-  )
+  if (!node)
     return null;
-  return getTabFromCoordinates(event, options);
+  if (!(node instanceof Element))
+    node = node.parentNode;
+  return node?.closest('.tabs');
 }
 
-function getTabFromCoordinates(event, options = {}) {
-  const tab = SidebarTabs.getTabFromDOMNode(
-    document.elementFromPoint(event.clientX, event.clientY),
-    options
-  );
-  if (tab) return tab;
+export function getTreeItemFromTabbarEvent(event, options = {}) {
+  if (!configs.shouldDetectClickOnIndentSpaces ||
+      isEventFiredOnClickable(event))
+    return null;
+  return getTreeItemFromCoordinates(event, options);
+}
+
+function getTreeItemFromCoordinates(event, options = {}) {
+  const item = SidebarItems.getItemFromDOMNode(document.elementFromPoint(event.clientX, event.clientY), options);
+  if (item)
+    return item;
 
   const container = getTabbarFromEvent(event);
-  if (!container || container.classList.contains("pinned")) return null;
+  if (!container ||
+      container.classList.contains('pinned'))
+    return null;
 
-  // because tab style can be modified, we try to find tab from
+  // because item style can be modified, we try to find item from
   // left, middle, and right.
   const containerRect = container.getBoundingClientRect();
   const trialPoints = [
     Size.getFavIconSize(),
     containerRect.width / 2,
-    containerRect.width - Size.getFavIconSize(),
+    containerRect.width - Size.getFavIconSize()
   ];
   for (const x of trialPoints) {
-    const tab = SidebarTabs.getTabFromDOMNode(
-      document.elementFromPoint(x, event.clientY),
-      options
-    );
-    if (tab) return tab;
+    const item = SidebarItems.getItemFromDOMNode(document.elementFromPoint(x, event.clientY), options);
+    if (item)
+      return item.type == TreeItem.TYPE_TAB && item; // we should find only tabs from their indent space
   }
 
   // document.elementFromPoint cannot find elements being in animation effect,
-  // so I try to find a tab from previous or next tab.
+  // so I try to find a item from previous or next item.
   const height = Size.getTabHeight();
   for (const x of trialPoints) {
-    let tab = SidebarTabs.getTabFromDOMNode(
-      document.elementFromPoint(x, event.clientY - height),
-      options
-    );
-    tab = SidebarTabs.getTabFromDOMNode(tab?.$TST.element.nextSibling, options);
-    if (tab) return tab;
+    let item = SidebarItems.getItemFromDOMNode(document.elementFromPoint(x, event.clientY - height), options);
+    item = SidebarItems.getItemFromDOMNode(item?.$TST.element.nextSibling, options);
+    if (item)
+      return item.type == TreeItem.TYPE_TAB && item; // we should find only tabs from their indent space
   }
   for (const x of trialPoints) {
-    let tab = SidebarTabs.getTabFromDOMNode(
-      document.elementFromPoint(x, event.clientY + height),
-      options
-    );
-    tab = SidebarTabs.getTabFromDOMNode(
-      tab?.$TST.element.previousSibling,
-      options
-    );
-    if (tab) return tab;
+    let item = SidebarItems.getItemFromDOMNode(document.elementFromPoint(x, event.clientY + height), options);
+    item = SidebarItems.getItemFromDOMNode(item?.$TST.element.previousSibling, options);
+    if (item)
+      return item.type == TreeItem.TYPE_TAB && item; // we should find only tabs from their indent space
   }
 
   return null;
 }
+
 
 const lastMousedown = new Map();
 
@@ -207,11 +219,8 @@ export function setLastMousedown(button, details) {
 
 export function cancelHandleMousedown(button = null) {
   if (!button && button !== 0) {
-    return (
-      countMatched(Array.from(lastMousedown.keys()), (button) =>
-        cancelHandleMousedown(button)
-      ) > 0
-    );
+    return countMatched(Array.from(lastMousedown.keys()),
+                        button => cancelHandleMousedown(button)) > 0;
   }
 
   const lastMousedownForButton = lastMousedown.get(button);
@@ -223,81 +232,93 @@ export function cancelHandleMousedown(button = null) {
   return false;
 }
 
+
 export function getEventDetail(event) {
   return {
     targetType: getEventTargetType(event),
-    window: mTargetWindow,
-    windowId: mTargetWindow,
-    ctrlKey: event.ctrlKey,
-    shiftKey: event.shiftKey,
-    altKey: event.altKey,
-    metaKey: event.metaKey,
+    window:     mTargetWindow,
+    windowId:   mTargetWindow,
+    ctrlKey:    event.ctrlKey,
+    shiftKey:   event.shiftKey,
+    altKey:     event.altKey,
+    metaKey:    event.metaKey,
   };
 }
 
-export function getTabEventDetail(event, tab) {
+export function getTreeItemEventDetail(event, tab) {
   return {
     ...getEventDetail(event),
-    tab: tab?.id,
+    tab:   tab?.id,
     tabId: tab?.id,
+    tabType: tab?.$TST?.type || tab?.type,
   };
 }
 
 export function getMouseEventDetail(event, tab) {
   return {
-    ...getTabEventDetail(event, tab),
-    twisty: isEventFiredOnTwisty(event),
-    sharingState: isEventFiredOnSharingState(event),
-    soundButton: isEventFiredOnSoundButton(event),
-    closebox: isEventFiredOnClosebox(event),
-    button: event.button,
+    ...getTreeItemEventDetail(event, tab),
+    twisty:        isEventFiredOnTwisty(event),
+    sharingState:  isEventFiredOnSharingState(event),
+    soundButton:   isEventFiredOnSoundButton(event),
+    closebox:      isEventFiredOnClosebox(event),
+    button:        event.button,
     isMiddleClick: isMiddleClick(event),
-    isAccelClick: isAccelAction(event),
+    isAccelClick:  isAccelAction(event),
     lastInnerScreenY: window.mozInnerScreenY,
   };
 }
 
 export function getEventTargetType(event) {
-  const element = event.target.closest ? event.target : event.target.parentNode;
-  if (element?.closest(".rich-confirm, #blocking-screen")) return "outside";
+  const element = event.target.closest ?
+    event.target :
+    event.target.parentNode;
+  if (element &&
+      element.closest('.rich-confirm, #blocking-screen'))
+    return 'outside';
 
-  if (getTabFromEvent(event)) return "tab";
+  if (getTreeItemFromEvent(event))
+    return 'tab';
 
-  if (isEventFiredOnNewTabButton(event)) return "newtabbutton";
+  if (isEventFiredOnNewTabButton(event))
+    return 'newtabbutton';
 
-  if (isEventFiredOnMenuOrPanel(event) || isEventFiredOnAnchor(event))
-    return "selector";
+  if (isEventFiredOnMenuOrPanel(event) ||
+      isEventFiredOnAnchor(event))
+    return 'selector';
 
-  if (isEventFiredOnTabbarTop(event)) return "tabbar-top";
-  if (isEventFiredOnTabbarBottom(event)) return "tabbar-bottom";
+  if (isEventFiredOnTabbarTop(event))
+    return 'tabbar-top';
+  if (isEventFiredOnTabbarBottom(event))
+    return 'tabbar-bottom';
 
   const allRange = document.createRange();
   allRange.selectNodeContents(document.body);
   const containerRect = allRange.getBoundingClientRect();
   allRange.detach();
-  if (
-    event.clientX < containerRect.left ||
-    event.clientX > containerRect.right ||
-    event.clientY < containerRect.top ||
-    event.clientY > containerRect.bottom
-  )
-    return "outside";
+  if (event.clientX < containerRect.left ||
+      event.clientX > containerRect.right ||
+      event.clientY < containerRect.top ||
+      event.clientY > containerRect.bottom)
+    return 'outside';
 
-  return "blank";
+  return 'blank';
 }
+
 
 export function wrapWithErrorHandler(func) {
   return (...args) => {
     try {
       const result = func(...args);
       if (result && result instanceof Promise)
-        return result.catch((e) => {
-          console.log("Fatal async error: ", e);
+        return result.catch(e => {
+          console.log('Fatal async error: ', e);
           throw e;
         });
-      else return result;
-    } catch (e) {
-      console.log("Fatal error: ", e);
+      else
+        return result;
+    }
+    catch(e) {
+      console.log('Fatal error: ', e);
       throw e;
     }
   };

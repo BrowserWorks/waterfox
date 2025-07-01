@@ -332,7 +332,8 @@
         "type": "function",
         "description": "Returns availability of the selection clipboard.",
         "async": true,
-        "parameters": [],
+        "parameters": [
+        ],
         "returns": {
           "type": "boolean",
           "name": "selectionClipboardAvailable"
@@ -343,7 +344,8 @@
         "type": "function",
         "description": "Returns the contents of the selection clipboard as a string.",
         "async": true,
-        "parameters": [],
+        "parameters": [
+        ],
         "returns": {
           "type": "string",
           "name": "selectionClipboardContents"

@@ -1,11 +1,23 @@
-import EventListenerManager from "/extlib/EventListenerManager.js";
+/*
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+'use strict';
 
-import { configs, log as internalLogger, mapAndFilterUniq } from "./common.js";
-import * as Constants from "./constants.js";
-import * as TabsStore from "./tabs-store.js";
+import EventListenerManager from '/extlib/EventListenerManager.js';
+
+import {
+  log as internalLogger,
+  mapAndFilterUniq,
+  configs,
+  wait,
+} from './common.js';
+import * as Constants from './constants.js';
+import * as TabsStore from './tabs-store.js';
 
 function log(...args) {
-  internalLogger("common/sidebar-connection", ...args);
+  internalLogger('common/sidebar-connection', ...args);
 }
 
 export const onMessage = new EventListenerManager();
@@ -22,53 +34,47 @@ export function isInitialized() {
 }
 
 export function isSidebarOpen(windowId) {
-  if (!mIsListening || Constants.IS_SIDEBAR) return false;
-
-  // for automated tests
-  if (
-    configs.sidebarVirtuallyOpenedWindows.length > 0 &&
-    configs.sidebarVirtuallyOpenedWindows.includes(windowId)
-  )
-    return true;
-  if (
-    configs.sidebarVirtuallyClosedWindows.length > 0 &&
-    configs.sidebarVirtuallyClosedWindows.includes(windowId)
-  )
+  if (!mIsListening ||
+      Constants.IS_SIDEBAR)
     return false;
 
-  if (
-    windowId in configs.sidebarWidthInWindow &&
-    configs.sidebarWidthInWindow[windowId] === 0
-  )
+  // for automated tests
+  if (configs.sidebarVirtuallyOpenedWindows.length > 0 &&
+      configs.sidebarVirtuallyOpenedWindows.includes(windowId))
+    return true;
+  if (configs.sidebarVirtuallyClosedWindows.length > 0 &&
+      configs.sidebarVirtuallyClosedWindows.includes(windowId))
+    return false;
+
+  if (windowId in configs.sidebarWidthInWindow &&
+      configs.sidebarWidthInWindow[windowId] == 0)
     return false;
 
   const connections = mConnections.get(windowId);
-  if (!connections) return false;
+  if (!connections)
+    return false;
   for (const connection of connections) {
-    if (connection.type === "sidebar") return true;
+    if (connection.type == 'sidebar')
+      return true;
   }
   return false;
 }
 
 export function isOpen(windowId) {
-  if (!mIsListening || Constants.IS_SIDEBAR) return false;
-
-  // for automated tests
-  if (
-    configs.sidebarVirtuallyOpenedWindows.length > 0 &&
-    configs.sidebarVirtuallyOpenedWindows.includes(windowId)
-  )
-    return true;
-  if (
-    configs.sidebarVirtuallyClosedWindows.length > 0 &&
-    configs.sidebarVirtuallyClosedWindows.includes(windowId)
-  )
+  if (!mIsListening ||
+      Constants.IS_SIDEBAR)
     return false;
 
-  if (
-    windowId in configs.sidebarWidthInWindow &&
-    configs.sidebarWidthInWindow[windowId] === 0
-  )
+  // for automated tests
+  if (configs.sidebarVirtuallyOpenedWindows.length > 0 &&
+      configs.sidebarVirtuallyOpenedWindows.includes(windowId))
+    return true;
+  if (configs.sidebarVirtuallyClosedWindows.length > 0 &&
+      configs.sidebarVirtuallyClosedWindows.includes(windowId))
+    return false;
+
+  if (windowId in configs.sidebarWidthInWindow &&
+      configs.sidebarWidthInWindow[windowId] == 0)
     return false;
 
   const connections = mConnections.get(windowId);
@@ -76,11 +82,11 @@ export function isOpen(windowId) {
 }
 
 export function hasFocus(windowId) {
-  return mFocusState.has(windowId);
+  return mFocusState.has(windowId)
 }
 
 export const counts = {
-  broadcast: {},
+  broadcast: {}
 };
 
 export function getOpenWindowIds() {
@@ -88,9 +94,12 @@ export function getOpenWindowIds() {
 }
 
 export function sendMessage(message) {
-  if (!mIsListening || Constants.IS_SIDEBAR) return false;
+  if (!mIsListening ||
+      Constants.IS_SIDEBAR)
+    return false;
 
-  if (Array.isArray(message)) log("Sending ", message.length, " messages");
+  if (Array.isArray(message))
+    log('Sending ', message.length, ' messages');
 
   if (message.windowId) {
     if (configs.loggingConnectionMessages) {
@@ -100,7 +109,8 @@ export function sendMessage(message) {
       localCounts[message.type]++;
     }
     const connections = mConnections.get(message.windowId);
-    if (!connections || connections.size === 0) return false;
+    if (!connections || connections.size == 0)
+      return false;
     for (const connection of connections) {
       sendMessageToPort(connection.port, message);
     }
@@ -112,7 +122,8 @@ export function sendMessage(message) {
   counts.broadcast[message.type] = counts.broadcast[message.type] || 0;
   counts.broadcast[message.type]++;
   for (const connections of mConnections.values()) {
-    if (!connections || connections.size === 0) continue;
+    if (!connections || connections.size == 0)
+      continue;
     for (const connection of connections) {
       sendMessageToPort(connection.port, message);
     }
@@ -138,10 +149,8 @@ function sendMessageToPort(port, message) {
       task.messages = [];
       port.postMessage(messages);
       if (configs.debug) {
-        const types = mapAndFilterUniq(
-          messages,
-          (message) => message.type || undefined
-        ).join(", ");
+        const types = mapAndFilterUniq(messages,
+                                       message => message.type || undefined).join(', ');
         log(`${messages.length} messages sent (${types}):`, messages);
       }
     };
@@ -155,14 +164,14 @@ function sendMessageToPort(port, message) {
 }
 
 if (Constants.IS_BACKGROUND) {
-  const matcher = new RegExp(
-    `^${Constants.kCOMMAND_REQUEST_CONNECT_PREFIX}([0-9]+):(.+)$`
-  );
-  browser.runtime.onConnect.addListener((port) => {
-    if (!mIsListening || !matcher.test(port.name)) return;
+  const matcher = new RegExp(`^${Constants.kCOMMAND_REQUEST_CONNECT_PREFIX}([0-9]+):(.+)$`);
+  browser.runtime.onConnect.addListener(port => {
+    if (!mIsListening ||
+        !matcher.test(port.name))
+      return;
 
-    const windowId = parseInt(RegExp.$1);
-    const type = RegExp.$2;
+    const windowId   = parseInt(RegExp.$1);
+    const type       = RegExp.$2;
     const connection = { port, type };
     const connections = mConnections.get(windowId) || new Set();
     connections.add(connection);
@@ -177,42 +186,35 @@ if (Constants.IS_BACKGROUND) {
       // we should wait more for the pong. Otherwise the vital check
       // may produce needless reloadings even if the sidebar is still alive.
       // See also https://github.com/piroor/treestyletab/issues/3130
-      const timeout =
-        configs.heartbeatInterval +
-        Math.max(configs.connectionTimeoutDelay, TabsStore.tabs.size);
+      const timeout = configs.heartbeatInterval + Math.max(configs.connectionTimeoutDelay, TabsStore.tabs.size);
       connectionTimeoutTimer = setTimeout(async () => {
-        log(
-          `Missing heartbeat from window ${windowId}. Maybe disconnected or resumed.`
-        );
+        log(`Missing heartbeat from window ${windowId}. Maybe disconnected or resumed.`);
         try {
           const pong = await browser.runtime.sendMessage({
             type: Constants.kCOMMAND_PING_TO_SIDEBAR,
-            windowId,
+            windowId
           });
           if (pong) {
-            log(
-              `Sidebar for the window ${windowId} responded. Keep connected.`
-            );
+            log(`Sidebar for the window ${windowId} responded. Keep connected.`);
             return;
           }
-        } catch (_error) {}
-        log(
-          `Sidebar for the window ${windowId} did not respond. Disconnect now.`
-        );
+        }
+        catch(_error) {
+        }
+        log(`Sidebar for the window ${windowId} did not respond. Disconnect now.`);
         cleanup(); // eslint-disable-line no-use-before-define
         port.disconnect();
       }, timeout);
     };
-    const cleanup = (_diconnectedPort) => {
-      if (!port.onMessage.hasListener(receiver))
-        // eslint-disable-line no-use-before-define
+    const cleanup = _diconnectedPort => {
+      if (!port.onMessage.hasListener(receiver)) // eslint-disable-line no-use-before-define
         return;
       if (connectionTimeoutTimer) {
         clearTimeout(connectionTimeoutTimer);
         connectionTimeoutTimer = null;
       }
       connections.delete(connection);
-      if (connections.size === 0) {
+      if (connections.size == 0) {
         mConnections.delete(windowId);
         const sidebarWidthInWindow = { ...configs.sidebarWidthInWindow };
         delete sidebarWidthInWindow[windowId];
@@ -222,12 +224,40 @@ if (Constants.IS_BACKGROUND) {
       mReceivers.delete(windowId);
       mFocusState.delete(windowId);
       onDisconnected.dispatch(windowId, connections.size);
+
+      // We need to notify this to some conetnt scripts, to destroy themselves.
+      /*
+      browser.runtime.sendMessage({
+        type: Constants.kCOMMAND_NOTIFY_SIDEBAR_CLOSED,
+        windowId,
+      });
+      */
+      browser.windows.get(windowId, { populate: true }).then(async win => {
+        let count = 0;
+        for (const tab of win.tabs) {
+          count++;
+          if (count >= 20) {
+            // We should not block too long seconds on too much tabs case.
+            await wait(10);
+            count = 0;
+          }
+          try {
+            browser.tabs.sendMessage(tab.id, {
+              type: Constants.kCOMMAND_NOTIFY_SIDEBAR_CLOSED,
+            });
+          }
+          catch (_error) {
+          }
+        }
+      });
     };
-    const receiver = (message) => {
-      if (Array.isArray(message)) return message.forEach(receiver);
-      if (message.type === Constants.kCONNECTION_HEARTBEAT)
+    const receiver = message => {
+      if (Array.isArray(message))
+        return message.forEach(receiver);
+      if (message.type == Constants.kCONNECTION_HEARTBEAT)
         updateTimeoutTimer();
-      else onMessage.dispatch(windowId, message);
+      else
+        onMessage.dispatch(windowId, message);
     };
     port.onMessage.addListener(receiver);
     mReceivers.set(windowId, receiver);
@@ -249,27 +279,27 @@ if (Constants.IS_BACKGROUND) {
 }
 
 export function init() {
-  if (mIsListening) return;
+  if (mIsListening)
+    return;
 
   mIsListening = true;
 }
+
 
 //===================================================================
 // Logging
 //===================================================================
 
 browser.runtime.onMessage.addListener((message, _sender) => {
-  if (
-    !mIsListening ||
-    !message ||
-    typeof message !== "object" ||
-    message.type !== Constants.kCOMMAND_REQUEST_CONNECTION_MESSAGE_LOGS ||
-    !Constants.IS_BACKGROUND
-  )
+  if (!mIsListening ||
+      !message ||
+      typeof message != 'object' ||
+      message.type != Constants.kCOMMAND_REQUEST_CONNECTION_MESSAGE_LOGS ||
+      !Constants.IS_BACKGROUND)
     return;
 
   browser.runtime.sendMessage({
     type: Constants.kCOMMAND_RESPONSE_CONNECTION_MESSAGE_LOGS,
-    logs: JSON.parse(JSON.stringify(counts)),
+    logs: JSON.parse(JSON.stringify(counts))
   });
 });

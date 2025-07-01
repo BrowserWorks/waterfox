@@ -4,15 +4,17 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
-import { watchOverflowStateChange } from "/common/common.js";
-import * as Constants from "/common/constants.js";
+import {
+  watchOverflowStateChange,
+} from '/common/common.js';
+import * as Constants from '/common/constants.js';
 
-export const kTAB_LABEL_ELEMENT_NAME = "tab-label";
+export const kTREE_ITEM_LABEL_ELEMENT_NAME = 'tab-label';
 
-const KLABEL_CLASS_NAME = "label";
+const KLABEL_CLASS_NAME   = 'label';
 const kCONTENT_CLASS_NAME = `${KLABEL_CLASS_NAME}-content`;
 
-const kATTR_NAME_VALUE = "value";
+const kATTR_NAME_VALUE = 'value';
 
 //****************************************************************************
 // isRTL https://github.com/kavirajk/isRTL
@@ -20,30 +22,30 @@ const kATTR_NAME_VALUE = "value";
 // Copyright (c) 2013 dhilipsiva
 const rtlChars = [
   /* arabic ranges*/
-  "\u0600-\u06FF",
-  "\u0750-\u077F",
-  "\uFB50-\uFDFF",
-  "\uFE70-\uFEFF",
+  '\u0600-\u06FF',
+  '\u0750-\u077F',
+  '\uFB50-\uFDFF',
+  '\uFE70-\uFEFF',
   /* hebrew range*/
-  "\u05D0-\u05FF",
-].join("");
+  '\u05D0-\u05FF'
+].join('');
 
-const reRTL = new RegExp(`[${rtlChars}]`, "g");
+const reRTL = new RegExp(`[${rtlChars}]`, 'g');
 
 function isRTL(text) {
-  if (!text) return false;
-  if (/^\s*\u200f[^\u200e]/.test(text))
-    // title starting with right-to-left-mark
+  if (!text)
+    return false;
+  if (/^\s*\u200f[^\u200e]/.test(text)) // title starting with right-to-left-mark
     return true;
-  const textCount = text.replace(/[0-9\s\\/.,\-+="']/g, "").length; // remove multilengual characters from count
-  const rtlCount = (text.match(reRTL) || []).length;
-  return rtlCount >= textCount - rtlCount && textCount > 0;
-}
+  const textCount = text.replace(/[0-9\s\\\/.,\-+="']/g, '').length; // remove multilengual characters from count
+  const rtlCount  = (text.match(reRTL) || []).length;
+  return rtlCount >= (textCount-rtlCount) && textCount > 0;
+};
 //****************************************************************************
 
-export class TabLabelElement extends HTMLElement {
+export class TreeItemLabelElement extends HTMLElement {
   static define() {
-    window.customElements.define(kTAB_LABEL_ELEMENT_NAME, TabLabelElement);
+    window.customElements.define(kTREE_ITEM_LABEL_ELEMENT_NAME, TreeItemLabelElement);
   }
 
   static get observedAttributes() {
@@ -54,11 +56,11 @@ export class TabLabelElement extends HTMLElement {
     super();
 
     // We should initialize private properties with blank value for better performance with a fixed shape.
-    this.__unwatch = null;
+    this.__unwatch     = null;
   }
 
   connectedCallback() {
-    this.setAttribute("role", "button");
+    this.setAttribute('role', 'button');
 
     if (this.initialized) {
       this._startListening();
@@ -86,7 +88,7 @@ export class TabLabelElement extends HTMLElement {
     // We preserve this class for backward compatibility with other addons.
     this.classList.add(KLABEL_CLASS_NAME);
 
-    const content = this.appendChild(document.createElement("span"));
+    const content = this.appendChild(document.createElement('span'));
     content.classList.add(kCONTENT_CLASS_NAME);
 
     this._startListening();
@@ -114,48 +116,44 @@ export class TabLabelElement extends HTMLElement {
         break;
 
       default:
-        throw new RangeError(
-          `Handling \`${name}\` attribute has not been defined.`
-        );
+        throw new RangeError(`Handling \`${name}\` attribute has not been defined.`);
     }
   }
 
   applyAttributes() {
     // for convenience on customization with custom user styles
-    this._content.setAttribute(
-      Constants.kAPI_TAB_ID,
-      this.getAttribute(Constants.kAPI_TAB_ID)
-    );
-    this._content.setAttribute(
-      Constants.kAPI_WINDOW_ID,
-      this.getAttribute(Constants.kAPI_WINDOW_ID)
-    );
+    this._content.setAttribute(Constants.kAPI_TAB_ID, this.getAttribute(Constants.kAPI_TAB_ID));
+    this._content.setAttribute(Constants.kAPI_WINDOW_ID, this.getAttribute(Constants.kAPI_WINDOW_ID));
     this._content.dataset.index = this.dataset.index;
   }
 
   updateTextContent() {
     const content = this._content;
-    if (!content) return;
-    content.textContent = this.getAttribute(kATTR_NAME_VALUE) || "";
-    this.classList.toggle("rtl", isRTL(content.textContent));
+    if (!content)
+      return;
+    content.textContent = this.getAttribute(kATTR_NAME_VALUE) || '';
+    this.classList.toggle('rtl', isRTL(content.textContent));
     this.invalidateOverflow();
+    // Don't touch to offsetWidth if not needed - touching it will triggers indent animation unexpectedly
+    this.closest('tab-item[type="group"]')?.style.setProperty('--tab-label-width', `${content.offsetWidth}px`);
   }
 
   updateOverflow() {
     // Accessing to the real size of the element triggers layouting and hits the performance,
     // like https://github.com/piroor/treestyletab/issues/3477 .
     // So we need to throttle the process for better formance.
-    if (this.updateOverflow.invoked) return;
+    if (this.updateOverflow.invoked)
+      return;
     this.updateOverflow.invoked = true;
     window.requestAnimationFrame(() => {
       this.updateOverflow.invoked = false;
-      if (!this.closest("body"))
-        // already detached from document!
+      if (!this.closest('body')) // already detached from document!
         return;
       const tab = this.owner;
-      const overflow =
-        tab && !tab.pinned && this._content.offsetWidth > this.offsetWidth;
-      this.classList.toggle("overflow", overflow);
+      const overflow = tab && !tab.pinned && this._content.offsetWidth > this.offsetWidth;
+      this.classList.toggle('overflow', overflow);
+      // Don't touch to offsetWidth if not needed - touching it will triggers indent animation unexpectedly
+      this.closest('tab-item[type="group"]')?.style.setProperty('--tab-label-width', `${this._content.offsetWidth}px`);
     });
   }
 
@@ -175,46 +173,48 @@ export class TabLabelElement extends HTMLElement {
   }
 
   get overflow() {
-    return this.classList.contains("overflow");
+    return this.classList.contains('overflow');
   }
 
   _startListening() {
-    if (this.__unwatch) return;
+    if (this.__unwatch)
+      return;
 
     // Accessing to the real size of the element triggers layouting and hits the performance,
     // like https://github.com/piroor/treestyletab/issues/3557 .
     // So we need to throttle the process for better formance.
-    if (this._startListening_invoked) return;
+    if (this._startListening_invoked)
+      return;
     this._startListening_invoked = true;
     window.requestAnimationFrame(() => {
       this._startListening_invoked = false;
-      if (!this.closest("body"))
-        // already detached from document!
+      if (!this.closest('body')) // already detached from document!
         return;
-      this.__unwatch = watchOverflowStateChange({
-        target: this,
-        horizontal: true,
-        onOverflow: () => this._onOverflow(),
+      this.__unwatch     = watchOverflowStateChange({
+        target:      this,
+        horizontal:  true,
+        onOverflow:  () => this._onOverflow(),
         onUnderflow: () => this._onUnderflow(),
       });
     });
   }
 
   _endListening() {
-    if (!this.__unwatch) return;
+    if (!this.__unwatch)
+      return;
     this.__unwatch();
     this.__unwatch = null;
   }
 
   _onOverflow() {
-    this.classList.add("overflow");
+    this.classList.add('overflow');
     for (const listener of this._overflowChangeListeners) {
       listener();
     }
   }
 
   _onUnderflow() {
-    this.classList.remove("overflow");
+    this.classList.remove('overflow');
     for (const listener of this._overflowChangeListeners) {
       listener();
     }
@@ -229,9 +229,6 @@ export class TabLabelElement extends HTMLElement {
   }
 
   get _overflowChangeListeners() {
-    return (
-      this.__overflowChangeListeners ||
-      (this.__overflowChangeListeners = new Set())
-    );
+    return this.__overflowChangeListeners || (this.__overflowChangeListeners = new Set());
   }
 }

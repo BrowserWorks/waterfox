@@ -7,11 +7,11 @@
 export default class MetricsData {
   constructor(name) {
     this.mItems = [];
-    this.mName = name || "";
+    this.mName = name || '';
 
     const now = Date.now();
     this.mInitialTime = now;
-    this.mLastTime = now;
+    this.mLastTime    = now;
     this.mDeltaBetweenLastItem = 0;
   }
 
@@ -19,7 +19,7 @@ export default class MetricsData {
     const now = Date.now();
     this.mItems.push({
       label: label,
-      delta: now - this.mLastTime,
+      delta: now - this.mLastTime
     });
     this.mDeltaBetweenLastItem = now - this.mInitialTime;
     this.mLastTime = now;
@@ -27,20 +27,21 @@ export default class MetricsData {
 
   addAsync(label, asyncTask) {
     const start = Date.now();
-    if (typeof asyncTask === "function") asyncTask = asyncTask();
-    return asyncTask.then((result) => {
+    if (typeof asyncTask == 'function')
+      asyncTask = asyncTask();
+    return asyncTask.then(result => {
       this.mItems.push({
         label: `(async) ${label}`,
         delta: Date.now() - start,
-        async: true,
+        async: true
       });
       return result;
     });
   }
 
   toString() {
-    const logs = this.mItems.map((item) => `${item.delta || 0}: ${item.label}`);
-    return `${this.mName ? `${this.mName}: ` : ""}total ${this.mDeltaBetweenLastItem} msec\n${logs.join("\n")}`;
+    const logs = this.mItems.map(item => `${item.delta || 0}: ${item.label}`);
+    return `${this.mName ? this.mName + ': ' : ''}total ${this.mDeltaBetweenLastItem} msec\n${logs.join('\n')}`;
   }
 
   static add(label) {
