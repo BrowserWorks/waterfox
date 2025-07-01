@@ -232,6 +232,9 @@ export const PrivateTab = {
       return;
     }
     const { gContextMenu, gBrowser, PrivateTab } = win;
+    if (gContextMenu.browser == win.SidebarController.treeVerticalTabsBrowser) {
+      return;
+    }
     const tab = gBrowser.getTabForBrowser(gContextMenu.browser);
     gContextMenu.showItem(
       "openLinkInPrivateTab",

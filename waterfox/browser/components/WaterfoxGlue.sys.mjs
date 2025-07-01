@@ -227,7 +227,7 @@ export const WaterfoxGlue = {
   },
 
   async _monitorSidebarPref() {
-    const COMPONENT_PREF = "browser.sidebar.disabled";
+    const COMPONENT_PREF = "browser.sidebar.enabled";
     const ID = "sidebar@waterfox.net";
     let addon = await lazy.AddonManager.getAddonByID(ID);
 
@@ -235,16 +235,16 @@ export const WaterfoxGlue = {
     addon =
       (await lazy.AddonManager.maybeInstallBuiltinAddon(
         ID,
-        "1.0.4",
+        "1.1.0",
         "resource://builtin-addons/sidebar/"
       )) || addon;
 
     const _checkSidebarPref = async () => {
-      const componentEnabled = Services.prefs.getBoolPref(
+      const componentDisabled = Services.prefs.getBoolPref(
         COMPONENT_PREF,
         false
       );
-      if (componentEnabled) {
+      if (componentDisabled) {
         if (addon.isActive) {
           await addon.disable({ allowSystemAddons: true });
         }
