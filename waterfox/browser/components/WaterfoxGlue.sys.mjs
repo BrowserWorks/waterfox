@@ -15,6 +15,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   PrivateTab: "resource:///modules/PrivateTab.sys.mjs",
   StatusBar: "resource:///modules/StatusBar.sys.mjs",
   TabFeatures: "resource:///modules/TabFeatures.sys.mjs",
+  TabGrouping: "resource:///modules/TabGrouping.sys.mjs",
   setTimeout: "resource://gre/modules/Timer.sys.mjs",
   UICustomizations: "resource:///modules/UICustomizations.sys.mjs",
 });
@@ -75,6 +76,9 @@ export const WaterfoxGlue = {
     this.addAddonListener();
     // Register about:cfg
     lazy.AboutPages.init();
+
+    // Initialize automatic tab grouping
+    lazy.TabGrouping.init();
   },
 
   async _setPrefObservers() {
@@ -214,6 +218,9 @@ export const WaterfoxGlue = {
       case "final-ui-startup":
         this._beforeUIStartup();
         this._delayedTasks();
+        break;
+      case "quit-application-granted":
+        this.shutdown();
         break;
     }
   },
@@ -404,6 +411,11 @@ export const WaterfoxGlue = {
     for (const listener of this._addonManagersListeners) {
       lazy.AddonManager.removeAddonListener(listener);
     }
+  },
+
+  shutdown() {
+    // Shutdown TabGrouping
+    lazy.TabGrouping.shutdown();
   },
 
   updateCustomStylesheets(addon) {
