@@ -1,35 +1,44 @@
-import * as ApiTabs from "/common/api-tabs.js";
-import * as Bookmark from "/common/bookmark.js";
-import * as BrowserTheme from "/common/browser-theme.js";
-import {
-  configs,
-  doProgressively,
-  log as internalLogger,
-  loadUserStyleRules,
-  mapAndFilterUniq,
-  wait,
-} from "/common/common.js";
-import * as Constants from "/common/constants.js";
-import * as ContextualIdentities from "/common/contextual-identities.js";
-import * as Permissions from "/common/permissions.js";
-import * as SidebarConnection from "/common/sidebar-connection.js";
-import Tab from "/common/Tab.js";
-import * as TabsInternalOperation from "/common/tabs-internal-operation.js";
-import * as TabsStore from "/common/tabs-store.js";
-import * as TabsUpdate from "/common/tabs-update.js";
-import * as TreeBehavior from "/common/tree-behavior.js";
-import * as TSTAPI from "/common/tst-api.js";
+/*
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+'use strict';
 
-import * as Background from "./background.js";
-import * as Commands from "./commands.js";
-import * as Migration from "./migration.js";
-import * as TabsGroup from "./tabs-group.js";
-import * as TabsOpen from "./tabs-open.js";
-import * as Tree from "./tree.js";
+import {
+  log as internalLogger,
+  wait,
+  mapAndFilterUniq,
+  configs,
+  loadUserStyleRules,
+  doProgressively,
+} from '/common/common.js';
+import * as ApiTabs from '/common/api-tabs.js';
+import * as Bookmark from '/common/bookmark.js';
+import * as BrowserTheme from '/common/browser-theme.js';
+import * as Constants from '/common/constants.js';
+import * as ContextualIdentities from '/common/contextual-identities.js';
+import * as Permissions from '/common/permissions.js';
+import * as SidebarConnection from '/common/sidebar-connection.js';
+import * as TabsInternalOperation from '/common/tabs-internal-operation.js';
+import * as TabsStore from '/common/tabs-store.js';
+import * as TabsUpdate from '/common/tabs-update.js';
+import * as TreeBehavior from '/common/tree-behavior.js';
+import * as TSTAPI from '/common/tst-api.js';
+
+import { Tab, TreeItem } from '/common/TreeItem.js';
+
+import * as Background from './background.js';
+import * as Commands from './commands.js';
+import * as Migration from './migration.js';
+import * as TabsGroup from './tabs-group.js';
+import * as TabsOpen from './tabs-open.js';
+import * as Tree from './tree.js';
 
 function log(...args) {
-  internalLogger("background/handle-misc", ...args);
+  internalLogger('background/handle-misc', ...args);
 }
+
 
 /* message observer */
 
@@ -41,10 +50,10 @@ function log(...args) {
 // So we simply ignore messages delivered before completely initialized, for now.
 // See also: https://github.com/piroor/treestyletab/issues/2200
 
-const PHASE_LOADING = 0;
+const PHASE_LOADING                = 0;
 const PHASE_BACKGROUND_INITIALIZED = 1;
-const PHASE_BACKGROUND_BUILT = 2;
-const PHASE_BACKGROUND_READY = 3;
+const PHASE_BACKGROUND_BUILT       = 2;
+const PHASE_BACKGROUND_READY       = 3;
 let mInitializationPhase = PHASE_LOADING;
 
 Background.onInit.addListener(() => {
@@ -60,12 +69,11 @@ Background.onReady.addListener(() => {
 });
 
 if (browser.sidebarAction)
-  (browser.action || browser.browserAction)?.onClicked.addListener(
-    onToolbarButtonClick
-  );
+  (browser.action || browser.browserAction)?.onClicked.addListener(onToolbarButtonClick);
 browser.commands.onCommand.addListener(onShortcutCommand);
 browser.runtime.onMessage.addListener(onMessage);
 TSTAPI.onMessageExternal.addListener(onMessageExternal);
+
 
 Background.onReady.addListener(() => {
   Bookmark.startTracking();
@@ -75,380 +83,394 @@ Background.onDestroy.addListener(() => {
   browser.runtime.onMessage.removeListener(onMessage);
   TSTAPI.onMessageExternal.removeListener(onMessageExternal);
   if (browser.sidebarAction)
-    (browser.action || browser.browserAction)?.onClicked.removeListener(
-      onToolbarButtonClick
-    );
+    (browser.action || browser.browserAction)?.onClicked.removeListener(onToolbarButtonClick);
 });
 
-function onToolbarButtonClick(tab) {
-  if (
-    mInitializationPhase < PHASE_BACKGROUND_INITIALIZED ||
-    Permissions.requestPostProcess()
-  )
-    return;
 
-  if (typeof browser.sidebarAction.toggle === "function")
+function onToolbarButtonClick(tab) {
+  if (mInitializationPhase < PHASE_BACKGROUND_INITIALIZED ||
+      Permissions.requestPostProcess()) {
+    return;
+  }
+
+  if (Migration.isInitialStartup()) {
+    Migration.openInitialStartupPage();
+    return;
+  }
+
+  if (typeof browser.sidebarAction.toggle == 'function')
     browser.sidebarAction.toggle();
   else if (SidebarConnection.isSidebarOpen(tab.windowId))
     browser.sidebarAction.close();
-  else browser.sidebarAction.open();
+  else
+    browser.sidebarAction.open();
 }
 
 async function onShortcutCommand(command) {
-  if (mInitializationPhase < PHASE_BACKGROUND_INITIALIZED) return;
+  if (mInitializationPhase < PHASE_BACKGROUND_INITIALIZED)
+    return;
 
-  let activeTabs = command.tab
-    ? [command.tab]
-    : await browser.tabs
-        .query({
-          active: true,
-          currentWindow: true,
-        })
-        .catch(ApiTabs.createErrorHandler());
-  if (activeTabs.length === 0)
-    activeTabs = await browser.tabs
-      .query({
-        currentWindow: true,
-      })
-      .catch(ApiTabs.createErrorHandler());
+  let activeTabs = command.tab ? [command.tab] : await browser.tabs.query({
+    active:        true,
+    currentWindow: true,
+  }).catch(ApiTabs.createErrorHandler());
+  if (activeTabs.length == 0)
+    activeTabs = await browser.tabs.query({
+      currentWindow: true,
+    }).catch(ApiTabs.createErrorHandler());
   const activeTab = Tab.get(activeTabs[0].id);
-  const selectedTabs = activeTab.$TST.multiselected
-    ? Tab.getSelectedTabs(activeTab.windowId)
-    : [activeTab];
-  log("onShortcutCommand ", { command, activeTab, selectedTabs });
+  const selectedTabs = activeTab.$TST.multiselected ? Tab.getSelectedTabs(activeTab.windowId) : [activeTab];
+  log('onShortcutCommand ', { command, activeTab, selectedTabs });
 
   switch (command) {
-    case "_execute_browser_action":
+    case '_execute_browser_action':
       return;
 
-    case "reloadTree":
+    case 'reloadTree':
       Commands.reloadTree(selectedTabs);
       return;
-    case "reloadDescendants":
+    case 'reloadDescendants':
       Commands.reloadDescendants(selectedTabs);
       return;
-    case "toggleMuteTree":
+    case 'toggleMuteTree':
       Commands.toggleMuteTree(selectedTabs);
       return;
-    case "toggleMuteDescendants":
+    case 'toggleMuteDescendants':
       Commands.toggleMuteDescendants(selectedTabs);
       return;
-    case "closeTree":
+    case 'closeTree':
       Commands.closeTree(selectedTabs);
       return;
-    case "closeDescendants":
+    case 'closeDescendants':
       Commands.closeDescendants(selectedTabs);
       return;
-    case "closeOthers":
+    case 'closeOthers':
       Commands.closeOthers(selectedTabs);
       return;
-    case "toggleSticky":
+    case 'toggleSticky':
       Commands.toggleSticky(selectedTabs);
       return;
-    case "collapseTree":
+    case 'collapseTree':
       Commands.collapseTree(selectedTabs);
       return;
-    case "collapseTreeRecursively":
+    case 'collapseTreeRecursively':
       Commands.collapseTree(selectedTabs, { recursively: true });
       return;
-    case "collapseAll":
+    case 'collapseAll':
       Commands.collapseAll(activeTab.windowId);
       return;
-    case "expandTree":
+    case 'expandTree':
       Commands.expandTree(selectedTabs);
       return;
-    case "expandTreeRecursively":
+    case 'expandTreeRecursively':
       Commands.expandTree(selectedTabs, { recursively: true });
       return;
-    case "expandAll":
+    case 'expandAll':
       Commands.expandAll(activeTab.windowId);
       return;
-    case "bookmarkTree":
+    case 'bookmarkTree':
       Commands.bookmarkTree(selectedTabs);
       return;
 
-    case "newIndependentTab":
+    case 'newIndependentTab':
       Commands.openNewTabAs({
         baseTab: activeTab,
-        as: Constants.kNEWTAB_OPEN_AS_ORPHAN,
+        as:      Constants.kNEWTAB_OPEN_AS_ORPHAN
       });
       return;
-    case "newChildTab":
+    case 'newChildTab':
       Commands.openNewTabAs({
         baseTab: activeTab,
-        as: Constants.kNEWTAB_OPEN_AS_CHILD,
+        as:      Constants.kNEWTAB_OPEN_AS_CHILD
       });
       return;
-    case "newChildTabTop":
+    case 'newChildTabTop':
       Commands.openNewTabAs({
         baseTab: activeTab,
-        as: Constants.kNEWTAB_OPEN_AS_CHILD_TOP,
+        as:      Constants.kNEWTAB_OPEN_AS_CHILD_TOP
       });
       return;
-    case "newChildTabEnd":
+    case 'newChildTabEnd':
       Commands.openNewTabAs({
         baseTab: activeTab,
-        as: Constants.kNEWTAB_OPEN_AS_CHILD_END,
+        as:      Constants.kNEWTAB_OPEN_AS_CHILD_END
       });
       return;
-    case "newSiblingTab":
+    case 'newSiblingTab':
       Commands.openNewTabAs({
         baseTab: activeTab,
-        as: Constants.kNEWTAB_OPEN_AS_SIBLING,
+        as:      Constants.kNEWTAB_OPEN_AS_SIBLING
       });
       return;
-    case "newNextSiblingTab":
+    case 'newNextSiblingTab':
       Commands.openNewTabAs({
         baseTab: activeTab,
-        as: Constants.kNEWTAB_OPEN_AS_NEXT_SIBLING,
+        as:      Constants.kNEWTAB_OPEN_AS_NEXT_SIBLING
       });
       return;
 
-    case "newContainerTab":
+    case 'newContainerTab':
       SidebarConnection.sendMessage({
-        type: Constants.kCOMMAND_SHOW_CONTAINER_SELECTOR,
-        windowId: activeTab.windowId,
+        type:     Constants.kCOMMAND_SHOW_CONTAINER_SELECTOR,
+        windowId: activeTab.windowId
       });
       return;
 
-    case "tabMoveUp":
+    case 'tabMoveUp':
       Commands.moveUp(activeTab, { followChildren: false });
       return;
-    case "treeMoveUp":
+    case 'treeMoveUp':
       Commands.moveUp(activeTab, { followChildren: true });
       return;
-    case "tabMoveDown":
+    case 'tabMoveDown':
       Commands.moveDown(activeTab, { followChildren: false });
       return;
-    case "treeMoveDown":
+    case 'treeMoveDown':
       Commands.moveDown(activeTab, { followChildren: true });
       return;
 
-    case "focusPrevious":
+    case 'focusPrevious':
       focusPrevious(activeTab);
       return;
-    case "focusPreviousSilently":
+    case 'focusPreviousSilently':
       focusPreviousSilently(activeTab);
       return;
-    case "focusNext":
+    case 'focusNext':
       focusNext(activeTab);
       return;
-    case "focusNextSilently":
+    case 'focusNextSilently':
       focusNextSilently(activeTab);
       return;
-    case "focusParent":
+    case 'focusParent':
       TabsInternalOperation.activateTab(activeTab.$TST.parent);
       return;
-    case "focusParentOrCollapse":
+    case 'focusParentOrCollapse':
       collapseOrFocusToParent(activeTab);
       return;
-    case "focusFirstChild":
+    case 'focusFirstChild':
       TabsInternalOperation.activateTab(activeTab.$TST.firstChild);
       return;
-    case "focusFirstChildOrExpand":
+    case 'focusFirstChildOrExpand':
       expandOrFocusToFirstChild(activeTab);
       return;
-    case "focusLastChild":
+    case 'focusLastChild':
       TabsInternalOperation.activateTab(activeTab.$TST.lastChild);
       return;
-    case "focusPreviousSibling":
+    case 'focusPreviousSibling':
       TabsInternalOperation.activateTab(
         activeTab.$TST.previousSiblingTab ||
-          activeTab.$TST.parent?.$TST.lastChild
+          (activeTab.$TST.parent ?
+            activeTab.$TST.parent.$TST.lastChild :
+            Tab.getLastRootTab(activeTab.windowId))
       );
       return;
-    case "focusNextSibling":
+    case 'focusNextSibling':
       TabsInternalOperation.activateTab(
-        activeTab.$TST.nextSiblingTab || activeTab.$TST.parent?.$TST.firstChild
+        activeTab.$TST.nextSiblingTab ||
+          (activeTab.$TST.parent ?
+            activeTab.$TST.parent.$TST.firstChild :
+            Tab.getFirstVisibleTab(activeTab.windowId))
       );
       return;
 
-    case "simulateUpOnTree":
+    case 'simulateUpOnTree':
       if (SidebarConnection.isOpen(activeTab.windowId)) {
-        if (
-          configs.faviconizePinnedTabs &&
-          (activeTab.pinned ||
-            activeTab === Tab.getFirstNormalTab(activeTab.windowId))
-        ) {
+        if (configs.faviconizePinnedTabs &&
+            (activeTab.pinned ||
+             activeTab == Tab.getFirstNormalTab(activeTab.windowId))) {
           const nextActiveId = await browser.runtime.sendMessage({
-            type: Constants.kCOMMAND_GET_ABOVE_TAB,
+            type:     Constants.kCOMMAND_GET_ABOVE_TAB,
             windowId: activeTab.windowId,
-            tabId: activeTab.id,
+            tabId:    activeTab.id,
           });
           log(`simulateUpOnTree: nextActiveId = ${nextActiveId}`);
-          const nextActive =
-            (nextActiveId && Tab.get(nextActiveId)) ||
-            Tab.getLastVisibleTab(activeTab.windowId);
+          const nextActive = (
+            Tab.get(nextActiveId) ||
+            Tab.getLastVisibleTab(activeTab.windowId)
+          );
           TabsInternalOperation.activateTab(nextActive, {
             silently: true,
           });
-        } else {
+        }
+        else {
           focusPreviousSilently(activeTab);
         }
-      } else {
+      }
+      else {
         focusPrevious(activeTab);
       }
       return;
-    case "simulateDownOnTree":
+    case 'simulateDownOnTree':
       if (SidebarConnection.isOpen(activeTab.windowId)) {
-        if (configs.faviconizePinnedTabs && activeTab.pinned) {
+        if (configs.faviconizePinnedTabs &&
+            activeTab.pinned) {
           const nextActiveId = await browser.runtime.sendMessage({
-            type: Constants.kCOMMAND_GET_BELOW_TAB,
+            type:     Constants.kCOMMAND_GET_BELOW_TAB,
             windowId: activeTab.windowId,
-            tabId: activeTab.id,
+            tabId:    activeTab.id,
           });
           log(`simulateDownOnTree: nextActiveId = ${nextActiveId}`);
-          const nextActive =
-            (nextActiveId && Tab.get(nextActiveId)) ||
-            Tab.getFirstNormalTab(activeTab.windowId);
+          const nextActive = (
+            Tab.get(nextActiveId) ||
+            Tab.getFirstNormalTab(activeTab.windowId)
+          );
           TabsInternalOperation.activateTab(nextActive, {
             silently: true,
           });
-        } else {
+        }
+        else {
           focusNextSilently(activeTab);
         }
-      } else {
+      }
+      else {
         focusNext(activeTab);
       }
       return;
-    case "simulateLeftOnTree":
+    case 'simulateLeftOnTree':
       if (SidebarConnection.isOpen(activeTab.windowId)) {
-        if (configs.faviconizePinnedTabs && activeTab.pinned) {
+        if (configs.faviconizePinnedTabs &&
+            activeTab.pinned) {
           const nextActiveId = await browser.runtime.sendMessage({
-            type: Constants.kCOMMAND_GET_LEFT_TAB,
+            type:     Constants.kCOMMAND_GET_LEFT_TAB,
             windowId: activeTab.windowId,
-            tabId: activeTab.id,
+            tabId:    activeTab.id,
           });
           log(`simulateLeftOnTree: nextActiveId = ${nextActiveId}`);
           TabsInternalOperation.activateTab(Tab.get(nextActiveId), {
             silently: true,
           });
-        } else if (await isSidebarRightSide(activeTab.windowId)) {
+        }
+        else if (await isSidebarRightSide(activeTab.windowId)) {
           expandOrFocusToFirstChild(activeTab);
-        } else {
+        }
+        else {
           collapseOrFocusToParent(activeTab);
         }
-      } else {
+      }
+      else {
         focusPrevious(activeTab);
       }
       return;
-    case "simulateRightOnTree":
+    case 'simulateRightOnTree':
       if (SidebarConnection.isOpen(activeTab.windowId)) {
-        if (configs.faviconizePinnedTabs && activeTab.pinned) {
+        if (configs.faviconizePinnedTabs &&
+            activeTab.pinned) {
           const nextActiveId = await browser.runtime.sendMessage({
-            type: Constants.kCOMMAND_GET_RIGHT_TAB,
+            type:     Constants.kCOMMAND_GET_RIGHT_TAB,
             windowId: activeTab.windowId,
-            tabId: activeTab.id,
+            tabId:    activeTab.id,
           });
           log(`simulateRightOnTree: nextActiveId = ${nextActiveId}`);
           TabsInternalOperation.activateTab(Tab.get(nextActiveId), {
             silently: true,
           });
-        } else if (await isSidebarRightSide(activeTab.windowId)) {
+        }
+        else if (await isSidebarRightSide(activeTab.windowId)) {
           collapseOrFocusToParent(activeTab);
-        } else {
+        }
+        else {
           expandOrFocusToFirstChild(activeTab);
         }
-      } else {
+      }
+      else {
         focusNext(activeTab);
       }
       return;
 
-    case "tabbarUp":
+    case 'tabbarUp':
       SidebarConnection.sendMessage({
-        type: Constants.kCOMMAND_SCROLL_TABBAR,
+        type:     Constants.kCOMMAND_SCROLL_TABBAR,
         windowId: activeTab.windowId,
-        by: "lineup",
+        by:       'lineup'
       });
       return;
-    case "tabbarPageUp":
+    case 'tabbarPageUp':
       SidebarConnection.sendMessage({
-        type: Constants.kCOMMAND_SCROLL_TABBAR,
+        type:     Constants.kCOMMAND_SCROLL_TABBAR,
         windowId: activeTab.windowId,
-        by: "pageup",
+        by:       'pageup'
       });
       return;
-    case "tabbarHome":
+    case 'tabbarHome':
       SidebarConnection.sendMessage({
-        type: Constants.kCOMMAND_SCROLL_TABBAR,
+        type:     Constants.kCOMMAND_SCROLL_TABBAR,
         windowId: activeTab.windowId,
-        to: "top",
-      });
-      return;
-
-    case "tabbarDown":
-      SidebarConnection.sendMessage({
-        type: Constants.kCOMMAND_SCROLL_TABBAR,
-        windowId: activeTab.windowId,
-        by: "linedown",
-      });
-      return;
-    case "tabbarPageDown":
-      SidebarConnection.sendMessage({
-        type: Constants.kCOMMAND_SCROLL_TABBAR,
-        windowId: activeTab.windowId,
-        by: "pagedown",
-      });
-      return;
-    case "tabbarEnd":
-      SidebarConnection.sendMessage({
-        type: Constants.kCOMMAND_SCROLL_TABBAR,
-        windowId: activeTab.windowId,
-        to: "bottom",
+        to:       'top'
       });
       return;
 
-    case "toggleTreeCollapsed":
-      if (activeTab.$TST.subtreeCollapsed) Commands.expandTree(selectedTabs);
-      else Commands.collapseTree(selectedTabs);
+    case 'tabbarDown':
+      SidebarConnection.sendMessage({
+        type:     Constants.kCOMMAND_SCROLL_TABBAR,
+        windowId: activeTab.windowId,
+        by:       'linedown'
+      });
       return;
-    case "toggleTreeCollapsedRecursively":
+    case 'tabbarPageDown':
+      SidebarConnection.sendMessage({
+        type:     Constants.kCOMMAND_SCROLL_TABBAR,
+        windowId: activeTab.windowId,
+        by:       'pagedown'
+      });
+      return;
+    case 'tabbarEnd':
+      SidebarConnection.sendMessage({
+        type:     Constants.kCOMMAND_SCROLL_TABBAR,
+        windowId: activeTab.windowId,
+        to:       'bottom'
+      });
+      return;
+
+    case 'toggleTreeCollapsed':
+      if (activeTab.$TST.subtreeCollapsed)
+        Commands.expandTree(selectedTabs);
+      else
+        Commands.collapseTree(selectedTabs);
+      return;
+    case 'toggleTreeCollapsedRecursively':
       if (activeTab.$TST.subtreeCollapsed)
         Commands.expandTree(selectedTabs, { recursively: true });
-      else Commands.collapseTree(selectedTabs, { recursively: true });
+      else
+        Commands.collapseTree(selectedTabs, { recursively: true });
       return;
 
-    case "toggleSubPanel":
+    case 'toggleSubPanel':
       SidebarConnection.sendMessage({
-        type: Constants.kCOMMAND_TOGGLE_SUBPANEL,
-        windowId: activeTab.windowId,
+        type:     Constants.kCOMMAND_TOGGLE_SUBPANEL,
+        windowId: activeTab.windowId
       });
       return;
-    case "switchSubPanel":
+    case 'switchSubPanel':
       SidebarConnection.sendMessage({
-        type: Constants.kCOMMAND_SWITCH_SUBPANEL,
-        windowId: activeTab.windowId,
+        type:     Constants.kCOMMAND_SWITCH_SUBPANEL,
+        windowId: activeTab.windowId
       });
       return;
-    case "increaseSubPanel":
+    case 'increaseSubPanel':
       SidebarConnection.sendMessage({
-        type: Constants.kCOMMAND_INCREASE_SUBPANEL,
-        windowId: activeTab.windowId,
+        type:     Constants.kCOMMAND_INCREASE_SUBPANEL,
+        windowId: activeTab.windowId
       });
       return;
-    case "decreaseSubPanel":
+    case 'decreaseSubPanel':
       SidebarConnection.sendMessage({
-        type: Constants.kCOMMAND_DECREASE_SUBPANEL,
-        windowId: activeTab.windowId,
+        type:     Constants.kCOMMAND_DECREASE_SUBPANEL,
+        windowId: activeTab.windowId
       });
       return;
   }
 }
 
 function focusPrevious(activeTab) {
-  const nextActive =
-    activeTab.$TST.nearestVisiblePrecedingTab ||
-    (!SidebarConnection.isOpen(activeTab.windowId) &&
-      activeTab.$TST.previousTab) ||
+  const nextActive = activeTab.$TST.nearestVisiblePrecedingTab ||
+    (!SidebarConnection.isOpen(activeTab.windowId) && activeTab.$TST.previousTab) ||
     Tab.getLastVisibleTab(activeTab.windowId);
   TabsInternalOperation.activateTab(nextActive);
 }
 
 function focusPreviousSilently(activeTab) {
-  const nextActive =
-    activeTab.$TST.nearestVisiblePrecedingTab ||
-    (!SidebarConnection.isOpen(activeTab.windowId) &&
-      activeTab.$TST.previousTab) ||
+  const nextActive = activeTab.$TST.nearestVisiblePrecedingTab ||
+    (!SidebarConnection.isOpen(activeTab.windowId) && activeTab.$TST.previousTab) ||
     Tab.getLastVisibleTab(activeTab.windowId);
   TabsInternalOperation.activateTab(nextActive, {
     silently: true,
@@ -456,16 +478,14 @@ function focusPreviousSilently(activeTab) {
 }
 
 function focusNext(activeTab) {
-  const nextActive =
-    activeTab.$TST.nearestVisibleFollowingTab ||
+  const nextActive = activeTab.$TST.nearestVisibleFollowingTab ||
     (!SidebarConnection.isOpen(activeTab.windowId) && activeTab.$TST.nextTab) ||
     Tab.getFirstVisibleTab(activeTab.windowId);
   TabsInternalOperation.activateTab(nextActive);
 }
 
 function focusNextSilently(activeTab) {
-  const nextActive =
-    activeTab.$TST.nearestVisibleFollowingTab ||
+  const nextActive = activeTab.$TST.nearestVisibleFollowingTab ||
     (!SidebarConnection.isOpen(activeTab.windowId) && activeTab.$TST.nextTab) ||
     Tab.getFirstVisibleTab(activeTab.windowId);
   TabsInternalOperation.activateTab(nextActive, {
@@ -478,13 +498,14 @@ async function isSidebarRightSide(windowId) {
     type: Constants.kCOMMAND_GET_SIDEBAR_POSITION,
     windowId,
   });
-  return position === Constants.kTABBAR_POSITION_RIGHT;
+  return position == Constants.kTABBAR_POSITION_RIGHT;
 }
 
 function collapseOrFocusToParent(activeTab) {
   if (!activeTab.$TST.subtreeCollapsed && activeTab.$TST.hasChild)
     Commands.collapseTree(activeTab);
-  else TabsInternalOperation.activateTab(activeTab.$TST.parent);
+  else
+    TabsInternalOperation.activateTab(activeTab.$TST.parent);
 }
 
 function expandOrFocusToFirstChild(activeTab) {
@@ -499,12 +520,10 @@ function expandOrFocusToFirstChild(activeTab) {
 // This must be synchronous and return Promise on demando, to avoid
 // blocking to other listeners.
 function onMessage(message, sender) {
-  if (
-    mInitializationPhase < PHASE_BACKGROUND_BUILT ||
-    !message ||
-    typeof message.type !== "string" ||
-    message.type.indexOf("ws:") !== 0
-  )
+  if (mInitializationPhase < PHASE_BACKGROUND_BUILT ||
+      !message ||
+      typeof message.type != 'string' ||
+      message.type.indexOf('ws:') != 0)
     return;
 
   //log('onMessage: ', message, sender);
@@ -517,15 +536,14 @@ function onMessage(message, sender) {
 
     case Constants.kCOMMAND_REQUEST_UNIQUE_ID:
       return (async () => {
-        if (!Tab.get(message.tabId)) await Tab.waitUntilTracked(message.tabId);
+        if (!Tab.get(message.tabId))
+          await Tab.waitUntilTracked(message.tabId);
         const tab = Tab.get(message.tabId);
         return tab ? tab.$TST.promisedUniqueId : {};
       })();
 
     case Constants.kCOMMAND_GET_THEME_DECLARATIONS:
-      return browser.theme
-        .getCurrent()
-        .then((theme) => BrowserTheme.generateThemeDeclarations(theme));
+      return browser.theme.getCurrent().then(theme => BrowserTheme.generateThemeDeclarations(theme));
 
     case Constants.kCOMMAND_GET_CONTEXTUAL_IDENTITIES_COLOR_INFO:
       return Promise.resolve(ContextualIdentities.getColorInfo());
@@ -541,25 +559,24 @@ function onMessage(message, sender) {
       return Promise.resolve(configs[message.key]);
 
     case Constants.kCOMMAND_SET_CONFIG_VALUE:
-      return Promise.resolve((configs[message.key] = message.value));
+      return Promise.resolve(configs[message.key] = message.value);
 
     case Constants.kCOMMAND_GET_USER_STYLE_RULES:
       return Promise.resolve(loadUserStyleRules());
 
     case Constants.kCOMMAND_PING_TO_BACKGROUND: // return tabs as the pong, to optimizie further initialization tasks in the sidebar
+      TabsUpdate.completeLoadingTabs(message.windowId); // don't wait here for better perfomance
+      return Promise.resolve(TabsStore.windows.get(message.windowId).export(true));
+
     case Constants.kCOMMAND_PULL_TABS:
       if (message.windowId) {
         TabsUpdate.completeLoadingTabs(message.windowId); // don't wait here for better perfomance
-        return Promise.resolve(
-          TabsStore.windows.get(message.windowId).export(true)
-        );
+        return Promise.resolve(TabsStore.windows.get(message.windowId).export(true).tabs);
       }
-      return Promise.resolve(
-        message.tabIds.map((id) => {
-          const tab = Tab.get(id);
-          return tab?.$TST.export(true);
-        })
-      );
+      return Promise.resolve(message.tabIds.map(id => {
+        const tab = Tab.get(id);
+        return tab?.$TST.export(true);
+      }));
 
     case Constants.kCOMMAND_PULL_TABS_ORDER:
       return Promise.resolve(TabsStore.windows.get(message.windowId).order);
@@ -570,9 +587,9 @@ function onMessage(message, sender) {
           await wait(10);
         }
         const structure = TreeBehavior.getTreeStructureFromTabs(
-          message.windowId
-            ? Tab.getAllTabs(message.windowId)
-            : message.tabIds.map((id) => Tab.get(id))
+          message.windowId ?
+            Tab.getAllTabs(message.windowId) :
+            message.tabIds.map(id => Tab.get(id))
         );
         return { structure };
       })();
@@ -580,44 +597,33 @@ function onMessage(message, sender) {
     case Constants.kCOMMAND_NOTIFY_PERMISSIONS_GRANTED:
       return (async () => {
         const grantedPermission = JSON.stringify(message.permissions);
-        if (grantedPermission === JSON.stringify(Permissions.ALL_URLS)) {
-          const tabs = await browser.tabs
-            .query({})
-            .catch(ApiTabs.createErrorHandler());
-          await Tab.waitUntilTracked(tabs.map((tab) => tab.id));
+        if (grantedPermission == JSON.stringify(Permissions.ALL_URLS)) {
+          const tabs = await browser.tabs.query({}).catch(ApiTabs.createErrorHandler());
+          await Tab.waitUntilTracked(tabs.map(tab => tab.id));
           for (const tab of tabs) {
             Background.tryStartHandleAccelKeyOnTab(Tab.get(tab.id));
           }
-        } else if (
-          grantedPermission === JSON.stringify(Permissions.BOOKMARKS)
-        ) {
+        }
+        else if (grantedPermission == JSON.stringify(Permissions.BOOKMARKS)) {
           Migration.migrateBookmarkUrls();
           Bookmark.startTracking();
         }
       })();
 
-    case Constants.kCOMMAND_SIMULATE_SIDEBAR_MESSAGE:
-      {
-        SidebarConnection.onMessage.dispatch(
-          message.message.windowId,
-          message.message
-        );
-      }
-      break;
+    case Constants.kCOMMAND_SIMULATE_SIDEBAR_MESSAGE: {
+      SidebarConnection.onMessage.dispatch(message.message.windowId, message.message);
+    }; break;
 
     case Constants.kCOMMAND_CONFIRM_TO_CLOSE_TABS:
-      log("kCOMMAND_CONFIRM_TO_CLOSE_TABS: ", { message });
+      log('kCOMMAND_CONFIRM_TO_CLOSE_TABS: ', { message });
       return Background.confirmToCloseTabs(message.tabs, message);
 
     default:
       if (TSTAPI.INTERNAL_CALL_PREFIX_MATCHER.test(message.type)) {
-        return onMessageExternal(
-          {
-            ...message,
-            type: message.type.replace(TSTAPI.INTERNAL_CALL_PREFIX_MATCHER, ""),
-          },
-          sender
-        );
+        return onMessageExternal({
+          ...message,
+          type: message.type.replace(TSTAPI.INTERNAL_CALL_PREFIX_MATCHER, ''),
+        }, sender);
       }
       break;
   }
@@ -626,7 +632,8 @@ function onMessage(message, sender) {
 // This must be synchronous and return Promise on demando, to avoid
 // blocking to other listeners.
 function onMessageExternal(message, sender) {
-  if (mInitializationPhase < PHASE_BACKGROUND_INITIALIZED) return;
+  if (mInitializationPhase < PHASE_BACKGROUND_INITIALIZED)
+    return;
 
   switch (message.type) {
     case TSTAPI.kGET_VERSION:
@@ -634,27 +641,21 @@ function onMessageExternal(message, sender) {
 
     case TSTAPI.kGET_TREE:
       return (async () => {
-        const tabs = await (message.rendered
-          ? TSTAPI.getTargetRenderedTabs(message, sender)
-          : TSTAPI.getTargetTabs(message, sender));
+        const tabs = await (message.rendered ?
+          TSTAPI.getTargetRenderedTabs(message, sender) :
+          TSTAPI.getTargetTabs(message, sender));
         const cache = {};
-        const treeItems = Array.from(tabs, (tab) =>
-          TSTAPI.exportTab(tab, {
-            interval: message.interval,
-            cache,
-          })
-        );
+        const treeItems = Array.from(tabs, tab => TSTAPI.exportTab(tab, {
+          interval: message.interval,
+          cache,
+        }));
         const result = TSTAPI.formatTabResult(
           treeItems,
           {
             ...message,
             // This must return an array of root tabs if just the window id is specified.
             // See also: https://github.com/piroor/treestyletab/issues/2763
-            ...((message.window || message.windowId) &&
-            !message.tab &&
-            !message.tabs
-              ? { tab: "*" }
-              : {}),
+            ...((message.window || message.windowId) && !message.tab && !message.tabs ? { tab: '*' } : {})
           },
           sender.id
         );
@@ -664,28 +665,22 @@ function onMessageExternal(message, sender) {
 
     case TSTAPI.kGET_LIGHT_TREE:
       return (async () => {
-        const tabs = await (message.rendered
-          ? TSTAPI.getTargetRenderedTabs(message, sender)
-          : TSTAPI.getTargetTabs(message, sender));
+        const tabs = await (message.rendered ?
+          TSTAPI.getTargetRenderedTabs(message, sender) :
+          TSTAPI.getTargetTabs(message, sender));
         const cache = {};
-        const treeItems = Array.from(tabs, (tab) =>
-          TSTAPI.exportTab(tab, {
-            light: true,
-            interval: message.interval,
-            cache,
-          })
-        );
+        const treeItems = Array.from(tabs, tab => TSTAPI.exportTab(tab, {
+          light:    true,
+          interval: message.interval,
+          cache,
+        }));
         const result = TSTAPI.formatTabResult(
           treeItems,
           {
             ...message,
             // This must return an array of root tabs if just the window id is specified.
             // See also: https://github.com/piroor/treestyletab/issues/2763
-            ...((message.window || message.windowId) &&
-            !message.tab &&
-            !message.tabs
-              ? { tab: "*" }
-              : {}),
+            ...((message.window || message.windowId) && !message.tab && !message.tabs ? { tab: '*' } : {})
           },
           sender.id
         );
@@ -698,7 +693,7 @@ function onMessageExternal(message, sender) {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
         await doProgressively(
           tabs,
-          (tab) => Commands.toggleSticky(tab, true),
+          tab => Commands.toggleSticky(tab, true),
           message.interval
         );
         return true;
@@ -709,7 +704,7 @@ function onMessageExternal(message, sender) {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
         await doProgressively(
           tabs,
-          (tab) => Commands.toggleSticky(tab, false),
+          tab => Commands.toggleSticky(tab, false),
           message.interval
         );
         return true;
@@ -718,10 +713,10 @@ function onMessageExternal(message, sender) {
     case TSTAPI.kTOGGLE_STICKY_STATE:
       return (async () => {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
-        let firstTabIsSticky;
+        let firstTabIsSticky = undefined;
         await doProgressively(
           tabs,
-          (tab) => {
+          tab => {
             if (firstTabIsSticky === undefined)
               firstTabIsSticky = tab.$TST.sticky;
             Commands.toggleSticky(tab, !firstTabIsSticky);
@@ -736,10 +731,9 @@ function onMessageExternal(message, sender) {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
         await doProgressively(
           tabs,
-          (tab) =>
-            Commands.collapseTree(tab, {
-              recursively: !!message.recursively,
-            }),
+          tab => Commands.collapseTree(tab, {
+            recursively: !!message.recursively
+          }),
           message.interval
         );
         return true;
@@ -750,10 +744,9 @@ function onMessageExternal(message, sender) {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
         await doProgressively(
           tabs,
-          (tab) =>
-            Commands.expandTree(tab, {
-              recursively: !!message.recursively,
-            }),
+          tab => Commands.expandTree(tab, {
+            recursively: !!message.recursively
+          }),
           message.interval
         );
         return true;
@@ -764,11 +757,10 @@ function onMessageExternal(message, sender) {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
         await doProgressively(
           tabs,
-          (tab) =>
-            Tree.collapseExpandSubtree(tab, {
-              collapsed: !tab.$TST.subtreeCollapsed,
-              broadcast: true,
-            }),
+          tab => Tree.collapseExpandSubtree(tab, {
+            collapsed: !tab.$TST.subtreeCollapsed,
+            broadcast: true
+          }),
           message.interval
         );
         return true;
@@ -780,25 +772,25 @@ function onMessageExternal(message, sender) {
           message.child,
           message.parent,
           message.insertBefore,
-          message.insertAfter,
+          message.insertAfter
         ]);
-        const child = Tab.get(message.child);
+        const child  = Tab.get(message.child);
         const parent = Tab.get(message.parent);
-        if (!child || !parent || child.windowId !== parent.windowId)
+        if (!child ||
+            !parent ||
+            child.windowId != parent.windowId)
           return false;
         await Tree.attachTabTo(child, parent, {
-          broadcast: true,
+          broadcast:    true,
           insertBefore: Tab.get(message.insertBefore),
-          insertAfter: Tab.get(message.insertAfter),
+          insertAfter:  Tab.get(message.insertAfter)
         });
-        if (
-          child.$TST.collapsed &&
-          !parent.$TST.collapsed &&
-          !parent.$TST.subtreeCollapsed
-        ) {
+        if (child.$TST.collapsed &&
+            !parent.$TST.collapsed &&
+            !parent.$TST.subtreeCollapsed) {
           await Tree.collapseExpandTabAndSubtree(child, {
             collapsed: false,
-            bradcast: true,
+            bradcast:  true
           });
         }
         return true;
@@ -808,14 +800,15 @@ function onMessageExternal(message, sender) {
       return (async () => {
         await Tab.waitUntilTracked(message.tab);
         const tab = Tab.get(message.tab);
-        if (!tab) return false;
+        if (!tab)
+          return false;
         await Tree.detachTab(tab, {
-          broadcast: true,
+          broadcast: true
         });
         if (tab.$TST.collapsed) {
           await Tree.collapseExpandTabAndSubtree(tab, {
             collapsed: false,
-            bradcast: true,
+            bradcast:  true
           });
         }
         return true;
@@ -827,7 +820,7 @@ function onMessageExternal(message, sender) {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
         const results = await doProgressively(
           tabs,
-          (tab) => Commands.indent(tab, message),
+          tab => Commands.indent(tab, message),
           message.interval
         );
         return TSTAPI.formatResult(results, message);
@@ -839,7 +832,7 @@ function onMessageExternal(message, sender) {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
         const results = await doProgressively(
           tabs,
-          (tab) => Commands.outdent(tab, message),
+          tab => Commands.outdent(tab, message),
           message.interval
         );
         return TSTAPI.formatResult(results, message);
@@ -850,7 +843,7 @@ function onMessageExternal(message, sender) {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
         const results = await doProgressively(
           tabs,
-          (tab) => Commands.moveUp(tab, message),
+          tab => Commands.moveUp(tab, message),
           message.interval
         );
         return TSTAPI.formatResult(results, message);
@@ -868,7 +861,7 @@ function onMessageExternal(message, sender) {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
         const results = await doProgressively(
           tabs,
-          (tab) => Commands.moveDown(tab, message),
+          tab => Commands.moveDown(tab, message),
           message.interval
         );
         return TSTAPI.formatResult(results, message);
@@ -886,7 +879,7 @@ function onMessageExternal(message, sender) {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
         const results = await doProgressively(
           tabs,
-          (tab) => Commands.moveBefore(tab, message),
+          tab => Commands.moveBefore(tab, message),
           message.interval
         );
         return TSTAPI.formatResult(results, message);
@@ -897,7 +890,7 @@ function onMessageExternal(message, sender) {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
         const results = await doProgressively(
           tabs,
-          (tab) => Commands.moveAfter(tab, message),
+          tab => Commands.moveAfter(tab, message),
           message.interval
         );
         return TSTAPI.formatResult(results, message);
@@ -908,18 +901,15 @@ function onMessageExternal(message, sender) {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
         const tabsArray = await doProgressively(
           tabs,
-          (tab) => {
+          tab => {
             TabsInternalOperation.activateTab(tab, {
-              silently: message.silently,
+              silently: message.silently
             });
             return tab;
           },
           message.interval
         );
-        return TSTAPI.formatResult(
-          tabsArray.map(() => true),
-          message
-        );
+        return TSTAPI.formatResult(tabsArray.map(() => true), message);
       })();
 
     case TSTAPI.kCREATE:
@@ -927,9 +917,7 @@ function onMessageExternal(message, sender) {
         const windowId = message.params.windowId;
         const win = TabsStore.windows.get(windowId);
         if (!win)
-          throw new Error(
-            `invalid windowId ${windowId}: it must be valid window id`
-          );
+          throw new Error(`invalid windowId ${windowId}: it must be valid window id`);
         win.bypassTabControlCount++;
         const tab = await TabsOpen.openURIInTab(message.params, { windowId });
         return TSTAPI.exportTab(tab, { addonId: sender.id });
@@ -937,30 +925,29 @@ function onMessageExternal(message, sender) {
 
     case TSTAPI.kDUPLICATE:
       return (async () => {
-        const tabs = await TSTAPI.getTargetTabs(message, sender);
+        const tabs   = await TSTAPI.getTargetTabs(message, sender);
         let behavior = configs.autoAttachOnDuplicated;
-        switch (String(message.as || "sibling").toLowerCase()) {
-          case "child":
-            behavior =
-              behavior === Constants.kNEWTAB_OPEN_AS_CHILD_TOP
-                ? Constants.kNEWTAB_OPEN_AS_CHILD_TOP
-                : behavior === Constants.kNEWTAB_OPEN_AS_CHILD_END
-                  ? Constants.kNEWTAB_OPEN_AS_CHILD_END
-                  : Constants.kNEWTAB_OPEN_AS_CHILD;
+        switch (String(message.as || 'sibling').toLowerCase()) {
+          case 'child':
+            behavior = behavior == Constants.kNEWTAB_OPEN_AS_CHILD_TOP ?
+              Constants.kNEWTAB_OPEN_AS_CHILD_TOP :
+              behavior == Constants.kNEWTAB_OPEN_AS_CHILD_END ?
+                Constants.kNEWTAB_OPEN_AS_CHILD_END :
+                Constants.kNEWTAB_OPEN_AS_CHILD;
             break;
-          case "first-child":
+          case 'first-child':
             behavior = Constants.kNEWTAB_OPEN_AS_CHILD_TOP;
             break;
-          case "last-child":
+          case 'last-child':
             behavior = Constants.kNEWTAB_OPEN_AS_CHILD_END;
             break;
-          case "sibling":
+          case 'sibling':
             behavior = Constants.kNEWTAB_OPEN_AS_SIBLING;
             break;
-          case "nextsibling":
+          case 'nextsibling':
             behavior = Constants.kNEWTAB_OPEN_AS_NEXT_SIBLING;
             break;
-          case "orphan":
+          case 'orphan':
             behavior = Constants.kNEWTAB_OPEN_AS_ORPHAN;
             break;
           default:
@@ -968,51 +955,45 @@ function onMessageExternal(message, sender) {
         }
         const tabsArray = await doProgressively(
           tabs,
-          async (tab) => {
+          async tab => {
             return Commands.duplicateTab(tab, {
               destinationWindowId: tab.windowId,
               behavior,
-              multiselected: false,
+              multiselected: false
             });
           },
           message.interval
         );
-        return TSTAPI.formatResult(
-          tabsArray.map(() => true),
-          message
-        );
+        return TSTAPI.formatResult(tabsArray.map(() => true), message);
       })();
 
     case TSTAPI.kGROUP_TABS:
       return (async () => {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
-        const temporaryStateParams =
-          message.temporary && !message.temporaryAggressive
-            ? {
-                temporary: true,
+        const temporaryStateParams = (message.temporary && !message.temporaryAggressive) ?
+          {
+            temporary:           true,
+            temporaryAggressive: false,
+          } :
+          (!message.temporary && message.temporaryAggressive) ?
+            {
+              temporary:           false,
+              temporaryAggressive: true,
+            } :
+            (message.temporaryAggressive === false && message.temporary === false) ?
+              {
+                temporary:           false,
                 temporaryAggressive: false,
-              }
-            : !message.temporary && message.temporaryAggressive
-              ? {
-                  temporary: false,
-                  temporaryAggressive: true,
-                }
-              : message.temporaryAggressive === false &&
-                  message.temporary === false
-                ? {
-                    temporary: false,
-                    temporaryAggressive: false,
-                  }
-                : {};
+              } :
+              {};
         const tab = await TabsGroup.groupTabs(Array.from(tabs), {
-          title: message.title,
+          title:     message.title,
           broadcast: true,
-          ...TabsGroup.temporaryStateParams(
-            configs.groupTabTemporaryStateForAPI
-          ),
+          ...TabsGroup.temporaryStateParams(configs.groupTabTemporaryStateForAPI),
           ...temporaryStateParams,
         });
-        if (!tab) return null;
+        if (!tab)
+          return null;
         return TSTAPI.exportTab(tab, { addonId: sender.id });
       })();
 
@@ -1020,7 +1001,7 @@ function onMessageExternal(message, sender) {
       return (async () => {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
         const windowId = await Commands.openTabsInWindow(Array.from(tabs), {
-          multiselected: false,
+          multiselected: false
         });
         return windowId;
       })();
@@ -1030,17 +1011,15 @@ function onMessageExternal(message, sender) {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
         const reopenedTabs = await Commands.reopenInContainer(
           Array.from(tabs),
-          message.containerId || "firefox-default"
+          message.containerId || 'firefox-default'
         );
         const cache = {};
         const result = await TSTAPI.formatTabResult(
-          reopenedTabs.map((tab) =>
-            TSTAPI.exportTab(tab, {
-              interval: message.interval,
-              addonId: sender.id,
-              cache,
-            })
-          ),
+          reopenedTabs.map(tab => TSTAPI.exportTab(tab, {
+            interval: message.interval,
+            addonId:  sender.id,
+            cache,
+          })),
           message
         );
         TSTAPI.clearCache(cache);
@@ -1050,9 +1029,7 @@ function onMessageExternal(message, sender) {
     case TSTAPI.kGET_TREE_STRUCTURE:
       return (async () => {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
-        return Promise.resolve(
-          TreeBehavior.getTreeStructureFromTabs(Array.from(tabs))
-        );
+        return Promise.resolve(TreeBehavior.getTreeStructureFromTabs(Array.from(tabs)));
       })();
 
     case TSTAPI.kSET_TREE_STRUCTURE:
@@ -1070,15 +1047,14 @@ function onMessageExternal(message, sender) {
       return (async () => {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
         let states = message.state || message.states;
-        if (!Array.isArray(states)) states = [states];
-        states = mapAndFilterUniq(
-          states,
-          (state) => (state && String(state)) || undefined
-        );
-        if (states.length === 0) return true;
+        if (!Array.isArray(states))
+          states = [states];
+        states = mapAndFilterUniq(states, state => state && String(state) || undefined);
+        if (states.length == 0)
+          return true;
         const tabsArray = await doProgressively(
           tabs,
-          (tab) => {
+          tab => {
             for (const state of states) {
               tab.$TST.addState(state);
             }
@@ -1087,7 +1063,7 @@ function onMessageExternal(message, sender) {
           message.interval
         );
         Tab.broadcastState(tabsArray, {
-          add: states,
+          add: states
         });
         return true;
       })();
@@ -1096,15 +1072,14 @@ function onMessageExternal(message, sender) {
       return (async () => {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
         let states = message.state || message.states;
-        if (!Array.isArray(states)) states = [states];
-        states = mapAndFilterUniq(
-          states,
-          (state) => (state && String(state)) || undefined
-        );
-        if (states.length === 0) return true;
+        if (!Array.isArray(states))
+          states = [states];
+        states = mapAndFilterUniq(states, state => state && String(state) || undefined);
+        if (states.length == 0)
+          return true;
         const tabsArray = await doProgressively(
           tabs,
-          (tab) => {
+          tab => {
             for (const state of states) {
               tab.$TST.removeState(state);
             }
@@ -1113,7 +1088,7 @@ function onMessageExternal(message, sender) {
           message.interval
         );
         Tab.broadcastState(tabsArray, {
-          remove: states,
+          remove: states
         });
         return true;
       })();
@@ -1121,28 +1096,19 @@ function onMessageExternal(message, sender) {
     case TSTAPI.kGRANT_TO_REMOVE_TABS:
       return (async () => {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
-        configs.grantedRemovingTabIds = mapAndFilterUniq(
-          configs.grantedRemovingTabIds.concat(tabs),
-          (tab) => {
-            tab = TabsStore.ensureLivingTab(tab);
-            return tab?.id || undefined;
-          }
-        );
+        configs.grantedRemovingTabIds = mapAndFilterUniq(configs.grantedRemovingTabIds.concat(tabs), tab => {
+          tab = TabsStore.ensureLivingItem(tab);
+          return tab?.id || undefined;
+        });
         return true;
       })();
 
     case TSTAPI.kSTART_CUSTOM_DRAG:
       return (async () => {
         SidebarConnection.sendMessage({
-          type: Constants.kNOTIFY_TAB_MOUSEDOWN_EXPIRED,
-          windowId:
-            message.windowId ||
-            (
-              await browser.windows
-                .getLastFocused({ populate: false })
-                .catch(ApiTabs.createErrorHandler())
-            ).id,
-          button: message.button || 0,
+          type:     Constants.kNOTIFY_TAB_MOUSEDOWN_EXPIRED,
+          windowId: message.windowId || (await browser.windows.getLastFocused({ populate: false }).catch(ApiTabs.createErrorHandler())).id,
+          button:   message.button || 0
         });
       })();
 
@@ -1156,11 +1122,7 @@ function onMessageExternal(message, sender) {
       return (async () => {
         const tabs = await TSTAPI.getTargetTabs(message, sender);
         for (const tab of tabs) {
-          tab.$TST.registerTooltipText(
-            sender.id,
-            message.text || "",
-            !!message.force
-          );
+          tab.$TST.registerTooltipText(sender.id, message.text || '', !!message.force);
         }
         return true;
       })();
@@ -1175,11 +1137,11 @@ function onMessageExternal(message, sender) {
       })();
 
     case TSTAPI.kREGISTER_AUTO_STICKY_STATES:
-      Tab.registerAutoStickyState(sender.id, message.state || message.states);
+      TreeItem.registerAutoStickyState(sender.id, message.state || message.states);
       break;
 
     case TSTAPI.kUNREGISTER_AUTO_STICKY_STATES:
-      Tab.unregisterAutoStickyState(sender.id, message.state || message.states);
+      TreeItem.unregisterAutoStickyState(sender.id, message.state || message.states);
       break;
   }
 }
@@ -1187,19 +1149,12 @@ function onMessageExternal(message, sender) {
 Tab.onStateChanged.addListener((tab, state, added) => {
   switch (state) {
     case Constants.kTAB_STATE_STICKY:
-      if (
-        TSTAPI.hasListenerForMessageType(
-          TSTAPI.kNOTIFY_TAB_STICKY_STATE_CHANGED
-        )
-      ) {
-        TSTAPI.broadcastMessage(
-          {
-            type: TSTAPI.kNOTIFY_TAB_STICKY_STATE_CHANGED,
-            tab,
-            sticky: !!added,
-          },
-          { tabProperties: ["tab"] }
-        ).catch((_error) => {});
+      if (TSTAPI.hasListenerForMessageType(TSTAPI.kNOTIFY_TAB_STICKY_STATE_CHANGED)) {
+        TSTAPI.broadcastMessage({
+          type:   TSTAPI.kNOTIFY_TAB_STICKY_STATE_CHANGED,
+          tab,
+          sticky: !!added,
+        }, { tabProperties: ['tab'] }).catch(_error => {});
       }
       break;
   }

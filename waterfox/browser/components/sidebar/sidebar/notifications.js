@@ -1,12 +1,21 @@
-import { configs } from "/common/common.js";
+/*
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+'use strict';
 
-const mNotificationsContainer = document.querySelector("#notifications");
+import {
+  configs,
+} from '/common/common.js';
+
+const mNotificationsContainer = document.querySelector('#notifications');
 
 export function add(id, { message, contents, onCreated } = {}) {
   const elementId = `notification_${id}`;
   let notification = document.getElementById(elementId);
   if (!notification) {
-    notification = document.createElement("span");
+    notification = document.createElement('span');
     notification.id = elementId;
   }
 
@@ -16,19 +25,22 @@ export function add(id, { message, contents, onCreated } = {}) {
     range.deleteContents();
     range.detach();
     notification.appendChild(contents);
-  } else if (message) {
+  }
+  else if (message) {
     notification.textContent = message;
   }
 
-  if (notification.parentNode) return notification;
+  if (notification.parentNode)
+    return notification;
 
   mNotificationsContainer.appendChild(notification);
 
-  if (typeof onCreated === "function") onCreated(notification);
+  if (typeof onCreated == 'function')
+    onCreated(notification);
 
   if (mNotificationsContainer.childNodes.length > 0) {
-    mNotificationsContainer.classList.remove("hiding");
-    mNotificationsContainer.classList.add("shown");
+    mNotificationsContainer.classList.remove('hiding');
+    mNotificationsContainer.classList.add('shown');
   }
 
   return notification;
@@ -37,14 +49,16 @@ export function add(id, { message, contents, onCreated } = {}) {
 export function remove(id) {
   const elementId = `notification_${id}`;
   const existingNotification = document.getElementById(elementId);
-  if (!existingNotification) return;
+  if (!existingNotification)
+    return;
 
   existingNotification.parentNode.removeChild(existingNotification);
-  if (mNotificationsContainer.childNodes.length > 0) return;
+  if (mNotificationsContainer.childNodes.length > 0)
+    return;
 
-  mNotificationsContainer.classList.add("hiding");
-  mNotificationsContainer.classList.remove("shown");
+  mNotificationsContainer.classList.add('hiding');
+  mNotificationsContainer.classList.remove('shown');
   setTimeout(() => {
-    mNotificationsContainer.classList.remove("hiding");
+    mNotificationsContainer.classList.remove('hiding');
   }, configs.collapseDuration);
 }

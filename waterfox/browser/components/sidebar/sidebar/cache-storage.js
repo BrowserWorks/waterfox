@@ -1,15 +1,23 @@
-import Tab from "/common/Tab.js";
+/*
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+'use strict';
 
-const DB_NAME = "SidebarStorage";
+import { Tab } from '/common/TreeItem.js';
+
+const DB_NAME = 'SidebarStorage';
 const DB_VERSION = 1;
 const EXPIRATION_TIME_IN_MSEC = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-export const PREVIEW = "previewCaches";
+export const PREVIEW = 'previewCaches';
 
 let mOpenedDB;
 
 async function openDB() {
-  if (mOpenedDB) return mOpenedDB;
+  if (mOpenedDB)
+    return mOpenedDB;
   return new Promise((resolve, _reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -31,13 +39,12 @@ async function openDB() {
       if (event.oldVersion < DB_VERSION) {
         try {
           db.deleteObjectStore(PREVIEW);
-        } catch (_error) {}
+        }
+        catch(_error) {
+        }
 
-        const previewCacheStore = db.createObjectStore(PREVIEW, {
-          keyPath: "tabId",
-          unique: true,
-        });
-        previewCacheStore.createIndex("timestamp", "timestamp");
+        const previewCacheStore = db.createObjectStore(PREVIEW, { keyPath: 'tabId', unique: true });
+        previewCacheStore.createIndex('timestamp', 'timestamp');
       }
     };
   });
@@ -48,13 +55,14 @@ export async function setValue({ tabId, value, store } = {}) {
     openDB(),
     Tab.get(tabId)?.$TST.promisedUniqueId,
   ]);
-  if (!db || !uniqueId || !uniqueId.id) return;
+  if (!db || !uniqueId || !uniqueId.id)
+    return;
 
   reserveToExpireOldEntries();
 
   const timestamp = Date.now();
   try {
-    const transaction = db.transaction([store], "readwrite");
+    const transaction = db.transaction([store], 'readwrite');
     const cacheStore = transaction.objectStore(store);
 
     cacheStore.put({
@@ -69,11 +77,9 @@ export async function setValue({ tabId, value, store } = {}) {
       value = undefined;
       store = undefined;
     };
-  } catch (error) {
-    console.error(
-      `Failed to store cached value for ${uniqueId.id} in the store ${store}`,
-      error
-    );
+  }
+  catch(error) {
+    console.error(`Failed to store cached value for ${uniqueId.id} in the store ${store}`, error);
   }
 }
 
@@ -82,12 +88,13 @@ export async function deleteValue({ tabId, store } = {}) {
     openDB(),
     Tab.get(tabId)?.$TST.promisedUniqueId,
   ]);
-  if (!db || !uniqueId || !uniqueId.id) return;
+  if (!db || !uniqueId || !uniqueId.id)
+    return;
 
   reserveToExpireOldEntries();
 
   try {
-    const transaction = db.transaction([store], "readwrite");
+    const transaction = db.transaction([store], 'readwrite');
     const cacheStore = transaction.objectStore(store);
     cacheStore.delete(uniqueId.id);
     transaction.oncomplete = () => {
@@ -95,11 +102,9 @@ export async function deleteValue({ tabId, store } = {}) {
       tabId = undefined;
       store = undefined;
     };
-  } catch (error) {
-    console.error(
-      `Failed to delete cached value for ${uniqueId.id} in the store ${store}`,
-      error
-    );
+  }
+  catch(error) {
+    console.error(`Failed to delete cached value for ${uniqueId.id} in the store ${store}`, error);
   }
 }
 
@@ -116,7 +121,7 @@ export async function getValue({ tabId, store } = {}) {
 
     const timestamp = Date.now();
     try {
-      const transaction = db.transaction([store], "readwrite");
+      const transaction = db.transaction([store], 'readwrite');
       const cacheStore = transaction.objectStore(store);
       const cacheRequest = cacheStore.get(uniqueId.id);
 
@@ -143,8 +148,9 @@ export async function getValue({ tabId, store } = {}) {
         tabId = undefined;
         store = undefined;
       };
-    } catch (error) {
-      console.error("Failed to get from cached value:", error);
+    }
+    catch(error) {
+      console.error('Failed to get from cached value:', error);
       resolve(null);
     }
   });
@@ -168,16 +174,15 @@ async function expireOldEntries() {
     }
 
     try {
-      const transaction = db.transaction([PREVIEW], "readwrite");
+      const transaction = db.transaction([PREVIEW], 'readwrite');
       const previewCacheStore = transaction.objectStore(PREVIEW);
-      const previewCacheIndex = previewCacheStore.index("timestamp");
+      const previewCacheIndex = previewCacheStore.index('timestamp');
       const expirationTimestamp = Date.now() - EXPIRATION_TIME_IN_MSEC;
-      const previewCacheRequest = previewCacheIndex.openCursor(
-        IDBKeyRange.upperBound(expirationTimestamp)
-      );
+      const previewCacheRequest = previewCacheIndex.openCursor(IDBKeyRange.upperBound(expirationTimestamp));
       previewCacheRequest.onsuccess = (event) => {
         const cursor = event.target.result;
-        if (!cursor) return;
+        if (!cursor)
+          return;
         const key = cursor.primaryKey;
         cursor.continue();
         previewCacheStore.delete(key);
@@ -187,8 +192,9 @@ async function expireOldEntries() {
         //db.close();
         resolve();
       };
-    } catch (error) {
-      console.error("Failed to expire old entries:", error);
+    }
+    catch(error) {
+      console.error('Failed to expire old entries:', error);
       reject(error);
     }
   });
