@@ -58,7 +58,7 @@ Services.obs.addObserver((doc) => {
       _card,
       addon
     ) {
-      update_orig.apply(this, [e]);
+      update_orig.apply(this, [_card, addon]);
       if (addon.optionsType === AddonManager.OPTIONS_TYPE_DIALOG) {
         this.querySelector('panel-item[action="preferences"]').hidden = false;
       }
