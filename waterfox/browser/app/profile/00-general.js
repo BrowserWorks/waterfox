@@ -31,12 +31,11 @@ pref("app.update.url.override", "", sticky); // Override URL for application upd
 // --- Startup, Session, and Basic UI Elements ---
 // Defines browser behavior on startup and general UI settings.
 pref("browser.startup.page", 3); // 0=blank, 1=home, 2=last visited page, 3=resume previous session.
-pref("browser.search.widget.inNavBar", true); // Display the search widget in the navigation bar.
 pref("browser.tabs.pinnedIconOnly", true); // Pinned tabs show only an icon, no text.
 pref("browser.tabs.warnOnClose", true); // Warn user when attempting to close multiple tabs.
 // Stores the state of toolbar customizations (e.g., button placements).
 // It's a JSON string, generally best modified through the UI.
-pref("browser.uiCustomization.state", "{\"placements\":{\"widget-overflow-fixed-list\":[],\"unified-extensions-area\":[],\"nav-bar\":[\"back-button\",\"forward-button\",\"stop-reload-button\",\"urlbar-container\",\"save-to-pocket-button\",\"search-container\",\"downloads-button\",\"fxa-toolbar-menu-button\",\"unified-extensions-button\"],\"TabsToolbar\":[\"firefox-view-button\",\"tabbrowser-tabs\",\"new-tab-button\",\"alltabs-button\"],\"PersonalToolbar\":[\"import-button\",\"personal-bookmarks\"],\"status-bar\":[\"screenshot-button\",\"fullscreen-button\",\"status-text\"]},\"seen\":[\"developer-button\"],\"dirtyAreaCache\":[\"nav-bar\",\"status-bar\",\"PersonalToolbar\",\"TabsToolbar\"],\"currentVersion\":19,\"newElementCount\":3}");
+pref("browser.uiCustomization.state", "{\"placements\":{\"widget-overflow-fixed-list\":[],\"unified-extensions-area\":[],\"nav-bar\":[\"sidebar-button\",\"back-button\",\"forward-button\",\"vertical-spacer\",\"stop-reload-button\",\"urlbar-container\",\"save-to-pocket-button\",\"downloads-button\",\"fxa-toolbar-menu-button\",\"unified-extensions-button\",\"reset-pbm-toolbar-button\"],\"TabsToolbar\":[\"firefox-view-button\",\"tabbrowser-tabs\",\"new-tab-button\",\"alltabs-button\"],\"vertical-tabs\":[],\"PersonalToolbar\":[\"import-button\",\"personal-bookmarks\"],\"status-bar\":[\"screenshot-button\",\"fullscreen-button\",\"status-text\"]},\"seen\":[\"developer-button\",\"screenshot-button\"],\"dirtyAreaCache\":[\"nav-bar\",\"status-bar\",\"PersonalToolbar\",\"TabsToolbar\",\"vertical-tabs\"],\"currentVersion\":22,\"newElementCount\":4}");
 // Alternative smooth scroll physics. ("MSD" = Mass-Spring-Damper)
 pref("general.smoothScroll.msdPhysics.enabled", true);
 
