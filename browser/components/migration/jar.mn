@@ -22,6 +22,7 @@ browser.jar:
    content/browser/migration/brands/brave.png                 (content/brands/brave.png)
    content/browser/migration/brands/chrome.png                (content/brands/chrome.png)
    content/browser/migration/brands/chromium.png              (content/brands/chromium.png)
+   content/browser/migration/brands/firefox.png               (content/brands/firefox.png)
    content/browser/migration/brands/opera.png                 (content/brands/opera.png)
    content/browser/migration/brands/operagx.png               (content/brands/operagx.png)
    content/browser/migration/brands/vivaldi.png               (content/brands/vivaldi.png)
