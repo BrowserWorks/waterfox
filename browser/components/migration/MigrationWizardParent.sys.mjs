@@ -757,7 +757,7 @@ export class MigrationWizardParent extends JSWindowActorParent {
       }
       case lazy.MigrationWizardConstants.DISPLAYED_RESOURCE_TYPES.PASSWORDS: {
         let quantity = MigrationUtils.getImportedCount("logins");
-        return lazy.gFluentStrings.formatValue(
+        return quantity === 0 ? "Passwords imported" : lazy.gFluentStrings.formatValue(
           "migration-wizard-progress-success-passwords",
           {
             quantity,
