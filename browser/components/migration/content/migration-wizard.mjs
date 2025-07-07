@@ -30,6 +30,7 @@ export class MigrationWizard extends HTMLElement {
   #expandedDetails = false;
   #extensionsSuccessLink = null;
   #supportTextLinks = null;
+  #passwordsMigrated = false;
 
   static get markup() {
     return `
@@ -106,6 +107,9 @@ export class MigrationWizard extends HTMLElement {
                 </label>
                 <label id="payment-methods" class="resource-type-label" data-resource-type="PAYMENT_METHODS">
                   <input type="checkbox"/><span data-l10n-id="migration-payment-methods-option-label"></span>
+                </label>
+                <label id="cookies" class="resource-type-label" data-resource-type="COOKIES">
+                  <input type="checkbox"/><span data-l10n-id="migration-cookies-option-label"></span>
                 </label>
               </fieldset>
             </details>
@@ -605,6 +609,9 @@ export class MigrationWizard extends HTMLElement {
     this.#ensureSelectionDropdown();
     this.#browserProfileSelectorList.textContent = "";
 
+    // Reset password migration flag when starting new migration
+    this.#passwordsMigrated = false;
+
     let selectionPage = this.#shadowRoot.querySelector(
       "div[name='page-selection']"
     );
@@ -828,6 +835,12 @@ export class MigrationWizard extends HTMLElement {
             this.#extensionsSuccessLink.textContent =
               state.progress[resourceType].message;
           }
+          if (
+            resourceType ==
+            MigrationWizardConstants.DISPLAYED_RESOURCE_TYPES.PASSWORDS
+          ) {
+            this.#passwordsMigrated = true;
+          }
           remainingProgressGroups--;
           break;
         }
@@ -864,6 +877,12 @@ export class MigrationWizard extends HTMLElement {
             this.#extensionsSuccessLink.textContent =
               state.progress[resourceType].message;
           }
+          if (
+            resourceType ==
+            MigrationWizardConstants.DISPLAYED_RESOURCE_TYPES.PASSWORDS
+          ) {
+            this.#passwordsMigrated = true;
+          }
           remainingProgressGroups--;
           break;
         }
@@ -898,6 +917,18 @@ export class MigrationWizard extends HTMLElement {
     cancelButton.hidden = migrationDone;
 
     if (migrationDone) {
+      // If passwords were migrated, change button text to "Restart Now"
+      if (this.#passwordsMigrated) {
+        let doneButton = progressPage.querySelector(".done-button");
+        let continueButton = progressPage.querySelector(".continue-button");
+        if (doneButton) {
+          document.l10n.setAttributes(doneButton, "quickactions-restart");
+        }
+        if (continueButton) {
+          document.l10n.setAttributes(continueButton, "quickactions-restart");
+        }
+      }
+
       // Since this might be called before the named-deck actually switches to
       // show the progress page, we cannot focus this button immediately.
       // Instead, we use a rAF to queue this up for focusing before the
@@ -1254,6 +1285,8 @@ export class MigrationWizard extends HTMLElement {
         "migration-list-autofill-label",
       [MigrationWizardConstants.DISPLAYED_RESOURCE_TYPES.PAYMENT_METHODS]:
         "migration-list-payment-methods-label",
+      [MigrationWizardConstants.DISPLAYED_RESOURCE_TYPES.COOKIES]:
+        "migration-cookies-option-label",
     };
 
     if (MigrationWizardConstants.USES_FAVORITES.includes(key)) {
@@ -1442,12 +1475,22 @@ export class MigrationWizard extends HTMLElement {
     ) {
       this.#doImport();
     } else if (
-      event.target.classList.contains("cancel-close") ||
-      event.target.classList.contains("finish-button")
+      event.target.classList.contains("cancel-close")
     ) {
       this.dispatchEvent(
         new CustomEvent("MigrationWizard:Close", { bubbles: true })
       );
+    } else if (
+      event.target.classList.contains("finish-button")
+    ) {
+      if (this.#passwordsMigrated) {
+        // Restart the browser when passwords were migrated
+        this.#restartBrowser();
+      } else {
+        this.dispatchEvent(
+          new CustomEvent("MigrationWizard:Close", { bubbles: true })
+        );
+      }
     } else if (
       event.currentTarget == this.#browserProfileSelectorList &&
       event.target != this.#browserProfileSelectorList
@@ -1572,6 +1615,32 @@ export class MigrationWizard extends HTMLElement {
         this.#handleChangeEvent(event);
         break;
       }
+    }
+  }
+
+  #restartBrowser() {
+    try {
+      // Notify all windows that an application quit has been requested
+      let cancelQuit = Cc["@mozilla.org/supports-PRBool;1"].createInstance(
+        Ci.nsISupportsPRBool
+      );
+      Services.obs.notifyObservers(
+        cancelQuit,
+        "quit-application-requested",
+        "restart"
+      );
+
+      // Something aborted the quit process
+      if (cancelQuit.data) {
+        return;
+      }
+
+      // Restart the browser
+      Services.startup.quit(
+        Ci.nsIAppStartup.eAttemptQuit | Ci.nsIAppStartup.eRestart
+      );
+    } catch (ex) {
+      console.error("Failed to restart browser:", ex);
     }
   }
 }
