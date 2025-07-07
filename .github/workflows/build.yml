@@ -92,7 +92,7 @@ jobs:
           sudo apt install msitools
           rustup target add x86_64-pc-windows-msvc
           mkdir -p $HOME/.mozbuild
-          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-19.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
+          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-20.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
           tar -xvf clang.tar.zst -C $HOME/.mozbuild
           curl -L "https://www.7-zip.org/a/7z2408-linux-x64.tar.xz" | tar xJ
           sudo mv 7zz /usr/local/bin/7z
@@ -158,7 +158,7 @@ jobs:
           curl -L https://ftp.mozilla.org/pub/mozilla/libraries/win32/MozillaBuildSetup-Latest.exe --output MozillaBuildSetup-Latest.exe
           7z x MozillaBuildSetup-Latest.exe -o/c/mozilla-build
           mkdir -p $HOME/.mozbuild
-          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.win64-clang-19.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
+          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.win64-clang-20.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
           7z x "clang.tar.zst" -so | 7z x -aoa -si -ttar -o$HOME/.mozbuild
       - name: "\U0001F4E4 Checkout"
         uses: actions/checkout@v4
@@ -211,7 +211,7 @@ jobs:
           sudo apt install msitools
           rustup target add x86_64-pc-windows-msvc
           mkdir -p $HOME/.mozbuild
-          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-19.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
+          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-20.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
           tar -xvf clang.tar.zst -C $HOME/.mozbuild
           curl -L https://github.com/ebourg/jsign/releases/download/6.0/jsign_6.0_all.deb --output jsign_6.0_all.deb
           sudo apt install -y ./jsign_6.0_all.deb
@@ -426,7 +426,7 @@ jobs:
           sudo apt install nasm
           rustup target add ${{ matrix.arch }}
           mkdir -p $HOME/.mozbuild
-          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-19.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
+          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-20.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
           tar -xvf clang.tar.zst -C $HOME/.mozbuild
           curl -L "https://www.7-zip.org/a/7z2408-linux-x64.tar.xz" | tar xJ
           sudo mv 7zz /usr/local/bin/7z
@@ -483,10 +483,10 @@ jobs:
         include:
           - runs-on: macos-13-large
             arch: x86_64-apple-darwin
-            clang_url: https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.macosx64-clang-19.latest/artifacts/public/build/clang.tar.zst
+            clang_url: https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.macosx64-clang-20.latest/artifacts/public/build/clang.tar.zst
           - runs-on: warp-macos-13-arm64-6x
             arch: aarch64-apple-darwin
-            clang_url: https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.macosx64-aarch64-clang-19.latest/artifacts/public/build/clang.tar.zst
+            clang_url: https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.macosx64-aarch64-clang-20.latest/artifacts/public/build/clang.tar.zst
     needs:
       - build-macos-multi-stage-1
     steps:
@@ -547,7 +547,7 @@ jobs:
           sudo apt install nasm
           rustup target add ${{ matrix.arch }}
           mkdir -p $HOME/.mozbuild
-          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-19.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
+          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-20.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
           tar -xvf clang.tar.zst -C $HOME/.mozbuild
           curl -L "https://www.7-zip.org/a/7z2408-linux-x64.tar.xz" | tar xJ
           sudo mv 7zz /usr/local/bin/7z
@@ -757,7 +757,7 @@ jobs:
       - name: "\U0001F4BF Setup build packages"
         run: |
           mkdir -p $HOME/.mozbuild
-          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-19.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
+          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-20.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
           tar -xvf clang.tar.zst -C $HOME/.mozbuild
           curl -L "https://www.7-zip.org/a/7z2408-linux-x64.tar.xz" | tar xJ
           sudo mv 7zz /usr/local/bin/7z
