@@ -49,7 +49,11 @@ ac_add_options --disable-tests
 ac_add_options --disable-updater
 
 ac_add_options --enable-application=browser
-ac_add_options --enable-bootstrap
+# Make sure to have the clang version in sync with your rust version
+# curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-20.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
+# tar -xvf clang.tar.zst -C $HOME/.mozbuild
+# rm clang.tar.zst
+ac_add_options --enable-bootstrap=-clang
 ac_add_options --enable-jxl
 ac_add_options --enable-optimize="-Os -w"
 ac_add_options --enable-unverified-updates
