@@ -149,10 +149,6 @@ const RDF_PROPERTY_INVALID_TYPES = [
  */
 const USE_RDFNS_ATTR = false;
 
-const lazy = {};
-
-ChromeUtils.defineModuleGetter(lazy, "OS", "resource://gre/modules/osfile.jsm");
-
 function isAttr(obj) {
   return (
     obj && typeof obj === "object" && ChromeUtils.getClassName(obj) === "Attr"
@@ -1751,9 +1747,6 @@ export class RDFDataSource {
    * Saves the RDF/XML to a file.
    */
   async saveToFile(file) {
-    return lazy.OS.File.writeAtomic(
-      file,
-      new TextEncoder().encode(this.serializeToString())
-    );
+    return IOUtils.writeUTF8(file, this.serializeToString());
   }
 }

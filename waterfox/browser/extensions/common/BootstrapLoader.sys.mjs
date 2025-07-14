@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { AddonManager } from "resource://gre/modules/AddonManager.sys.mjs";
+import { Log } from "resource://gre/modules/Log.sys.mjs";
 
 const lazy = {};
 
@@ -11,6 +12,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   Blocklist: "resource://gre/modules/Blocklist.sys.mjs",
   ConsoleAPI: "resource://gre/modules/Console.sys.mjs",
   InstallRDF: "resource:///modules/RDFManifestConverter.sys.mjs",
+  XPIExports: "resource://gre/modules/addons/XPIExports.sys.mjs",
 });
 
 Services.obs.addObserver((doc) => {
@@ -67,13 +69,8 @@ Services.obs.addObserver((doc) => {
 }, "chrome-document-loaded");
 
 ChromeUtils.defineLazyGetter(lazy, "BOOTSTRAP_REASONS", () => {
-  const { XPIProvider } = ChromeUtils.import(
-    "resource://gre/modules/addons/XPIProvider.jsm"
-  );
-  return XPIProvider.BOOTSTRAP_REASONS;
+  return lazy.XPIExports.XPIProvider.BOOTSTRAP_REASONS;
 });
-
-import { Log } from "resource://gre/modules/Log.sys.mjs";
 
 const logger = Log.repository.getLogger("addons.bootstrap");
 
@@ -109,6 +106,12 @@ const TYPES = {
   extension: 2,
   dictionary: 64,
 };
+
+const VALID_OPTION_TYPES = [
+  AddonManager.OPTIONS_TYPE_DIALOG,
+  AddonManager.OPTIONS_TYPE_INLINE_BROWSER,
+  AddonManager.OPTIONS_TYPE_TAB,
+];
 
 const COMPATIBLE_BY_DEFAULT_TYPES = {
   extension: true,
@@ -192,7 +195,7 @@ export const BootstrapLoader = {
       if (!isDefault) {
         locale.locales = [];
         for (const localeName of aSource.locales || []) {
-          if (!localeName) {
+          if (!localeName?.trim()) {
             logger.warn("Ignoring empty locale in localized properties");
             continue;
           }
@@ -204,7 +207,7 @@ export const BootstrapLoader = {
           locale.locales.push(localeName);
         }
 
-        if (!locale.locales.length) {
+        if (locale.locales.length === 0) {
           logger.warn("Ignoring localized properties with no listed locales");
           return null;
         }
@@ -219,27 +222,48 @@ export const BootstrapLoader = {
       return locale;
     }
 
-    const manifestData = await pkg.readString("install.rdf");
-    const manifest = lazy.InstallRDF.loadFromString(manifestData).decode();
+    let manifest;
+    try {
+      const manifestData = await pkg.readString("install.rdf");
+      manifest = lazy.InstallRDF.loadFromString(manifestData).decode();
+    } catch (e) {
+      logger.error(`Failed to parse install.rdf for addon:`, e);
+      throw new Error(`Invalid install.rdf format: ${e.message}`);
+    }
 
     const addon = new lazy.AddonInternal();
     for (const prop of PROP_METADATA) {
-      if (objectHasOwnProperty(manifest, prop)) {
+      if (objectHasOwnProperty(manifest, prop) && manifest[prop] != null) {
         addon[prop] = manifest[prop];
       }
     }
 
-    if (!addon.type) {
+    if (!addon.type || addon.type === null || addon.type === undefined) {
       addon.type = "extension";
-    } else {
-      const type = addon.type;
+    } else if (typeof addon.type === "number") {
+      // Handle legacy numeric types
+      const numericType = addon.type;
       addon.type = null;
       for (const name in TYPES) {
-        if (TYPES[name] === type) {
+        if (TYPES[name] === numericType) {
           addon.type = name;
           break;
         }
       }
+      if (!addon.type) {
+        logger.info(`Unknown numeric type ${numericType}, defaulting to extension`);
+        addon.type = "extension";
+      }
+    } else if (typeof addon.type === "string") {
+      // Handle modern string types - verify it's a known type
+      if (!(addon.type in TYPES)) {
+        logger.info(`Unknown string type "${addon.type}", defaulting to extension`);
+        addon.type = "extension";
+      }
+    } else {
+      // Unknown type format
+      logger.info(`Unknown type format for ${addon.type}, defaulting to extension`);
+      addon.type = "extension";
     }
 
     if (!(addon.type in TYPES)) {
@@ -266,15 +290,49 @@ export const BootstrapLoader = {
         throw new Error("Non-restartless extensions no longer supported");
       }
 
-      if (
-        addon.optionsType &&
-        addon.optionsType !== AddonManager.OPTIONS_TYPE_DIALOG &&
-        addon.optionsType !== AddonManager.OPTIONS_TYPE_INLINE_BROWSER &&
-        addon.optionsType !== AddonManager.OPTIONS_TYPE_TAB
-      ) {
-        throw new Error(
-          `Install manifest specifies unknown optionsType: ${addon.optionsType}`
-        );
+      // Convert legacy numeric optionsType to string constants
+      if (addon.optionsType) {
+        try {
+          let numericType = addon.optionsType;
+          let originalType = addon.optionsType;
+          
+          // Convert string numbers to actual numbers
+          if (typeof addon.optionsType === "string") {
+            numericType = parseInt(addon.optionsType, 10);
+          }
+          
+          if (typeof numericType === "number" && !isNaN(numericType)) {
+            switch (numericType) {
+              case 1:
+                addon.optionsType = AddonManager.OPTIONS_TYPE_DIALOG;
+                break;
+              case 2:
+                // Legacy inline type - no longer supported, remove it
+                logger.warn(`Extension ${addon.id} uses unsupported optionsType 2 (inline), removing`);
+                addon.optionsType = null;
+                break;
+              case 3:
+                addon.optionsType = AddonManager.OPTIONS_TYPE_TAB;
+                break;
+              case 4:
+                addon.optionsType = AddonManager.OPTIONS_TYPE_INLINE_BROWSER;
+                break;
+              default:
+                logger.warn(`Extension ${addon.id} has unknown numeric optionsType ${numericType}, removing`);
+                addon.optionsType = null;
+                break;
+            }
+          }
+          
+          if (addon.optionsType && !VALID_OPTION_TYPES.includes(addon.optionsType)) {
+            throw new Error(
+              `Install manifest specifies unknown optionsType: ${addon.optionsType} (original: ${originalType})`
+            );
+          }
+        } catch (e) {
+          logger.error(`Failed to process optionsType for extension ${addon.id}:`, e);
+          addon.optionsType = null;
+        }
       }
     } else {
       // Convert legacy dictionaries into a format the WebExtension
@@ -303,35 +361,27 @@ export const BootstrapLoader = {
     addon.defaultLocale = readLocale(manifest, true);
 
     const seenLocales = [];
-    addon.locales = [];
-    for (const localeData of manifest.localized || []) {
-      const locale = readLocale(localeData, false, seenLocales);
-      if (locale) {
-        addon.locales.push(locale);
-      }
-    }
+    addon.locales = (manifest.localized || [])
+      .map(localeData => readLocale(localeData, false, seenLocales))
+      .filter(Boolean);
 
     const dependencies = new Set(manifest.dependencies);
     addon.dependencies = Object.freeze(Array.from(dependencies));
 
     const seenApplications = [];
-    addon.targetApplications = [];
-    for (const targetApp of manifest.targetApplications || []) {
-      if (!targetApp.id || !targetApp.minVersion || !targetApp.maxVersion) {
-        logger.warn(
-          "Ignoring invalid targetApplication entry in install manifest"
-        );
-        continue;
-      }
-      if (seenApplications.includes(targetApp.id)) {
-        logger.warn(
-          `Ignoring duplicate targetApplication entry for ${targetApp.id} in install manifest`
-        );
-        continue;
-      }
-      seenApplications.push(targetApp.id);
-      addon.targetApplications.push(targetApp);
-    }
+    addon.targetApplications = (manifest.targetApplications || [])
+      .filter(targetApp => {
+        if (!targetApp?.id || !targetApp?.minVersion || !targetApp?.maxVersion) {
+          logger.warn("Ignoring invalid targetApplication entry in install manifest");
+          return false;
+        }
+        if (seenApplications.includes(targetApp.id)) {
+          logger.warn(`Ignoring duplicate targetApplication entry for ${targetApp.id} in install manifest`);
+          return false;
+        }
+        seenApplications.push(targetApp.id);
+        return true;
+      });
 
     // Note that we don't need to check for duplicate targetPlatform entries since
     // the RDF service coalesces them for us.
@@ -396,7 +446,8 @@ export const BootstrapLoader = {
 
       Services.scriptloader.loadSubScript(uri, sandbox);
     } catch (e) {
-      logger.warn(`Error loading bootstrap.js for ${addon.id}`, e);
+      logger.error(`Error loading bootstrap.js for ${addon.id}:`, e);
+      throw new Error(`Failed to load bootstrap script for ${addon.id}: ${e.message}`);
     }
 
     function findMethod(name) {

@@ -41,6 +41,17 @@ class Manifest {
 }
 
 export class InstallRDF extends Manifest {
+  static loadFromString(text) {
+    return new InstallRDF(lazy.RDFDataSource.loadFromString(text));
+  }
+
+  static loadFromBuffer(buffer) {
+    return new InstallRDF(lazy.RDFDataSource.loadFromBuffer(buffer));
+  }
+
+  static async loadFromFile(uri) {
+    return new InstallRDF(await lazy.RDFDataSource.loadFromFile(uri));
+  }
   _readProps(source, obj, props) {
     for (const prop of props) {
       const val = getProperty(source, prop);

@@ -33,7 +33,7 @@ var { XPCOMUtils } = ChromeUtils.importESModule(
 var { AddonRepository } = ChromeUtils.importESModule(
   "resource://gre/modules/addons/AddonRepository.sys.mjs"
 );
-var { OS } = ChromeUtils.import("resource://gre/modules/osfile.jsm");
+// Use platform IOUtils for modern file operations
 
 var { AddonTestUtils, MockAsyncShutdown } = ChromeUtils.importESModule(
   "resource://testing-common/AddonTestUtils.sys.mjs"
@@ -1444,7 +1444,7 @@ async function _changeXPIDBVersion(aNewVersion) {
  * Load a file into a string.
  */
 async function loadFile(aFile) {
-  let buffer = await OS.File.read(aFile);
+  let buffer = await IOUtils.read(aFile);
   return new TextDecoder().decode(buffer);
 }
 
@@ -1462,10 +1462,7 @@ async function loadJSON(aFile) {
  */
 async function saveJSON(aData, aFile) {
   info(`Starting to save JSON file ${aFile}`);
-  await OS.File.writeAtomic(
-    aFile,
-    new TextEncoder().encode(JSON.stringify(aData, null, 2))
-  );
+  await IOUtils.writeUTF8(aFile, JSON.stringify(aData, null, 2));
   info(`Done saving JSON file ${aFile.path}`);
 }
 

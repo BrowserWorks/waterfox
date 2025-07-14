@@ -2,14 +2,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { IOUtils } from "resource:///modules/IOUtils.sys.mjs";
-import { fixIterator } from "resource:///modules/iteratorUtils.sys.mjs";
 /**
  * Helper functions for use by extensions that should ease them plug
  * into the application.
  */
 import { AddonManager } from "resource://gre/modules/AddonManager.sys.mjs";
 import { NetUtil } from "resource://gre/modules/NetUtil.sys.mjs";
+import { fixIterator } from "resource:///modules/iteratorUtils.sys.mjs";
 
 const extensionHooks = new Map();
 const legacyExtensions = new Map();
@@ -71,7 +70,7 @@ export const ExtensionSupport = {
     },
   },
 
-  loadAddonPrefs(addonFile) {
+  async loadAddonPrefs(addonFile) {
     function setPref(preferDefault, name, value) {
       const branch = preferDefault
         ? Services.prefs.getDefaultBranch("")
@@ -97,7 +96,7 @@ export const ExtensionSupport = {
       }
     }
 
-    function walkExtensionPrefs(extensionRoot) {
+    async function walkExtensionPrefs(extensionRoot) {
       const prefFile = extensionRoot.clone();
       const foundPrefStrings = [];
       if (!prefFile.exists()) {
@@ -121,7 +120,7 @@ export const ExtensionSupport = {
         for (const file of unsortedFiles.sort((a, b) =>
           a.path < b.path ? 1 : -1
         )) {
-          foundPrefStrings.push(IOUtils.loadFileToString(file));
+          foundPrefStrings.push(await IOUtils.readUTF8(file.path));
         }
       } else if (prefFile.isFile() && prefFile.leafName.endsWith("xpi")) {
         const zipReader = Cc["@mozilla.org/libjar/zip-reader;1"].createInstance(
@@ -154,7 +153,7 @@ export const ExtensionSupport = {
     sandbox.pref = setPref.bind(undefined, true);
     sandbox.user_pref = setPref.bind(undefined, false);
 
-    const prefDataStrings = walkExtensionPrefs(addonFile);
+    const prefDataStrings = await walkExtensionPrefs(addonFile);
     for (const prefDataString of prefDataStrings) {
       try {
         Cu.evalInSandbox(prefDataString, sandbox);
