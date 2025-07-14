@@ -7,7 +7,6 @@ EXTRA_JS_MODULES += [
     "BootstrapLoader.sys.mjs",
     "ChromeManifest.sys.mjs",
     "ExtensionSupport.sys.mjs",
-    "IOUtils.sys.mjs",
     "iteratorUtils.sys.mjs",
     "Overlays.sys.mjs",
     "RDFDataSource.sys.mjs",

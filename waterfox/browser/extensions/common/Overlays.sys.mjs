@@ -1,8 +1,10 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
 /**
  * Load overlays in a similar way as XUL did for legacy XUL add-ons.
  */
-
-/* exported Overlays */
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {

@@ -152,6 +152,10 @@ export class ChromeManifest {
     const flagdata = new DefaultMap(() => []);
 
     for (const flag of flags) {
+      if (!flag || typeof flag !== 'string') {
+        console.warn(`Invalid flag type: ${typeof flag}, dropping manifest instruction`);
+        continue;
+      }
       const match = flag.match(/(\w+)(>=|<=|<|>|=)(.*)/);
       if (match) {
         flagdata.get(match[1]).push([match[2], match[3]]);
@@ -184,9 +188,9 @@ export class ChromeManifest {
       dirparts.pop();
 
       try {
-        await this.parse(filename, `${base}/${dirparts.join("/")}`);
-      } catch (_e) {
-        console.log(`Could not read manifest '${base}/${filename}'.`);
+        await this.parse(filename, base + "/" + dirparts.join("/"));
+      } catch (e) {
+        console.warn(`Could not read manifest '${base}/${filename}':`, e);
       }
     }
     return null;

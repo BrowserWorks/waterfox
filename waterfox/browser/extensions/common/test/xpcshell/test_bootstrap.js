@@ -1154,10 +1154,10 @@ add_task(async function test_24() {
   let data = aomStartup.readStartupData();
   data["app-profile"].addons[ID1].path += "foo";
 
-  await OS.File.writeAtomic(
+  await IOUtils.writeUTF8(
     gAddonStartup.path,
-    new TextEncoder().encode(JSON.stringify(data)),
-    { compression: "lz4" }
+    JSON.stringify(data),
+    { compress: true }
   );
 
   await promiseStartupManager();
