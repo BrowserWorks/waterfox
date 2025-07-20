@@ -57,17 +57,6 @@ export const TabFeatures = {
         ?.addEventListener("popupshowing", this.tabContext.bind(this));
     }
 
-    // Add command listeners for menu items
-    doc
-      .getElementById("context_duplicateTab")
-      ?.addEventListener("command", (_event) => {
-        if (aWindow.TabContextMenu?.contextTab) {
-          aWindow.duplicateTabIn(aWindow.TabContextMenu.contextTab, "tab");
-        } else {
-          // console.warn("TabFeatures: duplicateTabIn not called, context not available.");
-        }
-      });
-
     const copyTabUrlElement = doc.getElementById("context_copyTabUrl");
     if (copyTabUrlElement) {
       copyTabUrlElement.addEventListener("command", (_event) => {
