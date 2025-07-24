@@ -99,6 +99,9 @@ export class RemoteWebNavigation {
   }
 
   _speculativeConnect(uri, loadURIOptions) {
+    return;
+
+    /* eslint-disable-next-line no-unreachable */
     try {
       // Let's start a network connection before the content process asks.
       // Note that we might have already set up the speculative connection in
