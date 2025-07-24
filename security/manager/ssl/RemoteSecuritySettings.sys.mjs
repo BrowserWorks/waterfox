@@ -346,7 +346,7 @@ class IntermediatePreloads {
     lazy.log.debug(
       `There are ${waiting.length} intermediates awaiting download.`
     );
-    if (!waiting.length) {
+    if (!waiting.length || !Services.prefs.getBoolPref(INTERMEDIATES_ENABLED_PREF, true) || !this.client) {
       // Nothing to do.
       Services.obs.notifyObservers(
         null,
@@ -440,6 +440,11 @@ class IntermediatePreloads {
    */
   async maybeDownloadAttachment(record) {
     let result = { record, cert: null, subject: null };
+
+    // Early return if intermediates are disabled or client doesn't exist
+    if (!Services.prefs.getBoolPref(INTERMEDIATES_ENABLED_PREF, true) || !this.client) {
+      return result;
+    }
 
     let dataAsString = null;
     try {
@@ -642,6 +647,10 @@ class CRLiteFilters {
     lazy.log.debug("filtersToDownload:", filtersToDownload);
     let filtersDownloaded = [];
     for (let filter of filtersToDownload) {
+      // Skip download if CRLite filters are disabled or client doesn't exist
+      if (!Services.prefs.getBoolPref(CRLITE_FILTERS_ENABLED_PREF, true) || !this.client) {
+        continue;
+      }
       try {
         let attachment = await this.client.attachments.downloadAsBytes(filter);
         let bytes = new Uint8Array(attachment);
