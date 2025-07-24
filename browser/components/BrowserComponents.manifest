@@ -86,7 +86,9 @@ category browser-quit-application-granted resource:///modules/Interactions.sys.m
 category browser-quit-application-granted resource:///modules/pagedata/PageDataService.sys.mjs PageDataService.uninit
 category browser-quit-application-granted resource://gre/modules/PageThumbs.sys.mjs PageThumbs.uninit
 category browser-quit-application-granted resource://gre/modules/NewTabUtils.sys.mjs NewTabUtils.uninit
+#ifdef MOZ_NORMANDY
 category browser-quit-application-granted resource://normandy/Normandy.sys.mjs Normandy.uninit
+#endif
 category browser-quit-application-granted resource://gre/modules/RFPHelper.sys.mjs RFPHelper.uninit
 category browser-quit-application-granted resource:///modules/asrouter/ASRouterNewTabHook.sys.mjs ASRouterNewTabHook.destroy
 category browser-quit-application-granted moz-src:///browser/components/search/SERPCategorization.sys.mjs SERPCategorization.uninit
