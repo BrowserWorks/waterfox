@@ -180,6 +180,10 @@ async function openIDB(allowUpgrades = true) {
         });
       }
       if (event.oldVersion < 3) {
+        // Clear existing stores for a fresh start
+        transaction.objectStore("records").clear();
+        transaction.objectStore("timestamps").clear();
+        transaction.objectStore("collections").clear();
         // Attachment store
         db.createObjectStore("attachments", {
           keyPath: ["cid", "attachmentId"],

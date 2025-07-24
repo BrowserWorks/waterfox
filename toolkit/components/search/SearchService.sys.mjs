@@ -1424,10 +1424,6 @@ export class SearchService {
     // start listening straight away.
     Services.obs.addObserver(this, lazy.Region.REGION_TOPIC);
 
-    this.#getIgnoreListAndSubscribe().catch(ex =>
-      console.error(ex, "Search Service could not get the ignore list.")
-    );
-
     this.#engineSelector = new lazy.SearchEngineSelector(
       this.#handleConfigurationUpdated.bind(this)
     );
@@ -1570,6 +1566,7 @@ export class SearchService {
    * handled via a sync listener.
    *
    */
+  // eslint-disable-next-line no-unused-private-class-members
   async #getIgnoreListAndSubscribe() {
     let listener = this.#handleIgnoreListUpdated.bind(this);
     const current = await lazy.IgnoreLists.getAndSubscribe(listener);
