@@ -80,7 +80,7 @@ void UrlClassifierFeatureBase::InitializePreferences() {
 
   nsCOMPtr<nsIUrlClassifierExceptionListService> exceptionListService =
       do_GetService("@mozilla.org/url-classifier/exception-list-service;1");
-  if (NS_WARN_IF(!exceptionListService)) {
+  if (!exceptionListService) {
     return;
   }
 
