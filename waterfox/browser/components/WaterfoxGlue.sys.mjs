@@ -18,8 +18,6 @@ ChromeUtils.defineESModuleGetters(lazy, {
   setTimeout: "resource://gre/modules/Timer.sys.mjs",
   UICustomizations: "resource:///modules/UICustomizations.sys.mjs",
   SidebarPreferencesHandler: "resource:///modules/SidebarPreferencesHandler.sys.mjs",
-  WaterfoxSearchExtensionPolicy:
-    "resource:///modules/WaterfoxSearchExtensionPolicy.sys.mjs",
 });
 
 const WATERFOX_CUSTOMIZATIONS_PREF =
@@ -35,11 +33,31 @@ const WATERFOX_DEFAULT_THEMES = [
 const WATERFOX_USERCHROME = "chrome://browser/skin/userChrome.css";
 const WATERFOX_USERCONTENT = "chrome://browser/skin/userContent.css";
 
+const WATERFOX_MIGRATION_PREF = "browser.migration.waterfox_version";
+const WATERFOX_MIGRATION_VERSION = 3;
+const WATERFOX_SEARCH_MIGRATION_PREF =
+  "browser.migration.waterfox_search_version";
+const WATERFOX_SEARCH_MIGRATION_VERSION = 1;
+const WATERFOX_LEGACY_SEARCH_ENGINE_ID = "1org";
+const WATERFOX_LEGACY_SEARCH_ENGINE_NAME = "1.org Charitable Search";
+const WATERFOX_FALLBACK_SEARCH_ENGINE_ID = "google";
+const WATERFOX_SEARCH_SETTINGS_FILE = "search.json.mozlz4";
+
 export const WaterfoxGlue = {
   _addonManagersListeners: [],
+  _searchMigrationPromise: null,
   stylesEnabled: false,
 
   async init() {
+    if (
+      Services.prefs.prefHasUserValue(WATERFOX_MIGRATION_PREF) &&
+      Services.prefs.getIntPref(WATERFOX_SEARCH_MIGRATION_PREF, 0) <
+        WATERFOX_SEARCH_MIGRATION_VERSION
+    ) {
+      this._searchMigrationPromise = this._migrateSearchDefaults();
+      this._searchMigrationPromise.catch(() => undefined);
+    }
+
     // Set pref observers
     this._setPrefObservers();
 
@@ -68,7 +86,6 @@ export const WaterfoxGlue = {
 
     // Initialize sidebar prefs handler early so it can observe pane loads
     lazy.SidebarPreferencesHandler.init();
-    lazy.WaterfoxSearchExtensionPolicy.init();
 
     // Observe chrome-document-loaded topic to detect window open
     Services.obs.addObserver(this, "chrome-document-loaded");
@@ -233,7 +250,11 @@ export const WaterfoxGlue = {
   },
 
   async _beforeUIStartup() {
-    this._migrateUI();
+    try {
+      await this._migrateUI();
+    } catch (error) {
+      console.error("Waterfox migration failed", error);
+    }
 
     lazy.AddonManager.maybeInstallBuiltinAddon(
       "addonstores@waterfox.net",
@@ -247,15 +268,20 @@ export const WaterfoxGlue = {
       "browser.migration.version",
       128
     );
-    const waterfoxUIVersion = 2;
+    const currentWaterfoxVersion = Services.prefs.getIntPref(
+      WATERFOX_MIGRATION_PREF,
+      0
+    );
 
-    if (
-      !Services.prefs.prefHasUserValue("browser.migration.waterfox_version")
-    ) {
+    if (!Services.prefs.prefHasUserValue(WATERFOX_MIGRATION_PREF)) {
       // This is a new profile, nothing to migrate.
       Services.prefs.setIntPref(
-        "browser.migration.waterfox_version",
-        waterfoxUIVersion
+        WATERFOX_MIGRATION_PREF,
+        WATERFOX_MIGRATION_VERSION
+      );
+      Services.prefs.setIntPref(
+        WATERFOX_SEARCH_MIGRATION_PREF,
+        WATERFOX_SEARCH_MIGRATION_VERSION
       );
       return;
     }
@@ -289,13 +315,13 @@ export const WaterfoxGlue = {
         enableTheme(DEFAULT_THEME);
       }
     }
-    if (waterfoxUIVersion < 1) {
+    if (currentWaterfoxVersion < 1) {
       const themeEnablePref = "userChrome.theme.enable";
       const enabled = lazy.PrefUtils.get(themeEnablePref);
       lazy.PrefUtils.set(WATERFOX_CUSTOMIZATIONS_PREF, enabled ? 1 : 2);
     }
 
-    if (waterfoxUIVersion < 2) {
+    if (currentWaterfoxVersion < 2) {
       // Migrate Windows Registry values
       if ("@mozilla.org/windows-registry-key;1" in Components.classes) {
         const regKey = Components.classes[
@@ -373,7 +399,153 @@ export const WaterfoxGlue = {
       }
     }
 
-    lazy.PrefUtils.set("browser.migration.waterfox_version", 2);
+    if (
+      Services.prefs.getIntPref(WATERFOX_SEARCH_MIGRATION_PREF, 0) <
+      WATERFOX_SEARCH_MIGRATION_VERSION
+    ) {
+      await (this._searchMigrationPromise ?? this._migrateSearchDefaults());
+    }
+
+    Services.prefs.setIntPref(
+      WATERFOX_MIGRATION_PREF,
+      WATERFOX_MIGRATION_VERSION
+    );
+  },
+
+  async _migrateSearchDefaults() {
+    await Services.search.init();
+
+    const settings = Services.search.wrappedJSObject._settings;
+    const googleEngine = Services.search.getEngineById(
+      WATERFOX_FALLBACK_SEARCH_ENGINE_ID
+    )?.wrappedJSObject;
+    const separatePrivateDefault =
+      Services.prefs.getBoolPref(
+        "browser.search.separatePrivateDefault",
+        false
+      ) &&
+      Services.prefs.getBoolPref(
+        "browser.search.separatePrivateDefault.ui.enabled",
+        false
+      );
+    const searchPolicies =
+      Services.policies?.status == Ci.nsIEnterprisePolicies.ACTIVE
+        ? Services.policies.getActivePolicies()?.SearchEngines
+        : null;
+    const clearedMetaDataKeys = [];
+    const clearedFallbackMarkers = [];
+
+    for (const [defaultKey, legacyKey, switchedFromKey, privateMode] of [
+      [
+        "defaultEngineId",
+        "current",
+        "waterfoxAdClickExtensionSwitchedFrom",
+        false,
+      ],
+      [
+        "privateDefaultEngineId",
+        "private",
+        "waterfoxAdClickExtensionSwitchedFromPrivate",
+        true,
+      ],
+    ]) {
+      const defaultEngineId = settings.getMetaDataAttribute(defaultKey);
+      const legacyDefault =
+        settings.getMetaDataAttribute(legacyKey) ==
+        WATERFOX_LEGACY_SEARCH_ENGINE_NAME;
+      const migratedDefaultEngineId =
+        defaultEngineId ||
+        (legacyDefault ? WATERFOX_LEGACY_SEARCH_ENGINE_ID : "");
+      const switchedFromEngineId = googleEngine?.getAttr(switchedFromKey);
+      const shouldReset =
+        migratedDefaultEngineId == WATERFOX_LEGACY_SEARCH_ENGINE_ID ||
+        (migratedDefaultEngineId == WATERFOX_FALLBACK_SEARCH_ENGINE_ID &&
+          switchedFromEngineId == WATERFOX_LEGACY_SEARCH_ENGINE_ID);
+
+      if (shouldReset) {
+        const policyDefault = privateMode
+          ? searchPolicies?.DefaultPrivate || searchPolicies?.Default
+          : searchPolicies?.Default;
+        let currentEngine = null;
+        let preserveDefault = !!policyDefault;
+
+        if (!preserveDefault && (!privateMode || separatePrivateDefault)) {
+          currentEngine = (privateMode
+            ? await Services.search.getDefaultPrivate()
+            : await Services.search.getDefault()
+          )?.wrappedJSObject;
+          preserveDefault =
+            currentEngine?.id != migratedDefaultEngineId ||
+            !!currentEngine?.getAttr("overriddenBy");
+        }
+
+        if (!preserveDefault) {
+          settings.setVerifiedMetaDataAttribute(defaultKey, "");
+          clearedMetaDataKeys.push(defaultKey);
+          if (legacyDefault) {
+            settings.setVerifiedMetaDataAttribute(legacyKey, "");
+            clearedMetaDataKeys.push(legacyKey);
+          }
+
+          if (currentEngine) {
+            const appDefaultEngine = privateMode
+              ? Services.search.appPrivateDefaultEngine
+              : Services.search.appDefaultEngine;
+            if (privateMode) {
+              await Services.search.setDefaultPrivate(
+                appDefaultEngine,
+                Ci.nsISearchService.CHANGE_REASON_CONFIG
+              );
+            } else {
+              await Services.search.setDefault(
+                appDefaultEngine,
+                Ci.nsISearchService.CHANGE_REASON_CONFIG
+              );
+            }
+            settings.setVerifiedMetaDataAttribute(defaultKey, "");
+          }
+        }
+      }
+
+      if (switchedFromEngineId !== undefined) {
+        googleEngine.clearAttr(switchedFromKey);
+        clearedFallbackMarkers.push(switchedFromKey);
+      }
+    }
+
+    if (clearedMetaDataKeys.length || clearedFallbackMarkers.length) {
+      await settings._write();
+
+      const persistedSettings = await IOUtils.readJSON(
+        PathUtils.join(PathUtils.profileDir, WATERFOX_SEARCH_SETTINGS_FILE),
+        { decompress: true }
+      );
+      for (const key of clearedMetaDataKeys) {
+        if (persistedSettings.metaData?.[key] !== "") {
+          throw new Error(
+            "Failed to persist Waterfox search migration metadata: " + key
+          );
+        }
+      }
+
+      const persistedGoogleSettings = persistedSettings.engines?.find(
+        engine =>
+          engine.id == WATERFOX_FALLBACK_SEARCH_ENGINE_ID ||
+          engine._name == "Google"
+      );
+      for (const marker of clearedFallbackMarkers) {
+        if (Object.hasOwn(persistedGoogleSettings?._metaData ?? {}, marker)) {
+          throw new Error(
+            "Failed to remove Waterfox search fallback marker: " + marker
+          );
+        }
+      }
+    }
+
+    Services.prefs.setIntPref(
+      WATERFOX_SEARCH_MIGRATION_PREF,
+      WATERFOX_SEARCH_MIGRATION_VERSION
+    );
   },
 
   async _delayedTasks() {
@@ -421,8 +593,6 @@ export const WaterfoxGlue = {
   },
 
   shutdown() {
-    lazy.WaterfoxSearchExtensionPolicy.uninit();
-
     // Shutdown TabGrouping
     lazy.TabGrouping.shutdown();
   },

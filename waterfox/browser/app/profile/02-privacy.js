@@ -5,11 +5,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-// --- Region detection ---
-pref("browser.region.network.scan", false, locked); // Already false by default, but better safe than sorry
-pref("browser.region.network.url", "", locked);
-pref("browser.region.update.enabled", false, locked);
-pref("browser.search.region", "US", locked); // Set a neutral region
+// --- Search ---
 pref("browser.search.serpEventTelemetryCategorization.enabled", false, locked);
 
 // --- Tracking Protection & Fingerprinting Resistance ---

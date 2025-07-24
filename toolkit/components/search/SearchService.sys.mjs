@@ -35,8 +35,6 @@ ChromeUtils.defineESModuleGetters(lazy, {
     "moz-src:///toolkit/components/search/AppProvidedSearchEngine.sys.mjs",
   UserSearchEngine:
     "moz-src:///toolkit/components/search/UserSearchEngine.sys.mjs",
-  WaterfoxSearchExtensionPolicy:
-    "resource:///modules/WaterfoxSearchExtensionPolicy.sys.mjs",
 });
 
 ChromeUtils.defineLazyGetter(lazy, "logConsole", () => {
@@ -73,6 +71,43 @@ ChromeUtils.defineLazyGetter(lazy, "defaultOverrideAllowlist", () => {
 
 const TOPIC_LOCALES_CHANGE = "intl:app-locales-changed";
 const QUIT_APPLICATION_TOPIC = "quit-application";
+
+const WATERFOX_QWANT_DEFAULT_REGIONS = new Set([
+  "AR",
+  "AU",
+  "AT",
+  "BE",
+  "BG",
+  "CA",
+  "CL",
+  "CN",
+  "CZ",
+  "DK",
+  "EE",
+  "FI",
+  "FR",
+  "DE",
+  "GR",
+  "HU",
+  "IE",
+  "IL",
+  "IT",
+  "MY",
+  "MX",
+  "NL",
+  "NZ",
+  "NO",
+  "PL",
+  "PT",
+  "RO",
+  "KR",
+  "ES",
+  "SE",
+  "CH",
+  "TH",
+  "GB",
+  "US",
+]);
 
 // The update timer for OpenSearch engines checks in once a day.
 const OPENSEARCH_UPDATE_TIMER_TOPIC = "search-engine-update-timer";
@@ -1426,10 +1461,6 @@ export class SearchService {
     // start listening straight away.
     Services.obs.addObserver(this, lazy.Region.REGION_TOPIC);
 
-    this.#getIgnoreListAndSubscribe().catch(ex =>
-      console.error(ex, "Search Service could not get the ignore list.")
-    );
-
     this.#engineSelector = new lazy.SearchEngineSelector(
       this.#handleConfigurationUpdated.bind(this)
     );
@@ -1572,6 +1603,7 @@ export class SearchService {
    * handled via a sync listener.
    *
    */
+  // eslint-disable-next-line no-unused-private-class-members
   async #getIgnoreListAndSubscribe() {
     let listener = this.#handleIgnoreListUpdated.bind(this);
     const current = await lazy.IgnoreLists.getAndSubscribe(listener);
@@ -2633,55 +2665,22 @@ export class SearchService {
   // This is prefixed with _ rather than # because it is
   // called in test_remove_engine_notification_box.js
   async _fetchEngineSelectorEngines() {
-    let searchEngineSelectorProperties = {
-      locale: Services.locale.appLocaleAsBCP47,
-      region: lazy.Region.home || "unknown",
-      channel: lazy.SearchUtils.MODIFIED_APP_CHANNEL,
-      experiment: this._experimentPrefValue,
-      distroID: lazy.SearchUtils.distroID ?? "",
+    const engines = await (
+      await fetch("chrome://browser/content/search/BrowserSearchEngines.json")
+    ).json();
+    const region = lazy.Region.home?.toUpperCase();
+    const appDefaultEngineId =
+      region &&
+      region != "UNKNOWN" &&
+      !WATERFOX_QWANT_DEFAULT_REGIONS.has(region)
+        ? "ddg"
+        : "qwant";
+
+    return {
+      engines,
+      appDefaultEngineId,
+      appPrivateDefaultEngineId: appDefaultEngineId,
     };
-
-    for (let [key, value] of Object.entries(searchEngineSelectorProperties)) {
-      this._settings.setMetaDataAttribute(key, value);
-    }
-
-    let refinedConfig = await this.#engineSelector.fetchEngineConfiguration(
-      searchEngineSelectorProperties
-    );
-
-    if (await lazy.WaterfoxSearchExtensionPolicy.updateActiveState()) {
-      const fallbackEngine = refinedConfig.engines.find(
-        e => e.identifier == "google"
-      );
-      if (fallbackEngine) {
-        const appDefaultEngine = refinedConfig.engines.find(
-          e => e.identifier == refinedConfig.appDefaultEngineId
-        );
-        if (appDefaultEngine?.waterfoxUnavailableForAdClickExtensions) {
-          if (!this._settings.getMetaDataAttribute("defaultEngineId")) {
-            lazy.WaterfoxSearchExtensionPolicy.noteDefaultFallback(
-              appDefaultEngine.identifier
-            );
-          }
-          refinedConfig.appDefaultEngineId = fallbackEngine.identifier;
-        }
-
-        const appPrivateDefaultEngine = refinedConfig.engines.find(
-          e => e.identifier == refinedConfig.appPrivateDefaultEngineId
-        );
-        if (appPrivateDefaultEngine?.waterfoxUnavailableForAdClickExtensions) {
-          if (!this._settings.getMetaDataAttribute("privateDefaultEngineId")) {
-            lazy.WaterfoxSearchExtensionPolicy.noteDefaultFallback(
-              appPrivateDefaultEngine.identifier,
-              true
-            );
-          }
-          refinedConfig.appPrivateDefaultEngineId = fallbackEngine.identifier;
-        }
-      }
-    }
-
-    return refinedConfig;
   }
 
   #setDefaultFromSelector(refinedConfig) {

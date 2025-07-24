@@ -11,33 +11,41 @@
 				"params": [
 					{
 						"name": "segment",
-						"value": "1org.waterfox",
-						"waterfoxPartnerAttribution": true
+						"value": "1org.waterfox"
 					}
 				],
 				"searchTermParamName": "q"
 			},
 			"suggestions": {
-				"base": "https://www.google.com/complete/search",
+				"base": "https://search.waterfox.com/autocomplete",
+				"method": "POST",
 				"params": [
 					{
 						"name": "client",
-						"value": "firefox"
+						"value": "waterfox"
 					},
 					{
-						"experimentConfig": "search_rich_suggestions",
-						"name": "channel"
+						"name": "engine",
+						"value": "1org"
+					},
+					{
+						"name": "channel",
+						"value": "fen"
 					}
 				],
 				"searchTermParamName": "q"
 			},
 			"trending": {
-				"base": "https://www.google.com/complete/search",
-				"method": "GET",
+				"base": "https://search.waterfox.com/autocomplete",
+				"method": "POST",
 				"params": [
 					{
 						"name": "client",
-						"value": "firefox"
+						"value": "waterfox"
+					},
+					{
+						"name": "engine",
+						"value": "1org"
 					},
 					{
 						"name": "channel",
@@ -47,8 +55,7 @@
 				"searchTermParamName": "q"
 			}
 		},
-		"variants": [],
-		"waterfoxUnavailableForAdClickExtensions": true
+		"variants": []
 	},
 	{
 		"aliases": ["bi"],
@@ -62,26 +69,35 @@
 				"searchTermParamName": "q"
 			},
 			"suggestions": {
-				"base": "https://www.google.com/complete/search",
+				"base": "https://search.waterfox.com/autocomplete",
+				"method": "POST",
 				"params": [
 					{
 						"name": "client",
-						"value": "firefox"
+						"value": "waterfox"
 					},
 					{
-						"experimentConfig": "search_rich_suggestions",
-						"name": "channel"
+						"name": "engine",
+						"value": "bing"
+					},
+					{
+						"name": "channel",
+						"value": "fen"
 					}
 				],
 				"searchTermParamName": "q"
 			},
 			"trending": {
-				"base": "https://www.google.com/complete/search",
-				"method": "GET",
+				"base": "https://search.waterfox.com/autocomplete",
+				"method": "POST",
 				"params": [
 					{
 						"name": "client",
-						"value": "firefox"
+						"value": "waterfox"
+					},
+					{
+						"name": "engine",
+						"value": "bing"
 					},
 					{
 						"name": "channel",
@@ -105,33 +121,41 @@
 				"params": [
 					{
 						"name": "t",
-						"value": "waterfox",
-						"waterfoxPartnerAttribution": true
+						"value": "waterfox"
 					}
 				],
 				"searchTermParamName": "q"
 			},
 			"suggestions": {
-				"base": "https://www.google.com/complete/search",
+				"base": "https://search.waterfox.com/autocomplete",
+				"method": "POST",
 				"params": [
 					{
 						"name": "client",
-						"value": "firefox"
+						"value": "waterfox"
 					},
 					{
-						"experimentConfig": "search_rich_suggestions",
-						"name": "channel"
+						"name": "engine",
+						"value": "ddg"
+					},
+					{
+						"name": "channel",
+						"value": "fen"
 					}
 				],
 				"searchTermParamName": "q"
 			},
 			"trending": {
-				"base": "https://www.google.com/complete/search",
-				"method": "GET",
+				"base": "https://search.waterfox.com/autocomplete",
+				"method": "POST",
 				"params": [
 					{
 						"name": "client",
-						"value": "firefox"
+						"value": "waterfox"
+					},
+					{
+						"name": "engine",
+						"value": "ddg"
 					},
 					{
 						"name": "channel",
@@ -155,33 +179,41 @@
 				"params": [
 					{
 						"name": "tt",
-						"value": "57226k1p",
-						"waterfoxPartnerAttribution": true
+						"value": "57226k1p"
 					}
 				],
 				"searchTermParamName": "q"
 			},
 			"suggestions": {
-				"base": "https://www.google.com/complete/search",
+				"base": "https://search.waterfox.com/autocomplete",
+				"method": "POST",
 				"params": [
 					{
 						"name": "client",
-						"value": "firefox"
+						"value": "waterfox"
 					},
 					{
-						"experimentConfig": "search_rich_suggestions",
-						"name": "channel"
+						"name": "engine",
+						"value": "ecosia"
+					},
+					{
+						"name": "channel",
+						"value": "fen"
 					}
 				],
 				"searchTermParamName": "q"
 			},
 			"trending": {
-				"base": "https://www.google.com/complete/search",
-				"method": "GET",
+				"base": "https://search.waterfox.com/autocomplete",
+				"method": "POST",
 				"params": [
 					{
 						"name": "client",
-						"value": "firefox"
+						"value": "waterfox"
+					},
+					{
+						"name": "engine",
+						"value": "ecosia"
 					},
 					{
 						"name": "channel",
@@ -205,26 +237,35 @@
 				"searchTermParamName": "q"
 			},
 			"suggestions": {
-				"base": "https://www.google.com/complete/search",
+				"base": "https://search.waterfox.com/autocomplete",
+				"method": "POST",
 				"params": [
 					{
 						"name": "client",
-						"value": "firefox"
+						"value": "waterfox"
 					},
 					{
-						"experimentConfig": "search_rich_suggestions",
-						"name": "channel"
+						"name": "engine",
+						"value": "google"
+					},
+					{
+						"name": "channel",
+						"value": "fen"
 					}
 				],
 				"searchTermParamName": "q"
 			},
 			"trending": {
-				"base": "https://www.google.com/complete/search",
-				"method": "GET",
+				"base": "https://search.waterfox.com/autocomplete",
+				"method": "POST",
 				"params": [
 					{
 						"name": "client",
-						"value": "firefox"
+						"value": "waterfox"
+					},
+					{
+						"name": "engine",
+						"value": "google"
 					},
 					{
 						"name": "channel",
@@ -248,26 +289,35 @@
 				"searchTermParamName": "q"
 			},
 			"suggestions": {
-				"base": "https://www.google.com/complete/search",
+				"base": "https://search.waterfox.com/autocomplete",
+				"method": "POST",
 				"params": [
 					{
 						"name": "client",
-						"value": "firefox"
+						"value": "waterfox"
 					},
 					{
-						"experimentConfig": "search_rich_suggestions",
-						"name": "channel"
+						"name": "engine",
+						"value": "mojeek"
+					},
+					{
+						"name": "channel",
+						"value": "fen"
 					}
 				],
 				"searchTermParamName": "q"
 			},
 			"trending": {
-				"base": "https://www.google.com/complete/search",
-				"method": "GET",
+				"base": "https://search.waterfox.com/autocomplete",
+				"method": "POST",
 				"params": [
 					{
 						"name": "client",
-						"value": "firefox"
+						"value": "waterfox"
+					},
+					{
+						"name": "engine",
+						"value": "mojeek"
 					},
 					{
 						"name": "channel",
@@ -291,13 +341,11 @@
 				"params": [
 					{
 						"name": "client",
-						"value": "brz-waterfox",
-						"waterfoxPartnerAttribution": true
+						"value": "brz-waterfox"
 					},
 					{
 						"name": "t",
-						"value": "web",
-						"waterfoxPartnerAttribution": true
+						"value": "web"
 					},
 					{
 						"name": "llm",
@@ -307,26 +355,35 @@
 				"searchTermParamName": "q"
 			},
 			"suggestions": {
-				"base": "https://www.google.com/complete/search",
+				"base": "https://search.waterfox.com/autocomplete",
+				"method": "POST",
 				"params": [
 					{
 						"name": "client",
-						"value": "firefox"
+						"value": "waterfox"
 					},
 					{
-						"experimentConfig": "search_rich_suggestions",
-						"name": "channel"
+						"name": "engine",
+						"value": "qwant"
+					},
+					{
+						"name": "channel",
+						"value": "fen"
 					}
 				],
 				"searchTermParamName": "q"
 			},
 			"trending": {
-				"base": "https://www.google.com/complete/search",
-				"method": "GET",
+				"base": "https://search.waterfox.com/autocomplete",
+				"method": "POST",
 				"params": [
 					{
 						"name": "client",
-						"value": "firefox"
+						"value": "waterfox"
+					},
+					{
+						"name": "engine",
+						"value": "qwant"
 					},
 					{
 						"name": "channel",
@@ -350,26 +407,35 @@
 				"searchTermParamName": "q"
 			},
 			"suggestions": {
-				"base": "https://www.google.com/complete/search",
+				"base": "https://search.waterfox.com/autocomplete",
+				"method": "POST",
 				"params": [
 					{
 						"name": "client",
-						"value": "firefox"
+						"value": "waterfox"
 					},
 					{
-						"experimentConfig": "search_rich_suggestions",
-						"name": "channel"
+						"name": "engine",
+						"value": "wps"
+					},
+					{
+						"name": "channel",
+						"value": "fen"
 					}
 				],
 				"searchTermParamName": "q"
 			},
 			"trending": {
-				"base": "https://www.google.com/complete/search",
-				"method": "GET",
+				"base": "https://search.waterfox.com/autocomplete",
+				"method": "POST",
 				"params": [
 					{
 						"name": "client",
-						"value": "firefox"
+						"value": "waterfox"
+					},
+					{
+						"name": "engine",
+						"value": "wps"
 					},
 					{
 						"name": "channel",
