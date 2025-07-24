@@ -211,11 +211,11 @@ export var AppConstants = Object.freeze({
 #ifdef MOZ_THUNDERBIRD
     "https://thunderbird-settings.thunderbird.net/v1",
 #else
-    "https://firefox.settings.services.mozilla.com/v1",
+    "",
 #endif
 
   REMOTE_SETTINGS_VERIFY_SIGNATURE:
-#ifdef MOZ_THUNDERBIRD
+#if defined(MOZ_THUNDERBIRD) || defined(MOZ_APP_VERSION)
     false,
 #else
     true,

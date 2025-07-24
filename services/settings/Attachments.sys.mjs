@@ -338,6 +338,30 @@ export class Downloader {
       fallbackToDump = false,
       avoidDownload = false,
     } = options || {};
+    
+    // Detect translation files based on record properties (collection is often undefined)
+    const isTranslationFile = record && (
+      record.fileType === "model" || 
+      record.fileType === "lex" || 
+      record.fileType === "wasm" || 
+      record.fileType === "vocab" ||
+      (record.fromLang && record.toLang) ||
+      (record.name && (
+        record.name.includes("model.") ||
+        record.name.includes("lex.") ||
+        record.name.includes("vocab.") ||
+        record.name.includes("bergamot")
+      )) ||
+      (record.attachment?.filename && (
+        record.attachment.filename.endsWith(".wasm") ||
+        record.attachment.filename.includes("bergamot")
+      ))
+    );
+    
+    // Force avoidDownload for non-translation files
+    if (!isTranslationFile) {
+      avoidDownload = true;
+    }
     if (!attachmentId) {
       // Check for pre-condition. This should not happen, but it is explicitly
       // checked to avoid mixing up attachments, which could be dangerous.
@@ -510,7 +534,7 @@ export class Downloader {
    * @throws {Downloader.BadContentError} if the downloaded content integrity is not valid.
    * @returns {ArrayBuffer} the file content.
    */
-  async downloadAsBytes(record, options = {}) {
+  async downloadAsBytes(record, options) {
     const {
       attachment: { location, hash, size },
     } = record;
@@ -519,7 +543,65 @@ export class Downloader {
     try {
       baseURL = await lazy.Utils.baseAttachmentsURL();
     } catch (error) {
-      throw new Downloader.ServerInfoError(error);
+      // For translation files only, fallback to Mozilla's server if Waterfox's is empty
+      const isTranslationFile = record && (
+        record.fileType === "model" || 
+        record.fileType === "lex" || 
+        record.fileType === "wasm" || 
+        record.fileType === "vocab" ||
+        (record.fromLang && record.toLang) ||
+        (record.name && (
+          record.name.includes("model.") ||
+          record.name.includes("lex.") ||
+          record.name.includes("vocab.") ||
+          record.name.includes("bergamot")
+        )) ||
+        (record.attachment?.filename && (
+          record.attachment.filename.endsWith(".wasm") ||
+          record.attachment.filename.includes("bergamot")
+        ))
+      );
+      
+      if (isTranslationFile) {
+        // Use Mozilla's CDN for translation files when server URL is empty
+        baseURL = "https://firefox.settings.services.mozilla.com/v1/";
+        const resp = await lazy.Utils.fetch(baseURL);
+        const serverInfo = await resp.json();
+        baseURL = serverInfo.capabilities.attachments.base_url;
+        if (!baseURL.endsWith("/")) {
+          baseURL += "/";
+        }
+      } else {
+        throw new Downloader.ServerInfoError(error);
+      }
+    }
+    
+    // Additional check: if baseURL is still empty and it's a translation file
+    if (!baseURL || baseURL === "/") {
+      const isTranslationFile = record && (
+        record.fileType === "model" || 
+        record.fileType === "lex" || 
+        record.fileType === "wasm" || 
+        record.fileType === "vocab" ||
+        (record.fromLang && record.toLang) ||
+        (record.name && (
+          record.name.includes("model.") ||
+          record.name.includes("lex.") ||
+          record.name.includes("vocab.") ||
+          record.name.includes("bergamot")
+        )) ||
+        (record.attachment?.filename && (
+          record.attachment.filename.endsWith(".wasm") ||
+          record.attachment.filename.includes("bergamot")
+        ))
+      );
+      
+      if (isTranslationFile) {
+        // Hardcode Mozilla's CDN URL for translations
+        baseURL = "https://cdn.settings.services.mozilla.com/";
+      } else {
+        throw new Downloader.ServerInfoError("No server URL configured");
+      }
     }
 
     const remoteFileUrl = baseURL + location;
