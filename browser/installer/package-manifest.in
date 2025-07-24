@@ -40,6 +40,7 @@
 #endif
 @APPNAME@/Contents/Frameworks
 @APPNAME@/Contents/PkgInfo
+@RESPATH@/Assets.car
 @RESPATH@/firefox.icns
 @RESPATH@/document.icns
 @RESPATH@/@LPROJ_ROOT@.lproj/*
