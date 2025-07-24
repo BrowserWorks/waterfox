@@ -4,4 +4,4 @@ resource services-settings resource://gre/modules/services-settings/
 # Schedule polling of remote settings changes
 # (default 6H, max 24H)
 # see syntax https://searchfox.org/mozilla-central/rev/cc280c4be94ff8cf64a27cc9b3d6831ffa49fa45/toolkit/components/timermanager/UpdateTimerManager.jsm#155
-category update-timer RemoteSettingsComponents @mozilla.org/services/settings;1,getService,services-settings-poll-changes,services.settings.poll_interval,21600,86400
+# category update-timer RemoteSettingsComponents @mozilla.org/services/settings;1,getService,services-settings-poll-changes,services.settings.poll_interval,21600,86400
