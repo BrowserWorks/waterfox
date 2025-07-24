@@ -103,6 +103,7 @@ export async function jexlFilterFunc(entry, environment, collectionName) {
 function remoteSettingsFunction() {
   const _clients = new Map();
   let _invalidatePolling = false;
+  let _initialized = false;
 
   // If not explicitly specified, use the default signer.
   const defaultOptions = {
@@ -304,6 +305,39 @@ function remoteSettingsFunction() {
     trigger = "manual",
     full = false,
   } = {}) => {
+    if (AppConstants.MOZ_APP_VERSION) {
+      // Called multiple times on GeckoView due to bug 1730026
+      if (_initialized) {
+        return;
+      }
+      _initialized = true;
+      let importedFromDump = false;
+      for (const client of _clients.values()) {
+        const hasLocalDump = await lazy.Utils.hasLocalDump(
+          client.bucketName,
+          client.collectionName
+        );
+        if (hasLocalDump) {
+          const lastModified = await client.getLastModified();
+          const lastModifiedDump = await lazy.Utils.getLocalDumpLastModified(
+            client.bucketName,
+            client.collectionName
+          );
+          if (lastModified < lastModifiedDump) {
+            await client.maybeSync(lastModifiedDump, {
+              loadDump: true,
+              trigger,
+            });
+            importedFromDump = true;
+          }
+        }
+      }
+      if (importedFromDump) {
+        Services.obs.notifyObservers(null, "remote-settings:changes-poll-end");
+      }
+      return;
+    }
+
     if (lazy.Utils.shouldSkipRemoteActivityDueToTests) {
       return;
     }
