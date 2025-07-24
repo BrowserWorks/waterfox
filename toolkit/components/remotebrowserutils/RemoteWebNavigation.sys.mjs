@@ -99,40 +99,8 @@ export class RemoteWebNavigation {
   }
 
   _speculativeConnect(uri, loadURIOptions) {
-    try {
-      // Let's start a network connection before the content process asks.
-      // Note that we might have already set up the speculative connection in
-      // some cases, especially when the url is from location bar or its popup
-      // menu.
-      if (uri.schemeIs("http") || uri.schemeIs("https")) {
-        let isBrowserPrivate = lazy.PrivateBrowsingUtils.isBrowserPrivate(
-          this._browser
-        );
-        let principal = loadURIOptions.triggeringPrincipal;
-        // We usually have a triggeringPrincipal assigned, but in case we
-        // don't have one or if it's a SystemPrincipal, let's create it with OA
-        // inferred from the current context.
-        if (!principal || principal.isSystemPrincipal) {
-          let attrs = {
-            userContextId: this._browser.getAttribute("usercontextid") || 0,
-            privateBrowsingId: isBrowserPrivate ? 1 : 0,
-          };
-          principal = Services.scriptSecurityManager.createContentPrincipal(
-            uri,
-            attrs
-          );
-        }
-        Services.io.speculativeConnect(
-          uri,
-          principal,
-          new NotificationCallbacks(this._browser),
-          false
-        );
-      }
-    } catch (ex) {
-      // Can't setup speculative connection for this uri for some
-      // reason, just ignore it.
-    }
+    // Speculative connections are disabled in Waterfox.
+    return;
   }
 
   loadURI(uri, loadURIOptions) {
