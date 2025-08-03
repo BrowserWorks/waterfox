@@ -56,8 +56,6 @@ testing/web-platform/tests/tools/third_party/pywebsocket3/build
 # User files that may appear at the root
 /.clang-tidy
 /.clangd
-/.mozconfig*
-/mozconfig*
 /.moz-fast-forward
 /.moz-vendoring
 /old-configure
