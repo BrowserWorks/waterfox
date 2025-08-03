@@ -40,6 +40,7 @@
 #endif
 @APPNAME@/Contents/Frameworks
 @APPNAME@/Contents/PkgInfo
+@RESPATH@/Assets.car
 @RESPATH@/firefox.icns
 @RESPATH@/document.icns
 @RESPATH@/@LPROJ_ROOT@.lproj/*
@@ -221,10 +222,13 @@
 @RESPATH@/chrome/toolkit.manifest
 #ifdef MOZ_GTK
 @RESPATH@/browser/chrome/icons/default/default16.png
+@RESPATH@/browser/chrome/icons/default/default22.png
+@RESPATH@/browser/chrome/icons/default/default24.png
 @RESPATH@/browser/chrome/icons/default/default32.png
 @RESPATH@/browser/chrome/icons/default/default48.png
 @RESPATH@/browser/chrome/icons/default/default64.png
 @RESPATH@/browser/chrome/icons/default/default128.png
+@RESPATH@/browser/chrome/icons/default/default256.png
 #endif
 
 ; [DevTools Startup Files]
