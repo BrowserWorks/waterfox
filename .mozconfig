@@ -1,0 +1,70 @@
+#!/bin/sh
+# For local development builds
+
+case $(uname -s) in
+    Darwin)
+        # Any macOS specific settings
+        # For release builds we should use -march=core2 -mtune=haswell
+        export CC=$HOME/.mozbuild/clang/bin/clang
+        export CXX=$HOME/.mozbuild/clang/bin/clang++
+        ;;
+    MINGW*)
+        # Any Windows specific settings
+        ac_add_options --disable-bits-download
+        ac_add_options --disable-maintenance-service
+        ac_add_options --disable-parental-controls
+        ;;
+    Linux)
+        # Any Linux specific settings
+        case $(uname -m) in
+            x86_64)
+                if test -d "$HOME/.mozbuild/clang/bin"; then
+                    export CC=$HOME/.mozbuild/clang/bin/clang
+                    export CXX=$HOME/.mozbuild/clang/bin/clang++
+                else
+                    export CC=clang
+                    export CXX=clang++
+                fi
+                if test -f "$HOME/.mozbuild/nasm/nasm"; then
+                    export NASM=$HOME/.mozbuild/nasm/nasm
+                fi
+                ac_add_options --target=x86_64-pc-linux-gnu
+                ;;
+            ppc64le)
+                export CC=gcc
+                export CXX=g++
+                ac_add_options --enable-optimize="-w"
+                ac_add_options --target=powerpc64le-unknown-linux-gnu
+                ;;
+        esac
+        ;;
+esac
+
+ac_add_options --disable-crashreporter
+ac_add_options --disable-debug
+ac_add_options --disable-dmd
+ac_add_options --disable-geckodriver
+ac_add_options --disable-jprof
+ac_add_options --disable-profiling
+ac_add_options --disable-trace-logging
+ac_add_options --disable-verify-mar
+ac_add_options --disable-updater
+
+ac_add_options --enable-application=browser
+ac_add_options --enable-bootstrap
+ac_add_options --enable-optimize="-Os -w"
+ac_add_options --enable-tests
+
+ac_add_options --with-app-basename=Waterfox
+ac_add_options --with-app-name=waterfox
+ac_add_options --with-branding=waterfox/browser/branding
+ac_add_options --with-distribution-id=net.waterfox
+
+if test -x "$(command -v sccache)"; then
+    ac_add_options --with-ccache=sccache
+elif test -f "$HOME/.mozbuild/sccache/sccache"; then
+    ac_add_options --with-ccache="$HOME"/.mozbuild/sccache/sccache
+fi
+
+mk_add_options AUTOCLOBBER=1
+MOZ_REQUIRE_SIGNING=
