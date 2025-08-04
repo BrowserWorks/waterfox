@@ -580,6 +580,165 @@ var SidebarController = {
     );
   },
 
+  _toggleTreeInProgress: false,
+
+  /**
+   * Toggle the vertical tabs preference.
+   */
+  async toggleTreeVerticalTabs(shouldShow) {
+    // Using a lock to prevent re-entrancy from the preference observer
+    // while the function is already being executed from the UI event.
+    if (this._toggleTreeInProgress) {
+      return;
+    }
+    this._toggleTreeInProgress = true;
+
+    try {
+      const treeVerticalTabsBox = document.querySelector(
+        "#tree-vertical-tabs-box"
+      );
+      const verticalTabs = document.querySelector("#vertical-tabs");
+      shouldShow ??= !this.treeVerticalTabsBrowser;
+      const addon = await AddonManager.getAddonByID("sidebar@waterfox.net");
+      if (shouldShow != this.treeVerticalTabsEnabled) {
+        Services.prefs.setBoolPref("browser.sidebar.enabled", shouldShow);
+      }
+      if (shouldShow) {
+        if (this.treeVerticalTabsBrowser) {
+          return;
+        }
+        if (!addon.isActive) {
+          await addon.enable({ allowSystemAddons: true });
+        }
+        await addon.startupPromise;
+        if (!Services.prefs.getBoolPref("sidebar.revamp")) {
+          await this.toggleRevampSidebar();
+        }
+        if (!Services.prefs.getBoolPref("sidebar.verticalTabs")) {
+          Services.prefs.setBoolPref("sidebar.verticalTabs", true);
+          // The sidebar-main maybe not initialized yet at the first time.
+          while (!this.sidebarMain.requestUpdate) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          this.toggleTabstrip();
+        }
+
+        treeVerticalTabsBox.removeAttribute("hidden");
+        treeVerticalTabsBox.setAttribute("shown", true);
+
+        verticalTabs.setAttribute("hidden", true);
+        verticalTabs.removeAttribute("visible");
+
+        const policy = WebExtensionPolicy.getByID("sidebar@waterfox.net");
+
+        const treeVerticalTabs = document.createXULElement("browser");
+        treeVerticalTabs.setAttribute("id", "tree-vertical-tabs");
+        treeVerticalTabs.setAttribute("type", "content");
+        treeVerticalTabs.setAttribute("flex", "1");
+        treeVerticalTabs.setAttribute("disableglobalhistory", "true");
+        treeVerticalTabs.setAttribute(
+          "messagemanagergroup",
+          "webext-browsers"
+        );
+        treeVerticalTabs.setAttribute("webextension-view-type", "sidebar");
+        treeVerticalTabs.setAttribute("context", "contentAreaContextMenu");
+        treeVerticalTabs.setAttribute("tooltip", "aHTMLTooltip");
+        treeVerticalTabs.setAttribute("autocompletepopup", "PopupAutoComplete");
+        treeVerticalTabs.setAttribute("transparent", "true");
+        treeVerticalTabs.setAttribute("remote", "true");
+        treeVerticalTabs.setAttribute("remoteType", "extension");
+        treeVerticalTabs.setAttribute("maychangeremoteness", "true");
+        treeVerticalTabs.setAttribute("remoteType", "extension");
+        treeVerticalTabs.setAttribute("transparent", "true");
+        treeVerticalTabs.setAttribute(
+          "initialBrowsingContextGroupId",
+          policy.browsingContextGroupId
+        );
+
+        const { ExtensionUtils } = ChromeUtils.importESModule(
+          "resource://gre/modules/ExtensionUtils.sys.mjs"
+        );
+        const { promiseEvent } = ExtensionUtils;
+        const initBrowser = () => {
+          const { ExtensionParent } = ChromeUtils.importESModule(
+            "resource://gre/modules/ExtensionParent.sys.mjs"
+          );
+          ExtensionParent.apiManager.emit(
+            "extension-browser-inserted",
+            treeVerticalTabs,
+            {}
+          );
+          treeVerticalTabs.messageManager.loadFrameScript(
+            "chrome://extensions/content/ext-browser-content.js",
+            false,
+            true
+          );
+          treeVerticalTabs.messageManager.sendAsyncMessage(
+            "Extension:InitBrowser",
+            {}
+          );
+
+          const sidebarPanelUrl = policy.getURL("sidebar/sidebar.html");
+          const uri = Services.io.newURI(sidebarPanelUrl);
+          const triggeringPrincipal =
+            Services.scriptSecurityManager.createContentPrincipal(uri, {});
+          treeVerticalTabs.fixupAndLoadURIString(sidebarPanelUrl, {
+            triggeringPrincipal,
+          });
+        };
+        promiseEvent(treeVerticalTabs, "XULFrameLoaderCreated").then(
+          initBrowser
+        );
+        treeVerticalTabs.addEventListener(
+          "DidChangeBrowserRemoteness",
+          initBrowser
+        );
+
+        treeVerticalTabsBox.appendChild(treeVerticalTabs);
+
+        const event = new CustomEvent("TreeVerticalTabsShown", {
+          bubbles: true,
+        });
+        treeVerticalTabsBox.dispatchEvent(event);
+      } else {
+        const treeVerticalTabs = this.treeVerticalTabsBrowser;
+        if (!treeVerticalTabs) {
+          return;
+        }
+        const uri = Services.io.newURI("about:blank");
+        const triggeringPrincipal =
+          Services.scriptSecurityManager.createContentPrincipal(uri, {});
+        treeVerticalTabs.fixupAndLoadURIString("about:blank", {
+          triggeringPrincipal,
+        });
+        treeVerticalTabsBox.removeChild(treeVerticalTabs);
+
+        treeVerticalTabsBox.setAttribute("hidden", true);
+        treeVerticalTabsBox.removeAttribute("shown");
+
+        verticalTabs.removeAttribute("hidden");
+        if (Services.prefs.getBoolPref("sidebar.verticalTabs")) {
+          verticalTabs.setAttribute("visible", "");
+        }
+
+        const event = new CustomEvent("TreeVerticalTabsHidden", {
+          bubbles: true,
+        });
+        treeVerticalTabsBox.dispatchEvent(event);
+
+        if (!shouldShow && addon.isActive) {
+          await addon.disable({ allowSystemAddons: true });
+        }
+      }
+    } finally {
+      this._toggleTreeInProgress = false;
+    }
+  },
+
+  get treeVerticalTabsBrowser() {
+    return document.querySelector("#tree-vertical-tabs");
+  },
+
   /**
    * The handler for Services.obs.addObserver.
    */
@@ -760,6 +919,7 @@ var SidebarController = {
     if (content && content.updatePosition) {
       content.updatePosition();
     }
+    this.treeVerticalTabsBrowser?.reload();
   },
 
   /**
@@ -855,6 +1015,10 @@ var SidebarController = {
     if (this.inSingleTabWindow) {
       this._state.launcherVisible = false;
       return;
+    }
+
+    if (this.treeVerticalTabsEnabled) {
+      this.toggleTreeVerticalTabs();
     }
 
     let sourceWindow = window.opener;
@@ -1979,6 +2143,9 @@ var SidebarController = {
       arrowScrollbox.setAttribute("orient", "horizontal");
       tabStrip.removeAttribute("expanded");
       tabStrip.setAttribute("orient", "horizontal");
+      if (this.treeVerticalTabsEnabled) {
+         this.toggleTreeVerticalTabs(false);
+       }
     }
 
     let verticalToolbar = document.getElementById(
@@ -2305,5 +2472,15 @@ XPCOMUtils.defineLazyPreferenceGetter(
     ) {
       SidebarController._state.updateVisibility();
     }
+  }
+);
+
+XPCOMUtils.defineLazyPreferenceGetter(
+  SidebarController,
+  "treeVerticalTabsEnabled",
+  "browser.sidebar.enabled",
+  false,
+  (_aPreference, _previousValue, newValue) => {
+    SidebarController.toggleTreeVerticalTabs(newValue);
   }
 );
