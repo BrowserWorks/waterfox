@@ -62,7 +62,14 @@ export default class TabHoverPreviewPanel {
     this._panelOpener = new TabPreviewPanelTimedFunction(
       () => {
         if (!this._isDisabled()) {
-          this._panel.openPopup(this._tab, this.#popupOptions);
+          if (this._win.SidebarController.treeVerticalTabsEnabled &&
+              typeof this.__ws__top == 'number') {
+            const [x, y] = this.calculateCoordinatesForVertical();
+            this._panel.openPopupAtScreen(x, y, false);
+          }
+          else {
+            this._panel.openPopup(this._tab, this.#popupOptions);
+          }
         }
       },
       this._prefPreviewDelay,
@@ -163,6 +170,18 @@ export default class TabHoverPreviewPanel {
         // Most likely the window was killed before capture completed, so just log the error
         console.error(e);
       });
+  }
+
+  calculateCoordinatesForVertical() {
+    const treeVerticalTabs = this._win.document.querySelector('#tree-vertical-tabs');
+    const treeVerticalTabsRect = treeVerticalTabs.getBoundingClientRect();
+    const align = Services.prefs.getBoolPref('sidebar.position_start') ? 'left' : 'right';
+    const previewRect = this._panel.getBoundingClientRect();
+    const x = align == 'left' ?
+      treeVerticalTabs.screenX + treeVerticalTabsRect.width - 2 :
+      treeVerticalTabs.screenX - previewRect.width + 2;
+    const y = Math.min(treeVerticalTabs.screenY + this.__ws__top, treeVerticalTabs.screenY + treeVerticalTabsRect.height - previewRect.height);
+    return [x, y];
   }
 
   activate(tab) {
@@ -270,6 +289,12 @@ export default class TabHoverPreviewPanel {
 
   _movePanel() {
     if (this._tab) {
+      if (this._win.SidebarController.treeVerticalTabsEnabled &&
+          typeof this.__ws__top == 'number') {
+        const [x, y] = this.calculateCoordinatesForVertical();
+        this._panel.moveTo(x, y);
+        return;
+      }
       this._panel.moveToAnchor(
         this._tab,
         this.#popupOptions.position,
