@@ -132,6 +132,9 @@ export default class SidebarMain extends MozLitElement {
   }
 
   onSidebarPopupShowing(event) {
+    if (event.target == SidebarController.treeVerticalTabsBrowser) {
+      return;
+    }
     // Store the context menu target which holds the id required for managing sidebar items
     let targetHost = event.explicitOriginalTarget.getRootNode().host;
     let toolbarContextMenuTarget =
