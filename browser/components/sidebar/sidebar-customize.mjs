@@ -296,6 +296,15 @@ export class SidebarCustomize extends SidebarPage {
                 ?disabled=${this.getWindow().SidebarController._state
                   .revampVisibility === "expand-on-hover"}
               ></moz-checkbox>
+              <moz-checkbox
+                slot="nested"
+                type="checkbox"
+                id="tree-vertical-tabs"
+                name="treeVerticalTabs"
+                data-l10n-id="sidebar-tree-vertical-tabs"
+                @change=${this.#handleTreeVerticalTabsChange}
+                ?checked=${this.getWindow().SidebarController.treeVerticalTabsEnabled}
+              ></moz-checkbox>
             `
           )}
           </moz-checkbox>
@@ -354,6 +363,11 @@ export class SidebarCustomize extends SidebarPage {
     Glean.sidebarCustomize.sidebarDisplay.record({
       preference: e.target.checked ? "hide" : "always",
     });
+  }
+
+  #handleTreeVerticalTabsChange(e) {
+    e.stopPropagation();
+    this.getWindow().SidebarController.toggleTreeVerticalTabs(e.target.checked);
   }
 
   #toggleExpandOnHover(e) {
