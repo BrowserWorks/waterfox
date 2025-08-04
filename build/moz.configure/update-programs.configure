@@ -73,7 +73,7 @@ def mac_prod_requirements_string(identifier):
         f'identifier "{identifier}" and anchor apple generic and '
         "certificate 1[field.1.2.840.113635.100.6.2.6] and "
         "certificate leaf[field.1.2.840.113635.100.6.1.13] and "
-        'certificate leaf[subject.OU] = "43AQ936H96"'
+        'certificate leaf[subject.OU] = "PZWYM7N4GF"'
     )
 
 
@@ -95,7 +95,7 @@ set_config("MOZ_SMAUTHORIZEDCLIENTS_REQUIREMENTS", smauthorizedclients_requireme
 
 @depends("--enable-mac-elevated-updates-with-generic-certs", when=target_is_osx)
 def smprivilegedexec_requirements(enabled):
-    updater_id = "org.mozilla.updater"
+    updater_id = "net.waterfox.updater"
     if enabled:
         return mac_relaxed_requirements_string(updater_id)
     else:
