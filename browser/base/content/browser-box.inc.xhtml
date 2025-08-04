@@ -6,6 +6,10 @@
   <box context="sidebar-context-menu" id="sidebar-main" hidden="true">
     <html:sidebar-main flex="1">
       <box id="vertical-tabs" slot="tabstrip" customizable="true" contextmenu="toolbar-context-menu"></box>
+      <box id="tree-vertical-tabs-box"
+       slot="tabstrip"
+       orient="vertical"
+       hidden="true"/>
     </html:sidebar-main>
   </box>
   <splitter id="sidebar-launcher-splitter" class="chromeclass-extrachrome sidebar-splitter" resizebefore="sibling" resizeafter="none" hidden="true"/>
