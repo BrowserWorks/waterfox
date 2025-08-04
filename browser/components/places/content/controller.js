@@ -1510,6 +1510,8 @@ var PlacesControllerDragHelper = {
    * @returns {string} The most relevant flavor, or undefined.
    */
   getMostRelevantFlavor(flavors) {
+    if (flavors.contains(PlacesUtils.TYPE_X_WS_TREE))
+      return PlacesUtils.TYPE_X_WS_TREE;
     // The DnD API returns a DOMStringList, but tests may pass an Array.
     flavors = Array.from(flavors);
     return PlacesUIUtils.SUPPORTED_FLAVORS.find(f => flavors.includes(f));
@@ -1526,6 +1528,8 @@ var PlacesControllerDragHelper = {
    * @returns {boolean}
    */
   canDrop: function PCDH_canDrop(ip, dt) {
+    if (dt.mozTypesAt(0).contains(PlacesUtils.TYPE_X_WS_TREE))
+      return true;
     let dropCount = dt.mozItemCount;
 
     // Check every dragged item.
