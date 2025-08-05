@@ -1,28 +1,22 @@
-"use strict";
+const { synthesizeDrop, synthesizeMouseAtCenter } = EventUtils;
 
-const { AppConstants } = ChromeUtils.import(
-  "resource://gre/modules/AppConstants.jsm"
-);
+const _COPY_URL_PREF = "browser.tabs.copyurl";
+const _COPY_ALL_URLS_PREF = "browser.tabs.copyallurls";
+const _COPY_ACTIVE_URL_PREF = "browser.tabs.copyurl.activetab";
+const _DUPLICATE_TAB_PREF = "browser.tabs.duplicateTab";
+const _RESTART_PREF = "browser.restart_menu.showpanelmenubtn";
 
-var { synthesizeDrop, synthesizeMouseAtCenter } = EventUtils;
+const _URI1 = "https://test1.example.com/";
+const _URI2 = "https://example.com/";
 
-const COPY_URL_PREF = "browser.tabs.copyurl";
-const COPY_ALL_URLS_PREF = "browser.tabs.copyallurls";
-const COPY_ACTIVE_URL_PREF = "browser.tabs.copyurl.activetab";
-const DUPLICATE_TAB_PREF = "browser.tabs.duplicateTab";
-const RESTART_PREF = "browser.restart_menu.showpanelmenubtn";
-
-const URI1 = "https://test1.example.com/";
-const URI2 = "https://example.com/";
-
-let OS = AppConstants.platform;
+const _OS = AppConstants.platform;
 /**
  * Helper for opening the toolbar context menu.
  */
 async function openTabContextMenu(tab) {
   info("Opening tab context menu");
-  let contextMenu = document.getElementById("tabContextMenu");
-  let openTabContextMenuPromise = BrowserTestUtils.waitForPopupEvent(
+  const contextMenu = document.getElementById("tabContextMenu");
+  const openTabContextMenuPromise = BrowserTestUtils.waitForPopupEvent(
     contextMenu,
     "shown"
   );
@@ -32,7 +26,7 @@ async function openTabContextMenu(tab) {
   return contextMenu;
 }
 
-async function openAndCloseTabContextMenu(tab) {
+async function _openAndCloseTabContextMenu(tab) {
   await openTabContextMenu(tab);
   info("Opened tab context menu");
   await EventUtils.synthesizeKey("VK_ESCAPE", {});
@@ -44,8 +38,8 @@ async function openAndCloseTabContextMenu(tab) {
  */
 async function openFileMenu() {
   info("Opening file menu");
-  let fileMenu = document.getElementById("file-menu");
-  let openFileMenuPromise = BrowserTestUtils.waitForPopupEvent(
+  const fileMenu = document.getElementById("file-menu");
+  const openFileMenuPromise = BrowserTestUtils.waitForPopupEvent(
     fileMenu,
     "shown"
   );
@@ -54,7 +48,7 @@ async function openFileMenu() {
   return fileMenu;
 }
 
-async function openAndCloseFileMenu() {
+async function _openAndCloseFileMenu() {
   await openFileMenu();
   await EventUtils.synthesizeKey("VK_ESCAPE", {});
   info("Closed file menu");
@@ -63,8 +57,8 @@ async function openAndCloseFileMenu() {
 /**
  * Helper for opening toolbar context menu.
  */
-async function openToolbarContextMenu(contextMenu, target) {
-  let popupshown = BrowserTestUtils.waitForEvent(contextMenu, "popupshown");
+async function _openToolbarContextMenu(contextMenu, target) {
+  const popupshown = BrowserTestUtils.waitForEvent(contextMenu, "popupshown");
   EventUtils.synthesizeMouseAtCenter(target, { type: "contextmenu" });
   await popupshown;
 }
@@ -73,15 +67,15 @@ async function openToolbarContextMenu(contextMenu, target) {
  * Helper to paste from clipboard
  */
 
-async function pasteFromClipboard(browser) {
+async function _pasteFromClipboard(browser) {
   return SpecialPowers.spawn(browser, [], () => {
-    let { document } = content;
+    const { document } = content;
     document.body.contentEditable = true;
     document.body.focus();
-    let pastePromise = new Promise(resolve => {
+    const pastePromise = new Promise((resolve) => {
       document.addEventListener(
         "paste",
-        e => {
+        (e) => {
           resolve(e.clipboardData.getData("text/plain"));
         },
         { once: true }
