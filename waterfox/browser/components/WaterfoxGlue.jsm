@@ -14,8 +14,10 @@ const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
 XPCOMUtils.defineLazyModuleGetters(this, {
   AddonManager: "resource://gre/modules/AddonManager.jsm",
+  BrowserUtils: "resource:///modules/BrowserUtils.jsm",
   ChromeManifest: "resource:///modules/ChromeManifest.jsm",
   Overlays: "resource:///modules/Overlays.jsm",
+  PrefUtils: "resource:///modules/PrefUtils.jsm",
   PrivateTab: "resource:///modules/PrivateTab.jsm",
   StatusBar: "resource:///modules/StatusBar.jsm",
   TabFeatures: "resource:///modules/TabFeatures.jsm",
@@ -26,6 +28,15 @@ XPCOMUtils.defineLazyGlobalGetters(this, ["fetch"]);
 
 const WaterfoxGlue = {
   async init() {
+    // Set pref observers
+    this._setPrefObservers();
+
+    // Load always on Waterfox custom CSS.
+    // Add additional CSS here.
+    BrowserUtils.registerStylesheet(
+      "chrome://browser/skin/waterfox/general.css"
+    );
+
     // Parse chrome.manifest
     this.startupManifest = await this.getChromeManifest("startup");
     this.privateManifest = await this.getChromeManifest("private");
@@ -36,6 +47,19 @@ const WaterfoxGlue = {
     Services.obs.addObserver(this, "main-pane-loaded");
     // Observe final-ui-startup to launch browser window dependant tasks
     Services.obs.addObserver(this, "final-ui-startup");
+  },
+
+  async _setPrefObservers() {
+    this.leptonListener = PrefUtils.addObserver(
+      "userChrome.theme.enable",
+      isEnabled => {
+        // Pref being false means we need to unload the sheet.
+        const userChromeSheet = "chrome://browser/skin/userChrome.css";
+        const userContentSheet = "chrome://browser/skin/userContent.css"
+        BrowserUtils.registerOrUnregisterSheet(userChromeSheet, isEnabled);
+        BrowserUtils.registerOrUnregisterSheet(userContentSheet, isEnabled);
+      }
+    );
   },
 
   async getChromeManifest(manifest) {
