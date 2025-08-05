@@ -2,18 +2,14 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const EXPORTED_SYMBOLS = ["PrefUtils"];
-
-const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
-
-var PrefUtils = {
+export const PrefUtils = {
   get(prefPath, valueIfUndefined, def = false, setDefault = true) {
-    let sPrefs = def ? Services.prefs.getDefaultBranch(null) : Services.prefs;
+    const sPrefs = def ? Services.prefs.getDefaultBranch(null) : Services.prefs;
 
     try {
       switch (sPrefs.getPrefType(prefPath)) {
         case 0:
-          if (valueIfUndefined != undefined) {
+          if (valueIfUndefined !== undefined) {
             return this.set(prefPath, valueIfUndefined, setDefault);
           }
           return undefined;
@@ -24,12 +20,12 @@ var PrefUtils = {
         case 128:
           return sPrefs.getBoolPref(prefPath);
       }
-    } catch (ex) {}
+    } catch (_ex) {}
     return undefined;
   },
 
   set(prefPath, value, def = false) {
-    let sPrefs = def ? Services.prefs.getDefaultBranch(null) : Services.prefs;
+    const sPrefs = def ? Services.prefs.getDefaultBranch(null) : Services.prefs;
 
     switch (typeof value) {
       case "string":
@@ -43,7 +39,7 @@ var PrefUtils = {
   },
 
   lock(prefPath, value) {
-    let sPrefs = Services.prefs;
+    const sPrefs = Services.prefs;
     this.lockedBackupDef[prefPath] = this.get(prefPath, true);
     if (sPrefs.prefIsLocked(prefPath)) {
       sPrefs.unlockPref(prefPath);
@@ -57,8 +53,8 @@ var PrefUtils = {
 
   unlock(prefPath) {
     Services.prefs.unlockPref(prefPath);
-    let bkp = this.lockedBackupDef[prefPath];
-    if (bkp == undefined) {
+    const bkp = this.lockedBackupDef[prefPath];
+    if (bkp === undefined) {
       Services.prefs.deleteBranch(prefPath);
     } else {
       this.set(prefPath, bkp, true);
@@ -68,9 +64,8 @@ var PrefUtils = {
   clear: Services.prefs.clearUserPref,
 
   addObserver(aPrefPath, aCallback) {
-    this.observer = function(aSubject, aTopic, prefPath) {
-      return aCallback(PrefUtils.get(prefPath), prefPath);
-    };
+    this.observer = (_aSubject, _aTopic, prefPath) =>
+      aCallback(PrefUtils.get(prefPath), prefPath);
 
     Services.prefs.addObserver(aPrefPath, this.observer);
     return {

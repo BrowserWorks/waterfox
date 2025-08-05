@@ -16,10 +16,10 @@ const lazy = {};
 
 XPCOMUtils.defineLazyModuleGetters(lazy, {
   AddonManager: "resource://gre/modules/AddonManager.sys.mjs",
-  BrowserUtils: "resource:///modules/BrowserUtils.jsm",
+  BrowserUtils: "resource:///modules/BrowserUtils.sys.mjs",
   ChromeManifest: "resource:///modules/ChromeManifest.sys.mjs",
   Overlays: "resource:///modules/Overlays.sys.mjs",
-  PrefUtils: "resource:///modules/PrefUtils.jsm",
+  PrefUtils: "resource:///modules/PrefUtils.sys.mjs",
   PrivateTab: "resource:///modules/PrivateTab.sys.mjs",
   StatusBar: "resource:///modules/StatusBar.sys.mjs",
   TabFeatures: "resource:///modules/TabFeatures.sys.mjs",
