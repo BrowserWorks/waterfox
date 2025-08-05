@@ -1,0 +1,76 @@
+[
+  {
+    "namespace": "syncPrefs",
+    "description": "",
+    "functions": [
+      {
+        "name": "getBoolValue",
+        "description": "",
+        "type": "function",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "description": ""
+          },
+          {
+            "type": "boolean",
+            "name": "default",
+            "optional": true,
+            "description": ""
+          }
+        ],
+        "returns": {
+          "type": "boolean",
+          "description": ""
+        }
+      },
+      {
+        "name": "getStringValue",
+        "description": "",
+        "type": "function",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "description": ""
+          },
+          {
+            "type": "string",
+            "name": "default",
+            "optional": true,
+            "description": ""
+          }
+        ],
+        "returns": {
+          "type": "string",
+          "description": ""
+        }
+      },
+      {
+        "name": "getIntValue",
+        "description": "",
+        "type": "function",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "description": ""
+          },
+          {
+            "type": "integer",
+            "name": "default",
+            "optional": true,
+            "description": ""
+          }
+        ],
+        "returns": {
+          "type": "integer",
+          "description": ""
+        }
+      }
+    ],
+    "events": [
+    ]
+  }
+]

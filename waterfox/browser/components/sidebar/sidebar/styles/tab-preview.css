@@ -1,0 +1,37 @@
+@charset "UTF-8";
+/*
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
+:root {
+  --tab-preview-reference-width: 400px;
+  --tab-preview-reference-height: 300px;
+}
+
+::part(extra-contents-by-tabs-sidebar_waterfox_net container) {
+  text-align: center;
+}
+
+::part(extra-contents-by-tabs-sidebar_waterfox_net frame) {
+  border: var(--tab-border) 1px solid;
+  display: inline-block;
+  margin-right: auto;
+  max-width: var(--tab-preview-size);
+  overflow: hidden;
+}
+
+:root.left ::part(extra-contents-by-tabs-sidebar_waterfox_net frame) {
+  --tab-preview-size: calc(100% + var(--favicon-size) - var(--tab-closebox-end-offset) - 0.25em /* proton closebox padding */);
+}
+:root.right ::part(extra-contents-by-tabs-sidebar_waterfox_net frame) {
+  --tab-preview-size: calc(100% + var(--favicon-size) - var(--tab-closebox-start-offset) - 0.25em /* proton closebox padding */);
+}
+
+::part(extra-contents-by-tabs-sidebar_waterfox_net preview) {
+  --tab-preview-image-size: calc(100% + var(--tab-indent));
+  max-height: calc(var(--tab-preview-reference-height) / var(--tab-preview-reference-width) * var(--tab-preview-image-size));
+  max-width: var(--tab-preview-image-size);
+  min-width: var(--tab-preview-image-size);
+}
