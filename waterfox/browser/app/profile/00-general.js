@@ -40,6 +40,25 @@ pref("browser.uiCustomization.state", "{\"placements\":{\"widget-overflow-fixed-
 // Alternative smooth scroll physics. ("MSD" = Mass-Spring-Damper)
 pref("general.smoothScroll.msdPhysics.enabled", true);
 
+// --- URL Bar Behavior ---
+// Platform-specific settings for how clicks interact with the URL bar.
+#ifdef UNIX_BUT_NOT_MAC
+// On Linux (excluding macOS), a single click does not select all text in the URL bar.
+pref("browser.urlbar.clickSelectsAll", false);
+// On Linux (excluding macOS), a double click selects all text.
+pref("browser.urlbar.doubleClickSelectsAll", true);
+#else
+// On other operating systems (Windows, macOS), a single click selects all text.
+pref("browser.urlbar.clickSelectsAll", true);
+// On other operating systems, double click behavior might be different or not specifically set to select all.
+pref("browser.urlbar.doubleClickSelectsAll", false);
+#endif
+
+#ifdef XP_MACOSX
+// Whether to disable treating ctrl click as right click
+pref("dom.event.treat_ctrl_click_as_right_click.disabled", true);
+#endif
+
 // --- Top Sites and Partner Integrations ---
 // Settings related to "Top Sites" on the New Tab Page and partner integrations.
 pref("browser.partnerlink.attributionURL", "", locked); // URL for partner attribution (locked).
