@@ -2,19 +2,15 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-"use strict";
-
 const CRX_CONTENT_TYPE = "application/x-chrome-extension";
 
-const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
+const lazy = {};
 
-ChromeUtils.defineModuleGetter(
-  this,
-  "StoreHandler",
-  "resource:///modules/StoreHandler.jsm"
-);
+ChromeUtils.defineESModuleGetters(lazy, {
+  StoreHandler: "resource:///modules/StoreHandler.sys.mjs",
+});
 
-function ExtensionCompatibilityHandler() {}
+export function ExtensionCompatibilityHandler() {}
 
 ExtensionCompatibilityHandler.prototype = {
   /**
@@ -27,12 +23,12 @@ ExtensionCompatibilityHandler.prototype = {
    * @param  aRequest
    *         The nsIRequest dealing with the content
    */
-  async handleContent(aMimetype, aContext, aRequest) {
-    let uri = aRequest.URI;
-    if (aMimetype == CRX_CONTENT_TYPE) {
+  async handleContent(aMimetype, _aContext, aRequest) {
+    const uri = aRequest.URI;
+    if (aMimetype === CRX_CONTENT_TYPE) {
       // attempt install
       try {
-        return new StoreHandler().attemptInstall(uri);
+        return new lazy.StoreHandler().attemptInstall(uri);
       } catch (ex) {
         this.log(ex);
       }
@@ -44,10 +40,8 @@ ExtensionCompatibilityHandler.prototype = {
   QueryInterface: ChromeUtils.generateQI([Ci.nsIContentHandler]),
 
   log(aMsg) {
-    let msg = "addon_stores.js: " + (aMsg.join ? aMsg.join("") : aMsg);
+    const msg = `addon_stores.js: ${aMsg.join ? aMsg.join("") : aMsg}`;
     Services.console.logStringMessage(msg);
-    dump(msg + "\n");
+    dump(`${msg}\n`);
   },
 };
-
-var EXPORTED_SYMBOLS = ["ExtensionCompatibilityHandler"];

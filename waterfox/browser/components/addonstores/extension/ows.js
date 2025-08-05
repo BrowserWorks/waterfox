@@ -41,8 +41,8 @@ function init() {
   );
 }
 
-function uninit() {
-  var style = document.getElementById("wf-addons-store-style");
+function _uninit() {
+  const style = document.getElementById("wf-addons-store-style");
   if (style) {
     style.remove(style);
   }
