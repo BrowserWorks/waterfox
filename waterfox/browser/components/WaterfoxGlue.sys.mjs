@@ -53,7 +53,7 @@ export const WaterfoxGlue = {
           const activeThemeId = await this.getActiveThemeId();
           this.updateCustomStylesheets({ id: activeThemeId, type: "theme" });
           amInitialized = true;
-        } catch (ex) {
+        } catch (_ex) {
           await new Promise((res) => lazy.setTimeout(res, 500, {}));
         }
       }
@@ -151,7 +151,7 @@ export const WaterfoxGlue = {
     abi: Services.appinfo.XPCOMABI,
   },
 
-  async observe(subject, topic, data) {
+  async observe(subject, topic, _data) {
     switch (topic) {
       case "chrome-document-loaded":
         // Only load overlays in new browser windows
@@ -207,6 +207,7 @@ export const WaterfoxGlue = {
       case "final-ui-startup":
         this._beforeUIStartup();
         this._delayedTasks();
+        this._monitorSidebarPref();
         break;
       case "quit-application-granted":
         this.shutdown();
@@ -221,7 +222,41 @@ export const WaterfoxGlue = {
       "addonstores@waterfox.net",
       "1.0.0",
       "resource://builtin-addons/addonstores/"
-    );
+    )
+  },
+
+  async _monitorSidebarPref() {
+    const COMPONENT_PREF = "browser.sidebar.enabled";
+    const ID = "sidebar@waterfox.net";
+
+    let addon = await lazy.AddonManager.getAddonByID(ID);
+
+    // first time install of addon and install on update
+    addon =
+      (await lazy.AddonManager.maybeInstallBuiltinAddon(
+        ID,
+        "1.1.0",
+        "resource://builtin-addons/sidebar/"
+      )) || addon;
+
+    const _checkSidebarPref = async () => {
+      const componentDisabled = Services.prefs.getBoolPref(
+        COMPONENT_PREF,
+        false
+      );
+      if (componentDisabled) {
+        if (addon.isActive) {
+          await addon.disable({ allowSystemAddons: true });
+        }
+      } else {
+        if (!addon.isActive) {
+          await addon.enable({ allowSystemAddons: true });
+        }
+      }
+    };
+
+    Services.prefs.addObserver(COMPONENT_PREF, _checkSidebarPref);
+    await _checkSidebarPref();
   },
 
   async _migrateUI() {
