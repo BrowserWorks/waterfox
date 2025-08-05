@@ -19,7 +19,7 @@
         /* eslint-env mozilla/browser-window */
         /* globals gPrivacyPaneOverlay */
         Services.scriptloader.loadSubScript("chrome://browser/content/overlays/privacy.js", this);
-        gPrivacyPaneOverlay.init();
+        _gPrivacyPaneOverlay.init();
     </script>
     <vbox id="mainPrefPane">
         <!-- WebRTC peer connection -->
@@ -65,6 +65,14 @@
             <hbox id="javascriptPermissions" data-subcategory="permissions-scripts" insertafter="imagePermissions">
                 <checkbox id="enableJavaScript" class="tail-with-learn-more" data-l10n-id="enable-javascript"
                     preference="javascript.enabled" flex="1" />
+            </hbox>
+        </groupbox>
+
+        <!-- DNS -->
+        <groupbox id="dohBox">
+            <hbox id="obliviousDns" data-subcategory="doh" insertbefore="dohCategories">
+                <checkbox id="enableObliviousDns" class="tail-with-learn-more" data-l10n-id="enable-dooh"
+                    preference="network.trr.use_ohttp" flex="1" />
             </hbox>
         </groupbox>
     </vbox>
