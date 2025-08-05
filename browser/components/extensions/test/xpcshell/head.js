@@ -10,8 +10,10 @@ const { AppConstants } = ChromeUtils.importESModule(
 ChromeUtils.defineESModuleGetters(this, {
   Extension: "resource://gre/modules/Extension.sys.mjs",
   ExtensionData: "resource://gre/modules/Extension.sys.mjs",
+
   ExtensionTestUtils:
     "resource://testing-common/ExtensionXPCShellUtils.sys.mjs",
+
   FileUtils: "resource://gre/modules/FileUtils.sys.mjs",
   HttpServer: "resource://testing-common/httpd.sys.mjs",
   NetUtil: "resource://gre/modules/NetUtil.sys.mjs",

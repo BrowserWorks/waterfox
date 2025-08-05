@@ -1,9 +1,3 @@
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/.
- */
-"use strict";
-
 const ID = "bug397778@tests.mozilla.org";
 
 const ADDON = createInstallRDF({
@@ -123,7 +117,7 @@ add_task(async function test_5() {
   let addon = await AddonManager.getAddonByID(ID);
   Assert.notEqual(addon, null);
   ok(
-    addon.name == "zh-TW Name" || addon.name == "zh-CN Name",
+    addon.name === "zh-TW Name" || addon.name === "zh-CN Name",
     `Add-on name mismatch: ${addon.name}`
   );
 });

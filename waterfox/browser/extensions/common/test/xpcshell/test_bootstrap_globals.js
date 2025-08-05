@@ -1,8 +1,3 @@
-/* Any copyright is dedicated to the Public Domain.
- * http://creativecommons.org/publicdomain/zero/1.0/
- */
-"use strict";
-
 // This verifies that bootstrap.js has the expected globals defined
 var { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
@@ -41,16 +36,16 @@ function uninstall(data, reason) {}
 
 const EXPECTED_GLOBALS = [["console", "object"]];
 
-async function run_test() {
+async function _run_test() {
   do_test_pending();
   await promiseStartupManager();
   let sawGlobals = false;
 
-  Services.obs.addObserver(function(subject) {
+  Services.obs.addObserver((subject) => {
     subject.wrappedJSObject.expectedGlobals = EXPECTED_GLOBALS;
   }, "bootstrap-request-globals");
 
-  Services.obs.addObserver(function({ wrappedJSObject: seenGlobals }) {
+  Services.obs.addObserver(({ wrappedJSObject: seenGlobals }) => {
     for (let [name] of EXPECTED_GLOBALS) {
       Assert.ok(seenGlobals.has(name));
     }

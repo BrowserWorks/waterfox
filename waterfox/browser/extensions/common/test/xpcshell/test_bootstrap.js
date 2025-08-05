@@ -1,8 +1,3 @@
-/* Any copyright is dedicated to the Public Domain.
- * http://creativecommons.org/publicdomain/zero/1.0/
- */
-"use strict";
-
 const APP_STARTUP = 1;
 const APP_SHUTDOWN = 2;
 const ADDON_ENABLE = 3;
@@ -150,7 +145,7 @@ async function checkBootstrappedPref() {
       continue;
     }
     if (
-      addon.operationsRequiringRestart != AddonManager.OP_NEEDS_RESTART_NONE
+      addon.operationsRequiringRestart !== AddonManager.OP_NEEDS_RESTART_NONE
     ) {
       continue;
     }
@@ -203,13 +198,13 @@ add_task(async function test_1() {
 
   await Promise.all([
     BootstrapMonitor.promiseAddonStartup(ID1),
-    new Promise(resolve => {
+    new Promise((resolve) => {
       prepare_test(
         {
           [ID1]: [["onInstalling", false], "onInstalled"],
         },
         ["onInstallStarted", "onInstallEnded"],
-        function() {
+        () => {
           // startup should not have been called yet.
           BootstrapMonitor.checkAddonNotStarted(ID1);
           resolve();
@@ -243,7 +238,7 @@ add_task(async function test_1() {
   do_check_in_crash_annotation(ID1, "1.0");
 
   let dir = do_get_addon_root_uri(profileDir, ID1);
-  equal(b1.getResourceURI("bootstrap.js").spec, dir + "bootstrap.js");
+  equal(b1.getResourceURI("bootstrap.js").spec, `${dir}bootstrap.js`);
 });
 
 // Tests that disabling doesn't require a restart
@@ -392,7 +387,7 @@ add_task(async function test_6() {
 
   await Promise.all([
     BootstrapMonitor.promiseAddonStartup(ID1),
-    new Promise(resolve => {
+    new Promise((resolve) => {
       prepare_test(
         {
           [ID1]: [["onInstalling", false], "onInstalled"],
@@ -515,7 +510,7 @@ add_task(async function test_10() {
 
   await Promise.all([
     BootstrapMonitor.promiseAddonStartup(ID1),
-    new Promise(resolve => {
+    new Promise((resolve) => {
       prepare_test(
         {
           [ID1]: [["onInstalling", false], "onInstalled"],
@@ -553,7 +548,7 @@ add_task(async function test_10() {
 
   await Promise.all([
     BootstrapMonitor.promiseAddonStartup(ID1),
-    new Promise(resolve => {
+    new Promise((resolve) => {
       prepare_test(
         {
           [ID1]: [["onInstalling", false], "onInstalled"],
@@ -659,7 +654,7 @@ add_task(async function test_13() {
   equal(install.state, AddonManager.STATE_DOWNLOADED);
   do_check_not_in_crash_annotation(ID1, "3.0");
 
-  await new Promise(resolve => {
+  await new Promise((resolve) => {
     prepare_test(
       {
         [ID1]: [["onInstalling", false], "onInstalled"],
@@ -758,7 +753,7 @@ add_task(async function test_15() {
   notEqual(install, null);
   ok(install.addon.userDisabled);
 
-  await new Promise(resolve => {
+  await new Promise((resolve) => {
     prepare_test(
       {
         [ID1]: [["onInstalling", false], "onInstalled"],
@@ -894,7 +889,7 @@ add_task(async function test_18() {
 add_task(async function test_19() {
   let b1 = await AddonManager.getAddonByID(ID1);
   // The revealed add-on gets activated asynchronously
-  await new Promise(resolve => {
+  await new Promise((resolve) => {
     prepare_test(
       {
         [ID1]: [
@@ -1071,8 +1066,8 @@ add_task(async function test_23() {
 
   notEqual(install, null);
 
-  await new Promise(resolve => {
-    prepare_test({}, ["onDownloadStarted", "onDownloadEnded"], function() {
+  await new Promise((resolve) => {
+    prepare_test({}, ["onDownloadStarted", "onDownloadEnded"], () => {
       equal(install.type, "extension");
       equal(install.version, "1.0");
       equal(install.name, "Test Bootstrap 1");
@@ -1118,7 +1113,7 @@ add_task(async function test_23() {
   do_check_in_crash_annotation(ID1, "1.0");
 
   let dir = do_get_addon_root_uri(profileDir, ID1);
-  equal(b1.getResourceURI("bootstrap.js").spec, dir + "bootstrap.js");
+  equal(b1.getResourceURI("bootstrap.js").spec, `${dir}bootstrap.js`);
 
   await promiseRestartManager();
 
@@ -1159,10 +1154,10 @@ add_task(async function test_24() {
   let data = aomStartup.readStartupData();
   data["app-profile"].addons[ID1].path += "foo";
 
-  await OS.File.writeAtomic(
+  await IOUtils.writeUTF8(
     gAddonStartup.path,
-    new TextEncoder().encode(JSON.stringify(data)),
-    { compression: "lz4" }
+    JSON.stringify(data),
+    { compress: true }
   );
 
   await promiseStartupManager();
