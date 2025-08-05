@@ -1,0 +1,1402 @@
+/* ***** BEGIN LICENSE BLOCK ***** 
+ * Version: MPL 1.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is the Tree Style Tab.
+ *
+ * The Initial Developer of the Original Code is YUKI "Piro" Hiroshi.
+ * Portions created by the Initial Developer are Copyright (C) 2011-2025
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s): YUKI "Piro" Hiroshi <piro.outsider.reflex@gmail.com>
+ *                 wanabe <https://github.com/wanabe>
+ *                 Tetsuharu OHZEKI <https://github.com/saneyuki>
+ *                 Xidorn Quan <https://github.com/upsuper> (Firefox 40+ support)
+ *                 lv7777 (https://github.com/lv7777)
+ *
+ * ***** END LICENSE BLOCK ******/
+'use strict';
+
+import {
+  log as internalLogger,
+  dumpTab,
+  toLines,
+  configs,
+} from '/common/common.js';
+import * as ApiTabs from '/common/api-tabs.js';
+import * as Constants from '/common/constants.js';
+import * as SidebarConnection from '/common/sidebar-connection.js';
+import * as TabsInternalOperation from '/common/tabs-internal-operation.js';
+import * as TabsStore from '/common/tabs-store.js';
+import * as TabsUpdate from '/common/tabs-update.js';
+import * as TreeBehavior from '/common/tree-behavior.js';
+import * as TSTAPI from '/common/tst-api.js';
+
+import MetricsData from '/common/MetricsData.js';
+import { Tab, TabGroup } from '/common/TreeItem.js';
+import Window from '/common/Window.js';
+
+import * as Tree from './tree.js';
+
+function log(...args) {
+  internalLogger('background/api-tabs-listener', ...args);
+}
+function logUpdated(...args) {
+  internalLogger('common/tabs-update', ...args);
+}
+
+let mAppIsActive = false;
+
+export function init() {
+  browser.tabs.onActivated.addListener(onActivated);
+  browser.tabs.onUpdated.addListener(onUpdated);
+  browser.tabs.onHighlighted.addListener(onHighlighted);
+  browser.tabs.onCreated.addListener(onCreated);
+  browser.tabs.onRemoved.addListener(onRemoved);
+  browser.tabs.onMoved.addListener(onMoved);
+  browser.tabs.onAttached.addListener(onAttached);
+  browser.tabs.onDetached.addListener(onDetached);
+  browser.windows.onCreated.addListener(onWindowCreated);
+  browser.windows.onRemoved.addListener(onWindowRemoved);
+  browser.tabGroups.onCreated.addListener(onGroupCreated);
+  browser.tabGroups.onUpdated.addListener(onGroupUpdated);
+  browser.tabGroups.onRemoved.addListener(onGroupRemoved);
+  browser.tabGroups.onMoved.addListener(onGroupMoved);
+
+  browser.windows.getAll({}).then(windows => {
+    mAppIsActive = windows.some(win => win.focused);
+  });
+}
+
+let mPromisedStartedResolver;
+let mPromisedStarted = new Promise((resolve, _reject) => {
+  mPromisedStartedResolver = resolve;
+});
+
+export function destroy() {
+  mPromisedStartedResolver = undefined;
+  mPromisedStarted = undefined;
+  browser.tabs.onActivated.removeListener(onActivated);
+  browser.tabs.onUpdated.removeListener(onUpdated);
+  browser.tabs.onHighlighted.removeListener(onHighlighted);
+  browser.tabs.onCreated.removeListener(onCreated);
+  browser.tabs.onRemoved.removeListener(onRemoved);
+  browser.tabs.onMoved.removeListener(onMoved);
+  browser.tabs.onAttached.removeListener(onAttached);
+  browser.tabs.onDetached.removeListener(onDetached);
+  browser.windows.onCreated.removeListener(onWindowCreated);
+  browser.windows.onRemoved.removeListener(onWindowRemoved);
+  browser.tabGroups.onCreated.removeListener(onGroupCreated);
+  browser.tabGroups.onUpdated.removeListener(onGroupUpdated);
+  browser.tabGroups.onRemoved.removeListener(onGroupRemoved);
+  browser.tabGroups.onMoved.removeListener(onGroupMoved);
+}
+
+export function start() {
+  if (!mPromisedStartedResolver)
+    return;
+  mPromisedStartedResolver();
+  mPromisedStartedResolver = undefined;
+  mPromisedStarted = undefined;
+}
+
+
+const mTabOperationQueue = [];
+
+function addTabOperationQueue(metric = null) {
+  let onCompleted;
+  const previous = mTabOperationQueue[mTabOperationQueue.length - 1];
+  const queue = new Promise((resolve, _aReject) => {
+    onCompleted = resolve;
+  });
+  queue.then(() => {
+    mTabOperationQueue.splice(mTabOperationQueue.indexOf(queue), 1);
+    if (metric)
+      metric.add('TabOperationQueue proceeded');
+  });
+  mTabOperationQueue.push(queue);
+  return [onCompleted, previous];
+}
+
+function warnTabDestroyedWhileWaiting(tabId, tab) {
+  if (configs.debug)
+    console.log(`WARNING: tab ${tabId} is destroyed while waiting. `, tab, new Error().stack);
+}
+
+
+async function onActivated(activeInfo) {
+  if (mPromisedStarted)
+    await mPromisedStarted;
+
+  TabsStore.activeTabInWindow.set(activeInfo.windowId, Tab.get(activeInfo.tabId));
+
+  const [onCompleted, previous] = addTabOperationQueue();
+  if (!configs.acceleratedTabOperations && previous)
+    await previous;
+
+  try {
+    const win = Window.init(activeInfo.windowId);
+
+    const byInternalOperation = win.internallyFocusingTabs.has(activeInfo.tabId);
+    win.internallyFocusingTabs.delete(activeInfo.tabId);
+    const byMouseOperation = win.internallyFocusingByMouseTabs.has(activeInfo.tabId);
+    win.internallyFocusingByMouseTabs.delete(activeInfo.tabId);
+    const silently = win.internallyFocusingSilentlyTabs.has(activeInfo.tabId);
+    win.internallyFocusingSilentlyTabs.delete(activeInfo.tabId);
+    const byTabDuplication = parseInt(win.duplicatingTabsCount) > 0;
+
+    if (!Tab.isTracked(activeInfo.tabId))
+      await Tab.waitUntilTracked(activeInfo.tabId);
+
+    const newActiveTab = Tab.get(activeInfo.tabId);
+    if (!newActiveTab ||
+        !TabsStore.ensureLivingItem(newActiveTab)) {
+      warnTabDestroyedWhileWaiting(activeInfo.tabId);
+      onCompleted();
+      return;
+    }
+
+    log('tabs.onActivated: ', newActiveTab);
+    const oldActiveTabs = TabsInternalOperation.setTabActive(newActiveTab);
+    const byActiveTabRemove = !activeInfo.previousTabId;
+
+    if (!TabsStore.ensureLivingItem(newActiveTab)) { // it can be removed while waiting
+      onCompleted();
+      warnTabDestroyedWhileWaiting(activeInfo.tabId);
+      return;
+    }
+
+    let focusOverridden = Tab.onActivating.dispatch(newActiveTab, {
+      ...activeInfo,
+      byActiveTabRemove,
+      byTabDuplication,
+      byInternalOperation,
+      byMouseOperation,
+      silently
+    });
+    SidebarConnection.sendMessage({
+      type:     Constants.kCOMMAND_NOTIFY_TAB_ACTIVATING,
+      windowId: activeInfo.windowId,
+      tabId:    activeInfo.tabId,
+      byActiveTabRemove,
+      byTabDuplication,
+      byInternalOperation,
+      byMouseOperation,
+      silently
+    });
+    // don't do await if not needed, to process things synchronously
+    if (focusOverridden instanceof Promise)
+      focusOverridden = await focusOverridden;
+    focusOverridden = focusOverridden === false;
+    if (focusOverridden) {
+      onCompleted();
+      return;
+    }
+
+    if (!TabsStore.ensureLivingItem(newActiveTab)) { // it can be removed while waiting
+      onCompleted();
+      warnTabDestroyedWhileWaiting(activeInfo.tabId);
+      return;
+    }
+
+    const onActivatedReuslt = Tab.onActivated.dispatch(newActiveTab, {
+      ...activeInfo,
+      oldActiveTabs,
+      byActiveTabRemove,
+      byTabDuplication,
+      byInternalOperation,
+      byMouseOperation,
+      silently
+    });
+    // don't do await if not needed, to process things synchronously
+    if (onActivatedReuslt instanceof Promise)
+      await onActivatedReuslt;
+
+    SidebarConnection.sendMessage({
+      type:     Constants.kCOMMAND_NOTIFY_TAB_ACTIVATED,
+      windowId: activeInfo.windowId,
+      tabId:    activeInfo.tabId,
+      byActiveTabRemove,
+      byTabDuplication,
+      byInternalOperation,
+      byMouseOperation,
+      silently
+    });
+    onCompleted();
+  }
+  catch(e) {
+    console.log(e);
+    onCompleted();
+  }
+}
+
+async function onUpdated(tabId, changeInfo, tab) {
+  if (mPromisedStarted)
+    await mPromisedStarted;
+
+  if (!Tab.isTracked(tabId))
+    await Tab.waitUntilTracked(tabId);
+
+  const [onCompleted, previous] = addTabOperationQueue();
+  if (!configs.acceleratedTabOperations && previous)
+    await previous;
+
+  try {
+    const updatedTab = Tab.get(tabId);
+    if (!updatedTab ||
+        !TabsStore.ensureLivingItem(updatedTab)) {
+      onCompleted();
+      warnTabDestroyedWhileWaiting(tabId, updatedTab);
+      return;
+    }
+
+    logUpdated('tabs.onUpdated ', tabId, changeInfo, tab, updatedTab);
+
+    if ('url' in changeInfo) {
+      changeInfo.previousUrl = updatedTab.url;
+      // On Linux (and possibly on some other environments) the initial page load
+      // sometimes produces "onUpdated" event with unchanged URL unexpectedly,
+      // so we should ignure such invalid (uneffective) URL changes.
+      // See also: https://github.com/piroor/treestyletab/issues/3078
+      if (changeInfo.url == 'about:blank' &&
+          changeInfo.previousUrl == changeInfo.url &&
+          changeInfo.status == 'loading') {
+        delete changeInfo.url;
+        delete changeInfo.previousUrl;
+      }
+    }
+    const oldState = {};
+    for (const key of Object.keys(changeInfo)) {
+      if (key == 'index')
+        continue;
+      if (key in updatedTab)
+        oldState[key] = updatedTab[key];
+      updatedTab[key] = changeInfo[key];
+    }
+    if (changeInfo.url ||
+        changeInfo.status == 'complete') {
+      // On some edge cases internally changed "favIconUrl" is not
+      // notified, so we need to check actual favIconUrl manually.
+      // Known cases are:
+      //  * Transition from "about:privatebrowsing" to "about:blank"
+      //    https://github.com/piroor/treestyletab/issues/1916
+      //  * Reopen tab by Ctrl-Shift-T
+      browser.tabs.get(tabId).then(tab => {
+        if (tab.favIconUrl != updatedTab.favIconUrl)
+          onUpdated(tabId, { favIconUrl: tab.favIconUrl }, tab);
+      }).catch(ApiTabs.createErrorSuppressor(
+        ApiTabs.handleMissingTabError // the tab can be closed while waiting
+      ));
+    }
+
+    TabsUpdate.updateTab(updatedTab, changeInfo, { tab, old: oldState });
+
+    const onUpdatedResult = Tab.onUpdated.dispatch(updatedTab, changeInfo);
+    // don't do await if not needed, to process things synchronously
+    if (onUpdatedResult instanceof Promise)
+      await onUpdatedResult;
+
+    onCompleted();
+  }
+  catch(e) {
+    console.log(e);
+    onCompleted();
+  }
+}
+
+const mTabsHighlightedTimers = new Map();
+const mLastHighlightedCount  = new Map();
+async function onHighlighted(highlightInfo) {
+  if (mPromisedStarted)
+    await mPromisedStarted;
+
+  // ignore internally highlighted tabs - they are already handled
+  const win = TabsStore.windows.get(highlightInfo.windowId);
+  const unifiedHighlightedTabs = new Set([...win.highlightingTabs, ...highlightInfo.tabIds]);
+  if (unifiedHighlightedTabs.size == win.highlightingTabs.size) {
+    log(`Internal highlighting is in progress: ${Math.ceil(highlightInfo.tabIds.length / win.highlightingTabs.size * 100)} %`);
+    if (highlightInfo.tabIds.length == win.highlightingTabs.size) {
+      win.highlightingTabs.clear();
+      log('Internal highlighting done.');
+    }
+    return;
+  }
+
+  let timer = mTabsHighlightedTimers.get(highlightInfo.windowId);
+  if (timer)
+    clearTimeout(timer);
+  if ((mLastHighlightedCount.get(highlightInfo.windowId) || 0) <= 1 &&
+      highlightInfo.tabIds.length == 1) {
+    // simple active tab switching
+    TabsUpdate.updateTabsHighlighted(highlightInfo);
+    SidebarConnection.sendMessage({
+      type:     Constants.kCOMMAND_NOTIFY_HIGHLIGHTED_TABS_CHANGED,
+      windowId: highlightInfo.windowId,
+      tabIds:   highlightInfo.tabIds
+    });
+    return;
+  }
+  timer = setTimeout(() => {
+    mTabsHighlightedTimers.delete(highlightInfo.windowId);
+    TabsUpdate.updateTabsHighlighted(highlightInfo);
+    mLastHighlightedCount.set(highlightInfo.windowId, highlightInfo.tabIds.length);
+    SidebarConnection.sendMessage({
+      type:     Constants.kCOMMAND_NOTIFY_HIGHLIGHTED_TABS_CHANGED,
+      windowId: highlightInfo.windowId,
+      tabIds:   highlightInfo.tabIds
+    });
+  }, configs.delayToApplyHighlightedState);
+  mTabsHighlightedTimers.set(highlightInfo.windowId, timer);
+}
+
+async function onCreated(tab) {
+  const metric = new MetricsData(`tab ${tab.id} (tabs.onCreated)`);
+
+  if (mPromisedStarted) {
+    await mPromisedStarted;
+    metric.add('mPromisedStarted resolved');
+  }
+
+  log('tabs.onCreated: ', dumpTab(tab));
+
+  // Cache the initial index for areTabsFromOtherDeviceWithInsertAfterCurrent()@handle-tab-bunches.js
+  // See also: https://github.com/piroor/treestyletab/issues/2419
+  tab.$indexOnCreated = tab.index;
+  // Cache the initial windowId for Tab.onUpdated listner@handle-new-tabs.js
+  tab.$windowIdOnCreated = tab.windowId;
+
+  return onNewTabTracked(tab, { trigger: 'tabs.onCreated', metric });
+}
+
+async function onNewTabTracked(tab, info) {
+  const win                  = Window.init(tab.windowId);
+  const bypassTabControl     = win.bypassTabControlCount > 0;
+  const isNewTabCommandTab   = win.toBeOpenedNewTabCommandTab > 0;
+  const positionedBySelf     = win.toBeOpenedTabsWithPositions > 0;
+  const openedWithCookieStoreId = win.toBeOpenedTabsWithCookieStoreId > 0;
+  const duplicatedInternally = win.duplicatingTabsCount > 0;
+  const maybeOrphan          = win.toBeOpenedOrphanTabs > 0;
+  const activeTab            = Tab.getActiveTab(win.id);
+  const fromExternal         = !mAppIsActive && !tab.openerTabId;
+  const initialOpenerTabId   = tab.openerTabId;
+  const metric               = info.metric || new MetricsData(`tab ${tab.id}`);
+
+  // New tab's index can become invalid because the value of "index" is same to
+  // the one given to browser.tabs.create() (new tab) or the original index
+  // (restored tab) instead of its actual index.
+  // (By the way, any pinned tab won't be opened after the first unpinned tab,
+  // and any unpinned tab won't be opened before the last pinned tab. On such
+  // cases Firefox automatically fixup the index regardless they are newly
+  // opened ore restored, so we don't need to care such cases.)
+  // See also:
+  //   https://github.com/piroor/treestyletab/issues/2131
+  //   https://github.com/piroor/treestyletab/issues/2216
+  //   https://bugzilla.mozilla.org/show_bug.cgi?id=1541748
+  tab.index = Math.max(0, Math.min(tab.index, win.tabs.size));
+  tab.reindexedBy = `onNewTabTracked (${tab.index})`;
+
+  // New tab from a bookmark or external apps always have its URL as the title
+  // (but the scheme part is missing.)
+  tab.$possibleInitialUrl = tab.title;
+
+  // We need to track new tab after getting old active tab. Otherwise, this
+  // operation updates the latest active tab in the window amd it becomes
+  // impossible to know which tab was previously active.
+  tab = Tab.track(tab);
+  metric.add('tracked');
+
+  if (isNewTabCommandTab)
+    tab.$isNewTabCommandTab = true;
+
+  if (info.trigger == 'tabs.onCreated')
+    tab.$TST.addState(Constants.kTAB_STATE_CREATING);
+  if (tab.$TST.isNewTabCommandTab)
+    tab.$TST.addState(Constants.kTAB_STATE_NEW_TAB_COMMAND_TAB);
+  if (fromExternal)
+    tab.$TST.addState(Constants.kTAB_STATE_FROM_EXTERNAL);
+  if (tab.$TST.hasFirefoxViewOpener)
+    tab.$TST.addState(Constants.kTAB_STATE_FROM_FIREFOX_VIEW);
+
+  const mayBeReplacedWithContainer = tab.$TST.mayBeReplacedWithContainer;
+  log(`onNewTabTracked(${dumpTab(tab)}): `, tab, { win, positionedBySelf, mayBeReplacedWithContainer, duplicatedInternally, maybeOrphan, activeTab });
+
+  Tab.onBeforeCreate.dispatch(tab, {
+    positionedBySelf,
+    openedWithCookieStoreId,
+    mayBeReplacedWithContainer,
+    maybeOrphan,
+    activeTab,
+    fromExternal
+  });
+  metric.add('Tab.onBeforeCreate proceeded');
+
+  if (Tab.needToWaitTracked(tab.windowId, { exceptionTabId: tab.id })) {
+    await Tab.waitUntilTrackedAll(tab.windowId, { exceptionTabId: tab.id });
+    metric.add('Tab.waitUntilTrackedAll resolved');
+  }
+
+  const [onCompleted, previous] = addTabOperationQueue(metric);
+  if (!configs.acceleratedTabOperations && previous) {
+    await previous;
+    metric.add('previous resolved');
+  }
+
+  log(`onNewTabTracked(${dumpTab(tab)}): start to create tab element`);
+
+  // Cached tree information may be expired when there are multiple new tabs
+  // opened at just same time and some of others are attached on listeners of
+  // "onCreating" and other points. Thus we need to refresh cached information
+  // dynamically.
+  // See also: https://github.com/piroor/treestyletab/issues/2419
+  let treeForActionDetection;
+  const onTreeModified = (_child, _info) => {
+    if (!treeForActionDetection ||
+        !TabsStore.ensureLivingItem(tab))
+      return;
+    treeForActionDetection = Tree.snapshotForActionDetection(tab);
+    log('Tree modification is detected while waiting. Cached tree for action detection is updated: ', treeForActionDetection);
+  };
+  // We should refresh ceched information only when tabs are creaetd and
+  // attached, because the cacheed information was originally introduced for
+  // failsafe around problems from tabs closed while waiting.
+  Tree.onAttached.addListener(onTreeModified);
+  metric.add('Tree.onAttached proceeded');
+
+  try {
+    tab = Tab.init(tab, { inBackground: false });
+    metric.add('init');
+
+    const nextTab = Tab.getTabAt(win.id, tab.index);
+    metric.add('nextTab');
+
+    // We need to update "active" state of a new active tab immediately.
+    // Attaching of initial child tab (this new tab may become it) to an
+    // existing tab may produce collapsing of existing tree, and a
+    // collapsing tree may have the old active tab. On such cases TST
+    // tries to move focus to a nearest visible ancestor, instead of this
+    // new active tab.
+    // See also: https://github.com/piroor/treestyletab/issues/2155
+    if (tab.active) {
+      TabsInternalOperation.setTabActive(tab);
+      metric.add('setTabActive');
+    }
+
+    const uniqueId = await tab.$TST.promisedUniqueId;
+    metric.add('uniqueId resolved');
+
+    if (!TabsStore.ensureLivingItem(tab)) { // it can be removed while waiting
+      onCompleted(uniqueId);
+      tab.$TST.rejectOpened();
+      Tab.untrack(tab.id);
+      warnTabDestroyedWhileWaiting(tab.id, tab);
+      metric.add('untracked');
+      log('  tab is untracked while tracking, metric: ', metric);
+      return;
+    }
+
+    TabsUpdate.updateTab(tab, tab, {
+      forceApply: true
+    });
+    metric.add('TabsUpdate.updateTab proceeded');
+
+    const duplicated = duplicatedInternally || uniqueId.duplicated;
+    const restored   = uniqueId.restored;
+    const skipFixupTree = !nextTab;
+    log(`onNewTabTracked(${dumpTab(tab)}): `, { duplicated, restored, skipFixupTree });
+    if (duplicated)
+      tab.$TST.addState(Constants.kTAB_STATE_DUPLICATED);
+
+    const maybeNeedToFixupTree = (
+      (info.mayBeReplacedWithContainer ||
+       (!duplicated &&
+        !restored &&
+        !skipFixupTree)) &&
+      !info.positionedBySelf
+    );
+    // Tabs can be removed and detached while waiting, so cache them here for `detectTabActionFromNewPosition()`.
+    // This operation takes too much time so it should be skipped if unnecessary.
+    // See also: https://github.com/piroor/treestyletab/issues/2278#issuecomment-521534290
+    treeForActionDetection = maybeNeedToFixupTree ? Tree.snapshotForActionDetection(tab) : null;
+
+    if (bypassTabControl)
+      win.bypassTabControlCount--;
+    if (isNewTabCommandTab)
+      win.toBeOpenedNewTabCommandTab--;
+    if (positionedBySelf)
+      win.toBeOpenedTabsWithPositions--;
+    if (openedWithCookieStoreId)
+      win.toBeOpenedTabsWithCookieStoreId--;
+    if (maybeOrphan)
+      win.toBeOpenedOrphanTabs--;
+    if (duplicatedInternally)
+      win.duplicatingTabsCount--;
+
+    if (restored) {
+      win.restoredCount = win.restoredCount || 0;
+      win.restoredCount++;
+      if (!win.promisedAllTabsRestored) {
+        log(`onNewTabTracked(${dumpTab(tab)}): Maybe starting to restore window`);
+        win.promisedAllTabsRestored = (new Promise((resolve, _aReject) => {
+          let lastCount = win.restoredCount;
+          const timer = setInterval(() => {
+            if (lastCount != win.restoredCount) {
+              lastCount = win.restoredCount;
+              return;
+            }
+            clearTimeout(timer);
+            win.promisedAllTabsRestored = null;
+            win.restoredCount   = 0;
+            log('All tabs are restored');
+            resolve(lastCount);
+          }, 200);
+        })).then(async lastCount => {
+          await Tab.onWindowRestoring.dispatch({
+            windowId: tab.windowId,
+            restoredCount: lastCount,
+          });
+          metric.add('Tab.onWindowRestoring proceeded');
+          return lastCount;
+        });
+      }
+      SidebarConnection.sendMessage({
+        type:     Constants.kCOMMAND_NOTIFY_TAB_RESTORING,
+        tabId:    tab.id,
+        windowId: tab.windowId
+      });
+      await win.promisedAllTabsRestored;
+      log(`onNewTabTracked(${dumpTab(tab)}): continued for restored tab`);
+      metric.add('win.promisedAllTabsRestored resolved');
+    }
+    if (!TabsStore.ensureLivingItem(tab)) {
+      log(`onNewTabTracked(${dumpTab(tab)}):  => aborted`);
+      onCompleted(uniqueId);
+      tab.$TST.rejectOpened();
+      Tab.untrack(tab.id);
+      warnTabDestroyedWhileWaiting(tab.id, tab);
+      Tree.onAttached.removeListener(onTreeModified);
+      metric.add('untracked');
+      log('  tab is untracked while tracking after updated, metric: ', metric);
+      return;
+    }
+
+    let moved = Tab.onCreating.dispatch(tab, {
+      bypassTabControl,
+      positionedBySelf,
+      openedWithCookieStoreId,
+      mayBeReplacedWithContainer,
+      maybeOrphan,
+      restored,
+      duplicated,
+      duplicatedInternally,
+      activeTab,
+      fromExternal
+    });
+    metric.add('Tab.onCreating proceeded');
+    // don't do await if not needed, to process things synchronously
+    if (moved instanceof Promise) {
+      moved = await moved;
+      metric.add('moved resolved');
+    }
+    moved = moved === false;
+
+    if (!TabsStore.ensureLivingItem(tab)) {
+      log(`onNewTabTracked(${dumpTab(tab)}):  => aborted`);
+      onCompleted(uniqueId);
+      tab.$TST.rejectOpened();
+      Tab.untrack(tab.id);
+      warnTabDestroyedWhileWaiting(tab.id, tab);
+      Tree.onAttached.removeListener(onTreeModified);
+      metric.add('untracked');
+      log('  tab is untracked while tracking after moved, metric: ', metric);
+      return;
+    }
+
+    SidebarConnection.sendMessage({
+      type:     Constants.kCOMMAND_NOTIFY_TAB_CREATING,
+      windowId: tab.windowId,
+      tabId:    tab.id,
+      tab:      tab.$TST.sanitized,
+      order:    win.order,
+      maybeMoved: moved
+    });
+    log(`onNewTabTracked(${dumpTab(tab)}): moved = `, moved);
+    metric.add('kCOMMAND_NOTIFY_TAB_CREATING notified');
+
+    if (TabsStore.ensureLivingItem(tab)) { // it can be removed while waiting
+      win.openingTabs.add(tab.id);
+      setTimeout(() => { // because window.requestAnimationFrame is decelerate for an invisible document.
+        if (!TabsStore.windows.get(tab.windowId)) // it can be removed while waiting
+          return;
+        win.openingTabs.delete(tab.id);
+      }, 0);
+    }
+
+    if (!TabsStore.ensureLivingItem(tab)) { // it can be removed while waiting
+      onCompleted(uniqueId);
+      tab.$TST.rejectOpened();
+      Tab.untrack(tab.id);
+      warnTabDestroyedWhileWaiting(tab.id, tab);
+      Tree.onAttached.removeListener(onTreeModified);
+      metric.add('untracked');
+      log('  tab is untracked while tracking after notified to sidebar, metric: ', metric);
+      return;
+    }
+
+    log(`onNewTabTracked(${dumpTab(tab)}): uniqueId = `, uniqueId);
+
+    Tab.onCreated.dispatch(tab, {
+      bypassTabControl,
+      positionedBySelf,
+      mayBeReplacedWithContainer,
+      movedBySelfWhileCreation: moved,
+      skipFixupTree,
+      restored,
+      duplicated,
+      duplicatedInternally,
+      originalTab: duplicated && Tab.get(uniqueId.originalTabId),
+      treeForActionDetection,
+      fromExternal
+    });
+    tab.$TST.resolveOpened();
+    metric.add('Tab.onCreated proceeded');
+
+    SidebarConnection.sendMessage({
+      type:     Constants.kCOMMAND_NOTIFY_TAB_CREATED,
+      windowId: tab.windowId,
+      tabId:    tab.id,
+      collapsed: tab.$TST.collapsed, // it may be really collapsed by some reason (for example, opened under a collapsed tree), not just for "created" animation!
+      active:   tab.active,
+      maybeMoved: moved
+    });
+    metric.add('kCOMMAND_NOTIFY_TAB_CREATED notified');
+
+    if (!duplicated &&
+        restored) {
+      tab.$TST.addState(Constants.kTAB_STATE_RESTORED);
+      Tab.onRestored.dispatch(tab);
+      checkRecycledTab(win.id);
+    }
+
+    onCompleted(uniqueId);
+    tab.$TST.removeState(Constants.kTAB_STATE_CREATING);
+    metric.add('remove creating state');
+
+    if (TSTAPI.hasListenerForMessageType(TSTAPI.kNOTIFY_NEW_TAB_PROCESSED)) {
+      const cache = {};
+      TSTAPI.broadcastMessage({
+        type:      TSTAPI.kNOTIFY_NEW_TAB_PROCESSED,
+        tab,
+        originalTab: duplicated && Tab.get(uniqueId.originalTabId),
+        restored,
+        duplicated,
+        fromExternal,
+      }, { tabProperties: ['tab', 'originalTab'], cache }).catch(_error => {});
+      TSTAPI.clearCache(cache);
+      metric.add('API broadcaster');
+    }
+
+    // tab can be changed while creating!
+    const renewedTab = await browser.tabs.get(tab.id).catch(ApiTabs.createErrorHandler(ApiTabs.handleMissingTabError));
+    metric.add('renewedTab');
+    if (!renewedTab) {
+      log(`onNewTabTracked(${dumpTab(tab)}): tab ${tab.id} is closed while tracking`);
+      onCompleted(uniqueId);
+      tab.$TST.rejectOpened();
+      Tab.untrack(tab.id);
+      warnTabDestroyedWhileWaiting(tab.id, tab);
+      Tree.onAttached.removeListener(onTreeModified);
+      metric.add('untracked');
+      log('  tab is untracked while tracking after created, metric: ', metric);
+      return;
+    }
+
+    const updatedOpenerTabId = tab.openerTabId;
+    const changedProps = {};
+    for (const key of Object.keys(renewedTab)) {
+      const value = renewedTab[key];
+      if (tab[key] == value)
+        continue;
+      if (key == 'openerTabId' &&
+          info.trigger == 'tabs.onAttached' &&
+          value != tab.openerTabId &&
+          tab.openerTabId == tab.$TST.temporaryMetadata.get('updatedOpenerTabId')) {
+        log(`openerTabId of ${tab.id} is different from the raw value but it has been updated by TST while attaching, so don't detect as updated for now`);
+        continue;
+      }
+      changedProps[key] = value;
+    }
+
+    // When the active tab is duplicated, Firefox creates a duplicated tab
+    // with its `openerTabId` filled with the ID of the source tab.
+    // It is the `initialOpenerTabId`.
+    // On the other hand, TST may attach the duplicated tab to any other
+    // parent while it is initializing, based on a configuration
+    // `configs.autoAttachOnDuplicated`. It is the `updatedOpenerTabId`.
+    // At this scenario `renewedTab.openerTabId` becomes `initialOpenerTabId`
+    // and `updatedOpenerTabId` is lost.
+    // Thus we need to re-apply `updatedOpenerTabId` as the `openerTabId` of
+    // the tab again, to keep the tree structure managed by TST.
+    // See also: https://github.com/piroor/treestyletab/issues/2388
+    if ('openerTabId' in changedProps) {
+      log(`openerTabId of ${tab.id} is changed while creating: ${tab.openerTabId} (changed by someone) => ${changedProps.openerTabId} (original) `, configs.debug && new Error().stack);
+      if (duplicated &&
+          tab.active &&
+          changedProps.openerTabId == initialOpenerTabId &&
+          changedProps.openerTabId != updatedOpenerTabId) {
+        log(`restore original openerTabId of ${tab.id} for duplicated active tab: ${updatedOpenerTabId}`);
+        delete changedProps.openerTabId;
+        browser.tabs.update(tab.id, { openerTabId: updatedOpenerTabId });
+      }
+      metric.add('changed openerTabId handled');
+    }
+
+    if (Object.keys(renewedTab).length > 0) {
+      onUpdated(tab.id, changedProps, renewedTab);
+      metric.add('onUpdated notified');
+    }
+
+    const currentActiveTab = Tab.getActiveTab(tab.windowId);
+    if (renewedTab.active &&
+        currentActiveTab.id != tab.id) {
+      onActivated({
+        tabId:         tab.id,
+        windowId:      tab.windowId,
+        previousTabId: currentActiveTab.id
+      });
+      metric.add('onActivated notified');
+    }
+
+    tab.$TST.memorizeNeighbors('newly tracked');
+    tab.$TST.unsafePreviousTab?.$TST?.memorizeNeighbors('unsafePreviousTab');
+    tab.$TST.unsafeNextTab?.$TST?.memorizeNeighbors('unsafeNextTab');
+
+    Tree.onAttached.removeListener(onTreeModified);
+    metric.add('Tree.onAttached proceeded');
+
+    log('metric on finish: ', metric);
+    return tab;
+  }
+  catch(error) {
+    console.log(error, error.stack);
+    onCompleted();
+    tab.$TST.removeState(Constants.kTAB_STATE_CREATING);
+    Tree.onAttached.removeListener(onTreeModified);
+    metric.add('error handled ', error);
+    log('metric on error: ', metric);
+  }
+}
+
+// "Recycled tab" is an existing but reused tab for session restoration.
+function checkRecycledTab(windowId) {
+  const possibleRecycledTabs = Tab.getRecycledTabs(windowId);
+  log(`Detecting recycled tabs`);
+  for (const tab of possibleRecycledTabs) {
+    if (!TabsStore.ensureLivingItem(tab))
+      continue;
+    const currentId = tab.$TST.uniqueId.id;
+    tab.$TST.updateUniqueId().then(uniqueId => {
+      if (!TabsStore.ensureLivingItem(tab) ||
+          !uniqueId.restored ||
+          uniqueId.id == currentId ||
+          Constants.kTAB_STATE_RESTORED in tab.$TST.states)
+        return;
+      log('A recycled tab is detected: ', dumpTab(tab));
+      tab.$TST.addState(Constants.kTAB_STATE_RESTORED);
+      Tab.onRestored.dispatch(tab);
+    });
+  }
+}
+
+async function onRemoved(tabId, removeInfo) {
+  Tree.markTabIdAsUnattachable(tabId);
+
+  if (mPromisedStarted)
+    await mPromisedStarted;
+
+  log('tabs.onRemoved: ', tabId, removeInfo);
+  const win                 = Window.init(removeInfo.windowId);
+  const byInternalOperation = win.internalClosingTabs.has(tabId);
+  const preventEntireTreeBehavior = win.keepDescendantsTabs.has(tabId);
+
+  win.internalMovingTabs.delete(tabId);
+  win.alreadyMovedTabs.delete(tabId);
+  win.internalClosingTabs.delete(tabId);
+  win.keepDescendantsTabs.delete(tabId);
+  win.highlightingTabs.delete(tabId);
+  win.tabsToBeHighlightedAlone.delete(tabId);
+
+  win.internallyFocusingTabs.delete(tabId);
+  win.internallyFocusingByMouseTabs.delete(tabId);
+  win.internallyFocusingSilentlyTabs.delete(tabId);
+
+  if (Tab.needToWaitTracked(removeInfo.windowId))
+    await Tab.waitUntilTrackedAll(removeInfo.windowId);
+
+  const [onCompleted, previous] = addTabOperationQueue();
+  if (!configs.acceleratedTabOperations && previous)
+    await previous;
+
+  try {
+    const oldTab = Tab.get(tabId);
+    if (!oldTab) {
+      onCompleted();
+      return;
+    }
+
+    log('tabs.onRemoved, tab is found: ', oldTab, `openerTabId=${oldTab.openerTabId}`);
+
+    const nearestTabs = [oldTab.$TST.unsafePreviousTab, oldTab.$TST.unsafeNextTab];
+
+    // remove from "highlighted tabs" cache immediately, to prevent misdetection for "multiple highlighted".
+    TabsStore.removeHighlightedTab(oldTab);
+    TabsStore.removeGroupTab(oldTab);
+
+    TabsStore.addRemovedTab(oldTab);
+
+    removeInfo = {
+      ...removeInfo,
+      byInternalOperation,
+      preventEntireTreeBehavior,
+      oldChildren: oldTab.$TST.children,
+      oldParent:   oldTab.$TST.parent,
+      context: Constants.kPARENT_TAB_OPERATION_CONTEXT_CLOSE
+    };
+
+    if (!removeInfo.isWindowClosing) {
+      SidebarConnection.sendMessage({
+        type:            Constants.kCOMMAND_NOTIFY_TAB_REMOVING,
+        windowId:        oldTab.windowId,
+        tabId:           oldTab.id,
+        isWindowClosing: removeInfo.isWindowClosing,
+        byInternalOperation,
+        preventEntireTreeBehavior,
+      });
+    }
+
+    const onRemovingResult = Tab.onRemoving.dispatch(oldTab, {
+      ...removeInfo,
+      byInternalOperation,
+      preventEntireTreeBehavior,
+    });
+    // don't do await if not needed, to process things synchronously
+    if (onRemovingResult instanceof Promise)
+      await onRemovingResult;
+
+    // The removing tab may be attached to tree/someone attached to the removing tab.
+    // We need to clear them by onRemoved handlers.
+    removeInfo.oldChildren = oldTab.$TST.children;
+    removeInfo.oldParent   = oldTab.$TST.parent;
+    oldTab.$TST.addState(Constants.kTAB_STATE_REMOVING);
+    TabsStore.addRemovingTab(oldTab);
+
+    TabsStore.windows.get(removeInfo.windowId).detachTab(oldTab.id, {
+      toBeRemoved: true
+    });
+
+    const onRemovedReuslt = Tab.onRemoved.dispatch(oldTab, removeInfo);
+    // don't do await if not needed, to process things synchronously
+    if (onRemovedReuslt instanceof Promise)
+      await onRemovedReuslt;
+
+    SidebarConnection.sendMessage({
+      type:            Constants.kCOMMAND_NOTIFY_TAB_REMOVED,
+      windowId:        oldTab.windowId,
+      tabId:           oldTab.id,
+      isWindowClosing: removeInfo.isWindowClosing,
+      byInternalOperation,
+      preventEntireTreeBehavior,
+    });
+    oldTab.$TST.destroy();
+
+    for (const tab of nearestTabs) {
+      tab?.$TST?.memorizeNeighbors('neighbor of closed tab');
+    }
+
+    onCompleted();
+  }
+  catch(e) {
+    console.log(e);
+    onCompleted();
+  }
+  finally {
+    Tree.clearUnattachableTabId(tabId);
+  }
+}
+
+async function onMoved(tabId, moveInfo) {
+  if (mPromisedStarted)
+    await mPromisedStarted;
+
+  const win = Window.init(moveInfo.windowId);
+
+  // Cancel in-progress highlighting, because tabs.highlight() uses old indices of tabs.
+  win.tabsMovedWhileHighlighting = true;
+
+  // Firefox may move the tab between TabsMove.moveTabsInternallyBefore/After()
+  // and TabsMove.syncTabsPositionToApiTabs(). We should treat such a movement
+  // as an "internal" operation also, because we need to suppress "move back"
+  // and other fixup operations around tabs moved by foreign triggers, on such
+  // cases. Don't mind, the tab will be rearranged again by delayed
+  // TabsMove.syncTabsPositionToApiTabs() anyway!
+  const internalExpectedIndex = win.internalMovingTabs.get(tabId);
+  const maybeInternalOperation = internalExpectedIndex < 0 || internalExpectedIndex == moveInfo.toIndex;
+  if (maybeInternalOperation)
+    log(`tabs.onMoved: ${tabId} is detected as moved internally`);
+
+  if (!Tab.isTracked(tabId))
+    await Tab.waitUntilTracked(tabId);
+  if (Tab.needToWaitMoved(moveInfo.windowId))
+    await Tab.waitUntilMovedAll(moveInfo.windowId);
+
+  const [onCompleted, previous] = addTabOperationQueue();
+  if (!configs.acceleratedTabOperations && previous)
+    await previous;
+
+  try {
+    const finishMoving = Tab.get(tabId).$TST.startMoving();
+    const completelyMoved = () => { finishMoving(); onCompleted() };
+
+    /* When a tab is pinned, tabs.onMoved may be notified before
+       tabs.onUpdated(pinned=true) is notified. As the result,
+       descendant tabs are unexpectedly moved to the top of the
+       tab bar to follow their parent pinning tab. To avoid this
+       problem, we have to wait for a while with this "async" and
+       do following processes after the tab is completely pinned. */
+    const movedTab = Tab.get(tabId);
+    if (!movedTab) {
+      if (win.internalMovingTabs.has(tabId))
+        win.internalMovingTabs.delete(tabId);
+      completelyMoved();
+      warnTabDestroyedWhileWaiting(tabId, movedTab);
+      return;
+    }
+
+    let oldPreviousTab = movedTab.hidden ? movedTab.$TST.unsafePreviousTab : movedTab.$TST.previousTab;
+    let oldNextTab     = movedTab.hidden ? movedTab.$TST.unsafeNextTab : movedTab.$TST.nextTab;
+    if (movedTab.index != moveInfo.toIndex ||
+        (oldPreviousTab?.index == movedTab.index - 1) ||
+        (oldNextTab?.index == movedTab.index + 1)) {
+      // already moved
+      oldPreviousTab = Tab.getTabAt(moveInfo.windowId, moveInfo.toIndex < moveInfo.fromIndex ? moveInfo.fromIndex : moveInfo.fromIndex - 1);
+      oldNextTab     = Tab.getTabAt(moveInfo.windowId, moveInfo.toIndex < moveInfo.fromIndex ? moveInfo.fromIndex + 1 : moveInfo.fromIndex);
+      if (oldPreviousTab?.id == movedTab.id)
+        oldPreviousTab = Tab.getTabAt(moveInfo.windowId, moveInfo.toIndex < moveInfo.fromIndex ? moveInfo.fromIndex - 1 : moveInfo.fromIndex - 2);
+      if (oldNextTab?.id == movedTab.id)
+        oldNextTab = Tab.getTabAt(moveInfo.windowId, moveInfo.toIndex < moveInfo.fromIndex ? moveInfo.fromIndex : moveInfo.fromIndex - 1);
+    }
+
+    const expectedIndex = win.alreadyMovedTabs.get(tabId);
+    const alreadyMoved = expectedIndex < 0 || expectedIndex == moveInfo.toIndex;
+    if (win.alreadyMovedTabs.has(tabId))
+      win.alreadyMovedTabs.delete(tabId);
+
+    const extendedMoveInfo = {
+      ...moveInfo,
+      byInternalOperation: maybeInternalOperation,
+      alreadyMoved,
+      oldPreviousTab,
+      oldNextTab,
+      // Multiselected tabs can be moved together in bulk, by drag and drop
+      // in the horizontal tab bar, or addons like
+      // https://addons.mozilla.org/firefox/addon/move-tab-hotkeys/
+      movedInBulk: !maybeInternalOperation && (movedTab.$TST.multiselected || movedTab.$TST.movedInBulk),
+    };
+    log('tabs.onMoved: ', movedTab, extendedMoveInfo);
+
+    let canceled = Tab.onMoving.dispatch(movedTab, extendedMoveInfo);
+    // don't do await if not needed, to process things synchronously
+    if (canceled instanceof Promise)
+      await canceled;
+    canceled = canceled === false;
+    if (!canceled &&
+        TabsStore.ensureLivingItem(movedTab)) { // it is removed while waiting
+      let newNextIndex = extendedMoveInfo.toIndex;
+      if (extendedMoveInfo.fromIndex < newNextIndex)
+        newNextIndex++;
+      const nextTab = Tab.getTabAt(moveInfo.windowId, newNextIndex);
+      extendedMoveInfo.nextTab = nextTab;
+      if (!alreadyMoved &&
+          movedTab.$TST.nextTab != nextTab) {
+        if (nextTab) {
+          if (nextTab.index > movedTab.index)
+            movedTab.index = nextTab.index - 1;
+          else
+            movedTab.index = nextTab.index;
+        }
+        else {
+          movedTab.index = win.tabs.size - 1
+        }
+        movedTab.reindexedBy = `tabs.onMoved (${movedTab.index})`;
+        win.trackTab(movedTab);
+        log('Tab nodes rearranged by tabs.onMoved listener:\n'+(!configs.debug ? '' :
+          toLines(Array.from(win.getOrderedTabs()),
+                  tab => ` - ${tab.index}: ${tab.id}${tab.id == movedTab.id ? '[MOVED]' : ''}`)),
+            { moveInfo });
+      }
+      const onMovedResult = Tab.onMoved.dispatch(movedTab, extendedMoveInfo);
+      // don't do await if not needed, to process things synchronously
+      if (onMovedResult instanceof Promise)
+        await onMovedResult;
+      if (!alreadyMoved)
+        SidebarConnection.sendMessage({
+          type:      Constants.kCOMMAND_NOTIFY_TAB_MOVED,
+          windowId:  movedTab.windowId,
+          tabId:     movedTab.id,
+          fromIndex: moveInfo.fromIndex,
+          toIndex:   movedTab.index,
+          nextTabId: nextTab?.id,
+        });
+    }
+    if (win.internalMovingTabs.has(tabId))
+      win.internalMovingTabs.delete(tabId);
+    completelyMoved();
+
+    movedTab.$TST.memorizeNeighbors('moved');
+    movedTab.$TST.unsafePreviousTab?.$TST?.memorizeNeighbors('unsafePreviousTab');
+    movedTab.$TST.unsafeNextTab?.$TST?.memorizeNeighbors('unsafeNextTab');
+
+    oldPreviousTab?.$TST?.memorizeNeighbors('oldPreviousTab');
+    oldNextTab?.$TST?.memorizeNeighbors('oldNextTab');
+  }
+  catch(e) {
+    console.log(e);
+    onCompleted();
+  }
+}
+
+const mTreeInfoForTabsMovingAcrossWindows = new Map();
+
+async function onAttached(tabId, attachInfo) {
+  if (mPromisedStarted)
+    await mPromisedStarted;
+
+  const [onCompleted, previous] = addTabOperationQueue();
+  if (!configs.acceleratedTabOperations && previous)
+    await previous;
+
+  try {
+    log('tabs.onAttached, id: ', tabId, attachInfo);
+    let tab = Tab.get(tabId);
+    let attachedTab = await browser.tabs.get(tabId).catch(error => {
+      console.error(error);
+      return null;
+    });
+    if (!attachedTab) {
+      // We sometimes fail to get window and tab via API if it is opened
+      // as a popup window but not exposed to API yet. So for safety
+      // we should retry for a while.
+      // See also: https://github.com/piroor/treestyletab/issues/3311
+      const newWindow = await browser.windows.get(attachInfo.newWindowId, { populate: true }).then(_error => null);
+      attachedTab = newWindow?.tabs.find(tab => tab.id == tabId);
+      if (!newWindow || !attachedTab) {
+        if (!('$TST_retryCount' in attachInfo))
+          attachInfo.$TST_retryCount = 0;
+        if (attachInfo.$TST_retryCount < 10) {
+          attachInfo.$TST_retryCount++;
+          setTimeout(() => onAttached(tabId, attachInfo), 0); // because window.requestAnimationFrame is decelerate for an invisible document.
+          return;
+        }
+        console.log(`tabs.onAttached: the tab ${tabId} or the window ${attachInfo.newWindowId} is already closed. `);
+        onCompleted();
+        return;
+      }
+    }
+
+    if (!tab) {
+      log(`tabs.onAttached: Moved tab ${tabId} is not tracked yet.`);
+      const newWindow = await browser.windows.get(attachInfo.newWindowId, { populate: true }).then(_error => null);
+      attachedTab = newWindow?.tabs.find(tab => tab.id == tabId);
+      if (!attachedTab) {
+        console.log(`tabs.onAttached: the tab ${tabId} is already closed.`);
+        onCompleted();
+        return;
+      }
+      onWindowCreated(newWindow);
+      await onNewTabTracked(attachedTab, { trigger: 'tabs.onAttached' });
+      tab = Tab.get(tabId);
+    }
+
+    tab.windowId = attachInfo.newWindowId
+    tab.index    = attachedTab.index;
+    tab.reindexedBy = `tabs.onAttached (${tab.index})`;
+
+    if (tab.groupId != -1) {
+      // tabGroups.onMoved may be notified after all tabs are moved across windows,
+      // but we need to use group information in the destination window, thus we
+      // simulate native events here.
+      TabsStore.addNativelyGroupedTab(tab, attachInfo.newWindowId);
+      if (TabGroup.getMembers(tab.groupId, { windowId: attachInfo.newWindowId }).length == 1) {
+        const group = TabGroup.get(tab.groupId);
+        if (group) {
+          TabsStore.windows.get(attachInfo.newWindowId).tabGroups.set(group.id, group);
+          SidebarConnection.sendMessage({
+            type:     Constants.kCOMMAND_NOTIFY_TAB_GROUP_CREATED,
+            windowId: attachInfo.newWindowId,
+            group:    group.$TST.sanitized,
+          });
+        }
+      }
+    }
+
+    TabsInternalOperation.clearOldActiveStateInWindow(attachInfo.newWindowId);
+    const info = {
+      ...attachInfo,
+      ...mTreeInfoForTabsMovingAcrossWindows.get(tabId)
+    };
+    mTreeInfoForTabsMovingAcrossWindows.delete(tabId);
+
+    const win = TabsStore.windows.get(attachInfo.newWindowId);
+    await onNewTabTracked(tab, { trigger: 'tabs.onAttached' });
+    const byInternalOperation = win.toBeAttachedTabs.has(tab.id);
+    if (byInternalOperation)
+      win.toBeAttachedTabs.delete(tab.id);
+    info.byInternalOperation = info.byInternalOperation || byInternalOperation;
+
+    if (!byInternalOperation) { // we should process only tabs attached by others.
+      const onAttachedResult = Tab.onAttached.dispatch(tab, info);
+      // don't do await if not needed, to process things synchronously
+      if (onAttachedResult instanceof Promise)
+        await onAttachedResult;
+    }
+
+    SidebarConnection.sendMessage({
+      type:     Constants.kCOMMAND_NOTIFY_TAB_ATTACHED_TO_WINDOW,
+      windowId: attachInfo.newWindowId,
+      tabId
+    });
+
+    onCompleted();
+  }
+  catch(e) {
+    console.log(e);
+    onCompleted();
+  }
+}
+
+async function onDetached(tabId, detachInfo) {
+  if (mPromisedStarted)
+    await mPromisedStarted;
+
+  const [onCompleted, previous] = addTabOperationQueue();
+  if (!configs.acceleratedTabOperations && previous)
+    await previous;
+
+  try {
+    log('tabs.onDetached, id: ', tabId, detachInfo);
+    const oldTab = Tab.get(tabId);
+    if (!oldTab) {
+      onCompleted();
+      return;
+    }
+
+    const oldWindow           = TabsStore.windows.get(detachInfo.oldWindowId);
+    const byInternalOperation = oldWindow.toBeDetachedTabs.has(tabId);
+    if (byInternalOperation)
+      oldWindow.toBeDetachedTabs.delete(tabId);
+
+    const descendants = oldTab.$TST.descendants;
+    const info = {
+      ...detachInfo,
+      byInternalOperation,
+      trigger:     'tabs.onDetached',
+      windowId:    detachInfo.oldWindowId,
+      structure:   TreeBehavior.getTreeStructureFromTabs([oldTab, ...descendants]),
+      descendants
+    };
+    const alreadyMovedAcrossWindows = Array.from(mTreeInfoForTabsMovingAcrossWindows.values(), info => info.descendants.map(tab => tab.id)).some(tabIds => tabIds.includes(tabId));
+    if (!alreadyMovedAcrossWindows)
+      mTreeInfoForTabsMovingAcrossWindows.set(tabId, info);
+
+    if (oldTab.groupId != -1) {
+      TabsStore.removeNativelyGroupedTab(oldTab, detachInfo.oldWindowId);
+      if (TabGroup.getMembers(oldTab.groupId, { windowId: detachInfo.oldWindowId }).length == 0) {
+        const group = TabGroup.get(oldTab.groupId);
+        if (group) {
+          TabsStore.windows.get(detachInfo.oldWindowId).tabGroups.delete(group.id);
+          SidebarConnection.sendMessage({
+            type:     Constants.kCOMMAND_NOTIFY_TAB_GROUP_REMOVED,
+            windowId: detachInfo.oldWindowId,
+            group:    group.$TST.sanitized,
+          });
+        }
+      }
+    }
+
+    if (!byInternalOperation) // we should process only tabs detached by others.
+      Tab.onDetached.dispatch(oldTab, info);
+
+    SidebarConnection.sendMessage({
+      type:     Constants.kCOMMAND_NOTIFY_TAB_DETACHED_FROM_WINDOW,
+      windowId: detachInfo.oldWindowId,
+      tabId,
+      wasPinned: oldTab.pinned
+    });
+    // We need to notify this to some conetnt scripts, to destroy themselves.
+    try {
+      browser.tabs.sendMessage(tabId, {
+        type: Constants.kCOMMAND_NOTIFY_TAB_DETACHED_FROM_WINDOW,
+      }).catch(_error => {});
+    }
+    catch (_error) {
+    }
+
+    TabsStore.addRemovedTab(oldTab);
+    oldWindow.detachTab(oldTab.id, {
+      toBeDetached: true
+    });
+    if (!TabsStore.getCurrentWindowId() && // only in the background page - the sidebar has no need to destroy itself manually.
+        oldWindow.tabs &&
+        oldWindow.tabs.size == 0) { // not destroyed yet case
+      if (oldWindow.delayedDestroy)
+        clearTimeout(oldWindow.delayedDestroy);
+      oldWindow.delayedDestroy = setTimeout(() => {
+        // the last tab can be removed with browser.tabs.closeWindowWithLastTab=false,
+        // so we should not destroy the window immediately.
+        if (oldWindow.tabs &&
+            oldWindow.tabs.size == 0)
+          oldWindow.destroy();
+      }, (configs.collapseDuration, 1000) * 5);
+    }
+
+    onCompleted();
+  }
+  catch(e) {
+    console.log(e);
+    onCompleted();
+  }
+}
+
+async function onWindowCreated(win) {
+  const trackedWindow = TabsStore.windows.get(win.id) || new Window(win.id);
+  trackedWindow.incognito = win.incognito;
+}
+
+async function onWindowRemoved(windowId) {
+  if (mPromisedStarted)
+    await mPromisedStarted;
+
+  mTabsHighlightedTimers.delete(windowId);
+  mLastHighlightedCount.delete(windowId);
+
+  const [onCompleted, previous] = addTabOperationQueue();
+  if (!configs.acceleratedTabOperations && previous)
+    await previous;
+
+  try {
+    log('onWindowRemoved ', windowId);
+    const win = TabsStore.windows.get(windowId);
+    if (win &&
+        !TabsStore.getCurrentWindowId()) // skip destructor on sidebar
+      win.destroy();
+
+    onCompleted();
+  }
+  catch(e) {
+    console.log(e);
+    onCompleted();
+  }
+}
+
+
+browser.windows.onFocusChanged.addListener(windowId => {
+  mAppIsActive = windowId > 0;
+});
+
+
+async function onGroupCreated(group) {
+  log('onGroupCreated ', group);
+
+  const trackedGroup = TabGroup.init(group);
+  TabsStore.windows.get(trackedGroup.windowId).tabGroups.set(group.id, trackedGroup);
+
+  SidebarConnection.sendMessage({
+    type:     Constants.kCOMMAND_NOTIFY_TAB_GROUP_CREATED,
+    windowId: trackedGroup.windowId,
+    group:    trackedGroup.$TST.sanitized,
+  });
+}
+
+async function onGroupUpdated(group) {
+  if (mPromisedStarted)
+    await mPromisedStarted;
+
+  log('onGroupUpdated ', group);
+
+  const trackedGroup = TabGroup.get(group.id);
+  trackedGroup.$TST.apply(group);
+
+  SidebarConnection.sendMessage({
+    type:     Constants.kCOMMAND_NOTIFY_TAB_GROUP_UPDATED,
+    windowId: trackedGroup.windowId,
+    group:    trackedGroup.$TST.sanitized,
+  });
+}
+
+async function onGroupRemoved(group) {
+  if (mPromisedStarted)
+    await mPromisedStarted;
+
+  log('onGroupRemoved ', group);
+
+  const trackedGroup = TabGroup.get(group.id);
+  if (trackedGroup.windowId == group.windowId) {
+    trackedGroup.$TST.destroy();
+  }
+  else {
+    log('onGroupRemoved: => moved to another window, no need to destroy');
+  }
+
+  SidebarConnection.sendMessage({
+    type:     Constants.kCOMMAND_NOTIFY_TAB_GROUP_REMOVED,
+    windowId: group.windowId,
+    group,
+  });
+}
+
+async function onGroupMoved(group) {
+  if (mPromisedStarted)
+    await mPromisedStarted;
+
+  log('onGroupMoved ', group);
+  const trackedGroup = TabGroup.get(group.id);
+  if (!trackedGroup) {
+    return;
+  }
+
+  const oldWindowId = trackedGroup.windowId;
+  const newWindowId = group.windowId;
+  if (newWindowId == oldWindowId) {
+    return;
+  }
+
+  const members = trackedGroup.$TST.members;
+  for (const tab of members) {
+    TabsStore.removeNativelyGroupedTab(tab, oldWindowId);
+    TabsStore.addNativelyGroupedTab(tab, newWindowId);
+  }
+
+  SidebarConnection.sendMessage({
+    type:     Constants.kCOMMAND_NOTIFY_TAB_GROUP_REMOVED,
+    windowId: oldWindowId,
+    group:    trackedGroup.$TST.sanitized,
+  });
+
+  TabsStore.windows.get(oldWindowId).tabGroups.delete(group.id);
+  trackedGroup.windowId = newWindowId;
+  TabsStore.windows.get(newWindowId).tabGroups.set(group.id, trackedGroup);
+
+  SidebarConnection.sendMessage({
+    type:     Constants.kCOMMAND_NOTIFY_TAB_GROUP_CREATED,
+    windowId: newWindowId,
+    group:    trackedGroup.$TST.sanitized,
+  });
+}
