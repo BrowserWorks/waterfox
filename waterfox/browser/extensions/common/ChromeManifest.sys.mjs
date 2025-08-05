@@ -1,17 +1,12 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-"use strict";
-
-this.EXPORTED_SYMBOLS = ["ChromeManifest"];
-
-const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
 /**
  * A parser for chrome.manifest files. Implements a subset of
  * https://developer.mozilla.org/en-US/docs/Mozilla/Chrome_Registration
  */
-class ChromeManifest {
+export class ChromeManifest {
   /**
    * Constructs the chrome.manifest parser
    *
@@ -19,7 +14,7 @@ class ChromeManifest {
    *                                      those included via the |manifest| instruction. The
    *                                      function will take the file as an argument and should
    *                                      resolve with the string contents of that file
-   * @param {Object} options            Object describing the current system. The keys are manifest
+   * @param {object} options            Object describing the current system. The keys are manifest
    *                                      instructions
    */
   constructor(loader, options) {
@@ -59,11 +54,11 @@ class ChromeManifest {
    * @returns {Promise}                  Resolved when loading completes
    */
   async parseString(data, base = "") {
-    let lines = data.split("\n");
-    let extraManifests = [];
-    for (let line of lines) {
-      let parts = line.trim().split(/\s+/);
-      let directive = parts.shift();
+    const lines = data.split("\n");
+    const extraManifests = [];
+    for (const line of lines) {
+      const parts = line.trim().split(/\s+/);
+      const directive = parts.shift();
       switch (directive) {
         case "manifest":
           extraManifests.push(this._parseManifest(base, ...parts));
@@ -117,20 +112,20 @@ class ChromeManifest {
       return true;
     }
 
-    let matchString = (a, sign, b) => {
-      if (sign != "=") {
+    const matchString = (a, sign, b) => {
+      if (sign !== "=") {
         console.warn(
           `Invalid sign ${sign} in ${a}${sign}${b}, dropping manifest instruction`
         );
         return false;
       }
-      return a == b;
+      return a === b;
     };
 
-    let matchVersion = (a, sign, b) => {
+    const matchVersion = (a, sign, b) => {
       switch (sign) {
         case "=":
-          return Services.vc.compare(a, b) == 0;
+          return Services.vc.compare(a, b) === 0;
         case ">":
           return Services.vc.compare(a, b) > 0;
         case "<":
@@ -147,17 +142,21 @@ class ChromeManifest {
       }
     };
 
-    let flagMatches = (key, typeMatch) => {
+    const flagMatches = (key, typeMatch) => {
       return (
         !flagdata.has(key) ||
-        flagdata.get(key).some(val => typeMatch(this.options[key], ...val))
+        flagdata.get(key).some((val) => typeMatch(this.options[key], ...val))
       );
     };
 
-    let flagdata = new DefaultMap(() => []);
+    const flagdata = new DefaultMap(() => []);
 
-    for (let flag of flags) {
-      let match = flag.match(/(\w+)(>=|<=|<|>|=)(.*)/);
+    for (const flag of flags) {
+      if (!flag || typeof flag !== 'string') {
+        console.warn(`Invalid flag type: ${typeof flag}, dropping manifest instruction`);
+        continue;
+      }
+      const match = flag.match(/(\w+)(>=|<=|<|>|=)(.*)/);
       if (match) {
         flagdata.get(match[1]).push([match[2], match[3]]);
       } else {
@@ -185,13 +184,13 @@ class ChromeManifest {
    */
   async _parseManifest(base, filename, ...flags) {
     if (this._parseFlags(flags)) {
-      let dirparts = filename.split("/");
+      const dirparts = filename.split("/");
       dirparts.pop();
 
       try {
         await this.parse(filename, base + "/" + dirparts.join("/"));
       } catch (e) {
-        console.log(`Could not read manifest '${base}/${filename}'.`);
+        console.warn(`Could not read manifest '${base}/${filename}':`, e);
       }
     }
     return null;
@@ -270,7 +269,7 @@ class ChromeManifest {
    * @param {string} location       The location for this skin registration
    * @param {...string} flags       The flags for this instruction
    */
-  _parseSkin(packagename, skinname, location, ...flags) {
+  _parseSkin(packagename, _skinname, location, ...flags) {
     if (this._parseFlags(flags)) {
       this.skin.set(packagename, location);
     }
@@ -350,14 +349,15 @@ class DefaultMap extends Map {
    * @param {string} key            The key of the map to get
    * @param {boolean} create        True, if the key should be created in case it doesn't exist.
    */
-  get(key, create = true) {
-    if (this.has(key)) {
-      return super.get(key);
-    } else if (create) {
-      this.set(key, this._default());
-      return super.get(key);
-    }
+   get(key, create = true) {
+       if (this.has(key)) {
+         return super.get(key);
+       }
+       if (create) {
+         this.set(key, this._default());
+         return super.get(key);
+       }
 
-    return this._default();
-  }
+       return this._default();
+     }
 }
