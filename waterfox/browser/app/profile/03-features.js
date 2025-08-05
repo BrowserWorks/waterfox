@@ -214,6 +214,9 @@ pref("browser.ml.chat.enabled", false); // Disable built-in ML chat features.
 // Image Format Support
 pref("image.jxl.enabled", true); // Enable support for the JPEG XL image format.
 
+// Keyboard Shortcuts
+pref("browser.closeShortcut.disabled", false); // false = Ctrl+W (or Cmd+W) closes tab/window (default behavior). true = disables this shortcut.
+
 // Restart Menu (often provided by extensions or custom builds, not a standard Firefox feature)
 pref("browser.restart_menu.showpanelmenubtn", true); // If a restart menu is present, show its button in a panel menu.
 pref("browser.restart_menu.purgecache", false); // If true, purges caches upon restart initiated via this menu.
