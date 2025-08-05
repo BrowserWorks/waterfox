@@ -4,8 +4,9 @@
     max-width: 225px;
     min-width: var(--tab-min-width);
     width: 0;
-    transition: min-width 100ms ease-out,
-                max-width 100ms ease-out;
+    transition:
+      min-width 100ms ease-out,
+      max-width 100ms ease-out;
   }
 
   .tabbrowser-tab:is([pinned]):not([fadein]) {
