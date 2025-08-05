@@ -53,7 +53,7 @@ export const WaterfoxGlue = {
           this.updateCustomStylesheets({ id: activeThemeId, type: "theme" });
           amInitialized = true;
         } catch (ex) {
-          await new Promise(res => lazy.setTimeout(res, 500, {}));
+          await new Promise((res) => lazy.setTimeout(res, 500, {}));
         }
       }
     })();
@@ -77,14 +77,14 @@ export const WaterfoxGlue = {
   async _setPrefObservers() {
     this.leptonListener = lazy.PrefUtils.addObserver(
       WATERFOX_CUSTOMIZATIONS_PREF,
-      async _ => {
+      async (_) => {
         const activeThemeId = await this.getActiveThemeId();
         this.updateCustomStylesheets({ id: activeThemeId, type: "theme" });
       }
     );
     this.pinnedTabListener = lazy.PrefUtils.addObserver(
       "browser.tabs.pinnedIconOnly",
-      isEnabled => {
+      (isEnabled) => {
         // Pref being true actually means we need to unload the sheet, so invert.
         const uri = "chrome://browser/content/tabfeatures/pinnedtab.css";
         lazy.BrowserUtils.registerOrUnregisterSheet(uri, !isEnabled);
@@ -98,7 +98,7 @@ export const WaterfoxGlue = {
         lazy.BrowserUtils.unregisterStylesheet(uri);
         lazy.BrowserUtils.registerStylesheet(uri);
       }
-    )
+    );
   },
 
   async getChromeManifest(manifest) {
@@ -119,12 +119,12 @@ export const WaterfoxGlue = {
         uri = "resource://waterfox/overlays/preferences-other.overlay";
         break;
     }
-    let chromeManifest = new lazy.ChromeManifest(async () => {
-      let res = await fetch(uri);
+    const chromeManifest = new lazy.ChromeManifest(async () => {
+      const res = await fetch(uri);
       let text = await res.text();
       if (privateWindow) {
-        let tArr = text.split("\n");
-        let indexPrivate = tArr.findIndex(overlay =>
+        const tArr = text.split("\n");
+        const indexPrivate = tArr.findIndex((overlay) =>
           overlay.includes("private")
         );
         tArr.splice(indexPrivate, 1);
@@ -226,18 +226,23 @@ export const WaterfoxGlue = {
   },
 
   async _migrateUI() {
-    let currentUIVersion = Services.prefs.getIntPref(
+    const currentUIVersion = Services.prefs.getIntPref(
       "browser.migration.version",
       128
     );
-    const waterfoxUIVersion = 1;
+    const waterfoxUIVersion = 2;
 
-    if (!Services.prefs.prefHasUserValue("browser.migration.waterfox_version")) {
+    if (
+      !Services.prefs.prefHasUserValue("browser.migration.waterfox_version")
+    ) {
       // This is a new profile, nothing to migrate.
-      Services.prefs.setIntPref("browser.migration.waterfox_version", waterfoxUIVersion);
+      Services.prefs.setIntPref(
+        "browser.migration.waterfox_version",
+        waterfoxUIVersion
+      );
       return;
     }
-    
+
     async function enableTheme(id) {
       const addon = await lazy.AddonManager.getAddonByID(id);
       // If we found it, enable it.
@@ -248,9 +253,9 @@ export const WaterfoxGlue = {
       // Ensure the theme id is set correctly for G5
       const DEFAULT_THEME = "default-theme@mozilla.org";
       const themes = await AddonManager.getAddonsByTypes(["theme"]);
-      let activeTheme = themes.find(addon => addon.isActive);
+      const activeTheme = themes.find((addon) => addon.isActive);
       if (activeTheme) {
-        let themeId = activeTheme.id;
+        const themeId = activeTheme.id;
         switch (themeId) {
           case "lepton@waterfox.net":
             enableTheme("default-theme@mozilla.org");
@@ -273,11 +278,89 @@ export const WaterfoxGlue = {
       lazy.PrefUtils.set(WATERFOX_CUSTOMIZATIONS_PREF, enabled ? 1 : 2);
     }
 
-    lazy.PrefUtils.set("browser.migration.waterfox_version", 1);
+    if (waterfoxUIVersion < 2) {
+      // Migrate Windows Registry values
+      if ("@mozilla.org/windows-registry-key;1" in Components.classes) {
+        const regKey = Components.classes[
+          "@mozilla.org/windows-registry-key;1"
+        ].createInstance(Components.interfaces.nsIWindowsRegKey);
+
+        // Function to copy registry keys recursively
+        const copyRegistryKeys = (fromRoot, toRoot, path) => {
+          try {
+            regKey.open(fromRoot, path, regKey.ACCESS_READ);
+            const newKey = regKey.createChild(toRoot, path, regKey.ACCESS_ALL);
+
+            // Copy values
+            for (let i = 0; i < regKey.valueCount; i++) {
+              const name = regKey.getValueName(i);
+              const type = regKey.getValueType(name);
+
+              switch (type) {
+                case regKey.TYPE_STRING:
+                  newKey.writeStringValue(name, regKey.readStringValue(name));
+                  break;
+                case regKey.TYPE_BINARY:
+                  newKey.writeBinaryValue(name, regKey.readBinaryValue(name));
+                  break;
+                case regKey.TYPE_INT:
+                  newKey.writeIntValue(name, regKey.readIntValue(name));
+                  break;
+                case regKey.TYPE_INT64:
+                  newKey.writeInt64Value(name, regKey.readInt64Value(name));
+                  break;
+              }
+            }
+
+            // Recursively copy subkeys
+            for (let i = 0; i < regKey.childCount; i++) {
+              const childName = regKey.getChildName(i);
+              copyRegistryKeys(fromRoot, toRoot, `${path}\\${childName}`);
+            }
+
+            newKey.close();
+          } catch (e) {
+            Console.warn("Error copying registry key:", e);
+          } finally {
+            regKey.close();
+          }
+        };
+
+        // Copy from HKLM
+        copyRegistryKeys(
+          regKey.ROOT_KEY_LOCAL_MACHINE,
+          regKey.ROOT_KEY_LOCAL_MACHINE,
+          "SOFTWARE\\WaterfoxLimited",
+          "SOFTWARE\\BrowserWorks"
+        );
+        copyRegistryKeys(
+          regKey.ROOT_KEY_LOCAL_MACHINE,
+          regKey.ROOT_KEY_LOCAL_MACHINE,
+          "Software\\WaterfoxLimited",
+          "Software\\BrowserWorks"
+        );
+
+        // Copy from HKCU
+        copyRegistryKeys(
+          regKey.ROOT_KEY_CURRENT_USER,
+          regKey.ROOT_KEY_CURRENT_USER,
+          "SOFTWARE\\WaterfoxLimited",
+          "SOFTWARE\\BrowserWorks"
+        );
+        copyRegistryKeys(
+          regKey.ROOT_KEY_CURRENT_USER,
+          regKey.ROOT_KEY_CURRENT_USER,
+          "Software\\WaterfoxLimited",
+          "Software\\BrowserWorks"
+        );
+      }
+    }
+
+    lazy.PrefUtils.set("browser.migration.waterfox_version", 2);
   },
 
   async _delayedTasks() {
-    let tasks = [
+    const tasks = [
       {
         task: () => {
           // Reset prefs
@@ -302,20 +385,20 @@ export const WaterfoxGlue = {
     }
     // Otherwise just grab it from AddonManager
     const themes = await lazy.AddonManager.getAddonsByTypes(["theme"]);
-    return themes.find(addon => addon.isActive).id;
+    return themes.find((addon) => addon.isActive).id;
   },
 
   addAddonListener() {
-    let listener = {
-      onInstalled: addon => this.updateCustomStylesheets(addon),
-      onEnabled: addon => this.updateCustomStylesheets(addon),
+    const listener = {
+      onInstalled: (addon) => this.updateCustomStylesheets(addon),
+      onEnabled: (addon) => this.updateCustomStylesheets(addon),
     };
     this._addonManagersListeners.push(listener);
     lazy.AddonManager.addAddonListener(listener);
   },
 
   removeAddonListeners() {
-    for (let listener of this._addonManagersListeners) {
+    for (const listener of this._addonManagersListeners) {
       lazy.AddonManager.removeAddonListener(listener);
     }
   },
