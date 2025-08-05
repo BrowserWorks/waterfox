@@ -1,22 +1,20 @@
-"use strict";
-
 // Test setting and getting different types of pref
 add_task(async function testGetSetPrefs() {
   // String pref
   PrefUtils.set(STRING_PREF, "some string");
-  let strPref = PrefUtils.get(STRING_PREF);
+  const strPref = PrefUtils.get(STRING_PREF);
   is(typeof strPref, "string", "String pref is string");
   is(strPref, "some string", "String pref is set");
 
   // Int pref
   PrefUtils.set(INT_PREF, 999);
-  let intPref = PrefUtils.get(INT_PREF);
+  const intPref = PrefUtils.get(INT_PREF);
   is(typeof intPref, "number", "Int pref is int");
   is(intPref, 999, "Int pref is set");
 
   // Bool pref
   PrefUtils.set(BOOL_PREF, false);
-  let boolPref = PrefUtils.get(BOOL_PREF);
+  const boolPref = PrefUtils.get(BOOL_PREF);
   is(typeof boolPref, "boolean", "Bool pref is bool");
   is(boolPref, false, "Bool pref is set");
 
@@ -28,13 +26,13 @@ add_task(async function testGetSetPrefs() {
 
 // Test observing a pref
 add_task(async function testObservePref() {
-  let msg = "Callback succeeded";
+  const msg = "Callback succeeded";
 
   // Set up the observer
-  async function callback(pref, path) {
+  async function callback(_pref, _path) {
     Services.prefs.setCharPref(STRING_PREF, msg);
   }
-  let obs = PrefUtils.addObserver(BOOL_PREF, callback);
+  const obs = PrefUtils.addObserver(BOOL_PREF, callback);
 
   // Trigger the obs callback
   is(
