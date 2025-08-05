@@ -110,6 +110,12 @@ var NonBrowserWindow = {
         document.getElementById("key_quitApplication").remove();
         document.getElementById("menu_FileQuitItem").removeAttribute("key");
       }
+      if (BrowserUIUtils.closeShortcutDisabled) {
+        document.getElementById("key_close").remove();
+        document.getElementById("menu_close").removeAttribute("key");
+        document.getElementById("key_closeWindow").remove();
+        document.getElementById("menu_closeWindow").removeAttribute("key");
+      }
     }
 
     this.delayedStartupTimeoutId = setTimeout(() => this.delayedStartup(), 0);
