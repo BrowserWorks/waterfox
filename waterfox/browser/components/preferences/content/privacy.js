@@ -1,12 +1,4 @@
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-
-/* eslint-env mozilla/browser-window */
-/* globals Preferences setEventListener */
-"use strict";
-
-const gPrivacyPaneOverlay = {
+const _gPrivacyPaneOverlay = {
   init() {
     // Ensure load images automatically checkbox value is correct.
     this.initLoadImages();
@@ -27,21 +19,26 @@ const gPrivacyPaneOverlay = {
 
   // Update privacy item default values
   async updatePrivacyDefaults() {
-    let webRtc = document.getElementById("enableWebRTCP2P");
+    const webRtc = document.getElementById("enableWebRTCP2P");
     webRtc.checked = Preferences.get(webRtc.getAttribute("preference")).value;
 
-    let refHeader = document.getElementById("doNotsendSecureXSiteReferrer");
+    const refHeader = document.getElementById("doNotsendSecureXSiteReferrer");
     refHeader.value = Preferences.get(
       refHeader.getAttribute("preference")
     ).value;
 
-    let imagePermissions = document.getElementById("loadImages");
+    const imagePermissions = document.getElementById("loadImages");
     imagePermissions.checked = !!Preferences.get("permissions.default.image")
       .value;
 
-    let javascriptPermissions = document.getElementById("enableJavaScript");
+    const javascriptPermissions = document.getElementById("enableJavaScript");
     javascriptPermissions.checked = Preferences.get(
       javascriptPermissions.getAttribute("preference")
+    ).value;
+
+    const obliviousDns = document.getElementById("enableObliviousDns");
+    obliviousDns.checked = Preferences.get(
+      obliviousDns.getAttribute("preference")
     ).value;
   },
 
@@ -49,7 +46,7 @@ const gPrivacyPaneOverlay = {
    * Selects the right item of the Load Images Automatically checkbox.
    */
   initLoadImages() {
-    let liaCheckbox = document.getElementById("loadImages");
+    const liaCheckbox = document.getElementById("loadImages");
     // If it doesn't exist yet, try again.
     if (!liaCheckbox) {
       setTimeout(() => {
@@ -66,9 +63,9 @@ const gPrivacyPaneOverlay = {
   },
 
   loadImagesReadPref() {
-    let enabledPref = Preferences.get("permissions.default.image");
-    let liaCheckbox = document.getElementById("loadImages");
-    if (enabledPref.value) {
+    const enabledPref = Preferences.get("permissions.default.image");
+    const liaCheckbox = document.getElementById("loadImages");
+    if (enabledPref.value === 1) {
       liaCheckbox.checked = true;
     } else {
       liaCheckbox.checked = false;
@@ -76,7 +73,7 @@ const gPrivacyPaneOverlay = {
   },
 
   syncToLoadImagesPref() {
-    let value = document.getElementById("loadImages").checked ? 1 : 0;
+    const value = document.getElementById("loadImages").checked ? 1 : 2;
     Services.prefs.setIntPref("permissions.default.image", value);
   },
 };

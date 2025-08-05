@@ -5,6 +5,8 @@ browser.jar:
      content/browser/overlays/general.js                           (content/general.js)
      content/browser/overlays/privacy.js                           (content/privacy.js)
      content/browser/overlays/theme.js                             (content/theme.js)
+     content/browser/overlays/tocbot.js                            (content/tocbot.js)
+     content/browser/overlays/tocbot.css                           (content/tocbot.css)
      content/browser/overlays/images                               (images/**)
 
 %   resource waterfox %waterfox/ contentaccessible=yes
