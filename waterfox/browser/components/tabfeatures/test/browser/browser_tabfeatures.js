@@ -1,9 +1,7 @@
-"use strict";
-
 add_task(async function testCopyTabUrls() {
   // Make sure elements are present
-  let copyTabUrl = document.getElementById("context_copyTabUrl");
-  let copyAllTabUrls = document.getElementById("context_copyAllTabUrls");
+  const copyTabUrl = document.getElementById("context_copyTabUrl");
+  const copyAllTabUrls = document.getElementById("context_copyAllTabUrls");
   ok(copyTabUrl, "Copy tab URL is included");
   ok(copyAllTabUrls, "Copy all tab URLs is included");
   // Make sure that defaults are set correctly
@@ -27,7 +25,7 @@ add_task(async function testCopyTabUrls() {
 
 add_task(async function testHideDuplicateTab() {
   // Setting duplicateTab pref to false should hide element in all windows
-  let duplicateTab = document.getElementById("context_duplicateTab");
+  const duplicateTab = document.getElementById("context_duplicateTab");
   Services.prefs.setBoolPref(DUPLICATE_TAB_PREF, false);
   await openAndCloseTabContextMenu(gBrowser.selectedTab);
   is(duplicateTab.hidden, true, "Duplicate tab hidden");
@@ -40,13 +38,13 @@ add_task(async function testHideDuplicateTab() {
 
 add_task(async function testRestartItem() {
   // Make sure element is present
-  let restartBrowserMenu = document.getElementById("app_restartBrowser");
+  const restartBrowserMenu = document.getElementById("app_restartBrowser");
   // Need to use PanelMultiView to get PanelUI elements
-  let restartBrowserApp = PanelMultiView.getViewNode(
+  const restartBrowserApp = PanelMultiView.getViewNode(
     document,
     "appMenu-restart-button"
   );
-  if (OS == "macosx") {
+  if (OS === "macosx") {
     ok(restartBrowserMenu, "Restart browser menu bar item is included");
     is(restartBrowserApp, null, "Restart browser appMenu item not included");
     await openAndCloseFileMenu();
@@ -65,7 +63,7 @@ add_task(async function testRestartItem() {
   }
   // Make sure element is hidden
   Services.prefs.setBoolPref(RESTART_PREF, false);
-  if (OS == "macosx") {
+  if (OS === "macosx") {
     await openAndCloseFileMenu();
     is(
       restartBrowserMenu.hidden,
@@ -77,22 +75,22 @@ add_task(async function testRestartItem() {
 });
 
 add_task(async function testCopyUrlFunctionality() {
-  let copyTabUrl = document.getElementById("context_copyTabUrl");
-  let copyAllTabUrls = document.getElementById("context_copyAllTabUrls");
+  const copyTabUrl = document.getElementById("context_copyTabUrl");
+  const copyAllTabUrls = document.getElementById("context_copyAllTabUrls");
   const tab = await BrowserTestUtils.openNewForegroundTab(gBrowser, URI1);
-  let browser = tab.linkedBrowser;
+  const browser = tab.linkedBrowser;
   // Test copy tab url copies URL
   await openTabContextMenu(tab);
   EventUtils.synthesizeMouseAtCenter(copyTabUrl, {});
-  let tabURI = await pasteFromClipboard(browser);
+  const tabURI = await pasteFromClipboard(browser);
   is(tabURI, URI1);
   // Test copy all tab urls
   Services.prefs.setBoolPref(COPY_ALL_URLS_PREF, true);
   const tab2 = await BrowserTestUtils.openNewForegroundTab(gBrowser, URI2);
   await openTabContextMenu(tab);
   EventUtils.synthesizeMouseAtCenter(copyAllTabUrls, {});
-  let tabURIs = await pasteFromClipboard(browser);
-  is(tabURIs, URI1 + "\n" + URI2);
+  const tabURIs = await pasteFromClipboard(browser);
+  is(tabURIs, `${URI1}\n${URI2}`);
   // Test copy active tab pref
   Services.prefs.setBoolPref(COPY_ACTIVE_URL_PREF, true);
   await openTabContextMenu(tab);
