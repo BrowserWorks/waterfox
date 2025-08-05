@@ -1,90 +1,62 @@
-/* Any copyright is dedicated to the Public Domain.
- * http://creativecommons.org/publicdomain/zero/1.0/
- */
-"use strict";
-
-const PREF_EM_CHECK_UPDATE_SECURITY = "extensions.checkUpdateSecurity";
-const PREF_EM_STRICT_COMPATIBILITY = "extensions.strictCompatibility";
-const PREF_GETADDONS_BYIDS = "extensions.getAddons.get.url";
-const PREF_COMPAT_OVERRIDES = "extensions.getAddons.compatOverides.url";
+const _PREF_EM_CHECK_UPDATE_SECURITY = "extensions.checkUpdateSecurity";
+const _PREF_EM_STRICT_COMPATIBILITY = "extensions.strictCompatibility";
+const _PREF_GETADDONS_BYIDS = "extensions.getAddons.get.url";
+const _PREF_COMPAT_OVERRIDES = "extensions.getAddons.compatOverides.url";
 const PREF_XPI_SIGNATURES_REQUIRED = "xpinstall.signatures.required";
 
-const PREF_DISABLE_SECURITY =
+const _PREF_DISABLE_SECURITY =
   "security.turn_off_all_security_so_that_" +
   "viruses_can_take_over_this_computer";
 
 // Maximum error in file modification times. Some file systems don't store
 // modification times exactly. As long as we are closer than this then it
 // still passes.
-const MAX_TIME_DIFFERENCE = 3000;
+const _MAX_TIME_DIFFERENCE = 3000;
 
 // Time to reset file modified time relative to Date.now() so we can test that
 // times are modified (10 hours old).
-const MAKE_FILE_OLD_DIFFERENCE = 10 * 3600 * 1000;
+const _MAKE_FILE_OLD_DIFFERENCE = 10 * 3600 * 1000;
 
-var { AppConstants } = ChromeUtils.import(
-  "resource://gre/modules/AppConstants.jsm"
+var { AppConstants } = ChromeUtils.importESModule(
+  "resource://gre/modules/AppConstants.sys.mjs"
 );
-var { FileUtils } = ChromeUtils.import("resource://gre/modules/FileUtils.jsm");
-var { NetUtil } = ChromeUtils.import("resource://gre/modules/NetUtil.jsm");
+var { FileUtils } = ChromeUtils.importESModule(
+  "resource://gre/modules/FileUtils.sys.mjs"
+);
+var { NetUtil } = ChromeUtils.importESModule(
+  "resource://gre/modules/NetUtil.sys.mjs"
+);
 var { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
-var { XPCOMUtils } = ChromeUtils.import(
-  "resource://gre/modules/XPCOMUtils.jsm"
+var { XPCOMUtils } = ChromeUtils.importESModule(
+  "resource://gre/modules/XPCOMUtils.sys.mjs"
 );
-var { AddonRepository } = ChromeUtils.import(
-  "resource://gre/modules/addons/AddonRepository.jsm"
+var { AddonRepository } = ChromeUtils.importESModule(
+  "resource://gre/modules/addons/AddonRepository.sys.mjs"
 );
-var { OS } = ChromeUtils.import("resource://gre/modules/osfile.jsm");
+// Use platform IOUtils for modern file operations
 
-var { AddonTestUtils, MockAsyncShutdown } = ChromeUtils.import(
-  "resource://testing-common/AddonTestUtils.jsm"
+var { AddonTestUtils, MockAsyncShutdown } = ChromeUtils.importESModule(
+  "resource://testing-common/AddonTestUtils.sys.mjs"
 );
 
-ChromeUtils.defineModuleGetter(
-  this,
-  "Blocklist",
-  "resource://gre/modules/Blocklist.jsm"
-);
-ChromeUtils.defineModuleGetter(
-  this,
-  "Extension",
-  "resource://gre/modules/Extension.jsm"
-);
-ChromeUtils.defineModuleGetter(
-  this,
-  "ExtensionTestUtils",
-  "resource://testing-common/ExtensionXPCShellUtils.jsm"
-);
-ChromeUtils.defineModuleGetter(
-  this,
-  "ExtensionTestCommon",
-  "resource://testing-common/ExtensionTestCommon.jsm"
-);
+ChromeUtils.defineESModuleGetters(this, {
+  Blocklist: "resource://gre/modules/Blocklist.sys.mjs",
+  Extension: "resource://gre/modules/Extension.sys.mjs",
+  ExtensionTestCommon: "resource://testing-common/ExtensionTestCommon.sys.mjs",
+  ExtensionTestUtils:
+    "resource://testing-common/ExtensionXPCShellUtils.sys.mjs",
+});
 ChromeUtils.defineModuleGetter(
   this,
   "HttpServer",
   "resource://testing-common/httpd.js"
 );
-ChromeUtils.defineModuleGetter(
-  this,
-  "MockRegistrar",
-  "resource://testing-common/MockRegistrar.jsm"
-);
-ChromeUtils.defineModuleGetter(
-  this,
-  "MockRegistry",
-  "resource://testing-common/MockRegistry.jsm"
-);
-ChromeUtils.defineModuleGetter(
-  this,
-  "PromiseTestUtils",
-  "resource://testing-common/PromiseTestUtils.jsm"
-);
-ChromeUtils.defineModuleGetter(
-  this,
-  "TestUtils",
-  "resource://testing-common/TestUtils.jsm"
-);
+ChromeUtils.defineESModuleGetters(this, {
+  MockRegistrar: "resource://testing-common/MockRegistrar.sys.mjs",
+  MockRegistry: "resource://testing-common/MockRegistry.sys.mjs",
+  PromiseTestUtils: "resource://testing-common/PromiseTestUtils.sys.mjs",
+  TestUtils: "resource://testing-common/TestUtils.sys.mjs",
+});
 
 XPCOMUtils.defineLazyServiceGetter(
   this,
@@ -123,15 +95,15 @@ ExtensionTestUtils.init(this);
 AddonTestUtils.init(this);
 AddonTestUtils.overrideCertDB();
 
-XPCOMUtils.defineLazyGetter(
+ChromeUtils.defineLazyGetter(
   this,
   "BOOTSTRAP_REASONS",
   () => AddonManagerPrivate.BOOTSTRAP_REASONS
 );
 
-function getReasonName(reason) {
+function _getReasonName(reason) {
   for (let key of Object.keys(BOOTSTRAP_REASONS)) {
-    if (BOOTSTRAP_REASONS[key] == reason) {
+    if (BOOTSTRAP_REASONS[key] === reason) {
       return key;
     }
   }
@@ -197,8 +169,8 @@ var { AddonManager, AddonManagerInternal, AddonManagerPrivate } = AMscope;
 
 // Wrap the startup functions to ensure the bootstrap loader is added.
 function promiseStartupManager(newVersion) {
-  const { BootstrapLoader } = ChromeUtils.import(
-    "resource:///modules/BootstrapLoader.jsm"
+  const { BootstrapLoader } = ChromeUtils.importESModule(
+    "resource:///modules/BootstrapLoader.sys.mjs"
   );
   AddonManager.addExternalExtensionLoader(BootstrapLoader);
   return AddonTestUtils.promiseStartupManager(newVersion);
@@ -209,11 +181,11 @@ async function promiseRestartManager(newVersion) {
   await promiseStartupManager(newVersion);
 }
 
-const promiseAddonByID = AddonManager.getAddonByID;
-const promiseAddonsByIDs = AddonManager.getAddonsByIDs;
+const _promiseAddonByID = AddonManager.getAddonByID;
+const _promiseAddonsByIDs = AddonManager.getAddonsByIDs;
 
-var gPort = null;
-var gUrlToFileMap = {};
+var _gPort = null;
+var _gUrlToFileMap = {};
 
 // Map resource://xpcshell-data/ to the data directory
 var resHandler = Services.io
@@ -245,7 +217,7 @@ function isManifestRegistered(file) {
   return false;
 }
 
-const BOOTSTRAP_MONITOR_BOOTSTRAP_JS = `
+const _BOOTSTRAP_MONITOR_BOOTSTRAP_JS = `
   ChromeUtils.import("resource://xpcshell-data/BootstrapMonitor.jsm").monitor(this);
 `;
 
@@ -288,14 +260,14 @@ this.BootstrapMonitor = {
     this.uninstalled.delete(id);
   },
 
-  promiseAddonStartup(id) {
-    return new Promise(resolve => {
+  promiseAddonStartup(_id) {
+    return new Promise((resolve) => {
       this.startupPromises.push(resolve);
     });
   },
 
-  promiseAddonInstall(id) {
-    return new Promise(resolve => {
+  promiseAddonInstall(_id) {
+    return new Promise((resolve) => {
       this.installPromises.push(resolve);
     });
   },
@@ -315,7 +287,7 @@ this.BootstrapMonitor = {
   checkAddonStarted(id, version = undefined) {
     let started = this.started.get(id);
     Assert.notEqual(started, undefined);
-    if (version != undefined) {
+    if (version !== undefined) {
       Assert.equal(started.data.version, version);
     }
 
@@ -346,7 +318,7 @@ this.BootstrapMonitor = {
     Assert.ok(!this.installed.has(id));
   },
 
-  observe(subject, topic, data) {
+  observe(subject, _topic, data) {
     let info = JSON.parse(data);
     let id = info.data.id;
 
@@ -355,7 +327,7 @@ this.BootstrapMonitor = {
     let jarFile = uri.QueryInterface(Ci.nsIJARURI).JARFile;
     let installPath = jarFile.QueryInterface(Ci.nsIFileURL).file;
 
-    if (subject && subject.wrappedJSObject) {
+    if (subject?.wrappedJSObject) {
       // NOTE: in some of the new tests, we need to received the real objects instead of
       // their JSON representations, but most of the current tests expect intallPath
       // and resourceURI to have been converted to strings.
@@ -366,7 +338,7 @@ this.BootstrapMonitor = {
     }
 
     // If this is the install event the add-ons shouldn't already be installed
-    if (info.event == "install") {
+    if (info.event === "install") {
       this.checkAddonNotInstalled(id);
 
       this.installed.set(id, info);
@@ -380,7 +352,7 @@ this.BootstrapMonitor = {
     }
 
     // If this is the shutdown event than the add-on should already be started
-    if (info.event == "shutdown") {
+    if (info.event === "shutdown") {
       this.checkMatches(this.started.get(id), info);
 
       this.started.delete(id);
@@ -393,14 +365,14 @@ this.BootstrapMonitor = {
       // XPIProvider doesn't bother unregistering chrome on app shutdown but
       // since we simulate restarts we must do so manually to keep the registry
       // consistent.
-      if (info.reason == 2 /* APP_SHUTDOWN */) {
+      if (info.reason === 2 /* APP_SHUTDOWN */) {
         Components.manager.removeBootstrappedManifestLocation(installPath);
       }
     } else {
       this.checkAddonNotStarted(id);
     }
 
-    if (info.event == "uninstall") {
+    if (info.event === "uninstall") {
       // We currently support registering, but not unregistering,
       // restartful add-on manifests during xpcshell AOM "restarts".
       if (!this.restartfulIds.has(id)) {
@@ -411,7 +383,7 @@ this.BootstrapMonitor = {
 
       this.installed.delete(id);
       this.uninstalled.set(id, info);
-    } else if (info.event == "startup") {
+    } else if (info.event === "startup") {
       this.started.set(id, info);
 
       // Chrome should be registered at this point
@@ -431,7 +403,7 @@ AddonTestUtils.on("addon-manager-shutdown", () => {
   Cu.unload("resource:///modules/BootstrapLoader.jsm");
 });
 
-var SlightlyLessDodgyBootstrapMonitor = {
+var _SlightlyLessDodgyBootstrapMonitor = {
   started: new Map(),
   stopped: new Map(),
   installed: new Map(),
@@ -521,7 +493,7 @@ var SlightlyLessDodgyBootstrapMonitor = {
       `Expecting matching ${lastMethod} call for add-on ${params.id} ${method} call`
     );
 
-    if (method == "update") {
+    if (method === "update") {
       equal(
         params.oldVersion,
         lastParams.version,
@@ -584,18 +556,18 @@ var SlightlyLessDodgyBootstrapMonitor = {
   },
 };
 
-function isNightlyChannel() {
+function _isNightlyChannel() {
   var channel = Services.prefs.getCharPref("app.update.channel", "default");
 
   return (
-    channel != "aurora" &&
-    channel != "beta" &&
-    channel != "release" &&
-    channel != "esr"
+    channel !== "aurora" &&
+    channel !== "beta" &&
+    channel !== "release" &&
+    channel !== "esr"
   );
 }
 
-async function restartWithLocales(locales) {
+async function _restartWithLocales(locales) {
   Services.locale.requestedLocales = locales;
   await promiseRestartManager();
 }
@@ -611,7 +583,7 @@ async function restartWithLocales(locales) {
  * @returns {Promise<string, Addon>}
  *        Map of add-ons that were found.
  */
-async function getAddons(ids) {
+async function _getAddons(ids) {
   let addons = new Map();
   for (let addon of await AddonManager.getAddonsByIDs(ids)) {
     if (addon) {
@@ -632,7 +604,7 @@ async function getAddons(ids) {
  *        An object containing the expected values for properties of the
  *        add-on, or null if the add-on is expected not to exist.
  */
-function checkAddon(id, addon, expected) {
+function _checkAddon(id, addon, expected) {
   info(`Checking state of addon ${id}`);
 
   if (expected === null) {
@@ -641,11 +613,7 @@ function checkAddon(id, addon, expected) {
     ok(addon, `Addon ${id} should exist`);
     for (let [key, value] of Object.entries(expected)) {
       if (value instanceof Ci.nsIURI) {
-        equal(
-          addon[key] && addon[key].spec,
-          value.spec,
-          `Expected value of addon.${key}`
-        );
+        equal(addon[key]?.spec, value.spec, `Expected value of addon.${key}`);
       } else {
         deepEqual(addon[key], value, `Expected value of addon.${key}`);
       }
@@ -657,12 +625,13 @@ function checkAddon(id, addon, expected) {
  * Tests that an add-on does appear in the crash report annotations, if
  * crash reporting is enabled. The test will fail if the add-on is not in the
  * annotation.
+ *
  * @param  aId
  *         The ID of the add-on
  * @param  aVersion
  *         The version of the add-on
  */
-function do_check_in_crash_annotation(aId, aVersion) {
+function _do_check_in_crash_annotation(aId, aVersion) {
   if (!AppConstants.MOZ_CRASHREPORTER) {
     return;
   }
@@ -684,12 +653,13 @@ function do_check_in_crash_annotation(aId, aVersion) {
  * Tests that an add-on does not appear in the crash report annotations, if
  * crash reporting is enabled. The test will fail if the add-on is in the
  * annotation.
+ *
  * @param  aId
  *         The ID of the add-on
  * @param  aVersion
  *         The version of the add-on
  */
-function do_check_not_in_crash_annotation(aId, aVersion) {
+function _do_check_not_in_crash_annotation(aId, aVersion) {
   if (!AppConstants.MOZ_CRASHREPORTER) {
     return;
   }
@@ -707,7 +677,7 @@ function do_check_not_in_crash_annotation(aId, aVersion) {
   );
 }
 
-function do_get_file_hash(aFile, aAlgorithm) {
+function _do_get_file_hash(aFile, aAlgorithm) {
   if (!aAlgorithm) {
     aAlgorithm = "sha1";
   }
@@ -723,11 +693,11 @@ function do_get_file_hash(aFile, aAlgorithm) {
   crypto.updateFromStream(fis, aFile.fileSize);
 
   // return the two-digit hexadecimal code for a byte
-  let toHexString = charCode => ("0" + charCode.toString(16)).slice(-2);
+  let toHexString = (charCode) => `0${charCode.toString(16)}`.slice(-2);
 
   let binary = crypto.finish(false);
-  let hash = Array.from(binary, c => toHexString(c.charCodeAt(0)));
-  return aAlgorithm + ":" + hash.join("");
+  let hash = Array.from(binary, (c) => toHexString(c.charCodeAt(0)));
+  return `${aAlgorithm}:${hash.join("")}`;
 }
 
 /**
@@ -737,21 +707,21 @@ function do_get_file_hash(aFile, aAlgorithm) {
  *         The extension install directory
  * @returns a uri spec pointing to the root of the extension
  */
-function do_get_addon_root_uri(aProfileDir, aId) {
+function _do_get_addon_root_uri(aProfileDir, aId) {
   let path = aProfileDir.clone();
   path.append(aId);
   if (!path.exists()) {
     path.leafName += ".xpi";
-    return "jar:" + Services.io.newFileURI(path).spec + "!/";
+    return `jar:${Services.io.newFileURI(path).spec}!/`;
   }
   return Services.io.newFileURI(path).spec;
 }
 
-function do_get_expected_addon_name(aId) {
+function _do_get_expected_addon_name(aId) {
   if (TEST_UNPACKED) {
     return aId;
   }
-  return aId + ".xpi";
+  return `${aId}.xpi`;
 }
 
 /**
@@ -765,7 +735,7 @@ function do_get_expected_addon_name(aId) {
  * @param  aProperties
  *         An array of properties to check.
  */
-function do_check_addons(aActualAddons, aExpectedAddons, aProperties) {
+function _do_check_addons(aActualAddons, aExpectedAddons, aProperties) {
   Assert.notEqual(aActualAddons, null);
   Assert.equal(aActualAddons.length, aExpectedAddons.length);
   for (let i = 0; i < aActualAddons.length; i++) {
@@ -786,7 +756,7 @@ function do_check_addons(aActualAddons, aExpectedAddons, aProperties) {
 function do_check_addon(aActualAddon, aExpectedAddon, aProperties) {
   Assert.notEqual(aActualAddon, null);
 
-  aProperties.forEach(function(aProperty) {
+  aProperties.forEach((aProperty) => {
     let actualValue = aActualAddon[aProperty];
     let expectedValue = aExpectedAddon[aProperty];
 
@@ -931,11 +901,11 @@ function do_check_icons(actual, aExpected) {
   }
 }
 
-function isThemeInAddonsList(aDir, aId) {
+function _isThemeInAddonsList(aDir, aId) {
   return AddonTestUtils.addonsList.hasTheme(aDir, aId);
 }
 
-function isExtensionInBootstrappedList(aDir, aId) {
+function _isExtensionInBootstrappedList(aDir, aId) {
   return AddonTestUtils.addonsList.hasExtension(aDir, aId);
 }
 
@@ -1039,7 +1009,7 @@ async function promiseWriteInstallRDFToXPI(
  *          An optional dummy file to create in the extension
  * @returns  A file pointing to where the extension was installed
  */
-function promiseWriteInstallRDFForExtension(aData, aDir, aId, aExtraFile) {
+function _promiseWriteInstallRDFForExtension(aData, aDir, aId, aExtraFile) {
   if (TEST_UNPACKED) {
     return promiseWriteInstallRDFToDir(aData, aDir, aId, aExtraFile);
   }
@@ -1058,7 +1028,7 @@ function promiseWriteInstallRDFForExtension(aData, aDir, aId, aExtraFile) {
  *          An optional string to override the default installation aId
  * @returns  A file pointing to where the extension was installed
  */
-function promiseWriteWebManifestForExtension(
+function _promiseWriteWebManifestForExtension(
   aData,
   aDir,
   aId = aData.applications.gecko.id
@@ -1077,11 +1047,11 @@ function promiseWriteWebManifestForExtension(
  *          The object holding data about the add-on
  * @returns  A file pointing to the created XPI file
  */
-function createTempXPIFile(aData, aExtraFile) {
+function _createTempXPIFile(aData, aExtraFile) {
   let files = {
     "install.rdf": aData,
   };
-  if (typeof aExtraFile == "object") {
+  if (typeof aExtraFile === "object") {
     Object.assign(files, aExtraFile);
   } else if (aExtraFile) {
     files[aExtraFile] = "";
@@ -1090,7 +1060,7 @@ function createTempXPIFile(aData, aExtraFile) {
   return AddonTestUtils.createTempXPIFile(files);
 }
 
-function promiseInstallXPI(installRDF) {
+function _promiseInstallXPI(installRDF) {
   return AddonTestUtils.promiseInstallXPI({ "install.rdf": installRDF });
 }
 
@@ -1100,31 +1070,31 @@ var gNext = null;
 
 function getExpectedEvent(aId) {
   if (!(aId in gExpectedEvents)) {
-    do_throw("Wasn't expecting events for " + aId);
+    do_throw(`Wasn't expecting events for ${aId}`);
   }
   if (!gExpectedEvents[aId].length) {
-    do_throw("Too many events for " + aId);
+    do_throw(`Too many events for ${aId}`);
   }
   let event = gExpectedEvents[aId].shift();
-  if (event instanceof Array) {
+  if (Array.isArray(event)) {
     return event;
   }
   return [event, true];
 }
 
 function getExpectedInstall(aAddon) {
-  if (gExpectedInstalls instanceof Array) {
+  if (Array.isArray(gExpectedInstalls)) {
     return gExpectedInstalls.shift();
   }
   if (!aAddon || !aAddon.id) {
     return gExpectedInstalls.NO_ID.shift();
   }
   let id = aAddon.id;
-  if (!(id in gExpectedInstalls) || !(gExpectedInstalls[id] instanceof Array)) {
-    do_throw("Wasn't expecting events for " + id);
+  if (!(id in gExpectedInstalls) || !Array.isArray(gExpectedInstalls[id])) {
+    do_throw(`Wasn't expecting events for ${id}`);
   }
   if (!gExpectedInstalls[id].length) {
-    do_throw("Too many events for " + id);
+    do_throw(`Too many events for ${id}`);
   }
   return gExpectedInstalls[id].shift();
 }
@@ -1135,11 +1105,11 @@ const AddonListener = {
     let [event, properties] = getExpectedEvent(aAddon.id);
     Assert.equal("onPropertyChanged", event);
     Assert.equal(aProperties.length, properties.length);
-    properties.forEach(function(aProperty) {
+    properties.forEach((aProperty) => {
       // Only test that the expected properties are listed, having additional
       // properties listed is not necessary a problem
       if (!aProperties.includes(aProperty)) {
-        do_throw("Did not see property change for " + aProperty);
+        do_throw(`Did not see property change for ${aProperty}`);
       }
     });
     return check_test_completed(arguments);
@@ -1238,13 +1208,13 @@ const AddonListener = {
 const InstallListener = {
   onNewInstall(install) {
     if (
-      install.state != AddonManager.STATE_DOWNLOADED &&
-      install.state != AddonManager.STATE_DOWNLOAD_FAILED &&
-      install.state != AddonManager.STATE_AVAILABLE
+      install.state !== AddonManager.STATE_DOWNLOADED &&
+      install.state !== AddonManager.STATE_DOWNLOAD_FAILED &&
+      install.state !== AddonManager.STATE_AVAILABLE
     ) {
-      do_throw("Bad install state " + install.state);
+      do_throw(`Bad install state ${install.state}`);
     }
-    if (install.state != AddonManager.STATE_DOWNLOAD_FAILED) {
+    if (install.state !== AddonManager.STATE_DOWNLOAD_FAILED) {
       Assert.equal(install.error, 0);
     } else {
       Assert.notEqual(install.error, 0);
@@ -1287,7 +1257,7 @@ const InstallListener = {
     return check_test_completed(arguments);
   },
 
-  onInstallEnded(install, newAddon) {
+  onInstallEnded(install, _newAddon) {
     Assert.equal(install.state, AddonManager.STATE_INSTALLED);
     Assert.equal(install.error, 0);
     Assert.equal("onInstallEnded", getExpectedInstall(install.addon));
@@ -1313,7 +1283,7 @@ const InstallListener = {
     return check_test_completed(arguments);
   },
 
-  onExternalInstall(aAddon, existingAddon, aRequiresRestart) {
+  onExternalInstall(aAddon, _existingAddon, aRequiresRestart) {
     Assert.equal("onExternalInstall", getExpectedInstall(aAddon));
     Assert.ok(!aRequiresRestart);
     return check_test_completed(arguments);
@@ -1321,11 +1291,11 @@ const InstallListener = {
 };
 
 function hasFlag(aBits, aFlag) {
-  return (aBits & aFlag) != 0;
+  return (aBits & aFlag) !== 0;
 }
 
 // Just a wrapper around setting the expected events.
-function prepare_test(aExpectedEvents, aExpectedInstalls, aNext) {
+function _prepare_test(aExpectedEvents, aExpectedInstalls, aNext) {
   AddonManager.addAddonListener(AddonListener);
   AddonManager.addInstallListener(InstallListener);
 
@@ -1339,7 +1309,7 @@ function clearListeners() {
   AddonManager.removeInstallListener(InstallListener);
 }
 
-function end_test() {
+function _end_test() {
   clearListeners();
 }
 
@@ -1349,7 +1319,7 @@ function check_test_completed(aArgs) {
     return undefined;
   }
 
-  if (gExpectedInstalls instanceof Array && gExpectedInstalls.length) {
+  if (Array.isArray(gExpectedInstalls) && gExpectedInstalls.length) {
     return undefined;
   }
 
@@ -1370,7 +1340,7 @@ function check_test_completed(aArgs) {
 }
 
 // Verifies that all the expected events for all add-ons were seen.
-function ensure_test_completed() {
+function _ensure_test_completed() {
   for (let i in gExpectedEvents) {
     if (gExpectedEvents[i].length) {
       do_throw(
@@ -1393,7 +1363,7 @@ function ensure_test_completed() {
  * @param   aCallback
  *          The callback to call when all installs have finished
  */
-function completeAllInstalls(aInstalls, aCallback) {
+function _completeAllInstalls(aInstalls, aCallback) {
   promiseCompleteAllInstalls(aInstalls).then(aCallback);
 }
 
@@ -1409,7 +1379,7 @@ function completeAllInstalls(aInstalls, aCallback) {
  *          Optional parameter to ignore add-ons that are incompatible in
  *          aome way with the application
  */
-function installAllFiles(aFiles, aCallback, aIgnoreIncompatible) {
+function _installAllFiles(aFiles, aCallback, aIgnoreIncompatible) {
   promiseInstallAllFiles(aFiles, aIgnoreIncompatible).then(aCallback);
 }
 
@@ -1417,7 +1387,7 @@ const EXTENSIONS_DB = "extensions.json";
 var gExtensionsJSON = gProfD.clone();
 gExtensionsJSON.append(EXTENSIONS_DB);
 
-async function promiseInstallWebExtension(aData) {
+async function _promiseInstallWebExtension(aData) {
   let addonFile = createTempWebExtensionFile(aData);
 
   let { addon } = await promiseInstallFile(addonFile);
@@ -1433,7 +1403,7 @@ Services.prefs.setBoolPref(PREF_XPI_SIGNATURES_REQUIRED, false);
 Services.prefs.setBoolPref("extensions.legacy.enabled", true);
 
 // Copies blocklistFile (an nsIFile) to gProfD/blocklist.xml.
-function copyBlocklistToProfile(blocklistFile) {
+function _copyBlocklistToProfile(blocklistFile) {
   var dest = gProfD.clone();
   dest.append("blocklist.xml");
   if (dest.exists()) {
@@ -1444,15 +1414,15 @@ function copyBlocklistToProfile(blocklistFile) {
 }
 
 // Make sure that a given path does not exist.
-function pathShouldntExist(file) {
+function _pathShouldntExist(file) {
   if (file.exists()) {
     do_throw(`Test cleanup: path ${file.path} exists when it should not`);
   }
 }
 
 // Wrap a function (typically a callback) to catch and report exceptions.
-function do_exception_wrap(func) {
-  return function() {
+function _do_exception_wrap(func) {
+  return () => {
     try {
       func.apply(null, arguments);
     } catch (e) {
@@ -1464,7 +1434,7 @@ function do_exception_wrap(func) {
 /**
  * Change the schema version of the JSON extensions database.
  */
-async function changeXPIDBVersion(aNewVersion) {
+async function _changeXPIDBVersion(aNewVersion) {
   let json = await loadJSON(gExtensionsJSON.path);
   json.schemaVersion = aNewVersion;
   await saveJSON(json, gExtensionsJSON.path);
@@ -1474,7 +1444,7 @@ async function changeXPIDBVersion(aNewVersion) {
  * Load a file into a string.
  */
 async function loadFile(aFile) {
-  let buffer = await OS.File.read(aFile);
+  let buffer = await IOUtils.read(aFile);
   return new TextDecoder().decode(buffer);
 }
 
@@ -1483,7 +1453,7 @@ async function loadFile(aFile) {
  */
 async function loadJSON(aFile) {
   let data = await loadFile(aFile);
-  info("Loaded JSON file " + aFile);
+  info(`Loaded JSON file ${aFile}`);
   return JSON.parse(data);
 }
 
@@ -1491,24 +1461,21 @@ async function loadJSON(aFile) {
  * Raw save of a JSON blob to file.
  */
 async function saveJSON(aData, aFile) {
-  info("Starting to save JSON file " + aFile);
-  await OS.File.writeAtomic(
-    aFile,
-    new TextEncoder().encode(JSON.stringify(aData, null, 2))
-  );
-  info("Done saving JSON file " + aFile.path);
+  info(`Starting to save JSON file ${aFile}`);
+  await IOUtils.writeUTF8(aFile, JSON.stringify(aData, null, 2));
+  info(`Done saving JSON file ${aFile.path}`);
 }
 
 /**
  * Create a callback function that calls do_execute_soon on an actual callback and arguments.
  */
-function callback_soon(aFunction) {
-  return function(...args) {
+function _callback_soon(aFunction) {
+  return (...args) => {
     executeSoon(
-      function() {
+      () => {
         aFunction.apply(null, args);
       },
-      aFunction.name ? "delayed callback " + aFunction.name : "delayed callback"
+      aFunction.name ? `delayed callback ${aFunction.name}` : "delayed callback"
     );
   };
 }
@@ -1535,10 +1502,10 @@ class MockPluginTag {
   }
   async isBlocklisted() {
     let state = await Blocklist.getPluginBlocklistState(this.pluginTag);
-    return state == Services.blocklist.STATE_BLOCKED;
+    return state === Services.blocklist.STATE_BLOCKED;
   }
   get disabled() {
-    return this.pluginTag.enabledState == Ci.nsIPluginTag.STATE_DISABLED;
+    return this.pluginTag.enabledState === Ci.nsIPluginTag.STATE_DISABLED;
   }
   set disabled(val) {
     this.enabledState =
@@ -1552,11 +1519,11 @@ class MockPluginTag {
   }
 }
 
-function mockPluginHost(plugins) {
+function _mockPluginHost(plugins) {
   let PluginHost = {
     getPluginTags(count) {
       count.value = plugins.length;
-      return plugins.map(p => p.pluginTag);
+      return plugins.map((p) => p.pluginTag);
     },
 
     QueryInterface: ChromeUtils.generateQI(["nsIPluginHost"]),
@@ -1565,7 +1532,7 @@ function mockPluginHost(plugins) {
   MockRegistrar.register("@mozilla.org/plugin/host;1", PluginHost);
 }
 
-async function setInitialState(addon, initialState) {
+async function _setInitialState(addon, initialState) {
   if (initialState.userDisabled) {
     await addon.disable();
   } else if (initialState.userDisabled === false) {
@@ -1588,7 +1555,7 @@ function escapeXML(str) {
     "<": "&lt;",
     ">": "&gt;",
   };
-  return String(str).replace(/[&"''<>]/g, m => replacements[m]);
+  return String(str).replace(/[&"''<>]/g, (m) => replacements[m]);
 }
 
 /**

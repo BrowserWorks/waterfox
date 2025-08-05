@@ -12,11 +12,13 @@ const { XPCOMUtils } = ChromeUtils.import(
 
 const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
-XPCOMUtils.defineLazyModuleGetters(this, {
-  AddonManager: "resource://gre/modules/AddonManager.jsm",
+const lazy = {};
+
+XPCOMUtils.defineLazyModuleGetters(lazy, {
+  AddonManager: "resource://gre/modules/AddonManager.sys.mjs",
   BrowserUtils: "resource:///modules/BrowserUtils.jsm",
-  ChromeManifest: "resource:///modules/ChromeManifest.jsm",
-  Overlays: "resource:///modules/Overlays.jsm",
+  ChromeManifest: "resource:///modules/ChromeManifest.sys.mjs",
+  Overlays: "resource:///modules/Overlays.sys.mjs",
   PrefUtils: "resource:///modules/PrefUtils.jsm",
   PrivateTab: "resource:///modules/PrivateTab.jsm",
   StatusBar: "resource:///modules/StatusBar.jsm",
@@ -27,6 +29,7 @@ XPCOMUtils.defineLazyModuleGetters(this, {
 XPCOMUtils.defineLazyGlobalGetters(this, ["fetch"]);
 
 const WaterfoxGlue = {
+  _addonManagersListeners: [],
   stylesEnabled: false,
 
   async init() {

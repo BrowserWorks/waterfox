@@ -2,42 +2,32 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-ChromeUtils.defineModuleGetter(
-  this,
-  "ChromeManifest",
-  "resource:///modules/ChromeManifest.jsm"
-);
-ChromeUtils.defineModuleGetter(
-  this,
-  "ExtensionSupport",
-  "resource:///modules/ExtensionSupport.jsm"
-);
-ChromeUtils.defineModuleGetter(
-  this,
-  "Overlays",
-  "resource:///modules/Overlays.jsm"
-);
-ChromeUtils.defineModuleGetter(
-  this,
-  "XPIInternal",
-  "resource://gre/modules/addons/XPIProvider.jsm"
-);
+ChromeUtils.defineESModuleGetters(this, {
+  ChromeManifest: "resource:///modules/ChromeManifest.sys.mjs",
+  ExtensionSupport: "resource:///modules/ExtensionSupport.sys.mjs",
+  Overlays: "resource:///modules/Overlays.sys.mjs",
+  XPIExports: "resource://gre/modules/addons/XPIExports.sys.mjs",
+});
 
 Cu.importGlobalProperties(["fetch"]);
 
-var { XPCOMUtils } = ChromeUtils.import(
-  "resource://gre/modules/XPCOMUtils.jsm"
+var { XPCOMUtils } = ChromeUtils.importESModule(
+  "resource://gre/modules/XPCOMUtils.sys.mjs"
 );
-var { ConsoleAPI } = ChromeUtils.import("resource://gre/modules/Console.jsm");
+var { ConsoleAPI } = ChromeUtils.importESModule(
+  "resource://gre/modules/Console.sys.mjs"
+);
 
 XPCOMUtils.defineLazyGetter(this, "BOOTSTRAP_REASONS", () => {
-  const { XPIProvider } = ChromeUtils.import(
-    "resource://gre/modules/addons/XPIProvider.jsm"
+  const { XPIExports } = ChromeUtils.importESModule(
+    "resource://gre/modules/addons/XPIExports.sys.mjs"
   );
-  return XPIProvider.BOOTSTRAP_REASONS;
+  return XPIExports.XPIProvider.BOOTSTRAP_REASONS;
 });
 
-const { Log } = ChromeUtils.import("resource://gre/modules/Log.jsm");
+const { Log } = ChromeUtils.importESModule(
+  "resource://gre/modules/Log.sys.mjs"
+);
 var logger = Log.repository.getLogger("addons.bootstrap");
 
 let bootstrapScopes = new Map();
@@ -96,9 +86,7 @@ this.legacy = class extends ExtensionAPI {
         Services.obs.notifyObservers(null, "startupcache-invalidate");
       }
       console.log(
-        `Legacy WebExtension ${
-          this.extension.id
-        } has already been loaded in this run, refusing to do so again. Please restart.`
+        `Legacy WebExtension ${this.extension.id} has already been loaded in this run, refusing to do so again. Please restart.`
       );
       return;
     }
@@ -107,7 +95,7 @@ this.legacy = class extends ExtensionAPI {
     if (this.extension.startupReason == "ADDON_INSTALL") {
       // Usually, sideloaded extensions are disabled when they first appear,
       // but to run calendar tests, we disable this.
-      let scope = XPIInternal.XPIStates.findAddon(this.extension.id).location
+      let scope = XPIExports.XPIInternal.XPIStates.findAddon(this.extension.id).location
         .scope;
       let autoDisableScopes = Services.prefs.getIntPref(
         "extensions.autoDisableScopes"
@@ -123,11 +111,7 @@ this.legacy = class extends ExtensionAPI {
       if (!isDistroAddon && scope & autoDisableScopes) {
         state.pendingOperation = "install";
         console.log(
-          `Legacy WebExtension ${
-            this.extension.id
-          } loading for other reason than startup (${
-            this.extension.startupReason
-          }), refusing to load immediately.`
+          `Legacy WebExtension ${this.extension.id} loading for other reason than startup (${this.extension.startupReason}), refusing to load immediately.`
         );
         ExtensionSupport.loadedLegacyExtensions.notifyObservers(state);
 
@@ -139,11 +123,7 @@ this.legacy = class extends ExtensionAPI {
     if (this.extension.startupReason == "ADDON_ENABLE") {
       state.pendingOperation = "enable";
       console.log(
-        `Legacy WebExtension ${
-          this.extension.id
-        } loading for other reason than startup (${
-          this.extension.startupReason
-        }), refusing to load immediately.`
+        `Legacy WebExtension ${this.extension.id} loading for other reason than startup (${this.extension.startupReason}), refusing to load immediately.`
       );
       ExtensionSupport.loadedLegacyExtensions.notifyObservers(state);
       return;
@@ -162,9 +142,7 @@ this.legacy = class extends ExtensionAPI {
 
     // Have Gecko do as much loading as is still possible
     try {
-      Cc["@mozilla.org/component-manager-extra;1"]
-        .getService(Ci.nsIComponentManagerExtra)
-        .addLegacyExtensionManifestLocation(extensionRoot);
+      Components.manager.addBootstrappedManifestLocation(extensionRoot);
     } catch (e) {
       throw new ExtensionError(e.message, e.fileName, e.lineNumber);
     }
@@ -181,14 +159,23 @@ this.legacy = class extends ExtensionAPI {
     };
     let loader = async filename => {
       let url = this.extension.getURL(filename);
-      return fetch(url).then(response => response.text());
+      try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch ${filename}: ${response.status}`);
+        }
+        return await response.text();
+      } catch (error) {
+        console.error(`Error loading ${filename}:`, error);
+        throw error;
+      }
     };
     let chromeManifest = new ChromeManifest(loader, options);
     await chromeManifest.parse("chrome.manifest");
 
     // Load preference files
     console.log("Loading add-on preferences from ", extensionRoot.path);
-    ExtensionSupport.loadAddonPrefs(extensionRoot);
+    await ExtensionSupport.loadAddonPrefs(extensionRoot);
 
     // Fire profile-after-change notifications, because we are past that event by now
     console.log("Firing profile-after-change listeners for", this.extension.id);
@@ -200,7 +187,7 @@ this.legacy = class extends ExtensionAPI {
       let instance;
       try {
         if (service) {
-          instance = Cc[contractid.substr(8)].getService(Ci.nsIObserver);
+          instance = Cc[contractid.slice(8)].getService(Ci.nsIObserver);
         } else {
           instance = Cc[contractid].createInstance(Ci.nsIObserver);
         }
@@ -209,7 +196,8 @@ this.legacy = class extends ExtensionAPI {
       } catch (e) {
         console.error(
           "Error firing profile-after-change listener for",
-          contractid
+          contractid,
+          e
         );
       }
     }
@@ -256,36 +244,41 @@ this.legacy = class extends ExtensionAPI {
   // The following functions are for bootstrapped add-ons.
 
   async registerBootstrapped() {
-    let oldParams = cachedParams.get(this.extension.id);
-    let params = {
-      id: this.extension.id,
-      version: this.extension.version,
-      resourceURI: Services.io.newURI(this.extension.resourceURL),
-      installPath: this.extensionFile.path,
-    };
-    cachedParams.set(this.extension.id, { ...params });
+    try {
+      let oldParams = cachedParams.get(this.extension.id);
+      let params = {
+        id: this.extension.id,
+        version: this.extension.version,
+        resourceURI: Services.io.newURI(this.extension.resourceURL),
+        installPath: this.extensionFile.path,
+      };
+      cachedParams.set(this.extension.id, { ...params });
 
-    if (
-      oldParams &&
-      ["ADDON_UPGRADE", "ADDON_DOWNGRADE"].includes(
-        this.extension.startupReason
-      )
-    ) {
-      params.oldVersion = oldParams.version;
+      if (
+        oldParams &&
+        ["ADDON_UPGRADE", "ADDON_DOWNGRADE"].includes(
+          this.extension.startupReason
+        )
+      ) {
+        params.oldVersion = oldParams.version;
+      }
+
+      let scope = await this.loadScope();
+      bootstrapScopes.set(this.extension.id, scope);
+
+      if (
+        ["ADDON_INSTALL", "ADDON_UPGRADE", "ADDON_DOWNGRADE"].includes(
+          this.extension.startupReason
+        )
+      ) {
+        scope.install(params, BOOTSTRAP_REASONS[this.extension.startupReason]);
+      }
+      scope.startup(params, BOOTSTRAP_REASONS[this.extension.startupReason]);
+      ExtensionSupport.loadedBootstrapExtensions.add(this.extension.id);
+    } catch (error) {
+      logger.error(`Failed to register bootstrapped extension ${this.extension.id}:`, error);
+      throw error;
     }
-
-    let scope = await this.loadScope();
-    bootstrapScopes.set(this.extension.id, scope);
-
-    if (
-      ["ADDON_INSTALL", "ADDON_UPGRADE", "ADDON_DOWNGRADE"].includes(
-        this.extension.startupReason
-      )
-    ) {
-      scope.install(params, BOOTSTRAP_REASONS[this.extension.startupReason]);
-    }
-    scope.startup(params, BOOTSTRAP_REASONS[this.extension.startupReason]);
-    ExtensionSupport.loadedBootstrapExtensions.add(this.extension.id);
   }
 
   static onDisable(id) {
@@ -352,7 +345,7 @@ this.legacy = class extends ExtensionAPI {
     try {
       Object.assign(sandbox, BOOTSTRAP_REASONS);
 
-      XPCOMUtils.defineLazyGetter(
+      ChromeUtils.defineLazyGetter(
         sandbox,
         "console",
         () => new ConsoleAPI({ consoleID: `addon/${this.extension.id}` })
@@ -364,14 +357,18 @@ this.legacy = class extends ExtensionAPI {
     }
 
     function findMethod(name) {
-      if (sandbox.name) {
-        return sandbox.name;
+      if (sandbox[name] && typeof sandbox[name] === 'function') {
+        return sandbox[name];
       }
 
       try {
         let method = Cu.evalInSandbox(name, sandbox);
-        return method;
-      } catch (err) {}
+        if (typeof method === 'function') {
+          return method;
+        }
+      } catch (err) {
+        // Method not found, will return default function below
+      }
 
       return () => {
         logger.warn(
@@ -390,7 +387,7 @@ this.legacy = class extends ExtensionAPI {
         try {
           install(...args);
         } catch (ex) {
-          logger.warn(
+          logger.error(
             `Exception running bootstrap method install on ${extension.id}`,
             ex
           );
@@ -401,7 +398,7 @@ this.legacy = class extends ExtensionAPI {
         try {
           uninstall(...args);
         } catch (ex) {
-          logger.warn(
+          logger.error(
             `Exception running bootstrap method uninstall on ${extension.id}`,
             ex
           );
@@ -417,7 +414,7 @@ this.legacy = class extends ExtensionAPI {
         try {
           startup(...args);
         } catch (ex) {
-          logger.warn(
+          logger.error(
             `Exception running bootstrap method startup on ${extension.id}`,
             ex
           );
@@ -428,7 +425,7 @@ this.legacy = class extends ExtensionAPI {
         try {
           shutdown(data, reason);
         } catch (ex) {
-          logger.warn(
+          logger.error(
             `Exception running bootstrap method shutdown on ${extension.id}`,
             ex
           );
@@ -444,6 +441,8 @@ this.legacy = class extends ExtensionAPI {
 };
 
 function getAllWindows() {
+  let domWindows = [];
+
   function getChildDocShells(parentDocShell) {
     let docShells = parentDocShell.getAllDocShellsInSubtree(
       Ci.nsIDocShellTreeItem.typeAll,
@@ -458,7 +457,6 @@ function getAllWindows() {
     }
   }
 
-  let domWindows = [];
   for (let win of Services.ww.getWindowEnumerator()) {
     let parentDocShell = win
       .getInterface(Ci.nsIWebNavigation)

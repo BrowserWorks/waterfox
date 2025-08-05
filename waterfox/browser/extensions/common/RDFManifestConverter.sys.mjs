@@ -1,15 +1,12 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-"use strict";
 
-var EXPORTED_SYMBOLS = ["InstallRDF"];
+const lazy = {};
 
-ChromeUtils.defineModuleGetter(
-  this,
-  "RDFDataSource",
-  "resource:///modules/RDFDataSource.jsm"
-);
+ChromeUtils.defineESModuleGetters(lazy, {
+  RDFDataSource: "resource:///modules/RDFDataSource.sys.mjs",
+});
 
 const RDFURI_INSTALL_MANIFEST_ROOT = "urn:mozilla:install-manifest";
 
@@ -18,7 +15,7 @@ function EM_R(aProperty) {
 }
 
 function getValue(literal) {
-  return literal && literal.getValue();
+  return literal?.getValue();
 }
 
 function getProperty(resource, property) {
@@ -31,22 +28,33 @@ class Manifest {
   }
 
   static loadFromString(text) {
-    return new this(RDFDataSource.loadFromString(text));
+    return new Manifest(lazy.RDFDataSource.loadFromString(text));
   }
 
   static loadFromBuffer(buffer) {
-    return new this(RDFDataSource.loadFromBuffer(buffer));
+    return new Manifest(lazy.RDFDataSource.loadFromBuffer(buffer));
   }
 
   static async loadFromFile(uri) {
-    return new this(await RDFDataSource.loadFromFile(uri));
+    return new Manifest(await lazy.RDFDataSource.loadFromFile(uri));
   }
 }
 
-class InstallRDF extends Manifest {
+export class InstallRDF extends Manifest {
+  static loadFromString(text) {
+    return new InstallRDF(lazy.RDFDataSource.loadFromString(text));
+  }
+
+  static loadFromBuffer(buffer) {
+    return new InstallRDF(lazy.RDFDataSource.loadFromBuffer(buffer));
+  }
+
+  static async loadFromFile(uri) {
+    return new InstallRDF(await lazy.RDFDataSource.loadFromFile(uri));
+  }
   _readProps(source, obj, props) {
-    for (let prop of props) {
-      let val = getProperty(source, prop);
+    for (const prop of props) {
+      const val = getProperty(source, prop);
       if (val != null) {
         obj[prop] = val;
       }
@@ -54,7 +62,7 @@ class InstallRDF extends Manifest {
   }
 
   _readArrayProp(source, obj, prop, target, decode = getValue) {
-    let result = Array.from(source.getObjects(EM_R(prop)), target =>
+    const result = Array.from(source.getObjects(EM_R(prop)), (target) =>
       decode(target)
     );
     if (result.length) {
@@ -63,7 +71,7 @@ class InstallRDF extends Manifest {
   }
 
   _readArrayProps(source, obj, props, decode = getValue) {
-    for (let [prop, target] of Object.entries(props)) {
+    for (const [prop, target] of Object.entries(props)) {
       this._readArrayProp(source, obj, prop, target, decode);
     }
   }
@@ -84,10 +92,10 @@ class InstallRDF extends Manifest {
   }
 
   decode() {
-    let root = this.ds.getResource(RDFURI_INSTALL_MANIFEST_ROOT);
-    let result = {};
+    const root = this.ds.getResource(RDFURI_INSTALL_MANIFEST_ROOT);
+    const result = {};
 
-    let props = [
+    const props = [
       "id",
       "version",
       "type",
@@ -102,14 +110,14 @@ class InstallRDF extends Manifest {
     ];
     this._readProps(root, result, props);
 
-    let decodeTargetApplication = source => {
-      let app = {};
+    const decodeTargetApplication = (source) => {
+      const app = {};
       this._readProps(source, app, ["id", "minVersion", "maxVersion"]);
       return app;
     };
 
-    let decodeLocale = source => {
-      let localized = {};
+    const decodeLocale = (source) => {
+      const localized = {};
       this._readLocaleStrings(source, localized);
       return localized;
     };
@@ -129,8 +137,11 @@ class InstallRDF extends Manifest {
       { localized: "localized" },
       decodeLocale
     );
-    this._readArrayProps(root, result, { dependency: "dependencies" }, source =>
-      getProperty(source, "id")
+    this._readArrayProps(
+      root,
+      result,
+      { dependency: "dependencies" },
+      (source) => getProperty(source, "id")
     );
 
     return result;
