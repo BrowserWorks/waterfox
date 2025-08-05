@@ -1,7 +1,4 @@
-/* Any copyright is dedicated to the Public Domain.
- * http://creativecommons.org/publicdomain/zero/1.0/
- */
-"use strict";
+
 
 // Test that side-loaded extensions with invalid install.rdf files are
 // not initialized at startup.
@@ -34,12 +31,12 @@ function hasChromeEntry(package) {
       Services.io.newURI(`chrome://${package}/content/`)
     );
     return true;
-  } catch (e) {
+  } catch (_e) {
     return false;
   }
 }
 
-add_task(async function() {
+add_task(async () => {
   await promiseWriteInstallRDFToXPI(
     {
       id: "langpack-foo@addons.mozilla.org",

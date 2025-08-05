@@ -1,8 +1,3 @@
-/* Any copyright is dedicated to the Public Domain.
- * http://creativecommons.org/publicdomain/zero/1.0/
- */
-"use strict";
-
 // This tests that all properties are read from the install manifests and that
 // items are correctly enabled/disabled based on them (blocklist tests are
 // elsewhere)
@@ -775,7 +770,7 @@ const ADDONS = [
   },
 ];
 
-const IDS = ADDONS.map(a => a["install.rdf"].id);
+const IDS = ADDONS.map((a) => a["install.rdf"].id);
 
 add_task(async function setup() {
   createAppInfo("xpcshell@tests.mozilla.org", "XPCShell", "1", "1.9.2");
