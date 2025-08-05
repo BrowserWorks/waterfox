@@ -12,6 +12,7 @@ DIRS += [
     "preferences",
     "privatetab",
     "search",
+    "sidebar",
     "statusbar",
     "tabfeatures",
     "tabgrouping",
