@@ -22,7 +22,7 @@ XPCOMUtils.defineLazyModuleGetters(lazy, {
   PrefUtils: "resource:///modules/PrefUtils.jsm",
   PrivateTab: "resource:///modules/PrivateTab.sys.mjs",
   StatusBar: "resource:///modules/StatusBar.sys.mjs",
-  TabFeatures: "resource:///modules/TabFeatures.jsm",
+  TabFeatures: "resource:///modules/TabFeatures.sys.mjs",
   UICustomizations: "resource:///modules/UICustomizations.jsm",
 });
 
