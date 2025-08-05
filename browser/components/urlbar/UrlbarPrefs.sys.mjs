@@ -75,6 +75,11 @@ const PREF_URLBAR_DEFAULTS = new Map([
   // active view if the the view utilizes OpenSearch.
   ["contextualSearch.enabled", true],
 
+  // If true, this optimizes for replacing the full URL rather than editing
+  // part of it. This also copies the urlbar value to the selection clipboard
+  // on systems that support it.
+  ["clickSelectsAll", false],
+
   // Whether using `ctrl` when hitting return/enter in the URL bar
   // (or clicking 'go') should prefix 'www.' and suffix
   // browser.fixup.alternate.suffix to the URL bar value prior to
@@ -89,6 +94,11 @@ const PREF_URLBAR_DEFAULTS = new Map([
   // fetching results.  However, we ignore this for the very first result (the
   // "heuristic" result).  We fetch it as fast as possible.
   ["delay", 50],
+
+  // If true, this optimizes for replacing the full URL rather than selecting a
+  // portion of it. This also copies the urlbar value to the selection
+  // clipboard on systems that support it.
+  ["doubleClickSelectsAll", false],
 
   // Ensure we use trailing dots for DNS lookups for single words that could
   // be hosts.
