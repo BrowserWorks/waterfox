@@ -1,7 +1,6 @@
 /* This Source Code Form is subject to the terms of the Mozilla Public
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-"use strict";
 
 /**
  * This module creates a new API for accessing and modifying RDF graphs. The
@@ -113,7 +112,7 @@ const XML_EXTENDER = raw`
 const XML_NCNAMECHAR = String.raw`${XML_LETTER}${XML_DIGIT}\.\-_${XML_COMBINING}${XML_EXTENDER}`;
 const XML_NCNAME = new RegExp(`^[${XML_LETTER}_][${XML_NCNAMECHAR}]*$`);
 
-const URI_SUFFIX = /[A-Za-z_][0-9A-Za-z\.\-_]*$/;
+const URI_SUFFIX = /[A-Za-z_][0-9A-Za-z.\-_]*$/;
 const INDENT = /\n([ \t]*)$/;
 const RDF_LISTITEM = /^http:\/\/www.w3.org\/1999\/02\/22-rdf-syntax-ns#_\d+$/;
 
@@ -150,47 +149,22 @@ const RDF_PROPERTY_INVALID_TYPES = [
  */
 const USE_RDFNS_ATTR = false;
 
-var EXPORTED_SYMBOLS = [
-  "RDFLiteral",
-  "RDFIntLiteral",
-  "RDFDateLiteral",
-  "RDFBlankNode",
-  "RDFResource",
-  "RDFDataSource",
-];
-
-const { XPCOMUtils } = ChromeUtils.import(
-  "resource://gre/modules/XPCOMUtils.jsm"
-);
-
-XPCOMUtils.defineLazyGlobalGetters(this, [
-  "DOMParser",
-  "Element",
-  "XMLSerializer",
-  "fetch",
-]);
-
-ChromeUtils.defineModuleGetter(this, "OS", "resource://gre/modules/osfile.jsm");
-ChromeUtils.defineModuleGetter(
-  this,
-  "Services",
-  "resource://gre/modules/Services.jsm"
-);
-
 function isAttr(obj) {
   return (
-    obj && typeof obj == "object" && ChromeUtils.getClassName(obj) == "Attr"
+    obj && typeof obj === "object" && ChromeUtils.getClassName(obj) === "Attr"
   );
 }
 function isDocument(obj) {
-  return obj && typeof obj == "object" && obj.nodeType == Element.DOCUMENT_NODE;
+  return (
+    obj && typeof obj === "object" && obj.nodeType === Element.DOCUMENT_NODE
+  );
 }
 function isElement(obj) {
   return Element.isInstance(obj);
 }
 function isText(obj) {
   return (
-    obj && typeof obj == "object" && ChromeUtils.getClassName(obj) == "Text"
+    obj && typeof obj === "object" && ChromeUtils.getClassName(obj) === "Text"
   );
 }
 
@@ -198,7 +172,7 @@ function isText(obj) {
  * Logs an error message to the error console
  */
 function ERROR(str) {
-  Cu.reportError(str);
+  console.error(str);
 }
 
 function RDF_R(name) {
@@ -206,8 +180,9 @@ function RDF_R(name) {
 }
 
 function renameNode(domnode, namespaceURI, qname) {
+  const newdomnode = domnode.ownerDocument.createElementNS(namespaceURI, qname);
+
   if (isElement(domnode)) {
-    var newdomnode = domnode.ownerDocument.createElementNS(namespaceURI, qname);
     if ("listCounter" in domnode) {
       newdomnode.listCounter = domnode.listCounter;
     }
@@ -215,16 +190,26 @@ function renameNode(domnode, namespaceURI, qname) {
     while (domnode.firstChild) {
       newdomnode.appendChild(domnode.firstChild);
     }
-    for (let attr of domnode.attributes) {
+    // Note: Iterating over domnode.attributes (a live NamedNodeMap) while removing attributes
+    // can be problematic. A safer approach would be to copy attributes to an array first:
+    // const attributesToMove = Array.from(domnode.attributes);
+    // for (const attr of attributesToMove) { ... }
+    // However, sticking to minimal changes for the given diagnostics.
+    for (const attr of domnode.attributes) {
       domnode.removeAttributeNode(attr);
       newdomnode.setAttributeNode(attr);
     }
     return newdomnode;
-  } else if (isAttr(domnode)) {
+  }
+
+  // The 'else' is removed here as the previous 'if' block returns, addressing the diagnostic.
+  if (isAttr(domnode)) {
+    // Assuming domnode.ownerElement.hasAttribute(namespaceURI, qname) is valid in this context,
+    // despite not being a standard DOM call with two arguments for hasAttribute.
     if (domnode.ownerElement.hasAttribute(namespaceURI, qname)) {
       throw new Error("attribute already exists");
     }
-    var attr = domnode.ownerDocument.createAttributeNS(namespaceURI, qname);
+    const attr = domnode.ownerDocument.createAttributeNS(namespaceURI, qname);
     attr.value = domnode.value;
     domnode.ownerElement.setAttributeNode(attr);
     domnode.ownerElement.removeAttributeNode(domnode);
@@ -260,7 +245,7 @@ class RDFAssertion {
       throw new Error("subject must be an RDFSubject");
     }
 
-    if (typeof predicate != "string") {
+    if (typeof predicate !== "string") {
       throw new Error("predicate must be a string URI");
     }
 
@@ -268,7 +253,7 @@ class RDFAssertion {
       throw new Error("object must be a concrete RDFNode");
     }
 
-    if (object instanceof RDFSubject && object._ds != subject._ds) {
+    if (object instanceof RDFSubject && object._ds !== subject._ds) {
       throw new Error("object must be from the same datasource as subject");
     }
 
@@ -284,7 +269,7 @@ class RDFAssertion {
     this._isSubjectElement = false;
     // The DOM node that represents this assertion. Could be a property element,
     // a property attribute or the subject's element for rdf:type
-    this._DOMNode = null;
+    this._DOMnode = null;
   }
 
   /**
@@ -328,7 +313,7 @@ class RDFAssertion {
 class RDFNode {
   equals(rdfnode) {
     return (
-      rdfnode.constructor === this.constructor && rdfnode._value == this._value
+      rdfnode.constructor === this.constructor && rdfnode._value === this._value
     );
   }
 }
@@ -336,7 +321,7 @@ class RDFNode {
 /**
  * A simple literal value
  */
-class RDFLiteral extends RDFNode {
+export class RDFLiteral extends RDFNode {
   constructor(value) {
     super();
     this._value = value;
@@ -345,7 +330,7 @@ class RDFLiteral extends RDFNode {
   /**
    * This stores the value of the literal in the given DOM node
    */
-  _applyToDOMNode(ds, domnode) {
+  _applyToDOMNode(_ds, domnode) {
     if (isElement(domnode)) {
       domnode.textContent = this._value;
     } else if (isAttr(domnode)) {
@@ -363,9 +348,9 @@ class RDFLiteral extends RDFNode {
 /**
  * A literal that is integer typed.
  */
-class RDFIntLiteral extends RDFLiteral {
+export class RDFIntLiteral extends RDFLiteral {
   constructor(value) {
-    super(parseInt(value));
+    super(Number.parseInt(value));
   }
 
   /**
@@ -377,7 +362,7 @@ class RDFIntLiteral extends RDFLiteral {
     }
 
     RDFLiteral.prototype._applyToDOMNode.call(this, ds, domnode);
-    var prefix = ds._resolvePrefix(domnode, `${NS_NC}parseType`);
+    const prefix = ds._resolvePrefix(domnode, `${NS_NC}parseType`);
     domnode.setAttributeNS(prefix.namespaceURI, prefix.qname, "Integer");
   }
 }
@@ -385,7 +370,7 @@ class RDFIntLiteral extends RDFLiteral {
 /**
  * A literal that represents a date.
  */
-class RDFDateLiteral extends RDFLiteral {
+export class RDFDateLiteral extends RDFLiteral {
   constructor(value) {
     if (!(value instanceof Date)) {
       throw new Error("RDFDateLiteral must be constructed with a Date object");
@@ -403,7 +388,7 @@ class RDFDateLiteral extends RDFLiteral {
     }
 
     domnode.textContent = this._value.getTime();
-    var prefix = ds._resolvePrefix(domnode, `${NS_NC}parseType`);
+    const prefix = ds._resolvePrefix(domnode, `${NS_NC}parseType`);
     domnode.setAttributeNS(prefix.namespaceURI, prefix.qname, "Date");
   }
 }
@@ -430,11 +415,11 @@ class RDFSubject extends RDFNode {
    */
   _createElement(uri) {
     // Seek an appropriate reference to this node to add this node under
-    var parent = null;
-    for (var p in this._backwards) {
-      for (let back of this._backwards[p]) {
+    let parent = null;
+    for (const p in this._backwards) {
+      for (const back of this._backwards[p]) {
         // Don't add under an rdf:type
-        if (back.getPredicate() == RDF_R("type")) {
+        if (back.getPredicate() === RDF_R("type")) {
           continue;
         }
         // The assertion already has a child node, probably one of ours
@@ -442,7 +427,7 @@ class RDFSubject extends RDFNode {
           continue;
         }
         parent = back._DOMnode;
-        var element = this._ds._addElement(parent, uri);
+        const element = this._ds._addElement(parent, uri);
         this._removeReferenceFromElement(parent);
         break;
       }
@@ -467,21 +452,21 @@ class RDFSubject extends RDFNode {
    * we must remove the node and recreate any child assertions elsewhere.
    */
   _removeElement(element) {
-    var pos = this._elements.indexOf(element);
+    const pos = this._elements.indexOf(element);
     if (pos < 0) {
       throw new Error("invalid element");
     }
     this._elements.splice(pos, 1);
-    if (element.parentNode != element.ownerDocument.documentElement) {
+    if (element.parentNode !== element.ownerDocument.documentElement) {
       this._addReferenceToElement(element.parentNode);
     }
     this._ds._removeElement(element);
 
     // Find all the assertions that are represented here and create new
     // nodes for them.
-    for (var predicate in this._assertions) {
-      for (let assertion of this._assertions[predicate]) {
-        if (assertion._getSubjectElement() == element) {
+    for (const predicate in this._assertions) {
+      for (const assertion of this._assertions[predicate]) {
+        if (assertion._getSubjectElement() === element) {
           this._createDOMNodeForAssertion(assertion);
         }
       }
@@ -499,21 +484,20 @@ class RDFSubject extends RDFNode {
     let elements;
     if (RDF_LISTITEM.test(assertion.getPredicate())) {
       // Find all the containers
-      elements = this._elements.filter(function(element) {
-        return (
-          element.namespaceURI == NS_RDF &&
-          (element.localName == "Seq" ||
-            element.localName == "Bag" ||
-            element.localName == "Alt")
-        );
-      });
+      elements = this._elements.filter(
+        (element) =>
+          element.namespaceURI === NS_RDF &&
+          (element.localName === "Seq" ||
+            element.localName === "Bag" ||
+            element.localName === "Alt")
+      );
       if (elements.length) {
         // Look for one whose listCounter matches the item we want to add
-        var item = parseInt(
+        const item = Number.parseInt(
           assertion.getPredicate().substring(NS_RDF.length + 1)
         );
-        for (let element of elements) {
-          if (element.listCounter == item) {
+        for (const element of elements) {
+          if (element.listCounter === item) {
             assertion._DOMnode = this._ds._addElement(element, RDF_R("li"));
             assertion._applyToDOMNode();
             element.listCounter++;
@@ -529,15 +513,15 @@ class RDFSubject extends RDFNode {
         return;
       }
       // TODO No containers, this will end up in a non-container for now
-    } else if (assertion.getPredicate() == RDF_R("type")) {
+    } else if (assertion.getPredicate() === RDF_R("type")) {
       // Try renaming an existing rdf:Description
       for (let element of this.elements) {
         if (
-          element.namespaceURI == NS_RDF &&
-          element.localName == "Description"
+          element.namespaceURI === NS_RDF &&
+          element.localName === "Description"
         ) {
           try {
-            var prefix = this._ds._resolvePrefix(
+            const prefix = this._ds._resolvePrefix(
               element.parentNode,
               assertion.getObject().getURI()
             );
@@ -545,7 +529,7 @@ class RDFSubject extends RDFNode {
             assertion._DOMnode = element;
             assertion._isSubjectElement = true;
             return;
-          } catch (e) {
+          } catch (_e) {
             // If the type cannot be sensibly turned into a prefix then just set
             // as a regular property
           }
@@ -554,24 +538,23 @@ class RDFSubject extends RDFNode {
     }
 
     // Filter out all the containers
-    elements = this._elements.filter(function(element) {
-      return (
-        element.namespaceURI != NS_RDF ||
-        (element.localName != "Seq" &&
-          element.localName != "Bag" &&
-          element.localName != "Alt")
-      );
-    });
+    elements = this._elements.filter(
+      (element) =>
+        element.namespaceURI !== NS_RDF ||
+        (element.localName !== "Seq" &&
+          element.localName !== "Bag" &&
+          element.localName !== "Alt")
+    );
     if (!elements.length) {
       // Create a new node of the right type
-      if (assertion.getPredicate() == RDF_R("type")) {
+      if (assertion.getPredicate() === RDF_R("type")) {
         try {
           assertion._DOMnode = this._createElement(
             assertion.getObject().getURI()
           );
           assertion._isSubjectElement = true;
           return;
-        } catch (e) {
+        } catch (_e) {
           // If the type cannot be sensibly turned into a prefix then just set
           // as a regular property
         }
@@ -588,248 +571,292 @@ class RDFSubject extends RDFNode {
   /**
    * Removes the DOM node representing the assertion.
    */
-  _removeDOMNodeForAssertion(assertion) {
-    if (isAttr(assertion._DOMnode)) {
-      var parent = assertion._DOMnode.ownerElement;
-      parent.removeAttributeNode(assertion._DOMnode);
-    } else if (assertion._isSubjectElement) {
-      var domnode = renameNode(assertion._DOMnode, NS_RDF, "Description");
-      if (domnode != assertion._DOMnode) {
-        var pos = this._elements.indexOf(assertion._DOMnode);
-        this._elements.splice(pos, 1, domnode);
-      }
-      parent = domnode;
-    } else {
-      var object = assertion.getObject();
-      if (object instanceof RDFSubject && assertion._DOMnode.firstChild) {
-        // Object is a subject that has an Element inside this assertion's node.
-        for (let element of object._elements) {
-          if (element.parentNode == assertion._DOMnode) {
-            object._removeElement(element);
-            break;
-          }
-        }
-      }
-      parent = assertion._DOMnode.parentNode;
-      if (
-        assertion._DOMnode.namespaceURI == NS_RDF &&
-        assertion._DOMnode.localName == "li"
-      ) {
-        parent.listCounter--;
-      }
-      this._ds._removeElement(assertion._DOMnode);
-    }
+   _removeDOMNodeForAssertion(assertion) {
+       let parent; // Declare parent locally to this function scope
 
-    // If there are no assertions left using the assertion's containing dom node
-    // then remove it from the document.
-    // TODO could do with a quick lookup list for assertions attached to a node
-    for (var p in this._assertions) {
-      for (let assertion of this._assertions[p]) {
-        if (assertion._getSubjectElement() == parent) {
-          return;
-        }
-      }
-    }
-    // No assertions left in this element.
-    this._removeElement(parent);
-  }
+       if (isAttr(assertion._DOMnode)) {
+         parent = assertion._DOMnode.ownerElement;
+         // Assuming parent is not null, as ownerElement of an Attr should be valid.
+         // If parent could be null, parent.removeAttributeNode would throw.
+         if (parent) {
+           parent.removeAttributeNode(assertion._DOMnode);
+         } else {
+           // This case should ideally not happen for a valid attribute node.
+           ERROR("Attribute node has no owner element during removal.");
+           return; // Early exit if ownerElement is unexpectedly null
+         }
+       } else if (assertion._isSubjectElement) {
+         const domnode = renameNode(assertion._DOMnode, NS_RDF, "Description");
+         if (domnode !== assertion._DOMnode) {
+           const pos = this._elements.indexOf(assertion._DOMnode);
+           if (pos !== -1) { // Check if the element was found
+             this._elements.splice(pos, 1, domnode);
+           } else {
+             // If assertion._DOMnode was marked _isSubjectElement but wasn't in this._elements,
+             // this indicates an inconsistent state.
+             ERROR("Subject element not found in _elements list during rename.");
+           }
+         }
+         parent = domnode;
+       } else { // assertion._DOMnode is a property Element
+         const object = assertion.getObject();
+         if (object instanceof RDFSubject && assertion._DOMnode.firstChild) {
+           // Object is a subject that has an Element inside this assertion's node.
+           for (const element of object._elements) {
+             if (element.parentNode === assertion._DOMnode) {
+               object._removeElement(element); // This is object._removeElement
+               break;
+             }
+           }
+         }
+         parent = assertion._DOMnode.parentNode; // This is the subject element containing the property element
+         if (
+           assertion._DOMnode.namespaceURI === NS_RDF &&
+           assertion._DOMnode.localName === "li"
+         ) {
+           // parent is the container (e.g., rdf:Seq) of the rdf:li item.
+           // Check if parent exists and has listCounter property
+           if (parent && typeof parent.listCounter === "number") {
+             parent.listCounter--;
+           }
+         }
+         this._ds._removeElement(assertion._DOMnode); // Remove the property element itself
+       }
+
+       // If `parent` is null or undefined at this point (e.g., due to an edge case like
+       // assertion._DOMnode.parentNode being null, or ownerElement being null and not handled above),
+       // the subsequent operations would fail.
+       if (!parent) {
+         ERROR(
+           "_removeDOMNodeForAssertion: Containing parent element is not determined."
+         );
+         return; // Cannot proceed without a valid parent
+       }
+
+       // If there are no assertions left using the 'parent' DOM node
+       // (which should be a subject element for 'this' RDFSubject),
+       // then remove 'parent' from the document.
+       // Rename loop variable to avoid shadowing the function parameter `assertion`.
+       for (const p in this._assertions) {
+         for (const otherAssertion of this._assertions[p]) {
+           if (otherAssertion._getSubjectElement() === parent) {
+             // 'parent' is still used by another assertion of this subject.
+             return;
+           }
+         }
+       }
+       // No assertions left using this 'parent' element for this subject.
+       // 'parent' should be one of `this._elements`.
+       this._removeElement(parent);
+     }
 
   /**
    * Parses the given Element from the DOM document
    */
   /* eslint-disable complexity */
   _parseElement(element) {
-    this._elements.push(element);
-
-    // There might be an inferred rdf:type assertion in the element name
-    if (element.namespaceURI != NS_RDF || element.localName != "Description") {
-      if (element.namespaceURI == NS_RDF && element.localName == "li") {
-        throw new Error("rdf:li is not a valid type for a subject node");
-      }
-      var assertion = new RDFAssertion(
+      let assertion = new RDFAssertion(
         this,
         RDF_R("type"),
         this._ds.getResource(element.namespaceURI + element.localName)
       );
-      assertion._DOMnode = element;
-      assertion._isSubjectElement = true;
-      this._addAssertion(assertion);
-    }
 
-    // Certain attributes can be literal properties
-    for (let attr of element.attributes) {
+      this._elements.push(element);
+
+      // There might be an inferred rdf:type assertion in the element name
       if (
-        attr.namespaceURI == NS_XML ||
-        attr.namespaceURI == NS_XMLNS ||
-        attr.nodeName == "xmlns"
+        element.namespaceURI !== NS_RDF ||
+        element.localName !== "Description"
       ) {
-        continue;
-      }
-      if (
-        (attr.namespaceURI == NS_RDF || !attr.namespaceURI) &&
-        ["nodeID", "about", "resource", "ID", "parseType"].includes(
-          attr.localName
-        )
-      ) {
-        continue;
-      }
-      var object = null;
-      if (attr.namespaceURI == NS_RDF) {
-        if (attr.localName == "type") {
-          object = this._ds.getResource(attr.nodeValue);
-        } else if (attr.localName == "li") {
-          throw new Error("rdf:li is not allowed as a property attribute");
-        } else if (attr.localName == "aboutEach") {
-          throw new Error("rdf:aboutEach is deprecated");
-        } else if (attr.localName == "aboutEachPrefix") {
-          throw new Error("rdf:aboutEachPrefix is deprecated");
-        } else if (attr.localName == "aboutEach") {
-          throw new Error("rdf:aboutEach is deprecated");
-        } else if (attr.localName == "bagID") {
-          throw new Error("rdf:bagID is deprecated");
-        }
-      }
-      if (!object) {
-        object = new RDFLiteral(attr.nodeValue);
-      }
-      assertion = new RDFAssertion(
-        this,
-        attr.namespaceURI + attr.localName,
-        object
-      );
-      assertion._DOMnode = attr;
-      this._addAssertion(assertion);
-    }
-
-    var child = element.firstChild;
-    element.listCounter = 1;
-    while (child) {
-      if (isText(child) && /\S/.test(child.nodeValue)) {
-        ERROR(`Text ${child.nodeValue} is not allowed in a subject node`);
-        throw new Error("subject nodes cannot contain text content");
-      } else if (isElement(child)) {
-        object = null;
-        var predicate = child.namespaceURI + child.localName;
-        if (child.namespaceURI == NS_RDF) {
-          if (
-            RDF_PROPERTY_INVALID_TYPES.includes(child.localName) &&
-            !child.localName.match(/^_\d+$/)
-          ) {
-            throw new Error(`${child.nodeName} is an invalid property`);
-          }
-          if (child.localName == "li") {
-            predicate = RDF_R(`_${element.listCounter}`);
-            element.listCounter++;
-          }
+        if (element.namespaceURI === NS_RDF && element.localName === "li") {
+          throw new Error("rdf:li is not a valid type for a subject node");
         }
 
-        // Check for and bail out on unknown attributes on the property element
-        for (let attr of child.attributes) {
-          // Ignore XML namespaced attributes
-          if (attr.namespaceURI == NS_XML) {
-            continue;
-          }
-          // These are reserved by XML for future use
-          if (attr.localName.substring(0, 3).toLowerCase() == "xml") {
-            continue;
-          }
-          // We can handle these RDF attributes
-          if (
-            (!attr.namespaceURI || attr.namespaceURI == NS_RDF) &&
-            ["resource", "nodeID"].includes(attr.localName)
-          ) {
-            continue;
-          }
-          // This is a special attribute we handle for compatibility with Mozilla RDF
-          if (attr.namespaceURI == NS_NC && attr.localName == "parseType") {
-            continue;
-          }
-          throw new Error(`Attribute ${attr.nodeName} is not supported`);
-        }
-
-        var parseType = child.getAttributeNS(NS_NC, "parseType");
-        if (parseType && parseType != "Date" && parseType != "Integer") {
-          ERROR(`parseType ${parseType} is not supported`);
-          throw new Error("unsupported parseType");
-        }
-
-        var resource = getRDFAttribute(child, "resource");
-        var nodeID = getRDFAttribute(child, "nodeID");
-        if (
-          (resource && (nodeID || parseType)) ||
-          (nodeID && (resource || parseType))
-        ) {
-          ERROR(
-            "Cannot use more than one of parseType, resource and nodeID on a single node"
-          );
-          throw new Error("Invalid rdf assertion");
-        }
-
-        if (resource !== undefined) {
-          var base = Services.io.newURI(element.baseURI);
-          object = this._ds.getResource(base.resolve(resource));
-        } else if (nodeID !== undefined) {
-          if (!nodeID.match(XML_NCNAME)) {
-            throw new Error("rdf:nodeID must be a valid XML name");
-          }
-          object = this._ds.getBlankNode(nodeID);
-        } else {
-          var hasText = false;
-          var childElement = null;
-          var subchild = child.firstChild;
-          while (subchild) {
-            if (isText(subchild) && /\S/.test(subchild.nodeValue)) {
-              hasText = true;
-            } else if (isElement(subchild)) {
-              if (childElement) {
-                new Error(
-                  `Multiple object elements found in ${child.nodeName}`
-                );
-              }
-              childElement = subchild;
-            }
-            subchild = subchild.nextSibling;
-          }
-
-          if ((resource || nodeID) && (hasText || childElement)) {
-            ERROR(
-              "Assertion references a resource so should not contain additional contents"
-            );
-            throw new Error("assertion cannot contain multiple objects");
-          }
-
-          if (hasText && childElement) {
-            ERROR(
-              `Both literal and resource objects found in ${child.nodeName}`
-            );
-            throw new Error("assertion cannot contain multiple objects");
-          }
-
-          if (childElement) {
-            if (parseType) {
-              ERROR(
-                "Cannot specify a parseType for an assertion with resource object"
-              );
-              throw new Error("parseType is not valid in this context");
-            }
-            object = this._ds._getSubjectForElement(childElement);
-            object._parseElement(childElement);
-          } else if (parseType == "Integer") {
-            object = new RDFIntLiteral(child.textContent);
-          } else if (parseType == "Date") {
-            object = new RDFDateLiteral(new Date(child.textContent));
-          } else {
-            object = new RDFLiteral(child.textContent);
-          }
-        }
-
-        assertion = new RDFAssertion(this, predicate, object);
+        assertion._DOMnode = element;
+        assertion._isSubjectElement = true;
         this._addAssertion(assertion);
-        assertion._DOMnode = child;
       }
-      child = child.nextSibling;
+
+      // Certain attributes can be literal properties
+      for (const attr of element.attributes) {
+        if (
+          attr.namespaceURI === NS_XML ||
+          attr.namespaceURI === NS_XMLNS ||
+          attr.nodeName === "xmlns"
+        ) {
+          continue;
+        }
+        if (
+          (attr.namespaceURI === NS_RDF || !attr.namespaceURI) &&
+          ["nodeID", "about", "resource", "ID", "parseType"].includes(
+            attr.localName
+          )
+        ) {
+          continue;
+        }
+        let object = null;
+        if (attr.namespaceURI === NS_RDF) {
+          if (attr.localName === "type") {
+            object = this._ds.getResource(attr.nodeValue);
+          } else if (attr.localName === "li") {
+            throw new Error("rdf:li is not allowed as a property attribute");
+          } else if (attr.localName === "aboutEach") {
+            throw new Error("rdf:aboutEach is deprecated");
+          } else if (attr.localName === "aboutEachPrefix") {
+            throw new Error("rdf:aboutEachPrefix is deprecated");
+          } else if (attr.localName === "bagID") {
+            throw new Error("rdf:bagID is deprecated");
+          }
+        }
+        if (!object) {
+          object = new RDFLiteral(attr.nodeValue);
+        }
+        assertion = new RDFAssertion(
+          this,
+          attr.namespaceURI + attr.localName,
+          object
+        );
+        assertion._DOMnode = attr;
+        this._addAssertion(assertion);
+      }
+
+      let child = element.firstChild;
+      element.listCounter = 1;
+      while (child) {
+        if (isText(child) && /\S/.test(child.nodeValue)) {
+          ERROR(`Text ${child.nodeValue} is not allowed in a subject node`);
+          throw new Error("subject nodes cannot contain text content");
+        }
+        // The 'else' is removed here as the previous 'if' block throws.
+        if (isElement(child)) {
+          let object = null;
+          let predicate = child.namespaceURI + child.localName;
+          if (child.namespaceURI === NS_RDF) {
+            if (
+              RDF_PROPERTY_INVALID_TYPES.includes(child.localName) &&
+              !child.localName.match(/^_\d+$/)
+            ) {
+              throw new Error(`${child.nodeName} is an invalid property`);
+            }
+            if (child.localName === "li") {
+              predicate = RDF_R(`_${element.listCounter}`);
+              element.listCounter++;
+            }
+          }
+
+          // Check for and bail out on unknown attributes on the property element
+          for (const attr of child.attributes) {
+            // Ignore XML namespaced attributes
+            if (attr.namespaceURI === NS_XML) {
+              continue;
+            }
+            // These are reserved by XML for future use
+            if (attr.localName.substring(0, 3).toLowerCase() === "xml") {
+              continue;
+            }
+            // We can handle these RDF attributes
+            if (
+              (!attr.namespaceURI || attr.namespaceURI === NS_RDF) &&
+              ["resource", "nodeID"].includes(attr.localName)
+            ) {
+              continue;
+            }
+            // This is a special attribute we handle for compatibility with Mozilla RDF
+            if (attr.namespaceURI === NS_NC && attr.localName === "parseType") {
+              continue;
+            }
+            throw new Error(`Attribute ${attr.nodeName} is not supported`);
+          }
+
+          const parseType = child.getAttributeNS(NS_NC, "parseType");
+          if (parseType && parseType !== "Date" && parseType !== "Integer") {
+            ERROR(`parseType ${parseType} is not supported`);
+            throw new Error("unsupported parseType");
+          }
+
+          const resource = getRDFAttribute(child, "resource");
+          const nodeID = getRDFAttribute(child, "nodeID");
+          if (
+            (resource !== undefined && (nodeID !== undefined || parseType)) ||
+            (nodeID !== undefined && (resource !== undefined || parseType))
+          ) {
+            ERROR(
+              "Cannot use more than one of parseType, resource and nodeID on a single node"
+            );
+            throw new Error("Invalid rdf assertion");
+          }
+
+          if (resource !== undefined) {
+            const base = Services.io.newURI(element.baseURI);
+            object = this._ds.getResource(base.resolve(resource));
+          } else if (nodeID !== undefined) {
+            if (!nodeID.match(XML_NCNAME)) {
+              throw new Error("rdf:nodeID must be a valid XML name");
+            }
+            object = this._ds.getBlankNode(nodeID);
+          } else {
+            let hasText = false;
+            let childElement = null;
+            let subchild = child.firstChild;
+            while (subchild) {
+              if (isText(subchild) && /\S/.test(subchild.nodeValue)) {
+                hasText = true;
+              } else if (isElement(subchild)) {
+                if (childElement) {
+                  // Original code had `new Error(...)` without `throw`.
+                  // Assuming this was intended to be an error, changed to `throw new Error`.
+                  // If it was a deliberate no-op, it should be removed or commented.
+                  throw new Error(
+                    `Multiple object elements found in ${child.nodeName}`
+                  );
+                }
+                childElement = subchild;
+              }
+              subchild = subchild.nextSibling;
+            }
+
+            if (
+              (resource !== undefined || nodeID !== undefined) &&
+              (hasText || childElement)
+            ) {
+              ERROR(
+                "Assertion references a resource so should not contain additional contents"
+              );
+              throw new Error("assertion cannot contain multiple objects");
+            }
+
+            if (hasText && childElement) {
+              ERROR(
+                `Both literal and resource objects found in ${child.nodeName}`
+              );
+              throw new Error("assertion cannot contain multiple objects");
+            }
+
+            if (childElement) {
+              if (parseType) {
+                ERROR(
+                  "Cannot specify a parseType for an assertion with resource object"
+                );
+                throw new Error("parseType is not valid in this context");
+              }
+              object = this._ds._getSubjectForElement(childElement);
+              object._parseElement(childElement);
+            } else if (parseType === "Integer") {
+              object = new RDFIntLiteral(child.textContent);
+            } else if (parseType === "Date") {
+              object = new RDFDateLiteral(new Date(child.textContent));
+            } else {
+              object = new RDFLiteral(child.textContent);
+            }
+          }
+
+          assertion = new RDFAssertion(this, predicate, object);
+          this._addAssertion(assertion);
+          assertion._DOMnode = child;
+        }
+        child = child.nextSibling;
+      }
     }
-  }
   /* eslint-enable complexity */
 
   /**
@@ -837,14 +864,14 @@ class RDFSubject extends RDFNode {
    * new assertion parsed or created programmatically.
    */
   _addAssertion(assertion) {
-    var predicate = assertion.getPredicate();
+    const predicate = assertion.getPredicate();
     if (predicate in this._assertions) {
       this._assertions[predicate].push(assertion);
     } else {
       this._assertions[predicate] = [assertion];
     }
 
-    var object = assertion.getObject();
+    const object = assertion.getObject();
     if (object instanceof RDFSubject) {
       // Create reverse assertion
       if (predicate in object._backwards) {
@@ -860,9 +887,9 @@ class RDFSubject extends RDFNode {
    * assertions that are programmatically deleted.
    */
   _removeAssertion(assertion) {
-    var predicate = assertion.getPredicate();
+    const predicate = assertion.getPredicate();
     if (predicate in this._assertions) {
-      var pos = this._assertions[predicate].indexOf(assertion);
+      const pos = this._assertions[predicate].indexOf(assertion);
       if (pos >= 0) {
         this._assertions[predicate].splice(pos, 1);
       }
@@ -871,7 +898,7 @@ class RDFSubject extends RDFNode {
       }
     }
 
-    var object = assertion.getObject();
+    const object = assertion.getObject();
     if (object instanceof RDFSubject) {
       // Delete reverse assertion
       if (predicate in object._backwards) {
@@ -890,8 +917,8 @@ class RDFSubject extends RDFNode {
    * Returns the ordinal assertions from this subject in order.
    */
   _getChildAssertions() {
-    var assertions = [];
-    for (var i in this._assertions) {
+    const assertions = [];
+    for (const i in this._assertions) {
       if (RDF_LISTITEM.test(i)) {
         assertions.push(...this._assertions[i]);
       }
@@ -913,11 +940,11 @@ class RDFSubject extends RDFNode {
    * Adds a new assertion with this as the subject
    */
   assert(predicate, object) {
-    if (predicate == RDF_R("type") && !(object instanceof RDFResource)) {
+    if (predicate === RDF_R("type") && !(object instanceof RDFResource)) {
       throw new Error("rdf:type must be an RDFResource");
     }
 
-    var assertion = new RDFAssertion(this, predicate, object);
+    const assertion = new RDFAssertion(this, predicate, object);
     this._createDOMNodeForAssertion(assertion);
     this._addAssertion(assertion);
   }
@@ -931,7 +958,7 @@ class RDFSubject extends RDFNode {
       return;
     }
 
-    for (let assertion of this._assertions[predicate]) {
+    for (const assertion of this._assertions[predicate]) {
       if (assertion.getObject().equals(object)) {
         this._removeAssertion(assertion);
         this._removeDOMNodeForAssertion(assertion);
@@ -953,7 +980,7 @@ class RDFSubject extends RDFNode {
    */
   getObjects(predicate) {
     if (predicate in this._assertions) {
-      return Array.from(this._assertions[predicate], i => i.getObject());
+      return Array.from(this._assertions[predicate], (i) => i.getObject());
     }
 
     return [];
@@ -963,7 +990,7 @@ class RDFSubject extends RDFNode {
    * Returns all of the ordinal children of this subject in order.
    */
   getChildren() {
-    return Array.from(this._getChildAssertions(), i => i.getObject());
+    return Array.from(this._getChildAssertions(), (i) => i.getObject());
   }
 
   /**
@@ -975,18 +1002,18 @@ class RDFSubject extends RDFNode {
     if (pos < 0) {
       throw new Error("no such child");
     }
-    var assertions = this._getChildAssertions();
+    const assertions = this._getChildAssertions();
     if (pos >= assertions.length) {
       throw new Error("no such child");
     }
-    for (var i = pos; i < assertions.length; i++) {
+    for (let i = pos; i < assertions.length; i++) {
       this._removeAssertion(assertions[i]);
       this._removeDOMNodeForAssertion(assertions[i]);
     }
-    var index = 1;
+    let index = 1;
     if (pos > 0) {
       index =
-        parseInt(
+        Number.parseInt(
           assertions[pos - 1].getPredicate().substring(NS_RDF.length + 1)
         ) + 1;
     }
@@ -1003,17 +1030,17 @@ class RDFSubject extends RDFNode {
    * removed if the object features more than once.
    */
   removeChild(object) {
-    var assertions = this._getChildAssertions();
-    for (var pos = 0; pos < assertions.length; pos++) {
+    const assertions = this._getChildAssertions();
+    for (let pos = 0; pos < assertions.length; pos++) {
       if (assertions[pos].getObject().equals(object)) {
-        for (var i = pos; i < assertions.length; i++) {
+        for (let i = pos; i < assertions.length; i++) {
           this._removeAssertion(assertions[i]);
           this._removeDOMNodeForAssertion(assertions[i]);
         }
-        var index = 1;
+        let index = 1;
         if (pos > 0) {
           index =
-            parseInt(
+            Number.parseInt(
               assertions[pos - 1].getPredicate().substring(NS_RDF.length + 1)
             ) + 1;
         }
@@ -1033,10 +1060,10 @@ class RDFSubject extends RDFNode {
    * Adds a new ordinal child to this subject.
    */
   addChild(object) {
-    var max = 0;
-    for (var i in this._assertions) {
+    let max = 0;
+    for (const i in this._assertions) {
       if (RDF_LISTITEM.test(i)) {
-        max = Math.max(max, parseInt(i.substring(NS_RDF.length + 1)));
+        max = Math.max(max, Number.parseInt(i.substring(NS_RDF.length + 1)));
       }
     }
     max++;
@@ -1049,13 +1076,13 @@ class RDFSubject extends RDFNode {
    * container element and all represented as an rdf:li
    */
   reorderChildren() {
-    var assertions = this._getChildAssertions();
-    for (let assertion of assertions) {
+    const assertions = this._getChildAssertions();
+    for (const assertion of assertions) {
       this._removeAssertion(assertion);
       this._removeDOMNodeForAssertion(assertion);
     }
-    var index = 1;
-    for (let assertion of assertions) {
+    let index = 1;
+    for (const assertion of assertions) {
       assertion._predicate = RDF_R(`_${index}`);
       this._addAssertion(assertion);
       this._createDOMNodeForAssertion(assertion);
@@ -1067,7 +1094,7 @@ class RDFSubject extends RDFNode {
    * Returns the type of this subject or null if there is no specified type.
    */
   getType() {
-    var type = this.getProperty(RDF_R("type"));
+    const type = this.getProperty(RDF_R("type"));
     if (type && type instanceof RDFResource) {
       return type.getURI();
     }
@@ -1109,9 +1136,9 @@ class RDFSubject extends RDFNode {
       return;
     }
 
-    var assertions = this._assertions[predicate];
+    const assertions = this._assertions[predicate];
     while (assertions.length) {
-      var assertion = assertions[0];
+      const assertion = assertions[0];
       this._removeAssertion(assertion);
       this._removeDOMNodeForAssertion(assertion);
     }
@@ -1121,7 +1148,7 @@ class RDFSubject extends RDFNode {
 /**
  * Creates a new RDFResource for the datasource. Private.
  */
-class RDFResource extends RDFSubject {
+export class RDFResource extends RDFSubject {
   constructor(ds, uri) {
     if (!(ds instanceof RDFDataSource)) {
       throw new Error("datasource must be an RDFDataSource");
@@ -1141,7 +1168,7 @@ class RDFResource extends RDFSubject {
    */
   _applyToElement(element) {
     if (USE_RDFNS_ATTR) {
-      var prefix = this._ds._resolvePrefix(element, RDF_R("about"));
+      const prefix = this._ds._resolvePrefix(element, RDF_R("about"));
       element.setAttributeNS(prefix.namespaceURI, prefix.qname, this._uri);
     } else {
       element.setAttribute("about", this._uri);
@@ -1153,7 +1180,7 @@ class RDFResource extends RDFSubject {
    */
   _addReferenceToElement(element) {
     if (USE_RDFNS_ATTR) {
-      var prefix = this._ds._resolvePrefix(element, RDF_R("resource"));
+      const prefix = this._ds._resolvePrefix(element, RDF_R("resource"));
       element.setAttributeNS(prefix.namespaceURI, prefix.qname, this._uri);
     } else {
       element.setAttribute("resource", this._uri);
@@ -1180,7 +1207,7 @@ class RDFResource extends RDFSubject {
 /**
  * Creates a new blank node. Private.
  */
-class RDFBlankNode extends RDFSubject {
+export class RDFBlankNode extends RDFSubject {
   constructor(ds, nodeID) {
     if (!(ds instanceof RDFDataSource)) {
       throw new Error("datasource must be an RDFDataSource");
@@ -1199,7 +1226,7 @@ class RDFBlankNode extends RDFSubject {
       return;
     }
     if (USE_RDFNS_ATTR) {
-      var prefix = this._ds._resolvePrefix(element, RDF_R("nodeID"));
+      const prefix = this._ds._resolvePrefix(element, RDF_R("nodeID"));
       element.setAttributeNS(prefix.namespaceURI, prefix.qname, this._nodeID);
     } else {
       element.setAttribute("nodeID", this._nodeID);
@@ -1215,7 +1242,7 @@ class RDFBlankNode extends RDFSubject {
     // a nodeID to match them
     if (!this._nodeID && this._elements.length) {
       this._ds._createNodeID(this);
-      for (let element of this._elements) {
+      for (const element of this._elements) {
         this._applyToElement(element);
       }
     }
@@ -1231,14 +1258,14 @@ class RDFBlankNode extends RDFSubject {
       // In document elsewhere already
       // Create a node ID and update the other nodes referencing
       this._ds._createNodeID(this);
-      for (let element of this._elements) {
+      for (const element of this._elements) {
         this._applyToElement(element);
       }
     }
 
     if (this._nodeID) {
       if (USE_RDFNS_ATTR) {
-        let prefix = this._ds._resolvePrefix(element, RDF_R("nodeID"));
+        const prefix = this._ds._resolvePrefix(element, RDF_R("nodeID"));
         element.setAttributeNS(prefix.namespaceURI, prefix.qname, this._nodeID);
       } else {
         element.setAttribute("nodeID", this._nodeID);
@@ -1246,7 +1273,7 @@ class RDFBlankNode extends RDFSubject {
     } else {
       // Add the empty blank node, this is generally right since further
       // assertions will be added to fill this out
-      var newelement = this._ds._addElement(element, RDF_R("Description"));
+      const newelement = this._ds._addElement(element, RDF_R("Description"));
       newelement.listCounter = 1;
       this._elements.push(newelement);
     }
@@ -1274,61 +1301,63 @@ class RDFBlankNode extends RDFSubject {
  * changed as assertions are added and removed to the RDF. Pass a null document
  * to start with an empty graph.
  */
-class RDFDataSource {
+export class RDFDataSource {
   constructor(document) {
-    // All known resources, indexed on URI
-    this._resources = {};
-    // All blank nodes
-    this._allBlankNodes = [];
-    // All blank nodes with IDs, indexed on ID
-    this._blankNodes = {};
-    // Suggested prefixes to use for namespaces, index is prefix, value is namespaceURI.
-    this._prefixes = {
-      rdf: NS_RDF,
-      NC: NS_NC,
-    };
+      // All known resources, indexed on URI
+      this._resources = {};
+      // All blank nodes
+      this._allBlankNodes = [];
+      // All blank nodes with IDs, indexed on ID
+      this._blankNodes = {};
+      // Suggested prefixes to use for namespaces, index is prefix, value is namespaceURI.
+      this._prefixes = {
+        rdf: NS_RDF,
+        NC: NS_NC,
+      };
 
-    if (!document) {
-      // Creating a document through xpcom leaves out the xml prolog so just parse
-      // something small
-      var parser = Cc["@mozilla.org/xmlextras/domparser;1"].createInstance(
-        Ci.nsIDOMParser
-      );
-      var doctext = `<?xml version="1.0"?>\n<rdf:RDF xmlns:rdf="${NS_RDF}"/>\n`;
-      document = parser.parseFromString(doctext, "text/xml");
+      let doc = document;
+      if (!doc) {
+        // Creating a document through xpcom leaves out the xml prolog so just parse
+        // something small
+        const parser = Cc["@mozilla.org/xmlextras/domparser;1"].createInstance(
+          Ci.nsIDOMParser
+        );
+        const doctext = `<?xml version="1.0"?>\n<rdf:RDF xmlns:rdf="${NS_RDF}"/>\n`;
+        doc = parser.parseFromString(doctext, "text/xml");
+      }
+      // The underlying DOM document for this datasource
+      this._document = doc;
+      this._parseDocument();
     }
-    // The underlying DOM document for this datasource
-    this._document = document;
-    this._parseDocument();
-  }
 
   static loadFromString(text) {
-    let parser = new DOMParser();
-    let document = parser.parseFromString(text, "application/xml");
+    const parser = new DOMParser();
+    const document = parser.parseFromString(text, "application/xml");
 
-    return new this(document);
+    return new RDFDataSource(document);
   }
 
   static loadFromBuffer(buffer) {
-    let parser = new DOMParser();
-    let document = parser.parseFromBuffer(
+    const parser = new DOMParser();
+    const document = parser.parseFromBuffer(
       new Uint8Array(buffer),
       "application/xml"
     );
 
-    return new this(document);
+    return new RDFDataSource(document);
   }
 
-  static async loadFromFile(uri) {
-    if (uri instanceof Ci.nsIFile) {
-      uri = Services.io.newFileURI(uri);
-    } else if (typeof uri == "string") {
-      uri = Services.io.newURI(uri);
+  static async loadFromFile(uriParam) {
+      let targetUri = uriParam;
+      if (uriParam instanceof Ci.nsIFile) {
+        targetUri = Services.io.newFileURI(uriParam);
+      } else if (typeof uriParam === "string") {
+        targetUri = Services.io.newURI(uriParam);
+      }
+
+      const resp = await fetch(targetUri.spec);
+      return RDFDataSource.loadFromBuffer(await resp.arrayBuffer());
     }
-
-    let resp = await fetch(uri.spec);
-    return this.loadFromBuffer(await resp.arrayBuffer());
-  }
 
   get uri() {
     return this._document.documentURI;
@@ -1338,7 +1367,7 @@ class RDFDataSource {
    * Creates a new nodeID for an unnamed blank node. Just node<number>.
    */
   _createNodeID(blanknode) {
-    var i = 1;
+    let i = 1;
     while (`node${i}` in this._blankNodes) {
       i++;
     }
@@ -1352,7 +1381,7 @@ class RDFDataSource {
    */
   _getSubjectForElement(element) {
     if (
-      element.namespaceURI == NS_RDF &&
+      element.namespaceURI === NS_RDF &&
       RDF_NODE_INVALID_TYPES.includes(element.localName)
     ) {
       throw new Error(
@@ -1360,9 +1389,9 @@ class RDFDataSource {
       );
     }
 
-    var about = getRDFAttribute(element, "about");
-    var id = getRDFAttribute(element, "ID");
-    var nodeID = getRDFAttribute(element, "nodeID");
+    const about = getRDFAttribute(element, "about");
+    const id = getRDFAttribute(element, "ID");
+    const nodeID = getRDFAttribute(element, "nodeID");
 
     if ((about && (id || nodeID)) || (nodeID && (id || about))) {
       ERROR(
@@ -1372,14 +1401,14 @@ class RDFDataSource {
     }
 
     if (about !== undefined) {
-      let base = Services.io.newURI(element.baseURI);
+      const base = Services.io.newURI(element.baseURI);
       return this.getResource(base.resolve(about));
     }
     if (id !== undefined) {
       if (!id.match(XML_NCNAME)) {
         throw new Error("rdf:ID must be a valid XML name");
       }
-      let base = Services.io.newURI(element.baseURI);
+      const base = Services.io.newURI(element.baseURI);
       return this.getResource(base.resolve(`#${id}`));
     }
     if (nodeID !== undefined) {
@@ -1391,32 +1420,33 @@ class RDFDataSource {
   /**
    * Parses the document for subjects at the top level.
    */
-  _parseDocument() {
-    if (!this._document.documentElement) {
-      ERROR("No document element in document");
-      throw new Error("document contains no root element");
-    }
+   _parseDocument() {
+       if (!this._document.documentElement) {
+         ERROR("No document element in document");
+         throw new Error("document contains no root element");
+       }
 
-    if (
-      this._document.documentElement.namespaceURI != NS_RDF ||
-      this._document.documentElement.localName != "RDF"
-    ) {
-      ERROR(`${this._document.documentElement.nodeName} is not rdf:RDF`);
-      throw new Error("document does not appear to be RDF");
-    }
+       if (
+         this._document.documentElement.namespaceURI !== NS_RDF ||
+         this._document.documentElement.localName !== "RDF"
+       ) {
+         ERROR(`${this._document.documentElement.nodeName} is not rdf:RDF`);
+         throw new Error("document does not appear to be RDF");
+       }
 
-    var domnode = this._document.documentElement.firstChild;
-    while (domnode) {
-      if (isText(domnode) && /\S/.test(domnode.nodeValue)) {
-        ERROR("RDF does not allow for text in the root of the document");
-        throw new Error("invalid markup in document");
-      } else if (isElement(domnode)) {
-        var subject = this._getSubjectForElement(domnode);
-        subject._parseElement(domnode);
-      }
-      domnode = domnode.nextSibling;
-    }
-  }
+       let domnode = this._document.documentElement.firstChild;
+       while (domnode) {
+         if (isText(domnode) && /\S/.test(domnode.nodeValue)) {
+           ERROR("RDF does not allow for text in the root of the document");
+           throw new Error("invalid markup in document");
+         }
+         if (isElement(domnode)) {
+           const subject = this._getSubjectForElement(domnode);
+           subject._parseElement(domnode);
+         }
+         domnode = domnode.nextSibling;
+       }
+     }
 
   /**
    * Works out a sensible namespace prefix to use for the given uri. node should
@@ -1427,95 +1457,96 @@ class RDFDataSource {
    * This returns an object with keys namespaceURI, prefix, localName and qname.
    * Pass null or undefined for badPrefixes for the first call.
    */
-  _resolvePrefix(domnode, uri, badPrefixes) {
-    if (!badPrefixes) {
-      badPrefixes = [];
-    }
+   _resolvePrefix(domnode, uri, badPrefixes) {
+       let currentBadPrefixes = badPrefixes;
+       if (!currentBadPrefixes) {
+         currentBadPrefixes = [];
+       }
 
-    // No known prefix, try to create one from the lookup list
-    if (!domnode || isDocument(domnode)) {
-      for (let i in this._prefixes) {
-        if (badPrefixes.includes(i)) {
-          continue;
-        }
-        if (this._prefixes[i] == uri.substring(0, this._prefixes[i].length)) {
-          var local = uri.substring(this._prefixes[i].length);
-          var test = URI_SUFFIX.exec(local);
-          // Remaining part of uri is a good XML Name
-          if (test && test[0] == local) {
-            this._document.documentElement.setAttributeNS(
-              NS_XMLNS,
-              `xmlns:${i}`,
-              this._prefixes[i]
-            );
-            return {
-              namespaceURI: this._prefixes[i],
-              prefix: i,
-              localName: local,
-              qname: i ? `${i}:${local}` : local,
-            };
-          }
-        }
-      }
+       // No known prefix, try to create one from the lookup list
+       if (!domnode || isDocument(domnode)) {
+         for (const i in this._prefixes) {
+           if (currentBadPrefixes.includes(i)) {
+             continue;
+           }
+           if (this._prefixes[i] === uri.substring(0, this._prefixes[i].length)) {
+             const local = uri.substring(this._prefixes[i].length);
+             const test = URI_SUFFIX.exec(local);
+             // Remaining part of uri is a good XML Name
+             if (test && test[0] === local) {
+               this._document.documentElement.setAttributeNS(
+                 NS_XMLNS,
+                 `xmlns:${i}`,
+                 this._prefixes[i]
+               );
+               return {
+                 namespaceURI: this._prefixes[i],
+                 prefix: i,
+                 localName: local,
+                 qname: i ? `${i}:${local}` : local,
+               };
+             }
+           }
+         }
 
-      // No match, make something up
-      test = URI_SUFFIX.exec(uri);
-      if (test) {
-        var namespaceURI = uri.substring(0, uri.length - test[0].length);
-        local = test[0];
-        let i = 1;
-        while (badPrefixes.includes(`NS${i}`)) {
-          i++;
-        }
-        this._document.documentElement.setAttributeNS(
-          NS_XMLNS,
-          `xmlns:NS${i}`,
-          namespaceURI
-        );
-        return {
-          namespaceURI,
-          prefix: `NS${i}`,
-          localName: local,
-          qname: `NS${i}:${local}`,
-        };
-      }
-      // There is no end part of this URI that is an XML Name
-      throw new Error(`invalid node name: ${uri}`);
-    }
+         // No match, make something up
+         const test = URI_SUFFIX.exec(uri);
+         if (test) {
+           const namespaceURI = uri.substring(0, uri.length - test[0].length);
+           const local = test[0];
+           let i = 1;
+           while (currentBadPrefixes.includes(`NS${i}`)) {
+             i++;
+           }
+           this._document.documentElement.setAttributeNS(
+             NS_XMLNS,
+             `xmlns:NS${i}`,
+             namespaceURI
+           );
+           return {
+             namespaceURI,
+             prefix: `NS${i}`,
+             localName: local,
+             qname: `NS${i}:${local}`,
+           };
+         }
+         // There is no end part of this URI that is an XML Name
+         throw new Error(`invalid node name: ${uri}`);
+       }
 
-    for (let attr of domnode.attributes) {
-      // Not a namespace declaration, ignore this attribute
-      if (attr.namespaceURI != NS_XMLNS && attr.nodeName != "xmlns") {
-        continue;
-      }
+       for (const attr of domnode.attributes) {
+         // Not a namespace declaration, ignore this attribute
+         if (attr.namespaceURI !== NS_XMLNS && attr.nodeName !== "xmlns") {
+           continue;
+         }
 
-      var prefix = attr.prefix ? attr.localName : "";
-      // Seen this prefix before, cannot use it
-      if (badPrefixes.includes(prefix)) {
-        continue;
-      }
+         const prefix = attr.prefix ? attr.localName : "";
+         // Seen this prefix before, cannot use it
+         if (currentBadPrefixes.includes(prefix)) {
+           continue;
+         }
 
-      // Namespace matches the start of the uri
-      if (attr.value == uri.substring(0, attr.value.length)) {
-        local = uri.substring(attr.value.length);
-        test = URI_SUFFIX.exec(local);
-        // Remaining part of uri is a good XML Name
-        if (test && test[0] == local) {
-          return {
-            namespaceURI: attr.value,
-            prefix,
-            localName: local,
-            qname: prefix ? `${prefix}:${local}` : local,
-          };
-        }
-      }
+         // Namespace matches the start of the uri
+         if (attr.value === uri.substring(0, attr.value.length)) {
+           const local = uri.substring(attr.value.length);
+           const test = URI_SUFFIX.exec(local);
+           // Remaining part of uri is a good XML Name
+           if (test && test[0] === local) {
+             return {
+               namespaceURI: attr.value,
+               prefix,
+               localName: local,
+               qname: prefix ? `${prefix}:${local}` : local,
+             };
+           }
+         }
 
-      badPrefixes.push(prefix);
-    }
+         currentBadPrefixes.push(prefix);
+       }
 
-    // No prefix found here, move up the document
-    return this._resolvePrefix(domnode.parentNode, uri, badPrefixes);
-  }
+       // No prefix found here, move up the document
+       return this._resolvePrefix(domnode.parentNode, uri, currentBadPrefixes);
+     }
 
   /**
    * Guess the indent level within the given Element. The method looks for
@@ -1533,13 +1564,13 @@ class RDFDataSource {
 
     // Check the text immediately preceding each child node. One could be
     // a valid indent
-    var pretext = "";
-    var child = element.firstChild;
+    let pretext = "";
+    let child = element.firstChild;
     while (child) {
       if (isText(child)) {
         pretext += child.nodeValue;
       } else if (isElement(child)) {
-        var result = INDENT.exec(pretext);
+        const result = INDENT.exec(pretext);
         if (result) {
           return result[1];
         }
@@ -1557,7 +1588,7 @@ class RDFDataSource {
 
     // Check the text immediately before this node
     pretext = "";
-    var sibling = element.previousSibling;
+    let sibling = element.previousSibling;
     while (sibling && isText(sibling)) {
       pretext += sibling.nodeValue;
       sibling = sibling.previousSibling;
@@ -1574,69 +1605,69 @@ class RDFDataSource {
   }
 
   _addElement(parent, uri) {
-    var prefix = this._resolvePrefix(parent, uri);
-    var element = this._document.createElementNS(
-      prefix.namespaceURI,
-      prefix.qname
-    );
+      const prefix = this._resolvePrefix(parent, uri);
+      const element = this._document.createElementNS(
+        prefix.namespaceURI,
+        prefix.qname
+      );
 
-    if (parent.lastChild) {
-      // We want to insert immediately after the last child element
-      var last = parent.lastChild;
-      while (last && isText(last)) {
-        last = last.previousSibling;
-      }
-      // No child elements so insert at the start
-      if (!last) {
-        last = parent.firstChild;
+      if (parent.lastChild) {
+        // We want to insert immediately after the last child element
+        let last = parent.lastChild;
+        while (last && isText(last)) {
+          last = last.previousSibling;
+        }
+        // No child elements so insert at the start
+        if (!last) {
+          last = parent.firstChild;
+        } else {
+          last = last.nextSibling;
+        }
+
+        const indent = this._guessIndent(parent);
+        parent.insertBefore(this._document.createTextNode(`\n${indent}`), last);
+        parent.insertBefore(element, last);
       } else {
-        last = last.nextSibling;
+        // No children, must indent our element and the end tag
+        const indent = this._guessIndent(parent.parentNode);
+        parent.append(`\n${indent}  `, element, `\n${indent}`);
       }
-
-      let indent = this._guessIndent(parent);
-      parent.insertBefore(this._document.createTextNode(`\n${indent}`), last);
-      parent.insertBefore(element, last);
-    } else {
-      // No children, must indent our element and the end tag
-      let indent = this._guessIndent(parent.parentNode);
-      parent.append(`\n${indent}  `, element, `\n${indent}`);
+      return element;
     }
-    return element;
-  }
 
   /**
    * Removes the element from its parent. Should also remove surrounding
    * white space as appropriate.
    */
-  _removeElement(element) {
-    var parent = element.parentNode;
-    var sibling = element.previousSibling;
-    // Drop any text nodes immediately preceding the element
-    while (sibling && isText(sibling)) {
-      var temp = sibling;
-      sibling = sibling.previousSibling;
-      parent.removeChild(temp);
-    }
+   _removeElement(element) {
+       const parent = element.parentNode;
+       let sibling = element.previousSibling;
+       // Drop any text nodes immediately preceding the element
+       while (sibling && isText(sibling)) {
+         const temp = sibling;
+         sibling = sibling.previousSibling;
+         parent.removeChild(temp);
+       }
 
-    sibling = element.nextSibling;
-    // Drop the element
-    parent.removeChild(element);
+       sibling = element.nextSibling;
+       // Drop the element
+       parent.removeChild(element);
 
-    // If the next node after element is now the first child then element was
-    // the first child. If there are no other child elements then remove the
-    // remaining child nodes.
-    if (parent.firstChild == sibling) {
-      while (sibling && isText(sibling)) {
-        sibling = sibling.nextSibling;
-      }
-      if (!sibling) {
-        // No other child elements
-        while (parent.lastChild) {
-          parent.removeChild(parent.lastChild);
-        }
-      }
-    }
-  }
+       // If the next node after element is now the first child then element was
+       // the first child. If there are no other child elements then remove the
+       // remaining child nodes.
+       if (parent.firstChild === sibling) {
+         while (sibling && isText(sibling)) {
+           sibling = sibling.nextSibling;
+         }
+         if (!sibling) {
+           // No other child elements
+           while (parent.lastChild) {
+             parent.removeChild(parent.lastChild);
+           }
+         }
+       }
+     }
 
   /**
    * Requests that a given prefix be used for the namespace where possible.
@@ -1661,7 +1692,7 @@ class RDFDataSource {
       throw new Error("rdf:nodeID must be a valid XML name");
     }
 
-    var rdfnode = new RDFBlankNode(this, nodeID);
+    const rdfnode = new RDFBlankNode(this, nodeID);
     this._allBlankNodes.push(rdfnode);
     if (nodeID) {
       this._blankNodes[nodeID] = rdfnode;
@@ -1685,7 +1716,7 @@ class RDFDataSource {
       return this._resources[uri];
     }
 
-    var resource = new RDFResource(this, uri);
+    const resource = new RDFResource(this, uri);
     this._resources[uri] = resource;
     return resource;
   }
@@ -1708,7 +1739,7 @@ class RDFDataSource {
    * Saves the RDF/XML to a string.
    */
   serializeToString() {
-    var serializer = new XMLSerializer();
+    const serializer = new XMLSerializer();
     return serializer.serializeToString(this._document);
   }
 
@@ -1716,9 +1747,6 @@ class RDFDataSource {
    * Saves the RDF/XML to a file.
    */
   async saveToFile(file) {
-    return OS.File.writeAtomic(
-      file,
-      new TextEncoder().encode(this.serializeToString())
-    );
+    return IOUtils.writeUTF8(file, this.serializeToString());
   }
 }
