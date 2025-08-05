@@ -1,0 +1,284 @@
+<!-- Tree panel -->
+
+<script>
+    /* eslint-env mozilla/browser-window */
+    /* globals register_module _gTreePane gotoPref */
+    Services.scriptloader.loadSubScript("chrome://browser/content/overlays/tree.js", this);
+
+    // Register the pane
+    register_module("paneTree", _gTreePane);
+
+    // This ensure that we actually render the Tree page when refreshing on
+    // about:preferences#tree. It is needed because the regular gotoPref in
+    // preferences.js cannot function properly as we do not register_module
+    // until this file is loaded, which has not been done when preferences.js
+    // is init'd.
+    if (location.href.includes("#tree")) {
+        setTimeout(() => {
+            gotoPref("paneTree");
+        }, 0);
+    }
+</script>
+
+<html:template id="template-paneTree">
+    <hbox id="firefoxTreeCategory" class="subcategory" hidden="true" data-category="paneTree">
+        <html:h1 data-l10n-id="tree-header" />
+    </hbox>
+
+    <groupbox id="treeAppearanceGroup" data-category="paneTree" hidden="true">
+        <label>
+            <html:h2 data-l10n-id="tree-appearance-header" />
+        </label>
+
+        <vbox id="tree_faviconizePinnedTabsBox">
+            <checkbox id="tree_faviconizePinnedTabs"
+                      preference="browser.sidebar.faviconizePinnedTabs"
+                      data-l10n-id="tree-faviconize-pinned-tabs" />
+        </vbox>
+    </groupbox>
+
+    <groupbox id="treeAutoStickyGroup"  data-category="paneTree" hidden="true">
+        <label>
+            <html:h2 data-l10n-id="tree-auto-sticky-header" />
+        </label>
+
+        <vbox id="tree_stickyActiveTabBox">
+            <checkbox id="tree_stickyActiveTab"
+                      preference="browser.sidebar.stickyActiveTab"
+                      data-l10n-id="tree-sticky-active-tab" />
+        </vbox>
+        <vbox id="tree_stickySoundPlayingTabBox">
+            <checkbox id="tree_stickySoundPlayingTab"
+                      preference="browser.sidebar.stickySoundPlayingTab"
+                      data-l10n-id="tree-sticky-sound-playing-tab" />
+        </vbox>
+        <vbox id="tree_stickySharingTabBox">
+            <checkbox id="tree_stickySharingTab"
+                      preference="browser.sidebar.stickySharingTab"
+                      data-l10n-id="tree-sticky-sharing-tab" />
+        </vbox>
+    </groupbox>
+
+    <groupbox id="treeBehaviorGroup"  data-category="paneTree" hidden="true">
+        <label>
+            <html:h2 data-l10n-id="tree-behavior-header" />
+        </label>
+
+        <vbox id="tree_autoCollapseExpandSubtreeOnAttachBox">
+            <checkbox id="tree_autoCollapseExpandSubtreeOnAttach"
+                      preference="browser.sidebar.autoCollapseExpandSubtreeOnAttach"
+                      data-l10n-id="tree-auto-collapse-expand-subtree-on-attach" />
+        </vbox>
+        <vbox id="tree_autoCollapseExpandSubtreeOnSelecthBox">
+            <checkbox id="tree_autoCollapseExpandSubtreeOnSelect"
+                      preference="browser.sidebar.autoCollapseExpandSubtreeOnSelect"
+                      data-l10n-id="tree-auto-collapse-expand-subtree-on-select" />
+        </vbox>
+        <hbox id="tree_treeDoubleClickBehaviorBox" align="center">
+            <label id="tree_treeDoubleClickBehaviorCaption"
+                   control="tree_treeDoubleClickBehavior"
+                   data-l10n-id="tree-tree-double-click-behavior-caption" />
+            <menulist id="tree_treeDoubleClickBehavior"
+                      preference="browser.sidebar.treeDoubleClickBehavior">
+                <menupopup class="in-menulist">
+                    <menuitem value="1" data-l10n-id="tree-tree-double-click-behavior-toggle-collapsed" />
+                    <menuitem value="4" data-l10n-id="tree-tree-double-click-behavior-toggle-sticky" />
+                    <menuitem value="3" data-l10n-id="tree-tree-double-click-behavior-toggle-close" />
+                    <menuitem value="0" data-l10n-id="tree-tree-double-click-behavior-toggle-none" />
+                </menupopup>
+            </menulist>
+        </hbox>
+        <hbox id="tree_successorTabControlLevelBox" align="center">
+            <label id="tree_successorTabControlLevelCaption"
+                   control="tree_successorTabControlLevel"
+                   data-l10n-id="tree-successor-tab-control-level-caption" />
+            <menulist id="tree_successorTabControlLevel"
+                      preference="browser.sidebar.successorTabControlLevel">
+                <menupopup class="in-menulist">
+                    <menuitem value="2" data-l10n-id="tree-successor-tab-control-level-in-tree" />
+                    <menuitem value="1" data-l10n-id="tree-successor-tab-control-level-simulate-default" />
+                    <menuitem value="0" data-l10n-id="tree-successor-tab-control-level-never" />
+                </menupopup>
+            </menulist>
+        </hbox>
+        <hbox id="tree_dropLinksOnTabBehaviorBox" align="center">
+            <label id="tree_dropLinksOnTabBehaviorCaption"
+                   control="tree_dropLinksOnTabBehavior"
+                   data-l10n-id="tree-drop-links-on-tab-behavior-caption" />
+            <menulist id="tree_dropLinksOnTabBehavior"
+                      preference="browser.sidebar.dropLinksOnTabBehavior">
+                <menupopup class="in-menulist">
+                    <menuitem value="0" data-l10n-id="tree-drop-links-on-tab-behavior-ask" />
+                    <menuitem value="1" data-l10n-id="tree-drop-links-on-tab-behavior-load" />
+                    <menuitem value="2" data-l10n-id="tree-drop-links-on-tab-behavior-newtab" />
+                </menupopup>
+            </menulist>
+        </hbox>
+    </groupbox>
+
+    <groupbox id="treeAutoAttachGroup"  data-category="paneTree" hidden="true">
+        <label>
+            <html:h2 data-l10n-id="tree-auto-attach-header" />
+        </label>
+
+        <vbox id="tree_autoAttachOnOpenedWithOwnerBox">
+            <label id="tree_autoAttachOnOpenedWithOwnerCaption"
+                   control="tree_autoAttachOnOpenedWithOwner"
+                   data-l10n-id="tree-auto-attach-on-opened-with-owner-caption" />
+            <hbox id="tree_autoAttachOnOpenedWithOwnerMenulistBox"
+                  align="center"
+                  class="sub">
+                <menulist id="tree_autoAttachOnOpenedWithOwner"
+                          preference="browser.sidebar.autoAttachOnOpenedWithOwner">
+                    <menupopup class="in-menulist">
+                        <menuitem value="-1" data-l10n-id="tree-auto-attach-no-control" />
+                        <menuitem value="0" data-l10n-id="tree-auto-attach-independent" />
+                        <menuitem value="6" data-l10n-id="tree-auto-attach-child-top" />
+                        <menuitem value="7" data-l10n-id="tree-auto-attach-child-end" />
+                        <menuitem value="5" data-l10n-id="tree-auto-attach-child-next-to-last-related-tab" />
+                        <menuitem value="2" data-l10n-id="tree-auto-attach-sibling" />
+                        <menuitem value="3" data-l10n-id="tree-auto-attach-next-sibling" />
+                    </menupopup>
+                </menulist>
+            </hbox>
+        </vbox>
+        <vbox id="tree_insertNewTabFromPinnedTabAtBox">
+            <label id="tree_insertNewTabFromPinnedTabAtCaption"
+                   control="tree_insertNewTabFromPinnedTabAt"
+                   data-l10n-id="tree-insert-new-tab-from-pinned-tab-at-caption" />
+            <hbox id="tree_insertNewTabFromPinnedTabAtrMenulistBox"
+                  align="center"
+                  class="sub">
+                <menulist id="tree_insertNewTabFromPinnedTabAt"
+                          preference="browser.sidebar.insertNewTabFromPinnedTabAt">
+                    <menupopup class="in-menulist">
+                        <menuitem value="-1" data-l10n-id="tree-insert-new-tab-from-pinned-tab-at-no-control" />
+                        <menuitem value="3" data-l10n-id="tree-insert-new-tab-from-pinned-tab-at-next-to-last-related-tab" />
+                        <menuitem value="0" data-l10n-id="tree-insert-new-tab-from-pinned-tab-at-top" />
+                        <menuitem value="1" data-l10n-id="tree-insert-new-tab-from-pinned-tab-at-end" />
+                    </menupopup>
+                </menulist>
+            </hbox>
+        </vbox>
+        <vbox id="tree_autoAttachOnNewTabCommandBox">
+            <label id="tree_autoAttachOnNewTabCommandCaption"
+                   control="tree_autoAttachOnNewTabCommand"
+                   data-l10n-id="tree-auto-attach-on-new-tab-command-caption" />
+            <hbox id="tree_autoAttachOnNewTabCommandMenulistBox"
+                  align="center"
+                  class="sub">
+                <menulist id="tree_autoAttachOnNewTabCommand"
+                          preference="browser.sidebar.autoAttachOnNewTabCommand">
+                    <menupopup class="in-menulist">
+                        <menuitem value="-1" data-l10n-id="tree-auto-attach-no-control" />
+                        <menuitem value="0" data-l10n-id="tree-auto-attach-independent" />
+                        <menuitem value="6" data-l10n-id="tree-auto-attach-child-top" />
+                        <menuitem value="7" data-l10n-id="tree-auto-attach-child-end" />
+                        <menuitem value="2" data-l10n-id="tree-auto-attach-sibling" />
+                        <menuitem value="3" data-l10n-id="tree-auto-attach-next-sibling" />
+                    </menupopup>
+                </menulist>
+            </hbox>
+        </vbox>
+        <vbox id="tree_autoAttachOnNewTabButtonMiddleClickBox">
+            <label id="tree_autoAttachOnNewTabButtonMiddleClickCaption"
+                   control="tree_autoAttachOnNewTabButtonMiddleClick"
+                   data-l10n-id="tree-auto-attach-on-new-tab-button-middle-click-caption" />
+            <hbox id="tree_autoAttachOnNewTabButtonMiddleClickMenulistBox"
+                  align="center"
+                  class="sub">
+                <menulist id="tree_autoAttachOnNewTabButtonMiddleClick"
+                          preference="browser.sidebar.autoAttachOnNewTabButtonMiddleClick">
+                    <menupopup class="in-menulist">
+                        <menuitem value="-1" data-l10n-id="tree-auto-attach-no-control" />
+                        <menuitem value="0" data-l10n-id="tree-auto-attach-independent" />
+                        <menuitem value="6" data-l10n-id="tree-auto-attach-child-top" />
+                        <menuitem value="7" data-l10n-id="tree-auto-attach-child-end" />
+                        <menuitem value="2" data-l10n-id="tree-auto-attach-sibling" />
+                        <menuitem value="3" data-l10n-id="tree-auto-attach-next-sibling" />
+                    </menupopup>
+                </menulist>
+            </hbox>
+        </vbox>
+        <vbox id="tree_autoAttachOnDuplicatedBox">
+            <label id="tree_autoAttachOnDuplicatedCaption"
+                   control="tree_autoAttachOnDuplicated"
+                   data-l10n-id="tree-auto-attach-on-duplicated-caption" />
+            <hbox id="tree_autoAttachOnDuplicatedMenulistBox"
+                  align="center"
+                  class="sub">
+                <menulist id="tree_autoAttachOnDuplicated"
+                          preference="browser.sidebar.autoAttachOnDuplicated">
+                    <menupopup class="in-menulist">
+                        <menuitem value="-1" data-l10n-id="tree-auto-attach-no-control" />
+                        <menuitem value="0" data-l10n-id="tree-auto-attach-independent" />
+                        <menuitem value="6" data-l10n-id="tree-auto-attach-child-top" />
+                        <menuitem value="7" data-l10n-id="tree-auto-attach-child-end" />
+                        <menuitem value="2" data-l10n-id="tree-auto-attach-sibling" />
+                        <menuitem value="3" data-l10n-id="tree-auto-attach-next-sibling" />
+                    </menupopup>
+                </menulist>
+            </hbox>
+        </vbox>
+        <vbox id="tree_autoAttachSameSiteOrphanBox">
+            <label id="tree_autoAttachSameSiteOrphanCaption"
+                   control="tree_autoAttachSameSiteOrphan"
+                   data-l10n-id="tree-auto-attach-same-site-orphan-caption" />
+            <hbox id="tree_aautoAttachSameSiteOrphanMenulistBox"
+                  align="center"
+                  class="sub">
+                <menulist id="tree_autoAttachSameSiteOrphan"
+                          preference="browser.sidebar.autoAttachSameSiteOrphan">
+                    <menupopup class="in-menulist">
+                        <menuitem value="-1" data-l10n-id="tree-auto-attach-no-control" />
+                        <menuitem value="0" data-l10n-id="tree-auto-attach-independent" />
+                        <menuitem value="6" data-l10n-id="tree-auto-attach-child-top" />
+                        <menuitem value="7" data-l10n-id="tree-auto-attach-child-end" />
+                        <menuitem value="2" data-l10n-id="tree-auto-attach-sibling" />
+                        <menuitem value="3" data-l10n-id="tree-auto-attach-next-sibling" />
+                    </menupopup>
+                </menulist>
+            </hbox>
+        </vbox>
+        <vbox id="tree_autoAttachOnOpenedFromExternalBox">
+            <label id="tree_autoAttachOnOpenedFromExternalCaption"
+                   control="tree_autoAttachOnOpenedFromExternal"
+                   data-l10n-id="tree-auto-attach-on-opened-from-external-caption" />
+            <hbox id="tree_aautoAttachOnOpenedFromExternalMenulistBox"
+                  align="center"
+                  class="sub">
+                <menulist id="tree_autoAttachOnOpenedFromExternal"
+                          preference="browser.sidebar.autoAttachOnOpenedFromExternal">
+                    <menupopup class="in-menulist">
+                        <menuitem value="-1" data-l10n-id="tree-auto-attach-no-control" />
+                        <menuitem value="0" data-l10n-id="tree-auto-attach-independent" />
+                        <menuitem value="6" data-l10n-id="tree-auto-attach-child-top" />
+                        <menuitem value="7" data-l10n-id="tree-auto-attach-child-end" />
+                        <menuitem value="2" data-l10n-id="tree-auto-attach-sibling" />
+                        <menuitem value="3" data-l10n-id="tree-auto-attach-next-sibling" />
+                    </menupopup>
+                </menulist>
+            </hbox>
+        </vbox>
+        <vbox id="tree_autoAttachOnAnyOtherTriggerBox">
+            <label id="tree_autoAttachOnAnyOtherTriggerCaption"
+                   control="tree_autoAttachOnAnyOtherTrigger"
+                   data-l10n-id="tree-auto-attach-on-any-other-trigger-caption" />
+            <hbox id="tree_aautoAttachOnAnyOtherTriggerMenulistBox"
+                  align="center"
+                  class="sub">
+                <menulist id="tree_autoAttachOnAnyOtherTrigger"
+                          preference="browser.sidebar.autoAttachOnAnyOtherTrigger">
+                    <menupopup class="in-menulist">
+                        <menuitem value="-1" data-l10n-id="tree-auto-attach-no-control" />
+                        <menuitem value="0" data-l10n-id="tree-auto-attach-independent" />
+                        <menuitem value="6" data-l10n-id="tree-auto-attach-child-top" />
+                        <menuitem value="7" data-l10n-id="tree-auto-attach-child-end" />
+                        <menuitem value="2" data-l10n-id="tree-auto-attach-sibling" />
+                        <menuitem value="3" data-l10n-id="tree-auto-attach-next-sibling" />
+                    </menupopup>
+                </menulist>
+            </hbox>
+        </vbox>
+    </groupbox>
+</html:template>

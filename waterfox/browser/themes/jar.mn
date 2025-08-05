@@ -8,3 +8,4 @@ browser.jar:
  skin/classic/browser/userContent.css             (lepton/leptonContent.css)
  skin/classic/browser/lepton/                     (lepton/icons/*.svg)
 * skin/classic/browser/waterfox/general.css       (waterfox/general.css)
+ skin/classic/browser/waterfox/tree-vertical-tabs-24x24.svg (waterfox/tree-vertical-tabs-24x24.svg)
