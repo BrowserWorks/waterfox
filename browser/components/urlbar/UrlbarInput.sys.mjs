@@ -4077,11 +4077,15 @@ export class UrlbarInput {
 
   /**
    * Determines if we should select all the text in the Urlbar based on the
-   *  Urlbar state, and whether the selection is empty.
+   * clickSelectsAll pref, Urlbar state, and whether the selection is empty.
+   *
+   * @param {boolean} [ignoreClickSelectsAllPref]
+   *        If true, the browser.urlbar.clickSelectsAll pref will be ignored.
    */
-  _maybeSelectAll() {
+  _maybeSelectAll(ignoreClickSelectsAllPref = false) {
     if (
       !this._preventClickSelectsAll &&
+      (ignoreClickSelectsAllPref || lazy.UrlbarPrefs.get("clickSelectsAll")) &&
       this._compositionState != lazy.UrlbarUtils.COMPOSITION.COMPOSING &&
       this.focused &&
       this.inputField.selectionStart == this.inputField.selectionEnd
@@ -4214,7 +4218,9 @@ export class UrlbarInput {
       return;
     }
 
-    this._maybeSelectAll();
+    // If the user right clicks, we select all regardless of the value of
+    // the browser.urlbar.clickSelectsAll pref.
+    this._maybeSelectAll(/* ignoreClickSelectsAllPref */ event.button == 2);
   }
 
   _on_focus(event) {
@@ -4263,7 +4269,7 @@ export class UrlbarInput {
       }
 
       if (this.inputField.hasAttribute("refocused-by-panel")) {
-        this._maybeSelectAll();
+        this._maybeSelectAll(true);
       }
     }
 
@@ -4325,7 +4331,10 @@ export class UrlbarInput {
           this.inputField.setSelectionRange(0, 0);
         }
 
-        if (event.target.classList.contains(SEARCH_BUTTON_CLASS)) {
+        if (event.detail == 2 && lazy.UrlbarPrefs.get("doubleClickSelectsAll")) {
+          this.editor.selectAll();
+          event.preventDefault();
+        } else if (event.target.classList.contains(SEARCH_BUTTON_CLASS)) {
           this._preventClickSelectsAll = true;
           this.search(lazy.UrlbarTokenizer.RESTRICT.SEARCH);
         } else {
