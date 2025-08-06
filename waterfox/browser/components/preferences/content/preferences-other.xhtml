@@ -7,6 +7,19 @@
 <overlay id="preferences-overlay" xmlns:html="http://www.w3.org/1999/xhtml"
     xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
 
+    <html:style>
+        /* Hide sponsored shortcuts checkbox */
+        checkbox[data-l10n-id="home-prefs-shortcuts-by-option-sponsored"],
+        checkbox[preference="browser.newtabpage.activity-stream.showSponsoredTopSites"] {
+            display: none !important;
+        }
+
+        /* Hide mission message about sponsors */
+        .mission-message {
+            display: none !important;
+        }
+    </html:style>
+
     <!-- Home -->
     <vbox data-subcategory="topstories" delete="true" />
     <vbox data-subcategory="snippets" delete="true" />
