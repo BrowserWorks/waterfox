@@ -10,13 +10,10 @@ const { XPCOMUtils } = ChromeUtils.import(
   "resource://gre/modules/XPCOMUtils.jsm"
 );
 
-const { AddonManager } = ChromeUtils.import(
-  "resource://gre/modules/AddonManager.jsm"
-);
-
 const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
 XPCOMUtils.defineLazyModuleGetters(this, {
+  AddonManager: "resource://gre/modules/AddonManager.jsm",
   ChromeManifest: "resource:///modules/ChromeManifest.jsm",
   Overlays: "resource:///modules/Overlays.jsm",
   PrivateTab: "resource:///modules/PrivateTab.jsm",
@@ -29,14 +26,6 @@ XPCOMUtils.defineLazyGlobalGetters(this, ["fetch"]);
 
 const WaterfoxGlue = {
   async init() {
-    this._migrateUI();
-
-    AddonManager.maybeInstallBuiltinAddon(
-      "addonstores@waterfox.net",
-      "1.0.0",
-      "resource://builtin-addons/addonstores/"
-    );
-
     // Parse chrome.manifest
     this.startupManifest = await this.getChromeManifest("startup");
     this.privateManifest = await this.getChromeManifest("private");
@@ -45,37 +34,8 @@ const WaterfoxGlue = {
     Services.obs.addObserver(this, "chrome-document-loaded");
     // Observe main-pane-loaded topic to detect about:preferences open
     Services.obs.addObserver(this, "main-pane-loaded");
-  },
-
-  async _migrateUI() {
-    let currentUIVersion = Services.prefs.getIntPref(
-      "browser.migration.version"
-    );
-
-    async function enableTheme(id) {
-      AddonManager.getAddonByID(id).then(addon => addon.enable());
-    }
-
-    if (currentUIVersion < 128) {
-      // Ensure the theme id is set correctly for G5
-      const DEFAULT_THEME = "default-theme@mozilla.org";
-      AddonManager.getAddonsByTypes(["theme"]).then(themes => {
-        let activeTheme = themes.find(addon => addon.isActive);
-        if (activeTheme) {
-          let themeId = activeTheme.id;
-          if (themeId == "lepton@waterfox.net") {
-            enableTheme("default-theme@mozilla.org");
-          } else if (themeId == "australis-light@waterfox.net") {
-            enableTheme("firefox-compact-light@mozilla.org");
-          } else if (themeId == "australis-dark@waterfox.net") {
-            enableTheme("firefox-compact-dark@mozilla.org");
-          }
-        } else {
-          // If no activeTheme detected, set default.
-          enableTheme(DEFAULT_THEME);
-        }
-      });
-    }
+    // Observe final-ui-startup to launch browser window dependant tasks
+    Services.obs.addObserver(this, "final-ui-startup");
   },
 
   async getChromeManifest(manifest) {
@@ -172,6 +132,50 @@ const WaterfoxGlue = {
           subject.initialized = true;
         }
         break;
+      case "final-ui-startup":
+        this._beforeUIStartup();
+        break;
+    }
+  },
+
+  async _beforeUIStartup() {
+    this._migrateUI();
+
+    AddonManager.maybeInstallBuiltinAddon(
+      "addonstores@waterfox.net",
+      "1.0.0",
+      "resource://builtin-addons/addonstores/"
+    );
+  },
+
+  async _migrateUI() {
+    let currentUIVersion = Services.prefs.getIntPref(
+      "browser.migration.version"
+    );
+
+    async function enableTheme(id) {
+      AddonManager.getAddonByID(id).then(addon => addon.enable());
+    }
+
+    if (currentUIVersion < 128) {
+      // Ensure the theme id is set correctly for G5
+      const DEFAULT_THEME = "default-theme@mozilla.org";
+      AddonManager.getAddonsByTypes(["theme"]).then(themes => {
+        let activeTheme = themes.find(addon => addon.isActive);
+        if (activeTheme) {
+          let themeId = activeTheme.id;
+          if (themeId == "lepton@waterfox.net") {
+            enableTheme("default-theme@mozilla.org");
+          } else if (themeId == "australis-light@waterfox.net") {
+            enableTheme("firefox-compact-light@mozilla.org");
+          } else if (themeId == "australis-dark@waterfox.net") {
+            enableTheme("firefox-compact-dark@mozilla.org");
+          }
+        } else {
+          // If no activeTheme detected, set default.
+          enableTheme(DEFAULT_THEME);
+        }
+      });
     }
   },
 };
