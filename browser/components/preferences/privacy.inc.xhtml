@@ -1227,7 +1227,7 @@
     <label><html:h2 id="dohGroupMessage" data-l10n-id="preferences-doh-group-message2"/></label>
     <vbox id="dohCategories">
       <radiogroup id="dohCategoryRadioGroup"
-                  preference="network.trr.mode" aria-labelledby="dohGroupMessage">
+                  aria-labelledby="dohGroupMessage">
         <vbox id="dohOptionDefault" class="privacy-detailedoption info-box-container">
           <hbox>
             <radio id="dohDefaultRadio"
@@ -1340,6 +1340,41 @@
                 </menulist>
                 <html:input id="dohStrictInputField" type="text" style="flex: 1;"
                     preference="network.trr.custom_uri" hidden="true"/>
+              </vbox>
+            </vbox>
+          </vbox>
+        </vbox>
+        <vbox id="dohOptionUltra" class="privacy-detailedoption info-box-container">
+          <hbox>
+            <radio id="dohUltraRadio"
+                   value="ultra"
+                   data-l10n-id="preferences-doh-setting-ultra"
+                   flex="1"/>
+            <button id="dohUltraArrow"
+                    is="highlightable-button"
+                    class="arrowhead doh-expand-section"
+                    data-l10n-id="preferences-doh-expand-section"
+                    aria-expanded="false"/>
+          </hbox>
+          <vbox class="indent">
+            <label data-l10n-id="preferences-doh-ultra-desc"></label>
+            <vbox class="extra-information-label">
+              <label data-l10n-id="preferences-doh-ultra-fallback-mode"/>
+              <menulist id="dohUltraFallbackMode"
+                        sizetopopup="none">
+              </menulist>
+            </vbox>
+            <vbox class="privacy-extra-information">
+              <vbox class="indent">
+                <hbox class="extra-information-label">
+                  <label class="doh-label" data-l10n-id="preferences-doh-ultra-detailed-desc-1"/>
+                </hbox>
+                <hbox class="extra-information-label">
+                  <label class="doh-label" data-l10n-id="preferences-doh-ultra-detailed-desc-2"/>
+                </hbox>
+                <hbox class="extra-information-label">
+                  <label class="doh-label" data-l10n-id="preferences-doh-ultra-detailed-desc-3"/>
+                </hbox>
               </vbox>
             </vbox>
           </vbox>
