@@ -269,6 +269,7 @@ Preferences.addAll([
   { id: "network.trr.uri", type: "string" },
   { id: "network.trr.default_provider_uri", type: "string" },
   { id: "network.trr.custom_uri", type: "string" },
+  { id: "network.trr.use_ohttp", type: "bool" },
   { id: "doh-rollout.disable-heuristics", type: "bool" },
 ]);
 
@@ -786,30 +787,68 @@ var gPrivacyPane = {
     let defaultOption = document.getElementById("dohOptionDefault");
     let enabledOption = document.getElementById("dohOptionEnabled");
     let strictOption = document.getElementById("dohOptionStrict");
+    let ultraOption = document.getElementById("dohOptionUltra");
     let offOption = document.getElementById("dohOptionOff");
+    
+    // Clear all selections
     defaultOption.classList.remove("selected");
     enabledOption.classList.remove("selected");
     strictOption.classList.remove("selected");
+    ultraOption.classList.remove("selected");
     offOption.classList.remove("selected");
 
+    // Get the radiogroup and handle selection manually
+    let radioGroup = document.getElementById("dohCategoryRadioGroup");
+
+    // Check if Ultra Protection mode is enabled
+    let ohttpEnabled = Services.prefs.getBoolPref("network.trr.use_ohttp", false);
+    
     switch (value) {
       case Ci.nsIDNSService.MODE_NATIVEONLY:
         defaultOption.classList.add("selected");
+        if (radioGroup) radioGroup.value = "0";
         break;
       case Ci.nsIDNSService.MODE_TRRFIRST:
-        enabledOption.classList.add("selected");
+        if (ohttpEnabled) {
+          // Ultra Protection with fallback allowed
+          ultraOption.classList.add("selected");
+          if (radioGroup) radioGroup.value = "ultra";
+          // Update the fallback dropdown state
+          let fallbackDropdown = document.getElementById("dohUltraFallbackMode");
+          if (fallbackDropdown) {
+            fallbackDropdown.disabled = false;
+            fallbackDropdown.value = "fallback";
+          }
+        } else {
+          enabledOption.classList.add("selected");
+          if (radioGroup) radioGroup.value = "2";
+        }
         break;
       case Ci.nsIDNSService.MODE_TRRONLY:
-        strictOption.classList.add("selected");
+        // Ultra Protection is strict mode + OHttp enabled, or regular strict mode
+        if (ohttpEnabled) {
+          ultraOption.classList.add("selected");
+          if (radioGroup) radioGroup.value = "ultra";
+          // Update the fallback dropdown state
+          let fallbackDropdown = document.getElementById("dohUltraFallbackMode");
+          if (fallbackDropdown) {
+            fallbackDropdown.disabled = false;
+            fallbackDropdown.value = "no-fallback";
+          }
+        } else {
+          strictOption.classList.add("selected");
+          if (radioGroup) radioGroup.value = "3";
+        }
         break;
       case Ci.nsIDNSService.MODE_TRROFF:
         offOption.classList.add("selected");
+        if (radioGroup) radioGroup.value = "5";
         break;
       default:
         // The pref is set to a random value.
         // This shouldn't happen, but let's make sure off is selected.
         offOption.classList.add("selected");
-        document.getElementById("dohCategoryRadioGroup").selectedIndex = 3;
+        if (radioGroup) radioGroup.value = "5";
         break;
     }
 
@@ -836,6 +875,26 @@ var gPrivacyPane = {
       }
     }
 
+    // Handle Ultra Protection mode (OHttp enabled with either TRR First or TRR Only)
+    if (ohttpEnabled && (value == Ci.nsIDNSService.MODE_TRRFIRST || value == Ci.nsIDNSService.MODE_TRRONLY)) {
+      // Ultra Protection mode - ensure OHttp is enabled
+      Services.prefs.setBoolPref("network.trr.use_ohttp", true);
+      // Enable the fallback dropdown
+      let fallbackDropdown = document.getElementById("dohUltraFallbackMode");
+      if (fallbackDropdown) {
+        fallbackDropdown.disabled = false;
+      }
+    } else if (!ohttpEnabled) {
+      // Not Ultra Protection - ensure OHttp is disabled
+      Services.prefs.setBoolPref("network.trr.use_ohttp", false);
+      // Disable the fallback dropdown when not in Ultra mode
+      let fallbackDropdown = document.getElementById("dohUltraFallbackMode");
+      if (fallbackDropdown) {
+        fallbackDropdown.disabled = true;
+        fallbackDropdown.value = "fallback";
+      }
+    }
+
     // Bug 1900672
     // When the mode is set to 5, clear the pref to ensure that
     // network.trr.uri is set to fallbackProviderURIwhen the mode is set to 2 or 3 afterwards
@@ -853,6 +912,7 @@ var gPrivacyPane = {
     setEventListener("dohDefaultArrow", "command", this.toggleExpansion);
     setEventListener("dohEnabledArrow", "command", this.toggleExpansion);
     setEventListener("dohStrictArrow", "command", this.toggleExpansion);
+    setEventListener("dohUltraArrow", "command", this.toggleExpansion);
 
     function modeButtonPressed(e) {
       // Clicking the active mode again should not generate another event
@@ -866,13 +926,53 @@ var gPrivacyPane = {
       });
     }
 
-    setEventListener("dohDefaultRadio", "command", modeButtonPressed);
-    setEventListener("dohEnabledRadio", "command", modeButtonPressed);
-    setEventListener("dohStrictRadio", "command", modeButtonPressed);
-    setEventListener("dohOffRadio", "command", modeButtonPressed);
+    setEventListener("dohDefaultRadio", "command", (e) => {
+      // Default Protection: Use default mode and disable OHttp
+      Services.prefs.setIntPref("network.trr.mode", Ci.nsIDNSService.MODE_NATIVEONLY);
+      Services.prefs.setBoolPref("network.trr.use_ohttp", false);
+      modeButtonPressed(e);
+    });
+    setEventListener("dohEnabledRadio", "command", (e) => {
+      // Enabled Protection: Use enabled mode and disable OHttp
+      Services.prefs.setIntPref("network.trr.mode", Ci.nsIDNSService.MODE_TRRFIRST);
+      Services.prefs.setBoolPref("network.trr.use_ohttp", false);
+      modeButtonPressed(e);
+    });
+    setEventListener("dohStrictRadio", "command", (e) => {
+      // Strict Protection: Set TRR to strict mode but disable OHttp
+      Services.prefs.setIntPref("network.trr.mode", Ci.nsIDNSService.MODE_TRRONLY);
+      Services.prefs.setBoolPref("network.trr.use_ohttp", false);
+      modeButtonPressed(e);
+    });
+    setEventListener("dohUltraRadio", "command", (e) => {
+      // Ultra Protection: Enable OHttp and set default mode
+      Services.prefs.setBoolPref("network.trr.use_ohttp", true);
+      let fallbackDropdown = document.getElementById("dohUltraFallbackMode");
+      if (fallbackDropdown) {
+        // Default to fallback allowed unless user previously selected no-fallback
+        if (fallbackDropdown.value === "no-fallback") {
+          Services.prefs.setIntPref("network.trr.mode", Ci.nsIDNSService.MODE_TRRONLY);
+        } else {
+          fallbackDropdown.value = "fallback";
+          Services.prefs.setIntPref("network.trr.mode", Ci.nsIDNSService.MODE_TRRFIRST);
+        }
+        fallbackDropdown.disabled = false;
+      } else {
+        // Fallback if dropdown not found
+        Services.prefs.setIntPref("network.trr.mode", Ci.nsIDNSService.MODE_TRRFIRST);
+      }
+      modeButtonPressed(e);
+    });
+    setEventListener("dohOffRadio", "command", (e) => {
+      // Off Protection: Set TRR to off and disable OHttp
+      Services.prefs.setIntPref("network.trr.mode", Ci.nsIDNSService.MODE_TRROFF);
+      Services.prefs.setBoolPref("network.trr.use_ohttp", false);
+      modeButtonPressed(e);
+    });
 
     this.populateDoHResolverList("dohEnabled");
     this.populateDoHResolverList("dohStrict");
+    this.populateUltraFallbackDropdown();
 
     Preferences.get("network.trr.uri").on("change", () => {
       gPrivacyPane.updateDoHResolverList("dohEnabled");
@@ -885,7 +985,19 @@ var gPrivacyPane = {
       "change",
       gPrivacyPane.highlightDoHCategoryAndUpdateStatus
     );
+    // Also listen for OHttp pref changes
+    Preferences.get("network.trr.use_ohttp").on(
+      "change", 
+      gPrivacyPane.highlightDoHCategoryAndUpdateStatus
+    );
+
+
+
+
     this.highlightDoHCategoryAndUpdateStatus();
+    
+    // Initialize Ultra Protection checkbox state
+    this.initUltraProtectionState();
 
     Services.obs.addObserver(this, "network:trr-uri-changed");
     Services.obs.addObserver(this, "network:trr-mode-changed");
@@ -910,6 +1022,54 @@ var gPrivacyPane = {
     if (Services.prefs.prefIsLocked("network.trr.mode")) {
       document.getElementById("dohCategoryRadioGroup").disabled = true;
       Services.prefs.setStringPref("network.trr.custom_uri", uriPref);
+    }
+  },
+
+  populateUltraFallbackDropdown() {
+    let menu = document.getElementById("dohUltraFallbackMode");
+    if (!menu) return;
+
+    // populate the fallback options like provider dropdowns do
+    menu.removeAllItems();
+    
+    let fallbackItem = menu.appendItem("Allow fallback to system DNS if secure DNS fails", "fallback");
+    let noFallbackItem = menu.appendItem("Never fall back to system DNS (sites may not load if secure DNS fails)", "no-fallback");
+    
+    // Set initial selection
+    menu.value = "fallback";
+    
+    // Add event listener
+    menu.addEventListener("command", (e) => {
+      let ohttpEnabled = Services.prefs.getBoolPref("network.trr.use_ohttp", false);
+      let trrMode = Services.prefs.getIntPref("network.trr.mode", 0);
+      if (ohttpEnabled && (trrMode == Ci.nsIDNSService.MODE_TRRFIRST || trrMode == Ci.nsIDNSService.MODE_TRRONLY)) {
+        if (e.target.value === "no-fallback") {
+          // No fallback - switch to TRR Only mode
+          Services.prefs.setIntPref("network.trr.mode", Ci.nsIDNSService.MODE_TRRONLY);
+        } else {
+          // Allow fallback - switch to TRR First mode
+          Services.prefs.setIntPref("network.trr.mode", Ci.nsIDNSService.MODE_TRRFIRST);
+        }
+      }
+    });
+  },
+
+  initUltraProtectionState() {
+    // Initialize the Ultra Protection fallback dropdown state
+    let ohttpEnabled = Services.prefs.getBoolPref("network.trr.use_ohttp", false);
+    let trrMode = Services.prefs.getIntPref("network.trr.mode", 0);
+    let fallbackDropdown = document.getElementById("dohUltraFallbackMode");
+    
+    if (fallbackDropdown) {      
+      if (ohttpEnabled && (trrMode == Ci.nsIDNSService.MODE_TRRFIRST || trrMode == Ci.nsIDNSService.MODE_TRRONLY)) {
+        // Ultra Protection is active
+        fallbackDropdown.disabled = false;
+        fallbackDropdown.value = (trrMode == Ci.nsIDNSService.MODE_TRRONLY) ? "no-fallback" : "fallback";
+      } else {
+        // Ultra Protection is not active
+        fallbackDropdown.disabled = true;
+        fallbackDropdown.value = "fallback";
+      }
     }
   },
 
