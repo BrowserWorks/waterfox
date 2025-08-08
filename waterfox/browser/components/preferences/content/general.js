@@ -82,10 +82,7 @@ const _gMainPaneOverlay = {
       }
       document.initialized = true;
     }
-    this.setEventListener("enableObliviousDns", "click", () => {
-      const value = document.getElementById("enableObliviousDns").checked ? 2 : 0;
-      Services.prefs.setIntPref("network.trr.mode", value);
-    });
+
   },
 
   tocGenerate() {
