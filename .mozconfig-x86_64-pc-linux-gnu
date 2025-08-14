@@ -7,17 +7,15 @@ else
     export CC=clang
     export CXX=clang++
 fi
-if test -f "$HOME/.mozbuild/nasm/nasm"; then
-    export NASM="$HOME"/.mozbuild/nasm/nasm
-fi
 
-if test "$WFX_RELEASE"; then
+if test "$WFX_RELEASE" || test "$WFX_PRE_RELEASE"; then
     ac_add_options --enable-lto
-    ac_add_options --enable-optimize="-O3 -march=core2 -mtune=haswell -w"
+    ac_add_options --enable-optimize="-march=x86-64-v2 -mtune=generic -O3 -w"
     ac_add_options --enable-release
     ac_add_options --enable-rust-simd
     ac_add_options RUSTC_OPT_LEVEL=3
-    export RUSTFLAGS="$RUSTFLAGS -Ctarget-cpu=core2"
+    export MOZILLA_OFFICIAL=1
+    export RUSTFLAGS="$RUSTFLAGS -Ctarget-cpu=x86-64-v2"
 fi
 
 ac_add_options --disable-crashreporter
@@ -26,19 +24,33 @@ ac_add_options --disable-dmd
 ac_add_options --disable-geckodriver
 ac_add_options --disable-profiling
 ac_add_options --disable-tests
-ac_add_options --disable-verify-mar
 
 ac_add_options --enable-alsa
 ac_add_options --enable-application=browser
-ac_add_options --enable-bootstrap
+ac_add_options --enable-bootstrap=-clang,-sccache
 if test -x "$(command -v sccache)"; then
     ac_add_options --with-ccache=sccache
 elif test -f "$HOME/.mozbuild/sccache/sccache"; then
     ac_add_options --with-ccache="$HOME"/.mozbuild/sccache/sccache
 fi
 ac_add_options --enable-install-strip
+ac_add_options --enable-jxl
+ac_add_options --enable-linker=lld
+if test "$GEN_PGO"; then
+    ac_add_options --enable-profile-generate
+elif test "$USE_PGO"; then
+    ac_add_options --enable-profile-use
+    ac_add_options --with-pgo-jarlog=$PWD/en-US.log
+    ac_add_options --with-pgo-profile-path=$PWD/merged.profdata
+fi
 ac_add_options --enable-pulseaudio
 ac_add_options --enable-strip
+if test "$WFX_RELEASE"; then
+    ac_add_options --enable-update-channel=release
+elif test "$WFX_PRE_RELEASE"; then
+    ac_add_options --enable-update-channel=beta
+fi
+ac_add_options --enable-unverified-updates
 ac_add_options --enable-updater
 
 ac_add_options --target=x86_64-pc-linux-gnu
@@ -47,13 +59,13 @@ ac_add_options --with-app-basename=Waterfox
 ac_add_options --with-app-name=waterfox
 ac_add_options --with-branding=waterfox/browser/branding
 ac_add_options --with-distribution-id=net.waterfox
-if test -f "$PWD/browser/locales/l10n"; then
-    ac_add_options --with-l10n-base="$PWD"/browser/locales/l10n
+if [ -d "$PWD"/waterfox/browser/locales/en-GB ]; then
+    ac_add_options --with-l10n-base="$PWD"/waterfox/browser/locales
 fi
 if test -f "$PWD/mozilla-api"; then
     ac_add_options --with-mozilla-api-keyfile="$PWD"/mozilla-api
 fi
 
 export MOZ_INCLUDE_SOURCE_INFO=1
-mk_add_options AUTOCLOBBER=1
 export MOZ_REQUIRE_SIGNING=
+export MOZ_TELEMETRY_REPORTING=
