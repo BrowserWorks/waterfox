@@ -68,6 +68,10 @@ elif CONFIG["MOZ_WIDGET_TOOLKIT"] == "android":
         "/dom/system",
         "/dom/system/android",
     ]
+elif CONFIG["MOZ_WIDGET_TOOLKIT"] == "gtk":
+    LOCAL_INCLUDES += [
+        "/widget/gtk",
+    ]
 
 XPCOM_MANIFESTS += [
     "components.conf",

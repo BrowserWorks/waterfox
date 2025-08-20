@@ -38,6 +38,14 @@
 // Menus
 //-----------------------------------------------------------
 
+// {0B3FE5AA-BC72-4303-85AE-76365DF1251D}
+#define NS_NATIVEMENUSERVICE_CID                     \
+  {                                                  \
+    0x0B3FE5AA, 0xBC72, 0x4303, {                    \
+      0x85, 0xAE, 0x76, 0x36, 0x5D, 0xF1, 0x25, 0x1D \
+    }                                                \
+  }
+
 // {F6CD4F21-53AF-11d2-8DC4-00609703C14E}
 #define NS_POPUPMENU_CID \
   {0xf6cd4f21, 0x53af, 0x11d2, {0x8d, 0xc4, 0x0, 0x60, 0x97, 0x3, 0xc1, 0x4e}}
