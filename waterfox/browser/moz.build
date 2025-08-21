@@ -15,5 +15,9 @@ DIST_SUBDIR = "browser"
 export("DIST_SUBDIR")
 
 JS_PREFERENCE_PP_FILES += [
-    "app/profile/000-waterfox.js",
+    "app/profile/00-general.js",
+    "app/profile/01-theme.js",
+    "app/profile/02-privacy.js",
+    "app/profile/03-features.js",
+    "app/profile/04-sidebar.js",
 ]
