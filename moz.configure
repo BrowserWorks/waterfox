@@ -929,7 +929,7 @@ set_config("MOZ_SYSTEM_ZLIB", True, when="--with-system-zlib")
 
 option(
     env="USE_LIBZ_RS",
-    default=milestone.is_early_beta_or_earlier,
+    default=True,
     help="Use libz-rs-sys instead of zlib",
     when=toolkit & ~with_system_zlib_option,
 )
