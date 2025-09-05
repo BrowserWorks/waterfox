@@ -14,8 +14,10 @@ const { Services } = ChromeUtils.import("resource://gre/modules/Services.jsm");
 
 XPCOMUtils.defineLazyModuleGetters(this, {
   AddonManager: "resource://gre/modules/AddonManager.jsm",
+  BrowserUtils: "resource:///modules/BrowserUtils.jsm",
   ChromeManifest: "resource:///modules/ChromeManifest.jsm",
   Overlays: "resource:///modules/Overlays.jsm",
+  PrefUtils: "resource:///modules/PrefUtils.jsm",
   PrivateTab: "resource:///modules/PrivateTab.jsm",
   StatusBar: "resource:///modules/StatusBar.jsm",
   TabFeatures: "resource:///modules/TabFeatures.jsm",
@@ -25,7 +27,18 @@ XPCOMUtils.defineLazyModuleGetters(this, {
 XPCOMUtils.defineLazyGlobalGetters(this, ["fetch"]);
 
 const WaterfoxGlue = {
+  stylesEnabled: false,
+
   async init() {
+    // Set pref observers
+    this._setPrefObservers();
+
+    // Load always on Waterfox custom CSS.
+    // Add additional CSS here.
+    BrowserUtils.registerStylesheet(
+      "chrome://browser/skin/waterfox/general.css"
+    );
+
     // Parse chrome.manifest
     this.startupManifest = await this.getChromeManifest("startup");
     this.privateManifest = await this.getChromeManifest("private");
@@ -36,6 +49,29 @@ const WaterfoxGlue = {
     Services.obs.addObserver(this, "main-pane-loaded");
     // Observe final-ui-startup to launch browser window dependant tasks
     Services.obs.addObserver(this, "final-ui-startup");
+  },
+
+  async _setPrefObservers() {
+    this.leptonListener = PrefUtils.addObserver(
+      "userChrome.theme.enable",
+      isEnabled => {
+        // Pref being false means we need to unload the sheets.
+        const userChromeSheet = "chrome://browser/skin/userChrome.css";
+        const userContentSheet = "chrome://browser/skin/userContent.css";
+
+        // Only register userContent globally
+        BrowserUtils.registerOrUnregisterSheet(userContentSheet, isEnabled);
+
+        // Attach or detach userChrome per-window
+        if (isEnabled) {
+          this.attachUserChromeToAllWindows(userChromeSheet);
+          this.stylesEnabled = true;
+        } else {
+          this.detachUserChromeFromAllWindows(userChromeSheet);
+          this.stylesEnabled = false;
+        }
+      }
+    );
   },
 
   async getChromeManifest(manifest) {
@@ -101,6 +137,16 @@ const WaterfoxGlue = {
           TabFeatures.init(window);
           StatusBar.init(window);
           UICustomizations.init(window);
+
+          // Attach userChrome.css to this chrome window if styles are enabled
+          if (this.stylesEnabled) {
+            try {
+              window.windowUtils.loadSheetUsingURIString(
+                "chrome://browser/skin/userChrome.css",
+                Ci.nsIStyleSheetService.USER_SHEET
+              );
+            } catch (_) {}
+          }
         }
         break;
       case "main-pane-loaded":
@@ -188,5 +234,29 @@ const WaterfoxGlue = {
         enableTheme(DEFAULT_THEME);
       }
     }
+  },
+
+  // Attach userChrome.css to all open browser windows (per-window).
+  attachUserChromeToAllWindows(uri) {
+    BrowserUtils.executeInAllWindows((win, sheetURI) => {
+      try {
+        win.windowUtils.loadSheetUsingURIString(
+          sheetURI,
+          Ci.nsIStyleSheetService.USER_SHEET
+        );
+      } catch (_) {}
+    }, uri);
+  },
+
+  // Detach userChrome.css from all open browser windows.
+  detachUserChromeFromAllWindows(uri) {
+    BrowserUtils.executeInAllWindows((win, sheetURI) => {
+      try {
+        win.windowUtils.removeSheetUsingURIString(
+          sheetURI,
+          Ci.nsIStyleSheetService.USER_SHEET
+        );
+      } catch (_) {}
+    }, uri);
   },
 };
