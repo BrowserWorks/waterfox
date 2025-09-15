@@ -1,0 +1,33 @@
+#!/bin/sh -e
+# postrm script for Waterfox
+# Refreshes desktop and icon caches after removal/purge.
+
+set -e
+
+case "$$1" in
+  remove|purge|disappear)
+    # Refresh icon cache if available
+    if [ -x /usr/bin/gtk-update-icon-cache ]; then
+      if [ -d /usr/share/icons/hicolor ]; then
+        /usr/bin/gtk-update-icon-cache -q /usr/share/icons/hicolor || true
+      fi
+    fi
+
+    # Refresh desktop database if available
+    if [ -x /usr/bin/update-desktop-database ]; then
+      /usr/bin/update-desktop-database -q || true
+    fi
+
+    # If purging, remove Waterfox apt source and keyring
+    if [ "$$1" = "purge" ]; then
+      rm -f /etc/apt/sources.list.d/waterfox.list || true
+      rm -f /usr/share/keyrings/waterfox-archive-keyring.gpg || true
+    fi
+    ;;
+
+  upgrade|failed-upgrade|abort-install|abort-upgrade)
+    # Nothing to do for these actions
+    ;;
+esac
+
+exit 0
