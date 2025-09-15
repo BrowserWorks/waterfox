@@ -1,0 +1,25 @@
+#!/usr/bin/make -f
+# Waterfox Debian packaging rules (debhelper, simple dh sequence)
+# This package repackages prebuilt binaries; we skip build/test stages.
+
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@
+
+# Avoid touching .xpi files for reproducibility (they are already signed/packed)
+override_dh_strip_nondeterminism:
+	dh_strip_nondeterminism -Xxpi
+
+# Skip auto configure/build/test — binaries are prebuilt
+override_dh_auto_configure override_dh_auto_build override_dh_auto_test:
+	@echo "Skipping auto-configure/build/test (prebuilt binaries)."
+
+# Do not run dh_auto_install; installation is driven by debian/install
+override_dh_auto_install:
+	@echo "Skipping dh_auto_install; using dh_install mappings."
+	:
+
+# Perform file installation via debian/install and symlinks via debian/links
+override_dh_install:
+	dh_install
