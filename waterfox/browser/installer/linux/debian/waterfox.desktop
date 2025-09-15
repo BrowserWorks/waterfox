@@ -1,0 +1,23 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Waterfox
+GenericName=Web Browser
+Comment=Browse the World Wide Web
+Exec=waterfox %u
+Icon=waterfox
+Terminal=false
+Categories=Network;WebBrowser;
+MimeType=text/html;text/xml;application/xhtml+xml;x-scheme-handler/http;x-scheme-handler/https;application/x-xpinstall;application/pdf;application/json;
+StartupNotify=true
+StartupWMClass=waterfox
+Keywords=Internet;WWW;Browser;Web;Explorer;
+Actions=new-window;new-private-window;
+
+[Desktop Action new-window]
+Name=New Window
+Exec=waterfox --new-window %u
+
+[Desktop Action new-private-window]
+Name=New Private Window
+Exec=waterfox --private-window %u
