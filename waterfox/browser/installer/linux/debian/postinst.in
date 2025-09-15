@@ -1,0 +1,93 @@
+#!/bin/sh -e
+# postinst script for Waterfox
+# Sets system alternatives for x-www-browser and gnome-www-browser to Waterfox.
+
+set -e
+
+case "$$1" in
+  configure|abort-upgrade|abort-remove|abort-deconfigure)
+    # Configure Waterfox apt source and keyring for self-updates
+    KEYRING="/usr/share/keyrings/waterfox-archive-keyring.gpg"
+    LIST_FILE="/etc/apt/sources.list.d/waterfox.list"
+    ARCH="$$(dpkg --print-architecture)"
+
+    # Determine codename
+    if command -v lsb_release >/dev/null 2>&1; then
+      CODENAME="$$(lsb_release -sc)"
+    elif [ -r /etc/os-release ]; then
+      . /etc/os-release
+      CODENAME="$${VERSION_CODENAME:-}"
+    fi
+    [ -n "$$CODENAME" ] || CODENAME="bookworm"
+
+    REPO_LINE="deb [arch=$${ARCH} signed-by=$${KEYRING}] https://pkg.waterfox.net/waterfox $${CODENAME} main"
+
+    # Ensure keyring directory exists
+    mkdir -p "/usr/share/keyrings" || true
+
+    # Install keyring if shipped as ASCII armor (optional)
+    # If the keyring is already installed by the package payload, this is a no-op.
+    if [ ! -s "$$KEYRING" ] && [ -r /usr/share/waterfox/waterfox.asc ]; then
+      if command -v gpg >/dev/null 2>&1; then
+        gpg --dearmor </usr/share/waterfox/waterfox.asc >"$$KEYRING" || true
+        chmod 0644 "$$KEYRING" || true
+      fi
+    fi
+
+    # Try to fetch keyring from pkg.waterfox.net if not bundled
+    if [ ! -s "$$KEYRING" ]; then
+      KEY_URL_GPG="https://pkg.waterfox.net/waterfox/waterfox-archive-keyring.gpg"
+      KEY_URL_ASC="https://pkg.waterfox.net/waterfox/waterfox.asc"
+      if command -v curl >/dev/null 2>&1; then
+        curl -fsSL "$$KEY_URL_GPG" -o "$$KEYRING" || true
+        if [ ! -s "$$KEYRING" ] && command -v gpg >/dev/null 2>&1; then
+          curl -fsSL "$$KEY_URL_ASC" | gpg --dearmor >"$$KEYRING" || true
+        fi
+      elif command -v wget >/dev/null 2>&1; then
+        wget -qO "$$KEYRING" "$$KEY_URL_GPG" || true
+        if [ ! -s "$$KEYRING" ] && command -v gpg >/dev/null 2>&1; then
+          wget -qO- "$$KEY_URL_ASC" | gpg --dearmor >"$$KEYRING" || true
+        fi
+      fi
+      chmod 0644 "$$KEYRING" || true
+    fi
+
+    mkdir -p "$$(dirname "$$LIST_FILE")"
+    if [ -f "$$LIST_FILE" ]; then
+      if ! grep -qF "$$REPO_LINE" "$$LIST_FILE"; then
+        sed -i 's|^deb .*pkg\.waterfox\.net.*$$||' "$$LIST_FILE" || true
+        echo "$$REPO_LINE" >> "$$LIST_FILE"
+      fi
+    else
+      echo "$$REPO_LINE" > "$$LIST_FILE"
+    fi
+
+    if command -v update-alternatives >/dev/null 2>&1; then
+      update-alternatives --install /usr/bin/gnome-www-browser \
+        gnome-www-browser /usr/bin/${PKG_NAME} 100 \
+        --slave /usr/share/man/man1/gnome-www-browser.1.gz \
+        gnome-www-browser.1.gz /usr/share/man/man1/${PKG_NAME}.1.gz || true
+
+      update-alternatives --install /usr/bin/x-www-browser \
+        x-www-browser /usr/bin/${PKG_NAME} 100 \
+        --slave /usr/share/man/man1/x-www-browser.1.gz \
+        x-www-browser.1.gz /usr/share/man/man1/${PKG_NAME}.1.gz || true
+    fi
+    ;;
+esac
+
+# Refresh icon cache if available
+if [ -x /usr/bin/gtk-update-icon-cache ]; then
+  for dir in /usr/share/icons/hicolor; do
+    if [ -d "$$dir" ]; then
+      gtk-update-icon-cache -q "$$dir" || true
+    fi
+  done
+fi
+
+# Update desktop database if available
+if [ -x /usr/bin/update-desktop-database ]; then
+  update-desktop-database -q || true
+fi
+
+exit 0
