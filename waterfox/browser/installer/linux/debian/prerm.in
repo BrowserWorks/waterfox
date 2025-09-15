@@ -1,0 +1,23 @@
+#!/bin/sh -e
+# prerm script for Waterfox
+# Cleans up system alternatives when removing the package.
+
+set -e
+
+case "$$1" in
+  remove|deconfigure)
+    if command -v update-alternatives >/dev/null 2>&1; then
+      # Remove Waterfox alternatives registrations if present
+      update-alternatives --remove x-www-browser /usr/bin/${PKG_NAME} || true
+      update-alternatives --remove gnome-www-browser /usr/bin/${PKG_NAME} || true
+    fi
+    ;;
+  upgrade)
+    # Nothing to do on upgrade
+    ;;
+  failed-upgrade|abort-install|abort-upgrade)
+    # Nothing to do on failed/aborted operations
+    ;;
+esac
+
+exit 0

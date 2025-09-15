@@ -1,0 +1,2 @@
+waterfox/* ${PKG_INSTALL_PATH}
+debian/${PKG_NAME}.desktop usr/share/applications
