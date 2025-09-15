@@ -1,0 +1,90 @@
+.TH ${DISPLAY_NAME} 1 "${MANPAGE_DATE}" waterfox "Linux User's Manual"
+.SH NAME
+waterfox \- ${DISPLAY_NAME} offers safe and easy web browsing
+.SH SYNOPSIS
+.B waterfox
+[\fIOPTIONS\fR] [\fIURL\fR]
+
+.B /usr/lib/waterfox/waterfox
+[\fIOPTIONS\fR] [\fIURL\fR]
+.SH DESCRIPTION
+\fB${DISPLAY_NAME}\fR is an open-source web browser, designed for standards
+compliance, performance, privacy, and portability. It supports a wide range
+of modern web technologies and extensions.
+.SH USAGE
+If there is a \fB${DISPLAY_NAME}\fR browser already running, invoking
+\fBwaterfox\fR will arrange for it to create a new browser window; otherwise
+it will start a new instance.
+.SH OPTIONS
+A summary of commonly used options is included below. For the full list,
+run \fBwaterfox \-\-help\fR.
+.SS "X11 options"
+.TP
+.BI \-\-display= DISPLAY
+Use the specified X display.
+.TP
+.B \-\-sync
+Make X calls synchronous.
+.TP
+.B \-\-no\-xshm
+Do not use X shared memory extension.
+.SS "Browser options"
+.TP
+.B \-h, \-\-help
+Show summary of options and exit.
+.TP
+.B \-v, \-\-version
+Print ${DISPLAY_NAME} version and exit.
+.TP
+\fB\-P\fR [\fIprofile\fR]
+Start with \fIprofile\fR. When no profile is given, displays the Profile Manager.
+This may require \fB\-\-no\-remote\fR.
+.TP
+.B \-ProfileManager
+Start with Profile Manager. May require \fB\-\-no\-remote\fR.
+.TP
+.B \-\-no\-remote
+Do not connect to a running ${DISPLAY_NAME} instance. Use with options that
+would otherwise be sent to an existing process.
+.TP
+\fB\-\-new\-window\fR \fIURL\fR
+Open \fIURL\fR in a new window.
+.TP
+\fB\-\-new\-tab\fR \fIURL\fR
+Open \fIURL\fR in a new tab.
+.TP
+.B \-\-private\-window
+Open a new private browsing window.
+.TP
+\fB\-\-safe\-mode\fR
+Start ${DISPLAY_NAME} in Troubleshoot Mode (extensions disabled).
+.TP
+.B \-\-headless
+Run without a visible UI (useful for testing/automation).
+.TP
+\fB\-\-Profile\fR \fIPATH\fR
+Start with the profile located at \fIPATH\fR.
+.SH ENVIRONMENT
+.TP
+.B MOZ_GDK_DISPLAY
+When set, overrides the display passed down to GTK on X11-only builds. Normally
+set by the parent process on launch with \fB\-\-display\fR.
+.TP
+.B MOZ_ENABLE_WAYLAND
+Set to 1 to prefer Wayland backend on supported environments.
+.SH FILES
+.TP
+\fI/usr/bin/waterfox\fR
+Symbolic link to \fB/usr/lib/waterfox/waterfox\fR.
+.TP
+\fI/usr/lib/waterfox/waterfox\fR
+${DISPLAY_NAME} executable.
+.TP
+\fI/usr/lib/waterfox/waterfox\-bin\fR
+Legacy executable.
+.SH BUGS
+Report issues at \fIhttps://github.com/BrowserWorks/Waterfox/issues\fR.
+.SH AUTHORS
+.TP
+.B BrowserWorks
+.I https://www.waterfox.com
