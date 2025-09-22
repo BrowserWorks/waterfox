@@ -136,7 +136,7 @@
     "urls": {
       "search": {
         "base": "https://www.mojeek.com/search",
-        "searchTermParamName": "p"
+        "searchTermParamName": "q"
       },
       "suggestions": {
         "base": "https://www.google.com/complete/search",
