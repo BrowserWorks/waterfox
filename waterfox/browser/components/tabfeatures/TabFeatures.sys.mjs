@@ -20,6 +20,7 @@ export const TabFeatures = {
   PREF_ACTIVETAB: "browser.tabs.copyurl.activetab",
   PREF_REQUIRECONFIRM: "browser.restart_menu.requireconfirm",
   PREF_PURGECACHE: "browser.restart_menu.purgecache",
+  PREF_COPYURL_SHORTCUT: "browser.tabs.copyurl.shortcut",
 
   init(aWindow) {
     // Wait for XUL elements to be available before initializing listeners.
@@ -35,6 +36,7 @@ export const TabFeatures = {
     this.initListeners(aWindow);
     this.initNewTabConfig(); // Does not require aWindow
     this.initNewTabFocus(aWindow);
+    this.initShortcutCopyUrl(aWindow);
   },
 
   destroy() {
@@ -173,6 +175,75 @@ export const TabFeatures = {
         { once: true }
       );
     });
+  },
+
+  initShortcutCopyUrl(aWindow) {
+    const doc = aWindow.document;
+
+    const handler = (e) => {
+      try {
+        // Allow disabling via pref; default to enabled if unset
+        if (!Services.prefs.getBoolPref(this.PREF_COPYURL_SHORTCUT, true)) {
+          return;
+        }
+
+        const isMac = AppConstants.platform === "macosx";
+        const accelPressed = isMac ? e.metaKey : e.ctrlKey;
+
+        if (!accelPressed || !e.shiftKey || e.key?.toLowerCase() !== "u") {
+          return;
+        }
+
+        const url = aWindow.gBrowser?.currentURI?.spec;
+        if (!url) {
+          return;
+        }
+
+        // Prevent default so we don't trigger other shortcuts
+        e.preventDefault();
+        e.stopPropagation();
+
+        this.copyTabUrl(url, aWindow);
+        this._showCopyNotification(url, aWindow);
+      } catch (err) {
+        console.error("TabFeatures: shortcut copy failed", err);
+      }
+    };
+
+    // Capture phase to beat page-level handlers
+    doc.addEventListener("keydown", handler, true);
+
+    aWindow.addEventListener(
+      "unload",
+      () => {
+        try {
+          doc.removeEventListener("keydown", handler, true);
+        } catch (_) {}
+      },
+      { once: true }
+    );
+  },
+
+  _showCopyNotification(url, aWindow) {
+    try {
+      const alerts = Cc["@mozilla.org/alerts-service;1"].getService(
+        Ci.nsIAlertsService
+      );
+      const title = "🔗 URL Copied";
+      const text = url.length > 50 ? url.substring(0, 47) + "..." : url;
+
+      alerts.showAlertNotification(
+        null,
+        title,
+        text,
+        false,
+        "",
+        null,
+        "tabfeatures-copyurl"
+      );
+    } catch (e) {
+      console.log("URL copied to clipboard:", url);
+    }
   },
 
   destroyNewTabConfig() {
