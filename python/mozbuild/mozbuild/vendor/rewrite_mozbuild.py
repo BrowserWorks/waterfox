@@ -327,15 +327,13 @@ def assignment_node_to_source_filename_list(code, node):
     """
     if isinstance(node.value, ast.List) and "elts" in node.value._fields:
         for f in node.value.elts:
-            if not isinstance(f, ast.Constant) and not isinstance(f, ast.Str):
+            if not isinstance(f, ast.Constant):
                 log(
                     "Found non-constant source file name in list: ",
                     ast_get_source_segment(code, f),
                 )
                 return []
-        return [
-            f.value if isinstance(f, ast.Constant) else f.s for f in node.value.elts
-        ]
+        return [f.value for f in node.value.elts]
     elif isinstance(node.value, ast.ListComp):
         # SOURCES += [f for f in foo if blah]
         log("Could not find the files for " + ast_get_source_segment(code, node.value))
