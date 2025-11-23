@@ -216,7 +216,7 @@ class OggReporter final : public nsIMemoryReporter,
                  bool aAnonymize) override {
     MOZ_COLLECT_REPORT(
         "explicit/media/libogg", KIND_HEAP, UNITS_BYTES, MemoryAllocated(),
-        "Memory allocated through libogg for Ogg, and related media "
+        "Memory allocated through libogg for Ogg, Theora, and related media "
         "files.");
 
     return NS_OK;
