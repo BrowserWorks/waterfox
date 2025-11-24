@@ -177,6 +177,8 @@ Maybe<ModuleTrustFlags> ModuleEvaluator::GetTrust(
       return Some(ModuleTrustFlags::MozillaSignature);
     } else if (signedBy.EqualsLiteral("BrowserWorks Ltd")) {
       return Some(ModuleTrustFlags::MozillaSignature);
+    } else if (signedBy.EqualsLiteral("BROWSERWORKS LTD")) {
+      return Some(ModuleTrustFlags::MozillaSignature);
     } else {
       // Being signed by somebody who is neither Microsoft nor us is an
       // automatic and immediate disqualification.
