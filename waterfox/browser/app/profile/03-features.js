@@ -184,6 +184,7 @@ pref("layout.word_select.eat_space_to_next_word", false); // When double-clickin
 // Tab Previews (on hover)
 pref("browser.tabs.hoverPreview.enabled", true); // Enable previews of tab content when hovering over a tab.
 pref("browser.tabs.hoverPreview.showThumbnails", true); // Show thumbnails (screenshots) in tab hover previews.
+pref("browser.history.collectWireframes", true); // Show "wireframes" (simplistic visual approximation) for tabs that where unloaded after being visited.
 
 // Tab Actions (from context menu or elsewhere)
 pref("browser.tabs.duplicateTab", true); // Enable the "Duplicate Tab" option in the tab context menu.
