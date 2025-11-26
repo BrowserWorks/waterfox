@@ -10,6 +10,7 @@ document.addEventListener(
   () => {
     const navigatorToolbox = document.getElementById("navigator-toolbox");
     const widgetOverflow = document.getElementById("widget-overflow");
+    const browserBottombox = document.getElementById("browser-bottombox");
 
     function onPopupShowing(event) {
       switch (event.target.id) {
@@ -39,6 +40,7 @@ document.addEventListener(
     }
     navigatorToolbox.addEventListener("popupshowing", onPopupShowing);
     widgetOverflow.addEventListener("popupshowing", onPopupShowing);
+    browserBottombox.addEventListener("popupshowing", onPopupShowing);
 
     function onCommand(event) {
       let element = event.target.closest(`
@@ -102,6 +104,7 @@ document.addEventListener(
     }
     navigatorToolbox.addEventListener("command", onCommand);
     widgetOverflow.addEventListener("command", onCommand);
+    browserBottombox.addEventListener("command", onCommand);
 
     function onMouseDown(event) {
       let element = event.target.closest(`
@@ -152,6 +155,7 @@ document.addEventListener(
     }
     navigatorToolbox.addEventListener("mousedown", onMouseDown);
     widgetOverflow.addEventListener("mousedown", onMouseDown);
+    browserBottombox.addEventListener("mousedown", onMouseDown);
 
     function onMouseUp(event) {
       let element = event.target.closest(`
@@ -174,6 +178,7 @@ document.addEventListener(
     }
     navigatorToolbox.addEventListener("mouseup", onMouseUp);
     widgetOverflow.addEventListener("mouseup", onMouseUp);
+    browserBottombox.addEventListener("mouseup", onMouseUp);
 
     function onClick(event) {
       const isLeftClick = event.button === 0;
@@ -289,6 +294,7 @@ document.addEventListener(
     }
     navigatorToolbox.addEventListener("click", onClick);
     widgetOverflow.addEventListener("click", onClick);
+    browserBottombox.addEventListener("click", onClick);
     document.getElementById("sidebar-main").addEventListener("click", onClick);
 
     function onKeyPress(event) {
@@ -405,6 +411,9 @@ document.addEventListener(
       capture: true,
     });
     widgetOverflow.addEventListener("keypress", onKeyPress, { capture: true });
+    browserBottombox.addEventListener("keypress", onKeyPress, {
+      capture: true,
+    });
 
     function onDragAndDrop(event) {
       let element = event.target.closest(`
@@ -479,12 +488,16 @@ document.addEventListener(
 
     navigatorToolbox.addEventListener("dragenter", onDragAndDrop);
     widgetOverflow.addEventListener("dragenter", onDragAndDrop);
+    browserBottombox.addEventListener("dragenter", onDragAndDrop);
     navigatorToolbox.addEventListener("dragover", onDragAndDrop);
     widgetOverflow.addEventListener("dragover", onDragAndDrop);
+    browserBottombox.addEventListener("dragover", onDragAndDrop);
     navigatorToolbox.addEventListener("dragleave", onDragAndDrop);
     widgetOverflow.addEventListener("dragleave", onDragAndDrop);
+    browserBottombox.addEventListener("dragleave", onDragAndDrop);
     navigatorToolbox.addEventListener("drop", onDragAndDrop);
     widgetOverflow.addEventListener("drop", onDragAndDrop);
+    browserBottombox.addEventListener("drop", onDragAndDrop);
 
     document
       .getElementById("identity-box")
