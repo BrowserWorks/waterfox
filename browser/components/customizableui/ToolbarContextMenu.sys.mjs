@@ -229,7 +229,10 @@ export var ToolbarContextMenu = {
           );
           menuItem.setAttribute("accesskey", toolbar.getAttribute("accesskey"));
           if (popup.id != "toolbar-context-menu") {
-            menuItem.setAttribute("key", toolbar.getAttribute("key"));
+            let keyId = toolbar.getAttribute("key");
+            if (keyId) {
+              menuItem.setAttribute("key", keyId);
+            }
           }
 
           popup.insertBefore(menuItem, firstMenuItem);
