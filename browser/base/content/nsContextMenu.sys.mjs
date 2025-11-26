@@ -2830,16 +2830,29 @@ export class nsContextMenu {
     const docIsPrivate = lazy.PrivateBrowsingUtils.isBrowserPrivate(
       this.browser
     );
+    let isPrivateContainerTab = false;
+    try {
+      const win = this.browser.ownerGlobal;
+      const tab =
+        win?.gBrowser?.getTabForBrowser &&
+        win.gBrowser.getTabForBrowser(this.browser);
+      if (tab && win.PrivateTab?.isPrivate?.(tab)) {
+        isPrivateContainerTab = true;
+      }
+    } catch (e) {
+      // Fall back to docIsPrivate only
+    }
+    const usePrivateEngine = docIsPrivate || isPrivateContainerTab;
     const privatePref = "browser.search.separatePrivateDefault.ui.enabled";
     let showSearchSelect =
       !this.inAboutDevtoolsToolbox &&
       (this.isTextSelected || this.onLink) &&
       !this.onImage;
     // Don't show the private search item when we're already in a private
-    // browsing window.
+    // browsing window or PrivateTab container tab.
     let showPrivateSearchSelect =
       showSearchSelect &&
-      !docIsPrivate &&
+      !usePrivateEngine &&
       Services.prefs.getBoolPref(privatePref);
 
     menuItem.hidden = !showSearchSelect;
@@ -2882,9 +2895,9 @@ export class nsContextMenu {
     // format "Search <engine> for <selection>" string to show in menu
     let engineName = Services.search.defaultEngine.name;
     let privateEngineName = Services.search.defaultPrivateEngine.name;
-    menuItem.usePrivate = docIsPrivate;
+    menuItem.usePrivate = usePrivateEngine;
     let menuLabel = gNavigatorBundle.getFormattedString("contextMenuSearch", [
-      docIsPrivate ? privateEngineName : engineName,
+      usePrivateEngine ? privateEngineName : engineName,
       selectedText,
     ]);
     menuItem.label = menuLabel;
