@@ -330,16 +330,18 @@ export var SearchUIUtils = {
   },
 
   /**
-   * Loads a search results page, given a set of search terms. Uses the current
-   * engine if the search bar is visible, or the default engine otherwise.
+   * Perform a search initiated by the UI.
    *
    * @param {WindowProxy} window
    *   The window where the search was triggered.
    * @param {string} searchText
    *   The search terms to use for the search.
-   * @param {?string} where
-   *   String indicating where the search should load. Most commonly used
-   *   are 'tab' or 'window', defaults to 'current'.
+   * @param {string} where
+   *   Where the search results should be displayed:
+   *     "tab"      in a new foreground tab;
+   *     "tabshifted" in a new background tab;
+   *     "window"   in a new window;
+   *     "current"  in the current tab.
    * @param {boolean} usePrivate
    *   Whether to use the Private Browsing mode default search engine.
    *   Defaults to `false`.
@@ -347,15 +349,16 @@ export var SearchUIUtils = {
    *   The principal to use for a new window or tab.
    * @param {nsIContentSecurityPolicy} csp
    *   The content security policy to use for a new window or tab.
-   * @param {boolean} [inBackground=false]
-   *   Set to true for the tab to be loaded in the background.
-   * @param {?nsISearchEngine} [engine=null]
-   *   The search engine to use for the search.
-   * @param {?NativeTab} [tab=null]
-   *   The tab to show the search result.
-   *
-   * @returns {Promise<?{engine: nsISearchEngine, url: nsIURI}>}
-   *   Object containing the search engine used to perform the
+   * @param {boolean} inBackground
+   *   Whether to open the new tab in the background.
+   * @param {nsISearchEngine} [engine]
+   *   Optional. The search engine to use.
+   * @param {object} [tab]
+   *   Optional. The tab to use for the search.
+   * @param {number|null} [userContextId]
+   *   Optional. The container userContextId to use for the search tab.
+   * @returns {object | null}
+   *   An object containing information about the performed
    *   search and the url, or null if no search was performed.
    */
   async _loadSearch(
@@ -367,7 +370,8 @@ export var SearchUIUtils = {
     csp,
     inBackground = false,
     engine = null,
-    tab = null
+    tab = null,
+    userContextId = null
   ) {
     if (!triggeringPrincipal) {
       throw new Error(
@@ -399,6 +403,7 @@ export var SearchUIUtils = {
       triggeringPrincipal,
       csp,
       targetBrowser: tab?.linkedBrowser,
+      userContextId,
       globalHistoryOptions: {
         triggeringSearchEngine: engine.name,
       },
@@ -439,9 +444,30 @@ export var SearchUIUtils = {
       // override: historically search opens in new tab
       where = "tab";
     }
-    if (usePrivate && !lazy.PrivateBrowsingUtils.isWindowPrivate(window)) {
+
+    const isPrivateWindow = lazy.PrivateBrowsingUtils.isWindowPrivate(window);
+    let isPrivateContainerTab = false;
+    let userContextId = null;
+
+    if (!isPrivateWindow && window.PrivateTab?.container?.userContextId) {
+      try {
+        const tab = window.gBrowser?.selectedTab;
+        if (tab && window.PrivateTab?.isPrivate?.(tab)) {
+          isPrivateContainerTab = true;
+          userContextId = window.PrivateTab.container.userContextId;
+        }
+      } catch (e) {
+        // Ignore and fall back to window-level privacy only
+      }
+    }
+
+    // For real private windows, keep behavior. For non-private windows:
+    // - If this is a PrivateTab container tab, keep using a tab.
+    // - Otherwise, open a new private window as before.
+    if (usePrivate && !isPrivateWindow && !isPrivateContainerTab) {
       where = "window";
     }
+
     let inBackground = Services.prefs.getBoolPref(
       "browser.search.context.loadInBackground"
     );
@@ -449,16 +475,28 @@ export var SearchUIUtils = {
       inBackground = !inBackground;
     }
 
+    let engineOverride = null;
+    let usePrivateForWindow = usePrivate;
+    if (usePrivate && isPrivateContainerTab) {
+      // Use the private default engine in a PrivateTab container tab, but do not
+      // open a real private window.
+      usePrivateForWindow = false;
+      engineOverride = await Services.search.getDefaultPrivate();
+    }
+
     let searchInfo = await SearchUIUtils._loadSearch(
       window,
       searchText,
       where,
-      usePrivate,
+      usePrivateForWindow,
       Services.scriptSecurityManager.createNullPrincipal(
         triggeringPrincipal.originAttributes
       ),
       csp,
-      inBackground
+      inBackground,
+      engineOverride,
+      null,
+      userContextId
     );
 
     if (searchInfo) {
