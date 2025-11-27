@@ -1,0 +1,1 @@
+overlay   chrome://browser/content/browser.xhtml                 chrome://browser/content/overlays/tabfeatures.xhtml 
