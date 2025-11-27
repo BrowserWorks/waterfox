@@ -1,0 +1,3 @@
+browser.jar:
+%   resource builtin-addons %builtin-addons/  contentaccessible=yes
+    builtin-addons/addonstores/ (extension/**)
