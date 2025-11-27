@@ -17,6 +17,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   TabGrouping: "resource:///modules/TabGrouping.sys.mjs",
   setTimeout: "resource://gre/modules/Timer.sys.mjs",
   UICustomizations: "resource:///modules/UICustomizations.sys.mjs",
+  SidebarPreferencesHandler: "resource:///modules/SidebarPreferencesHandler.sys.mjs",
 });
 
 const WATERFOX_CUSTOMIZATIONS_PREF =
@@ -62,6 +63,10 @@ export const WaterfoxGlue = {
     // Parse chrome.manifest
     this.startupManifest = await this.getChromeManifest("startup");
     this.privateManifest = await this.getChromeManifest("private");
+
+    // Initialize sidebar prefs handler early so it can observe pane loads
+    lazy.SidebarPreferencesHandler.init();
+
     // Observe chrome-document-loaded topic to detect window open
     Services.obs.addObserver(this, "chrome-document-loaded");
     // Observe main-pane-loaded topic to detect about:preferences open
