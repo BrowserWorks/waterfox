@@ -1,0 +1,395 @@
+/*
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
+:root {
+  /* https://hg.mozilla.org/mozilla-central/raw-file/tip/toolkit/themes/shared/in-content/common.inc.css */
+  --in-content-page-color: var(--grey-90);
+  --in-content-page-background: var(--grey-10);
+  --in-content-text-color: var(--in-content-page-color);
+  --in-content-deemphasized-text: var(--grey-60);
+  --in-content-selected-text: #fff;
+  --in-content-box-background: #fff;
+  --in-content-box-background-hover: var(--grey-20);
+  --in-content-box-background-active: var(--grey-30);
+  --in-content-box-border-color: var(--grey-90-a30);
+  --in-content-box-border-color-mixed: color-mix(in srgb, var(--in-content-box-border-color) 100%, var(--in-content-page-background));
+  --in-content-box-info-background: var(--grey-20);
+  --in-content-item-hover: rgba(69, 161, 255, 0.2); /* blue 40 a20 */
+  --in-content-item-hover-mixed: color-mix(in srgb, var(--in-content-item-hover) 100%, var(--in-content-page-background));
+  --in-content-item-selected: var(--blue-50);
+  --in-content-border-highlight: var(--blue-50);
+  --in-content-border-focus: var(--blue-50);
+  --in-content-border-hover: var(--grey-90-a50);
+  --in-content-border-hover-mixed: color-mix(in srgb, var(--in-content-border-hover) 100%, var(--in-content-page-background));
+  --in-content-border-active: var(--blue-50);
+  --in-content-border-active-shadow: var(--blue-50-a30);
+  --in-content-border-invalid: var(--red-50);
+  --in-content-border-invalid-shadow: var(--red-50-a30);
+  --in-content-border-color: var(--grey-30);
+  --in-content-border-color-mixed: #d7d7db;
+  --in-content-category-outline-focus: 1px dotted var(--blue-50);
+  --in-content-category-text-selected: var(--blue-50);
+  --in-content-category-text-selected-active: var(--blue-60);
+  --in-content-category-background-hover: rgba(12,12,13,0.1);
+  --in-content-category-background-active: rgba(12,12,13,0.15);
+  --in-content-category-background-selected-hover: rgba(12,12,13,0.15);
+  --in-content-category-background-selected-active: rgba(12,12,13,0.2);
+  --in-content-tab-color: #424f5a;
+  --in-content-link-color: var(--blue-60);
+  --in-content-link-color-hover: var(--blue-70);
+  --in-content-link-color-active: var(--blue-80);
+  --in-content-link-color-visited: var(--blue-60);
+  --in-content-button-background: var(--grey-90-a10);
+  --in-content-button-background-mixed: color-mix(in srgb, var(--in-content-button-background) 100%, var(--in-content-page-background));
+  --in-content-button-background-hover: var(--grey-90-a20);
+  --in-content-button-background-hover-mixed: color-mix(in srgb, var(--in-content-button-background-hover) 100%, var(--in-content-page-background));
+  --in-content-button-background-active: var(--grey-90-a30);
+  --in-content-button-background-active-mixed: color-mix(in srgb, var(--in-content-button-background-active) 100%, var(--in-content-page-background));
+
+  --blue-40: #45a1ff;
+  --blue-40-a10: rgb(69, 161, 255, 0.1);
+  --blue-50: #0a84ff;
+  --blue-50-a30: rgba(10, 132, 255, 0.3);
+  --blue-60: #0060df;
+  --blue-70: #003eaa;
+  --blue-80: #002275;
+  --grey-10: #f9f9fa;
+  --grey-10-a015: rgba(249, 249, 250, 0.015);
+  --grey-10-a20: rgba(249, 249, 250, 0.2);
+  --grey-20: #ededf0;
+  --grey-30: #d7d7db;
+  --grey-40: #b1b1b3;
+  --grey-60: #4a4a4f;
+  --grey-90: #0c0c0d;
+  --grey-90-a10: rgba(12, 12, 13, 0.1);
+  --grey-90-a11: rgba(12, 12, 13, 0.11);
+  --grey-90-a20: rgba(12, 12, 13, 0.2);
+  --grey-90-a30: rgba(12, 12, 13, 0.3);
+  --grey-90-a40: rgba(12, 12, 13, 0.4);
+  --grey-90-a50: rgba(12, 12, 13, 0.5);
+  --grey-90-a60: rgba(12, 12, 13, 0.6);
+  --green-50: #30e60b;
+  --green-60: #12bc00;
+  --green-70: #058b00;
+  --green-80: #006504;
+  --green-90: #003706;
+  --orange-50: #ff9400;
+  --purple-70: #6200a4;
+  --red-50: #ff0039;
+  --red-50-a10: rgba(255, 0, 57, 0.1);
+  --red-50-a30: rgba(255, 0, 57, 0.3);
+  --red-60: #d70022;
+  --red-70: #a4000f;
+  --red-80: #5a0002;
+  --red-90: #3e0200;
+  --yellow-10: #ffff98;
+  --yellow-50: #ffe900;
+  --yellow-60: #d7b600;
+  --yellow-60-a30: rgba(215, 182, 0, 0.3);
+  --yellow-70: #a47f00;
+  --yellow-80: #715100;
+  --yellow-90: #3e2800;
+
+  /* https://hg.mozilla.org/mozilla-central/raw-file/tip/browser/themes/addons/dark/manifest.json */
+  --dark-frame: #1c1b22;
+  --dark-icons: rgb(251,251,254);
+  --dark-ntp-background: #2A2A2E;
+  --dark-ntp-text: rgb(251, 251, 254);
+  --dark-popup: rgb(66,65,77);
+  --dark-popup-border: rgb(82,82,94);
+  --dark-popup-text: rgb(251,251,254);
+  --dark-sidebar: #38383D;
+  --dark-sidebar-text: rgb(249, 249, 250);
+  --dark-sidebar-border: rgba(255, 255, 255, 0.1);
+  --dark-tab-background-text: #fbfbfe;
+  --dark-tab-line: transparent;
+  --dark-toolbar: rgb(43,42,51);
+  --dark-toolbar-bottom-separator: hsl(240, 5%, 5%);
+  --dark-toolbar-field: rgb(28,27,34);
+  --dark-toolbar-field-border: transparent;
+  --dark-toolbar-field-separator: #5F6670;
+  --dark-toolbar-field-text: rgb(251,251,254);
+
+  /* https://searchfox.org/mozilla-central/rev/35873cfc312a6285f54aa5e4ec2d4ab911157522/browser/themes/shared/tabs.inc.css#24 */
+  --tab-loading-fill: #0A84FF;
+
+  --focus-outline-color: #0061E0; /* https://searchfox.org/mozilla-central/rev/f60e5304300b286376664b25143cdc6b38a0f0d7/browser/themes/shared/browser-shared.css#124 */
+
+  /* https://searchfox.org/mozilla-central/rev/7d73613454bfe426fdceb635b33cd3061a69def4/toolkit/themes/shared/design-system/tokens-shared.css#107 */
+  --color-blue-0: oklch(97% 0.05 260);
+  --color-blue-10: oklch(90% 0.13 260);
+  --color-blue-20: oklch(83% 0.17 260);
+  --color-blue-30: oklch(76% 0.2 260);
+  --color-blue-40: oklch(69% 0.22 260);
+  --color-blue-50: oklch(62% 0.24 260);
+  --color-blue-60: oklch(55% 0.24 260);
+  --color-blue-70: oklch(48% 0.2 260);
+  --color-blue-80: oklch(41% 0.17 260);
+  --color-blue-90: oklch(34% 0.14 260);
+  --color-blue-100: oklch(27% 0.1 260);
+  --color-blue-110: oklch(20% 0.05 260);
+  --color-cyan-0: oklch(97% 0.05 205);
+  --color-cyan-10: oklch(90% 0.07 205);
+  --color-cyan-20: oklch(83% 0.11 205);
+  --color-cyan-30: oklch(76% 0.14 205);
+  --color-cyan-40: oklch(69% 0.19 205);
+  --color-cyan-50: oklch(62% 0.21 205);
+  --color-cyan-60: oklch(55% 0.21 205);
+  --color-cyan-70: oklch(48% 0.2 205);
+  --color-cyan-80: oklch(41% 0.17 205);
+  --color-cyan-90: oklch(34% 0.14 205);
+  --color-cyan-100: oklch(27% 0.1 205);
+  --color-cyan-110: oklch(20% 0.05 205);
+  --color-gray-05: #fbfbfe;
+  --color-gray-30: #bac2ca;
+  --color-gray-50: #bfbfc9;
+  --color-gray-60: #8f8f9d;
+  --color-gray-70: #5b5b66;
+  --color-gray-80: #23222b;
+  --color-gray-90: #1c1b22;
+  --color-gray-100: #15141a;
+  --color-green-0: oklch(97% 0.05 145);
+  --color-green-10: oklch(90% 0.1 145);
+  --color-green-20: oklch(83% 0.14 145);
+  --color-green-30: oklch(76% 0.17 145);
+  --color-green-40: oklch(69% 0.19 145);
+  --color-green-50: oklch(62% 0.21 145);
+  --color-green-60: oklch(55% 0.21 145);
+  --color-green-70: oklch(48% 0.2 145);
+  --color-green-80: oklch(41% 0.17 145);
+  --color-green-90: oklch(34% 0.14 145);
+  --color-green-100: oklch(27% 0.1 145);
+  --color-green-110: oklch(20% 0.05 145);
+  --color-orange-0: oklch(97% 0.05 50);
+  --color-orange-10: oklch(90% 0.10 50);
+  --color-orange-20: oklch(86% 0.14 50);
+  --color-orange-30: oklch(79% 0.17 50);
+  --color-orange-40: oklch(72% 0.19 50);
+  --color-orange-50: oklch(65% 0.21 50);
+  --color-orange-60: oklch(58% 0.21 50);
+  --color-orange-70: oklch(48% 0.20 50);
+  --color-orange-80: oklch(41% 0.17 50);
+  --color-orange-90: oklch(34% 0.14 50);
+  --color-orange-100: oklch(27% 0.10 50);
+  --color-orange-110: oklch(20% 0.05 50);
+  --color-pink-0: oklch(97% 0.05 360);
+  --color-pink-10: oklch(90% 0.1 360);
+  --color-pink-20: oklch(83% 0.14 360);
+  --color-pink-30: oklch(76% 0.17 360);
+  --color-pink-40: oklch(69% 0.19 360);
+  --color-pink-50: oklch(62% 0.21 360);
+  --color-pink-60: oklch(55% 0.21 360);
+  --color-pink-70: oklch(48% 0.2 360);
+  --color-pink-80: oklch(41% 0.17 360);
+  --color-pink-90: oklch(34% 0.14 360);
+  --color-pink-100: oklch(27% 0.1 360);
+  --color-pink-110: oklch(20% 0.05 360);
+  --color-purple-0: oklch(97% 0.05 315);
+  --color-purple-10: oklch(90% 0.1 315);
+  --color-purple-20: oklch(83% 0.14 315);
+  --color-purple-30: oklch(76% 0.17 315);
+  --color-purple-40: oklch(69% 0.19 315);
+  --color-purple-50: oklch(62% 0.21 315);
+  --color-purple-60: oklch(55% 0.21 315);
+  --color-purple-70: oklch(48% 0.2 315);
+  --color-purple-80: oklch(41% 0.17 315);
+  --color-purple-90: oklch(34% 0.14 315);
+  --color-purple-100: oklch(27% 0.1 315);
+  --color-purple-110: oklch(20% 0.05 315);
+  --color-red-0: oklch(97% 0.05 15);
+  --color-red-10: oklch(90% 0.1 15);
+  --color-red-20: oklch(83% 0.14 15);
+  --color-red-30: oklch(76% 0.17 15);
+  --color-red-40: oklch(69% 0.19 15);
+  --color-red-50: oklch(62% 0.21 15);
+  --color-red-60: oklch(55% 0.21 15);
+  --color-red-70: oklch(48% 0.2 15);
+  --color-red-80: oklch(41% 0.17 15);
+  --color-red-90: oklch(34% 0.14 15);
+  --color-red-100: oklch(27% 0.1 15);
+  --color-red-110: oklch(20% 0.05 15);
+  --color-violet-0: oklch(97% 0.05 290);
+  --color-violet-10: oklch(90% 0.13 290);
+  --color-violet-20: oklch(83% 0.17 290);
+  --color-violet-30: oklch(76% 0.2 290);
+  --color-violet-40: oklch(69% 0.22 290);
+  --color-violet-50: oklch(62% 0.24 290);
+  --color-violet-60: oklch(55% 0.24 290);
+  --color-violet-70: oklch(48% 0.2 290);
+  --color-violet-80: oklch(41% 0.17 290);
+  --color-violet-90: oklch(34% 0.14 290);
+  --color-violet-100: oklch(27% 0.1 290);
+  --color-violet-110: oklch(20% 0.05 290);
+  --color-white: #ffffff;
+  --color-yellow-0: oklch(97% 0.05 90);
+  --color-yellow-10: oklch(93% 0.1 90);
+  --color-yellow-20: oklch(86% 0.14 90);
+  --color-yellow-30: oklch(79% 0.2 90);
+  --color-yellow-40: oklch(72% 0.22 90);
+  --color-yellow-50: oklch(65% 0.24 90);
+  --color-yellow-60: oklch(58% 0.24 90);
+  --color-yellow-70: oklch(51% 0.23 90);
+  --color-yellow-80: oklch(41% 0.2 90);
+  --color-yellow-90: oklch(34% 0.17 90);
+  --color-yellow-100: oklch(27% 0.13 90);
+  --color-yellow-110: oklch(20% 0.08 90);
+
+  /* https://searchfox.org/mozilla-central/rev/7d73613454bfe426fdceb635b33cd3061a69def4/browser/themes/shared/tabbrowser/tabs.css#79 */
+  --tab-group-color-blue: var(--color-blue-70);
+  --tab-group-color-blue-invert: var(--color-blue-20);
+  --tab-group-color-blue-pale: var(--color-blue-0);
+  --tab-group-color-purple: var(--color-purple-70);
+  --tab-group-color-purple-invert: var(--color-purple-20);
+  --tab-group-color-purple-pale: var(--color-purple-0);
+  --tab-group-color-cyan: var(--color-cyan-70);
+  --tab-group-color-cyan-invert: var(--color-cyan-20);
+  --tab-group-color-cyan-pale: var(--color-cyan-0);
+  --tab-group-color-orange: var(--color-orange-70);
+  --tab-group-color-orange-invert: var(--color-orange-20);
+  --tab-group-color-orange-pale: var(--color-orange-0);
+  --tab-group-color-yellow: var(--color-yellow-70);
+  --tab-group-color-yellow-invert: var(--color-yellow-20);
+  --tab-group-color-yellow-pale: var(--color-yellow-0);
+  --tab-group-color-pink: var(--color-pink-70);
+  --tab-group-color-pink-invert: var(--color-pink-20);
+  --tab-group-color-pink-pale: var(--color-pink-0);
+  --tab-group-color-green: var(--color-green-70);
+  --tab-group-color-green-invert: var(--color-green-20);
+  --tab-group-color-green-pale: var(--color-green-0);
+  --tab-group-color-red: var(--color-red-70);
+  --tab-group-color-red-invert: var(--color-red-20);
+  --tab-group-color-red-pale: var(--color-red-0);
+  --tab-group-color-grey: #5E6A77;
+  --tab-group-color-grey-invert: #99A6B4;
+  --tab-group-color-grey-pale: #F2F9FF;
+  --tab-group-label-text-dark: var(--color-gray-100);
+
+
+  --bg-color: var(--grey-10);
+  --text-color: var(--grey-90);
+
+
+  /* simulating deprecated CSS system colors */
+  --ThreeDShadow: color-mix(in srgb, ButtonText 30%, ButtonFace);
+  --ThreeDHighlight: color-mix(in srgb, ButtonText 5%, ButtonFace);
+  --AppWorkspace: color-mix(in srgb, CanvasText 20%, Canvas);
+  --MenuText: color-mix(in srgb, ButtonText 85%, ButtonFace);
+  --Menu: ButtonFace;
+}
+
+:link {
+  color: var(--in-content-link-color);
+
+  &:hover {
+    color: var(--in-content-link-color-hover);
+  }
+  &:active {
+    color: var(--in-content-link-color-active);
+  }
+}
+:visited {
+  color: var(--in-content-link-color-visited);
+
+  &:hover {
+    color: var(--in-content-link-color-hover);
+  }
+  &:active {
+    color: var(--in-content-link-color-active);
+  }
+}
+
+textarea,
+input {
+  background: var(--in-content-box-background);
+  border: thin solid var(--in-content-box-border-color-mixed);
+  color: var(--in-content-text-color);
+
+  &:hover {
+    border-color: var(--in-content-border-hover-mixed);
+  }
+  &:focus {
+    border-color: var(--in-content-border-focus);
+    box-shadow: 0 0 0 1px var(--in-content-border-active),
+                0 0 0 4px var(--in-content-border-active-shadow);
+  }
+}
+
+button,
+select {
+  background: var(--in-content-button-background-mixed);
+  border: 0 none transparent;
+  color: var(--in-content-text-color);
+
+  &:hover {
+    background: var(--in-content-button-background-hover-mixed);
+  }
+  &:focus {
+    background: var(--in-content-button-background-active-mixed);
+    box-shadow: 0 0 0 1px var(--in-content-border-active),
+                0 0 0 4px var(--in-content-border-active-shadow);
+  }
+}
+
+option {
+  background: transparent /* var(--in-content-button-background-mixed) */;
+  color: var(--text-color);
+
+  &:active,
+  &:focus {
+    background: var(--in-content-item-selected);
+  }
+  &:hover {
+    background: var(--in-content-item-hover-mixed);
+  }
+}
+
+fieldset,
+hr {
+  border: thin solid var(--in-content-box-border-color-mixed);
+}
+
+hr {
+  border-width: thin 0 0 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root.sidebar,
+  :root:not(.sidebar) {
+    /* https://hg.mozilla.org/mozilla-central/raw-file/tip/toolkit/themes/shared/in-content/common.inc.css */
+    --in-content-page-background: #2A2A2E /* rgb(42, 42, 46) */;
+    --in-content-page-color: rgb(249, 249, 250);
+    --in-content-text-color: var(--in-content-page-color);
+    --in-content-deemphasized-text: var(--grey-40);
+    --in-content-box-background: #202023;
+    --in-content-box-background-hover: color-mix(in srgb, rgba(249,249,250,0.15) 100%, var(--in-content-page-background));
+    --in-content-box-background-active: color-mix(in srgb, rgba(249,249,250,0.2) 100%, var(--in-content-page-background));
+    --in-content-box-background-odd: rgba(249,249,250,0.05);
+    --in-content-box-info-background: rgba(249,249,250,0.15);
+
+    --in-content-border-color: rgba(249,249,250,0.2);
+    --in-content-border-color-mixed: color-mix(in srgb, var(--in-content-border-color) 100%, var(--in-content-page-background));
+    --in-content-border-hover: rgba(249,249,250,0.3);
+    --in-content-border-hover-mixed: color-mix(in srgb, var(--in-content-border-hover) 100%, var(--in-content-page-background));
+    --in-content-box-border-color: rgba(249,249,250,0.2);
+    --in-content-box-border-color-mixed: color-mix(in srgb, var(--in-content-box-border-color) 100%, var(--in-content-page-background));
+
+    --in-content-button-background: rgba(249,249,250,0.1);
+    --in-content-button-background-mixed: color-mix(in srgb, var(--in-content-button-background) 100%, var(--in-content-page-background));
+    --in-content-button-background-hover: rgba(249,249,250,0.15);
+    --in-content-button-background-hover-mixed: color-mix(in srgb, var(--in-content-button-background-hover) 100%, var(--in-content-page-background));
+    --in-content-button-background-active: rgba(249,249,250,0.2);
+    --in-content-button-background-active-mixed: color-mix(in srgb, var(--in-content-button-background-active) 100%, var(--in-content-page-background));
+
+    --in-content-link-color: var(--blue-40);
+    --in-content-link-color-hover: var(--blue-50);
+    --in-content-link-color-active: var(--blue-60);
+
+    --focus-outline-color: #00DDFF; /* https://searchfox.org/mozilla-central/rev/f60e5304300b286376664b25143cdc6b38a0f0d7/browser/themes/shared/browser-shared.css#129 */
+
+    --bg-color: var(--in-content-page-background);
+    --text-color: var(--in-content-text-color);
+  }
+}
