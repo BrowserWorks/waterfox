@@ -1,0 +1,33 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<!-- https://searchfox.org/mozilla-central/source/browser/themes/shared/tabbrowser/tab-group-chicklet.svg -->
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="16" height="16" viewBox="0 0 16 16">
+<style>
+  g:not(:target) {
+    display: none;
+  }
+</style>
+<symbol id="icon">
+  <rect width="15" height="15" x="0.5" y="0.5" rx="4" stroke="context-stroke" stroke-width="1"/>
+</symbol>
+<g id="blue"          fill="oklch(48% 0.2 260)"  stroke="oklch(48% 0.2 260)"><use href="#icon"/></g>
+<g id="blue-invert"   fill="oklch(83% 0.17 260)" stroke="oklch(83% 0.17 260)"><use href="#icon"/></g>
+<g id="purple"        fill="oklch(48% 0.2 315)"  stroke="oklch(48% 0.2 315)"><use href="#icon"/></g>
+<g id="purple-invert" fill="oklch(83% 0.14 315)" stroke="oklch(83% 0.14 315)"><use href="#icon"/></g>
+<g id="cyan"          fill="oklch(48% 0.2 205)"  stroke="oklch(48% 0.2 205)"><use href="#icon"/></g>
+<g id="cyan-invert"   fill="oklch(83% 0.11 205)" stroke="oklch(83% 0.11 205)"><use href="#icon"/></g>
+<g id="orange"        fill="oklch(48% 0.20 50)"  stroke="oklch(48% 0.20 50)"><use href="#icon"/></g>
+<g id="orange-invert" fill="oklch(86% 0.14 50)"  stroke="oklch(86% 0.14 50)"><use href="#icon"/></g>
+<g id="yellow"        fill="oklch(51% 0.23 90)"  stroke="oklch(51% 0.23 90)"><use href="#icon"/></g>
+<g id="yellow-invert" fill="oklch(86% 0.14 90)"  stroke="oklch(86% 0.14 90)"><use href="#icon"/></g>
+<g id="pink"          fill="oklch(48% 0.2 360)"  stroke="oklch(48% 0.2 360)"><use href="#icon"/></g>
+<g id="pink-invert"   fill="oklch(83% 0.14 360)" stroke="oklch(83% 0.14 360)"><use href="#icon"/></g>
+<g id="green"         fill="oklch(48% 0.2 145)"  stroke="oklch(48% 0.2 145)"><use href="#icon"/></g>
+<g id="green-invert"  fill="oklch(83% 0.14 145)" stroke="oklch(83% 0.14 145)"><use href="#icon"/></g>
+<g id="red"           fill="oklch(48% 0.2 15)"   stroke="oklch(48% 0.2 15)"><use href="#icon"/></g>
+<g id="red-invert"    fill="oklch(83% 0.14 15)"  stroke="oklch(83% 0.14 15)"><use href="#icon"/></g>
+<g id="grey"          fill="#5b5b66"             stroke="#5b5b66"><use href="#icon"/></g>
+<g id="grey-invert"   fill="#bac2ca"             stroke="#bac2ca"><use href="#icon"/></g>
+</svg>
