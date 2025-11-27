@@ -271,6 +271,7 @@
 @RESPATH@/browser/defaults/settings
 ; Waterfox preference files
 @RESPATH@/browser/@PREF_DIR@/prefs-lepton.js
+@RESPATH@/browser/@PREF_DIR@/prefs-tabgroups.js
 
 # channel-prefs.js has been removed on macOS.
 #ifndef XP_MACOSX
