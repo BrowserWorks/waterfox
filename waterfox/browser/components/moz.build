@@ -9,6 +9,7 @@ DIRS += [
     "addonstores",
     "privatetab",
     "search",
+    "statusbar",
     "tabfeatures",
     "uicustomizations",
     "utils",
