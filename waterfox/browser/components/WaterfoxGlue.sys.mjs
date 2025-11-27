@@ -35,6 +35,11 @@ export const WaterfoxGlue = {
     // Set pref observers
     this._setPrefObservers();
 
+    // Load always-on Waterfox custom CSS.
+    lazy.BrowserUtils.registerStylesheet(
+      "chrome://browser/skin/waterfox/general.css"
+    );
+
     // Maybe load Waterfox stylesheets
     (async () => {
       let amInitialized = false;
