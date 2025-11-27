@@ -203,7 +203,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>@APP_VERSION@</string>
 	<key>CFBundleSignature</key>
-	<string>MOZB</string>
+	<string>WFXB</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -264,7 +264,7 @@
   <string>GeckoNSApplication</string>
 	<key>SMPrivilegedExecutables</key>
 	<dict>
-		<key>org.mozilla.updater</key>
+		<key>net.waterfox.updater</key>
 		<string>@MOZ_SMPRIVILEGEDEXECUTABLES_REQUIREMENTS@</string>
 	</dict>
   <key>MozillaDeveloperRepoPath</key>
