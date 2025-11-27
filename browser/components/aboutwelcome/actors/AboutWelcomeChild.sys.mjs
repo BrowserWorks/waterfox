@@ -9,6 +9,8 @@ const lazy = {};
 ChromeUtils.defineESModuleGetters(lazy, {
   AboutWelcomeDefaults:
     "resource:///modules/aboutwelcome/AboutWelcomeDefaults.sys.mjs",
+  WaterfoxWelcomeConfig:
+    "resource:///modules/aboutwelcome/WaterfoxWelcomeConfig.sys.mjs",
   EnrollmentType: "resource://nimbus/ExperimentAPI.sys.mjs",
   NimbusFeatures: "resource://nimbus/ExperimentAPI.sys.mjs",
 });
@@ -196,18 +198,19 @@ export class AboutWelcomeChild extends JSWindowActorChild {
   async getAWContent() {
     let attributionData = await this.sendQuery("AWPage:GET_ATTRIBUTION_DATA");
 
-    let experimentMetadata =
-      lazy.NimbusFeatures.aboutwelcome.getEnrollmentMetadata(
-        lazy.EnrollmentType.EXPERIMENT
-      ) ?? {};
+    // Use Waterfox custom configuration instead of Nimbus if enabled
+    let experimentMetadata = {};
+    let featureConfig = {};
 
-    lazy.log.debug(
-      `Loading about:welcome with ${
-        experimentMetadata?.slug ?? "no"
-      } experiment`
-    );
+    if (lazy.WaterfoxWelcomeConfig.isEnabled()) {
+      experimentMetadata = lazy.WaterfoxWelcomeConfig.getEnrollmentMetadata();
+      featureConfig = lazy.WaterfoxWelcomeConfig.getAllVariables();
 
-    let featureConfig = lazy.NimbusFeatures.aboutwelcome.getAllVariables();
+      lazy.log.debug(
+        `Loading about:welcome with Waterfox custom configuration`
+      );
+    }
+
     featureConfig.needDefault = await this.sendQuery("AWPage:NEED_DEFAULT");
     featureConfig.needPin = await this.sendQuery("AWPage:DOES_APP_NEED_PIN");
     if (featureConfig.languageMismatchEnabled) {
@@ -216,7 +219,7 @@ export class AboutWelcomeChild extends JSWindowActorChild {
       );
     }
 
-    // FeatureConfig (from experiments) has higher precendence
+    // FeatureConfig (from experiments or Waterfox config) has higher precedence
     // to defaults. But the `screens` property isn't defined we shouldn't
     // override the default with `null`
     let defaults = lazy.AboutWelcomeDefaults.getDefaults();
