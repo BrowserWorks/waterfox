@@ -1,0 +1,104 @@
+<?xml version="1.0"?>
+
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<?xml-stylesheet href="chrome://global/skin/global.css" type="text/css"?>
+<?xml-stylesheet href="chrome://global/skin/in-content/info-pages.css" type="text/css"?>
+<?xml-stylesheet href="chrome://browser/content/aboutcfg/aboutcfg.css" type="text/css"?>
+
+<window id="config"
+        title="about:cfg"
+        csp="default-src chrome:; object-src 'none'"
+        data-l10n-id="config-window"
+        aria-describedby="warningTitle warningText"
+        xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+        xmlns:html="http://www.w3.org/1999/xhtml"
+        windowtype="Preferences:ConfigManager"
+        role="application"
+        width="750"
+        height="500">
+
+<html:link rel="icon" href="chrome://global/skin/icons/settings.svg"/>
+
+<script src="chrome://browser/content/aboutcfg/aboutcfg.js"/>
+<script src="chrome://global/content/editMenuOverlay.js"/>
+<script src="chrome://global/content/globalOverlay.js"/>
+
+<menupopup id="configContext">
+  <menuitem id="toggleSelected" label="Toggle" accesskey="T" default="true"/>
+  <menuitem id="modifySelected" label="Modify" accesskey="M" default="true"/>
+  <menuseparator/>
+  <menuitem id="copyPref" label="Copy" accesskey="C"/>
+  <menuitem id="copyName" label="Copy Name" accesskey="N"/>
+  <menuitem id="copyValue" label="Copy Value" accesskey="V"/>
+  <menu label="New" accesskey="w">
+    <menupopup>
+      <menuitem id="configString" label="String" accesskey="S"/>
+      <menuitem id="configInt" label="Integer" accesskey="I"/>
+      <menuitem id="configBool" label="Boolean" accesskey="B"/>
+    </menupopup>
+  </menu>
+  <menuitem id="resetSelected" label="Reset" accesskey="R"/>
+</menupopup>
+
+<keyset id="configTreeKeyset" disabled="true">
+  <key id="keyVKReturn" keycode="VK_RETURN"/>
+  <key id="configFocuSearch" modifiers="accel" key="r"/>
+  <key id="configFocuSearch2" modifiers="accel" key="f"/>
+</keyset>
+<deck id="configDeck" flex="1">
+  <vbox id="warningScreen" flex="1" align="center" style="overflow: auto;">
+    <spacer flex="1"/>
+    <vbox id="warningBox" class="container">
+      <hbox class="title" flex="1">
+        <label id="warningTitle" value="This might void your warranty!" class="title-text" flex="1"></label>
+      </hbox>
+      <vbox class="description" flex="1">
+        <label id="warningText">Changing these advanced settings can be harmful to the stability, security, and performance of this application. You should only continue if you are sure of what you are doing.</label>
+        <checkbox id="showWarningNextTime" label="Show this warning next time" checked="true"/>
+        <hbox class="button-container">
+          <button id="warningButton" label="I accept the risk!" class="primary"/>
+        </hbox>
+      </vbox>
+    </vbox>
+    <spacer flex="2"/>
+  </vbox>
+  <vbox flex="1">
+    <hbox id="filterRow" align="center">
+      <label value="Search:" accesskey="r" control="textbox"/>
+      <search-textbox id="textbox" flex="1"
+                      aria-controls="configTree"/>
+    </hbox>
+    <tree id="configTree" flex="1" seltype="single"
+          enableColumnDrag="true" context="configContext">
+      <treecols>
+        <!--
+          The below code may suggest that 'ordinal' is still a supported XUL
+          attribute. It is not. This is a crutch so that we can continue
+          persisting the CSS -moz-box-ordinal-group attribute, which is the
+          appropriate replacement for the ordinal attribute but cannot yet
+          be easily persisted. The code that synchronizes the attribute with
+          the CSS lives in toolkit/content/widget/tree.js and is specific to
+          tree elements.
+        -->
+        <treecol id="prefCol" label="Preference Name" flex="7"
+            ignoreincolumnpicker="true"
+            persist="hidden width ordinal sortDirection"/>
+        <splitter class="tree-splitter" />
+        <treecol id="lockCol" label="Status" flex="1"
+            persist="hidden width ordinal sortDirection"/>
+        <splitter class="tree-splitter" />
+        <treecol id="typeCol" label="Type" flex="1"
+            persist="hidden width ordinal sortDirection"/>
+        <splitter class="tree-splitter" />
+        <treecol id="valueCol" label="Value" flex="10"
+            persist="hidden width ordinal sortDirection"/>
+      </treecols>
+
+      <treechildren id="configTreeBody"/>
+    </tree>
+  </vbox>
+</deck>
+</window>
