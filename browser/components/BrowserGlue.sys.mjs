@@ -80,6 +80,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
     "resource:///modules/WebProtocolHandlerRegistrar.sys.mjs",
   WindowsRegistry: "resource://gre/modules/WindowsRegistry.sys.mjs",
   setTimeout: "resource://gre/modules/Timer.sys.mjs",
+  WaterfoxGlue: "resource:///modules/WaterfoxGlue.sys.mjs",
 });
 
 XPCOMUtils.defineLazyServiceGetters(lazy, {
@@ -400,6 +401,8 @@ BrowserGlue.prototype = {
     }
 
     lazy.DesktopActorRegistry.init();
+
+    lazy.WaterfoxGlue.init();
   },
 
   // cleanup (called on application shutdown)
