@@ -3377,7 +3377,7 @@ int NS_main(int argc, NS_tchar** argv) {
       // proceed with an install to `Program Files` or `Program Files(x86)`.
       isAdmin.unwrap() || isLocalSystem.unwrap();
 #elif defined(XP_MACOSX)
-        strstr(argv[0], "/Library/PrivilegedHelperTools/org.mozilla.updater") !=
+        strstr(argv[0], "/Library/PrivilegedHelperTools/net.waterfox.updater") !=
         0;
 #else
       false;
