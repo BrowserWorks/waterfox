@@ -10,6 +10,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   ChromeManifest: "resource:///modules/ChromeManifest.sys.mjs",
   Overlays: "resource:///modules/Overlays.sys.mjs",
   PrefUtils: "resource:///modules/PrefUtils.sys.mjs",
+  PrivateTab: "resource:///modules/PrivateTab.sys.mjs",
   TabFeatures: "resource:///modules/TabFeatures.sys.mjs",
   setTimeout: "resource://gre/modules/Timer.sys.mjs",
   UICustomizations: "resource:///modules/UICustomizations.sys.mjs",
@@ -153,6 +154,8 @@ export const WaterfoxGlue = {
             lazy.Overlays.load(this.privateManifest, window);
           } else {
             lazy.Overlays.load(this.startupManifest, window);
+            // Only load in non-private browser windows
+            lazy.PrivateTab.init(window);
           }
 
           // Load in all browser windows (private and normal)
