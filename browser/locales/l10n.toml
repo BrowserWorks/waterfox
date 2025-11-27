@@ -129,8 +129,8 @@ locales = [
     l10n = "{l}browser/**"
 
 [[paths]]
-    reference = "browser/branding/official/locales/en-US/**"
-    l10n = "{l}browser/branding/official/**"
+    reference = "waterfox/browser/branding/locales/en-US/**"
+    l10n = "{l}waterfox/browser/branding/**"
 
 # This file was removed in bug 1948916. In order to keep this file in
 # repositories, we need to preserve this entry until esr115 and esr128 become
@@ -152,6 +152,9 @@ locales = [
 
 [[includes]]
     path = "devtools/client/locales/l10n.toml"
+
+[[includes]]
+    path = "waterfox/browser/locales/l10n.toml"
 
 [[paths]]
     reference = "devtools/startup/locales/en-US/**"
