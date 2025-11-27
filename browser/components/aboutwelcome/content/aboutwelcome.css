@@ -994,7 +994,9 @@ html {
   min-width: fit-content;
 }
 .welcome-container .onboardingContainer:has(.addons-picker-container) {
-  min-height: 1080px;
+  min-height: 100vh;
+  max-height: 100vh;
+  overflow-y: auto;
 }
 
 .onboardingContainer {
