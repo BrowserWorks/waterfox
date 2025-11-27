@@ -7,6 +7,8 @@ const lazy = {};
 ChromeUtils.defineESModuleGetters(lazy, {
   AddonManager: "resource://gre/modules/AddonManager.sys.mjs",
   BrowserUtils: "resource:///modules/BrowserUtils.sys.mjs",
+  ChromeManifest: "resource:///modules/ChromeManifest.sys.mjs",
+  Overlays: "resource:///modules/Overlays.sys.mjs",
   PrefUtils: "resource:///modules/PrefUtils.sys.mjs",
   setTimeout: "resource://gre/modules/Timer.sys.mjs",
 });
@@ -45,6 +47,10 @@ export const WaterfoxGlue = {
         }
       }
     })();
+
+    // Parse chrome.manifest
+    this.startupManifest = await this.getChromeManifest("startup");
+    this.privateManifest = await this.getChromeManifest("private");
     // Observe chrome-document-loaded topic to detect window open
     Services.obs.addObserver(this, "chrome-document-loaded");
     // Observe main-pane-loaded topic to detect about:preferences open
@@ -84,9 +90,63 @@ export const WaterfoxGlue = {
     );
   },
 
+  async getChromeManifest(manifest) {
+    let uri;
+    let privateWindow = false;
+    switch (manifest) {
+      case "startup":
+        uri = "resource://waterfox/overlays/chrome.overlay";
+        break;
+      case "private":
+        uri = "resource://waterfox/overlays/chrome.overlay";
+        privateWindow = true;
+        break;
+      case "preferences-general":
+        uri = "resource://waterfox/overlays/preferences-general.overlay";
+        break;
+      case "preferences-other":
+        uri = "resource://waterfox/overlays/preferences-other.overlay";
+        break;
+    }
+    const chromeManifest = new lazy.ChromeManifest(async () => {
+      const res = await fetch(uri);
+      let text = await res.text();
+      if (privateWindow) {
+        const tArr = text.split("\n");
+        const indexPrivate = tArr.findIndex((overlay) =>
+          overlay.includes("private")
+        );
+        tArr.splice(indexPrivate, 1);
+        text = tArr.join("\n");
+      }
+      return text;
+    }, this.options);
+    await chromeManifest.parse();
+    return chromeManifest;
+  },
+
+  options: {
+    application: Services.appinfo.ID,
+    appversion: Services.appinfo.version,
+    platformversion: Services.appinfo.platformVersion,
+    os: Services.appinfo.OS,
+    osversion: Services.sysinfo.getProperty("version"),
+    abi: Services.appinfo.XPCOMABI,
+  },
+
   async observe(subject, topic, data) {
     switch (topic) {
       case "chrome-document-loaded":
+        // Only load overlays in new browser windows
+        // baseURI for about:blank is also browser.xhtml, so use URL
+        if (subject.URL.includes("browser.xhtml")) {
+          const window = subject.defaultView;
+          // Do not load non-private overlays in private window
+          if (window.PrivateBrowsingUtils.isWindowPrivate(window)) {
+            lazy.Overlays.load(this.privateManifest, window);
+          } else {
+            lazy.Overlays.load(this.startupManifest, window);
+          }
           // Attach userChrome.css to this chrome window if styles are enabled
           if (this.stylesEnabled) {
             try {
@@ -96,8 +156,40 @@ export const WaterfoxGlue = {
               );
             } catch (_e) {}
           }
+        }
         break;
       case "main-pane-loaded":
+        // Subject is preferences page content window
+        if (!subject.initialized) {
+          // If we are not loading directly on privacy, we need to wait until permissionsGroup
+          // exists before we attempt to load our overlay. If we are loading directly on privacy
+          // this exists before overlaying occurs, so we have no issues. Loading overlays on
+          // #general is fine regardless of which pane we refresh/initially load.
+          await lazy.Overlays.load(
+            await this.getChromeManifest("preferences-general"),
+            subject
+          );
+          if (
+            !subject.document.getElementById("permissionsGroup") &&
+            !subject.document.getElementById("homeContentsGroup")
+          ) {
+            subject.setTimeout(async () => {
+              await lazy.Overlays.load(
+                await this.getChromeManifest("preferences-other"),
+                subject
+              );
+              subject.privacyInitialized = true;
+            }, 500);
+          } else {
+            await lazy.Overlays.load(
+              await this.getChromeManifest("preferences-other"),
+              subject
+            );
+            subject.privacyInitialized = true;
+          }
+          subject.initialized = true;
+        }
+        break;
       case "final-ui-startup":
         this._beforeUIStartup();
         this._delayedTasks();
