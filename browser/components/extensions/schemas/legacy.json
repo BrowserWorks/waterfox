@@ -1,0 +1,43 @@
+[
+  {
+    "namespace": "manifest",
+    "types": [
+      {
+        "$extend": "WebExtensionManifest",
+        "properties": {
+          "legacy": {
+            "optional": true,
+            "choices": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["xul", "bootstrap"],
+                    "optional": true
+                  },
+                  "options": {
+                    "type": "object",
+                    "properties": {
+                      "page": {
+                        "type": "string"
+                      },
+                      "open_in_tab": {
+                        "type": "boolean",
+                        "optional": true
+                      }
+                    },
+                    "optional": true
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+]
