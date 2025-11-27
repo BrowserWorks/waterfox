@@ -5,6 +5,7 @@
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  AboutPages: "resource:///modules/AboutPages.sys.mjs",
   AddonManager: "resource://gre/modules/AddonManager.sys.mjs",
   BrowserUtils: "resource:///modules/BrowserUtils.sys.mjs",
   ChromeManifest: "resource:///modules/ChromeManifest.sys.mjs",
@@ -70,6 +71,9 @@ export const WaterfoxGlue = {
     Services.obs.addObserver(this, "quit-application-granted");
     // Listen for addon events
     this.addAddonListener();
+
+    // Register about:cfg
+    lazy.AboutPages.init();
   },
 
   async _setPrefObservers() {
