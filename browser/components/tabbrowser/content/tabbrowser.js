@@ -1382,6 +1382,9 @@
           },
         });
         newTab.dispatchEvent(event);
+        
+        // Notify observers for native tab grouping feature
+        Services.obs.notifyObservers(newTab, "browser-tab-activated");
 
         this._tabAttrModified(oldTab, ["selected"]);
         this._tabAttrModified(newTab, ["selected"]);
@@ -3998,6 +4001,9 @@
         detail: eventDetail || {},
       });
       tab.dispatchEvent(evt);
+      
+      // Notify observers for native tab grouping feature
+      Services.obs.notifyObservers(tab, "browser-tab-created");
     }
 
     /**
@@ -4974,6 +4980,8 @@
     }
 
     _endRemoveTab(aTab) {
+      // Notify observers for native tab grouping feature
+      Services.obs.notifyObservers(aTab, "browser-tab-removed");
       if (!aTab || !aTab._endRemoveArgs) {
         return;
       }
@@ -7181,6 +7189,10 @@
         // Intentional fallthrough
         case "deactivate":
           this.selectedTab.updateLastSeenActive();
+          // Notify observers for native tab grouping feature
+          if (aEvent.type === "activate") {
+            Services.obs.notifyObservers(null, "browser-window-focus-changed");
+          }
           break;
       }
     }
