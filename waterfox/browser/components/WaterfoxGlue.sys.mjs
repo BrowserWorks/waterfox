@@ -206,6 +206,11 @@ export const WaterfoxGlue = {
   async _beforeUIStartup() {
     this._migrateUI();
 
+    lazy.AddonManager.maybeInstallBuiltinAddon(
+      "addonstores@waterfox.net",
+      "1.0.0",
+      "resource://builtin-addons/addonstores/"
+    );
   },
 
   async _migrateUI() {
