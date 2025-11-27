@@ -1,0 +1,135 @@
+@charset "UTF-8";
+/*
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+*/
+
+:root {
+  --sound-button-size: calc(var(--svg-small-icon-size) * 0.75);
+}
+
+tab-sound-button {
+  background: none transparent;
+  border: none 0 transparent;
+  display: none;
+  height: calc(var(--svg-small-icon-size) + (var(--in-tab-button-offset) * 2));
+  line-height: 0;
+  min-height: var(--svg-small-icon-size);
+  min-width: var(--svg-small-icon-size); /* this is required to prevent shrinking of the box which has no position:static content */
+  opacity: 1;
+  position: relative;
+  z-index: var(--tab-ui-z-index);
+
+  &::after {
+    -moz-context-properties: fill;
+    background: none no-repeat center / 100%;
+    content: "";
+    display: inline-block;
+    fill: var(--tab-text);
+    height: var(--sound-button-size);
+    inset-block-start: calc((var(--svg-small-icon-size) - var(--sound-button-size)) / 2);
+    inset-inline-start: calc((var(--svg-small-icon-size) - var(--sound-button-size)) / 2);
+    position: absolute;
+    width: var(--sound-button-size);
+  }
+  :root.simulate-svg-context-fill &::after {
+    background: var(--tab-text);
+    mask-position: center;
+    mask-repeat: no-repeat;
+    mask-size: 100%;
+  }
+
+  /* background circle */
+  tab-item.faviconized & {
+    --sound-button-size: 10px;
+    inset-block-start: calc(var(--faviconized-tab-size) - (var(--sound-button-size) * 1.2)); /* cancel negative margin of the background circle */
+    inset-inline-end: 0;
+    margin-block: 0;
+    margin-inline: calc(var(--sound-button-size) * 0.2 /* prevent overrapping of this button's background circle on other buttons */ + 0.2em /* and put spaces between other UIs */);
+    min-height: var(--sound-button-size);
+    min-width: var(--sound-button-size); /* this is required to prevent shrinking of the box which has no position:static content */
+    padding-block: 0;
+    padding-inline: 0;
+    position: absolute;
+
+    &::before {
+      background: var(--tab-text-inverted);
+      border-radius: 150%;
+      content: "";
+      display: inline-block;
+      height: calc(var(--sound-button-size) * 1.4);
+      inset-inline-start: calc(0px - (var(--sound-button-size) * 0.2));
+      top: calc(0px - (var(--sound-button-size) * 0.2));
+      width: calc(var(--sound-button-size) * 1.4);
+      opacity: 0.95;
+      position: absolute;
+    }
+    &:hover::before {
+      opacity: 0.8;
+    }
+
+    &::after {
+      inset-block-start: 0;
+      inset-inline-start: 0;
+    }
+  }
+}
+
+tab-item:not(.collapsed) {
+  tab-sound-button:hover {
+    opacity: var(--button-hover-opacity);
+  }
+
+  tab-sound-button:active {
+    opacity: var(--button-active-opacity);
+  }
+
+  &.sound-playing tab-sound-button,
+  &.has-sound-playing-member.subtree-collapsed[data-child-ids] tab-sound-button,
+  &.muted tab-sound-button,
+  &.has-muted-member.subtree-collapsed[data-child-ids] tab-sound-button,
+  &.autoplay-blocked tab-sound-button,
+  &.has-autoplay-blocked-member.subtree-collapsed[data-child-ids] tab-sound-button {
+    display: inline-block;
+  }
+
+  &.muted tab-sound-button::after,
+  &.has-muted-member.subtree-collapsed[data-child-ids] tab-sound-button::after {
+    background-image: url("./icons/audio-16-mute.svg");
+  }
+  :root.simulate-svg-context-fill & {
+    &.muted tab-sound-button::after,
+    &.has-muted-member.subtree-collapsed[data-child-ids] tab-sound-button::after {
+      background-image: none;
+      mask-image: url("./icons/audio-16-mute.svg");
+    }
+  }
+
+  &.autoplay-blocked tab-sound-button::after,
+  &.has-autoplay-blocked-member.subtree-collapsed[data-child-ids] tab-sound-button::after {
+    background-image: url("./icons/audio-16-blocked.svg");
+  }
+  :root.simulate-svg-context-fill & {
+    &.autoplay-blocked tab-sound-button::after,
+    &.has-autoplay-blocked-member.subtree-collapsed[data-child-ids] tab-sound-button::after {
+      background-image: none;
+      mask-image: url("./icons/audio-16-blocked.svg");
+    }
+  }
+
+  /* put style definition for sound-playing tab after muted tab,
+     because "sound-playing" is more important than muted for
+     mixed state tree. */
+  &.sound-playing:not(.muted) tab-sound-button::after,
+  &.has-sound-playing-member.subtree-collapsed[data-child-ids] tab-sound-button::after {
+    background-image: url("./icons/audio-16.svg");
+  }
+  :root.simulate-svg-context-fill & {
+    &.sound-playing:not(.muted) tab-sound-button::after,
+    &.has-sound-playing-member.subtree-collapsed[data-child-ids] tab-sound-button::after {
+      background-image: none;
+      mask-image: url("./icons/audio-16.svg");
+    }
+  }
+}
