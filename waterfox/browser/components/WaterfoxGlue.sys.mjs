@@ -11,6 +11,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   Overlays: "resource:///modules/Overlays.sys.mjs",
   PrefUtils: "resource:///modules/PrefUtils.sys.mjs",
   setTimeout: "resource://gre/modules/Timer.sys.mjs",
+  UICustomizations: "resource:///modules/UICustomizations.sys.mjs",
 });
 
 const WATERFOX_CUSTOMIZATIONS_PREF =
@@ -147,6 +148,8 @@ export const WaterfoxGlue = {
           } else {
             lazy.Overlays.load(this.startupManifest, window);
           }
+          lazy.UICustomizations.init(window);
+
           // Attach userChrome.css to this chrome window if styles are enabled
           if (this.stylesEnabled) {
             try {
