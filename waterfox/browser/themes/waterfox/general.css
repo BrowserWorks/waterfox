@@ -187,3 +187,24 @@
     display: none !important
   }
 }
+
+/* Tree Vertical Tabs */
+
+/* tabs sidebar box */
+#tree-vertical-tabs-box {
+  background-color: var(--sidebar-background-color);
+  color: var(--sidebar-text-color);
+  text-shadow: none;
+  min-width: 50px;
+}
+:root[BookmarksToolbarOverlapsBrowser] #tree-vertical-tabs-box {
+  padding-top: var(--bookmarks-toolbar-overlapping-browser-height);
+}
+
+#tree-vertical-tabs {
+  flex: 1;
+}
+
+#category-tree > .category-icon {
+  list-style-image: url("./tree-vertical-tabs-24x24.svg#default-context");
+}
