@@ -50,6 +50,9 @@ const ICON_URL_APP =
 // was set by us to a custom handler icon and CSS should not try to override it.
 const APP_ICON_ATTR_NAME = "appHandlerIcon";
 
+// WATERFOX
+const PREF_UPDATE_ENABLED = "app.update.enabled";
+
 Preferences.addAll([
   // Startup
   { id: "browser.startup.page", type: "int" },
@@ -183,6 +186,10 @@ Preferences.addAll([
 
   // Media
   { id: "media.hardwaremediakeys.enabled", type: "bool" },
+
+  // WATERFOX
+  // Enable auto update checking
+  { id: "app.update.enabled", type: "bool" },
 ]);
 
 if (AppConstants.HAVE_SHELL_SERVICE) {
@@ -884,6 +891,8 @@ var gMainPane = {
         // Start with no option selected since we are still reading the value
         document.getElementById("autoDesktop").removeAttribute("selected");
         document.getElementById("manualDesktop").removeAttribute("selected");
+        // WATERFOX
+        document.getElementById("disabledDesktop").removeAttribute("selected");
         // Start reading the correct value from the disk
         this.readUpdateAutoPref();
         setEventListener("updateRadioGroup", "command", event => {
@@ -2620,8 +2629,19 @@ var gMainPane = {
       let radiogroup = document.getElementById("updateRadioGroup");
 
       radiogroup.disabled = true;
-      let enabled = await UpdateUtils.getAppUpdateAutoEnabled();
-      radiogroup.value = enabled;
+      let autoPref = await UpdateUtils.getAppUpdateAutoEnabled();
+      // WATERFOX
+      // If user sets app.update.enabled to false, set value to disabled, else use enabled
+      var enabledPref = Preferences.get("app.update.enabled");
+
+      if (!enabledPref.value) {
+        // Don't care for autoPref.value in this case.
+        radiogroup.value = "disabled"; // 3. Never check for updates.
+      } else if (autoPref.value) {
+        radiogroup.value = "true"; //1. Automatically install updates
+      } else {
+        radiogroup.value = "false"; // 2. Check, but let me choose
+      }
       radiogroup.disabled = false;
 
       this.maybeDisableBackgroundUpdateControls();
@@ -2644,8 +2664,15 @@ var gMainPane = {
       );
       radiogroup.disabled = true;
       try {
+        // We need to set this pref first so that the auto pref observer
+        // has access to the correct enabled pref value.
+        Services.prefs.setBoolPref(
+          PREF_UPDATE_ENABLED,
+          radiogroup.value != "disabled"
+        );
         await UpdateUtils.setAppUpdateAutoEnabled(updateAutoValue);
         await _disableTimeOverPromise;
+
         radiogroup.disabled = false;
       } catch (error) {
         console.error(error);
@@ -2860,7 +2887,15 @@ var gMainPane = {
       if (aData != "true" && aData != "false") {
         throw new Error("Invalid preference value for app.update.auto");
       }
-      document.getElementById("updateRadioGroup").value = aData;
+      // WATERFOX
+      let manualUpdates = Services.prefs.getBoolPref(
+        "app.update.enabled",
+        true
+      );
+      // Only if enabledPref and autoPref are false should we select
+      // disabled, otherwise we just use the value of autoPref.
+      document.getElementById("updateRadioGroup").value =
+        !manualUpdates && !(aData === "true") ? "disabled" : aData;
       this.maybeDisableBackgroundUpdateControls();
     } else if (aTopic == BACKGROUND_UPDATE_CHANGED_TOPIC) {
       if (!AppConstants.MOZ_UPDATE_AGENT) {
