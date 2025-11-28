@@ -2631,21 +2631,14 @@ export class SearchService {
   // This is prefixed with _ rather than # because it is
   // called in test_remove_engine_notification_box.js
   async _fetchEngineSelectorEngines() {
-    let searchEngineSelectorProperties = {
-      locale: Services.locale.appLocaleAsBCP47,
-      region: lazy.Region.home || "unknown",
-      channel: lazy.SearchUtils.MODIFIED_APP_CHANNEL,
-      experiment: this._experimentPrefValue,
-      distroID: lazy.SearchUtils.distroID ?? "",
+    const engines = await (
+      await fetch("chrome://browser/content/search/BrowserSearchEngines.json")
+    ).json();
+    return {
+      engines,
+      appDefaultEngineId: "1org",
+      appPrivateDefaultEngineId: "1org",
     };
-
-    for (let [key, value] of Object.entries(searchEngineSelectorProperties)) {
-      this._settings.setMetaDataAttribute(key, value);
-    }
-
-    return this.#engineSelector.fetchEngineConfiguration(
-      searchEngineSelectorProperties
-    );
   }
 
   #setDefaultFromSelector(refinedConfig) {
