@@ -1,0 +1,378 @@
+[
+	{
+		"aliases": ["bi"],
+		"id": "2b86db12-a65d-4cdc-84f8-cdcf705ad5ca",
+		"identifier": "bing",
+		"name": "Bing",
+		"recordType": "engine",
+		"urls": {
+			"search": {
+				"base": "https://www.bing.com/search",
+				"params": [
+					{
+						"name": "PC",
+						"value": "IS45"
+					},
+					{
+						"name": "PTAG",
+						"value": "SYS1000000"
+					}
+				],
+				"searchTermParamName": "q"
+			},
+			"suggestions": {
+				"base": "https://www.google.com/complete/search",
+				"params": [
+					{
+						"name": "client",
+						"value": "firefox"
+					},
+					{
+						"experimentConfig": "search_rich_suggestions",
+						"name": "channel"
+					}
+				],
+				"searchTermParamName": "q"
+			},
+			"trending": {
+				"base": "https://www.google.com/complete/search",
+				"method": "GET",
+				"params": [
+					{
+						"name": "client",
+						"value": "firefox"
+					},
+					{
+						"name": "channel",
+						"value": "ftr"
+					}
+				],
+				"searchTermParamName": "q"
+			}
+		},
+		"variants": []
+	},
+	{
+		"aliases": ["ddg"],
+		"id": "c8ef2865-c592-4eea-8e13-abdefc4e586d",
+		"identifier": "ddg",
+		"name": "DuckDuckGo",
+		"recordType": "engine",
+		"urls": {
+			"search": {
+				"base": "https://duckduckgo.com/",
+				"params": [
+					{
+						"name": "t",
+						"value": "waterfox"
+					}
+				],
+				"searchTermParamName": "q"
+			},
+			"suggestions": {
+				"base": "https://www.google.com/complete/search",
+				"params": [
+					{
+						"name": "client",
+						"value": "firefox"
+					},
+					{
+						"experimentConfig": "search_rich_suggestions",
+						"name": "channel"
+					}
+				],
+				"searchTermParamName": "q"
+			},
+			"trending": {
+				"base": "https://www.google.com/complete/search",
+				"method": "GET",
+				"params": [
+					{
+						"name": "client",
+						"value": "firefox"
+					},
+					{
+						"name": "channel",
+						"value": "ftr"
+					}
+				],
+				"searchTermParamName": "q"
+			}
+		},
+		"variants": []
+	},
+	{
+		"aliases": ["ec"],
+		"id": "6e24cbe0-e421-4462-ad7d-197db4cde98f",
+		"identifier": "ecosia",
+		"name": "Ecosia",
+		"recordType": "engine",
+		"urls": {
+			"search": {
+				"base": "https://www.ecosia.org/search",
+				"params": [
+					{
+						"name": "tt",
+						"value": "57226k1p"
+					}
+				],
+				"searchTermParamName": "q"
+			},
+			"suggestions": {
+				"base": "https://www.google.com/complete/search",
+				"params": [
+					{
+						"name": "client",
+						"value": "firefox"
+					},
+					{
+						"experimentConfig": "search_rich_suggestions",
+						"name": "channel"
+					}
+				],
+				"searchTermParamName": "q"
+			},
+			"trending": {
+				"base": "https://www.google.com/complete/search",
+				"method": "GET",
+				"params": [
+					{
+						"name": "client",
+						"value": "firefox"
+					},
+					{
+						"name": "channel",
+						"value": "ftr"
+					}
+				],
+				"searchTermParamName": "q"
+			}
+		},
+		"variants": []
+	},
+	{
+		"aliases": ["go"],
+		"id": "cc42ee69-382f-44b9-9222-980755a6849f",
+		"identifier": "google",
+		"name": "Google",
+		"recordType": "engine",
+		"urls": {
+			"search": {
+				"base": "https://www.google.com/search",
+				"params": [],
+				"searchTermParamName": "q"
+			},
+			"suggestions": {
+				"base": "https://www.google.com/complete/search",
+				"params": [
+					{
+						"name": "client",
+						"value": "firefox"
+					},
+					{
+						"experimentConfig": "search_rich_suggestions",
+						"name": "channel"
+					}
+				],
+				"searchTermParamName": "q"
+			},
+			"trending": {
+				"base": "https://www.google.com/complete/search",
+				"method": "GET",
+				"params": [
+					{
+						"name": "client",
+						"value": "firefox"
+					},
+					{
+						"name": "channel",
+						"value": "ftr"
+					}
+				],
+				"searchTermParamName": "q"
+			}
+		},
+		"variants": []
+	},
+	{
+		"aliases": ["mo"],
+		"id": "db59d254-ecf4-42a1-b15c-63563debb60a",
+		"identifier": "mojeek",
+		"name": "Mojeek",
+		"recordType": "engine",
+		"urls": {
+			"search": {
+				"base": "https://www.mojeek.com/search",
+				"searchTermParamName": "q"
+			},
+			"suggestions": {
+				"base": "https://www.google.com/complete/search",
+				"params": [
+					{
+						"name": "client",
+						"value": "firefox"
+					},
+					{
+						"experimentConfig": "search_rich_suggestions",
+						"name": "channel"
+					}
+				],
+				"searchTermParamName": "q"
+			},
+			"trending": {
+				"base": "https://www.google.com/complete/search",
+				"method": "GET",
+				"params": [
+					{
+						"name": "client",
+						"value": "firefox"
+					},
+					{
+						"name": "channel",
+						"value": "ftr"
+					}
+				],
+				"searchTermParamName": "q"
+			}
+		},
+		"variants": []
+	},
+	{
+		"aliases": ["qw"],
+		"id": "d7e41317-0461-4801-9ebc-fa4de57dcd57",
+		"identifier": "qwant",
+		"name": "Qwant",
+		"recordType": "engine",
+		"urls": {
+			"search": {
+				"base": "https://www.qwant.com/",
+				"params": [],
+				"searchTermParamName": "q"
+			},
+			"suggestions": {
+				"base": "https://www.google.com/complete/search",
+				"params": [
+					{
+						"name": "client",
+						"value": "firefox"
+					},
+					{
+						"experimentConfig": "search_rich_suggestions",
+						"name": "channel"
+					}
+				],
+				"searchTermParamName": "q"
+			},
+			"trending": {
+				"base": "https://www.google.com/complete/search",
+				"method": "GET",
+				"params": [
+					{
+						"name": "client",
+						"value": "firefox"
+					},
+					{
+						"name": "channel",
+						"value": "ftr"
+					}
+				],
+				"searchTermParamName": "q"
+			}
+		},
+		"variants": []
+	},
+	{
+		"aliases": ["sp"],
+		"id": "7debf7f1-bac9-4585-b94e-cce2a4eecacc",
+		"identifier": "startpage",
+		"name": "Startpage",
+		"recordType": "engine",
+		"urls": {
+			"search": {
+				"base": "https://www.startpage.com/sp/search",
+				"method": "POST",
+				"params": [
+					{
+						"name": "segment",
+						"value": "startpage.waterfox.1"
+					}
+				],
+				"searchTermParamName": "query"
+			},
+			"suggestions": {
+				"base": "https://www.google.com/complete/search",
+				"params": [
+					{
+						"name": "client",
+						"value": "firefox"
+					},
+					{
+						"experimentConfig": "search_rich_suggestions",
+						"name": "channel"
+					}
+				],
+				"searchTermParamName": "q"
+			},
+			"trending": {
+				"base": "https://www.google.com/complete/search",
+				"method": "GET",
+				"params": [
+					{
+						"name": "client",
+						"value": "firefox"
+					},
+					{
+						"name": "channel",
+						"value": "ftr"
+					}
+				],
+				"searchTermParamName": "q"
+			}
+		},
+		"variants": []
+	},
+	{
+		"aliases": ["wps"],
+		"id": "9b2df7d1-77d2-43e8-b20c-6b6ae4b6844b",
+		"identifier": "wps",
+		"name": "Waterfox Private Search",
+		"recordType": "engine",
+		"urls": {
+			"search": {
+				"base": "https://search.waterfox.com/search",
+				"params": [],
+				"searchTermParamName": "q"
+			},
+			"suggestions": {
+				"base": "https://www.google.com/complete/search",
+				"params": [
+					{
+						"name": "client",
+						"value": "firefox"
+					},
+					{
+						"experimentConfig": "search_rich_suggestions",
+						"name": "channel"
+					}
+				],
+				"searchTermParamName": "q"
+			},
+			"trending": {
+				"base": "https://www.google.com/complete/search",
+				"method": "GET",
+				"params": [
+					{
+						"name": "client",
+						"value": "firefox"
+					},
+					{
+						"name": "channel",
+						"value": "ftr"
+					}
+				],
+				"searchTermParamName": "q"
+			}
+		},
+		"variants": []
+	}
+]
