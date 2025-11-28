@@ -1,0 +1,10 @@
+[
+  ["bing", "chrome://browser/content/search/bing/favicon.ico"],
+  ["ddg", "chrome://browser/content/search/ddg/favicon.ico"],
+  ["ecosia", "chrome://browser/content/search/ecosia/favicon.ico"],
+  ["google", "chrome://browser/content/search/google/favicon.ico"],
+  ["mojeek", "chrome://browser/content/search/mojeek/favicon.ico"],
+  ["qwant", "chrome://browser/content/search/qwant/favicon.ico"],
+  ["startpage", "chrome://browser/content/search/startpage/favicon.ico"],
+  ["wps", "chrome://browser/content/search/wps/favicon.svg"]
+]
