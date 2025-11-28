@@ -130,6 +130,23 @@ export class SearchEngineSelector {
   }
 
   /**
+   * Obtains the list of built-in search engines from the static JSON file.
+   *
+   * @returns {Promise<object[]>}
+   *   An array of engine configuration objects.
+   */
+  async _getStaticEngines() {
+    if (!this._staticEngines) {
+      this._staticEngines = await (
+        await fetch(
+          "chrome://browser/content/search/BrowserSearchEngines.json"
+        )
+      ).json();
+    }
+    return this._staticEngines;
+  }
+
+  /**
    * Finds an engine configuration that has a matching host.
    *
    * @param {string} host
@@ -139,17 +156,28 @@ export class SearchEngineSelector {
    *   The configuration data for an engine.
    */
   async findContextualSearchEngineByHost(host) {
-    for (let config of this._configuration) {
+    let engines = await this._getStaticEngines();
+
+    for (let config of engines) {
       if (config.recordType !== "engine") {
         continue;
       }
-      let searchHost = new URL(config.base.urls.search.base).hostname;
+
+      let searchBase = config.urls?.search?.base;
+      if (!searchBase) {
+        continue;
+      }
+
+      let searchHost = new URL(searchBase).hostname;
+
       if (searchHost.startsWith("www.")) {
         searchHost = searchHost.slice(4);
       }
       if (searchHost.startsWith(host)) {
-        let engine = structuredClone(config.base);
-        engine.identifier = config.identifier;
+        let engine = structuredClone(config);
+        if (!engine.identifier && config.identifier) {
+          engine.identifier = config.identifier;
+        }
         return engine;
       }
     }
@@ -166,13 +194,17 @@ export class SearchEngineSelector {
    *   The configuration data for an engine.
    */
   async findContextualSearchEngineById(id) {
-    for (let config of this._configuration) {
+    let engines = await this._getStaticEngines();
+
+    for (let config of engines) {
       if (config.recordType !== "engine") {
         continue;
       }
       if (config.identifier == id) {
-        let engine = structuredClone(config.base);
-        engine.identifier = config.identifier;
+        let engine = structuredClone(config);
+        if (!engine.identifier && config.identifier) {
+          engine.identifier = config.identifier;
+        }
         return engine;
       }
     }
