@@ -70,15 +70,6 @@ wr::WrExternalImage wr_renderer_lock_external_image(void* aObj,
     return InvalidToWrExternalImage();
   }
 
-#if defined(MOZ_WAYLAND)
-  // Wayland native compositor doesn't use textures so pass null GL context.
-  if (texture->AsRenderDMABUFTextureHost() &&
-      renderer->GetCompositor()->CompositorType() ==
-          layers::WebRenderCompositor::WAYLAND) {
-    return texture->Lock(aChannelIndex, nullptr);
-  }
-#endif
-
   if (auto* gl = renderer->gl()) {
     return texture->Lock(aChannelIndex, gl);
   } else if (auto* swgl = renderer->swgl()) {
