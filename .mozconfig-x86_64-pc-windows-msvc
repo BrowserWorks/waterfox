@@ -1,7 +1,9 @@
 #!/bin/sh
 export CROSS_BUILD=1
 export MOZ_INCLUDE_SOURCE_INFO=1
+export MOZ_REQUIRE_SIGNING=
 export MOZ_STUB_INSTALLER=1
+export MOZ_TELEMETRY_REPORTING=
 export WINEDEBUG=-all
 
 if test "$WFX_RELEASE" || test "$WFX_PRE_RELEASE"; then
@@ -58,5 +60,3 @@ ac_add_options --with-distribution-id=net.waterfox
 if [ -d "$PWD"/waterfox/browser/locales/en-GB ]; then
     ac_add_options --with-l10n-base="$PWD"/waterfox/browser/locales
 fi
-export MOZ_REQUIRE_SIGNING=
-export MOZ_TELEMETRY_REPORTING=

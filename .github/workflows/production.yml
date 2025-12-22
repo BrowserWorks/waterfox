@@ -1,5 +1,6 @@
-name: Production
-'on':
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: 🚀 Production
+on:
   workflow_call:
     inputs:
       COMMIT_SHA:
@@ -33,27 +34,27 @@ env:
   RCLONE_S3_DECOMPRESS: true
 jobs:
   soft-release:
-    name: "\U0001F313 Soft Release"
+    name: 🌓 Soft Release
     environment: Approval
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
     steps:
-      - name: Create GitHub release
+      - name: 🏷️ Create GitHub release
         uses: ncipollo/release-action@v1
         with:
           allowUpdates: true
           commit: '${{ inputs.COMMIT_SHA }}'
           prerelease: '${{ inputs.PRE_RELEASE }}'
           tag: '${{ inputs.DISPLAY_VERSION }}'
-      - name: "\U0001F4BF Setup rclone"
+      - name: 💿 Setup rclone
         run: 'curl https://rclone.org/install.sh | sudo bash'
-      - name: "\U0001F4E3 Export CHANNEL"
+      - name: 📣 Export CHANNEL
         run: |
           if [[ $PRE_RELEASE == 'true' ]]; then
             echo "CHANNEL=beta" >> $GITHUB_ENV
           else
             echo "CHANNEL=release" >> $GITHUB_ENV
           fi
-      - name: "\U0001F9EA Dry run AUS"
+      - name: 🧪 Dry run AUS
         run: |
           OSA=(WINNT_x86_64 Linux_x86_64 Darwin_x86_64-aarch64)
           for OS in "${OSA[@]}"
@@ -81,10 +82,10 @@ jobs:
           <?xml version="1.0"?>
           <updates>
           </updates>
-          END
-              rclone moveto ./update.xml :s3:aus/update/production/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/"$OS"/update.xml --log-level DEBUG --dry-run
+              END
+                  rclone moveto ./update.xml :s3:aus/update/production/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/"$OS"/update.xml --log-level DEBUG --dry-run
           done
-      - name: "\U0001F9EA Move installers from staging to production"
+      - name: 🧪 Move installers from staging to production
         run: >
           rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
           :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
@@ -161,29 +162,29 @@ jobs:
                 }
               ]'
   hard-release:
-    name: "\U0001F315 Hard Release"
+    name: 🌕 Hard Release
     needs:
       - soft-release
     environment: Approval
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
     steps:
-      - name: "\U0001F4BF Setup rclone"
+      - name: 💿 Setup rclone
         run: 'curl https://rclone.org/install.sh | sudo bash'
-      - name: "\U0001F4E3 Export CHANNEL"
+      - name: 📣 Export CHANNEL
         run: |
           if [[ $PRE_RELEASE == 'true' ]]; then
             echo "CHANNEL=beta" >> $GITHUB_ENV
           else
             echo "CHANNEL=release" >> $GITHUB_ENV
           fi
-      - name: "\U0001F69A Move MARs from staging"
+      - name: 🚚 Move MARs from staging
         run: >
           rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
 
           rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
 
           rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
-      - name: "🚚 Move update XMLs from staging"
+      - name: 🚚 Move update XMLs from staging
         run: |
           OSA=(WINNT_x86_64 Linux_x86_64 Darwin_x86_64-aarch64)
           for OS in "${OSA[@]}"

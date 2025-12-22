@@ -1,5 +1,25 @@
-name: Stage
-'on':
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: 🎭 Stage
+on:
+  workflow_dispatch:
+    inputs:
+      DISPLAY_VERSION:
+        description: Input display version
+        required: true
+        type: string
+      PRE_RELEASE:
+        description: This is a pre-release
+        required: false
+        type: string
+      SIGN_RUN_ID:
+        description: Sign workflow run id to pull artifacts from
+        required: true
+        type: string
+      manual_stage:
+        description: Force "manual stage" mode (use GitHub App token to download artifacts from a separate run)
+        required: false
+        default: 'true'
+        type: string
   workflow_call:
     inputs:
       DISPLAY_VERSION:
@@ -7,7 +27,17 @@ name: Stage
         required: true
         type: string
       PRE_RELEASE:
+        description: This is a pre-release
         required: false
+        type: string
+      SIGN_RUN_ID:
+        description: Sign workflow run id to pull artifacts from
+        required: true
+        type: string
+      manual_stage:
+        description: Force "manual stage" mode (use GitHub App token to download artifacts from a separate run)
+        required: false
+        default: 'false'
         type: string
     outputs:
       versiondisplay:
@@ -20,6 +50,13 @@ name: Stage
         required: true
       CF_ENDPOINT:
         required: true
+      ARTIFACTS_APP_ID:
+        required: false
+      ARTIFACTS_APP_PRIVATE_KEY:
+        required: false
+permissions:
+  contents: read
+  actions: read
 env:
   PRE_RELEASE: '${{ inputs.PRE_RELEASE }}'
   RCLONE_S3_ACCESS_KEY_ID: '${{ secrets.AWS_ACCESS_KEY_ID }}'
@@ -29,30 +66,56 @@ env:
   RCLONE_S3_SECRET_ACCESS_KEY: '${{ secrets.AWS_SECRET_ACCESS_KEY }}'
 jobs:
   stage:
-    name: Multi-platform
-    runs-on: ubuntu-latest
+    name: 🎭 Multi-platform
+    runs-on: ubuntu-slim
     outputs:
       versionout: '${{ steps.versionexport.outputs.version }}'
     steps:
-      - name: "\U0001F4E3 Output VERSION_DISPLAY"
+      - name: 📣 Output VERSION_DISPLAY
         id: versionexport
-        run: >-
-          echo "version=$(echo ${{ inputs.DISPLAY_VERSION }})" >> $GITHUB_OUTPUT
-      - name: "\U0001F4E3 Export CHANNEL"
+        run: echo "version=$(echo ${{ inputs.DISPLAY_VERSION }})" >> $GITHUB_OUTPUT
+      - name: 📣 Export CHANNEL
         run: |
           if [[ $PRE_RELEASE == 'true' ]]; then
             echo "CHANNEL=beta" >> $GITHUB_ENV
           else
             echo "CHANNEL=release" >> $GITHUB_ENV
           fi
-      - name: "\U0001F4BF Setup rclone"
+      - name: 💿 Setup rclone
         run: 'curl https://rclone.org/install.sh | sudo bash'
-      - name: ⏬ Download Windows artifact
-        uses: actions/download-artifact@v6
+      - name: 🛑 Require GitHub App credentials for manual stage
+        if: ${{ inputs.manual_stage == 'true' }}
+        env:
+          ARTIFACTS_APP_ID: ${{ secrets.ARTIFACTS_APP_ID }}
+          ARTIFACTS_APP_PRIVATE_KEY: ${{ secrets.ARTIFACTS_APP_PRIVATE_KEY }}
+        run: |
+          if [[ -z "$ARTIFACTS_APP_ID" || -z "$ARTIFACTS_APP_PRIVATE_KEY" ]]; then
+            echo "Missing required secrets for manual stage: ARTIFACTS_APP_ID and/or ARTIFACTS_APP_PRIVATE_KEY" >&2
+            exit 1
+          fi
+      - name: 🔑 Create GitHub App token (manual stage)
+        if: ${{ inputs.manual_stage == 'true' }}
+        id: app_token
+        uses: actions/create-github-app-token@v1
         with:
-          name: windows-stage-3-${{ github.run_id }}
+          app-id: ${{ secrets.ARTIFACTS_APP_ID }}
+          private-key: ${{ secrets.ARTIFACTS_APP_PRIVATE_KEY }}
+      - name: ↓ Download Windows artifact (manual stage)
+        if: ${{ inputs.manual_stage == 'true' }}
+        uses: actions/download-artifact@v7
+        with:
+          github-token: ${{ steps.app_token.outputs.token }}
+          name: windows-signed
+          run-id: ${{ inputs.SIGN_RUN_ID }}
           path: win/
-      - name: "\U0001F3AD Stage Windows"
+      - name: ↓ Download Windows artifact
+        if: ${{ inputs.manual_stage != 'true' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: windows-signed
+          run-id: ${{ inputs.SIGN_RUN_ID }}
+          path: win/
+      - name: 🎭 Stage Windows
         run: >
           rclone copyto win/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
           :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
@@ -66,12 +129,22 @@ jobs:
           :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
 
           rclone copyto win/update.xml :s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/update.xml
-      - name: ⏬ Download macOS artifact
-        uses: actions/download-artifact@v6
+      - name: ↓ Download macOS artifact (manual stage)
+        if: ${{ inputs.manual_stage == 'true' }}
+        uses: actions/download-artifact@v7
         with:
-          name: macos-universal-${{ github.run_id }}
+          github-token: ${{ steps.app_token.outputs.token }}
+          name: macos-signed
+          run-id: ${{ inputs.SIGN_RUN_ID }}
           path: mac/
-      - name: "\U0001F3AD Stage macOS"
+      - name: ↓ Download macOS artifact
+        if: ${{ inputs.manual_stage != 'true' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: macos-signed
+          run-id: ${{ inputs.SIGN_RUN_ID }}
+          path: mac/
+      - name: 🎭 Stage macOS
         run: >
           rclone copyto mac/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
           :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
@@ -83,12 +156,22 @@ jobs:
           :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
 
           rclone copyto mac/update.xml :s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/update.xml
-      - name: ⏬ Download Linux artifact
-        uses: actions/download-artifact@v6
+      - name: ↓ Download Linux artifact (manual stage)
+        if: ${{ inputs.manual_stage == 'true' }}
+        uses: actions/download-artifact@v7
         with:
-          name: linux-build-output
+          github-token: ${{ steps.app_token.outputs.token }}
+          name: linux-signed
+          run-id: ${{ inputs.SIGN_RUN_ID }}
           path: lin/
-      - name: "\U0001F3AD Stage Linux"
+      - name: ↓ Download Linux artifact
+        if: ${{ inputs.manual_stage != 'true' }}
+        uses: actions/download-artifact@v7
+        with:
+          name: linux-signed
+          run-id: ${{ inputs.SIGN_RUN_ID }}
+          path: lin/
+      - name: 🎭 Stage Linux
         run: >
           rclone copyto lin/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2 :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2
 
