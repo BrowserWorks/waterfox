@@ -1034,7 +1034,7 @@ mac-signing:
                           default:
                               by-project:
                                   mozilla-central: security/mac/hardenedruntime/production/nightly.browser.xml
-                                  default: security/mac/hardenedruntime/production/firefox.browser.xml
+                                  default: security/mac/hardenedruntime/production/browser.xml
                   globs:
                       - "/"  # The .app
 
