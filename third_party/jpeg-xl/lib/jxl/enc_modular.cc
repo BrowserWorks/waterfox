@@ -164,12 +164,19 @@ Status float_to_int(const float* const row_in, pixel_type* const row_out,
       continue;
     }
     int exp = (f >> 23) - 127;
-    if (exp == 128) return JXL_FAILURE("Inf/NaN not allowed");
     int mantissa = (f & 0x007fffff);
     // broke up the binary32 into its parts, now reassemble into
     // arbitrary float
+    if (exp == 128) {
+      // NaN or infinity
+      f = (signbit ? sign : 0);
+      f |= ((1 << exp_bits) - 1) << mant_bits;
+      f |= mantissa >> mant_shift;
+      row_out[x] = static_cast<pixel_type>(f);
+      continue;
+    }
     exp += exp_bias;
-    if (exp < 0) {  // will become a subnormal number
+    if (exp <= 0) {  // will become a subnormal number
       // add implicit leading 1 to mantissa
       mantissa |= 0x00800000;
       if (exp < -mant_bits) {
@@ -182,8 +189,8 @@ Status float_to_int(const float* const row_in, pixel_type* const row_out,
       exp = 0;
     }
     // exp should be representable in exp_bits, otherwise input was
-    // invalid
-    if (exp > max_exp) return JXL_FAILURE("Invalid float exponent");
+    // invalid; max_exp is NaN or infinity
+    if (exp >= max_exp) return JXL_FAILURE("Invalid float exponent");
     if (mantissa & ((1 << mant_shift) - 1)) {
       return JXL_FAILURE("%g is losing precision (mant: %x)", row_in[x],
                          mantissa);
