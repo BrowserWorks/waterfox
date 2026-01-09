@@ -1,0 +1,605 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: ✍ Sign
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Reuse artifacts from a specific build workflow run
+        required: false
+        type: string
+      manual_resign:
+        description: Force "manual re-sign" mode (use GitHub App token to download artifacts from a separate run)
+        required: false
+        default: 'true'
+        type: string
+  workflow_call:
+    inputs:
+      build_run_id:
+        required: false
+        type: string
+      manual_resign:
+        required: false
+        default: 'false'
+        type: string
+    outputs:
+      versiondisplay:
+        description: Display version carried from the build metadata
+        value: "${{ jobs.prepare.outputs.version_display }}"
+      sign_run_id:
+        description: Sign workflow run id
+        value: "${{ jobs.prepare.outputs.sign_run_id }}"
+      build_run_id:
+        description: Resolved build workflow run id
+        value: "${{ jobs.prepare.outputs.build_run_id }}"
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+      AZURE_AS_ACCOUNT:
+        required: true
+      AZURE_AS_ENDPOINT:
+        required: true
+      AZURE_AS_PROFILE:
+        required: true
+      CF_ENDPOINT:
+        required: true
+      MACOS_CERTIFICATE:
+        required: true
+      MACOS_CERTIFICATE_PWD:
+        required: true
+      MACOS_CI_KEYCHAIN_PWD:
+        required: true
+      MACOS_NOTARIZATION_APPLE_ID:
+        required: true
+      MACOS_NOTARIZATION_PWD:
+        required: true
+      MACOS_NOTARIZATION_TEAM_ID:
+        required: true
+      MACOS_PROVISIONPROFILE:
+        required: true
+      ONE_PEM:
+        required: true
+      SIGN_BASE64:
+        required: true
+permissions:
+  contents: read
+  actions: read
+env:
+  RCLONE_S3_ACCESS_KEY_ID: "${{ secrets.AWS_ACCESS_KEY_ID || secrets.CF_ACCESS_KEY_ID }}"
+  RCLONE_S3_ACL: private
+  RCLONE_S3_ENDPOINT: "${{ secrets.CF_ENDPOINT }}"
+  RCLONE_S3_PROVIDER: Cloudflare
+  RCLONE_S3_SECRET_ACCESS_KEY: "${{ secrets.AWS_SECRET_ACCESS_KEY || secrets.CF_ACCESS_KEY_SECRET }}"
+jobs:
+  prepare:
+    name: 🧭 Resolve build & metadata
+    runs-on: namespace-profile-linux-sm
+    outputs:
+      build_run_id: "${{ steps.resolve.outputs.build_run_id }}"
+      version_display: "${{ steps.meta.outputs.VERSION_DISPLAY }}"
+      pre_release: "${{ steps.meta.outputs.PRE_RELEASE }}"
+      tag_version: "${{ steps.meta.outputs.TAG_VERSION }}"
+      commit_sha: "${{ steps.meta.outputs.COMMIT_SHA }}"
+      sign_run_id: "${{ steps.sign_run.outputs.sign_run_id }}"
+    steps:
+      - name: 🧭 Resolve build run
+        id: resolve
+        uses: actions/github-script@v8
+        env:
+          BUILD_RUN_ID_INPUT: "${{ inputs.build_run_id }}"
+        with:
+          script: |
+            const provided = process.env.BUILD_RUN_ID_INPUT;
+            if (provided) {
+              core.setOutput('build_run_id', provided.trim());
+              return;
+            }
+            const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'build.yml',
+              status: 'success',
+              per_page: 1,
+            });
+            if (!runs.length) {
+              throw new Error('No successful build workflow runs found to sign.');
+            }
+            core.setOutput('build_run_id', `${runs[0].id}`);
+      - name: 🛑 Require GitHub App credentials for manual re-sign
+        if: ${{ inputs.manual_resign == 'true' }}
+        env:
+          ARTIFACTS_APP_ID: ${{ secrets.ARTIFACTS_APP_ID }}
+          ARTIFACTS_APP_PRIVATE_KEY: ${{ secrets.ARTIFACTS_APP_PRIVATE_KEY }}
+        run: |
+          if [[ -z "$ARTIFACTS_APP_ID" || -z "$ARTIFACTS_APP_PRIVATE_KEY" ]]; then
+            echo "Missing required secrets for manual re-sign: ARTIFACTS_APP_ID and/or ARTIFACTS_APP_PRIVATE_KEY" >&2
+            exit 1
+          fi
+      - name: 🔑 Create GitHub App token (for manual re-sign artifact downloads)
+        if: ${{ inputs.manual_resign == 'true' }}
+        id: app_token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.ARTIFACTS_APP_ID }}
+          private-key: ${{ secrets.ARTIFACTS_APP_PRIVATE_KEY }}
+      - name: ↓ Download build metadata (manual re-sign)
+        if: ${{ inputs.manual_resign == 'true' }}
+        uses: namespace-actions/download-artifact@v2
+        with:
+          github-token: ${{ steps.app_token.outputs.token }}
+          name: build-metadata
+          path: build-metadata
+          run-id: ${{ steps.resolve.outputs.build_run_id }}
+      - name: ↓ Download build metadata
+        if: ${{ inputs.manual_resign != 'true' }}
+        uses: namespace-actions/download-artifact@v2
+        with:
+          name: build-metadata
+          path: build-metadata
+          run-id: ${{ steps.resolve.outputs.build_run_id }}
+      - name: 📄 Load build metadata
+        id: meta
+        run: |
+          cat build-metadata/build-metadata.env >> "$GITHUB_ENV"
+          while IFS='=' read -r key value; do
+            if [[ -n "$key" ]]; then
+              echo "$key=$value" >> "$GITHUB_OUTPUT"
+            fi
+          done < build-metadata/build-metadata.env
+      - name: 🆔 Capture sign run id
+        id: sign_run
+        run: echo "sign_run_id=${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+      - name: 📝 Record sign metadata
+        run: echo "SIGN_RUN_ID=${GITHUB_RUN_ID}" >> build-metadata/build-metadata.env
+      - name: ↑ Upload sign metadata (intermediate)
+        uses: namespace-actions/upload-artifact@v1
+        with:
+          name: sign-metadata-base
+          path: build-metadata/build-metadata.env
+  windows-sign:
+    name: 🪟 Windows signing
+    needs:
+      - prepare
+    runs-on:
+      - namespace-profile-linux-md
+    outputs:
+      app_version: "${{ steps.mar.outputs.app_version }}"
+      build_id: "${{ steps.mar.outputs.build_id }}"
+      mar_hash: "${{ steps.mar.outputs.mar_hash }}"
+      mar_size: "${{ steps.mar.outputs.mar_size }}"
+      installer_hash: "${{ steps.installer.outputs.installer_hash }}"
+      installer_size: "${{ steps.installer.outputs.installer_size }}"
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      ARCH: x86_64-pc-mingw32
+      MOZ_OBJDIR: obj-x86_64-pc-mingw32
+      VERSION_DISPLAY: "${{ needs.prepare.outputs.version_display }}"
+      PRE_RELEASE: "${{ needs.prepare.outputs.pre_release }}"
+      AS_ACCOUNT: "${{ secrets.AZURE_AS_ACCOUNT }}"
+      AS_ENDPOINT: "${{ secrets.AZURE_AS_ENDPOINT }}"
+      AS_PROFILE: "${{ secrets.AZURE_AS_PROFILE }}"
+    steps:
+      - name: 📤 Checkout
+        uses: namespacelabs/nscloud-checkout-action@v8
+      - name: 🔑 Create GitHub App token (manual re-sign)
+        if: ${{ inputs.manual_resign == 'true' }}
+        id: app_token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.ARTIFACTS_APP_ID }}
+          private-key: ${{ secrets.ARTIFACTS_APP_PRIVATE_KEY }}
+      - name: ↓ Download Windows build artifact (manual re-sign)
+        if: ${{ inputs.manual_resign == 'true' }}
+        uses: namespace-actions/download-artifact@v2
+        with:
+          github-token: ${{ steps.app_token.outputs.token }}
+          name: windows-${{ env.ARCH }}-build
+          path: obj-${{ env.ARCH }}
+          run-id: "${{ needs.prepare.outputs.build_run_id }}"
+      - name: ↓ Download Windows build artifact
+        if: ${{ inputs.manual_resign != 'true' }}
+        uses: namespace-actions/download-artifact@v2
+        with:
+          name: windows-${{ env.ARCH }}-build
+          path: obj-${{ env.ARCH }}
+          run-id: "${{ needs.prepare.outputs.build_run_id }}"
+      - name: 💿 Build dependencies
+        run: |
+          sudo apt update
+          mkdir -p $HOME/.mozbuild
+          curl -L https://github.com/ebourg/jsign/releases/download/7.4/jsign_7.4_all.deb --output jsign_7.4_all.deb
+          sudo apt install -y msitools python3-cryptography ./jsign_7.4_all.deb
+          curl -L "https://github.com/ip7z/7zip/releases/download/25.01/7z2501-linux-x64.tar.xz" | tar xJ
+          sudo mv 7zz /usr/local/bin/7z
+          curl https://rclone.org/install.sh | sudo bash
+      - name: 🪪 Azure CLI Login via OIDC
+        uses: azure/login@v3
+        with:
+          client-id: "${{ secrets.AZURE_CLIENT_ID }}"
+          tenant-id: "${{ secrets.AZURE_TENANT_ID }}"
+          subscription-id: "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+      - name: ✍ Sign and package
+        id: installer
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: |
+          TOKEN=$(az account get-access-token --resource https://codesigning.azure.net -t "$AZURE_TENANT_ID" --query accessToken -o tsv)
+          export TOKEN
+
+          jsign --storetype TRUSTEDSIGNING --keystore "$AS_ENDPOINT" --storepass env:TOKEN --alias "$AS_ACCOUNT/$AS_PROFILE" \
+            "obj-${{ env.ARCH }}/browser/installer/windows/instgen/setup.exe" \
+            "obj-${{ env.ARCH }}/dist/waterfox/**/*.exe" \
+            "obj-${{ env.ARCH }}/dist/waterfox/**/*.dll"
+
+          echo "${{ secrets.SIGN_BASE64 }}" | base64 --decode > sign.zip
+          unzip -q sign.zip
+          rm sign.zip
+          chmod +x ./sign/sign.sh
+
+          ./sign/sign.sh -k "$PWD"/sign/1 -p ${{ secrets.ONE_PEM }} -c "$PWD"/sign/2 -i "$PWD"/obj-${{ env.ARCH }}/dist/waterfox -t windows
+          rm -rf ./sign/
+
+          ./mach python -m mozbuild.action.zip -C obj-${{ env.ARCH }}/dist waterfox.zip waterfox
+
+          ./mach repackage installer -o "Waterfox Setup ${{ env.VERSION_DISPLAY }}.exe" --package-name waterfox --package obj-${{ env.ARCH }}/dist/waterfox.zip --tag browser/installer/windows/app.tag --setupexe obj-${{ env.ARCH }}/browser/installer/windows/instgen/setup.exe --sfx-stub other-licenses/7zstub/firefox/7zSD.Win32.sfx --use-upx
+
+          jsign --storetype TRUSTEDSIGNING --keystore "$AS_ENDPOINT" --storepass env:TOKEN --alias "$AS_ACCOUNT/$AS_PROFILE" \
+            "Waterfox Setup ${{ env.VERSION_DISPLAY }}.exe"
+
+          shasum -a 512 "Waterfox Setup ${{ env.VERSION_DISPLAY }}.exe" > "Waterfox Setup ${VERSION_DISPLAY}.exe.sha512"
+
+          INSTALLER_HASH=$(awk '{print $1}' "Waterfox Setup ${VERSION_DISPLAY}.exe.sha512")
+          INSTALLER_SIZE=$(ls -l "Waterfox Setup ${VERSION_DISPLAY}.exe" | awk '{print $5}')
+          echo "installer_hash=$INSTALLER_HASH" >> "$GITHUB_OUTPUT"
+          echo "installer_size=$INSTALLER_SIZE" >> "$GITHUB_OUTPUT"
+      - name: 📦 Package MAR
+        id: mar
+        run: |
+          MAR_BIN="$PWD/obj-${{ env.ARCH }}/dist/host/bin/mar"
+          chmod +x "$MAR_BIN" || true
+
+          INI_PATH="obj-${{ env.ARCH }}/dist/waterfox/application.ini"
+          if [[ ! -f "$INI_PATH" ]]; then
+            echo "Expected application.ini at $INI_PATH but not found"
+            find "obj-${{ env.ARCH }}/dist" -maxdepth 4 -name application.ini -print || true
+            exit 1
+          fi
+
+          if [[ $PRE_RELEASE == 'true' ]]; then
+            ./mach repackage mar -i obj-${{ env.ARCH }}/dist/waterfox.zip --mar "$MAR_BIN" -o waterfox-${{ env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id beta
+          else
+            ./mach repackage mar -i obj-${{ env.ARCH }}/dist/waterfox.zip --mar "$MAR_BIN" -o waterfox-${{ env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id release
+          fi
+
+          VERSION=$(grep '\<Version\>' "$INI_PATH" | cut -d'=' -f2)
+          BUILDID=$(grep 'BuildID=' "$INI_PATH" | cut -d'=' -f2)
+          SHA512=$(shasum -a 512 waterfox-${{ env.VERSION_DISPLAY }}.complete.mar | awk '{print $1}')
+          SIZE=$(ls -l waterfox-${{ env.VERSION_DISPLAY }}.complete.mar | awk '{print $5}')
+
+          echo "Display Version: ${{ env.VERSION_DISPLAY }}, Version: $VERSION, Build ID: $BUILDID, File Size: $SIZE, SHA512: $SHA512"
+
+          {
+            echo "app_version=$VERSION"
+            echo "build_id=$BUILDID"
+            echo "mar_hash=$SHA512"
+            echo "mar_size=$SIZE"
+          } >> "$GITHUB_OUTPUT"
+      - name: ↑ Upload Windows signed artifacts
+        uses: namespace-actions/upload-artifact@v1
+        with:
+          name: windows-signed
+          path: |
+            Waterfox\ Setup\ ${{ env.VERSION_DISPLAY }}.exe
+            Waterfox\ Setup\ ${{ env.VERSION_DISPLAY }}.exe.sha512
+            waterfox-${{ env.VERSION_DISPLAY }}.complete.mar
+  macos-sign:
+    name: 🍎 macOS signing
+    needs:
+      - prepare
+    runs-on: namespace-profile-macos-tahoe-md
+    outputs:
+      app_version: "${{ steps.mar.outputs.app_version }}"
+      build_id: "${{ steps.mar.outputs.build_id }}"
+      mar_hash: "${{ steps.mar.outputs.mar_hash }}"
+      mar_size: "${{ steps.mar.outputs.mar_size }}"
+      installer_hash: "${{ steps.installer.outputs.installer_hash }}"
+      installer_size: "${{ steps.installer.outputs.installer_size }}"
+    env:
+      ARCH_X64: x86_64-apple-darwin
+      ARCH_ARM64: aarch64-apple-darwin
+      VERSION_DISPLAY: "${{ needs.prepare.outputs.version_display }}"
+      PRE_RELEASE: "${{ needs.prepare.outputs.pre_release }}"
+    steps:
+      - name: 📤 Checkout
+        uses: namespacelabs/nscloud-checkout-action@v8
+      - name: 🔑 Create GitHub App token (manual re-sign)
+        if: ${{ inputs.manual_resign == 'true' }}
+        id: app_token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.ARTIFACTS_APP_ID }}
+          private-key: ${{ secrets.ARTIFACTS_APP_PRIVATE_KEY }}
+      - name: ↓ Download Stage 3 X64 artifact (manual re-sign)
+        if: ${{ inputs.manual_resign == 'true' }}
+        uses: namespace-actions/download-artifact@v2
+        with:
+          github-token: ${{ steps.app_token.outputs.token }}
+          name: macos-${{ env.ARCH_X64 }}-stage-3
+          path: "./obj-${{ env.ARCH_X64 }}/dist/"
+          run-id: "${{ needs.prepare.outputs.build_run_id }}"
+      - name: ↓ Download Stage 3 X64 artifact
+        if: ${{ inputs.manual_resign != 'true' }}
+        uses: namespace-actions/download-artifact@v2
+        with:
+          name: macos-${{ env.ARCH_X64 }}-stage-3
+          path: "./obj-${{ env.ARCH_X64 }}/dist/"
+          run-id: "${{ needs.prepare.outputs.build_run_id }}"
+      - name: ↓ Download Stage 3 ARM64 artifact (manual re-sign)
+        if: ${{ inputs.manual_resign == 'true' }}
+        uses: namespace-actions/download-artifact@v2
+        with:
+          github-token: ${{ steps.app_token.outputs.token }}
+          name: macos-${{ env.ARCH_ARM64 }}-stage-3
+          path: "./obj-${{ env.ARCH_ARM64 }}/dist/"
+          run-id: "${{ needs.prepare.outputs.build_run_id }}"
+      - name: ↓ Download Stage 3 ARM64 artifact
+        if: ${{ inputs.manual_resign != 'true' }}
+        uses: namespace-actions/download-artifact@v2
+        with:
+          name: macos-${{ env.ARCH_ARM64 }}-stage-3
+          path: "./obj-${{ env.ARCH_ARM64 }}/dist/"
+          run-id: "${{ needs.prepare.outputs.build_run_id }}"
+      - name: 📣 Override version_display.txt
+        run: |
+          if [[ -n ${{ needs.prepare.outputs.tag_version }} ]]; then
+            echo ${{ needs.prepare.outputs.tag_version }} > browser/config/version_display.txt
+          fi
+          echo 'VERSION_DISPLAY<<EOF' >> $GITHUB_ENV
+          cat browser/config/version_display.txt >> $GITHUB_ENV
+          echo 'EOF' >> $GITHUB_ENV
+      - name: 🧩 Unify .app(s)
+        run: |
+          MOZCONFIG=.mozconfig-${{ env.ARCH_X64 }} ./mach python toolkit/mozapps/installer/unify.py obj-${{ env.ARCH_X64 }}/dist/waterfox/*.app obj-${{ env.ARCH_ARM64 }}/dist/waterfox/*.app
+      - name: 🪪 Add certificate and provisioning
+        run: |
+          echo ${{ secrets.MACOS_CERTIFICATE }} | base64 --decode > Certificate.p12
+          security create-keychain -p "${{ secrets.MACOS_CI_KEYCHAIN_PWD }}" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "${{ secrets.MACOS_CI_KEYCHAIN_PWD }}" build.keychain
+          security import Certificate.p12 -k build.keychain -P "${{ secrets.MACOS_CERTIFICATE_PWD }}" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "${{ secrets.MACOS_CI_KEYCHAIN_PWD }}" build.keychain
+          echo "Create keychain profile"
+          xcrun notarytool store-credentials "notarytool-profile" --apple-id "${{ secrets.MACOS_NOTARIZATION_APPLE_ID }}" --team-id "${{ secrets.MACOS_NOTARIZATION_TEAM_ID }}" --password "${{ secrets.MACOS_NOTARIZATION_PWD }}"
+      - name: 🧾 Embed provisioning profile
+        run: |
+          APP="$PWD/obj-${{ env.ARCH_X64 }}/dist/waterfox/Waterfox.app"
+          PROFILE_PATH="$APP/Contents/embedded.provisionprofile"
+          echo "${{ secrets.MACOS_PROVISIONPROFILE }}" | base64 --decode > "$PROFILE_PATH"
+          chmod 0644 "$PROFILE_PATH"
+          test -s "$PROFILE_PATH"
+      - name: ✍ Sign .app(s)
+        run: |
+          sudo chmod -R 755 ./obj-${{ env.ARCH_X64 }}/dist/waterfox/Waterfox.app
+          xattr -dr com.apple.quarantine ./obj-${{ env.ARCH_X64 }}/dist/waterfox/Waterfox.app
+          python3 -m pip install --break-system-packages cryptography
+          echo "${{ secrets.SIGN_BASE64 }}" | base64 --decode > sign.zip
+          unzip -q sign.zip
+          rm sign.zip
+          chmod +x ./sign/sign.sh
+          ./sign/sign.sh -k "$PWD"/sign/1 -p ${{ secrets.ONE_PEM }} -c "$PWD"/sign/2 -i "$PWD"/obj-${{ env.ARCH_X64 }}/dist/waterfox/Waterfox.app -t macos
+          rm -rf ./sign/
+          ./mach macos-sign -a ./obj-${{ env.ARCH_X64 }}/dist/waterfox/Waterfox.app -s ${{ secrets.MACOS_NOTARIZATION_TEAM_ID }} -e production
+          echo "Creating temp notarization archive"
+          ditto -c -k --keepParent "./obj-${{ env.ARCH_X64 }}/dist/waterfox/Waterfox.app" "notarization.zip"
+          echo "Notarize app"
+          xcrun notarytool submit "notarization.zip" --keychain-profile "notarytool-profile" --wait
+          echo "Attach staple"
+          xcrun stapler staple "./obj-${{ env.ARCH_X64 }}/dist/waterfox/Waterfox.app"
+      - name: 📦 Create and ✍ Sign .dmg
+        id: installer
+        run: |
+          npm install --global create-dmg
+          create-dmg "obj-${{ env.ARCH_X64 }}/dist/waterfox/Waterfox.app" ./
+          mv *.dmg "Waterfox ${{ env.VERSION_DISPLAY }}.dmg"
+          shasum -a 512 "Waterfox ${{ env.VERSION_DISPLAY }}.dmg" > "Waterfox ${{ env.VERSION_DISPLAY }}.dmg.sha512"
+
+          INSTALLER_HASH=$(awk '{print $1}' "Waterfox ${{ env.VERSION_DISPLAY }}.dmg.sha512")
+          INSTALLER_SIZE=$(ls -l "Waterfox ${{ env.VERSION_DISPLAY }}.dmg" | awk '{print $5}')
+          echo "installer_hash=$INSTALLER_HASH" >> "$GITHUB_OUTPUT"
+          echo "installer_size=$INSTALLER_SIZE" >> "$GITHUB_OUTPUT"
+      - name: 📦 Create MAR
+        id: mar
+        run: |
+          curl https://rclone.org/install.sh | sudo bash
+          rclone copy :s3:cdn/waterfox/libraries/toolchain/mar ./
+          sudo chmod +x ./mar
+
+          ./mach python -m mozbuild.action.zip -C obj-${{ env.ARCH_X64 }}/dist/waterfox/ waterfox.zip Waterfox.app
+
+          if [[ $PRE_RELEASE == 'true' ]]; then
+            MAR=$PWD/mar MOZ_PRODUCT_VERSION=${{ env.VERSION_DISPLAY }} MAR_CHANNEL_ID=beta tools/update-packaging/make_full_update.sh waterfox-${{ env.VERSION_DISPLAY }}.complete.mar obj-${{ env.ARCH_X64 }}/dist/waterfox/Waterfox.app
+          else
+            MAR=$PWD/mar MOZ_PRODUCT_VERSION=${{ env.VERSION_DISPLAY }} MAR_CHANNEL_ID=release tools/update-packaging/make_full_update.sh waterfox-${{ env.VERSION_DISPLAY }}.complete.mar obj-${{ env.ARCH_X64 }}/dist/waterfox/Waterfox.app
+          fi
+
+          VERSION=$(grep '\<Version\>' ./obj-${{ env.ARCH_X64 }}/dist/waterfox/Waterfox.app/Contents/Resources/application.ini | cut -d'=' -f2)
+          BUILDID=$(grep 'BuildID=' ./obj-${{ env.ARCH_X64 }}/dist/waterfox/Waterfox.app/Contents/Resources/application.ini | cut -d'=' -f2)
+          SHA512=$(shasum -a 512 waterfox-${{ env.VERSION_DISPLAY }}.complete.mar | awk '{print $1}')
+          SIZE=$(ls -l waterfox-${{ env.VERSION_DISPLAY }}.complete.mar | awk '{print $5}')
+
+          echo "Display Version: ${{ env.VERSION_DISPLAY }}, Version: $VERSION, Build ID: $BUILDID, File Size: $SIZE, SHA512: $SHA512"
+
+          {
+            echo "app_version=$VERSION"
+            echo "build_id=$BUILDID"
+            echo "mar_hash=$SHA512"
+            echo "mar_size=$SIZE"
+          } >> "$GITHUB_OUTPUT"
+      - name: ↑ Upload macOS signed artifacts
+        uses: namespace-actions/upload-artifact@v1
+        with:
+          name: macos-signed
+          path: |
+            Waterfox ${{ env.VERSION_DISPLAY }}.dmg
+            Waterfox ${{ env.VERSION_DISPLAY }}.dmg.sha512
+            waterfox-${{ env.VERSION_DISPLAY }}.complete.mar
+  linux-sign:
+    name: 🐧 Linux signing
+    needs:
+      - prepare
+    runs-on:
+      - namespace-profile-linux-md
+    outputs:
+      app_version: "${{ steps.signpkg.outputs.app_version }}"
+      build_id: "${{ steps.signpkg.outputs.build_id }}"
+      mar_hash: "${{ steps.signpkg.outputs.mar_hash }}"
+      mar_size: "${{ steps.signpkg.outputs.mar_size }}"
+      installer_hash: "${{ steps.signpkg.outputs.installer_hash }}"
+      installer_size: "${{ steps.signpkg.outputs.installer_size }}"
+    env:
+      ARCH: x86_64-pc-linux-gnu
+      VERSION_DISPLAY: "${{ needs.prepare.outputs.version_display }}"
+      PRE_RELEASE: "${{ needs.prepare.outputs.pre_release }}"
+    steps:
+      - name: 📤 Checkout
+        uses: namespacelabs/nscloud-checkout-action@v8
+      - name: 💿 Setup build packages
+        run: |
+          curl -L "https://github.com/ip7z/7zip/releases/download/25.01/7z2501-linux-x64.tar.xz" | tar xJ
+          sudo mv 7zz /usr/local/bin/7z
+          sudo apt install -y patchelf python3-cryptography
+      - name: 🔑 Create GitHub App token (manual re-sign)
+        if: ${{ inputs.manual_resign == 'true' }}
+        id: app_token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.ARTIFACTS_APP_ID }}
+          private-key: ${{ secrets.ARTIFACTS_APP_PRIVATE_KEY }}
+      - name: ↓ Download Linux build artifact (manual re-sign)
+        if: ${{ inputs.manual_resign == 'true' }}
+        uses: namespace-actions/download-artifact@v2
+        with:
+          github-token: ${{ steps.app_token.outputs.token }}
+          name: linux-build
+          path: obj-${{ env.ARCH }}/dist
+          run-id: "${{ needs.prepare.outputs.build_run_id }}"
+      - name: ↓ Download Linux build artifact
+        if: ${{ inputs.manual_resign != 'true' }}
+        uses: namespace-actions/download-artifact@v2
+        with:
+          name: linux-build
+          path: obj-${{ env.ARCH }}/dist
+          run-id: "${{ needs.prepare.outputs.build_run_id }}"
+      - name: ✍ Sign and package
+        id: signpkg
+        env:
+          DISPLAY: :0
+        run: |
+          echo "${{ secrets.SIGN_BASE64 }}" | base64 --decode > sign.zip
+          unzip -q sign.zip
+          rm sign.zip
+          chmod +x ./sign/sign.sh
+
+          DIST_ROOT="$PWD/obj-${{ env.ARCH }}/dist"
+          tar -xf "$DIST_ROOT/linux-build.tar" -C "$DIST_ROOT"
+          rm -f "$DIST_ROOT/linux-build.tar"
+
+          WATERFOX_DIR="$DIST_ROOT/waterfox"
+
+          MAR_BIN="$DIST_ROOT/host/bin/mar"
+          chmod +x "$MAR_BIN" || true
+
+          INI_PATH="$WATERFOX_DIR/application.ini"
+
+          ./sign/sign.sh -k "$PWD"/sign/1 -p ${{ secrets.ONE_PEM }} -c "$PWD"/sign/2 -i "$WATERFOX_DIR" -t linux
+          rm -rf ./sign/
+
+          patchelf --add-rpath '$ORIGIN' "$WATERFOX_DIR/updater"
+
+          for f in waterfox waterfox-bin updater glxtest vaapitest; do
+            if [[ -f "$WATERFOX_DIR/$f" ]] && [[ ! -x "$WATERFOX_DIR/$f" ]]; then
+              echo "ERROR: Missing executable bit: $WATERFOX_DIR/$f" >&2
+              exit 1
+            fi
+          done
+
+          tar -c --owner=0 --group=0 --numeric-owner --mode=go-w --exclude=.mkdir.done -jf waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2 -C "$DIST_ROOT" waterfox
+          shasum -a 512 waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2 > waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2.sha512
+
+          if [[ $PRE_RELEASE == 'true' ]]; then
+            ./mach repackage mar -i waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2 --mar "$MAR_BIN" -o waterfox-${{ env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id beta
+          else
+            ./mach repackage mar -i waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2 --mar "$MAR_BIN" -o waterfox-${{ env.VERSION_DISPLAY }}.complete.mar --arch x86_64 --mar-channel-id release
+          fi
+
+          VERSION=$(grep '\<Version\>' "$INI_PATH" | cut -d'=' -f2)
+          BUILDID=$(grep 'BuildID=' "$INI_PATH" | cut -d'=' -f2)
+          SHA512=$(shasum -a 512 waterfox-${{ env.VERSION_DISPLAY }}.complete.mar | awk '{print $1}')
+          SIZE=$(ls -l waterfox-${{ env.VERSION_DISPLAY }}.complete.mar | awk '{print $5}')
+          INSTALLER_HASH=$(awk '{print $1}' "waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2.sha512")
+          INSTALLER_SIZE=$(ls -l "waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2" | awk '{print $5}')
+
+          echo "Display Version: ${{ env.VERSION_DISPLAY }}, Version: $VERSION, Build ID: $BUILDID, File Size: $SIZE, SHA512: $SHA512"
+
+          {
+            echo "app_version=$VERSION"
+            echo "build_id=$BUILDID"
+            echo "mar_hash=$SHA512"
+            echo "mar_size=$SIZE"
+            echo "installer_hash=$INSTALLER_HASH"
+            echo "installer_size=$INSTALLER_SIZE"
+          } >> "$GITHUB_OUTPUT"
+      - name: ↑ Upload Linux signed artifacts
+        uses: namespace-actions/upload-artifact@v1
+        with:
+          name: linux-signed
+          path: |
+            waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2
+            waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2.sha512
+            waterfox-${{ env.VERSION_DISPLAY }}.complete.mar
+  finalize-metadata:
+    name: 🧾 Finalize sign metadata
+    needs:
+      - prepare
+      - windows-sign
+      - macos-sign
+      - linux-sign
+    runs-on: namespace-profile-linux-sm
+    steps:
+      - name: ↓ Download intermediate sign metadata
+        uses: namespace-actions/download-artifact@v2
+        with:
+          name: sign-metadata-base
+          path: .
+      - name: 📝 Append per-platform AUS metadata
+        run: |
+          {
+            echo "APP_VERSION=${{ needs.windows-sign.outputs.app_version }}"
+            echo "BUILD_ID=${{ needs.windows-sign.outputs.build_id }}"
+            echo "WIN_MAR_HASH=${{ needs.windows-sign.outputs.mar_hash }}"
+            echo "WIN_MAR_SIZE=${{ needs.windows-sign.outputs.mar_size }}"
+            echo "WIN_INSTALLER_HASH=${{ needs.windows-sign.outputs.installer_hash }}"
+            echo "WIN_INSTALLER_SIZE=${{ needs.windows-sign.outputs.installer_size }}"
+            echo "MAC_MAR_HASH=${{ needs.macos-sign.outputs.mar_hash }}"
+            echo "MAC_MAR_SIZE=${{ needs.macos-sign.outputs.mar_size }}"
+            echo "MAC_INSTALLER_HASH=${{ needs.macos-sign.outputs.installer_hash }}"
+            echo "MAC_INSTALLER_SIZE=${{ needs.macos-sign.outputs.installer_size }}"
+            echo "LIN_MAR_HASH=${{ needs.linux-sign.outputs.mar_hash }}"
+            echo "LIN_MAR_SIZE=${{ needs.linux-sign.outputs.mar_size }}"
+            echo "LIN_INSTALLER_HASH=${{ needs.linux-sign.outputs.installer_hash }}"
+            echo "LIN_INSTALLER_SIZE=${{ needs.linux-sign.outputs.installer_size }}"
+          } >> build-metadata.env
+      - name: ↑ Upload sign metadata
+        uses: namespace-actions/upload-artifact@v1
+        with:
+          name: sign-metadata
+          path: build-metadata.env
