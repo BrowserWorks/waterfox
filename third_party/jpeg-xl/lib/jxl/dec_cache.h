@@ -171,7 +171,8 @@ struct PassesDecoderState {
 
     used_acs = 0;
 
-    upsampler8x = GetUpsamplingStage(shared->metadata->transform_data, 0, 3);
+    upsampler8x = GetUpsamplingStage(memory_manager,
+                                     shared->metadata->transform_data, 0, 3);
     if (frame_header.loop_filter.epf_iters > 0) {
       JXL_ASSIGN_OR_RETURN(
           sigma,

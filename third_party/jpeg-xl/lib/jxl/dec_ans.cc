@@ -126,9 +126,9 @@ Status ReadHistogram(int precision_bits, std::vector<int32_t>* counts,
       input->Refill();  // for PeekFixedBits + Advance
       int idx = input->PeekFixedBits<7>();
       input->Consume(huff[idx][0]);
-      logcounts[i] = huff[idx][1];
+      logcounts[i] = int(huff[idx][1]) - 1;
       // The RLE symbol.
-      if (logcounts[i] == ANS_LOG_TAB_SIZE + 1) {
+      if (logcounts[i] == ANS_LOG_TAB_SIZE) {
         int rle_length = DecodeVarLenUint8(input);
         same[i] = rle_length + 5;
         i += rle_length + 3;
@@ -142,7 +142,7 @@ Status ReadHistogram(int precision_bits, std::vector<int32_t>* counts,
     // Invalid input, e.g. due to invalid usage of RLE.
     if (omit_pos < 0) return JXL_FAILURE("Invalid histogram.");
     if (static_cast<size_t>(omit_pos) + 1 < logcounts.size() &&
-        logcounts[omit_pos + 1] == ANS_TAB_SIZE + 1) {
+        logcounts[omit_pos + 1] == ANS_LOG_TAB_SIZE) {
       return JXL_FAILURE("Invalid histogram.");
     }
     int prev = 0;
@@ -158,18 +158,17 @@ Status ReadHistogram(int precision_bits, std::vector<int32_t>* counts,
         (*counts)[i] = prev;
         numsame--;
       } else {
-        unsigned int code = logcounts[i];
+        int code = logcounts[i];
         // omit_pos may not be negative at this point (checked before).
-        if (i == static_cast<size_t>(omit_pos)) {
+        if (i == static_cast<size_t>(omit_pos) || code < 0) {
           continue;
-        } else if (code == 0) {
-          continue;
-        } else if (code == 1) {
-          (*counts)[i] = 1;
+        } else if (shift == 0 || code == 0) {
+          // `shift = 0` means `bitcount = 0`
+          (*counts)[i] = 1 << code;
         } else {
-          int bitcount = GetPopulationCountPrecision(code - 1, shift);
-          (*counts)[i] = (1u << (code - 1)) +
-                         (input->ReadBits(bitcount) << (code - 1 - bitcount));
+          int bitcount = GetPopulationCountPrecision(code, shift);
+          (*counts)[i] = (1 << code) +
+                         (input->ReadBits(bitcount) << (code - bitcount));
         }
       }
       total_count += (*counts)[i];

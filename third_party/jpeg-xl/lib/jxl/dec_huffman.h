@@ -19,10 +19,24 @@ static constexpr size_t kHuffmanTableBits = 8u;
 struct HuffmanDecodingData {
   // Decodes the Huffman code lengths from the bit-stream and fills in the
   // pre-allocated table with the corresponding 2-level Huffman decoding table.
-  // Returns false if the Huffman code lengths can not de decoded.
+  // Returns false if the Huffman code lengths can not be decoded.
   bool ReadFromBitStream(size_t alphabet_size, BitReader* br);
 
-  uint16_t ReadSymbol(BitReader* br) const;
+  // Decodes the next Huffman coded symbol from the bit-stream.
+  JXL_INLINE uint16_t ReadSymbol(BitReader* br) const {
+    size_t n_bits;
+    const HuffmanCode* table = table_.data();
+    table += br->PeekBits(kHuffmanTableBits);
+    n_bits = table->bits;
+    if (n_bits > kHuffmanTableBits) {
+      br->Consume(kHuffmanTableBits);
+      n_bits -= kHuffmanTableBits;
+      table += table->value;
+      table += br->PeekBits(n_bits);
+    }
+    br->Consume(table->bits);
+    return table->value;
+  }
 
   std::vector<HuffmanCode> table_;
 };

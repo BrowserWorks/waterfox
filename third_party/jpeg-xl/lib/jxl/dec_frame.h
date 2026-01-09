@@ -271,6 +271,8 @@ class FrameDecoder {
       JXL_RETURN_IF_ERROR(dec_state_->render_pipeline->PrepareForThreads(
           storage_size, use_group_ids));
     }
+    JXL_RETURN_IF_ERROR(
+        dec_state_->upsampler8x->PrepareForThreads(num_threads));
     return true;
   }
 
