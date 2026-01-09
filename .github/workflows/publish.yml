@@ -1,0 +1,156 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: 🚀 Publish
+on:
+  workflow_dispatch:
+    inputs:
+      sign_run_id:
+        description: Sign workflow run id to publish from (defaults to latest successful run)
+        required: false
+        type: string
+      manual_publish:
+        description: Force "manual publish" mode (use GitHub App token to download artifacts from a separate run)
+        required: false
+        default: 'true'
+        type: string
+  workflow_call:
+    inputs:
+      sign_run_id:
+        required: false
+        type: string
+      manual_publish:
+        required: false
+        default: 'false'
+        type: string
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: false
+      AWS_SECRET_ACCESS_KEY:
+        required: false
+      CF_ACCESS_KEY_ID:
+        required: false
+      CF_ACCESS_KEY_SECRET:
+        required: false
+      CF_AUTH:
+        required: true
+      CF_ENDPOINT:
+        required: true
+      CF_ZONE_ID:
+        required: true
+      ARTIFACTS_APP_ID:
+        required: false
+      ARTIFACTS_APP_PRIVATE_KEY:
+        required: false
+      RELEASE_TOKEN:
+        required: false
+permissions:
+  contents: write
+  actions: read
+jobs:
+  prepare:
+    name: 🧭 Resolve sign metadata
+    runs-on: shipfox-standard-1cpu-ubuntu-2404
+    outputs:
+      sign_run_id: "${{ steps.resolve.outputs.sign_run_id }}"
+      display_version: "${{ steps.meta.outputs.VERSION_DISPLAY }}"
+      pre_release: "${{ steps.meta.outputs.PRE_RELEASE }}"
+      commit_sha: "${{ steps.meta.outputs.COMMIT_SHA }}"
+    steps:
+      - name: 🧭 Resolve sign run
+        id: resolve
+        uses: actions/github-script@v8
+        env:
+          SIGN_RUN_ID_INPUT: "${{ inputs.sign_run_id }}"
+        with:
+          script: |
+            const provided = process.env.SIGN_RUN_ID_INPUT;
+            if (provided) {
+              core.setOutput('sign_run_id', provided.trim());
+              return;
+            }
+            const runs = await github.paginate(github.rest.actions.listWorkflowRuns, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'sign.yml',
+              status: 'success',
+              per_page: 1,
+            });
+            if (!runs.length) {
+              throw new Error('No successful sign workflow runs found to publish.');
+            }
+            core.setOutput('sign_run_id', `${runs[0].id}`);
+      - name: 🛑 Require GitHub App credentials for manual publish
+        if: ${{ inputs.manual_publish == 'true' }}
+        env:
+          ARTIFACTS_APP_ID: ${{ secrets.ARTIFACTS_APP_ID }}
+          ARTIFACTS_APP_PRIVATE_KEY: ${{ secrets.ARTIFACTS_APP_PRIVATE_KEY }}
+        run: |
+          if [[ -z "$ARTIFACTS_APP_ID" || -z "$ARTIFACTS_APP_PRIVATE_KEY" ]]; then
+            echo "Missing required secrets for manual publish: ARTIFACTS_APP_ID and/or ARTIFACTS_APP_PRIVATE_KEY" >&2
+            exit 1
+          fi
+      - name: 🔑 Create GitHub App token (manual publish)
+        if: ${{ inputs.manual_publish == 'true' }}
+        id: app_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.ARTIFACTS_APP_ID }}
+          private-key: ${{ secrets.ARTIFACTS_APP_PRIVATE_KEY }}
+      - name: ↓ Download sign metadata (manual publish)
+        if: ${{ inputs.manual_publish == 'true' }}
+        uses: actions/download-artifact@v8
+        with:
+          github-token: ${{ steps.app_token.outputs.token }}
+          name: sign-metadata
+          path: sign-metadata
+          run-id: "${{ steps.resolve.outputs.sign_run_id }}"
+      - name: ↓ Download sign metadata
+        if: ${{ inputs.manual_publish != 'true' }}
+        uses: actions/download-artifact@v8
+        with:
+          name: sign-metadata
+          path: sign-metadata
+          run-id: "${{ steps.resolve.outputs.sign_run_id }}"
+      - name: 📄 Load sign metadata
+        id: meta
+        run: |
+          cat sign-metadata/build-metadata.env >> "$GITHUB_ENV"
+          while IFS='=' read -r key value; do
+            if [[ -n "$key" ]]; then
+              echo "$key=$value" >> "$GITHUB_OUTPUT"
+            fi
+          done < sign-metadata/build-metadata.env
+  stage:
+    name: 🎭 Deploy to Staging
+    needs:
+      - prepare
+    uses: ./.github/workflows/stage.yml
+    with:
+      DISPLAY_VERSION: "${{ needs.prepare.outputs.display_version }}"
+      PRE_RELEASE: "${{ needs.prepare.outputs.pre_release }}"
+      SIGN_RUN_ID: "${{ needs.prepare.outputs.sign_run_id }}"
+      manual_stage: "${{ inputs.manual_publish }}"
+    secrets:
+      AWS_ACCESS_KEY_ID: "${{ secrets.AWS_ACCESS_KEY_ID || secrets.CF_ACCESS_KEY_ID }}"
+      AWS_SECRET_ACCESS_KEY: "${{ secrets.AWS_SECRET_ACCESS_KEY || secrets.CF_ACCESS_KEY_SECRET }}"
+      CF_ACCESS_KEY_ID: "${{ secrets.CF_ACCESS_KEY_ID }}"
+      CF_ACCESS_KEY_SECRET: "${{ secrets.CF_ACCESS_KEY_SECRET }}"
+      CF_ENDPOINT: "${{ secrets.CF_ENDPOINT }}"
+      ARTIFACTS_APP_ID: "${{ secrets.ARTIFACTS_APP_ID }}"
+      ARTIFACTS_APP_PRIVATE_KEY: "${{ secrets.ARTIFACTS_APP_PRIVATE_KEY }}"
+  production:
+    name: 🚀 Deploy to Production
+    needs:
+      - prepare
+      - stage
+    uses: ./.github/workflows/production.yml
+    with:
+      COMMIT_SHA: "${{ needs.prepare.outputs.commit_sha }}"
+      PRE_RELEASE: "${{ needs.prepare.outputs.pre_release }}"
+      DISPLAY_VERSION: "${{ needs.prepare.outputs.display_version }}"
+    secrets:
+      AWS_ACCESS_KEY_ID: "${{ secrets.AWS_ACCESS_KEY_ID || secrets.CF_ACCESS_KEY_ID }}"
+      AWS_SECRET_ACCESS_KEY: "${{ secrets.AWS_SECRET_ACCESS_KEY || secrets.CF_ACCESS_KEY_SECRET }}"
+      CF_AUTH: "${{ secrets.CF_AUTH }}"
+      CF_ENDPOINT: "${{ secrets.CF_ENDPOINT }}"
+      CF_ZONE_ID: "${{ secrets.CF_ZONE_ID }}"
+      RELEASE_TOKEN: "${{ secrets.RELEASE_TOKEN }}"
