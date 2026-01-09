@@ -237,7 +237,7 @@ Status OutputEncodingInfo::SetFromMetadata(const CodecMetadata& metadata) {
   bool orig_grey = orig_color_encoding.IsGray();
   return SetColorEncoding(!xyb_encoded || orig_ok
                               ? orig_color_encoding
-                              : ColorEncoding::LinearSRGB(orig_grey));
+                              : ColorEncoding::SRGB(orig_grey));
 }
 
 Status OutputEncodingInfo::MaybeSetColorEncoding(

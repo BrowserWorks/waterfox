@@ -352,7 +352,7 @@ typedef enum {
    *
    * When using streaming input and output the encoder minimizes memory usage at
    * the cost of compression density. Also note that images produced with
-   * streaming mode might not be progressively decodeable.
+   * streaming mode might not be progressively decodable.
    */
   JXL_ENC_FRAME_SETTING_BUFFERING = 34,
 
