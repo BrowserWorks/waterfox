@@ -1,0 +1,184 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: 🚀 Production
+on:
+  workflow_call:
+    inputs:
+      COMMIT_SHA:
+        required: true
+        type: string
+      DISPLAY_VERSION:
+        description: Display Version
+        required: true
+        type: string
+      PRE_RELEASE:
+        required: true
+        type: string
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: false
+      AWS_SECRET_ACCESS_KEY:
+        required: false
+      CF_ACCESS_KEY_ID:
+        required: false
+      CF_ACCESS_KEY_SECRET:
+        required: false
+      CF_ENDPOINT:
+        required: true
+      RELEASE_TOKEN:
+        required: true
+      AUS_ADMIN_TOKEN:
+        required: true
+      AUS_BASE_URL:
+        required: true
+permissions:
+  contents: write
+env:
+  PRE_RELEASE: '${{ inputs.PRE_RELEASE }}'
+  RCLONE_S3_ACCESS_KEY_ID: '${{ secrets.AWS_ACCESS_KEY_ID || secrets.CF_ACCESS_KEY_ID }}'
+  RCLONE_S3_ACL: private
+  RCLONE_S3_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
+  RCLONE_S3_PROVIDER: Cloudflare
+  RCLONE_S3_SECRET_ACCESS_KEY: '${{ secrets.AWS_SECRET_ACCESS_KEY || secrets.CF_ACCESS_KEY_SECRET }}'
+  RCLONE_S3_DECOMPRESS: true
+jobs:
+  soft-release:
+    name: 🌓 Soft Release
+    environment: Approval
+    runs-on: namespace-profile-linux-sm
+    steps:
+      - name: 🏷️ Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          DV: ${{ inputs.DISPLAY_VERSION }}
+          SHA: ${{ inputs.COMMIT_SHA }}
+          PRE_RELEASE: ${{ inputs.PRE_RELEASE }}
+        run: |
+          prerelease_args=()
+          if [[ "$PRE_RELEASE" == "true" ]]; then
+            prerelease_args+=(--prerelease)
+          fi
+
+          if gh release view "$DV" >/dev/null 2>&1; then
+            gh release edit "$DV" --target "$SHA" --draft "${prerelease_args[@]}"
+          else
+            gh release create "$DV" --target "$SHA" --draft "${prerelease_args[@]}" --title "$DV" --generate-notes
+          fi
+      - name: 💿 Setup rclone
+        run: 'curl https://rclone.org/install.sh | sudo bash'
+      - name: 🧪 Move installers from staging to production
+        run: >
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
+          :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
+
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe.sha512
+          :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe.sha512
+
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
+          :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
+
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg.sha512
+          :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg.sha512
+
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2
+          :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2
+
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2.sha512
+          :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2.sha512
+      - name: ↓ Load sign metadata
+        uses: namespace-actions/download-artifact@v2
+        with:
+          name: sign-metadata
+          path: sign-metadata
+      - name: 🧠 Publish to AUS (rollout=0, latest pointer flips)
+        env:
+          AUS_BASE_URL: ${{ secrets.AUS_BASE_URL }}
+          AUS_ADMIN_TOKEN: ${{ secrets.AUS_ADMIN_TOKEN }}
+        run: |
+          set -a; . ./sign-metadata/build-metadata.env; set +a
+
+          CHANNEL=release
+          if [[ "$PRE_RELEASE" == "true" ]]; then
+            CHANNEL=beta
+          fi
+
+          VERSION_DISPLAY="${{ inputs.DISPLAY_VERSION }}"
+          RELEASE_DATE="$(date -u +%F)"
+
+          jq -n \
+            --arg appVersion "$APP_VERSION" \
+            --arg buildID "$BUILD_ID" \
+            --arg releaseDate "$RELEASE_DATE" \
+            --arg channel "$CHANNEL" \
+            --arg version "$VERSION_DISPLAY" \
+            --arg winMarHash "$WIN_MAR_HASH" --argjson winMarSize "$WIN_MAR_SIZE" \
+            --arg macMarHash "$MAC_MAR_HASH" --argjson macMarSize "$MAC_MAR_SIZE" \
+            --arg linMarHash "$LIN_MAR_HASH" --argjson linMarSize "$LIN_MAR_SIZE" \
+            --arg winInstallerHash "$WIN_INSTALLER_HASH" --argjson winInstallerSize "$WIN_INSTALLER_SIZE" \
+            --arg macInstallerHash "$MAC_INSTALLER_HASH" --argjson macInstallerSize "$MAC_INSTALLER_SIZE" \
+            --arg linInstallerHash "$LIN_INSTALLER_HASH" --argjson linInstallerSize "$LIN_INSTALLER_SIZE" \
+            '{
+              appVersion: $appVersion,
+              buildID: $buildID,
+              releaseDate: $releaseDate,
+              rollout: 0,
+              channels: [$channel],
+              platforms: {
+                WINNT_x86_64: {
+                  mar: ("waterfox-" + $version + ".complete.mar"),
+                  hash: $winMarHash, size: $winMarSize,
+                  installer: { file: ("Waterfox Setup " + $version + ".exe"), hash: $winInstallerHash, size: $winInstallerSize }
+                },
+                "Darwin_x86_64-aarch64": {
+                  mar: ("waterfox-" + $version + ".complete.mar"),
+                  hash: $macMarHash, size: $macMarSize,
+                  installer: { file: ("Waterfox " + $version + ".dmg"), hash: $macInstallerHash, size: $macInstallerSize }
+                },
+                Linux_x86_64: {
+                  mar: ("waterfox-" + $version + ".complete.mar"),
+                  hash: $linMarHash, size: $linMarSize,
+                  installer: { file: ("waterfox-" + $version + ".tar.bz2"), hash: $linInstallerHash, size: $linInstallerSize }
+                }
+              },
+              unsupported: [],
+              paused: false
+            }' > version.json
+
+          curl -fsS -X PUT \
+            "${AUS_BASE_URL}/admin/versions/${VERSION_DISPLAY}" \
+            -H "Authorization: Bearer ${AUS_ADMIN_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data-binary @version.json
+
+          curl -fsS -X PATCH \
+            "${AUS_BASE_URL}/admin/latest" \
+            -H "Authorization: Bearer ${AUS_ADMIN_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data "{\"$CHANNEL\":\"${VERSION_DISPLAY}\"}"
+  hard-release:
+    name: 🌕 Hard Release
+    needs:
+      - soft-release
+    environment: Approval
+    runs-on: namespace-profile-linux-sm
+    steps:
+      - name: 💿 Setup rclone
+        run: 'curl https://rclone.org/install.sh | sudo bash'
+      - name: 🚚 Move MARs from staging
+        run: >
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+
+      - name: 🧠 Flip rollout to 100 (auto-update goes live)
+        env:
+          AUS_BASE_URL: ${{ secrets.AUS_BASE_URL }}
+          AUS_ADMIN_TOKEN: ${{ secrets.AUS_ADMIN_TOKEN }}
+        run: |
+          curl -fsS -X PATCH \
+            "${AUS_BASE_URL}/admin/versions/${{ inputs.DISPLAY_VERSION }}/rollout" \
+            -H "Authorization: Bearer ${AUS_ADMIN_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"rollout":100}'
