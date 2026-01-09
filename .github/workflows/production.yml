@@ -1,0 +1,196 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: 🚀 Production
+on:
+  workflow_call:
+    inputs:
+      COMMIT_SHA:
+        required: true
+        type: string
+      DISPLAY_VERSION:
+        description: Display Version
+        required: true
+        type: string
+      PRE_RELEASE:
+        required: true
+        type: string
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: false
+      AWS_SECRET_ACCESS_KEY:
+        required: false
+      CF_ACCESS_KEY_ID:
+        required: false
+      CF_ACCESS_KEY_SECRET:
+        required: false
+      CF_AUTH:
+        required: true
+      CF_ENDPOINT:
+        required: true
+      CF_ZONE_ID:
+        required: true
+      RELEASE_TOKEN:
+        required: true
+permissions:
+  contents: write
+env:
+  PRE_RELEASE: '${{ inputs.PRE_RELEASE }}'
+  RCLONE_S3_ACCESS_KEY_ID: '${{ secrets.AWS_ACCESS_KEY_ID || secrets.CF_ACCESS_KEY_ID }}'
+  RCLONE_S3_ACL: private
+  RCLONE_S3_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
+  RCLONE_S3_PROVIDER: Cloudflare
+  RCLONE_S3_SECRET_ACCESS_KEY: '${{ secrets.AWS_SECRET_ACCESS_KEY || secrets.CF_ACCESS_KEY_SECRET }}'
+  RCLONE_S3_DECOMPRESS: true
+jobs:
+  soft-release:
+    name: 🌓 Soft Release
+    environment: Approval
+    runs-on: shipfox-standard-1cpu-ubuntu-2404
+    steps:
+      - name: 🏷️ Create GitHub release
+        uses: ncipollo/release-action@v1
+        with:
+          token: '${{ secrets.RELEASE_TOKEN }}'
+          allowUpdates: true
+          draft: true
+          commit: '${{ inputs.COMMIT_SHA }}'
+          prerelease: '${{ inputs.PRE_RELEASE }}'
+          tag: '${{ inputs.DISPLAY_VERSION }}'
+      - name: 💿 Setup rclone
+        run: 'curl https://rclone.org/install.sh | sudo bash'
+      - name: 📣 Export CHANNEL
+        run: |
+          if [[ $PRE_RELEASE == 'true' ]]; then
+            echo "CHANNEL=beta" >> $GITHUB_ENV
+          else
+            echo "CHANNEL=release" >> $GITHUB_ENV
+          fi
+      - name: 🧪 Move installers from staging to production
+        run: >
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
+          :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe
+
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe.sha512
+          :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox\ Setup\ ${{ inputs.DISPLAY_VERSION }}.exe.sha512
+
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install\ Waterfox.exe
+
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
+          :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg
+
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg.sha512
+          :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox\ ${{ inputs.DISPLAY_VERSION }}.dmg.sha512
+
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2
+          :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2
+
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2.sha512
+          :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2.sha512
+      - name: ⎆ Update latest redirects
+        if: ${{ inputs.PRE_RELEASE == 'false' }}
+        run: >
+          curl "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ZONE_ID }}/rules/lists/500a3e4c6bd2435da861ad9f407f892b/items" \
+              -H "Authorization: Bearer ${{ secrets.CF_AUTH }}" \
+              -H "Content-Type: application/json" \
+              -d '[
+                {
+                  "redirect": {
+                    "source_url": "cdn.waterfox.com/waterfox/releases/latest/windows",
+                    "target_url": "https://cdn.waterfox.com/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Waterfox Setup ${{ inputs.DISPLAY_VERSION }}.exe",
+                    "preserve_query_string": true,
+                    "status_code": 302
+                  }
+                }
+              ]'
+          curl "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ZONE_ID }}/rules/lists/500a3e4c6bd2435da861ad9f407f892b/items" \
+              -H "Authorization: Bearer ${{ secrets.CF_AUTH }}" \
+              -H "Content-Type: application/json" \
+              -d '[
+                {
+                  "redirect": {
+                    "source_url": "cdn.waterfox.com/waterfox/releases/latest/windows-stub",
+                    "target_url": "https://cdn.waterfox.com/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/WINNT_x86_64/Install Waterfox.exe",
+                    "preserve_query_string": true,
+                    "status_code": 302
+                  }
+                }
+              ]'
+          curl "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ZONE_ID }}/rules/lists/500a3e4c6bd2435da861ad9f407f892b/items" \
+              -H "Authorization: Bearer ${{ secrets.CF_AUTH }}" \
+              -H "Content-Type: application/json" \
+              -d '[
+                {
+                  "redirect": {
+                    "source_url": "cdn.waterfox.com/waterfox/releases/latest/macos",
+                    "target_url": "https://cdn.waterfox.com/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Darwin_x86_64-aarch64/Waterfox ${{ inputs.DISPLAY_VERSION }}.dmg",
+                    "preserve_query_string": true,
+                    "status_code": 302
+                  }
+                }
+              ]'
+          curl "https://api.cloudflare.com/client/v4/accounts/${{ secrets.CF_ZONE_ID }}/rules/lists/500a3e4c6bd2435da861ad9f407f892b/items" \
+              -H "Authorization: Bearer ${{ secrets.CF_AUTH }}" \
+              -H "Content-Type: application/json" \
+              -d '[
+                {
+                  "redirect": {
+                    "source_url": "cdn.waterfox.com/waterfox/releases/latest/linux",
+                    "target_url": "https://cdn.waterfox.com/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.tar.bz2",
+                    "preserve_query_string": true,
+                    "status_code": 302
+                  }
+                }
+              ]'
+  hard-release:
+    name: 🌕 Hard Release
+    needs:
+      - soft-release
+    environment: Approval
+    runs-on: shipfox-standard-1cpu-ubuntu-2404
+    steps:
+      - name: 💿 Setup rclone
+        run: 'curl https://rclone.org/install.sh | sudo bash'
+      - name: 📣 Export CHANNEL
+        run: |
+          if [[ $PRE_RELEASE == 'true' ]]; then
+            echo "CHANNEL=beta" >> $GITHUB_ENV
+          else
+            echo "CHANNEL=release" >> $GITHUB_ENV
+          fi
+      - name: 🚚 Move MARs from staging
+        run: >
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/WINNT_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Darwin_x86_64-aarch64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+
+          rclone moveto :s3:cdn/waterfox/staging/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar :s3:cdn/waterfox/releases/${{ inputs.DISPLAY_VERSION }}/update/Linux_x86_64/waterfox-${{ inputs.DISPLAY_VERSION }}.complete.mar
+      - name: 🚚 Move update XMLs from staging
+        run: |
+          OSA=(WINNT_x86_64 Linux_x86_64 Darwin_x86_64-aarch64)
+          for OS in "${OSA[@]}"
+          do
+            mkdir -p aus_tmp/"$OS"/
+            rclone copyto :s3:aus/update/staging/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/"$OS"/update.xml ./aus_tmp/"$OS"/update.xml
+            sed -i 's/staging/releases/g' ./aus_tmp/"$OS"/update.xml
+          done
+          for VER in $(rclone lsf --dirs-only :s3:aus/update/production/${{ env.CHANNEL }} | awk -v RS= '{$1=$1}1' | sed 's|/||g')
+          do
+            if [[ $VER != '/' ]]
+            then
+              if [[ $VER == "G5"* ]] || [[ $VER == "G6"* ]] || [[ $VER =~ ^[0-9]+(\.[0-9]+){1,3}(-beta-[0-9]+)?$ ]]
+              then
+                for OS in "${OSA[@]}"
+                do
+                  rclone copyto ./aus_tmp/"$OS"/update.xml :s3:aus/update/production/${{ env.CHANNEL }}/"$VER"/"$OS"/update.xml
+                done
+              fi
+            fi
+          done
+          for OS in "${OSA[@]}"
+          do
+            cat <<END >update.xml
+          <?xml version="1.0"?>
+          <updates>
+          </updates>
+          END
+            rclone moveto ./update.xml :s3:aus/update/production/${{ env.CHANNEL }}/${{ inputs.DISPLAY_VERSION }}/"$OS"/update.xml
+          done
