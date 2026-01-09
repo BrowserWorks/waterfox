@@ -10,7 +10,7 @@ Build-Depends:
  libbrotli-dev,
  libgdk-pixbuf-2.0-dev | libgdk-pixbuf2.0-dev,
  libgif-dev,
- libgimp2.0-dev,
+ libgimp2.0-dev | base-files (>= 13.8),
  libgoogle-perftools-dev,
  libgtest-dev,
  libhwy-dev (>= 1.0.0),

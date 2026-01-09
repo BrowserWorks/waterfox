@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.2] - 2026-02-10
+
+### Fixed
+  - fix tile dimension in low memory rendering pipeline (#4495 -
+    [CVE-2025-12474](https://www.cve.org/cverecord?id=CVE-2025-12474))
+  - fix number of channels for gray-to-gray color transform (#4579 -
+    [CVE-2026-1837](https://www.cve.org/cverecord?id=CVE-2026-1837))
+  - `djxl`: reject decoding JXL files if "packed" representation size overflows
+    `size_t` (#4589 - thanks to Mateusz Jurczyk of Google Project Zero for
+    identifying this issue)
+
 ## [0.11.1] - 2024-26-11
 
 ### Fixed
