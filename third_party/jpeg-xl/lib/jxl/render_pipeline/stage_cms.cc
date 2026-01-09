@@ -24,10 +24,14 @@ namespace HWY_NAMESPACE {
 
 class CmsStage : public RenderPipelineStage {
  public:
-  explicit CmsStage(OutputEncodingInfo output_encoding_info)
+  explicit CmsStage(OutputEncodingInfo output_encoding_info, bool linear)
       : RenderPipelineStage(RenderPipelineStage::Settings()),
         output_encoding_info_(std::move(output_encoding_info)) {
-    c_src_ = output_encoding_info_.linear_color_encoding;
+    if (linear) {
+      c_src_ = output_encoding_info_.linear_color_encoding;
+    } else {
+      c_src_ = output_encoding_info_.orig_color_encoding;
+    }
   }
 
   bool IsNeeded() const {
@@ -45,33 +49,72 @@ class CmsStage : public RenderPipelineStage {
                     size_t xextra, size_t xsize, size_t xpos, size_t ypos,
                     size_t thread_id) const final {
     JXL_ENSURE(xsize <= xsize_);
-    // TODO(firsching): handle grey case separately
-    //  interleave
-    float* JXL_RESTRICT row0 = GetInputRow(input_rows, 0, 0);
-    float* JXL_RESTRICT row1 = GetInputRow(input_rows, 1, 0);
-    float* JXL_RESTRICT row2 = GetInputRow(input_rows, 2, 0);
+    bool gray_src = (c_src_.Channels() == 1);
+    bool gray_dst = (output_encoding_info_.color_encoding.Channels() == 1);
     float* mutable_buf_src = color_space_transform->BufSrc(thread_id);
+    float* JXL_RESTRICT buf_dst = color_space_transform->BufDst(thread_id);
+    //  interleave
+    if (c_src_.IsCMYK()) {
+      float* JXL_RESTRICT row0 = GetInputRow(input_rows, 0, 0);
+      float* JXL_RESTRICT row1 = GetInputRow(input_rows, 1, 0);
+      float* JXL_RESTRICT row2 = GetInputRow(input_rows, 2, 0);
+      float* JXL_RESTRICT row3 = GetInputRow(input_rows, 3, 0);
 
-    for (size_t x = 0; x < xsize; x++) {
-      mutable_buf_src[3 * x + 0] = row0[x];
-      mutable_buf_src[3 * x + 1] = row1[x];
-      mutable_buf_src[3 * x + 2] = row2[x];
+      for (size_t x = 0; x < xsize; x++) {
+        mutable_buf_src[4 * x + 0] = row0[x];
+        mutable_buf_src[4 * x + 1] = row1[x];
+        mutable_buf_src[4 * x + 2] = row2[x];
+        mutable_buf_src[4 * x + 3] = row3[x];
+      }
+    } else if (gray_src) {
+      float* JXL_RESTRICT row0 = GetInputRow(input_rows, 0, 0);
+      memcpy(mutable_buf_src, row0, xsize * sizeof(float));
+    } else {
+      float* JXL_RESTRICT row0 = GetInputRow(input_rows, 0, 0);
+      float* JXL_RESTRICT row1 = GetInputRow(input_rows, 1, 0);
+      float* JXL_RESTRICT row2 = GetInputRow(input_rows, 2, 0);
+
+      for (size_t x = 0; x < xsize; x++) {
+        mutable_buf_src[3 * x + 0] = row0[x];
+        mutable_buf_src[3 * x + 1] = row1[x];
+        mutable_buf_src[3 * x + 2] = row2[x];
+      }
     }
     const float* buf_src = mutable_buf_src;
-    float* JXL_RESTRICT buf_dst = color_space_transform->BufDst(thread_id);
     JXL_RETURN_IF_ERROR(
         color_space_transform->Run(thread_id, buf_src, buf_dst, xsize));
     // de-interleave
-    for (size_t x = 0; x < xsize; x++) {
-      row0[x] = buf_dst[3 * x + 0];
-      row1[x] = buf_dst[3 * x + 1];
-      row2[x] = buf_dst[3 * x + 2];
+    if (c_src_.IsCMYK()) {
+      float* JXL_RESTRICT row0 = GetInputRow(input_rows, 0, 0);
+      float* JXL_RESTRICT row1 = GetInputRow(input_rows, 1, 0);
+      float* JXL_RESTRICT row2 = GetInputRow(input_rows, 2, 0);
+      for (size_t x = 0; x < xsize; x++) {
+        row0[x] = buf_dst[3 * x + 0];
+        row1[x] = buf_dst[3 * x + 1];
+        row2[x] = buf_dst[3 * x + 2];
+      }
+    } else if (gray_dst) {
+      float* JXL_RESTRICT row0 = GetInputRow(input_rows, 0, 0);
+      float* JXL_RESTRICT row1 = GetInputRow(input_rows, 1, 0);
+      float* JXL_RESTRICT row2 = GetInputRow(input_rows, 2, 0);
+      memcpy(row0, buf_dst, xsize * sizeof(float));
+      memcpy(row1, buf_dst, xsize * sizeof(float));
+      memcpy(row2, buf_dst, xsize * sizeof(float));
+    } else {
+      float* JXL_RESTRICT row0 = GetInputRow(input_rows, 0, 0);
+      float* JXL_RESTRICT row1 = GetInputRow(input_rows, 1, 0);
+      float* JXL_RESTRICT row2 = GetInputRow(input_rows, 2, 0);
+      for (size_t x = 0; x < xsize; x++) {
+        row0[x] = buf_dst[3 * x + 0];
+        row1[x] = buf_dst[3 * x + 1];
+        row2[x] = buf_dst[3 * x + 2];
+      }
     }
     return true;
   }
   RenderPipelineChannelMode GetChannelMode(size_t c) const final {
-    return c < 3 ? RenderPipelineChannelMode::kInPlace
-                 : RenderPipelineChannelMode::kIgnored;
+    return c < (c_src_.IsCMYK() ? 4 : 3) ? RenderPipelineChannelMode::kInPlace
+                                         : RenderPipelineChannelMode::kIgnored;
   }
 
   const char* GetName() const override { return "Cms"; }
@@ -104,8 +147,8 @@ class CmsStage : public RenderPipelineStage {
 };
 
 std::unique_ptr<RenderPipelineStage> GetCmsStage(
-    const OutputEncodingInfo& output_encoding_info) {
-  auto stage = jxl::make_unique<CmsStage>(output_encoding_info);
+    const OutputEncodingInfo& output_encoding_info, bool linear) {
+  auto stage = jxl::make_unique<CmsStage>(output_encoding_info, linear);
   if (!stage->IsNeeded()) return nullptr;
   return stage;
 }
@@ -121,8 +164,8 @@ namespace jxl {
 HWY_EXPORT(GetCmsStage);
 
 std::unique_ptr<RenderPipelineStage> GetCmsStage(
-    const OutputEncodingInfo& output_encoding_info) {
-  return HWY_DYNAMIC_DISPATCH(GetCmsStage)(output_encoding_info);
+    const OutputEncodingInfo& output_encoding_info, bool linear) {
+  return HWY_DYNAMIC_DISPATCH(GetCmsStage)(output_encoding_info, linear);
 }
 
 }  // namespace jxl

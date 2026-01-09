@@ -89,7 +89,7 @@ struct PassesSharedState {
 
   Image3F dc_frames[4];
 
-  std::array<ReferceFrame, 4> reference_frames;
+  std::array<ReferenceFrame, 4> reference_frames;
 
   // Number of pre-clustered set of histograms (with the same ctx map), per
   // pass. Encoded as num_histograms_ - 1.
