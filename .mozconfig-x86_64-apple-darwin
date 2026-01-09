@@ -1,8 +1,8 @@
 #!/bin/sh
-# Targetting X64 builds. Expected to be run on Linux.
+# Targetting X64 builds.
 
 if test "$WFX_RELEASE" || test "$WFX_PRE_RELEASE"; then
-    ac_add_options --enable-lto=cross
+    ac_add_options --enable-lto=thin
     ac_add_options --enable-optimize="-march=nehalem -mtune=haswell -O3 -w"
     ac_add_options --enable-release
     ac_add_options --enable-rust-simd
@@ -28,9 +28,9 @@ fi
 ac_add_options --enable-install-strip
 ac_add_options --enable-jxl
 if test "$GEN_PGO"; then
-    ac_add_options --enable-profile-generate=cross
+    ac_add_options --enable-profile-generate
 elif test "$USE_PGO"; then
-    ac_add_options --enable-profile-use=cross
+    ac_add_options --enable-profile-use
     ac_add_options --with-pgo-jarlog="$GITHUB_WORKSPACE"/en-US.log
     ac_add_options --with-pgo-profile-path="$GITHUB_WORKSPACE"/merged.profdata
 fi

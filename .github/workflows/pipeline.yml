@@ -1,0 +1,75 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: 🚀 Deployment
+on:
+  workflow_dispatch:
+    inputs:
+      date:
+        description: Build date
+        required: true
+        type: string
+      prerelease:
+        description: This is a pre-release
+        required: true
+        type: string
+      tags:
+        description: Tag a release
+        required: true
+        type: string
+permissions:
+  contents: write
+  actions: read
+jobs:
+  build:
+    name: 🏗 Build
+    uses: ./.github/workflows/build.yml
+    secrets:
+      MOZ_API_KEY: '${{ secrets.MOZ_API_KEY }}'
+    with:
+      MOZ_BUILD_DATE: '${{ github.event.inputs.date }}'
+      PRE_RELEASE: '${{ github.event.inputs.prerelease }}'
+      TAG_VERSION: '${{ github.event.inputs.tags }}'
+      TRIGGER_EVENT: '${{ github.event_name }}'
+  sign:
+    name: ✍ Sign
+    uses: ./.github/workflows/sign.yml
+    needs: build
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    secrets:
+      AWS_ACCESS_KEY_ID: '${{ secrets.CF_ACCESS_KEY_ID }}'
+      AWS_SECRET_ACCESS_KEY: '${{ secrets.CF_ACCESS_KEY_SECRET }}'
+      AZURE_AS_ACCOUNT: '${{ secrets.AZURE_AS_ACCOUNT }}'
+      AZURE_AS_ENDPOINT: '${{ secrets.AZURE_AS_ENDPOINT }}'
+      AZURE_AS_PROFILE: '${{ secrets.AZURE_AS_PROFILE }}'
+      AZURE_CLIENT_ID: '${{ secrets.AZURE_CLIENT_ID }}'
+      AZURE_SUBSCRIPTION_ID: '${{ secrets.AZURE_SUBSCRIPTION_ID }}'
+      AZURE_TENANT_ID: '${{ secrets.AZURE_TENANT_ID }}'
+      CF_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
+      MACOS_CERTIFICATE: '${{ secrets.MACOS_CERTIFICATE }}'
+      MACOS_CERTIFICATE_PWD: '${{ secrets.MACOS_CERTIFICATE_PWD }}'
+      MACOS_CI_KEYCHAIN_PWD: '${{ secrets.MACOS_CI_KEYCHAIN_PWD }}'
+      MACOS_NOTARIZATION_APPLE_ID: '${{ secrets.MACOS_NOTARIZATION_APPLE_ID }}'
+      MACOS_NOTARIZATION_PWD: '${{ secrets.MACOS_NOTARIZATION_PWD }}'
+      MACOS_NOTARIZATION_TEAM_ID: '${{ secrets.MACOS_NOTARIZATION_TEAM_ID }}'
+      MACOS_PROVISIONPROFILE: '${{ secrets.MACOS_PROVISIONPROFILE }}'
+      ONE_PEM: '${{ secrets.ONE_PEM }}'
+      SIGN_BASE64: '${{ secrets.SIGN_BASE64 }}'
+    with:
+      build_run_id: '${{ needs.build.outputs.run_id }}'
+      manual_resign: 'false'
+  publish:
+    name: 🚀 Publish
+    uses: ./.github/workflows/publish.yml
+    needs: sign
+    secrets:
+      AUS_ADMIN_TOKEN: '${{ secrets.AUS_ADMIN_TOKEN }}'
+      AUS_BASE_URL: '${{ secrets.AUS_BASE_URL }}'
+      AWS_ACCESS_KEY_ID: '${{ secrets.CF_ACCESS_KEY_ID }}'
+      AWS_SECRET_ACCESS_KEY: '${{ secrets.CF_ACCESS_KEY_SECRET }}'
+      CF_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
+      RELEASE_TOKEN: '${{ secrets.RELEASE_TOKEN }}'
+    with:
+      sign_run_id: '${{ needs.sign.outputs.sign_run_id }}'
+      manual_publish: 'false'
