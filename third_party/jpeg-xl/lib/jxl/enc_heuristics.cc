@@ -810,7 +810,7 @@ StatusOr<Image3F> ReconstructImage(
   options.use_slow_render_pipeline = false;
   options.coalescing = false;
   options.render_spotcolors = false;
-  options.render_noise = true;
+  options.render_noise = ((frame_header.flags & FrameHeader::kNoise) != 0);
 
   JXL_RETURN_IF_ERROR(dec_state.PreparePipeline(
       frame_header, &shared.metadata->m, &decoded, options));
