@@ -239,20 +239,4 @@ bool HuffmanDecodingData::ReadFromBitStream(size_t alphabet_size,
   return (table_size > 0);
 }
 
-// Decodes the next Huffman coded symbol from the bit-stream.
-uint16_t HuffmanDecodingData::ReadSymbol(BitReader* br) const {
-  size_t n_bits;
-  const HuffmanCode* table = table_.data();
-  table += br->PeekBits(kHuffmanTableBits);
-  n_bits = table->bits;
-  if (n_bits > kHuffmanTableBits) {
-    br->Consume(kHuffmanTableBits);
-    n_bits -= kHuffmanTableBits;
-    table += table->value;
-    table += br->PeekBits(n_bits);
-  }
-  br->Consume(table->bits);
-  return table->value;
-}
-
 }  // namespace jxl
