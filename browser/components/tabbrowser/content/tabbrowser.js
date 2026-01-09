@@ -9122,10 +9122,16 @@ var TabContextMenu = {
     document.getElementById("context_openTabInWindow").disabled =
       this.contextTab.hasAttribute("customizemode");
 
-    // Only one of "Duplicate Tab"/"Duplicate Tabs" should be visible.
-    document.getElementById("context_duplicateTab").hidden = this.multiselected;
+    // Only one of "Duplicate Tab"/"Duplicate Tabs" should be visible and the menu
+    // is optional based on browser.tabs.duplicateTab.
+    const duplicateTabMenuEnabled = Services.prefs.getBoolPref(
+      "browser.tabs.duplicateTab",
+      true
+    );
+    document.getElementById("context_duplicateTab").hidden =
+      this.multiselected || !duplicateTabMenuEnabled;
     document.getElementById("context_duplicateTabs").hidden =
-      !this.multiselected;
+      !duplicateTabMenuEnabled || !this.multiselected;
 
     let closeTabsToTheStartItem = document.getElementById(
       "context_closeTabsToTheStart"
