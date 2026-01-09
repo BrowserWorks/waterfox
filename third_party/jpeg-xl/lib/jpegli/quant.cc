@@ -705,7 +705,7 @@ void SetQuantMatrices(j_compress_ptr cinfo, float distances[NUM_QUANT_TBLS],
 
 void InitQuantizer(j_compress_ptr cinfo, QuantPass pass) {
   jpeg_comp_master* m = cinfo->master;
-  // Compute quantization multupliers from the quant table values.
+  // Compute quantization multipliers from the quant table values.
   for (int c = 0; c < cinfo->num_components; ++c) {
     int quant_idx = cinfo->comp_info[c].quant_tbl_no;
     JQUANT_TBL* quant_table = cinfo->quant_tbl_ptrs[quant_idx];

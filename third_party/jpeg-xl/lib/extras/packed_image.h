@@ -36,6 +36,7 @@ class PackedImage {
  public:
   static StatusOr<PackedImage> Create(size_t xsize, size_t ysize,
                                       const JxlPixelFormat& format) {
+    JXL_RETURN_IF_ERROR(VerifyDimensions(xsize, ysize, format));
     PackedImage image(xsize, ysize, format, CalcStride(format, xsize));
     if (!image.pixels()) {
       // TODO(szabadka): use specialized OOM error code
@@ -147,6 +148,28 @@ class PackedImage {
       default:
         JXL_DEBUG_ABORT("Unreachable");
     }
+  }
+
+  static Status VerifyDimensions(size_t xsize, size_t ysize,
+                                 const JxlPixelFormat& format) {
+    size_t multiplier = (BitsPerChannel(format.data_type) *
+                         format.num_channels / jxl::kBitsPerByte);
+    size_t stride = xsize * multiplier;
+    if ((stride / multiplier) != xsize) {
+      return JXL_FAILURE("Image too big");
+    }
+    if (format.align > 1) {
+      size_t aligned_stride = jxl::DivCeil(stride, format.align) * format.align;
+      if (stride > aligned_stride) {
+        return JXL_FAILURE("Image too big");
+      }
+      stride = aligned_stride;
+    }
+    size_t pixels_size = ysize * stride;
+    if ((pixels_size / stride) != ysize) {
+      return JXL_FAILURE("Image too big");
+    }
+    return true;
   }
 
  private:

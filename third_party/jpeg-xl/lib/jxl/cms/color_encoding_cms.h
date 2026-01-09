@@ -511,7 +511,7 @@ struct ColorEncoding {
   // Checks if the color space and transfer function are the same, ignoring
   // rendering intent and ICC bytes
   bool SameColorEncoding(const ColorEncoding& other) const {
-    return SameColorSpace(other) && tf.IsSame(other.tf);
+    return SameColorSpace(other) && tf.IsSame(other.tf) && !cmyk && !other.cmyk;
   }
 
   // Returns true if all fields have been initialized (possibly to kUnknown).

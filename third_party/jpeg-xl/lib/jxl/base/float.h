@@ -18,7 +18,7 @@
 namespace jxl {
 
 namespace detail {
-// Based on highway scalar implementation, for testing
+
 static JXL_INLINE float LoadFloat16(uint16_t bits16) {
   const uint32_t sign = bits16 >> 15;
   const uint32_t biased_exp = (bits16 >> 10) & 0x1F;
@@ -32,7 +32,8 @@ static JXL_INLINE float LoadFloat16(uint16_t bits16) {
   }
 
   // Normalized: convert the representation directly (faster than ldexp/tables).
-  const uint32_t biased_exp32 = biased_exp + (127 - 15);
+  const uint32_t biased_exp32 =
+      biased_exp == 0b11111 ? 0b11111111 : biased_exp + (127 - 15);
   const uint32_t mantissa32 = mantissa << (23 - 10);
   const uint32_t bits32 = (sign << 31) | (biased_exp32 << 23) | mantissa32;
 

@@ -16,6 +16,8 @@
 
 namespace jxl {
 
+class FrameDecoder;
+
 // The first pixel in the input to RenderPipelineStage will be located at
 // this position. Pixels before this position may be accessed as padding.
 // This should be at least the RoundUpTo(maximum padding / 2, maximum vector
@@ -170,6 +172,7 @@ class RenderPipelineStage {
   friend class RenderPipeline;
   friend class SimpleRenderPipeline;
   friend class LowMemoryRenderPipeline;
+  friend FrameDecoder; // for PrepareStorage invoking PrepareForThreads
 };
 
 }  // namespace jxl
