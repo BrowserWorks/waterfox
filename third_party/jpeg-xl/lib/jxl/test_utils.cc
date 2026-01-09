@@ -744,10 +744,10 @@ bool SamePixels(const extras::PackedPixelFile& a,
 
 Status ReadICC(BitReader* JXL_RESTRICT reader,
                std::vector<uint8_t>* JXL_RESTRICT icc) {
-  JxlMemoryManager* memort_manager = jxl::test::MemoryManager();
+  JxlMemoryManager* memory_manager = jxl::test::MemoryManager();
   icc->clear();
-  ICCReader icc_reader{memort_manager};
-  PaddedBytes icc_buffer{memort_manager};
+  ICCReader icc_reader{memory_manager};
+  PaddedBytes icc_buffer{memory_manager};
   JXL_RETURN_IF_ERROR(icc_reader.Init(reader));
   JXL_RETURN_IF_ERROR(icc_reader.Process(reader, &icc_buffer));
   Bytes(icc_buffer).AppendTo(*icc);

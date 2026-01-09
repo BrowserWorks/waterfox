@@ -604,7 +604,7 @@ void ClusterJpegHistograms(j_compress_ptr cinfo, const Histogram* histograms,
         slot_histograms.push_back(histogram_index);
         slot_costs.push_back(best_cost);
       } else {
-        // TODO(szabadka) Find the best histogram to replce.
+        // TODO(szabadka) Find the best histogram to replace.
         best_slot = (clusters->slot_ids.back() + 1) % 4;
       }
       slot_histograms[best_slot] = histogram_index;
