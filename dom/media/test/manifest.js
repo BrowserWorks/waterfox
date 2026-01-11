@@ -600,7 +600,7 @@ var gInvalidPlayTests = [
 
 // Files to check different cases of ogg skeleton information.
 // multiple-bos-more-header-fields.ogg
-// - Skeleton v3, w/ Content-Type,Role,Name,Language,Title for vorbis
+// - Skeleton v3, w/ Content-Type,Role,Name,Language,Title for both theora/vorbis
 // audio-gaps-short.ogg
 // - No skeleton, but vorbis
 var gMultitrackInfoOggPlayList = [

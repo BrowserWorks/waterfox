@@ -135,6 +135,7 @@ RefPtr<MediaDataDecoder::DecodePromise> VPXDecoder::ProcessDecode(
     default:
       break;
   }
+  flag |= MediaInfoFlag::VIDEO_THEORA;
   auto rec = mTrackingId.map([&](const auto& aId) {
     return PerformanceRecorder<DecodeStage>("VPXDecoder"_ns, aId, flag);
   });

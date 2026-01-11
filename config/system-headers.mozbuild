@@ -1018,6 +1018,7 @@ system_headers = [
     "opus/opus.h",
     "opus/opus_multistream.h",
     "ogg/ogg.h",
+    "theora/theoradec.h",
     "vpx/svc_context.h",
     "vpx/vp8.h",
     "vpx/vp8cx.h",
