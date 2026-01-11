@@ -6,14 +6,14 @@
  * IN 'COPYING'. PLEASE READ THESE TERMS BEFORE DISTRIBUTING.       *
  *                                                                  *
  * THE Theora SOURCE CODE IS COPYRIGHT (C) 2002-2010                *
- * by the Xiph.Org Foundation and contributors http://www.xiph.org/ *
+ * by the Xiph.Org Foundation and contributors                      *
+ * https://www.xiph.org/                                            *
  *                                                                  *
  ********************************************************************
 
  CPU capability detection for ARM processors.
 
  function:
-  last mod: $Id: cpu.c 17344 2010-07-21 01:42:18Z tterribe $
 
  ********************************************************************/
 
@@ -147,7 +147,7 @@ ogg_uint32_t oc_cpu_flags_get(void) {
 
 #else
 /*The feature registers which can tell us what the processor supports are
-   accessible in priveleged modes only, so we can't have a general user-space
+   accessible in privileged modes only, so we can't have a general user-space
    detection method like on x86.*/
 # error "Configured to use ARM asm but no CPU detection method available for " \
  "your platform.  Reconfigure with --disable-asm (or send patches)."

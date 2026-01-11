@@ -10,13 +10,13 @@ while allowing it a longer useful lifetime.
 The 1.0 release decoder supported all the new features, but the
 encoder is nearly identical to the VP3 code.
 
-The 1.1 release featured a completely rewritten encoder, offering
-better performance and compression, and making more complete use
-of the format's feature set.
+The 1.1 release, codenamed Thusnelda, featured a completely rewritten
+encoder, offering better performance and compression, and making more
+complete use of the format's feature set.
 
-The 1.2 release features significant additional improvements in
-compression and performance. Files produced by newer encoders can
-be decoded by earlier releases.
+The 1.2 release, codenamed Ptalarbvorm, features significant
+additional improvements in compression and performance. Files produced
+by newer encoders can be decoded by earlier releases.
 
 ### Where is Theora?
 
@@ -35,7 +35,7 @@ Requirements summary:
 
 For libtheora:
 
-*   libogg 1.1 or newer.
+*   libogg 1.3.4 or newer.
 
 For example encoder:
 
@@ -59,13 +59,18 @@ For the player only:
 The provided build system is the GNU automake/autoconf system, and
 the main library, libtheora, should already build smoothly on any
 system.  Failure of libtheora to build on a GNU-enabled system is
-considered a bug; please report problems to theora-dev@xiph.org.
+considered a bug; please report problems to theora-dev@xiph.org,
+https://lists.xiph.org/mailman/listinfo/theora-dev or preferably to
+https://gitlab.xiph.org/xiph/theora.
 
 Windows build support is included in the win32 directory.
 
 Project files for Apple XCode are included in the macosx directory.
 
 There is also a more limited scons build.
+
+The mailing list theora@xiph.org has been created for discussing use
+of the theora video codec, https://lists.xiph.org/mailman/listinfo/theora.
 
 ### How do I use the sample encoder?
 
@@ -111,7 +116,7 @@ Jan Gerber's ffmpeg2theora is an excellent encoding front end.
 
 encoder_internal.h:664: parse error before `ogg_uint16_t`
 
-This means you have version of libogg prior to 1.1. A *complete* new Ogg
+This means you have version of libogg prior to 1.3.4. A *complete* new Ogg
 install, libs and headers is needed.
 
 Also be sure that there aren't multiple copies of Ogg installed in
@@ -122,7 +127,7 @@ for libs and headers.
 
 undefined reference to `oggpackB_stream`
 
-See above; you need libogg 1.1 or later.
+See above; you need libogg 1.3.4 or later.
 
 ### Link error, such as:
 

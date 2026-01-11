@@ -6,12 +6,12 @@
 ;* IN 'COPYING'. PLEASE READ THESE TERMS BEFORE DISTRIBUTING.       *
 ;*                                                                  *
 ;* THE Theora SOURCE CODE IS COPYRIGHT (C) 2002-2010                *
-;* by the Xiph.Org Foundation and contributors http://www.xiph.org/ *
+;* by the Xiph.Org Foundation and contributors                      *
+;* https://www.xiph.org/                                            *
 ;*                                                                  *
 ;********************************************************************
 ; Original implementation:
 ;  Copyright (C) 2009 Robin Watts for Pinknoise Productions Ltd
-; last mod: $Id$
 ;********************************************************************
 
 	AREA	|.text|, CODE, READONLY
@@ -357,7 +357,7 @@ ofrintra_v6_lp
 	ORR	r5, r5, r5, LSR #8	; r5 = __777766
 	PKHBT   r2, r2, r3, LSL #16     ; r2 = 33221100
 	PKHBT   r3, r4, r5, LSL #16     ; r3 = 77665544
-	STRD	r2, r3, [r0], r1
+	STRD	r2, [r0], r1
 	BGT	ofrintra_v6_lp
 	LDMFD	r13!,{r4-r6,PC}
 	ENDP
@@ -397,7 +397,7 @@ ofrinter_v6_lp
 	USAT16	r12,#8, r12		; r12= __66__44
 	USAT16	r5, #8, r5		; r4 = __77__55
 	ORR	r5, r12,r5, LSL #8	; r5 = 33221100
-	STRD	r4, r5, [r0], r2
+	STRD	r4, [r0], r2
 	BGT	ofrinter_v6_lp
 	LDMFD	r13!,{r4-r7,PC}
 	ENDP
@@ -439,7 +439,7 @@ ofrinter2_v6_lp
 	USAT16	r8, #8, r8		; r8 = __22__00
 	USAT16	r7, #8, r7		; r7 = __33__11
 	ORR	r8, r8, r7, LSL #8	; r8 = 33221100
-	STRD	r8, r9, [r0], r3
+	STRD	r8, [r0], r3
 	BGT	ofrinter2_v6_lp
 	LDMFD	r13!,{r4-r9,PC}
 	ENDP

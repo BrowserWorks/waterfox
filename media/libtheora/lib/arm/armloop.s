@@ -6,12 +6,12 @@
 ;* IN 'COPYING'. PLEASE READ THESE TERMS BEFORE DISTRIBUTING.       *
 ;*                                                                  *
 ;* THE Theora SOURCE CODE IS COPYRIGHT (C) 2002-2010                *
-;* by the Xiph.Org Foundation and contributors http://www.xiph.org/ *
+;* by the Xiph.Org Foundation and contributors                      *
+;* https://www.xiph.org/                                            *
 ;*                                                                  *
 ;********************************************************************
 ; Original implementation:
 ;  Copyright (C) 2009 Robin Watts for Pinknoise Productions Ltd
-; last mod: $Id$
 ;********************************************************************
 
 	AREA	|.text|, CODE, READONLY
