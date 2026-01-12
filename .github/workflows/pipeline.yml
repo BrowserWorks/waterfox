@@ -16,7 +16,7 @@ on:
         required: true
         type: string
 permissions:
-  contents: read
+  contents: write
   actions: read
 jobs:
   build:
@@ -68,6 +68,7 @@ jobs:
       CF_AUTH: '${{ secrets.BULK_REDIRECT_TOKEN }}'
       CF_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
       CF_ZONE_ID: '${{ secrets.CF_ZONE_ID }}'
+      RELEASE_TOKEN: '${{ secrets.RELEASE_TOKEN }}'
     with:
       sign_run_id: '${{ needs.sign.outputs.sign_run_id }}'
       manual_publish: 'false'

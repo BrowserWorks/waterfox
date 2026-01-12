@@ -23,9 +23,13 @@ on:
         type: string
     secrets:
       AWS_ACCESS_KEY_ID:
-        required: true
+        required: false
       AWS_SECRET_ACCESS_KEY:
-        required: true
+        required: false
+      CF_ACCESS_KEY_ID:
+        required: false
+      CF_ACCESS_KEY_SECRET:
+        required: false
       CF_AUTH:
         required: true
       CF_ENDPOINT:
@@ -36,8 +40,10 @@ on:
         required: false
       ARTIFACTS_APP_PRIVATE_KEY:
         required: false
+      RELEASE_TOKEN:
+        required: false
 permissions:
-  contents: read
+  contents: write
   actions: read
 jobs:
   prepare:
@@ -122,13 +128,19 @@ jobs:
       DISPLAY_VERSION: "${{ needs.prepare.outputs.display_version }}"
       PRE_RELEASE: "${{ needs.prepare.outputs.pre_release }}"
       SIGN_RUN_ID: "${{ needs.prepare.outputs.sign_run_id }}"
+      manual_stage: "${{ inputs.manual_publish }}"
     secrets:
-      AWS_ACCESS_KEY_ID: "${{ secrets.AWS_ACCESS_KEY_ID }}"
-      AWS_SECRET_ACCESS_KEY: "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+      AWS_ACCESS_KEY_ID: "${{ secrets.AWS_ACCESS_KEY_ID || secrets.CF_ACCESS_KEY_ID }}"
+      AWS_SECRET_ACCESS_KEY: "${{ secrets.AWS_SECRET_ACCESS_KEY || secrets.CF_ACCESS_KEY_SECRET }}"
+      CF_ACCESS_KEY_ID: "${{ secrets.CF_ACCESS_KEY_ID }}"
+      CF_ACCESS_KEY_SECRET: "${{ secrets.CF_ACCESS_KEY_SECRET }}"
       CF_ENDPOINT: "${{ secrets.CF_ENDPOINT }}"
+      ARTIFACTS_APP_ID: "${{ secrets.ARTIFACTS_APP_ID }}"
+      ARTIFACTS_APP_PRIVATE_KEY: "${{ secrets.ARTIFACTS_APP_PRIVATE_KEY }}"
   production:
     name: 🚀 Deploy to Production
     needs:
+      - prepare
       - stage
     uses: ./.github/workflows/production.yml
     with:
@@ -136,8 +148,9 @@ jobs:
       PRE_RELEASE: "${{ needs.prepare.outputs.pre_release }}"
       DISPLAY_VERSION: "${{ needs.prepare.outputs.display_version }}"
     secrets:
-      AWS_ACCESS_KEY_ID: "${{ secrets.AWS_ACCESS_KEY_ID }}"
-      AWS_SECRET_ACCESS_KEY: "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+      AWS_ACCESS_KEY_ID: "${{ secrets.AWS_ACCESS_KEY_ID || secrets.CF_ACCESS_KEY_ID }}"
+      AWS_SECRET_ACCESS_KEY: "${{ secrets.AWS_SECRET_ACCESS_KEY || secrets.CF_ACCESS_KEY_SECRET }}"
       CF_AUTH: "${{ secrets.CF_AUTH }}"
       CF_ENDPOINT: "${{ secrets.CF_ENDPOINT }}"
       CF_ZONE_ID: "${{ secrets.CF_ZONE_ID }}"
+      RELEASE_TOKEN: "${{ secrets.RELEASE_TOKEN }}"

@@ -521,10 +521,12 @@ jobs:
           if [ -d "$PWD"/waterfox/browser/locales/en-GB ]; then
             ./mach package-multi-locale --locales ar cs da de el en-GB en-US es-ES es-MX fr hu id it ja ko lt nl nn-NO pl pt-BR pt-PT ru sv-SE th uk vi zh-CN zh-TW
           fi
+      - name: 📦 Bundle Linux build outputs (preserve file modes)
+        run: |
+          DIST_ROOT="obj-${{ env.ARCH }}/dist"
+          tar -C "$DIST_ROOT" -cf linux-build.tar waterfox host/bin/mar
       - name: ↑ Upload Linux build outputs
         uses: actions/upload-artifact@v6
         with:
           name: linux-build
-          path: |
-            obj-${{ env.ARCH }}/dist/waterfox/
-            obj-${{ env.ARCH }}/dist/host/bin/mar
+          path: linux-build.tar

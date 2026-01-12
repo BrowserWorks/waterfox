@@ -505,6 +505,9 @@ jobs:
           chmod +x ./sign/sign.sh
 
           DIST_ROOT="$PWD/obj-${{ env.ARCH }}/dist"
+          tar -xf "$DIST_ROOT/linux-build.tar" -C "$DIST_ROOT"
+          rm -f "$DIST_ROOT/linux-build.tar"
+
           WATERFOX_DIR="$DIST_ROOT/waterfox"
 
           MAR_BIN="$DIST_ROOT/host/bin/mar"
@@ -516,6 +519,13 @@ jobs:
           rm -rf ./sign/
 
           patchelf --add-rpath '$ORIGIN' "$WATERFOX_DIR/updater"
+
+          for f in waterfox waterfox-bin updater glxtest vaapitest; do
+            if [[ -f "$WATERFOX_DIR/$f" ]] && [[ ! -x "$WATERFOX_DIR/$f" ]]; then
+              echo "ERROR: Missing executable bit: $WATERFOX_DIR/$f" >&2
+              exit 1
+            fi
+          done
 
           tar -c --owner=0 --group=0 --numeric-owner --mode=go-w --exclude=.mkdir.done -jf waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2 -C "$DIST_ROOT" waterfox
           shasum -a 512 waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2 > waterfox-${{ env.VERSION_DISPLAY }}.tar.bz2.sha512
