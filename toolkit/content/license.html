@@ -2428,6 +2428,9 @@ product.
                 <li><code>toolkit/components/formautofill/shared/FormAutofillNameUtils.sys.mjs</code></li>
                 <li><code>editor/libeditor/EditorEventListener.cpp</code></li>
                 <li><code>security/sandbox/</code></li>
+#ifdef MOZ_ZUCCHINI
+                <li><code>third_party/zucchini/</code></li>
+#endif
                 <li><code>toolkit/components/passwordmgr/shared/PasswordGenerator.sys.mjs</code></li>
                 <li><code>widget/cocoa/GfxInfo.mm</code></li>
                 <li><code>widget/windows/nsWindow.cpp</code></li>
@@ -5313,6 +5316,9 @@ product.
               <li><code>intl/icu</code></li>
               <li><code>intl/tzdata</code></li>
               <li><code>js/src/util</code></li>
+#ifdef MOZ_ZUCCHINI
+              <li><code>third_party/zucchini/chromium/base/third_party/icu/</code></li>
+#endif
             </ul>
             <p>and to parts of the code in:</p>
             <ul>
@@ -6052,6 +6058,7 @@ Copyright (c) &lt;year&gt;, Xiph.org Foundation
             <p>This license applies to files in the following directories with the specified copyright year ranges:</p>
             <ul>
               <li><code>media/libogg/</code>, 2002</li>
+              <li><code>media/libtheora/</code>, 2002-2007</li>
               <li><code>media/libvorbis/</code>, 2002-2004</li>
               <li><code>media/libspeex_resampler/</code>, 2002-2008</li>
             </ul>
