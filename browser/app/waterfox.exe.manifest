@@ -38,6 +38,7 @@
 </ms_asmv3:trustInfo>
   <ms_asmv3:application xmlns:ms_asmv3="urn:schemas-microsoft-com:asm.v3">
     <ms_asmv3:windowsSettings xmlns="http://schemas.microsoft.com/SMI/2005/WindowsSettings">
+      <printerDriverIsolation xmlns="http://schemas.microsoft.com/SMI/2011/WindowsSettings">True</printerDriverIsolation>
       <longPathAware xmlns="http://schemas.microsoft.com/SMI/2016/WindowsSettings">True</longPathAware>
       <heapType xmlns="http://schemas.microsoft.com/SMI/2020/WindowsSettings">SegmentHeap</heapType>
     </ms_asmv3:windowsSettings>
