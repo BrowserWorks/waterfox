@@ -11432,6 +11432,8 @@
   value: true
 #elif defined(XP_OPENBSD)
   value: true
+#elif defined(XP_SOLARIS)
+  value: true
 #else
   value: false
 #endif
