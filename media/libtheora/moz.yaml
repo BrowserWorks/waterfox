@@ -1,0 +1,109 @@
+schema: 1
+
+bugzilla:
+  product: Core
+  component: "Audio/Video: Playback"
+
+origin:
+  name: theora
+  description: Video compression format from Xiph
+  url: https://www.theora.org/
+
+  release: 7180717276af1ebc7da15c83162d6c5d6203aabf (2020-10-27T09:17:42.000-07:00).
+  revision: 7180717276af1ebc7da15c83162d6c5d6203aabf
+
+  license: BSD-3-Clause-Clear
+  license-file: COPYING
+
+updatebot:
+  maintainer-phab: kinetik
+  maintainer-bz: kinetik
+  tasks:
+    - type: vendoring
+      enabled: true
+      frequency: every
+
+vendoring:
+  url: https://gitlab.xiph.org/xiph/theora
+  source-hosting: gitlab
+
+  exclude:
+    - doc
+    - examples
+    - lib/c64x
+    - m4
+    - macosx
+    - symbian
+    - tests
+    - tools
+    - win32
+    - autogen.sh
+    - .travis.yml
+    - configure.ac
+    - SConstruct
+    - Makefile.am
+    - "*.pc.in"
+    - "*.spec.in"
+    - include/theora/theoraenc.h
+    - include/theora/Makefile.*
+    - include/Makefile.*
+    - lib/analyze.c
+    - lib/apiwrapper.c
+    - lib/apiwrapper.h
+    - lib/arm/armenc.c
+    - lib/arm/armenc.h
+    - lib/arm/armencfrag.s
+    - lib/arm/armenquant.s
+    - lib/collect.c
+    - lib/collect.h
+    - lib/decapiwrapper.c
+    - lib/encapiwrapper.c
+    - lib/encfrag.c
+    - lib/encinfo.c
+    - lib/encint.h
+    - lib/encode.c
+    - lib/encoder_disabled.c
+    - lib/enquant.c
+    - lib/enquant.h
+    - lib/fdct.c
+    - lib/huffenc.c
+    - lib/huffenc.h
+    - lib/mathops.c
+    - lib/mcenc.c
+    - lib/modedec.h
+    - lib/rate.c
+    - lib/tokenize.c
+    - lib/x86/mmxencfrag.c
+    - lib/x86/mmxfdct.c
+    - lib/x86/sse2encfrag.c
+    - lib/x86/sse2fdct.c
+    - lib/x86/x86enc.c
+    - lib/x86/x86enc.h
+    - lib/x86/x86enquant.c
+    - lib/x86/x86zigzag.h
+    - lib/x86_vc/mmxencfrag.c
+    - lib/x86_vc/mmxfdct.c
+    - lib/x86_vc/x86enc.c
+    - lib/x86_vc/x86enc.h
+    - lib/x86_vc/x86zigzag.h
+    - lib/Makefile.*
+    - lib/Version_script*
+    - lib/*.awk
+    - lib/*.def
+    - lib/*.exp
+
+  keep:
+    - Makefile.in
+    - lib/config.h
+
+  patches:
+    - clang-arm.patch
+
+  update-actions:
+    - action: move-file
+      from: '{vendor_dir}/lib/arm/armopts.s.in'
+      to: '{vendor_dir}/lib/arm/armopts.s'
+    - action: replace-in-file-regex
+      file: '{vendor_dir}/lib/arm/armopts.s'
+      pattern: '@HAVE_ARM_ASM_((EDSP)|(MEDIA)|(NEON))@'
+      with: '1'
