@@ -11,6 +11,7 @@
 #endif
 #include "MediaInfo.h"
 #include "RemoteDataDecoder.h"
+#include "TheoraDecoder.h"
 #include "VPXDecoder.h"
 #include "mozilla/ClearOnShutdown.h"
 #include "mozilla/Components.h"
@@ -105,9 +106,12 @@ DecodeSupportSet AndroidDecoderModule::SupportsMimeType(
       }
       break;
 
-    // Prefer the gecko decoder for opus/vorbis; stagefright crashes
+    // Prefer the gecko decoder for theora/opus/vorbis; stagefright crashes
     // on content demuxed from mp4.
-    // Not all android devices support FLAC even when they say they do.
+    // Not all android devices support FLAC/theora even when they say they do.
+    case MediaCodec::Theora:
+      SLOG("Rejecting video of type %s", aMimeType.Data());
+      return media::DecodeSupportSet{};
     // Always use our own software decoder (in ffvpx) for audio except for AAC
     case MediaCodec::MP3:
       [[fallthrough]];
