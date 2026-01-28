@@ -45,8 +45,12 @@ UniquePtr<OggCodecState> OggCodecState::Create(
       "vulnerabilities if this is incorrect.";
   long body_len = aPage_t->body_len.unverified_safe_because(codec_reason);
 
-  if (body_len > 6 && rlbox::memcmp(*aSandbox, aPage_t->body + 1, "vorbis", 6u)
+  if (body_len > 6 && rlbox::memcmp(*aSandbox, aPage_t->body + 1, "theora", 6u)
                               .unverified_safe_because(codec_reason) == 0) {
+    codecState = MakeUnique<TheoraState>(aSandbox, aPage, aSerial);
+  } else if (body_len > 6 &&
+             rlbox::memcmp(*aSandbox, aPage_t->body + 1, "vorbis", 6u)
+                     .unverified_safe_because(codec_reason) == 0) {
     codecState = MakeUnique<VorbisState>(aSandbox, aPage, aSerial);
   } else if (body_len > 8 &&
              rlbox::memcmp(*aSandbox, aPage_t->body, "OpusHead", 8u)
@@ -352,6 +356,307 @@ nsresult OggCodecState::PacketOutUntilGranulepos(bool& aFoundGranulepos) {
     return NS_ERROR_FAILURE;
   }
   return NS_OK;
+}
+
+TheoraState::TheoraState(rlbox_sandbox_ogg* aSandbox,
+                         tainted_opaque_ogg<ogg_page*> aBosPage,
+                         uint32_t aSerial)
+    : OggCodecState(aSandbox, aBosPage, aSerial, true),
+      mSetup(nullptr),
+      mCtx(nullptr) {
+  MOZ_COUNT_CTOR(TheoraState);
+  th_info_init(&mTheoraInfo);
+  th_comment_init(&mComment);
+}
+
+TheoraState::~TheoraState() {
+  MOZ_COUNT_DTOR(TheoraState);
+  th_setup_free(mSetup);
+  th_decode_free(mCtx);
+  th_comment_clear(&mComment);
+  th_info_clear(&mTheoraInfo);
+  Reset();
+}
+
+bool TheoraState::Init() {
+  if (!mActive) {
+    return false;
+  }
+
+  int64_t n = mTheoraInfo.aspect_numerator;
+  int64_t d = mTheoraInfo.aspect_denominator;
+
+  float aspectRatio =
+      (n == 0 || d == 0) ? 1.0f : static_cast<float>(n) / static_cast<float>(d);
+
+  // Ensure the frame and picture regions aren't larger than our prescribed
+  // maximum, or zero sized.
+  gfx::IntSize frame(mTheoraInfo.frame_width, mTheoraInfo.frame_height);
+  gfx::IntRect picture(mTheoraInfo.pic_x, mTheoraInfo.pic_y,
+                       mTheoraInfo.pic_width, mTheoraInfo.pic_height);
+  gfx::IntSize display(mTheoraInfo.pic_width, mTheoraInfo.pic_height);
+  ScaleDisplayByAspectRatio(display, aspectRatio);
+  if (!IsValidVideoRegion(frame, picture, display)) {
+    return mActive = false;
+  }
+
+  mCtx = th_decode_alloc(&mTheoraInfo, mSetup);
+  if (!mCtx) {
+    return mActive = false;
+  }
+
+  // Video track's frame sizes will not overflow. Activate the video track.
+  mInfo.mMimeType = "video/theora"_ns;
+  mInfo.mDisplay = display;
+  mInfo.mImage = frame;
+  mInfo.SetImageRect(picture);
+
+  return mActive = SetCodecSpecificConfig(mInfo.mCodecSpecificConfig, mHeaders);
+}
+
+nsresult TheoraState::Reset() {
+  mHeaders.Erase();
+  return OggCodecState::Reset();
+}
+
+bool TheoraState::DecodeHeader(OggPacketPtr aPacket) {
+  ogg_packet* packet = aPacket.get();  // Will be owned by mHeaders.
+  mHeaders.Append(std::move(aPacket));
+  mPacketCount++;
+  int ret = th_decode_headerin(&mTheoraInfo, &mComment, &mSetup, packet);
+
+  // We must determine when we've read the last header packet.
+  // th_decode_headerin() does not tell us when it's read the last header, so
+  // we must keep track of the headers externally.
+  //
+  // There are 3 header packets, the Identification, Comment, and Setup
+  // headers, which must be in that order. If they're out of order, the file
+  // is invalid. If we've successfully read a header, and it's the setup
+  // header, then we're done reading headers. The first byte of each packet
+  // determines it's type as follows:
+  //    0x80 -> Identification header
+  //    0x81 -> Comment header
+  //    0x82 -> Setup header
+  // See http://www.theora.org/doc/Theora.pdf Chapter 6, "Bitstream Headers",
+  // for more details of the Ogg/Theora containment scheme.
+  bool isSetupHeader = packet->bytes > 0 && packet->packet[0] == 0x82;
+  if (ret < 0 || mPacketCount > 3) {
+    // We've received an error, or the first three packets weren't valid
+    // header packets. Assume bad input.
+    // Our caller will deactivate the bitstream.
+    return false;
+  }
+  if (ret > 0 && isSetupHeader && mPacketCount == 3) {
+    // Successfully read the three header packets.
+    mDoneReadingHeaders = true;
+  }
+  return true;
+}
+
+TimeUnit TheoraState::Time(int64_t aGranulepos) {
+  if (!mActive) {
+    return TimeUnit::Invalid();
+  }
+  return TheoraState::Time(&mTheoraInfo, aGranulepos);
+}
+
+bool TheoraState::IsHeader(ogg_packet* aPacket) {
+  return th_packet_isheader(aPacket);
+}
+
+#define TH_VERSION_CHECK(_info, _maj, _min, _sub)                            \
+  (((_info)->version_major > (_maj) || (_info)->version_major == (_maj)) &&  \
+   (((_info)->version_minor > (_min) || (_info)->version_minor == (_min)) && \
+    (_info)->version_subminor >= (_sub)))
+
+TimeUnit TheoraState::Time(th_info* aInfo, int64_t aGranulepos) {
+  if (aGranulepos < 0 || aInfo->fps_numerator == 0) {
+    return TimeUnit::Invalid();
+  }
+  // Implementation of th_granule_frame inlined here to operate
+  // on the th_info structure instead of the theora_state.
+  int shift = aInfo->keyframe_granule_shift;
+  ogg_int64_t iframe = aGranulepos >> shift;
+  ogg_int64_t pframe = aGranulepos - (iframe << shift);
+  int64_t frameno = iframe + pframe - TH_VERSION_CHECK(aInfo, 3, 2, 1);
+  CheckedInt64 t =
+      ((CheckedInt64(frameno) + 1) * USECS_PER_S) * aInfo->fps_denominator;
+  if (!t.isValid()) {
+    return TimeUnit::Invalid();
+  }
+  t /= aInfo->fps_numerator;
+  // TODO -- use rationals here
+  return TimeUnit::FromMicroseconds(t.value());
+}
+
+TimeUnit TheoraState::StartTime(int64_t aGranulepos) {
+  if (aGranulepos < 0 || !mActive || mTheoraInfo.fps_numerator == 0) {
+    return TimeUnit::Invalid();
+  }
+  CheckedInt64 t =
+      (CheckedInt64(th_granule_frame(mCtx, aGranulepos)) * USECS_PER_S) *
+      mTheoraInfo.fps_denominator;
+  if (!t.isValid()) {
+    return TimeUnit::Invalid();
+  }
+  // TODO -- use rationals here
+  return TimeUnit::FromMicroseconds(t.value() / mTheoraInfo.fps_numerator);
+}
+
+TimeUnit TheoraState::PacketDuration(ogg_packet* aPacket) {
+  if (!mActive || mTheoraInfo.fps_numerator == 0) {
+    return TimeUnit::Invalid();
+  }
+  CheckedInt64 t = SaferMultDiv(mTheoraInfo.fps_denominator, USECS_PER_S,
+                                mTheoraInfo.fps_numerator);
+  return t.isValid() ? TimeUnit::FromMicroseconds(t.value())
+                     : TimeUnit::Invalid();
+}
+
+TimeUnit TheoraState::MaxKeyframeOffset() {
+  // Determine the maximum time in microseconds by which a key frame could
+  // offset for the theora bitstream. Theora granulepos encode time as:
+  // ((key_frame_number << granule_shift) + frame_offset).
+  // Therefore the maximum possible time by which any frame could be offset
+  // from a keyframe is the duration of (1 << granule_shift) - 1) frames.
+  int64_t frameDuration;
+
+  // Max number of frames keyframe could possibly be offset.
+  int64_t keyframeDiff = (1 << mTheoraInfo.keyframe_granule_shift) - 1;
+
+  // Length of frame in usecs.
+  frameDuration =
+      (mTheoraInfo.fps_denominator * USECS_PER_S) / mTheoraInfo.fps_numerator;
+
+  // Total time in usecs keyframe can be offset from any given frame.
+  return TimeUnit::FromMicroseconds(frameDuration * keyframeDiff);
+}
+
+bool TheoraState::IsKeyframe(ogg_packet* aPacket) {
+  // first bit of packet is 1 for header, 0 for data
+  // second bit of packet is 1 for inter frame, 0 for intra frame
+  return (aPacket->bytes >= 1 && (aPacket->packet[0] & 0x40) == 0x00);
+}
+
+nsresult TheoraState::PageIn(tainted_opaque_ogg<ogg_page*> aPage) {
+  if (!mActive) return NS_OK;
+  NS_ASSERTION((rlbox::sandbox_static_cast<uint32_t>(sandbox_invoke(
+                    *mSandbox, ogg_page_serialno, aPage)) == mSerial)
+                   .unverified_safe_because(RLBOX_OGG_PAGE_SERIAL_REASON),
+               "Page must be for this stream!");
+  if (sandbox_invoke(*mSandbox, ogg_stream_pagein, mState, aPage)
+          .unverified_safe_because(RLBOX_OGG_STATE_ASSERT_REASON) == -1) {
+    return NS_ERROR_FAILURE;
+  }
+  bool foundGp;
+  nsresult res = PacketOutUntilGranulepos(foundGp);
+  if (NS_FAILED(res)) return res;
+  if (foundGp && mDoneReadingHeaders) {
+    // We've found a packet with a granulepos, and we've loaded our metadata
+    // and initialized our decoder. Determine granulepos of buffered packets.
+    ReconstructTheoraGranulepos();
+    for (uint32_t i = 0; i < mUnstamped.Length(); ++i) {
+      OggPacketPtr packet = std::move(mUnstamped[i]);
+#ifdef DEBUG
+      NS_ASSERTION(!IsHeader(packet.get()),
+                   "Don't try to recover header packet gp");
+      NS_ASSERTION(packet->granulepos != -1, "Packet must have gp by now");
+#endif
+      mPackets.Append(std::move(packet));
+    }
+    mUnstamped.Clear();
+  }
+  return NS_OK;
+}
+
+// Returns 1 if the Theora info struct is decoding a media of Theora
+// version (maj,min,sub) or later, otherwise returns 0.
+int TheoraVersion(th_info* info, unsigned char maj, unsigned char min,
+                  unsigned char sub) {
+  ogg_uint32_t ver = (maj << 16) + (min << 8) + sub;
+  ogg_uint32_t th_ver = (info->version_major << 16) +
+                        (info->version_minor << 8) + info->version_subminor;
+  return (th_ver >= ver) ? 1 : 0;
+}
+
+void TheoraState::ReconstructTheoraGranulepos() {
+  if (mUnstamped.Length() == 0) {
+    return;
+  }
+  ogg_int64_t lastGranulepos = mUnstamped[mUnstamped.Length() - 1]->granulepos;
+  NS_ASSERTION(lastGranulepos != -1, "Must know last granulepos");
+
+  // Reconstruct the granulepos (and thus timestamps) of the decoded
+  // frames. Granulepos are stored as ((keyframe<<shift)+offset). We
+  // know the granulepos of the last frame in the list, so we can infer
+  // the granulepos of the intermediate frames using their frame numbers.
+  ogg_int64_t shift = mTheoraInfo.keyframe_granule_shift;
+  ogg_int64_t version_3_2_1 = TheoraVersion(&mTheoraInfo, 3, 2, 1);
+  ogg_int64_t lastFrame =
+      th_granule_frame(mCtx, lastGranulepos) + version_3_2_1;
+  ogg_int64_t firstFrame =
+      AssertedCast<ogg_int64_t>(lastFrame - mUnstamped.Length() + 1);
+
+  // Until we encounter a keyframe, we'll assume that the "keyframe"
+  // segment of the granulepos is the first frame, or if that causes
+  // the "offset" segment to overflow, we assume the required
+  // keyframe is maximumally offset. Until we encounter a keyframe
+  // the granulepos will probably be wrong, but we can't decode the
+  // frame anyway (since we don't have its keyframe) so it doesn't really
+  // matter.
+  ogg_int64_t keyframe = lastGranulepos >> shift;
+
+  // The lastFrame, firstFrame, keyframe variables, as well as the frame
+  // variable in the loop below, store the frame number for Theora
+  // version >= 3.2.1 streams, and store the frame index for Theora
+  // version < 3.2.1 streams.
+  for (uint32_t i = 0; i < mUnstamped.Length() - 1; ++i) {
+    ogg_int64_t frame = firstFrame + i;
+    ogg_int64_t granulepos;
+    auto& packet = mUnstamped[i];
+    bool isKeyframe = th_packet_iskeyframe(packet.get()) == 1;
+
+    if (isKeyframe) {
+      granulepos = frame << shift;
+      keyframe = frame;
+    } else if (frame >= keyframe &&
+               frame - keyframe < ((ogg_int64_t)1 << shift)) {
+      // (frame - keyframe) won't overflow the "offset" segment of the
+      // granulepos, so it's safe to calculate the granulepos.
+      granulepos = (keyframe << shift) + (frame - keyframe);
+    } else {
+      // (frame - keyframeno) will overflow the "offset" segment of the
+      // granulepos, so we take "keyframe" to be the max possible offset
+      // frame instead.
+      ogg_int64_t k =
+          std::max(frame - (((ogg_int64_t)1 << shift) - 1), version_3_2_1);
+      granulepos = (k << shift) + (frame - k);
+    }
+    // Theora 3.2.1+ granulepos store frame number [1..N], so granulepos
+    // should be > 0.
+    // Theora 3.2.0 granulepos store the frame index [0..(N-1)], so
+    // granulepos should be >= 0.
+    NS_ASSERTION(granulepos >= version_3_2_1,
+                 "Invalid granulepos for Theora version");
+
+    // Check that the frame's granule number is one more than the
+    // previous frame's.
+    NS_ASSERTION(
+        i == 0 || th_granule_frame(mCtx, granulepos) ==
+                      th_granule_frame(mCtx, mUnstamped[i - 1]->granulepos) + 1,
+        "Granulepos calculation is incorrect!");
+
+    packet->granulepos = granulepos;
+  }
+
+  // Check that the second to last frame's granule number is one less than
+  // the last frame's (the known granule number). If not our granulepos
+  // recovery missed a beat.
+  NS_ASSERTION(mUnstamped.Length() < 2 ||
+                   (th_granule_frame(
+                        mCtx, mUnstamped[mUnstamped.Length() - 2]->granulepos) +
+                    1) == th_granule_frame(mCtx, lastGranulepos),
+               "Granulepos recovery should catch up with packet->granulepos!");
 }
 
 nsresult VorbisState::Reset() {
