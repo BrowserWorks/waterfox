@@ -12786,7 +12786,7 @@
 # Bug 1860492 - Deprecate and remove theora
 -  name: media.theora.enabled
    type: RelaxedAtomicBool
-   value: @IS_NOT_NIGHTLY_BUILD@
+   value: false
    mirror: always
 
 # When this is true, the protection mask that Firefox replies to Widevine API
