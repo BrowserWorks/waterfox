@@ -56,9 +56,23 @@ void FrameTransformerProxy::SetScriptTransformer(
 
   MOZ_ASSERT(!mScriptTransformer);
   mScriptTransformer = &aTransformer;
-  while (!mQueue.empty()) {
-    mScriptTransformer->TransformFrame(std::move(mQueue.front()));
-    mQueue.pop_front();
+
+  if (!mQueue.empty()) {
+    std::list<std::unique_ptr<webrtc::TransformableFrameInterface>> queue;
+    std::swap(queue, mQueue);
+    mWorkerThread->Dispatch(NS_NewRunnableFunction(
+        __func__, [this, self = RefPtr<FrameTransformerProxy>(this),
+                   queue = std::move(queue)]() mutable {
+          if (NS_WARN_IF(!mScriptTransformer)) {
+            // Could happen due to errors. Is there some
+            // other processing we ought to do?
+            return;
+          }
+          while (!queue.empty()) {
+            mScriptTransformer->TransformFrame(std::move(queue.front()));
+            queue.pop_front();
+          }
+        }));
   }
 }
 
