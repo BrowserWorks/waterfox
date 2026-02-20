@@ -14,6 +14,8 @@
 #include "mozilla/ContentClassifierEngine.h"
 #include "mozilla/ClearOnShutdown.h"
 #include "mozilla/Preferences.h"
+#include "mozilla/Services.h"
+#include "mozilla/StaticPrefs_privacy.h"
 #include "mozilla/Components.h"
 #include "mozilla/MozPromise.h"
 #include "mozilla/StaticPtr.h"
@@ -445,7 +447,7 @@ void ContentClassifierService::LoadFilterLists() {
            blockFilterRules = std::move(blockFilterRules)](
               const GenericPromise::AllSettledPromiseType::ResolveOrRejectValue&
                   aResults) {
-            MutexAutoLock lock(self->mLock);
+            ReleasableMutexAutoLock lock(self->mLock);
             self->mBlockEngines.Clear();
             self->mAnnotateEngines.Clear();
 
@@ -465,6 +467,15 @@ void ContentClassifierService::LoadFilterLists() {
                 continue;
               }
               self->mAnnotateEngines.AppendElement(std::move(engine));
+            }
+
+            lock.Unlock();
+            if (StaticPrefs::privacy_trackingprotection_content_testing()) {
+              nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
+              if (obs) {
+                obs->NotifyObservers(
+                    nullptr, "content-classifier-filter-lists-loaded", nullptr);
+              }
             }
           });
 }
