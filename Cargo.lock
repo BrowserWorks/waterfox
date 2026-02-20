@@ -997,6 +997,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "content_classifier_engine"
+version = "0.0.1"
+dependencies = [
+ "adblock",
+ "cstr",
+ "nserror",
+ "nsstring",
+ "thin-vec",
+ "xpcom",
+]
+
+[[package]]
 name = "context_id"
 version = "0.1.0"
 source = "git+https://github.com/mozilla/application-services?rev=f5907a411e52a3985d0369d71c486eb507c2c4e6#f5907a411e52a3985d0369d71c486eb507c2c4e6"
@@ -2597,6 +2609,7 @@ dependencies = [
  "cascade_bloom_filter",
  "cert_storage",
  "chardetng_c",
+ "content_classifier_engine",
  "cose-c",
  "crash_helper_client",
  "crypto_hash",

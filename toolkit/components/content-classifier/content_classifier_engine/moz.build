@@ -1,0 +1,24 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+UNIFIED_SOURCES += [
+    "ContentClassifierEngine.cpp",
+]
+
+LOCAL_INCLUDES += [
+    "/toolkit/components/content-classifier",
+]
+
+FINAL_LIBRARY = "xul"
+
+if CONFIG["COMPILE_ENVIRONMENT"]:
+    CbindgenHeader(
+        "content_classifier_ffi.h",
+        inputs=["/toolkit/components/content-classifier/content_classifier_engine"],
+    )
+
+    EXPORTS.mozilla += [
+        "!content_classifier_ffi.h",
+        "ContentClassifierEngine.h",
+    ]
