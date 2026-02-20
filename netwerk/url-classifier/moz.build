@@ -67,6 +67,7 @@ EXPORTS.mozilla.net += [
 LOCAL_INCLUDES += [
     "/netwerk/base",
     "/netwerk/protocol/http",
+    "/toolkit/components/content-classifier",
     "/toolkit/components/url-classifier",
 ]
 
