@@ -110,6 +110,8 @@ url = "2.5.0"
 # Since we're building with at least rustc 1.63, enable rust 1.57 features (use of try_reserve methods).
 fallible_collections = { version = "0.4", features = ["rust_1_57"] }
 
+adblock = { version = "0.12.1", features = ["full-regex-handling", "single-thread"], default-features = false }
+
 libz-rs-sys = { version = "0.4.1", features = ["custom-prefix"], optional = true }
 
 [target.'cfg(any(target_os = "android", target_os = "macos", target_os = "ios", all(target_os = "windows", not(target_arch = "aarch64"))))'.dependencies]
