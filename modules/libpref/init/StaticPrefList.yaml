@@ -15908,6 +15908,12 @@
   value: ""
   mirror: never
 
+# When true, fire an observer notification when filter lists finish loading.
+- name: privacy.trackingprotection.content.testing
+  type: bool
+  value: false
+  mirror: always
+
 # Whether to spoof user locale to English (used as part of Resist
 # Fingerprinting).
 # 0 - will prompt
