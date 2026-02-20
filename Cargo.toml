@@ -155,6 +155,12 @@ wasi_0_10 = { package = "wasi", path = "build/rust/wasi-0.10" }
 # Patch wasi 0.11 to 0.14
 wasi_0_11 = { package = "wasi", path = "build/rust/wasi" }
 
+# Patch `itertools` 0.10.* to 0.14.
+itertools = { path = "build/rust/itertools" }
+
+# Patch `itertools` 0.13.* to 0.14.
+itertools_0_13 = { package = "itertools", path = "build/rust/itertools-0.13" }
+
 # tokio 0.29.0 includes an experimental "tracing" feature which requires
 # backtrace ^0.3.58 and the `tokio_unstable` flag. We don't use it, and nothing
 # else we do use requires backtrace, so dummy it out for now.
@@ -219,9 +225,6 @@ half = { path = "build/rust/half" }
 
 # Upgrade `rusqlite` 0.31 to 0.33.
 rusqlite = { path = "build/rust/rusqlite" }
-
-# Patch `itertools` 0.10.* to 0.14.
-itertools = { path = "build/rust/itertools" }
 
 # Overrides to allow easier use of common internal crates.
 moz_asserts = { path = "mozglue/static/rust/moz_asserts" }

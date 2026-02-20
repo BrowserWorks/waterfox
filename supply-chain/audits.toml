@@ -632,6 +632,21 @@ criteria = "safe-to-deploy"
 version = "0.1.0"
 notes = "Written and maintained by Gfx team at Mozilla."
 
+[[audits.adblock]]
+who = "Benjamin VanderSloot <bvandersloot@mozilla.com>"
+criteria = "safe-to-deploy"
+version = "0.12.1"
+notes = """
+Most of the logic is safe and unsafe is added to the appropriate Send interfaces.
+From safe functions, unsafe code is used to read into a flatbuffer that was constructed
+safely. By the invariants of the flatbuffer crate, this is okay to do.
+"""
+
+[[audits.adler2]]
+who = "Erich Gubler <erichdongubler@gmail.com>"
+criteria = "safe-to-deploy"
+delta = "2.0.0 -> 2.0.1"
+
 [[audits.ahash]]
 who = "Mike Hommey <mh+mozilla@glandium.org>"
 criteria = "safe-to-deploy"
@@ -1093,6 +1108,16 @@ who = [
 ]
 criteria = "safe-to-deploy"
 delta = "2.6.0 -> 2.7.0"
+
+[[audits.bitflags]]
+who = "Benjamin VanderSloot <bvandersloot@mozilla.com>"
+criteria = "safe-to-deploy"
+delta = "2.9.4 -> 2.10.0"
+
+[[audits.bitflags]]
+who = "Alex Kontos <MrAlex94@users.noreply.github.com>"
+criteria = "safe-to-deploy"
+delta = "2.10.0 -> 2.11.0"
 
 [[audits.bitreader]]
 who = "Bobby Holley <bobbyholley@gmail.com>"
@@ -2231,6 +2256,16 @@ criteria = "safe-to-deploy"
 version = "0.4.3"
 notes = "Uses no ambient capabilities, vetted the one instance of unsafe."
 
+[[audits.flatbuffers]]
+who = "Benjamin VanderSloot <bvandersloot@mozilla.com>"
+criteria = "safe-to-deploy"
+version = "23.5.26"
+
+[[audits.flatbuffers]]
+who = "Benjamin VanderSloot <bvandersloot@mozilla.com>"
+criteria = "safe-to-deploy"
+delta = "23.5.26 -> 25.12.19"
+
 [[audits.flate2]]
 who = "Mike Hommey <mh+mozilla@glandium.org>"
 criteria = "safe-to-deploy"
@@ -3126,6 +3161,11 @@ delta = "7.0.1 -> 7.0.2"
 who = "Mike Hommey <mh+mozilla@glandium.org>"
 criteria = "safe-to-deploy"
 delta = "0.10.3 -> 0.10.5"
+
+[[audits.itertools]]
+who = "Alex Kontos <MrAlex94@users.noreply.github.com>"
+criteria = "safe-to-deploy"
+delta = "0.10.5 -> 0.11.0"
 
 [[audits.itoa]]
 who = "Mike Hommey <mh+mozilla@glandium.org>"
@@ -4579,6 +4619,26 @@ who = "Mike Hommey <mh+mozilla@glandium.org>"
 criteria = "safe-to-deploy"
 delta = "1.7.0 -> 1.7.1"
 
+[[audits.regex]]
+who = "edgul <ed.guloien@gmail.com>"
+criteria = "safe-to-deploy"
+delta = "1.10.4 -> 1.11.1"
+
+[[audits.regex]]
+who = "Benjamin VanderSloot <bvandersloot@mozilla.com>"
+criteria = "safe-to-deploy"
+delta = "1.11.1 -> 1.12.3"
+
+[[audits.regex-automata]]
+who = "edgul <ed.guloien@gmail.com>"
+criteria = "safe-to-deploy"
+delta = "0.4.7 -> 0.4.9"
+
+[[audits.regex-automata]]
+who = "Benjamin VanderSloot <bvandersloot@mozilla.com>"
+criteria = "safe-to-deploy"
+delta = "0.4.9 -> 0.4.14"
+
 [[audits.regex-syntax]]
 who = "Mike Hommey <mh+mozilla@glandium.org>"
 criteria = "safe-to-deploy"
@@ -4588,6 +4648,11 @@ delta = "0.6.26 -> 0.6.27"
 who = "Mike Hommey <mh+mozilla@glandium.org>"
 criteria = "safe-to-deploy"
 delta = "0.6.27 -> 0.6.28"
+
+[[audits.regex-syntax]]
+who = "Alex Kontos <MrAlex94@users.noreply.github.com>"
+criteria = "safe-to-deploy"
+delta = "0.8.5 -> 0.8.10"
 
 [[audits.rinja]]
 who = "Ben Dean-Kawamura <bdk@mozilla.com>"
@@ -4819,6 +4884,17 @@ notes = "No code changes. Tagged together with its parent crate scroll."
 who = "Mike Hommey <mh+mozilla@glandium.org>"
 criteria = "safe-to-deploy"
 delta = "0.11.0 -> 0.11.1"
+
+[[audits.seahash]]
+who = "Benjamin VanderSloot <bvandersloot@mozilla.com>"
+criteria = "safe-to-deploy"
+version = "4.1.0"
+notes = """
+Uses unsafe to compute a non-cryptographic hash over &[u8],
+grabbing u64s out of the buffer for XORs. Logic looks sound,
+careful not to read over the end of the buffer, and the unsafety
+is well contained.
+"""
 
 [[audits.selectors]]
 who = "Emilio Cobos Álvarez <emilio@crisal.io>"
@@ -6567,6 +6643,26 @@ straightforward and safe. All new dependencies are appropriate.
 non-1-byte-aligned type, however right now that is not the case
 (submitted https://github.com/zip-rs/zip2/issues/198).
 """
+
+[[audits.zip]]
+who = "Lars Eggert <lars@eggert.org>"
+criteria = "safe-to-deploy"
+delta = "2.1.3 -> 2.4.2"
+
+[[audits.zmij]]
+who = "Benjamin VanderSloot <bvandersloot@mozilla.com>"
+criteria = "safe-to-deploy"
+version = "1.0.20"
+notes = """
+A lot of unsafe code here, included as a dependency of serde_json.
+The testing is very thorough, validating all 32-bit floats, and 100m
+random 64-bit floats. No unsafe imports.
+"""
+
+[[audits.zmij]]
+who = "Alex Kontos <MrAlex94@users.noreply.github.com>"
+criteria = "safe-to-deploy"
+delta = "1.0.20 -> 1.0.21"
 
 [[trusted.aho-corasick]]
 criteria = "safe-to-deploy"

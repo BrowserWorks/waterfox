@@ -229,6 +229,9 @@ notes = "This is a first-party crate which is also published to crates.io, but w
 audit-as-crates-io = false
 notes = "This is a first-party crate which is entirely unrelated to the crates.io package of the same name."
 
+[policy.swgl]
+audit-as-crates-io = false
+
 [policy.tabs]
 audit-as-crates-io = false
 notes = "This is a first-party crate, maintained by the appservices team, which is entirely unrelated to the crates.io package of the same name."
@@ -285,6 +288,9 @@ notes = "Upstream project which we pin."
 [policy.windows]
 audit-as-crates-io = true
 notes = "Local override of the crates.io crate that uses a non-vendored local copy of the downloaded crate"
+
+[policy.wr_glyph_rasterizer]
+audit-as-crates-io = false
 
 [policy.wr_malloc_size_of]
 audit-as-crates-io = false
