@@ -5,8 +5,11 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 #include "Classifier.h"
+#include "ContentClassifierService.h"
+#include "HttpBaseChannel.h"
 #include "mozilla/Components.h"
 #include "mozilla/ErrorNames.h"
+#include "mozilla/Maybe.h"
 #include "mozilla/net/AsyncUrlChannelClassifier.h"
 #include "mozilla/dom/BrowsingContext.h"
 #include "mozilla/dom/CanonicalBrowsingContext.h"
@@ -892,6 +895,8 @@ nsresult AsyncUrlChannelClassifier::CheckChannel(
     }
   }
 
+  std::function<void()> callbackFromFeature = aCallback;
+
   RefPtr<FeatureTask> task;
   nsresult rv =
       FeatureTask::Create(aChannel, std::move(aCallback), getter_AddRefs(task));
@@ -899,9 +904,14 @@ nsresult AsyncUrlChannelClassifier::CheckChannel(
     return rv;
   }
 
-  if (!task) {
-    // No task is needed for this channel, return an error so the caller won't
-    // wait for a callback.
+  Maybe<ContentClassifierRequest> contentClassifierRequest;
+  RefPtr<ContentClassifierService> contentClassifier =
+      ContentClassifierService::GetInstance();
+  if (contentClassifier) {
+    contentClassifierRequest.emplace(aChannel);
+  }
+
+  if (!task && !(contentClassifier && contentClassifier->IsInitialized())) {
     return NS_ERROR_FAILURE;
   }
 
@@ -911,19 +921,80 @@ nsresult AsyncUrlChannelClassifier::CheckChannel(
     return NS_ERROR_FAILURE;
   }
 
+  // raise the priority of URLClassifier's return dispatch to the MainThread if
+  // the channel is considered important
+  EventQueuePriority eventPriority = EventQueuePriority::Normal;
+  if (nsCOMPtr<HttpBaseChannel> baseChannel = do_QueryInterface(aChannel)) {
+    uint32_t classOfServiceFlags = 0;
+    baseChannel->GetClassFlags(&classOfServiceFlags);
+    if (classOfServiceFlags &
+        (nsIClassOfService::Leader | nsIClassOfService::UrgentStart |
+         nsIClassOfService::Unblocked)) {
+      eventPriority = EventQueuePriority::MediumHigh;
+    }
+  }
+  if (nsCOMPtr<nsISupportsPriority> supportsPriority =
+          do_QueryInterface(aChannel)) {
+    int32_t priority = nsISupportsPriority::PRIORITY_NORMAL;
+    supportsPriority->GetPriority(&priority);
+    // note that higher priorities have lower numeric values
+    if (priority <= nsISupportsPriority::PRIORITY_HIGH) {
+      eventPriority = EventQueuePriority::MediumHigh;
+    }
+  }
+
   nsCOMPtr<nsIRunnable> r = NS_NewRunnableFunction(
       "AsyncUrlChannelClassifier::CheckChannel",
-      [task, workerClassifier]() -> void {
+      [task, workerClassifier, eventPriority,
+       contentClassifierRequest = std::move(contentClassifierRequest),
+       contentClassifier, callbackFromFeature = std::move(callbackFromFeature),
+       channel = nsCOMPtr<nsIChannel>(aChannel)]() mutable -> void {
         MOZ_ASSERT(!NS_IsMainThread());
-        task->DoLookup(workerClassifier);
 
-        nsCOMPtr<nsIRunnable> r = NS_NewRunnableFunction(
-            "AsyncUrlChannelClassifier::CheckChannel - return",
-            [task]() -> void { task->CompleteClassification(); });
+        bool shouldCancel = false;
+        bool shouldAnnotate = false;
 
-        NS_DispatchToMainThread(r);
+        if (contentClassifier && contentClassifier->IsInitialized() &&
+            contentClassifierRequest.isSome()) {
+          ContentClassifierResult cancelResult =
+              contentClassifier->ClassifyForCancel(*contentClassifierRequest);
+          ContentClassifierResult annotateResult =
+              contentClassifier->ClassifyForAnnotate(*contentClassifierRequest);
+
+          shouldCancel = cancelResult.Hit();
+          shouldAnnotate = annotateResult.Hit();
+        }
+
+        // If this is going to get cancelled anyway, then don't do all of the
+        // work of the url-classifier
+        if (task && !shouldCancel) {
+          task->DoLookup(workerClassifier);
+        }
+
+        NS_DispatchToMainThreadQueue(
+            NS_NewRunnableFunction(
+                "AsyncUrlChannelClassifier::CheckChannel - return",
+                [task, channel, shouldCancel, shouldAnnotate,
+                 callbackFromFeature = std::move(callbackFromFeature),
+                 contentClassifier]() -> void {
+                  if (shouldAnnotate) {
+                    contentClassifier->AnnotateChannel(channel);
+                  }
+                  if (shouldCancel) {
+                    contentClassifier->CancelChannel(channel);
+                    callbackFromFeature();
+                  } else if (task) {
+                    task->CompleteClassification();
+                    // This calls the callbackFromFeature
+                  } else {
+                    callbackFromFeature();
+                  }
+                }),
+            eventPriority);
       });
 
+  // no need to prioritize the dispatch to the URLClassifier thread
+  // since overriding prioritization is ignored if we aren't on the MainThread
   return nsUrlClassifierDBService::BackgroundThread()->Dispatch(
       r, NS_DISPATCH_NORMAL);
 }
