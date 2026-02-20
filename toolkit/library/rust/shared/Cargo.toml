@@ -111,6 +111,7 @@ url = "2.5.0"
 fallible_collections = { version = "0.4", features = ["rust_1_57"] }
 
 adblock = { version = "0.12.1", features = ["full-regex-handling", "single-thread"], default-features = false }
+content_classifier_engine = { path = "../../../components/content-classifier/content_classifier_engine" }
 
 libz-rs-sys = { version = "0.4.1", features = ["custom-prefix"], optional = true }
 
