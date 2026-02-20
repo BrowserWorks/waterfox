@@ -63,6 +63,7 @@ class ContentClassifierService final : public nsIAsyncShutdownBlocker {
       const ContentClassifierRequest& aRequest);
 
   static StaticRefPtr<ContentClassifierService> sInstance;
+  static bool sEnabled;
 
   mozilla::Mutex mLock MOZ_UNANNOTATED;
   InitPhase mInitPhase MOZ_GUARDED_BY(mLock);

@@ -30,21 +30,29 @@ namespace mozilla {
 static LazyLogModule gContentClassifierLog("ContentClassifier");
 
 StaticRefPtr<ContentClassifierService> ContentClassifierService::sInstance;
+bool ContentClassifierService::sEnabled = false;
 
 NS_IMPL_ISUPPORTS(ContentClassifierService, nsIAsyncShutdownBlocker)
 
 ContentClassifierService::ContentClassifierService()
     : mLock("ContentClassifierService::mLock"),
-      mInitPhase(InitPhase::NotInited) {}
+      mInitPhase(InitPhase::NotInited) {
+  sEnabled =
+      Preferences::GetBool(
+          "privacy.trackingprotection.content.protection.enabled", false) ||
+      Preferences::GetBool(
+          "privacy.trackingprotection.content.annotation.enabled", false);
+}
 
 ContentClassifierService::~ContentClassifierService() = default;
 
 // static
 bool ContentClassifierService::IsEnabled() {
-  return Preferences::GetBool(
-             "privacy.trackingprotection.content.protection.enabled", false) ||
-         Preferences::GetBool(
-             "privacy.trackingprotection.content.annotation.enabled", false);
+  if (!sInstance) {
+    return false;
+  }
+
+  return sEnabled;
 }
 
 // static
@@ -64,6 +72,11 @@ void ContentClassifierService::OnPrefChange(const char* aPref, void* aData) {
     MutexAutoLock lock(service->mLock);
     service->LoadFilterLists();
   }
+  sEnabled =
+      Preferences::GetBool(
+          "privacy.trackingprotection.content.protection.enabled", false) ||
+      Preferences::GetBool(
+          "privacy.trackingprotection.content.annotation.enabled", false);
 }
 
 void ContentClassifierService::Init() {
@@ -98,6 +111,21 @@ void ContentClassifierService::Init() {
     return;
   }
 
+  rv = Preferences::RegisterCallback(
+      &ContentClassifierService::OnPrefChange,
+      "privacy.trackingprotection.content.protection.enabled"_ns);
+  if (NS_FAILED(rv)) {
+    mInitPhase = InitPhase::InitFailed;
+    return;
+  }
+
+  rv = Preferences::RegisterCallback(
+      &ContentClassifierService::OnPrefChange,
+      "privacy.trackingprotection.content.annotation.enabled"_ns);
+  if (NS_FAILED(rv)) {
+    mInitPhase = InitPhase::InitFailed;
+    return;
+  }
   rv = Preferences::RegisterCallback(
       &ContentClassifierService::OnPrefChange,
       "privacy.trackingprotection.content.protection.test_list_urls"_ns);

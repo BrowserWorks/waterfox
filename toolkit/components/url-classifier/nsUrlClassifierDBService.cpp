@@ -48,6 +48,7 @@
 #include "nsContentUtils.h"
 #include "mozilla/Components.h"
 #include "mozilla/dom/ContentChild.h"
+#include "mozilla/ContentClassifierService.h"
 #include "mozilla/dom/PermissionMessageUtils.h"
 #include "mozilla/dom/URLClassifierChild.h"
 #include "mozilla/net/UrlClassifierFeatureFactory.h"
@@ -1732,6 +1733,11 @@ nsresult nsUrlClassifierDBService::Init() {
   observerService->AddObserver(this, "profile-before-change", false);
 
   Preferences::AddStrongObserver(this, DISALLOW_COMPLETION_TABLE_PREF);
+
+  // Initialize the ContentClassifierService early so that filter lists are
+  // loaded before the first network request is classified.
+  RefPtr<ContentClassifierService> contentClassifier =
+      ContentClassifierService::GetInstance();
 
   return NS_OK;
 }
