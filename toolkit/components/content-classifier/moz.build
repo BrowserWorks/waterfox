@@ -21,6 +21,10 @@ LOCAL_INCLUDES += [
     "/netwerk/url-classifier",
 ]
 
+BROWSER_CHROME_MANIFESTS += [
+    "test/browser/browser.toml",
+]
+
 FINAL_LIBRARY = "xul"
 
 include("/ipc/chromium/chromium-config.mozbuild")
