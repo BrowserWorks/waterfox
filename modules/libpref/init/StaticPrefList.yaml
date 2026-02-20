@@ -15880,6 +15880,34 @@
   value: true
   mirror: always
 
+# Enable content classifier service protection (blocking).
+- name: privacy.trackingprotection.content.protection.enabled
+  type: bool
+  value: false
+  mirror: always
+
+# Specify `|` delimited urls to use to fetch lists that will
+# be used to block requests if the feature is enabled.
+# Warning: this should not be enabled by the build.
+- name: privacy.trackingprotection.content.protection.test_list_urls
+  type: String
+  value: ""
+  mirror: never
+
+# Enable content classifier service annotation.
+- name: privacy.trackingprotection.content.annotation.enabled
+  type: bool
+  value: false
+  mirror: always
+
+# Specify `|` delimited urls to use to fetch lists that will
+# be used to annotate requests if the feature is enabled.
+# Warning: this should not be enabled by the build.
+- name: privacy.trackingprotection.content.annotation.test_list_urls
+  type: String
+  value: ""
+  mirror: never
+
 # Whether to spoof user locale to English (used as part of Resist
 # Fingerprinting).
 # 0 - will prompt

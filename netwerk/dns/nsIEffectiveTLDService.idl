@@ -7,7 +7,7 @@
 
 interface nsIURI;
 
-[scriptable, uuid(68067eb5-ad8d-43cb-a043-1cc85ebe06e7)]
+[scriptable, rust_sync, builtinclass, uuid(68067eb5-ad8d-43cb-a043-1cc85ebe06e7)]
 interface nsIEffectiveTLDService : nsISupports
 {
     /**
