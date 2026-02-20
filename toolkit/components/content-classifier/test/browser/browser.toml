@@ -1,0 +1,9 @@
+[DEFAULT]
+support-files = [
+  "head.js",
+  "page.html",
+  "block_list.txt",
+  "annotate_list.txt",
+]
+
+["browser_content_classifier_blocking.js"]
