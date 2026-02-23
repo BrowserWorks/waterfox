@@ -1859,12 +1859,12 @@ class EncoderStreamingTest : public testing::TestWithParam<StreamingTestParam> {
     size_t frame_count = static_cast<int>(p.multiple_frames()) + 1;
     for (size_t i = 0; i < frame_count; i++) {
       // Create local copy of pixels and adapter because they are only
-      // guarantted to be available during the JxlEncoderAddChunkedFrame() call.
+      // guaranteed to be available during the JxlEncoderAddChunkedFrame() call.
       JxlChunkedFrameInputSourceAdapter chunked_frame_adapter(frame.Copy(),
                                                               ec_frame.Copy());
       EXPECT_EQ(JXL_ENC_SUCCESS,
                 JxlEncoderAddChunkedFrame(
-                    // should only set `JXL_TRUE` in the lass pass of the loop
+                    // should only set `JXL_TRUE` in the last pass of the loop
                     frame_settings, i + 1 == frame_count ? JXL_TRUE : JXL_FALSE,
                     chunked_frame_adapter.GetInputSource()));
     }

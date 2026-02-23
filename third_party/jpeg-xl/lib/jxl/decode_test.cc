@@ -1530,7 +1530,7 @@ std::ostream& operator<<(std::ostream& os, const PixelTestConfig& c) {
   }
   if (c.preview_mode == jxl::kSmallPreview) os << "Preview";
   if (c.preview_mode == jxl::kBigPreview) os << "BigPreview";
-  if (c.add_intrinsic_size) os << "IntrinicSize";
+  if (c.add_intrinsic_size) os << "IntrinsicSize";
   if (c.use_callback) os << "Callback";
   if (c.set_buffer_early) os << "EarlyBuffer";
   if (c.use_resizable_runner) os << "ResizableRunner";
