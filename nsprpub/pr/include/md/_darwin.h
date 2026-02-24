@@ -110,14 +110,10 @@ extern PRInt32 _PR_Darwin_x86_AtomicAdd(PRInt32 *ptr, PRInt32 val);
 #ifdef __x86_64__
 #define _PR_HAVE_ATOMIC_OPS
 #define _MD_INIT_ATOMIC()
-extern PRInt32 _PR_Darwin_x86_64_AtomicIncrement(PRInt32 *val);
-#define _MD_ATOMIC_INCREMENT(val)   _PR_Darwin_x86_64_AtomicIncrement(val)
-extern PRInt32 _PR_Darwin_x86_64_AtomicDecrement(PRInt32 *val);
-#define _MD_ATOMIC_DECREMENT(val)   _PR_Darwin_x86_64_AtomicDecrement(val)
-extern PRInt32 _PR_Darwin_x86_64_AtomicSet(PRInt32 *val, PRInt32 newval);
-#define _MD_ATOMIC_SET(val, newval) _PR_Darwin_x86_64_AtomicSet(val, newval)
-extern PRInt32 _PR_Darwin_x86_64_AtomicAdd(PRInt32 *ptr, PRInt32 val);
-#define _MD_ATOMIC_ADD(ptr, val)    _PR_Darwin_x86_64_AtomicAdd(ptr, val)
+#define _MD_ATOMIC_INCREMENT(val)   __sync_add_and_fetch(val, 1)
+#define _MD_ATOMIC_DECREMENT(val)   __sync_sub_and_fetch(val, 1)
+#define _MD_ATOMIC_SET(val, newval) __sync_lock_test_and_set(val, newval)
+#define _MD_ATOMIC_ADD(ptr, val)    __sync_add_and_fetch(ptr, val)
 #endif /* __x86_64__ */
 
 #ifdef __aarch64__
