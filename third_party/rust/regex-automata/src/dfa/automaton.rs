@@ -7,6 +7,7 @@ use crate::{
         prefilter::Prefilter,
         primitives::{PatternID, StateID},
         search::{Anchored, HalfMatch, Input, MatchError},
+        start,
     },
 };
 
@@ -226,8 +227,8 @@ pub unsafe trait Automaton {
     /// ```
     fn next_eoi_state(&self, current: StateID) -> StateID;
 
-    /// Return the ID of the start state for this lazy DFA when executing a
-    /// forward search.
+    /// Return the ID of the start state for this DFA for the given starting
+    /// configuration.
     ///
     /// Unlike typical DFA implementations, the start state for DFAs in this
     /// crate is dependent on a few different factors:
@@ -235,12 +236,41 @@ pub unsafe trait Automaton {
     /// * The [`Anchored`] mode of the search. Unanchored, anchored and
     /// anchored searches for a specific [`PatternID`] all use different start
     /// states.
-    /// * The position at which the search begins, via [`Input::start`]. This
-    /// and the byte immediately preceding the start of the search (if one
-    /// exists) influence which look-behind assertions are true at the start
-    /// of the search. This in turn influences which start state is selected.
-    /// * Whether the search is a forward or reverse search. This routine can
-    /// only be used for forward searches.
+    /// * Whether a "look-behind" byte exists. For example, the `^` anchor
+    /// matches if and only if there is no look-behind byte.
+    /// * The specific value of that look-behind byte. For example, a `(?m:^)`
+    /// assertion only matches when there is either no look-behind byte, or
+    /// when the look-behind byte is a line terminator.
+    ///
+    /// The [starting configuration](start::Config) provides the above
+    /// information.
+    ///
+    /// This routine can be used for either forward or reverse searches.
+    /// Although, as a convenience, if you have an [`Input`], then it may
+    /// be more succinct to use [`Automaton::start_state_forward`] or
+    /// [`Automaton::start_state_reverse`]. Note, for example, that the
+    /// convenience routines return a [`MatchError`] on failure where as this
+    /// routine returns a [`StartError`].
+    ///
+    /// # Errors
+    ///
+    /// This may return a [`StartError`] if the search needs to give up when
+    /// determining the start state (for example, if it sees a "quit" byte).
+    /// This can also return an error if the given configuration contains an
+    /// unsupported [`Anchored`] configuration.
+    fn start_state(
+        &self,
+        config: &start::Config,
+    ) -> Result<StateID, StartError>;
+
+    /// Return the ID of the start state for this DFA when executing a forward
+    /// search.
+    ///
+    /// This is a convenience routine for calling [`Automaton::start_state`]
+    /// that converts the given [`Input`] to a [start
+    /// configuration](start::Config). Additionally, if an error occurs, it is
+    /// converted from a [`StartError`] to a [`MatchError`] using the offset
+    /// information in the given [`Input`].
     ///
     /// # Errors
     ///
@@ -251,23 +281,30 @@ pub unsafe trait Automaton {
     fn start_state_forward(
         &self,
         input: &Input<'_>,
-    ) -> Result<StateID, MatchError>;
+    ) -> Result<StateID, MatchError> {
+        let config = start::Config::from_input_forward(input);
+        self.start_state(&config).map_err(|err| match err {
+            StartError::Quit { byte } => {
+                let offset = input
+                    .start()
+                    .checked_sub(1)
+                    .expect("no quit in start without look-behind");
+                MatchError::quit(byte, offset)
+            }
+            StartError::UnsupportedAnchored { mode } => {
+                MatchError::unsupported_anchored(mode)
+            }
+        })
+    }
 
-    /// Return the ID of the start state for this lazy DFA when executing a
-    /// reverse search.
+    /// Return the ID of the start state for this DFA when executing a reverse
+    /// search.
     ///
-    /// Unlike typical DFA implementations, the start state for DFAs in this
-    /// crate is dependent on a few different factors:
-    ///
-    /// * The [`Anchored`] mode of the search. Unanchored, anchored and
-    /// anchored searches for a specific [`PatternID`] all use different start
-    /// states.
-    /// * The position at which the search begins, via [`Input::start`]. This
-    /// and the byte immediately preceding the start of the search (if one
-    /// exists) influence which look-behind assertions are true at the start
-    /// of the search. This in turn influences which start state is selected.
-    /// * Whether the search is a forward or reverse search. This routine can
-    /// only be used for reverse searches.
+    /// This is a convenience routine for calling [`Automaton::start_state`]
+    /// that converts the given [`Input`] to a [start
+    /// configuration](start::Config). Additionally, if an error occurs, it is
+    /// converted from a [`StartError`] to a [`MatchError`] using the offset
+    /// information in the given [`Input`].
     ///
     /// # Errors
     ///
@@ -278,7 +315,18 @@ pub unsafe trait Automaton {
     fn start_state_reverse(
         &self,
         input: &Input<'_>,
-    ) -> Result<StateID, MatchError>;
+    ) -> Result<StateID, MatchError> {
+        let config = start::Config::from_input_reverse(input);
+        self.start_state(&config).map_err(|err| match err {
+            StartError::Quit { byte } => {
+                let offset = input.end();
+                MatchError::quit(byte, offset)
+            }
+            StartError::UnsupportedAnchored { mode } => {
+                MatchError::unsupported_anchored(mode)
+            }
+        })
+    }
 
     /// If this DFA has a universal starting state for the given anchor mode
     /// and the DFA supports universal starting states, then this returns that
@@ -1084,7 +1132,7 @@ pub unsafe trait Automaton {
     /// // implementation defined.
     /// //
     /// // N.B. We get '3' by inspecting the state machine using 'regex-cli'.
-    /// // e.g., try `regex-cli debug dfa dense '[^abc]+a' -BbUC`.
+    /// // e.g., try `regex-cli debug dense dfa -p '[^abc]+a' -BbUC`.
     /// let id = StateID::new(3 * dfa.stride()).unwrap();
     /// let accelerator = dfa.accelerator(id);
     /// // The `[^abc]+` sub-expression permits [a, b, c] to be accelerated.
@@ -1799,6 +1847,14 @@ unsafe impl<'a, A: Automaton + ?Sized> Automaton for &'a A {
     }
 
     #[inline]
+    fn start_state(
+        &self,
+        config: &start::Config,
+    ) -> Result<StateID, StartError> {
+        (**self).start_state(config)
+    }
+
+    #[inline]
     fn start_state_forward(
         &self,
         input: &Input<'_>,
@@ -2015,6 +2071,90 @@ impl OverlappingState {
     }
 }
 
+/// An error that can occur when computing the start state for a search.
+///
+/// Computing a start state can fail for a few reasons, either based on
+/// incorrect configuration or even based on whether the look-behind byte
+/// triggers a quit state. Typically one does not need to handle this error
+/// if you're using [`Automaton::start_state_forward`] (or its reverse
+/// counterpart), as that routine automatically converts `StartError` to a
+/// [`MatchError`] for you.
+///
+/// This error may be returned by the [`Automaton::start_state`] routine.
+///
+/// This error implements the `std::error::Error` trait when the `std` feature
+/// is enabled.
+///
+/// This error is marked as non-exhaustive. New variants may be added in a
+/// semver compatible release.
+#[non_exhaustive]
+#[derive(Clone, Debug)]
+pub enum StartError {
+    /// An error that occurs when a starting configuration's look-behind byte
+    /// is in this DFA's quit set.
+    Quit {
+        /// The quit byte that was found.
+        byte: u8,
+    },
+    /// An error that occurs when the caller requests an anchored mode that
+    /// isn't supported by the DFA.
+    UnsupportedAnchored {
+        /// The anchored mode given that is unsupported.
+        mode: Anchored,
+    },
+}
+
+impl StartError {
+    pub(crate) fn quit(byte: u8) -> StartError {
+        StartError::Quit { byte }
+    }
+
+    pub(crate) fn unsupported_anchored(mode: Anchored) -> StartError {
+        StartError::UnsupportedAnchored { mode }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for StartError {}
+
+impl core::fmt::Display for StartError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match *self {
+            StartError::Quit { byte } => write!(
+                f,
+                "error computing start state because the look-behind byte \
+                 {:?} triggered a quit state",
+                crate::util::escape::DebugByte(byte),
+            ),
+            StartError::UnsupportedAnchored { mode: Anchored::Yes } => {
+                write!(
+                    f,
+                    "error computing start state because \
+                     anchored searches are not supported or enabled"
+                )
+            }
+            StartError::UnsupportedAnchored { mode: Anchored::No } => {
+                write!(
+                    f,
+                    "error computing start state because \
+                     unanchored searches are not supported or enabled"
+                )
+            }
+            StartError::UnsupportedAnchored {
+                mode: Anchored::Pattern(pid),
+            } => {
+                write!(
+                    f,
+                    "error computing start state because \
+                     anchored searches for a specific pattern ({}) \
+                     are not supported or enabled",
+                    pid.as_usize(),
+                )
+            }
+        }
+    }
+}
+
 /// Runs the given overlapping `search` function (forwards or backwards) until
 /// a match is found whose offset does not split a codepoint.
 ///
@@ -2062,7 +2202,7 @@ where
 ///
 /// Specifically, this tries to succinctly distinguish the different types of
 /// states: dead states, quit states, accelerated states, start states and
-/// match states. It even accounts for the possible overlappings of different
+/// match states. It even accounts for the possible overlapping of different
 /// state types.
 pub(crate) fn fmt_state_indicator<A: Automaton>(
     f: &mut core::fmt::Formatter<'_>,

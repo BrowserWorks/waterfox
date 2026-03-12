@@ -1,0 +1,34 @@
+name: supply-chain
+
+on:
+  push:
+    branches:
+     - main
+     - release/**
+  pull_request:
+    branches:
+     - main
+     - release/**
+  workflow_dispatch:
+
+jobs:
+  vet:
+    name: Vet Dependencies
+    runs-on: ubuntu-latest
+    env:
+      CARGO_VET_VERSION: 0.9.0
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+    - name: Cache cargo vet
+      uses: actions/cache@v4
+      with:
+        path: ${{ runner.tool_cache }}/cargo-vet
+        key: cargo-vet-bin-${{ env.CARGO_VET_VERSION }}
+    - name: Add the tool cache directory to the search path
+      run: echo "${{ runner.tool_cache }}/cargo-vet/bin/" >> $GITHUB_PATH
+    - name: Ensure that the tool cache is populated with the cargo-vet binary
+      run: cargo install --root ${{ runner.tool_cache }}/cargo-vet --version ${{ env.CARGO_VET_VERSION }} cargo-vet
+    - name: Invoke cargo-vet
+      run: cargo vet --locked

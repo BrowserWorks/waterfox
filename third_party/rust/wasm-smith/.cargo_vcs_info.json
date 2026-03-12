@@ -1,0 +1,6 @@
+{
+  "git": {
+    "sha1": "91be0bbc8c5df685a74d87295e9cfff0be9c07c7"
+  },
+  "path_in_vcs": "crates/wasm-smith"
+}

@@ -1,0 +1,28 @@
+on: [push, pull_request]
+name: test
+jobs:
+  test:
+    name: ${{ matrix.toolchain }} (${{ matrix.profile.name }})
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: ${{ matrix.profile.flag }}
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+          - nightly
+          - beta
+          - stable
+          - 1.36.0
+        profile:
+          - name: debug
+          - name: release
+            flag: --release

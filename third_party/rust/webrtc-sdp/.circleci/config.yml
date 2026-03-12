@@ -1,0 +1,93 @@
+version: 2.1
+jobs:
+  build:
+    parameters:
+      features:
+        type: string
+      rustversion:
+        type: string
+      latestrustversion:
+        type: string
+    docker:
+      - image: cimg/rust:<< parameters.rustversion >>
+    environment:
+      FEATURES: << parameters.features >>
+      RUST_VERSION: << parameters.rustversion >>
+      LATEST_RUST: << parameters.latestrustversion >>
+    steps:
+      - checkout
+      # rustfmt - https://github.com/rust-lang/rustfmt#checking-style-on-a-ci-server
+      - run: "[ $LATEST_RUST != $RUST_VERSION ] && echo Skipping installing rustfmt || rustup component add rustfmt"
+      - run: "[ $LATEST_RUST != $RUST_VERSION ] && echo Skipping installing clippy || rustup component add clippy"
+      - run: cargo --version
+      # cargo-tarpaulin for code coverage
+      # This will be landed in a future update
+      # - run: "[ $LATEST_RUST != $RUST_VERSION ] && echo Skipping cargo tarpaulin || RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin -f"
+      # cargo-audit
+      - run: sudo apt-get update
+      - run: sudo apt-get install pkg-config libssl-dev
+      - run: cargo generate-lockfile
+      # NOTE: not to be done except with the latest version
+      - run: "[ $LATEST_RUST != $RUST_VERSION ] && echo Skipping cargo audit || (cargo install --force cargo-audit && cargo audit)"
+      # NOTE: not to be done in nightly
+      - run: "[ $LATEST_RUST != $RUST_VERSION ] && echo Skipping cargo fmt || cargo fmt --all -- --check"
+      - run: cargo clean
+      - run: cargo build --verbose --all --features=$FEATURES
+      # NOTE: not to be done in nightly
+      - run: "[ $LATEST_RUST != $RUST_VERSION ] && echo Skipping cargo clippy || cargo clippy --all-targets --all-features -- -D warnings"
+      - run: cargo test --all-targets --all-features --verbose --all
+      # Parser tests
+      - run: cargo run --example file_parser examples/sdps/02.sdp
+      - run: cargo run --example file_parser examples/sdps/03.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/04.sdp
+      - run: cargo run --example file_parser examples/sdps/05.sdp
+      - run: cargo run --example file_parser examples/sdps/06.sdp
+      - run: cargo run --example file_parser examples/sdps/07.sdp
+      - run: cargo run --example file_parser examples/sdps/08.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/09.sdp
+      - run: cargo run --example file_parser examples/sdps/10.sdp
+      - run: cargo run --example file_parser examples/sdps/11.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/12.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/13.sdp
+      - run: cargo run --example file_parser examples/sdps/14.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/15.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/16.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/17.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/18.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/19.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/20.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/21.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/22.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/23.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/24.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/25.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/26.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/27.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/28.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/29.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/30.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/31.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/32.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/33.sdp --expect-failure
+      - run: cargo run --example file_parser examples/sdps/34.sdp
+      - run: cargo run --example file_parser examples/sdps/35.sdp
+      - run: cargo run --example file_parser examples/sdps/36.sdp
+      - run: cargo run --example file_parser examples/sdps/37.sdp
+      - run: cargo run --example file_parser examples/sdps/38.sdp
+      - run: cargo run --example file_parser examples/sdps/39.sdp
+      - run: cargo run --example file_parser examples/sdps/40.sdp
+      - run: cargo run --example file_parser examples/sdps/41.sdp --expect-failure
+      #TODO run code coverage
+
+#TODO split into build and test
+
+workflows:
+  workflow:
+    jobs:
+      - build:
+          matrix:
+            parameters:
+              features: ["", "serialize"]
+              rustversion: ["1.70.0", "1.81"]
+              latestrustversion: ["1.81"]
+

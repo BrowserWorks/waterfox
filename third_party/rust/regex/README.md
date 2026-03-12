@@ -80,18 +80,19 @@ compilation itself expensive, but this also prevents optimizations that reuse
 allocations internally to the matching engines.
 
 In Rust, it can sometimes be a pain to pass regular expressions around if
-they're used from inside a helper function. Instead, we recommend using the
-[`once_cell`](https://crates.io/crates/once_cell) crate to ensure that
-regular expressions are compiled exactly once. For example:
+they're used from inside a helper function. Instead, we recommend using
+[`std::sync::LazyLock`], or the [`once_cell`] crate,
+if you can't use the standard library.
+
+This example shows how to use `std::sync::LazyLock`:
 
 ```rust
-use {
-    once_cell::sync::Lazy,
-    regex::Regex,
-};
+use std::sync::LazyLock;
+
+use regex::Regex;
 
 fn some_helper_function(haystack: &str) -> bool {
-    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"...").unwrap());
+    static RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"...").unwrap());
     RE.is_match(haystack)
 }
 
@@ -103,6 +104,9 @@ fn main() {
 
 Specifically, in this example, the regex will be compiled when it is used for
 the first time. On subsequent uses, it will reuse the previous compilation.
+
+[`std::sync::LazyLock`]: https://doc.rust-lang.org/std/sync/struct.LazyLock.html
+[`once_cell`]: https://crates.io/crates/once_cell
 
 ### Usage: match regular expressions on `&[u8]`
 
@@ -171,7 +175,7 @@ assert!(matches.matched(6));
 ### Usage: regex internals as a library
 
 The [`regex-automata` directory](./regex-automata/) contains a crate that
-exposes all of the internal matching engines used by the `regex` crate. The
+exposes all the internal matching engines used by the `regex` crate. The
 idea is that the `regex` crate exposes a simple API for 99% of use cases, but
 `regex-automata` exposes oodles of customizable behaviors.
 
@@ -192,7 +196,7 @@ recommended for general use.
 
 ### Crate features
 
-This crate comes with several features that permit tweaking the trade off
+This crate comes with several features that permit tweaking the trade-off
 between binary size, compilation time and runtime performance. Users of this
 crate can selectively disable Unicode tables, or choose from a variety of
 optimizations performed by this crate to disable.
@@ -219,9 +223,95 @@ The full set of features one can disable are
 [in the "Crate features" section of the documentation](https://docs.rs/regex/1.*/#crate-features).
 
 
+### Performance
+
+One of the goals of this crate is for the regex engine to be "fast." What that
+is a somewhat nebulous goal, it is usually interpreted in one of two ways.
+First, it means that all searches take worst case `O(m * n)` time, where
+`m` is proportional to `len(regex)` and `n` is proportional to `len(haystack)`.
+Second, it means that even aside from the time complexity constraint, regex
+searches are "fast" in practice.
+
+While the first interpretation is pretty unambiguous, the second one remains
+nebulous. While nebulous, it guides this crate's architecture and the sorts of
+the trade-offs it makes. For example, here are some general architectural
+statements that follow as a result of the goal to be "fast":
+
+* When given the choice between faster regex searches and faster _Rust compile
+times_, this crate will generally choose faster regex searches.
+* When given the choice between faster regex searches and faster _regex compile
+times_, this crate will generally choose faster regex searches. That is, it is
+generally acceptable for `Regex::new` to get a little slower if it means that
+searches get faster. (This is a somewhat delicate balance to strike, because
+the speed of `Regex::new` needs to remain somewhat reasonable. But this is why
+one should avoid re-compiling the same regex over and over again.)
+* When given the choice between faster regex searches and simpler API
+design, this crate will generally choose faster regex searches. For example,
+if one didn't care about performance, we could like get rid of both of
+the `Regex::is_match` and `Regex::find` APIs and instead just rely on
+`Regex::captures`.
+
+There are perhaps more ways that being "fast" influences things.
+
+While this repository used to provide its own benchmark suite, it has since
+been moved to [rebar](https://github.com/BurntSushi/rebar). The benchmarks are
+quite extensive, and there are many more than what is shown in rebar's README
+(which is just limited to a "curated" set meant to compare performance between
+regex engines). To run all of this crate's benchmarks, first start by cloning
+and installing `rebar`:
+
+```text
+$ git clone https://github.com/BurntSushi/rebar
+$ cd rebar
+$ cargo install --path ./
+```
+
+Then build the benchmark harness for just this crate:
+
+```text
+$ rebar build -e '^rust/regex$'
+```
+
+Run all benchmarks for this crate as tests (each benchmark is executed once to
+ensure it works):
+
+```text
+$ rebar measure -e '^rust/regex$' -t
+```
+
+Record measurements for all benchmarks and save them to a CSV file:
+
+```text
+$ rebar measure -e '^rust/regex$' | tee results.csv
+```
+
+Explore benchmark timings:
+
+```text
+$ rebar cmp results.csv
+```
+
+See the `rebar` documentation for more details on how it works and how to
+compare results with other regex engines.
+
+
+### Hacking
+
+The `regex` crate is, for the most part, a pretty thin wrapper around the
+[`meta::Regex`](https://docs.rs/regex-automata/latest/regex_automata/meta/struct.Regex.html)
+from the
+[`regex-automata` crate](https://docs.rs/regex-automata/latest/regex_automata/).
+Therefore, if you're looking to work on the internals of this crate, you'll
+likely either want to look in `regex-syntax` (for parsing) or `regex-automata`
+(for construction of finite automata and the search routines).
+
+My [blog on regex internals](https://burntsushi.net/regex-internals/)
+goes into more depth.
+
+
 ### Minimum Rust version policy
 
-This crate's minimum supported `rustc` version is `1.60.0`.
+This crate's minimum supported `rustc` version is `1.65.0`.
 
 The policy is that the minimum Rust version required to use this crate can be
 increased in minor version updates. For example, if regex 1.0 requires Rust

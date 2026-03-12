@@ -1,0 +1,9 @@
+hard_tabs = true
+imports_layout = "Horizontal"
+merge_imports = true
+fn_args_layout = "Compressed"
+use_field_init_shorthand = true
+
+# To enable when stable
+# wrap_comments = true # https://github.com/rust-lang/rustfmt/issues/3347
+# reorder_impl_items = true # https://github.com/rust-lang/rustfmt/issues/3363

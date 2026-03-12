@@ -80,27 +80,21 @@ impl<W: fmt::Write> Visitor for Writer<W> {
     fn visit_pre(&mut self, ast: &Ast) -> fmt::Result {
         match *ast {
             Ast::Group(ref x) => self.fmt_group_pre(x),
-            Ast::Class(ast::Class::Bracketed(ref x)) => {
-                self.fmt_class_bracketed_pre(x)
-            }
+            Ast::ClassBracketed(ref x) => self.fmt_class_bracketed_pre(x),
             _ => Ok(()),
         }
     }
 
     fn visit_post(&mut self, ast: &Ast) -> fmt::Result {
-        use crate::ast::Class;
-
         match *ast {
             Ast::Empty(_) => Ok(()),
             Ast::Flags(ref x) => self.fmt_set_flags(x),
             Ast::Literal(ref x) => self.fmt_literal(x),
             Ast::Dot(_) => self.wtr.write_str("."),
             Ast::Assertion(ref x) => self.fmt_assertion(x),
-            Ast::Class(Class::Perl(ref x)) => self.fmt_class_perl(x),
-            Ast::Class(Class::Unicode(ref x)) => self.fmt_class_unicode(x),
-            Ast::Class(Class::Bracketed(ref x)) => {
-                self.fmt_class_bracketed_post(x)
-            }
+            Ast::ClassPerl(ref x) => self.fmt_class_perl(x),
+            Ast::ClassUnicode(ref x) => self.fmt_class_unicode(x),
+            Ast::ClassBracketed(ref x) => self.fmt_class_bracketed_post(x),
             Ast::Repetition(ref x) => self.fmt_repetition(x),
             Ast::Group(ref x) => self.fmt_group_post(x),
             Ast::Alternation(_) => Ok(()),
@@ -205,9 +199,9 @@ impl<W: fmt::Write> Writer<W> {
     ) -> fmt::Result {
         use crate::ast::RepetitionRange::*;
         match *ast {
-            Exactly(x) => write!(self.wtr, "{{{}}}", x),
-            AtLeast(x) => write!(self.wtr, "{{{},}}", x),
-            Bounded(x, y) => write!(self.wtr, "{{{},{}}}", x, y),
+            Exactly(x) => write!(self.wtr, "{{{x}}}"),
+            AtLeast(x) => write!(self.wtr, "{{{x},}}"),
+            Bounded(x, y) => write!(self.wtr, "{{{x},{y}}}"),
         }
     }
 
@@ -267,6 +261,12 @@ impl<W: fmt::Write> Writer<W> {
             EndText => self.wtr.write_str(r"\z"),
             WordBoundary => self.wtr.write_str(r"\b"),
             NotWordBoundary => self.wtr.write_str(r"\B"),
+            WordBoundaryStart => self.wtr.write_str(r"\b{start}"),
+            WordBoundaryEnd => self.wtr.write_str(r"\b{end}"),
+            WordBoundaryStartAngle => self.wtr.write_str(r"\<"),
+            WordBoundaryEndAngle => self.wtr.write_str(r"\>"),
+            WordBoundaryStartHalf => self.wtr.write_str(r"\b{start-half}"),
+            WordBoundaryEndHalf => self.wtr.write_str(r"\b{end-half}"),
         }
     }
 

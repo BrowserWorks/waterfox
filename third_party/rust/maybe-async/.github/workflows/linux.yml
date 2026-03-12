@@ -1,0 +1,83 @@
+name: CI (Linux)
+
+on: [push, pull_request]
+
+jobs:
+  build_and_test:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: rustfmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+      - name: check build (async)
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --all --bins --examples --tests
+
+      - name: tests (async)
+        uses: actions-rs/cargo@v1
+        timeout-minutes: 40
+        with:
+          command: test
+          args: --all --no-fail-fast -- --nocapture
+
+      - name: check build (is_sync)
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --features=is_sync --all --bins --examples --tests
+
+      - name: tests (is_sync)
+        uses: actions-rs/cargo@v1
+        timeout-minutes: 40
+        with:
+          command: test
+          args: --features=is_sync --all --no-fail-fast -- --nocapture
+
+  doc:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: doc (async)
+        uses: actions-rs/cargo@v1
+        env:
+          RUSTDOCFLAGS: -Dwarnings
+        with:
+          command: doc
+          args: --all --no-deps
+
+      - name: doc (is_sync)
+        uses: actions-rs/cargo@v1
+        env:
+          RUSTDOCFLAGS: -Dwarnings
+        with:
+          command: doc
+          args: --all --no-deps --features=is_sync
+
+  publish:
+    name: Publish Package
+    needs: build_and_test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: login
+        env:
+          SUPER_SECRET: ${{ secrets.CARGO_TOKEN }}
+        run: cargo login "$SUPER_SECRET"
+        shell: bash
+
+      - name: publish
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish

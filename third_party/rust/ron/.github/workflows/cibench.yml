@@ -1,0 +1,32 @@
+name: CIBench
+on: [pull_request]
+jobs:
+  bench:
+    name: Benchmark
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          key: bench
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Download the corpus
+        run: |
+          wget https://storage.googleapis.com/ron-backup.clusterfuzz-external.appspot.com/corpus/libFuzzer/ron_arbitrary/public.zip
+          mkdir -p fuzz/corpus/arbitrary
+          unzip public.zip -d fuzz/corpus/arbitrary
+          rm public.zip
+      - name: Generate benchmark seed
+        run: echo RON_FUZZ_BENCH_SEED=$(date +%s) >> $GITHUB_ENV
+      - uses: juntyr/criterion-compare-action@check-cargo-install
+        with:
+          cwd: fuzz
+          benchName: bench
+          branchName: ${{ github.base_ref }}
+        env:
+          RON_FUZZ_BENCH_CASES: 100
