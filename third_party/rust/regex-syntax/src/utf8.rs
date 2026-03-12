@@ -128,7 +128,7 @@ impl Utf8Sequence {
                 Utf8Range::new(start[2], end[2]),
                 Utf8Range::new(start[3], end[3]),
             ]),
-            n => unreachable!("invalid encoded length: {}", n),
+            n => unreachable!("invalid encoded length: {n}"),
         }
     }
 
@@ -203,7 +203,7 @@ impl fmt::Debug for Utf8Sequence {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use self::Utf8Sequence::*;
         match *self {
-            One(ref r) => write!(f, "{:?}", r),
+            One(ref r) => write!(f, "{r:?}"),
             Two(ref r) => write!(f, "{:?}{:?}", r[0], r[1]),
             Three(ref r) => write!(f, "{:?}{:?}{:?}", r[0], r[1], r[2]),
             Four(ref r) => {
@@ -302,9 +302,9 @@ impl Utf8Sequences {
     /// Create a new iterator over UTF-8 byte ranges for the scalar value range
     /// given.
     pub fn new(start: char, end: char) -> Self {
-        let mut it = Utf8Sequences { range_stack: vec![] };
-        it.push(u32::from(start), u32::from(end));
-        it
+        let range =
+            ScalarRange { start: u32::from(start), end: u32::from(end) };
+        Utf8Sequences { range_stack: vec![range] }
     }
 
     /// reset resets the scalar value range.

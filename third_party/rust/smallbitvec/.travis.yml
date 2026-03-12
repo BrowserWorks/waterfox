@@ -1,0 +1,10 @@
+language: rust
+rust:
+  - nightly
+  - beta
+  - stable
+  - 1.36.0
+script: |
+  cargo build --verbose &&
+  cargo test --verbose &&
+  ([ $TRAVIS_RUST_VERSION != nightly ] || cargo bench --verbose bench)
