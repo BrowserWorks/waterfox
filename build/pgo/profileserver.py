@@ -7,6 +7,7 @@
 import glob
 import json
 import os
+import socket
 import subprocess
 import sys
 
@@ -18,7 +19,12 @@ from mozprofile import FirefoxProfile, Preferences
 from mozprofile.permissions import ServerLocations
 from mozrunner import CLI, FirefoxRunner
 
-PORT = 8888
+def find_free_port():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('', 0))
+        return s.getsockname()[1]
+
+PORT = find_free_port()
 
 PATH_MAPPINGS = {
     "/webkit/PerformanceTests": "third_party/webkit/PerformanceTests",
