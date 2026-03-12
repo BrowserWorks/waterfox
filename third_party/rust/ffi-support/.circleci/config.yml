@@ -1,0 +1,164 @@
+version: 2.1
+
+workflows:
+  version: 2
+
+  tests:
+    jobs:
+      - Run tests:
+          matrix:
+            parameters:
+              # 1.43.0 is our MSRV at the moment.
+              image-tag: ["1.43.0", "latest"]
+
+  format:
+    jobs:
+      - Check formatting
+
+  lint:
+    jobs:
+      - Lint with clippy
+
+  doc-check:
+    jobs:
+      - Check rustdoc links
+
+  # coverage:
+  #   jobs:
+  #     - Gen coverage
+
+  cross-test:
+    jobs:
+      - Cross Test
+
+  asan-test:
+    jobs:
+      - Test under asan
+
+jobs:
+  Run tests:
+    parameters:
+      image-tag:
+        type: string
+
+    docker:
+      - image: circleci/rust:<< parameters.image-tag >>
+
+    steps:
+      - checkout
+      - run: rustc -Vv
+      - run: cargo test --all-features --verbose
+      - run: cargo test --no-default-features --verbose
+
+  Check formatting:
+    docker:
+      - image: circleci/rust:latest
+    steps:
+      - checkout
+      - run: rustup component add rustfmt
+      - run: cargo fmt -- --version
+      - run: cargo fmt -- --check
+
+  Lint with clippy:
+    docker:
+      - image: circleci/rust:latest
+    steps:
+      - checkout
+      - run: rustup component add clippy
+      - run: cargo clippy -- --version
+      - run: cargo clippy --no-default-features -- -D warnings
+      - run: cargo clippy --all-features -- -D warnings
+
+  Check rustdoc links:
+    docker:
+      - image: circleci/rust:latest
+    steps:
+      - checkout
+      - run: rustup toolchain add nightly
+      - run: rustdoc +nightly --version
+      # Note: nightly rustdoc (and only nightly) supports telling you if you
+      # have any links that don't resolve in your doc comments. (Note that this
+      # only works via `cargo rustdoc` and not `cargo doc`, for some reason)
+      - run: cargo +nightly rustdoc --no-default-features -- -D warnings
+      - run: cargo +nightly rustdoc --all-features -- -D warnings
+
+  Gen coverage:
+    docker:
+      - image: circleci/rust:latest
+    steps:
+      - checkout
+      - run:
+          name: Setup rust
+          command: |
+            rustup toolchain install nightly --profile minimal
+            rustup default nightly
+      - run:
+          name: Fetch grcov
+          command: |
+            GRCOV_URL=https://github.com/mozilla/grcov/releases/latest/download/grcov-linux-x86_64.tar.bz2
+            mkdir -p "$HOME/.bin"
+            curl -sfSL --retry 5 --retry-delay 10 "${GRCOV_URL}" | tar jxf - -C "$HOME/.bin"
+            echo 'export PATH="$HOME/.bin:$PATH"' >> $BASH_ENV
+      - run: grcov --version
+      - run:
+          name: Produce coverage
+          command: |
+            export CARGO_INCREMENTAL=0
+            export RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort --cfg coverage"
+            export RUSTDOCFLAGS="-Cpanic=abort"
+            cargo clean
+            cargo test --verbose --all-features --no-fail-fast || true
+            ./grcov ccov.zip -s . -t lcov --llvm --ignore-not-existing --ignore "/*" -o lcov.info;
+            bash <(curl -s https://codecov.io/bash) -f lcov.info;
+
+  Cross Test:
+    machine: true
+    steps:
+      - checkout
+
+      - run:
+          name: Download rustup
+          command: |
+            wget https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init
+            chmod +x rustup-init
+
+      - run:
+          name: Install Rust
+          command: |
+            ./rustup-init -y --no-modify-path
+            rm rustup-init
+            echo 'export PATH=$HOME/.cargo/bin:$PATH' >> $BASH_ENV
+
+      - run: rustup target add armv7-linux-androideabi aarch64-linux-android i686-linux-android
+
+      - run: cargo install cross
+
+      - run:
+          name: Test android arm32
+          command: cross test --target=armv7-linux-androideabi
+
+      - run:
+          name: Test android arm64
+          command: cross test --target=aarch64-linux-android
+
+      - run:
+          name: Test android x86_32
+          command: cross test --target=i686-linux-android
+
+  Test under asan:
+    docker:
+      - image: circleci/rust:latest
+    steps:
+      - checkout
+      - run: rustup toolchain add nightly
+      - run: rustup default nightly
+      - run: rustup component add rust-src
+      - run: rustc -Vv
+      - run:
+          name: Test under address-sanitizer
+          command: |
+            export RUSTFLAGS="-Zsanitizer=address"
+            export RUSTDOCFLAGS="-Zsanitizer=address"
+            export ASAN_OPTIONS="detect_stack_use_after_return=1"
+            export RUST_BACKTRACE=0
+            cargo -Z build-std test --target=x86_64-unknown-linux-gnu --all-features

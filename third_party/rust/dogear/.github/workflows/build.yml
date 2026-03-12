@@ -1,0 +1,35 @@
+name: Run
+on:
+  push:
+  pull_request:
+    types: [opened]
+jobs:
+  Rust-Tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        toolchain: [stable, beta, nightly]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install toolchain
+        run: rustup default ${{ matrix.toolchain }}
+      - name: Build Dogear
+        run: |
+          cargo clean
+          cargo build
+      - name: Run Rust Tests
+        run: cargo test
+  Coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install toolchain
+        run: rustup default stable
+      - name: Install tarpaulin
+        run: cargo install cargo-tarpaulin
+      - name: Generate Coverage
+        run: cargo tarpaulin --out Xml
+      - name: Upload Coverage
+        run: .github/workflows/upload-to-codecov.sh

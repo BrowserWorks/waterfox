@@ -40,6 +40,7 @@ pub mod look;
 pub mod pool;
 pub mod prefilter;
 pub mod primitives;
+pub mod start;
 #[cfg(feature = "syntax")]
 pub mod syntax;
 pub mod wire;
@@ -52,6 +53,5 @@ pub(crate) mod memchr;
 pub(crate) mod search;
 #[cfg(feature = "alloc")]
 pub(crate) mod sparse_set;
-pub(crate) mod start;
 pub(crate) mod unicode_data;
 pub(crate) mod utf8;

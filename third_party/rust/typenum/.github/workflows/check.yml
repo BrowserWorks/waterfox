@@ -1,0 +1,74 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+name: CI
+
+jobs:
+  test-linux:
+    name: test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+        rust:
+          - 1.37.0
+          - stable
+          - beta
+          - nightly
+        mb_const_generics:
+          - ""
+          - "--features const-generics"
+        exclude:
+          - mb_const_generics: "--features const-generics"
+            rust: 1.37.0
+        include:
+          - os: macos-latest
+            rust: stable
+          - os: windows-latest
+            rust: stable
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+      - uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --verbose --features "strict" ${{ matrix.mb_const_generics }}
+      - uses: actions-rs/cargo@v1
+        with:
+          command: doc
+          args: --features "strict" ${{ matrix.mb_const_generics }}
+
+  clippy:
+    name: clippy + fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+          components: rustfmt, clippy
+      - uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: -- -D warnings
+      - uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          # Allow deprecated because we test the no_std feature.
+          args: --all-features -- -D warnings -A deprecated

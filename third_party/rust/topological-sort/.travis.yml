@@ -1,0 +1,32 @@
+language: rust
+dist: trusty
+sudo: false
+
+addons:
+  apt:
+    packages:
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
+      - binutils-dev
+      - libiberty-dev
+
+env:
+  global:
+    - RUSTFLAGS="-C link-dead-code"
+
+rust:
+  - nightly
+  - beta
+  - stable
+
+before_script:
+  - cargo install cargo-kcov
+  - cargo kcov --print-install-kcov-sh | $SHELL
+
+script:
+  - |
+      cargo build &&
+      cargo kcov --coveralls &&
+      cargo bench &&
+      cargo doc

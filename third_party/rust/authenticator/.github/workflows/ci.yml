@@ -1,0 +1,101 @@
+name: Build and test
+
+on: [push, pull_request]
+
+# Make sure CI fails on all warnings, including Clippy lints
+env:
+  RUSTFLAGS: "-Dwarnings"
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          # Linux dummy crypto
+          - OS: ubuntu-latest
+            TARGET: x86_64-unknown-linux-gnu
+            NATIVE_BUILD: true
+            ADD_INSTALL: |
+                sudo apt-get update
+                sudo apt-get install -y libudev-dev
+            BUILD_OPTIONS: --features crypto_dummy --no-default-features
+
+          # Linux NSS crypto
+          - OS: ubuntu-latest
+            TARGET: x86_64-unknown-linux-gnu
+            NATIVE_BUILD: true
+            ADD_INSTALL: |
+                sudo apt-get update
+                sudo apt-get install -y libudev-dev mercurial node-gyp ninja-build
+            BUILD_OPTIONS: --features crypto_nss --no-default-features
+
+          # Linux openSSL crypto
+          - OS: ubuntu-latest
+            TARGET: x86_64-unknown-linux-gnu
+            NATIVE_BUILD: true
+            ADD_INSTALL: |
+                sudo apt-get update
+                sudo apt-get install -y libudev-dev openssl
+            BUILD_OPTIONS: --features crypto_openssl --no-default-features
+
+          # Mac dummy crypto
+          - OS: macos-latest
+            TARGET: x86_64-apple-darwin
+            NATIVE_BUILD: true
+            BUILD_OPTIONS: --features crypto_dummy --no-default-features --target=x86_64-apple-darwin
+
+          # Windows dummy crypto
+          - OS: windows-latest
+            TARGET: x86_64-pc-windows-gnu
+            NATIVE_BUILD: true
+            BUILD_OPTIONS: --features crypto_dummy --no-default-features --target=x86_64-pc-windows-gnu
+
+          # FreeBSD - cross compile
+          - OS: ubuntu-latest
+            TARGET: x86_64-unknown-freebsd
+            NATIVE_BUILD: false
+            ADD_INSTALL: |
+                sudo apt-get update
+                sudo apt-get install -y libudev-dev
+            BUILD_OPTIONS: --features crypto_dummy --no-default-features
+
+          # netBSD - cross compile
+          - OS: ubuntu-latest
+            TARGET: x86_64-unknown-netbsd
+            NATIVE_BUILD: false
+            ADD_INSTALL: |
+                sudo apt-get update
+                sudo apt-get install -y libudev-dev
+            BUILD_OPTIONS: --features crypto_dummy --no-default-features
+
+          # Android - cross compile
+          - OS: ubuntu-latest
+            TARGET: x86_64-linux-android
+            NATIVE_BUILD: false
+            ADD_INSTALL: |
+                sudo apt-get update
+                sudo apt-get install -y libudev-dev
+            BUILD_OPTIONS: --features crypto_dummy --no-default-features
+
+    runs-on: ${{ matrix.OS }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Install latest rust toolchain
+        run: rustup target add ${{ matrix.TARGET }}
+
+      - name: Install Packages
+        if: ${{ matrix.ADD_INSTALL }}
+        run: ${{ matrix.ADD_INSTALL }}
+
+      - name: Build
+        run: cargo build --target ${{ matrix.TARGET }} --all --release ${{ matrix.BUILD_OPTIONS }}
+
+      - name: Test
+        # Run tests only if it is a native build
+        if: ${{ matrix.NATIVE_BUILD }}
+        run: cargo test --target ${{ matrix.TARGET }} ${{ matrix.BUILD_OPTIONS }} -- --show-output
+
+      - name: Clippy
+        run: cargo clippy --all --target ${{ matrix.TARGET }} ${{ matrix.BUILD_OPTIONS }}
