@@ -1,0 +1,43 @@
+pull_request_rules:
+  - name: automatic merge
+    conditions:
+      - base=master
+      - status-success=tests
+      - "label!=work in progress"
+      - "#approved-reviews-by>=1"
+      - "#review-requested=0"
+      - "#changes-requested-reviews-by=0"
+    actions:
+      merge:
+        method: merge
+        strict: smart
+      delete_head_branch: {}
+  - name: automatic merge
+    conditions:
+      - base=master
+      - status-success=tests
+      - "label!=work in progress"
+      - author=alecmocatta # https://github.com/Mergifyio/mergify-engine/issues/451
+      - "#review-requested=0"
+      - "#changes-requested-reviews-by=0"
+    actions:
+      merge:
+        method: merge
+        strict: smart
+      delete_head_branch: {}
+  - name: dismiss reviews
+    conditions: []
+    actions:
+      dismiss_reviews: {}
+  - name: auto add wip label
+    conditions:
+      - "title~=^WIP: .*"
+    actions:
+      label:
+        add: ["work in progress"]
+  - name: auto remove wip label
+    conditions:
+      - "-title~=^WIP: .*"
+    actions:
+      label:
+        remove: ["work in progress"]

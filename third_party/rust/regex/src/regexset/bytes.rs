@@ -355,7 +355,7 @@ impl RegexSet {
     ) -> bool {
         // This is pretty dumb. We should try to fix this, but the
         // regex-automata API doesn't provide a way to store matches in an
-        // arbitrary &mut [bool]. Thankfully, this API is is doc(hidden) and
+        // arbitrary &mut [bool]. Thankfully, this API is doc(hidden) and
         // thus not public... But regex-capi currently uses it. We should
         // fix regex-capi to use a PatternSet, maybe? Not sure... PatternSet
         // is in regex-automata, not regex. So maybe we should just accept a
@@ -482,6 +482,24 @@ impl SetMatches {
         !self.0.is_empty()
     }
 
+    /// Whether all patterns in this set matched.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use regex::bytes::RegexSet;
+    ///
+    /// let set = RegexSet::new(&[
+    ///     r"^foo",
+    ///     r"[a-z]+\.com",
+    /// ]).unwrap();
+    /// let matches = set.matches(b"foo.example.com");
+    /// assert!(matches.matched_all());
+    /// ```
+    pub fn matched_all(&self) -> bool {
+        self.0.is_full()
+    }
+
     /// Whether the regex at the given index matched.
     ///
     /// The index for a regex is determined by its insertion order upon the
@@ -563,7 +581,7 @@ impl SetMatches {
     /// assert_eq!(matches, vec![0, 1, 3]);
     /// ```
     ///
-    /// Note that `SetMatches` also implemnets the `IntoIterator` trait, so
+    /// Note that `SetMatches` also implements the `IntoIterator` trait, so
     /// this method is not always needed. For example:
     ///
     /// ```

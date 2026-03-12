@@ -1,0 +1,94 @@
+name: ci-build
+
+on:
+  push:
+    branches: [ main, release/** ]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: "-D warnings"
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+    - name: Docs
+      run: cargo doc --all-features
+      env:
+        RUSTDOCFLAGS: -Dwarnings
+
+  build-binaries:
+    strategy:
+      matrix:
+        rust-toolchain: [
+          # MSRV from Cargo.toml
+          "1.71",
+          "stable",
+        ]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust-toolchain }}
+        components: clippy
+    - name: Build
+      run: cargo build --verbose --package prio-binaries
+    - name: Clippy
+      run: cargo clippy --package prio-binaries
+
+  build-crate:
+    strategy:
+      matrix:
+        rust-toolchain: [
+          # MSRV from Cargo.toml
+          "1.71",
+          "stable",
+        ]
+    runs-on: ubuntu-latest
+    env:
+      CARGO_ALL_FEATURES_VERSION: 1.9.0
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust-toolchain }}
+        components: clippy, rustfmt
+    - name: Cache cargo-all-features
+      uses: actions/cache@v4
+      with:
+        key: cargo-all-features-bins-${{ env.CARGO_ALL_FEATURES_VERSION }}-rust-${{ matrix.rust-toolchain }}
+        path: |
+          ${{ runner.tool_cache }}/cargo-build-all-features
+          ${{ runner.tool_cache }}/cargo-check-all-features
+          ${{ runner.tool_cache }}/cargo-test-all-features
+    - name: Add the tool cache directory to the search path
+      run: echo "${{ runner.tool_cache }}/cargo-all-features/bin/" >> $GITHUB_PATH
+    - name: Ensure that the tool cache is populated with the cargo-all-features binaries
+      run: cargo install --root ${{ runner.tool_cache }}/cargo-all-features --version ${{ env.CARGO_ALL_FEATURES_VERSION }} cargo-all-features
+
+    - name: Lint
+      run: |
+        cargo fmt --message-format human -- --check
+        bash -c '! git grep "[I][P][D][F]"'
+    - name: Check
+      run: cargo check-all-features --workspace --all-targets
+    - name: Clippy
+      run: cargo clippy --workspace --all-targets
+    - name: Clippy (all features)
+      run: cargo clippy --workspace --all-targets --all-features
+    - name: Build crate
+      run: cargo build-all-features --verbose --package prio
+    - name: Run tests
+      run: cargo test-all-features --verbose
+    - name: Build benchmarks
+      run: cargo bench --no-run --profile=dev
+    - name: Build benchmarks (all features)
+      run: cargo bench --no-run --profile=dev --all-features

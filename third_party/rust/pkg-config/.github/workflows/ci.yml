@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: ${{ matrix.rust }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust:
+          - 1.30.0
+          - stable
+          - beta
+          - nightly
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: ${{ matrix.rust }}
+        default: true
+        profile: minimal
+    - run: rustup component add rustfmt-preview
+    - name: cargo fmt --all -- --check if stable
+      run: |
+        if [ "${{ matrix.rust }}" = "stable" ]; then
+          cargo fmt --all -- --check
+        fi
+    - run: |
+        cargo build --verbose
+    - run: |
+        cargo test --verbose

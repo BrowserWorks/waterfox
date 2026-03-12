@@ -36,7 +36,7 @@ fn run_test(re: &Regex, test: &RegexTest) -> TestResult {
                 .map(|caps| testify_captures(&caps));
             TestResult::captures(it)
         }
-        name => TestResult::fail(&format!("unrecognized test name: {}", name)),
+        name => TestResult::fail(&format!("unrecognized test name: {name}")),
     }
 }
 

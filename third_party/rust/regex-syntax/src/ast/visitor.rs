@@ -264,7 +264,7 @@ impl<'a> HeapVisitor<'a> {
         visitor: &mut V,
     ) -> Result<Option<Frame<'a>>, V::Err> {
         Ok(match *ast {
-            Ast::Class(ast::Class::Bracketed(ref x)) => {
+            Ast::ClassBracketed(ref x) => {
                 self.visit_class(x, visitor)?;
                 None
             }
@@ -488,7 +488,7 @@ impl<'a> core::fmt::Debug for ClassFrame<'a> {
             ClassFrame::BinaryLHS { .. } => "BinaryLHS",
             ClassFrame::BinaryRHS { .. } => "BinaryRHS",
         };
-        write!(f, "{}", x)
+        write!(f, "{x}")
     }
 }
 
@@ -517,6 +517,6 @@ impl<'a> core::fmt::Debug for ClassInduct<'a> {
                 }
             },
         };
-        write!(f, "{}", x)
+        write!(f, "{x}")
     }
 }

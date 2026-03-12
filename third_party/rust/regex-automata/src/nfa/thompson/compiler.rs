@@ -236,9 +236,9 @@ impl Config {
     ///     .build(r"\w{20}")
     ///     .unwrap_err();
     ///
-    /// // ... but 400KB probably is.
+    /// // ... but 500KB probably is.
     /// let nfa = NFA::compiler()
-    ///     .configure(NFA::config().nfa_size_limit(Some(400_000)))
+    ///     .configure(NFA::config().nfa_size_limit(Some(500_000)))
     ///     .build(r"\w{20}")?;
     ///
     /// assert_eq!(nfa.pattern_len(), 1);
@@ -563,6 +563,28 @@ pub enum WhichCaptures {
     /// This is useful when capture states are either not needed (for example,
     /// if one is only trying to build a DFA) or if they aren't supported (for
     /// example, a reverse NFA).
+    ///
+    /// # Warning
+    ///
+    /// Callers must be exceedingly careful when using this
+    /// option. In particular, not all regex engines support
+    /// reporting match spans when using this option (for example,
+    /// [`PikeVM`](crate::nfa::thompson::pikevm::PikeVM) or
+    /// [`BoundedBacktracker`](crate::nfa::thompson::backtrack::BoundedBacktracker)).
+    ///
+    /// Perhaps more confusingly, using this option with such an
+    /// engine means that an `is_match` routine could report `true`
+    /// when `find` reports `None`. This is generally not something
+    /// that _should_ happen, but the low level control provided by
+    /// this crate makes it possible.
+    ///
+    /// Similarly, any regex engines (like [`meta::Regex`](crate::meta::Regex))
+    /// should always return `None` from `find` routines when this option is
+    /// used, even if _some_ of its internal engines could find the match
+    /// boundaries. This is because inputs from user data could influence
+    /// engine selection, and thus influence whether a match is found or not.
+    /// Indeed, `meta::Regex::find` will always return `None` when configured
+    /// with this option.
     None,
 }
 
@@ -961,10 +983,12 @@ impl Compiler {
         // for all matches. When an unanchored prefix is not added, then the
         // NFA's anchored and unanchored start states are equivalent.
         let all_anchored = exprs.iter().all(|e| {
-            e.borrow()
-                .properties()
-                .look_set_prefix()
-                .contains(hir::Look::Start)
+            let props = e.borrow().properties();
+            if self.config.get_reverse() {
+                props.look_set_suffix().contains(hir::Look::End)
+            } else {
+                props.look_set_prefix().contains(hir::Look::Start)
+            }
         });
         let anchored = !self.config.get_unanchored_prefix() || all_anchored;
         let unanchored_prefix = if anchored {
@@ -1039,7 +1063,7 @@ impl Compiler {
     /// Compile an alternation of the given HIR values.
     ///
     /// This is like 'c_alt_iter', but it accepts a slice of HIR values instead
-    /// of an iterator of compiled NFA subgraphs. The point of accepting a
+    /// of an iterator of compiled NFA sub-graphs. The point of accepting a
     /// slice here is that it opens up some optimization opportunities. For
     /// example, if all of the HIR values are literals, then this routine might
     /// re-shuffle them to make NFA epsilon closures substantially faster.
@@ -1466,7 +1490,7 @@ impl Compiler {
         // compare and contrast performance of the Pike VM when the code below
         // is active vs the code above. Here's an example to try:
         //
-        //   regex-cli find match pikevm -b -p '(?m)^\w{20}' -y '@$smallishru'
+        //   regex-cli find match pikevm -b -p '(?m)^\w{20}' non-ascii-file
         //
         // With Unicode classes generated below, this search takes about 45s on
         // my machine. But with the compressed version above, the search takes
@@ -1498,7 +1522,7 @@ impl Compiler {
     ///
     /// A more comprehensive compression scheme can be accomplished by using
     /// a range trie to efficiently sort a reverse sequence of UTF-8 byte
-    /// rqanges, and then use Daciuk's algorithm via `Utf8Compiler`.
+    /// ranges, and then use Daciuk's algorithm via `Utf8Compiler`.
     ///
     /// This is the technique used when "NFA shrinking" is disabled.
     ///
@@ -1557,6 +1581,14 @@ impl Compiler {
             hir::Look::WordAsciiNegate => Look::WordAsciiNegate,
             hir::Look::WordUnicode => Look::WordUnicode,
             hir::Look::WordUnicodeNegate => Look::WordUnicodeNegate,
+            hir::Look::WordStartAscii => Look::WordStartAscii,
+            hir::Look::WordEndAscii => Look::WordEndAscii,
+            hir::Look::WordStartUnicode => Look::WordStartUnicode,
+            hir::Look::WordEndUnicode => Look::WordEndUnicode,
+            hir::Look::WordStartHalfAscii => Look::WordStartHalfAscii,
+            hir::Look::WordEndHalfAscii => Look::WordEndHalfAscii,
+            hir::Look::WordStartHalfUnicode => Look::WordStartHalfUnicode,
+            hir::Look::WordEndHalfUnicode => Look::WordEndHalfUnicode,
         };
         let id = self.add_look(look)?;
         Ok(ThompsonRef { start: id, end: id })
@@ -1655,7 +1687,7 @@ impl Compiler {
         capture_index: u32,
         name: Option<&str>,
     ) -> Result<StateID, BuildError> {
-        let name = name.map(|n| Arc::from(n));
+        let name = name.map(Arc::from);
         self.builder.borrow_mut().add_capture_start(
             StateID::ZERO,
             capture_index,
@@ -1692,7 +1724,7 @@ pub(crate) struct ThompsonRef {
     pub(crate) end: StateID,
 }
 
-/// A UTF-8 compiler based on Daciuk's algorithm for compilining minimal DFAs
+/// A UTF-8 compiler based on Daciuk's algorithm for compiling minimal DFAs
 /// from a lexicographically sorted sequence of strings in linear time.
 ///
 /// The trick here is that any Unicode codepoint range can be converted to
@@ -1868,11 +1900,11 @@ impl Utf8Node {
 
 #[cfg(test)]
 mod tests {
-    use alloc::{vec, vec::Vec};
+    use alloc::vec;
 
     use crate::{
-        nfa::thompson::{SparseTransitions, State, Transition, NFA},
-        util::primitives::{PatternID, SmallIndex, StateID},
+        nfa::thompson::{SparseTransitions, State},
+        util::primitives::SmallIndex,
     };
 
     use super::*;
@@ -1918,6 +1950,11 @@ mod tests {
             })
             .collect();
         State::Sparse(SparseTransitions { transitions })
+    }
+
+    fn s_look(look: Look, next: usize) -> State {
+        let next = sid(next);
+        State::Look { look, next }
     }
 
     fn s_bin_union(alt1: usize, alt2: usize) -> State {
@@ -1967,6 +2004,80 @@ mod tests {
                 s_byte(b'a', 3),
                 s_match(0),
             ]
+        );
+    }
+
+    #[test]
+    fn compile_no_unanchored_prefix_with_start_anchor() {
+        let nfa = NFA::compiler()
+            .configure(NFA::config().which_captures(WhichCaptures::None))
+            .build(r"^a")
+            .unwrap();
+        assert_eq!(
+            nfa.states(),
+            &[s_look(Look::Start, 1), s_byte(b'a', 2), s_match(0)]
+        );
+    }
+
+    #[test]
+    fn compile_yes_unanchored_prefix_with_end_anchor() {
+        let nfa = NFA::compiler()
+            .configure(NFA::config().which_captures(WhichCaptures::None))
+            .build(r"a$")
+            .unwrap();
+        assert_eq!(
+            nfa.states(),
+            &[
+                s_bin_union(2, 1),
+                s_range(0, 255, 0),
+                s_byte(b'a', 3),
+                s_look(Look::End, 4),
+                s_match(0),
+            ]
+        );
+    }
+
+    #[test]
+    fn compile_yes_reverse_unanchored_prefix_with_start_anchor() {
+        let nfa = NFA::compiler()
+            .configure(
+                NFA::config()
+                    .reverse(true)
+                    .which_captures(WhichCaptures::None),
+            )
+            .build(r"^a")
+            .unwrap();
+        assert_eq!(
+            nfa.states(),
+            &[
+                s_bin_union(2, 1),
+                s_range(0, 255, 0),
+                s_byte(b'a', 3),
+                // Anchors get flipped in a reverse automaton.
+                s_look(Look::End, 4),
+                s_match(0),
+            ],
+        );
+    }
+
+    #[test]
+    fn compile_no_reverse_unanchored_prefix_with_end_anchor() {
+        let nfa = NFA::compiler()
+            .configure(
+                NFA::config()
+                    .reverse(true)
+                    .which_captures(WhichCaptures::None),
+            )
+            .build(r"a$")
+            .unwrap();
+        assert_eq!(
+            nfa.states(),
+            &[
+                // Anchors get flipped in a reverse automaton.
+                s_look(Look::Start, 1),
+                s_byte(b'a', 2),
+                s_match(0),
+            ],
         );
     }
 

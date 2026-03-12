@@ -1,0 +1,67 @@
+name: CI Build Status
+
+on:
+  pull_request:
+  push:
+    branches: main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: 0
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        target:
+          - { os: ubuntu-latest, host: '' }
+          - { os: macos-latest, host: '' }
+          - { os: windows-latest, host: '-x86_64-pc-windows-msvc' }
+          - { os: windows-latest, host: '-i686-pc-windows-msvc' }
+        toolchain: [1.66.0, stable, beta, nightly]
+      fail-fast: false
+
+    runs-on: ${{ matrix.target.os }}
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Install Rust toolchain ${{ matrix.toolchain }}${{ matrix.target.host }} on ${{ matrix.target.os }}
+        run: |
+          rustup toolchain install ${{ matrix.toolchain }}${{ matrix.target.host }} --profile minimal --component rustfmt clippy
+          rustup default ${{ matrix.toolchain }}${{ matrix.target.host }}
+
+      - if: ${{ matrix.toolchain == 'nightly' }}
+        run: cargo clippy --all-features -- -D warnings
+        env:
+          CC: clang
+
+      - run: cargo build --verbose
+
+      - name: Test with all features
+        run: cargo test --all --verbose
+
+      - name: Test with no default features
+        run: cargo test --lib --no-default-features --verbose
+
+      - name: Test with db-dup-sort
+        run: cargo test --lib --no-default-features --features "db-dup-sort" --verbose
+
+      - name: Test with db-int-key
+        run: cargo test --lib --no-default-features --features "db-int-key" --verbose
+
+      - name: Test with LMDB enabled
+        run: cargo test --all --features "lmdb" --verbose
+
+      - name: Test in release mode
+        run: cargo test --release --all --verbose
+
+      - name: Run all examples
+        run: ./run-all-examples.sh

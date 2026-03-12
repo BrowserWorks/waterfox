@@ -21,15 +21,14 @@ fn run_test(re: &RegexSet, test: &RegexTest) -> TestResult {
         Ok(hay) => hay,
         Err(err) => {
             return TestResult::fail(&format!(
-                "haystack is not valid UTF-8: {}",
-                err
+                "haystack is not valid UTF-8: {err}",
             ));
         }
     };
     match test.additional_name() {
         "is_match" => TestResult::matched(re.is_match(hay)),
         "which" => TestResult::which(re.matches(hay).iter()),
-        name => TestResult::fail(&format!("unrecognized test name: {}", name)),
+        name => TestResult::fail(&format!("unrecognized test name: {name}")),
     }
 }
 

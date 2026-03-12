@@ -1,0 +1,13 @@
+language: rust
+rust:
+  - stable
+  - beta
+  - nightly
+  - 1.24.0 # Debian
+  - 1.19.0 # mrustc
+
+script:
+  - cargo build --verbose
+  - cargo test --verbose
+  - sh ./run_miri.sh
+

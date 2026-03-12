@@ -1,0 +1,42 @@
+- repo: git://github.com/pre-commit/pre-commit-hooks
+  rev: HEAD
+  hooks:
+    - id: flake8
+    - id: check-ast
+    - id: detect-private-key
+    - id: detect-aws-credentials
+    - id: check-merge-conflict
+    - id: end-of-file-fixer
+    - id: requirements-txt-fixer
+    - id: trailing-whitespace
+- repo: local
+  hooks:
+    - id: rustfmt
+      name: Check rustfmt
+      language: system
+      entry: cargo fmt -- --check
+      pass_filenames: false
+      files: '.rs$'
+- repo: local
+  hooks:
+    - id: tests
+      name: Run tests
+      language: system
+      entry: cargo test --all-targets --all-features
+      pass_filenames: false
+      files: '.rs$'
+- repo: local
+  hooks:
+    - id: clippy
+      name: Check clippy
+      language: system
+      entry: cargo clippy --all-targets -- -A renamed_and_removed_lints -A clippy::new-ret-no-self -D warnings
+      pass_filenames: false
+      files: '.rs$'
+- repo: local
+  hooks:
+    - id: black
+      name: Check black
+      language: system
+      entry: black
+      files: '.py$'

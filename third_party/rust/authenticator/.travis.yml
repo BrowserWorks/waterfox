@@ -1,0 +1,42 @@
+os:
+  - linux
+  - windows
+
+language: rust
+rust:
+  - stable
+  - nightly
+cache: cargo
+
+jobs:
+  allow_failures:
+    - rust: nightly
+
+addons:
+  apt:
+    packages:
+      - build-essential
+      - libudev-dev
+
+install:
+  - rustup component add rustfmt
+  - rustup component add clippy
+
+script:
+- |
+  if [ "$TRAVIS_RUST_VERSION" == "nightly" ] && [ "$TRAVIS_OS_NAME" == "linux" ] ; then
+    export ASAN_OPTIONS="detect_odr_violation=1:leak_check_at_exit=0:detect_leaks=0"
+    export RUSTFLAGS="-Z sanitizer=address"
+  fi
+- |
+  if [ "$TRAVIS_RUST_VERSION" == "stable" ] && [ "$TRAVIS_OS_NAME" == "linux" ] ; then
+    echo "Running rustfmt"
+    cargo fmt --all -- --check
+    echo "Running clippy"
+    cargo clippy --all-targets --all-features -- -A renamed_and_removed_lints -A clippy::new-ret-no-self -D warnings
+
+    rustup install nightly
+    cargo install cargo-fuzz
+    cargo +nightly fuzz build
+  fi
+- cargo test --all-targets --all-features

@@ -65,7 +65,7 @@ const INIT: u64 = 14695981039346656037;
 /// Specifically, one could observe the difference with std's hashmap via
 /// something like the following benchmark:
 ///
-///   hyperfine "regex-cli debug nfa thompson --quiet --reverse '\w{90} ecurB'"
+///   hyperfine "regex-cli debug thompson -qr --captures none '\w{90} ecurB'"
 ///
 /// But to observe that difference, you'd have to modify the code to use
 /// std's hashmap.
