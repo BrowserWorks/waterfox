@@ -878,7 +878,7 @@ impl Builder {
     }
 
     /// Set the lazy DFA compilation configuration for this builder using
-    /// [`dfa::Config`](dfa::Config).
+    /// [`dfa::Config`].
     ///
     /// This permits setting things like whether Unicode word boundaries should
     /// be heuristically supported or settings how the behavior of the cache.

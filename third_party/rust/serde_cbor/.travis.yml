@@ -1,0 +1,28 @@
+language: rust
+rust:
+  - 1.40.0
+  - stable
+  - beta
+  - nightly
+matrix:
+  allow_failures:
+    - rust: nightly
+sudo: false
+before_script:
+  - rustup component add rustfmt
+  - rustup target add thumbv7em-none-eabihf     # Any target that does not have a standard library will do
+script:
+  - cargo fmt --all -- --check
+  - (rustup component add clippy && cargo clippy --all -- -D clippy::all) || true
+  - cargo build
+  - cargo test
+  - >
+    [[ $TRAVIS_RUST_VERSION == "1.31.0" ]]
+    || cargo build --no-default-features --features alloc --target thumbv7em-none-eabihf
+    # Test we can build a platform that does not have std.
+  - cargo test --no-default-features --lib --tests # Run no_std tests
+  - >
+    [[ $TRAVIS_RUST_VERSION == "1.31.0" ]]
+    || cargo build --no-default-features --features alloc
+  - cargo build --features unsealed_read_write # The crate should still build when the unsealed_read_write feature is enabled.
+  - cargo build --no-default-features --features unsealed_read_write # The crate should still build when the unsealed_read_write feature is enabled and std disabled.

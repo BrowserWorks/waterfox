@@ -11,18 +11,34 @@
 
 [package]
 edition = "2021"
-rust-version = "1.60.0"
+rust-version = "1.65"
 name = "regex"
-version = "1.9.4"
+version = "1.12.3"
 authors = [
     "The Rust Project Developers",
     "Andrew Gallant <jamslam@gmail.com>",
 ]
-exclude = [
-    "/scripts/*",
-    "/.github/*",
+build = false
+include = [
+    "/CHANGELOG.md",
+    "/Cargo.toml",
+    "/LICENSE-MIT",
+    "/LICENSE-APACHE",
+    "/README.md",
+    "/UNICODE.md",
+    "bench/README.md",
+    "src/**/*.rs",
+    "testdata/**.toml",
+    "tests/**/*.rs",
+    "bench/**/*.rs",
+    "LICENSE-UNICODE",
+    "!/tests/fuzz/mod.rs",
 ]
+autolib = false
+autobins = false
+autoexamples = false
 autotests = false
+autobenches = false
 description = """
 An implementation of regular expressions for Rust. This implementation uses
 finite automata and guarantees linear time matching on all inputs.
@@ -38,73 +54,8 @@ repository = "https://github.com/rust-lang/regex"
 all-features = true
 rustdoc-args = [
     "--cfg",
-    "docsrs",
+    "docsrs_regex",
 ]
-
-[profile.bench]
-debug = 2
-
-[profile.dev]
-opt-level = 3
-debug = 2
-
-[profile.release]
-debug = 2
-
-[profile.test]
-opt-level = 3
-debug = 2
-
-[[test]]
-name = "integration"
-path = "tests/lib.rs"
-
-[dependencies.aho-corasick]
-version = "1.0.0"
-optional = true
-
-[dependencies.memchr]
-version = "2.5.0"
-optional = true
-
-[dependencies.regex-automata]
-version = "0.3.7"
-features = [
-    "alloc",
-    "syntax",
-    "meta",
-    "nfa-pikevm",
-]
-default-features = false
-
-[dependencies.regex-syntax]
-version = "0.7.5"
-default-features = false
-
-[dev-dependencies.anyhow]
-version = "1.0.69"
-
-[dev-dependencies.doc-comment]
-version = "0.3"
-
-[dev-dependencies.env_logger]
-version = "0.9.3"
-features = [
-    "atty",
-    "humantime",
-    "termcolor",
-]
-default-features = false
-
-[dev-dependencies.once_cell]
-version = "1.17.1"
-
-[dev-dependencies.quickcheck]
-version = "1.0.3"
-default-features = false
-
-[dev-dependencies.regex-test]
-version = "0.1.0"
 
 [features]
 default = [
@@ -115,6 +66,7 @@ default = [
 ]
 logging = [
     "aho-corasick?/logging",
+    "memchr?/logging",
     "regex-automata/logging",
 ]
 pattern = []
@@ -188,3 +140,76 @@ unicode-segment = [
 ]
 unstable = ["pattern"]
 use_std = ["std"]
+
+[lib]
+name = "regex"
+path = "src/lib.rs"
+
+[[test]]
+name = "integration"
+path = "tests/lib.rs"
+
+[dependencies.aho-corasick]
+version = "1.0.0"
+optional = true
+default-features = false
+
+[dependencies.memchr]
+version = "2.6.0"
+optional = true
+default-features = false
+
+[dependencies.regex-automata]
+version = "0.4.12"
+features = [
+    "alloc",
+    "syntax",
+    "meta",
+    "nfa-pikevm",
+]
+default-features = false
+
+[dependencies.regex-syntax]
+version = "0.8.5"
+default-features = false
+
+[dev-dependencies.anyhow]
+version = "1.0.69"
+
+[dev-dependencies.doc-comment]
+version = "0.3"
+
+[dev-dependencies.env_logger]
+version = "0.9.3"
+features = [
+    "atty",
+    "humantime",
+    "termcolor",
+]
+default-features = false
+
+[dev-dependencies.quickcheck]
+version = "1.0.3"
+default-features = false
+
+[dev-dependencies.regex-test]
+version = "0.1.0"
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+priority = 0
+check-cfg = ["cfg(docsrs_regex)"]
+
+[profile.bench]
+debug = 2
+
+[profile.dev]
+opt-level = 3
+debug = 2
+
+[profile.release]
+debug = 2
+
+[profile.test]
+opt-level = 3
+debug = 2
