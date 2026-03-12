@@ -71,8 +71,7 @@ impl core::fmt::Display for Error {
             Error::Syntax(ref err) => err.fmt(f),
             Error::CompiledTooBig(limit) => write!(
                 f,
-                "Compiled regex exceeds size limit of {} bytes.",
-                limit
+                "Compiled regex exceeds size limit of {limit} bytes.",
             ),
         }
     }
@@ -88,9 +87,9 @@ impl core::fmt::Debug for Error {
             Error::Syntax(ref err) => {
                 let hr: String = core::iter::repeat('~').take(79).collect();
                 writeln!(f, "Syntax(")?;
-                writeln!(f, "{}", hr)?;
-                writeln!(f, "{}", err)?;
-                writeln!(f, "{}", hr)?;
+                writeln!(f, "{hr}")?;
+                writeln!(f, "{err}")?;
+                writeln!(f, "{hr}")?;
                 write!(f, ")")?;
                 Ok(())
             }

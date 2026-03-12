@@ -177,6 +177,7 @@ impl<T: Send, F: Fn() -> T> Pool<T, F> {
     /// the value to go back into the pool) and then calling get again is
     /// *not* guaranteed to return the same value received in the first `get`
     /// call.
+    #[inline]
     pub fn get(&self) -> PoolGuard<'_, T, F> {
         PoolGuard(self.0.get())
     }
@@ -200,6 +201,7 @@ impl<'a, T: Send, F: Fn() -> T> PoolGuard<'a, T, F> {
     /// This circumvents the guard's `Drop` implementation. This can be useful
     /// in circumstances where the automatic `Drop` results in poorer codegen,
     /// such as calling non-inlined functions.
+    #[inline]
     pub fn put(this: PoolGuard<'_, T, F>) {
         inner::PoolGuard::put(this.0);
     }
@@ -208,12 +210,14 @@ impl<'a, T: Send, F: Fn() -> T> PoolGuard<'a, T, F> {
 impl<'a, T: Send, F: Fn() -> T> core::ops::Deref for PoolGuard<'a, T, F> {
     type Target = T;
 
+    #[inline]
     fn deref(&self) -> &T {
         self.0.value()
     }
 }
 
 impl<'a, T: Send, F: Fn() -> T> core::ops::DerefMut for PoolGuard<'a, T, F> {
+    #[inline]
     fn deref_mut(&mut self) -> &mut T {
         self.0.value_mut()
     }
@@ -268,6 +272,64 @@ mod inner {
     /// do.
     static THREAD_ID_DROPPED: usize = 2;
 
+    /// The number of stacks we use inside of the pool. These are only used for
+    /// non-owners. That is, these represent the "slow" path.
+    ///
+    /// In the original implementation of this pool, we only used a single
+    /// stack. While this might be okay for a couple threads, the prevalence of
+    /// 32, 64 and even 128 core CPUs has made it untenable. The contention
+    /// such an environment introduces when threads are doing a lot of searches
+    /// on short haystacks (a not uncommon use case) is palpable and leads to
+    /// huge slowdowns.
+    ///
+    /// This constant reflects a change from using one stack to the number of
+    /// stacks that this constant is set to. The stack for a particular thread
+    /// is simply chosen by `thread_id % MAX_POOL_STACKS`. The idea behind
+    /// this setup is that there should be a good chance that accesses to the
+    /// pool will be distributed over several stacks instead of all of them
+    /// converging to one.
+    ///
+    /// This is not a particularly smart or dynamic strategy. Fixing this to a
+    /// specific number has at least two downsides. First is that it will help,
+    /// say, an 8 core CPU more than it will a 128 core CPU. (But, crucially,
+    /// it will still help the 128 core case.) Second is that this may wind
+    /// up being a little wasteful with respect to memory usage. Namely, if a
+    /// regex is used on one thread and then moved to another thread, then it
+    /// could result in creating a new copy of the data in the pool even though
+    /// only one is actually needed.
+    ///
+    /// And that memory usage bit is why this is set to 8 and not, say, 64.
+    /// Keeping it at 8 limits, to an extent, how much unnecessary memory can
+    /// be allocated.
+    ///
+    /// In an ideal world, we'd be able to have something like this:
+    ///
+    /// * Grow the number of stacks as the number of concurrent callers
+    /// increases. I spent a little time trying this, but even just adding an
+    /// atomic addition/subtraction for each pop/push for tracking concurrent
+    /// callers led to a big perf hit. Since even more work would seemingly be
+    /// required than just an addition/subtraction, I abandoned this approach.
+    /// * The maximum amount of memory used should scale with respect to the
+    /// number of concurrent callers and *not* the total number of existing
+    /// threads. This is primarily why the `thread_local` crate isn't used, as
+    /// as some environments spin up a lot of threads. This led to multiple
+    /// reports of extremely high memory usage (often described as memory
+    /// leaks).
+    /// * Even more ideally, the pool should contract in size. That is, it
+    /// should grow with bursts and then shrink. But this is a pretty thorny
+    /// issue to tackle and it might be better to just not.
+    /// * It would be nice to explore the use of, say, a lock-free stack
+    /// instead of using a mutex to guard a `Vec` that is ultimately just
+    /// treated as a stack. The main thing preventing me from exploring this
+    /// is the ABA problem. The `crossbeam` crate has tools for dealing with
+    /// this sort of problem (via its epoch based memory reclamation strategy),
+    /// but I can't justify bringing in all of `crossbeam` as a dependency of
+    /// `regex` for this.
+    ///
+    /// See this issue for more context and discussion:
+    /// https://github.com/rust-lang/regex/issues/934
+    const MAX_POOL_STACKS: usize = 8;
+
     thread_local!(
         /// A thread local used to assign an ID to a thread.
         static THREAD_ID: usize = {
@@ -291,6 +353,17 @@ mod inner {
         };
     );
 
+    /// This puts each stack in the pool below into its own cache line. This is
+    /// an absolutely critical optimization that tends to have the most impact
+    /// in high contention workloads. Without forcing each mutex protected
+    /// into its own cache line, high contention exacerbates the performance
+    /// problem by causing "false sharing." By putting each mutex in its own
+    /// cache-line, we avoid the false sharing problem and the affects of
+    /// contention are greatly reduced.
+    #[derive(Debug)]
+    #[repr(C, align(64))]
+    struct CacheLine<T>(T);
+
     /// A thread safe pool utilizing std-only features.
     ///
     /// The main difference between this and the simplistic alloc-only pool is
@@ -299,12 +372,16 @@ mod inner {
     /// This makes the common case of running a regex within a single thread
     /// faster by avoiding mutex unlocking.
     pub(super) struct Pool<T, F> {
-        /// A stack of T values to hand out. These are used when a Pool is
-        /// accessed by a thread that didn't create it.
-        stack: Mutex<Vec<Box<T>>>,
         /// A function to create more T values when stack is empty and a caller
         /// has requested a T.
         create: F,
+        /// Multiple stacks of T values to hand out. These are used when a Pool
+        /// is accessed by a thread that didn't create it.
+        ///
+        /// Conceptually this is `Mutex<Vec<Box<T>>>`, but sharded out to make
+        /// it scale better under high contention work-loads. We index into
+        /// this sequence via `thread_id % stacks.len()`.
+        stacks: Vec<CacheLine<Mutex<Vec<Box<T>>>>>,
         /// The ID of the thread that owns this pool. The owner is the thread
         /// that makes the first call to 'get'. When the owner calls 'get', it
         /// gets 'owner_val' directly instead of returning a T from 'stack'.
@@ -354,9 +431,17 @@ mod inner {
     unsafe impl<T: Send, F: Send + Sync> Sync for Pool<T, F> {}
 
     // If T is UnwindSafe, then since we provide exclusive access to any
-    // particular value in the pool, it should therefore also be considered
-    // RefUnwindSafe. Also, since we use std::sync::Mutex, we get poisoning
-    // from it if another thread panics while the lock is held.
+    // particular value in the pool, the pool should therefore also be
+    // considered UnwindSafe.
+    //
+    // We require `F: UnwindSafe + RefUnwindSafe` because we call `F` at any
+    // point on demand, so it needs to be unwind safe on both dimensions for
+    // the entire Pool to be unwind safe.
+    impl<T: UnwindSafe, F: UnwindSafe + RefUnwindSafe> UnwindSafe for Pool<T, F> {}
+
+    // If T is UnwindSafe, then since we provide exclusive access to any
+    // particular value in the pool, the pool should therefore also be
+    // considered RefUnwindSafe.
     //
     // We require `F: UnwindSafe + RefUnwindSafe` because we call `F` at any
     // point on demand, so it needs to be unwind safe on both dimensions for
@@ -370,20 +455,58 @@ mod inner {
         /// Create a new pool. The given closure is used to create values in
         /// the pool when necessary.
         pub(super) fn new(create: F) -> Pool<T, F> {
-            // MSRV(1.63): Mark this function as 'const'. I've arranged the
-            // code such that it should "just work." Then mark the public
-            // 'Pool::new' method as 'const' too. (The alloc-only Pool::new
-            // is already 'const', so that should "just work" too.) The only
-            // thing we're waiting for is Mutex::new to be const.
+            // FIXME: Now that we require 1.65+, Mutex::new is available as
+            // const... So we can almost mark this function as const. But of
+            // course, we're creating a Vec of stacks below (we didn't when I
+            // originally wrote this code). It seems like the best way to work
+            // around this would be to use a `[Stack; MAX_POOL_STACKS]` instead
+            // of a `Vec<Stack>`. I refrained from making this change at time
+            // of writing (2023/10/08) because I was making a lot of other
+            // changes at the same time and wanted to do this more carefully.
+            // Namely, because of the cache line optimization, that `[Stack;
+            // MAX_POOL_STACKS]` would be quite big. It's unclear how bad (if
+            // at all) that would be.
+            //
+            // Another choice would be to lazily allocate the stacks, but...
+            // I'm not so sure about that. Seems like a fair bit of complexity?
+            //
+            // Maybe there's a simple solution I'm missing.
+            //
+            // ... OK, I tried to fix this. First, I did it by putting `stacks`
+            // in an `UnsafeCell` and using a `Once` to lazily initialize it.
+            // I benchmarked it and everything looked okay. I then made this
+            // function `const` and thought I was just about done. But the
+            // public pool type wraps its inner pool in a `Box` to keep its
+            // size down. Blech.
+            //
+            // So then I thought that I could push the box down into this
+            // type (and leave the non-std version unboxed) and use the same
+            // `UnsafeCell` technique to lazily initialize it. This has the
+            // downside of the `Once` now needing to get hit in the owner fast
+            // path, but maybe that's OK? However, I then realized that we can
+            // only lazily initialize `stacks`, `owner` and `owner_val`. The
+            // `create` function needs to be put somewhere outside of the box.
+            // So now the pool is a `Box`, `Once` and a function. Now we're
+            // starting to defeat the point of boxing in the first place. So I
+            // backed out that change too.
+            //
+            // Back to square one. I maybe we just don't make a pool's
+            // constructor const and live with it. It's probably not a huge
+            // deal.
+            let mut stacks = Vec::with_capacity(MAX_POOL_STACKS);
+            for _ in 0..stacks.capacity() {
+                stacks.push(CacheLine(Mutex::new(vec![])));
+            }
             let owner = AtomicUsize::new(THREAD_ID_UNOWNED);
             let owner_val = UnsafeCell::new(None); // init'd on first access
-            Pool { stack: Mutex::new(vec![]), create, owner, owner_val }
+            Pool { create, stacks, owner, owner_val }
         }
     }
 
     impl<T: Send, F: Fn() -> T> Pool<T, F> {
         /// Get a value from the pool. This may block if another thread is also
         /// attempting to retrieve a value from the pool.
+        #[inline]
         pub(super) fn get(&self) -> PoolGuard<'_, T, F> {
             // Our fast path checks if the caller is the thread that "owns"
             // this pool. Or stated differently, whether it is the first thread
@@ -401,6 +524,9 @@ mod inner {
             let caller = THREAD_ID.with(|id| *id);
             let owner = self.owner.load(Ordering::Acquire);
             if caller == owner {
+                // N.B. We could also do a CAS here instead of a load/store,
+                // but ad hoc benchmarking suggests it is slower. And a lot
+                // slower in the case where `get_slow` is common.
                 self.owner.store(THREAD_ID_INUSE, Ordering::Release);
                 return self.guard_owned(caller);
             }
@@ -444,37 +570,86 @@ mod inner {
                     return self.guard_owned(caller);
                 }
             }
-            let mut stack = self.stack.lock().unwrap();
-            let value = match stack.pop() {
-                None => Box::new((self.create)()),
-                Some(value) => value,
-            };
-            self.guard_stack(value)
+            let stack_id = caller % self.stacks.len();
+            // We try to acquire exclusive access to this thread's stack, and
+            // if so, grab a value from it if we can. We put this in a loop so
+            // that it's easy to tweak and experiment with a different number
+            // of tries. In the end, I couldn't see anything obviously better
+            // than one attempt in ad hoc testing.
+            for _ in 0..1 {
+                let mut stack = match self.stacks[stack_id].0.try_lock() {
+                    Err(_) => continue,
+                    Ok(stack) => stack,
+                };
+                if let Some(value) = stack.pop() {
+                    return self.guard_stack(value);
+                }
+                // Unlock the mutex guarding the stack before creating a fresh
+                // value since we no longer need the stack.
+                drop(stack);
+                let value = Box::new((self.create)());
+                return self.guard_stack(value);
+            }
+            // We're only here if we could get access to our stack, so just
+            // create a new value. This seems like it could be wasteful, but
+            // waiting for exclusive access to a stack when there's high
+            // contention is brutal for perf.
+            self.guard_stack_transient(Box::new((self.create)()))
         }
 
         /// Puts a value back into the pool. Callers don't need to call this.
         /// Once the guard that's returned by 'get' is dropped, it is put back
         /// into the pool automatically.
+        #[inline]
         fn put_value(&self, value: Box<T>) {
-            let mut stack = self.stack.lock().unwrap();
-            stack.push(value);
+            let caller = THREAD_ID.with(|id| *id);
+            let stack_id = caller % self.stacks.len();
+            // As with trying to pop a value from this thread's stack, we
+            // merely attempt to get access to push this value back on the
+            // stack. If there's too much contention, we just give up and throw
+            // the value away.
+            //
+            // Interestingly, in ad hoc benchmarking, it is beneficial to
+            // attempt to push the value back more than once, unlike when
+            // popping the value. I don't have a good theory for why this is.
+            // I guess if we drop too many values then that winds up forcing
+            // the pop operation to create new fresh values and thus leads to
+            // less reuse. There's definitely a balancing act here.
+            for _ in 0..10 {
+                let mut stack = match self.stacks[stack_id].0.try_lock() {
+                    Err(_) => continue,
+                    Ok(stack) => stack,
+                };
+                stack.push(value);
+                return;
+            }
         }
 
         /// Create a guard that represents the special owned T.
+        #[inline]
         fn guard_owned(&self, caller: usize) -> PoolGuard<'_, T, F> {
-            PoolGuard { pool: self, value: Err(caller) }
+            PoolGuard { pool: self, value: Err(caller), discard: false }
         }
 
         /// Create a guard that contains a value from the pool's stack.
+        #[inline]
         fn guard_stack(&self, value: Box<T>) -> PoolGuard<'_, T, F> {
-            PoolGuard { pool: self, value: Ok(value) }
+            PoolGuard { pool: self, value: Ok(value), discard: false }
+        }
+
+        /// Create a guard that contains a value from the pool's stack with an
+        /// instruction to throw away the value instead of putting it back
+        /// into the pool.
+        #[inline]
+        fn guard_stack_transient(&self, value: Box<T>) -> PoolGuard<'_, T, F> {
+            PoolGuard { pool: self, value: Ok(value), discard: true }
         }
     }
 
     impl<T: core::fmt::Debug, F> core::fmt::Debug for Pool<T, F> {
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
             f.debug_struct("Pool")
-                .field("stack", &self.stack)
+                .field("stacks", &self.stacks)
                 .field("owner", &self.owner)
                 .field("owner_val", &self.owner_val)
                 .finish()
@@ -490,13 +665,20 @@ mod inner {
         /// in the special case of `Err(THREAD_ID_DROPPED)`, it means the
         /// guard has been put back into the pool and should no longer be used.
         value: Result<Box<T>, usize>,
+        /// When true, the value should be discarded instead of being pushed
+        /// back into the pool. We tend to use this under high contention, and
+        /// this allows us to avoid inflating the size of the pool. (Because
+        /// under contention, we tend to create more values instead of waiting
+        /// for access to a stack of existing values.)
+        discard: bool,
     }
 
     impl<'a, T: Send, F: Fn() -> T> PoolGuard<'a, T, F> {
         /// Return the underlying value.
+        #[inline]
         pub(super) fn value(&self) -> &T {
             match self.value {
-                Ok(ref v) => &**v,
+                Ok(ref v) => v,
                 // SAFETY: This is safe because the only way a PoolGuard gets
                 // created for self.value=Err is when the current thread
                 // corresponds to the owning thread, of which there can only
@@ -518,9 +700,10 @@ mod inner {
         }
 
         /// Return the underlying value as a mutable borrow.
+        #[inline]
         pub(super) fn value_mut(&mut self) -> &mut T {
             match self.value {
-                Ok(ref mut v) => &mut **v,
+                Ok(ref mut v) => v,
                 // SAFETY: This is safe because the only way a PoolGuard gets
                 // created for self.value=None is when the current thread
                 // corresponds to the owning thread, of which there can only
@@ -542,6 +725,7 @@ mod inner {
         }
 
         /// Consumes this guard and puts it back into the pool.
+        #[inline]
         pub(super) fn put(this: PoolGuard<'_, T, F>) {
             // Since this is effectively consuming the guard and putting the
             // value back into the pool, there's no reason to run its Drop
@@ -557,7 +741,17 @@ mod inner {
         #[inline(always)]
         fn put_imp(&mut self) {
             match core::mem::replace(&mut self.value, Err(THREAD_ID_DROPPED)) {
-                Ok(value) => self.pool.put_value(value),
+                Ok(value) => {
+                    // If we were told to discard this value then don't bother
+                    // trying to put it back into the pool. This occurs when
+                    // the pop operation failed to acquire a lock and we
+                    // decided to create a new value in lieu of contending for
+                    // the lock.
+                    if self.discard {
+                        return;
+                    }
+                    self.pool.put_value(value);
+                }
                 // If this guard has a value "owned" by the thread, then
                 // the Pool guarantees that this is the ONLY such guard.
                 // Therefore, in order to place it back into the pool and make
@@ -580,6 +774,7 @@ mod inner {
     }
 
     impl<'a, T: Send, F: Fn() -> T> Drop for PoolGuard<'a, T, F> {
+        #[inline]
         fn drop(&mut self) {
             self.put_imp();
         }
@@ -657,6 +852,7 @@ mod inner {
     impl<T: Send, F: Fn() -> T> Pool<T, F> {
         /// Get a value from the pool. This may block if another thread is also
         /// attempting to retrieve a value from the pool.
+        #[inline]
         pub(super) fn get(&self) -> PoolGuard<'_, T, F> {
             let mut stack = self.stack.lock();
             let value = match stack.pop() {
@@ -666,6 +862,7 @@ mod inner {
             PoolGuard { pool: self, value: Some(value) }
         }
 
+        #[inline]
         fn put(&self, guard: PoolGuard<'_, T, F>) {
             let mut guard = core::mem::ManuallyDrop::new(guard);
             if let Some(value) = guard.value.take() {
@@ -676,6 +873,7 @@ mod inner {
         /// Puts a value back into the pool. Callers don't need to call this.
         /// Once the guard that's returned by 'get' is dropped, it is put back
         /// into the pool automatically.
+        #[inline]
         fn put_value(&self, value: Box<T>) {
             let mut stack = self.stack.lock();
             stack.push(value);
@@ -698,16 +896,19 @@ mod inner {
 
     impl<'a, T: Send, F: Fn() -> T> PoolGuard<'a, T, F> {
         /// Return the underlying value.
+        #[inline]
         pub(super) fn value(&self) -> &T {
             self.value.as_deref().unwrap()
         }
 
         /// Return the underlying value as a mutable borrow.
+        #[inline]
         pub(super) fn value_mut(&mut self) -> &mut T {
             self.value.as_deref_mut().unwrap()
         }
 
         /// Consumes this guard and puts it back into the pool.
+        #[inline]
         pub(super) fn put(this: PoolGuard<'_, T, F>) {
             // Since this is effectively consuming the guard and putting the
             // value back into the pool, there's no reason to run its Drop
@@ -729,6 +930,7 @@ mod inner {
     }
 
     impl<'a, T: Send, F: Fn() -> T> Drop for PoolGuard<'a, T, F> {
+        #[inline]
         fn drop(&mut self) {
             self.put_imp();
         }
@@ -745,7 +947,7 @@ mod inner {
         }
     }
 
-    /// A spin-lock based mutex. Yes, I have read spinlocks cosnidered
+    /// A spin-lock based mutex. Yes, I have read spinlocks considered
     /// harmful[1], and if there's a reasonable alternative choice, I'll
     /// happily take it.
     ///
@@ -782,6 +984,7 @@ mod inner {
         /// Lock this mutex and return a guard providing exclusive access to
         /// `T`. This blocks if some other thread has already locked this
         /// mutex.
+        #[inline]
         fn lock(&self) -> MutexGuard<'_, T> {
             while self
                 .locked
@@ -814,18 +1017,21 @@ mod inner {
     impl<'a, T> core::ops::Deref for MutexGuard<'a, T> {
         type Target = T;
 
+        #[inline]
         fn deref(&self) -> &T {
             self.data
         }
     }
 
     impl<'a, T> core::ops::DerefMut for MutexGuard<'a, T> {
+        #[inline]
         fn deref_mut(&mut self) -> &mut T {
             self.data
         }
     }
 
     impl<'a, T> Drop for MutexGuard<'a, T> {
+        #[inline]
         fn drop(&mut self) {
             // Drop means 'data' is no longer accessible, so we can unlock
             // the mutex.

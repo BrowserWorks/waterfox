@@ -1,3 +1,321 @@
+1.12.3 (2025-02-03)
+===================
+This release excludes some unnecessary things from the archive published to
+crates.io. Specifically, fuzzing data and various shell scripts are now
+excluded. If you run into problems, please file an issue.
+
+Improvements:
+
+* [#1319](https://github.com/rust-lang/regex/pull/1319):
+Switch from a Cargo `exclude` list to an `include` list, and exclude some
+unnecessary stuff.
+
+
+1.12.2 (2025-10-13)
+===================
+This release fixes a `cargo doc` breakage on nightly when `--cfg docsrs` is
+enabled. This caused documentation to fail to build on docs.rs.
+
+Bug fixes:
+
+* [BUG #1305](https://github.com/rust-lang/regex/issues/1305):
+Switches the `doc_auto_cfg` feature to `doc_cfg` on nightly for docs.rs builds.
+
+
+1.12.1 (2025-10-10)
+===================
+This release makes a bug fix in the new `regex::Captures::get_match` API
+introduced in `1.12.0`. There was an oversight with the lifetime parameter
+for the `Match` returned. This is technically a breaking change, but given
+that it was caught almost immediately and I've yanked the `1.12.0` release,
+I think this is fine.
+
+
+1.12.0 (2025-10-10)
+===================
+This release contains a smattering of bug fixes, a fix for excessive memory
+consumption in some cases and a new `regex::Captures::get_match` API.
+
+Improvements:
+
+* [FEATURE #1146](https://github.com/rust-lang/regex/issues/1146):
+Add `Capture::get_match` for returning the overall match without `unwrap()`.
+
+Bug fixes:
+
+* [BUG #1083](https://github.com/rust-lang/regex/issues/1083):
+Fixes a panic in the lazy DFA (can only occur for especially large regexes).
+* [BUG #1116](https://github.com/rust-lang/regex/issues/1116):
+Fixes a memory usage regression for large regexes (introduced in `regex 1.9`).
+* [BUG #1195](https://github.com/rust-lang/regex/issues/1195):
+Fix universal start states in sparse DFA.
+* [BUG #1295](https://github.com/rust-lang/regex/pull/1295):
+Fixes a panic when deserializing a corrupted dense DFA.
+* [BUG 8f5d9479](https://github.com/rust-lang/regex/commit/8f5d9479d0f1da5726488a530d7fd66a73d05b80):
+Make `regex_automata::meta::Regex::find` consistently return `None` when
+`WhichCaptures::None` is used.
+
+
+1.11.3 (2025-09-25)
+===================
+This is a small patch release with an improvement in memory usage in some
+cases.
+
+Improvements:
+
+* [BUG #1297](https://github.com/rust-lang/regex/issues/1297):
+Improve memory usage by trimming excess memory capacity in some spots.
+
+
+1.11.2 (2025-08-24)
+===================
+This is a new patch release of `regex` with some minor fixes. A larger number
+of typo or lint fix patches were merged. Also, we now finally recommend using
+`std::sync::LazyLock`.
+
+Improvements:
+
+* [BUG #1217](https://github.com/rust-lang/regex/issues/1217):
+Switch recommendation from `once_cell` to `std::sync::LazyLock`.
+* [BUG #1225](https://github.com/rust-lang/regex/issues/1225):
+Add `DFA::set_prefilter` to `regex-automata`.
+
+Bug fixes:
+
+* [BUG #1165](https://github.com/rust-lang/regex/pull/1150):
+Remove `std` dependency from `perf-literal-multisubstring` crate feature.
+* [BUG #1165](https://github.com/rust-lang/regex/pull/1165):
+Clarify the meaning of `(?R)$` in the documentation.
+* [BUG #1281](https://github.com/rust-lang/regex/pull/1281):
+Remove `fuzz/` and `record/` directories from published crate on crates.io.
+
+
+1.11.1 (2024-10-24)
+===================
+This is a new patch release of `regex` that fixes compilation on nightly
+Rust when the unstable `pattern` crate feature is enabled. Users on nightly
+Rust without this feature enabled are unaffected.
+
+Bug fixes:
+
+* [BUG #1231](https://github.com/rust-lang/regex/issues/1231):
+Fix the `Pattern` trait implementation as a result of nightly API breakage.
+
+
+1.11.0 (2024-09-29)
+===================
+This is a new minor release of `regex` that brings in an update to the
+Unicode Character Database. Specifically, this updates the Unicode data
+used by `regex` internally to the version 16 release.
+
+New features:
+
+* [FEATURE #1228](https://github.com/rust-lang/regex/pull/1228):
+Add new `regex::SetMatches::matched_all` method.
+* [FEATURE #1229](https://github.com/rust-lang/regex/pull/1229):
+Update to Unicode Character Database (UCD) version 16.
+
+
+1.10.6 (2024-08-02)
+===================
+This is a new patch release with a fix for the `unstable` crate feature that
+enables `std::str::Pattern` trait integration.
+
+Bug fixes:
+
+* [BUG #1219](https://github.com/rust-lang/regex/pull/1219):
+Fix the `Pattern` trait implementation as a result of nightly API breakage.
+
+
+1.10.5 (2024-06-09)
+===================
+This is a new patch release with some minor fixes.
+
+Bug fixes:
+
+* [BUG #1203](https://github.com/rust-lang/regex/pull/1203):
+Escape invalid UTF-8 when in the `Debug` impl of `regex::bytes::Match`.
+
+
+1.10.4 (2024-03-22)
+===================
+This is a new patch release with some minor fixes.
+
+* [BUG #1169](https://github.com/rust-lang/regex/issues/1169):
+Fixes a bug with compiling a reverse NFA automaton in `regex-automata`.
+* [BUG #1178](https://github.com/rust-lang/regex/pull/1178):
+Clarifies that when `Cow::Borrowed` is returned from replace APIs, it is
+equivalent to the input.
+
+
+1.10.3 (2024-01-21)
+===================
+This is a new patch release that fixes the feature configuration of optional
+dependencies, and fixes an unsound use of bounds check elision.
+
+Bug fixes:
+
+* [BUG #1147](https://github.com/rust-lang/regex/issues/1147):
+Set `default-features=false` for the `memchr` and `aho-corasick` dependencies.
+* [BUG #1154](https://github.com/rust-lang/regex/pull/1154):
+Fix unsound bounds check elision.
+
+
+1.10.2 (2023-10-16)
+===================
+This is a new patch release that fixes a search regression where incorrect
+matches could be reported.
+
+Bug fixes:
+
+* [BUG #1110](https://github.com/rust-lang/regex/issues/1110):
+Revert broadening of reverse suffix literal optimization introduced in 1.10.1.
+
+
+1.10.1 (2023-10-14)
+===================
+This is a new patch release with a minor increase in the number of valid
+patterns and a broadening of some literal optimizations.
+
+New features:
+
+* [FEATURE 04f5d7be](https://github.com/rust-lang/regex/commit/04f5d7be4efc542864cc400f5d43fbea4eb9bab6):
+Loosen ASCII-compatible rules such that regexes like `(?-u:☃)` are now allowed.
+
+Performance improvements:
+
+* [PERF 8a8d599f](https://github.com/rust-lang/regex/commit/8a8d599f9d2f2d78e9ad84e4084788c2d563afa5):
+Broader the reverse suffix optimization to apply in more cases.
+
+
+1.10.0 (2023-10-09)
+===================
+This is a new minor release of `regex` that adds support for start and end
+word boundary assertions. That is, `\<` and `\>`. The minimum supported Rust
+version has also been raised to 1.65, which was released about one year ago.
+
+The new word boundary assertions are:
+
+* `\<` or `\b{start}`: a Unicode start-of-word boundary (`\W|\A` on the left,
+`\w` on the right).
+* `\>` or `\b{end}`: a Unicode end-of-word boundary (`\w` on the left, `\W|\z`
+on the right).
+* `\b{start-half}`: half of a Unicode start-of-word boundary (`\W|\A` on the
+left).
+* `\b{end-half}`: half of a Unicode end-of-word boundary (`\W|\z` on the
+right).
+
+The `\<` and `\>` are GNU extensions to POSIX regexes. They have been added
+to the `regex` crate because they enjoy somewhat broad support in other regex
+engines as well (for example, vim). The `\b{start}` and `\b{end}` assertions
+are aliases for `\<` and `\>`, respectively.
+
+The `\b{start-half}` and `\b{end-half}` assertions are not found in any
+other regex engine (although regex engines with general look-around support
+can certainly express them). They were added principally to support the
+implementation of word matching in grep programs, where one generally wants to
+be a bit more flexible in what is considered a word boundary.
+
+New features:
+
+* [FEATURE #469](https://github.com/rust-lang/regex/issues/469):
+Add support for `\<` and `\>` word boundary assertions.
+* [FEATURE(regex-automata) #1031](https://github.com/rust-lang/regex/pull/1031):
+DFAs now have a `start_state` method that doesn't use an `Input`.
+
+Performance improvements:
+
+* [PERF #1051](https://github.com/rust-lang/regex/pull/1051):
+Unicode character class operations have been optimized in `regex-syntax`.
+* [PERF #1090](https://github.com/rust-lang/regex/issues/1090):
+Make patterns containing lots of literal characters use less memory.
+
+Bug fixes:
+
+* [BUG #1046](https://github.com/rust-lang/regex/issues/1046):
+Fix a bug that could result in incorrect match spans when using a Unicode word
+boundary and searching non-ASCII strings.
+* [BUG(regex-syntax) #1047](https://github.com/rust-lang/regex/issues/1047):
+Fix panics that can occur in `Ast->Hir` translation (not reachable from `regex`
+crate).
+* [BUG(regex-syntax) #1088](https://github.com/rust-lang/regex/issues/1088):
+Remove guarantees in the API that connect the `u` flag with a specific HIR
+representation.
+
+`regex-automata` breaking change release:
+
+This release includes a `regex-automata 0.4.0` breaking change release, which
+was necessary in order to support the new word boundary assertions. For
+example, the `Look` enum has new variants and the `LookSet` type now uses `u32`
+instead of `u16` to represent a bitset of look-around assertions. These are
+overall very minor changes, and most users of `regex-automata` should be able
+to move to `0.4` from `0.3` without any changes at all.
+
+`regex-syntax` breaking change release:
+
+This release also includes a `regex-syntax 0.8.0` breaking change release,
+which, like `regex-automata`, was necessary in order to support the new word
+boundary assertions. This release also includes some changes to the `Ast`
+type to reduce heap usage in some cases. If you are using the `Ast` type
+directly, your code may require some minor modifications. Otherwise, users of
+`regex-syntax 0.7` should be able to migrate to `0.8` without any code changes.
+
+`regex-lite` release:
+
+The `regex-lite 0.1.1` release contains support for the new word boundary
+assertions. There are no breaking changes.
+
+
+1.9.6 (2023-09-30)
+==================
+This is a patch release that fixes a panic that can occur when the default
+regex size limit is increased to a large number.
+
+* [BUG aa4e4c71](https://github.com/rust-lang/regex/commit/aa4e4c7120b0090ce0624e3c42a2ed06dd8b918a):
+Fix a bug where computing the maximum haystack length for the bounded
+backtracker could result underflow and thus provoke a panic later in a search
+due to a broken invariant.
+
+
+1.9.5 (2023-09-02)
+==================
+This is a patch release that hopefully mostly fixes a performance bug that
+occurs when sharing a regex across multiple threads.
+
+Issue [#934](https://github.com/rust-lang/regex/issues/934)
+explains this in more detail. It is [also noted in the crate
+documentation](https://docs.rs/regex/latest/regex/#sharing-a-regex-across-threads-can-result-in-contention).
+The bug can appear when sharing a regex across multiple threads simultaneously,
+as might be the case when using a regex from a `OnceLock`, `lazy_static` or
+similar primitive. Usually high contention only results when using many threads
+to execute searches on small haystacks.
+
+One can avoid the contention problem entirely through one of two methods.
+The first is to use lower level APIs from `regex-automata` that require passing
+state explicitly, such as [`meta::Regex::search_with`](https://docs.rs/regex-automata/latest/regex_automata/meta/struct.Regex.html#method.search_with).
+The second is to clone a regex and send it to other threads explicitly. This
+will not use any additional memory usage compared to sharing the regex. The
+only downside of this approach is that it may be less convenient, for example,
+it won't work with things like `OnceLock` or `lazy_static` or `once_cell`.
+
+With that said, as of this release, the contention performance problems have
+been greatly reduced. This was achieved by changing the free-list so that it
+was sharded across threads, and that ensuring each sharded mutex occupies a
+single cache line to mitigate false sharing. So while contention may still
+impact performance in some cases, it should be a lot better now.
+
+Because of the changes to how the free-list works, please report any issues you
+find with this release. That not only includes search time regressions but also
+significant regressions in memory usage. Reporting improvements is also welcome
+as well! If possible, provide a reproduction.
+
+Bug fixes:
+
+* [BUG #934](https://github.com/rust-lang/regex/issues/934):
+Fix a performance bug where high contention on a single regex led to massive
+slow-downs.
+
+
 1.9.4 (2023-08-26)
 ==================
 This is a patch release that fixes a bug where `RegexSet::is_match(..)` could
@@ -238,14 +556,14 @@ New features:
 Permit many more characters to be escaped, even if they have no significance.
 More specifically, any ASCII character except for `[0-9A-Za-z<>]` can now be
 escaped. Also, a new routine, `is_escapeable_character`, has been added to
-`regex-syntax` to query whether a character is escapeable or not.
+`regex-syntax` to query whether a character is escapable or not.
 * [FEATURE #547](https://github.com/rust-lang/regex/issues/547):
 Add `Regex::captures_at`. This fills a hole in the API, but doesn't otherwise
 introduce any new expressive power.
 * [FEATURE #595](https://github.com/rust-lang/regex/issues/595):
 Capture group names are now Unicode-aware. They can now begin with either a `_`
 or any "alphabetic" codepoint. After the first codepoint, subsequent codepoints
-can be any sequence of alpha-numeric codepoints, along with `_`, `.`, `[` and
+can be any sequence of alphanumeric codepoints, along with `_`, `.`, `[` and
 `]`. Note that replacement syntax has not changed.
 * [FEATURE #810](https://github.com/rust-lang/regex/issues/810):
 Add `Match::is_empty` and `Match::len` APIs.
@@ -289,7 +607,7 @@ Fix a number of issues with printing `Hir` values as regex patterns.
 * [BUG #610](https://github.com/rust-lang/regex/issues/610):
 Add explicit example of `foo|bar` in the regex syntax docs.
 * [BUG #625](https://github.com/rust-lang/regex/issues/625):
-Clarify that `SetMatches::len` does not (regretably) refer to the number of
+Clarify that `SetMatches::len` does not (regrettably) refer to the number of
 matches in the set.
 * [BUG #660](https://github.com/rust-lang/regex/issues/660):
 Clarify "verbose mode" in regex syntax documentation.
@@ -676,7 +994,7 @@ Bug fixes:
 
 1.3.1 (2019-09-04)
 ==================
-This is a maintenance release with no changes in order to try to work-around
+This is a maintenance release with no changes in order to try to work around
 a [docs.rs/Cargo issue](https://github.com/rust-lang/docs.rs/issues/400).
 
 
@@ -711,7 +1029,7 @@ This release does a bit of house cleaning. Namely:
   Rust project.
 * Teddy has been removed from the `regex` crate, and is now part of the
   `aho-corasick` crate.
-  [See `aho-corasick`'s new `packed` sub-module for details](https://docs.rs/aho-corasick/0.7.6/aho_corasick/packed/index.html).
+  [See `aho-corasick`'s new `packed` submodule for details](https://docs.rs/aho-corasick/0.7.6/aho_corasick/packed/index.html).
 * The `utf8-ranges` crate has been deprecated, with its functionality moving
   into the
   [`utf8` sub-module of `regex-syntax`](https://docs.rs/regex-syntax/0.6.11/regex_syntax/utf8/index.html).
@@ -719,7 +1037,7 @@ This release does a bit of house cleaning. Namely:
   little we need inside of `regex-syntax` itself.
 
 In general, this is part of an ongoing (long term) effort to make optimizations
-in the regex engine easier to reason about. The current code is too convoluted
+in the regex engine easier to reason about. The current code is too convoluted,
 and thus it is very easy to introduce new bugs. This simplification effort is
 the primary motivation behind re-working the `aho-corasick` crate to not only
 bundle algorithms like Teddy, but to also provide regex-like match semantics
@@ -921,7 +1239,7 @@ need or want to use these APIs.
 New features:
 
 * [FEATURE #493](https://github.com/rust-lang/regex/pull/493):
-  Add a few lower level APIs for amortizing allocation and more fine grained
+  Add a few lower level APIs for amortizing allocation and more fine-grained
   searching.
 
 Bug fixes:
@@ -967,7 +1285,7 @@ of the regex library should be able to migrate to 1.0 by simply bumping the
 version number. The important changes are as follows:
 
 * We adopt Rust 1.20 as the new minimum supported version of Rust for regex.
-  We also tentativley adopt a policy that permits bumping the minimum supported
+  We also tentatively adopt a policy that permits bumping the minimum supported
   version of Rust in minor version releases of regex, but no patch releases.
   That is, with respect to semver, we do not strictly consider bumping the
   minimum version of Rust to be a breaking change, but adopt a conservative
@@ -1054,7 +1372,7 @@ Bug fixes:
 
 0.2.8 (2018-03-12)
 ==================
-Bug gixes:
+Bug fixes:
 
 * [BUG #454](https://github.com/rust-lang/regex/pull/454):
   Fix a bug in the nest limit checker being too aggressive.
@@ -1075,7 +1393,7 @@ New features:
 * Full support for intersection, difference and symmetric difference of
   character classes. These can be used via the `&&`, `--` and `~~` binary
   operators within classes.
-* A Unicode Level 1 conformat implementation of `\p{..}` character classes.
+* A Unicode Level 1 conformant implementation of `\p{..}` character classes.
   Things like `\p{scx:Hira}`, `\p{age:3.2}` or `\p{Changes_When_Casefolded}`
   now work. All property name and value aliases are supported, and properties
   are selected via loose matching. e.g., `\p{Greek}` is the same as
@@ -1198,7 +1516,7 @@ Bug fixes:
 0.2.1
 =====
 One major bug with `replace_all` has been fixed along with a couple of other
-touchups.
+touch-ups.
 
 * [BUG #312](https://github.com/rust-lang/regex/issues/312):
   Fix documentation for `NoExpand` to reference correct lifetime parameter.
@@ -1347,7 +1665,7 @@ A number of bugs have been fixed:
 * Fix bug #277.
 * [PR #270](https://github.com/rust-lang/regex/pull/270):
   Fixes bugs #264, #268 and an unreported where the DFA cache size could be
-  drastically under estimated in some cases (leading to high unexpected memory
+  drastically underestimated in some cases (leading to high unexpected memory
   usage).
 
 0.1.73

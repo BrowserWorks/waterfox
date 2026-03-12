@@ -1,0 +1,18 @@
+sudo: false
+language: rust
+
+matrix:
+  include:
+    - rust: 1.36.0
+    - rust: stable
+    - rust: beta
+    - rust: nightly
+    - rust: nightly
+      os: linux
+      name: "Miri"
+      script:
+        - sh ci/miri.sh
+
+script:
+  - cargo test
+  - cargo build --no-default-features
