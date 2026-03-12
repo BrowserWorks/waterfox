@@ -11,6 +11,7 @@
 #include "nsString.h"
 #include "nsTArray.h"
 #include "nsIChannel.h"
+#include "mozilla/UniquePtr.h"
 
 namespace mozilla {
 
@@ -85,6 +86,43 @@ class ContentClassifierEngine final {
   nsresult InitFromRules(const nsTArray<nsCString>& aRules) {
     return content_classifier_engine_from_rules(&aRules, &mEngine);
   }
+
+  nsresult CheckNetworkRequestPreparsed(const nsACString& aUrl,
+                                        const nsACString& aHostname,
+                                        const nsACString& aSourceHostname,
+                                        const nsACString& aRequestType,
+                                        bool aThirdParty, bool* aOutMatched,
+                                        bool* aOutImportant,
+                                        nsACString& aOutException);
+
+  nsresult CheckNetworkRequestPreparsedDetailed(
+      const nsACString& aUrl, const nsACString& aHostname,
+      const nsACString& aSourceHostname, const nsACString& aRequestType,
+      bool aThirdParty, bool* aOutMatched, bool* aOutImportant,
+      nsACString& aOutRedirect, nsACString& aOutRewrittenUrl,
+      nsACString& aOutException);
+
+  nsresult GetCspDirectivesPreparsed(const nsACString& aUrl,
+                                     const nsACString& aHostname,
+                                     const nsACString& aSourceHostname,
+                                     const nsACString& aRequestType,
+                                     bool aThirdParty,
+                                     nsACString& aOutDirectives);
+
+  nsresult EnableTags(const nsTArray<nsCString>& aTags);
+  nsresult DisableTags(const nsTArray<nsCString>& aTags);
+  bool TagExists(const nsACString& aTag);
+
+  nsresult Serialize(nsTArray<uint8_t>& aOutData);
+  static nsresult Deserialize(const nsTArray<uint8_t>& aData,
+                              UniquePtr<ContentClassifierEngine>* aOutEngine);
+
+  nsresult GetCosmeticResources(const nsACString& aUrl, nsACString& aOutJson);
+  nsresult GetHiddenClassIdSelectors(const nsACString& aClassesJson,
+                                     const nsACString& aIdsJson,
+                                     const nsACString& aExceptionsJson,
+                                     nsACString& aOutJson);
+  nsresult UseResources(const nsACString& aResourcesJson);
 
   ContentClassifierResult CheckNetworkRequest(
       const ContentClassifierRequest& aRequest);
