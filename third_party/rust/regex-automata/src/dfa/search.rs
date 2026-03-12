@@ -176,7 +176,6 @@ fn find_fwd_imp<A: Automaton + ?Sized>(
                 // It's important that this is a debug_assert, since this can
                 // actually be tripped even if DFA::from_bytes succeeds and
                 // returns a supposedly valid DFA.
-                debug_assert!(dfa.is_quit_state(sid));
                 return Err(MatchError::quit(input.haystack()[at], at));
             }
         }
@@ -297,7 +296,6 @@ fn find_rev_imp<A: Automaton + ?Sized>(
             } else if dfa.is_dead_state(sid) {
                 return Ok(mat);
             } else {
-                debug_assert!(dfa.is_quit_state(sid));
                 return Err(MatchError::quit(input.haystack()[at], at));
             }
         }
@@ -422,7 +420,6 @@ fn find_overlapping_fwd_imp<A: Automaton + ?Sized>(
             } else if dfa.is_dead_state(sid) {
                 return Ok(());
             } else {
-                debug_assert!(dfa.is_quit_state(sid));
                 return Err(MatchError::quit(
                     input.haystack()[state.at],
                     state.at,
@@ -526,7 +523,6 @@ pub(crate) fn find_overlapping_rev<A: Automaton + ?Sized>(
             } else if dfa.is_dead_state(sid) {
                 return Ok(());
             } else {
-                debug_assert!(dfa.is_quit_state(sid));
                 return Err(MatchError::quit(
                     input.haystack()[state.at],
                     state.at,
@@ -600,9 +596,6 @@ fn eoi_fwd<A: Automaton + ?Sized>(
                 let pattern = dfa.match_pattern(*sid, 0);
                 *mat = Some(HalfMatch::new(pattern, input.haystack().len()));
             }
-            // N.B. We don't have to check 'is_quit' here because the EOI
-            // transition can never lead to a quit state.
-            debug_assert!(!dfa.is_quit_state(*sid));
         }
     }
     Ok(())
@@ -631,9 +624,6 @@ fn eoi_rev<A: Automaton + ?Sized>(
             let pattern = dfa.match_pattern(*sid, 0);
             *mat = Some(HalfMatch::new(pattern, 0));
         }
-        // N.B. We don't have to check 'is_quit' here because the EOI
-        // transition can never lead to a quit state.
-        debug_assert!(!dfa.is_quit_state(*sid));
     }
     Ok(())
 }

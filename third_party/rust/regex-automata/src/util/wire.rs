@@ -41,11 +41,7 @@ generally requires serializing both its big-endian and little-endian variants,
 and then loading the correct one based on the target's endianness.
 */
 
-use core::{
-    cmp,
-    convert::{TryFrom, TryInto},
-    mem::size_of,
-};
+use core::{cmp, mem::size_of};
 
 #[cfg(feature = "alloc")]
 use alloc::{vec, vec::Vec};
@@ -223,47 +219,43 @@ impl core::fmt::Display for DeserializeError {
         use self::DeserializeErrorKind::*;
 
         match self.0 {
-            Generic { msg } => write!(f, "{}", msg),
+            Generic { msg } => write!(f, "{msg}"),
             BufferTooSmall { what } => {
-                write!(f, "buffer is too small to read {}", what)
+                write!(f, "buffer is too small to read {what}")
             }
             InvalidUsize { what } => {
-                write!(f, "{} is too big to fit in a usize", what)
+                write!(f, "{what} is too big to fit in a usize")
             }
             VersionMismatch { expected, found } => write!(
                 f,
                 "unsupported version: \
-                 expected version {} but found version {}",
-                expected, found,
+                 expected version {expected} but found version {found}",
             ),
             EndianMismatch { expected, found } => write!(
                 f,
-                "endianness mismatch: expected 0x{:X} but got 0x{:X}. \
-                 (Are you trying to load an object serialized with a \
-                 different endianness?)",
-                expected, found,
+                "endianness mismatch: expected 0x{expected:X} but \
+                 got 0x{found:X}. (Are you trying to load an object \
+                 serialized with a different endianness?)",
             ),
             AlignmentMismatch { alignment, address } => write!(
                 f,
-                "alignment mismatch: slice starts at address \
-                 0x{:X}, which is not aligned to a {} byte boundary",
-                address, alignment,
+                "alignment mismatch: slice starts at address 0x{address:X}, \
+                 which is not aligned to a {alignment} byte boundary",
             ),
             LabelMismatch { expected } => write!(
                 f,
                 "label mismatch: start of serialized object should \
-                 contain a NUL terminated {:?} label, but a different \
+                 contain a NUL terminated {expected:?} label, but a different \
                  label was found",
-                expected,
             ),
             ArithmeticOverflow { what } => {
-                write!(f, "arithmetic overflow for {}", what)
+                write!(f, "arithmetic overflow for {what}")
             }
             PatternID { ref err, what } => {
-                write!(f, "failed to read pattern ID for {}: {}", what, err)
+                write!(f, "failed to read pattern ID for {what}: {err}")
             }
             StateID { ref err, what } => {
-                write!(f, "failed to read state ID for {}: {}", what, err)
+                write!(f, "failed to read state ID for {what}: {err}")
             }
         }
     }
@@ -396,20 +388,17 @@ pub(crate) fn alloc_aligned_buffer<T>(size: usize) -> (Vec<u8>, usize) {
     let padding = ((address & !(align - 1)).checked_add(align).unwrap())
         .checked_sub(address)
         .unwrap();
-    assert!(padding <= 7, "padding of {} is bigger than 7", padding);
+    assert!(padding <= 7, "padding of {padding} is bigger than 7");
     assert!(
         padding <= extra,
-        "padding of {} is bigger than extra {} bytes",
-        padding,
-        extra
+        "padding of {padding} is bigger than extra {extra} bytes",
     );
     buf.truncate(size + padding);
     assert_eq!(size + padding, buf.len());
     assert_eq!(
         0,
         buf[padding..].as_ptr().as_usize() % align,
-        "expected end of initial padding to be aligned to {}",
-        align,
+        "expected end of initial padding to be aligned to {align}",
     );
     (buf, padding)
 }
@@ -482,12 +471,8 @@ pub(crate) fn write_label(
 /// is longer than 255 bytes. (The size restriction exists so that searching
 /// for a label during deserialization can be done in small bounded space.)
 pub(crate) fn write_label_len(label: &str) -> usize {
-    if label.len() > 255 {
-        panic!("label must not be longer than 255 bytes");
-    }
-    if label.as_bytes().iter().position(|&b| b == 0).is_some() {
-        panic!("label must not contain NUL bytes");
-    }
+    assert!(label.len() <= 255, "label must not be longer than 255 bytes");
+    assert!(label.bytes().all(|b| b != 0), "label must not contain NUL bytes");
     let label_len = label.len() + 1; // +1 for the NUL terminator
     label_len + padding_len(label_len)
 }
@@ -867,11 +852,6 @@ pub(crate) trait Endian {
     /// this panics.
     fn write_u32(n: u32, dst: &mut [u8]);
 
-    /// Writes a u64 to the given destination buffer in a particular
-    /// endianness. If the destination buffer has a length smaller than 8, then
-    /// this panics.
-    fn write_u64(n: u64, dst: &mut [u8]);
-
     /// Writes a u128 to the given destination buffer in a particular
     /// endianness. If the destination buffer has a length smaller than 16,
     /// then this panics.
@@ -897,10 +877,6 @@ impl Endian for LE {
         dst[..4].copy_from_slice(&n.to_le_bytes());
     }
 
-    fn write_u64(n: u64, dst: &mut [u8]) {
-        dst[..8].copy_from_slice(&n.to_le_bytes());
-    }
-
     fn write_u128(n: u128, dst: &mut [u8]) {
         dst[..16].copy_from_slice(&n.to_le_bytes());
     }
@@ -913,10 +889,6 @@ impl Endian for BE {
 
     fn write_u32(n: u32, dst: &mut [u8]) {
         dst[..4].copy_from_slice(&n.to_be_bytes());
-    }
-
-    fn write_u64(n: u64, dst: &mut [u8]) {
-        dst[..8].copy_from_slice(&n.to_be_bytes());
     }
 
     fn write_u128(n: u128, dst: &mut [u8]) {

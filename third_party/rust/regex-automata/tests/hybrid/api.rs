@@ -55,7 +55,7 @@ fn too_many_cache_resets_cause_quit() -> Result<(), Box<dyn Error>> {
     let mut cache = dfa.create_cache();
 
     let haystack = "a".repeat(101).into_bytes();
-    let err = MatchError::gave_up(25);
+    let err = MatchError::gave_up(24);
     // Notice that we make the same amount of progress in each search! That's
     // because the cache is reused and already has states to handle the first
     // N bytes.
@@ -83,7 +83,7 @@ fn too_many_cache_resets_cause_quit() -> Result<(), Box<dyn Error>> {
     // OK, if we reset the cache, then we should be able to create more states
     // and make more progress with searching for betas.
     cache.reset(&dfa);
-    let err = MatchError::gave_up(27);
+    let err = MatchError::gave_up(26);
     assert_eq!(
         Err(err),
         dfa.try_search_fwd(&mut cache, &Input::new(&haystack))

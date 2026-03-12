@@ -6,15 +6,16 @@
 // non-Unicode regexes. For example, consider '(?-u)[^a]+a'. We can look at its
 // DFA with regex-cli:
 //
-//     $ regex-cli debug dfa dense '(?-u)[^a]+a' -BbC
-//     dense::DFA(
+//     $ regex-cli debug dense dfa -p '(?-u)[^a]+a' -BbC --no-table
 //     D 000000:
 //     Q 000001:
 //      *000002:
-//     A 000003: \x00-` => 3, a => 5, b-\xFF => 3
-//      >000004: \x00-` => 3, a => 4, b-\xFF => 3
-//       000005: \x00-\xFF => 2, EOI => 2
-//     )
+//     A 000003: \x00-` => 3, a => 8, b-\xFF => 3
+//     A 000004: \x00-` => 4, a => 7, b-\xFF => 4
+//       000005: \x00-` => 4, b-\xFF => 4
+//       000006: \x00-` => 3, a => 6, b-\xFF => 3
+//       000007: \x00-\xFF => 2, EOI => 2
+//       000008: \x00-\xFF => 2, EOI => 2
 //
 // In particular, state 3 is accelerated (shown via the 'A' indicator) since
 // the only way to leave that state once entered is to see an 'a' byte. If
@@ -101,7 +102,7 @@ pub(crate) fn find_fwd(
         2 => memchr::memchr2(bs[0], bs[1], &haystack[at..])?,
         3 => memchr::memchr3(bs[0], bs[1], bs[2], &haystack[at..])?,
         0 => panic!("cannot find with empty needles"),
-        n => panic!("invalid needles length: {}", n),
+        n => panic!("invalid needles length: {n}"),
     };
     Some(at + i)
 }
@@ -121,7 +122,7 @@ pub(crate) fn find_rev(
         2 => memchr::memrchr2(bs[0], bs[1], &haystack[..at]),
         3 => memchr::memrchr3(bs[0], bs[1], bs[2], &haystack[..at]),
         0 => panic!("cannot find with empty needles"),
-        n => panic!("invalid needles length: {}", n),
+        n => panic!("invalid needles length: {n}"),
     }
 }
 
@@ -266,7 +267,7 @@ impl<A: AsRef<[AccelTy]>> Accels<A> {
     #[cfg_attr(feature = "perf-inline", inline(always))]
     pub fn needles(&self, i: usize) -> &[u8] {
         if i >= self.len() {
-            panic!("invalid accelerator index {}", i);
+            panic!("invalid accelerator index {i}");
         }
         let bytes = self.as_bytes();
         let offset = ACCEL_TY_SIZE + i * ACCEL_CAP;
@@ -312,8 +313,8 @@ impl<A: AsRef<[AccelTy]>> Accels<A> {
         assert_eq!(
             nwrite % ACCEL_TY_SIZE,
             0,
-            "expected accelerator bytes written to be a multiple of {}",
-            ACCEL_TY_SIZE,
+            "expected accelerator bytes written to be a multiple \
+             of {ACCEL_TY_SIZE}",
         );
         if dst.len() < nwrite {
             return Err(SerializeError::buffer_too_small("accelerators"));

@@ -207,21 +207,21 @@ Finally, Unicode word boundaries can be disabled, which will cause ASCII word
 boundaries to be used instead. That is, `\b` is a Unicode word boundary while
 `(?-u)\b` is an ASCII-only word boundary. This can occasionally be beneficial
 if performance is important, since the implementation of Unicode word
-boundaries is currently sub-optimal on non-ASCII text.
+boundaries is currently suboptimal on non-ASCII text.
 
 
 ## RL1.5 Simple Loose Matches
 
 [UTS#18 RL1.5](https://unicode.org/reports/tr18/#Simple_Loose_Matches)
 
-The regex crate provides full support for case insensitive matching in
+The regex crate provides full support for case-insensitive matching in
 accordance with RL1.5. That is, it uses the "simple" case folding mapping. The
 "simple" mapping was chosen because of a key convenient property: every
 "simple" mapping is a mapping from exactly one code point to exactly one other
-code point. This makes case insensitive matching of character classes, for
+code point. This makes case-insensitive matching of character classes, for
 example, straight-forward to implement.
 
-When case insensitive mode is enabled (e.g., `(?i)[a]` is equivalent to `a|A`),
+When case-insensitive mode is enabled (e.g., `(?i)[a]` is equivalent to `a|A`),
 then all characters classes are case folded as well.
 
 
@@ -248,7 +248,7 @@ Given Rust's strong ties to UTF-8, the following guarantees are also provided:
 * All matches are reported on valid UTF-8 code unit boundaries. That is, any
   match range returned by the public regex API is guaranteed to successfully
   slice the string that was searched.
-* By consequence of the above, it is impossible to match surrogode code points.
+* By consequence of the above, it is impossible to match surrogate code points.
   No support for UTF-16 is provided, so this is never necessary.
 
 Note that when Unicode mode is disabled, the fundamental atom of matching is

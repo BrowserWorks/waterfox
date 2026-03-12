@@ -3,13 +3,12 @@ Types and routines specific to sparse DFAs.
 
 This module is the home of [`sparse::DFA`](DFA).
 
-Unlike the [`dense`](super::dense) module, this module does not contain a
-builder or configuration specific for sparse DFAs. Instead, the intended
-way to build a sparse DFA is either by using a default configuration with
-its constructor [`sparse::DFA::new`](DFA::new), or by first configuring the
-construction of a dense DFA with [`dense::Builder`](super::dense::Builder)
-and then calling [`dense::DFA::to_sparse`](super::dense::DFA::to_sparse). For
-example, this configures a sparse DFA to do an overlapping search:
+Unlike the [`dense`] module, this module does not contain a builder or
+configuration specific for sparse DFAs. Instead, the intended way to build a
+sparse DFA is either by using a default configuration with its constructor
+[`sparse::DFA::new`](DFA::new), or by first configuring the construction of a
+dense DFA with [`dense::Builder`] and then calling [`dense::DFA::to_sparse`].
+For example, this configures a sparse DFA to do an overlapping search:
 
 ```
 use regex_automata::{
@@ -39,11 +38,7 @@ assert_eq!(Some(HalfMatch::must(0, 7)), state.get_match());
 
 #[cfg(feature = "dfa-build")]
 use core::iter;
-use core::{
-    convert::{TryFrom, TryInto},
-    fmt,
-    mem::size_of,
-};
+use core::{fmt, mem::size_of};
 
 #[cfg(feature = "dfa-build")]
 use alloc::{vec, vec::Vec};
@@ -52,7 +47,7 @@ use alloc::{vec, vec::Vec};
 use crate::dfa::dense::{self, BuildError};
 use crate::{
     dfa::{
-        automaton::{fmt_state_indicator, Automaton},
+        automaton::{fmt_state_indicator, Automaton, StartError},
         dense::Flags,
         special::Special,
         StartKind, DEAD,
@@ -63,8 +58,8 @@ use crate::{
         int::{Pointer, Usize, U16, U32},
         prefilter::Prefilter,
         primitives::{PatternID, StateID},
-        search::{Anchored, Input, MatchError},
-        start::{Start, StartByteMap},
+        search::Anchored,
+        start::{self, Start, StartByteMap},
         wire::{self, DeserializeError, Endian, SerializeError},
     },
 };
@@ -74,18 +69,17 @@ const VERSION: u32 = 2;
 
 /// A sparse deterministic finite automaton (DFA) with variable sized states.
 ///
-/// In contrast to a [dense::DFA](crate::dfa::dense::DFA), a sparse DFA uses
-/// a more space efficient representation for its transitions. Consequently,
-/// sparse DFAs may use much less memory than dense DFAs, but this comes at a
-/// price. In particular, reading the more space efficient transitions takes
-/// more work, and consequently, searching using a sparse DFA is typically
-/// slower than a dense DFA.
+/// In contrast to a [dense::DFA], a sparse DFA uses a more space efficient
+/// representation for its transitions. Consequently, sparse DFAs may use much
+/// less memory than dense DFAs, but this comes at a price. In particular,
+/// reading the more space efficient transitions takes more work, and
+/// consequently, searching using a sparse DFA is typically slower than a dense
+/// DFA.
 ///
 /// A sparse DFA can be built using the default configuration via the
-/// [`DFA::new`] constructor. Otherwise, one can configure various aspects
-/// of a dense DFA via [`dense::Builder`](crate::dfa::dense::Builder),
-/// and then convert a dense DFA to a sparse DFA using
-/// [`dense::DFA::to_sparse`](crate::dfa::dense::DFA::to_sparse).
+/// [`DFA::new`] constructor. Otherwise, one can configure various aspects of a
+/// dense DFA via [`dense::Builder`], and then convert a dense DFA to a sparse
+/// DFA using [`dense::DFA::to_sparse`].
 ///
 /// In general, a sparse DFA supports all the same search operations as a dense
 /// DFA.
@@ -140,11 +134,9 @@ impl DFA<Vec<u8>> {
     /// Parse the given regular expression using a default configuration and
     /// return the corresponding sparse DFA.
     ///
-    /// If you want a non-default configuration, then use
-    /// the [`dense::Builder`](crate::dfa::dense::Builder)
-    /// to set your own configuration, and then call
-    /// [`dense::DFA::to_sparse`](crate::dfa::dense::DFA::to_sparse) to create
-    /// a sparse DFA.
+    /// If you want a non-default configuration, then use the
+    /// [`dense::Builder`] to set your own configuration, and then call
+    /// [`dense::DFA::to_sparse`] to create a sparse DFA.
     ///
     /// # Example
     ///
@@ -167,11 +159,9 @@ impl DFA<Vec<u8>> {
     /// Parse the given regular expressions using a default configuration and
     /// return the corresponding multi-DFA.
     ///
-    /// If you want a non-default configuration, then use
-    /// the [`dense::Builder`](crate::dfa::dense::Builder)
-    /// to set your own configuration, and then call
-    /// [`dense::DFA::to_sparse`](crate::dfa::dense::DFA::to_sparse) to create
-    /// a sparse DFA.
+    /// If you want a non-default configuration, then use the
+    /// [`dense::Builder`] to set your own configuration, and then call
+    /// [`dense::DFA::to_sparse`] to create a sparse DFA.
     ///
     /// # Example
     ///
@@ -309,8 +299,7 @@ impl DFA<Vec<u8>> {
             );
             assert!(
                 transition_len <= 257,
-                "expected transition length {} to be <= 257",
-                transition_len,
+                "expected transition length {transition_len} to be <= 257",
             );
 
             // Fill in the transition length.
@@ -404,6 +393,8 @@ impl DFA<Vec<u8>> {
                 new_state.set_next_at(i, next);
             }
         }
+        new.tt.sparse.shrink_to_fit();
+        new.st.table.shrink_to_fit();
         debug!(
             "created sparse DFA, memory usage: {} (dense memory usage: {})",
             new.memory_usage(),
@@ -511,10 +502,9 @@ impl<T: AsRef<[u8]>> DFA<T> {
     /// * [`DFA::from_bytes`]
     /// * [`DFA::from_bytes_unchecked`]
     ///
-    /// Note that unlike a [`dense::DFA`](crate::dfa::dense::DFA)'s
-    /// serialization methods, this does not add any initial padding to the
-    /// returned bytes. Padding isn't required for sparse DFAs since they have
-    /// no alignment requirements.
+    /// Note that unlike a [`dense::DFA`]'s serialization methods, this does
+    /// not add any initial padding to the returned bytes. Padding isn't
+    /// required for sparse DFAs since they have no alignment requirements.
     ///
     /// # Example
     ///
@@ -553,10 +543,9 @@ impl<T: AsRef<[u8]>> DFA<T> {
     /// * [`DFA::from_bytes`]
     /// * [`DFA::from_bytes_unchecked`]
     ///
-    /// Note that unlike a [`dense::DFA`](crate::dfa::dense::DFA)'s
-    /// serialization methods, this does not add any initial padding to the
-    /// returned bytes. Padding isn't required for sparse DFAs since they have
-    /// no alignment requirements.
+    /// Note that unlike a [`dense::DFA`]'s serialization methods, this does
+    /// not add any initial padding to the returned bytes. Padding isn't
+    /// required for sparse DFAs since they have no alignment requirements.
     ///
     /// # Example
     ///
@@ -595,10 +584,9 @@ impl<T: AsRef<[u8]>> DFA<T> {
     /// * [`DFA::from_bytes`]
     /// * [`DFA::from_bytes_unchecked`]
     ///
-    /// Note that unlike a [`dense::DFA`](crate::dfa::dense::DFA)'s
-    /// serialization methods, this does not add any initial padding to the
-    /// returned bytes. Padding isn't required for sparse DFAs since they have
-    /// no alignment requirements.
+    /// Note that unlike a [`dense::DFA`]'s serialization methods, this does
+    /// not add any initial padding to the returned bytes. Padding isn't
+    /// required for sparse DFAs since they have no alignment requirements.
     ///
     /// Generally speaking, native endian format should only be used when
     /// you know that the target you're compiling the DFA for matches the
@@ -903,9 +891,9 @@ impl<'a> DFA<&'a [u8]> {
     ///
     /// If any of the above are not true, then an error will be returned.
     ///
-    /// Note that unlike deserializing a
-    /// [`dense::DFA`](crate::dfa::dense::DFA), deserializing a sparse DFA has
-    /// no alignment requirements. That is, an alignment of `1` is valid.
+    /// Note that unlike deserializing a [`dense::DFA`], deserializing a sparse
+    /// DFA has no alignment requirements. That is, an alignment of `1` is
+    /// valid.
     ///
     /// # Panics
     ///
@@ -1001,8 +989,8 @@ impl<'a> DFA<&'a [u8]> {
         // (by trying to decode every state) and start state ID list below. If
         // either validation fails, then we return an error.
         let (dfa, nread) = unsafe { DFA::from_bytes_unchecked(slice)? };
-        dfa.tt.validate(&dfa.special)?;
-        dfa.st.validate(&dfa.special, &dfa.tt)?;
+        let seen = dfa.tt.validate(&dfa.special)?;
+        dfa.st.validate(&dfa.special, &seen)?;
         // N.B. dfa.special doesn't have a way to do unchecked deserialization,
         // so it has already been validated.
         Ok((dfa, nread))
@@ -1081,6 +1069,19 @@ impl<'a> DFA<&'a [u8]> {
         // Prefilters don't support serialization, so they're always absent.
         let pre = None;
         Ok((DFA { tt, st, special, pre, quitset, flags }, nr))
+    }
+}
+
+/// Other routines that work for all `T`.
+impl<T> DFA<T> {
+    /// Set or unset the prefilter attached to this DFA.
+    ///
+    /// This is useful when one has deserialized a DFA from `&[u8]`.
+    /// Deserialization does not currently include prefilters, so if you
+    /// want prefilter acceleration, you'll need to rebuild it and attach
+    /// it here.
+    pub fn set_prefilter(&mut self, prefilter: Option<Prefilter>) {
+        self.pre = prefilter
     }
 }
 
@@ -1207,35 +1208,21 @@ unsafe impl<T: AsRef<[u8]>> Automaton for DFA<T> {
     }
 
     #[inline]
-    fn start_state_forward(
+    fn start_state(
         &self,
-        input: &Input<'_>,
-    ) -> Result<StateID, MatchError> {
-        if !self.quitset.is_empty() && input.start() > 0 {
-            let offset = input.start() - 1;
-            let byte = input.haystack()[offset];
-            if self.quitset.contains(byte) {
-                return Err(MatchError::quit(byte, offset));
+        config: &start::Config,
+    ) -> Result<StateID, StartError> {
+        let anchored = config.get_anchored();
+        let start = match config.get_look_behind() {
+            None => Start::Text,
+            Some(byte) => {
+                if !self.quitset.is_empty() && self.quitset.contains(byte) {
+                    return Err(StartError::quit(byte));
+                }
+                self.st.start_map.get(byte)
             }
-        }
-        let start = self.st.start_map.fwd(&input);
-        self.st.start(input, start)
-    }
-
-    #[inline]
-    fn start_state_reverse(
-        &self,
-        input: &Input<'_>,
-    ) -> Result<StateID, MatchError> {
-        if !self.quitset.is_empty() && input.end() < input.haystack().len() {
-            let offset = input.end();
-            let byte = input.haystack()[offset];
-            if self.quitset.contains(byte) {
-                return Err(MatchError::quit(byte, offset));
-            }
-        }
-        let start = self.st.start_map.rev(&input);
-        self.st.start(input, start)
+        };
+        self.st.start(anchored, start)
     }
 
     #[inline]
@@ -1411,63 +1398,8 @@ impl<T: AsRef<[u8]>> Transitions<T> {
     ///
     /// That is, every state ID can be used to correctly index a state in this
     /// table.
-    fn validate(&self, sp: &Special) -> Result<(), DeserializeError> {
-        // In order to validate everything, we not only need to make sure we
-        // can decode every state, but that every transition in every state
-        // points to a valid state. There are many duplicative transitions, so
-        // we record state IDs that we've verified so that we don't redo the
-        // decoding work.
-        //
-        // Except, when in no_std mode, we don't have dynamic memory allocation
-        // available to us, so we skip this optimization. It's not clear
-        // whether doing something more clever is worth it just yet. If you're
-        // profiling this code and need it to run faster, please file an issue.
-        //
-        // OK, so we also use this to record the set of valid state IDs. Since
-        // it is possible for a transition to point to an invalid state ID that
-        // still (somehow) deserializes to a valid state. So we need to make
-        // sure our transitions are limited to actually correct state IDs.
-        // The problem is, I'm not sure how to do this verification step in
-        // no-std no-alloc mode. I think we'd *have* to store the set of valid
-        // state IDs in the DFA itself. For now, we don't do this verification
-        // in no-std no-alloc mode. The worst thing that can happen is an
-        // incorrect result. But no panics or memory safety problems should
-        // result. Because we still do validate that the state itself is
-        // "valid" in the sense that everything it points to actually exists.
-        //
-        // ---AG
-        struct Seen {
-            #[cfg(feature = "alloc")]
-            set: alloc::collections::BTreeSet<StateID>,
-            #[cfg(not(feature = "alloc"))]
-            set: core::marker::PhantomData<StateID>,
-        }
-
-        #[cfg(feature = "alloc")]
-        impl Seen {
-            fn new() -> Seen {
-                Seen { set: alloc::collections::BTreeSet::new() }
-            }
-            fn insert(&mut self, id: StateID) {
-                self.set.insert(id);
-            }
-            fn contains(&self, id: &StateID) -> bool {
-                self.set.contains(id)
-            }
-        }
-
-        #[cfg(not(feature = "alloc"))]
-        impl Seen {
-            fn new() -> Seen {
-                Seen { set: core::marker::PhantomData }
-            }
-            fn insert(&mut self, _id: StateID) {}
-            fn contains(&self, _id: &StateID) -> bool {
-                false
-            }
-        }
-
-        let mut verified: Seen = Seen::new();
+    fn validate(&self, sp: &Special) -> Result<Seen, DeserializeError> {
+        let mut verified = Seen::new();
         // We need to make sure that we decode the correct number of states.
         // Otherwise, an empty set of transitions would validate even if the
         // recorded state length is non-empty.
@@ -1544,7 +1476,7 @@ impl<T: AsRef<[u8]>> Transitions<T> {
                 "mismatching sparse state length",
             ));
         }
-        Ok(())
+        Ok(verified)
     }
 
     /// Converts these transitions to a borrowed value.
@@ -1682,7 +1614,7 @@ impl<T: AsRef<[u8]>> Transitions<T> {
             let state = &state[nr..];
             if npats == 0 {
                 return Err(DeserializeError::generic(
-                    "state marked as a match, but has no pattern IDs",
+                    "state marked as a match, but pattern length is zero",
                 ));
             }
 
@@ -1704,6 +1636,21 @@ impl<T: AsRef<[u8]>> Transitions<T> {
         } else {
             (&[][..], state)
         };
+        if is_match && pattern_ids.is_empty() {
+            return Err(DeserializeError::generic(
+                "state marked as a match, but has no pattern IDs",
+            ));
+        }
+        if sp.is_match_state(id) && pattern_ids.is_empty() {
+            return Err(DeserializeError::generic(
+                "state marked special as a match, but has no pattern IDs",
+            ));
+        }
+        if sp.is_match_state(id) != is_match {
+            return Err(DeserializeError::generic(
+                "whether state is a match or not is inconsistent",
+            ));
+        }
 
         // Now read this state's accelerator info. The first byte is the length
         // of the accelerator, which is typically 0 (for no acceleration) but
@@ -1913,6 +1860,12 @@ impl StartTable<Vec<u8>> {
             let new_start_id = remap[dfa.to_index(old_start_id)];
             sl.set_start(anchored, sty, new_start_id);
         }
+        if let Some(ref mut id) = sl.universal_start_anchored {
+            *id = remap[dfa.to_index(*id)];
+        }
+        if let Some(ref mut id) = sl.universal_start_unanchored {
+            *id = remap[dfa.to_index(*id)];
+        }
         Ok(sl)
     }
 }
@@ -2084,27 +2037,18 @@ impl<T: AsRef<[u8]>> StartTable<T> {
     fn validate(
         &self,
         sp: &Special,
-        trans: &Transitions<T>,
+        seen: &Seen,
     ) -> Result<(), DeserializeError> {
         for (id, _, _) in self.iter() {
+            if !seen.contains(&id) {
+                return Err(DeserializeError::generic(
+                    "found invalid start state ID",
+                ));
+            }
             if sp.is_match_state(id) {
                 return Err(DeserializeError::generic(
                     "start states cannot be match states",
                 ));
-            }
-            // Confirm that the start state points to a valid state.
-            let state = trans.try_state(sp, id)?;
-            // And like for the transition table, confirm that the transitions
-            // on all start states themselves point to a valid state.
-            //
-            // It'd probably be better to integrate this validation with the
-            // transition table, or otherwise store a sorted sequence of all
-            // valid state IDs in the sparse DFA itself. That way, we could
-            // check that every pointer to a state corresponds precisely to a
-            // correct and valid state.
-            for i in 0..state.ntrans {
-                let to = state.next_at(i);
-                let _ = trans.try_state(sp, to)?;
             }
         }
         Ok(())
@@ -2145,28 +2089,27 @@ impl<T: AsRef<[u8]>> StartTable<T> {
     /// panics.
     fn start(
         &self,
-        input: &Input<'_>,
+        anchored: Anchored,
         start: Start,
-    ) -> Result<StateID, MatchError> {
+    ) -> Result<StateID, StartError> {
         let start_index = start.as_usize();
-        let mode = input.get_anchored();
-        let index = match mode {
+        let index = match anchored {
             Anchored::No => {
                 if !self.kind.has_unanchored() {
-                    return Err(MatchError::unsupported_anchored(mode));
+                    return Err(StartError::unsupported_anchored(anchored));
                 }
                 start_index
             }
             Anchored::Yes => {
                 if !self.kind.has_anchored() {
-                    return Err(MatchError::unsupported_anchored(mode));
+                    return Err(StartError::unsupported_anchored(anchored));
                 }
                 self.stride + start_index
             }
             Anchored::Pattern(pid) => {
                 let len = match self.pattern_len {
                     None => {
-                        return Err(MatchError::unsupported_anchored(mode))
+                        return Err(StartError::unsupported_anchored(anchored))
                     }
                     Some(len) => len,
                 };
@@ -2222,7 +2165,7 @@ impl<T: AsMut<[u8]>> StartTable<T> {
                 let len = self
                     .pattern_len
                     .expect("start states for each pattern enabled");
-                assert!(pid < len, "invalid pattern ID {:?}", pid);
+                assert!(pid < len, "invalid pattern ID {pid:?}");
                 self.stride
                     .checked_mul(pid)
                     .unwrap()
@@ -2558,6 +2501,62 @@ impl<'a> fmt::Debug for StateMut<'a> {
             accel: self.accel,
         };
         fmt::Debug::fmt(&state, f)
+    }
+}
+
+// In order to validate everything, we not only need to make sure we
+// can decode every state, but that every transition in every state
+// points to a valid state. There are many duplicative transitions, so
+// we record state IDs that we've verified so that we don't redo the
+// decoding work.
+//
+// Except, when in no_std mode, we don't have dynamic memory allocation
+// available to us, so we skip this optimization. It's not clear
+// whether doing something more clever is worth it just yet. If you're
+// profiling this code and need it to run faster, please file an issue.
+//
+// OK, so we also use this to record the set of valid state IDs. Since
+// it is possible for a transition to point to an invalid state ID that
+// still (somehow) deserializes to a valid state. So we need to make
+// sure our transitions are limited to actually correct state IDs.
+// The problem is, I'm not sure how to do this verification step in
+// no-std no-alloc mode. I think we'd *have* to store the set of valid
+// state IDs in the DFA itself. For now, we don't do this verification
+// in no-std no-alloc mode. The worst thing that can happen is an
+// incorrect result. But no panics or memory safety problems should
+// result. Because we still do validate that the state itself is
+// "valid" in the sense that everything it points to actually exists.
+//
+// ---AG
+#[derive(Debug)]
+struct Seen {
+    #[cfg(feature = "alloc")]
+    set: alloc::collections::BTreeSet<StateID>,
+    #[cfg(not(feature = "alloc"))]
+    set: core::marker::PhantomData<StateID>,
+}
+
+#[cfg(feature = "alloc")]
+impl Seen {
+    fn new() -> Seen {
+        Seen { set: alloc::collections::BTreeSet::new() }
+    }
+    fn insert(&mut self, id: StateID) {
+        self.set.insert(id);
+    }
+    fn contains(&self, id: &StateID) -> bool {
+        self.set.contains(id)
+    }
+}
+
+#[cfg(not(feature = "alloc"))]
+impl Seen {
+    fn new() -> Seen {
+        Seen { set: core::marker::PhantomData }
+    }
+    fn insert(&mut self, _id: StateID) {}
+    fn contains(&self, _id: &StateID) -> bool {
+        true
     }
 }
 

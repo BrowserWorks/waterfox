@@ -20,7 +20,7 @@ fn run_test(re: &RegexSet, test: &RegexTest) -> TestResult {
     match test.additional_name() {
         "is_match" => TestResult::matched(re.is_match(test.haystack())),
         "which" => TestResult::which(re.matches(test.haystack()).iter()),
-        name => TestResult::fail(&format!("unrecognized test name: {}", name)),
+        name => TestResult::fail(&format!("unrecognized test name: {name}")),
     }
 }
 

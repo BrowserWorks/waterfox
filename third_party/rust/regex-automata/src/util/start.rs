@@ -1,16 +1,194 @@
 /*!
-Provides some helpers for dealing with start state configurations in DFAs.
-
-[`Start`] represents the possible starting configurations, while
-[`StartByteMap`] represents a way to retrieve the `Start` configuration for a
-given position in a haystack.
+Provides helpers for dealing with start state configurations in DFAs.
 */
 
 use crate::util::{
     look::LookMatcher,
-    search::Input,
+    search::{Anchored, Input},
     wire::{self, DeserializeError, SerializeError},
 };
+
+/// The configuration used to determine a DFA's start state for a search.
+///
+/// A DFA has a single starting state in the typical textbook description. That
+/// is, it corresponds to the set of all starting states for the NFA that built
+/// it, along with their epsilon closures. In this crate, however, DFAs have
+/// many possible start states due to a few factors:
+///
+/// * DFAs support the ability to run either anchored or unanchored searches.
+/// Each type of search needs its own start state. For example, an unanchored
+/// search requires starting at a state corresponding to a regex with a
+/// `(?s-u:.)*?` prefix, which will match through anything.
+/// * DFAs also optionally support starting an anchored search for any one
+/// specific pattern. Each such pattern requires its own start state.
+/// * If a look-behind assertion like `^` or `\b` is used in the regex, then
+/// the DFA will need to inspect a single byte immediately before the start of
+/// the search to choose the correct start state.
+///
+/// Indeed, this configuration precisely encapsulates all of the above factors.
+/// The [`Config::anchored`] method sets which kind of anchored search to
+/// perform while the [`Config::look_behind`] method provides a way to set
+/// the byte that occurs immediately before the start of the search.
+///
+/// Generally speaking, this type is only useful when you want to run searches
+/// without using an [`Input`]. In particular, an `Input` wants a haystack
+/// slice, but callers may not have a contiguous sequence of bytes as a
+/// haystack in all cases. This type provides a lower level of control such
+/// that callers can provide their own anchored configuration and look-behind
+/// byte explicitly.
+///
+/// # Example
+///
+/// This shows basic usage that permits running a search with a DFA without
+/// using the `Input` abstraction.
+///
+/// ```
+/// use regex_automata::{
+///     dfa::{Automaton, dense},
+///     util::start,
+///     Anchored,
+/// };
+///
+/// let dfa = dense::DFA::new(r"(?-u)\b\w+\b")?;
+/// let haystack = "quartz";
+///
+/// let config = start::Config::new().anchored(Anchored::Yes);
+/// let mut state = dfa.start_state(&config)?;
+/// for &b in haystack.as_bytes().iter() {
+///     state = dfa.next_state(state, b);
+/// }
+/// state = dfa.next_eoi_state(state);
+/// assert!(dfa.is_match_state(state));
+///
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
+/// This example shows how to correctly run a search that doesn't begin at
+/// the start of a haystack. Notice how we set the look-behind byte, and as
+/// a result, the `\b` assertion does not match.
+///
+/// ```
+/// use regex_automata::{
+///     dfa::{Automaton, dense},
+///     util::start,
+///     Anchored,
+/// };
+///
+/// let dfa = dense::DFA::new(r"(?-u)\b\w+\b")?;
+/// let haystack = "quartz";
+///
+/// let config = start::Config::new()
+///     .anchored(Anchored::Yes)
+///     .look_behind(Some(b'q'));
+/// let mut state = dfa.start_state(&config)?;
+/// for &b in haystack.as_bytes().iter().skip(1) {
+///     state = dfa.next_state(state, b);
+/// }
+/// state = dfa.next_eoi_state(state);
+/// // No match!
+/// assert!(!dfa.is_match_state(state));
+///
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
+/// If we had instead not set a look-behind byte, then the DFA would assume
+/// that it was starting at the beginning of the haystack, and thus `\b` should
+/// match. This in turn would result in erroneously reporting a match:
+///
+/// ```
+/// use regex_automata::{
+///     dfa::{Automaton, dense},
+///     util::start,
+///     Anchored,
+/// };
+///
+/// let dfa = dense::DFA::new(r"(?-u)\b\w+\b")?;
+/// let haystack = "quartz";
+///
+/// // Whoops, forgot the look-behind byte...
+/// let config = start::Config::new().anchored(Anchored::Yes);
+/// let mut state = dfa.start_state(&config)?;
+/// for &b in haystack.as_bytes().iter().skip(1) {
+///     state = dfa.next_state(state, b);
+/// }
+/// state = dfa.next_eoi_state(state);
+/// // And now we get a match unexpectedly.
+/// assert!(dfa.is_match_state(state));
+///
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[derive(Clone, Debug)]
+pub struct Config {
+    look_behind: Option<u8>,
+    anchored: Anchored,
+}
+
+impl Config {
+    /// Create a new default start configuration.
+    ///
+    /// The default is an unanchored search that starts at the beginning of the
+    /// haystack.
+    pub fn new() -> Config {
+        Config { anchored: Anchored::No, look_behind: None }
+    }
+
+    /// A convenience routine for building a start configuration from an
+    /// [`Input`] for a forward search.
+    ///
+    /// This automatically sets the look-behind byte to the byte immediately
+    /// preceding the start of the search. If the start of the search is at
+    /// offset `0`, then no look-behind byte is set.
+    pub fn from_input_forward(input: &Input<'_>) -> Config {
+        let look_behind = input
+            .start()
+            .checked_sub(1)
+            .and_then(|i| input.haystack().get(i).copied());
+        Config { look_behind, anchored: input.get_anchored() }
+    }
+
+    /// A convenience routine for building a start configuration from an
+    /// [`Input`] for a reverse search.
+    ///
+    /// This automatically sets the look-behind byte to the byte immediately
+    /// following the end of the search. If the end of the search is at
+    /// offset `haystack.len()`, then no look-behind byte is set.
+    pub fn from_input_reverse(input: &Input<'_>) -> Config {
+        let look_behind = input.haystack().get(input.end()).copied();
+        Config { look_behind, anchored: input.get_anchored() }
+    }
+
+    /// Set the look-behind byte at the start of a search.
+    ///
+    /// Unless the search is intended to logically start at the beginning of a
+    /// haystack, this should _always_ be set to the byte immediately preceding
+    /// the start of the search. If no look-behind byte is set, then the start
+    /// configuration will assume it is at the beginning of the haystack. For
+    /// example, the anchor `^` will match.
+    ///
+    /// The default is that no look-behind byte is set.
+    pub fn look_behind(mut self, byte: Option<u8>) -> Config {
+        self.look_behind = byte;
+        self
+    }
+
+    /// Set the anchored mode of a search.
+    ///
+    /// The default is an unanchored search.
+    pub fn anchored(mut self, mode: Anchored) -> Config {
+        self.anchored = mode;
+        self
+    }
+
+    /// Return the look-behind byte in this configuration, if one exists.
+    pub fn get_look_behind(&self) -> Option<u8> {
+        self.look_behind
+    }
+
+    /// Return the anchored mode in this configuration.
+    pub fn get_anchored(&self) -> Anchored {
+        self.anchored
+    }
+}
 
 /// A map from every possible byte value to its corresponding starting
 /// configuration.
@@ -71,30 +249,11 @@ impl StartByteMap {
         StartByteMap { map }
     }
 
-    /// Return the forward starting configuration for the given `input`.
+    /// Return the starting configuration for the given look-behind byte.
+    ///
+    /// If no look-behind exists, callers should use `Start::Text`.
     #[cfg_attr(feature = "perf-inline", inline(always))]
-    pub(crate) fn fwd(&self, input: &Input) -> Start {
-        match input
-            .start()
-            .checked_sub(1)
-            .and_then(|i| input.haystack().get(i))
-        {
-            None => Start::Text,
-            Some(&byte) => self.get(byte),
-        }
-    }
-
-    /// Return the reverse starting configuration for the given `input`.
-    #[cfg_attr(feature = "perf-inline", inline(always))]
-    pub(crate) fn rev(&self, input: &Input) -> Start {
-        match input.haystack().get(input.end()) {
-            None => Start::Text,
-            Some(&byte) => self.get(byte),
-        }
-    }
-
-    #[cfg_attr(feature = "perf-inline", inline(always))]
-    fn get(&self, byte: u8) -> Start {
+    pub(crate) fn get(&self, byte: u8) -> Start {
         self.map[usize::from(byte)]
     }
 
@@ -164,7 +323,7 @@ impl core::fmt::Debug for StartByteMap {
 
 /// Represents the six possible starting configurations of a DFA search.
 ///
-/// The starting configuration is determined by inspecting the the beginning
+/// The starting configuration is determined by inspecting the beginning
 /// of the haystack (up to 1 byte). Ultimately, this along with a pattern ID
 /// (if specified) and the type of search (anchored or not) is what selects the
 /// start state to use in a DFA.
@@ -253,21 +412,32 @@ mod tests {
     #[test]
     fn start_fwd_done_range() {
         let smap = StartByteMap::new(&LookMatcher::default());
-        assert_eq!(Start::Text, smap.fwd(&Input::new("").range(1..0)));
+        let input = Input::new("").range(1..0);
+        let config = Config::from_input_forward(&input);
+        let start =
+            config.get_look_behind().map_or(Start::Text, |b| smap.get(b));
+        assert_eq!(Start::Text, start);
     }
 
     #[test]
     fn start_rev_done_range() {
         let smap = StartByteMap::new(&LookMatcher::default());
-        assert_eq!(Start::Text, smap.rev(&Input::new("").range(1..0)));
+        let input = Input::new("").range(1..0);
+        let config = Config::from_input_reverse(&input);
+        let start =
+            config.get_look_behind().map_or(Start::Text, |b| smap.get(b));
+        assert_eq!(Start::Text, start);
     }
 
     #[test]
     fn start_fwd() {
         let f = |haystack, start, end| {
             let smap = StartByteMap::new(&LookMatcher::default());
-            let input = &Input::new(haystack).range(start..end);
-            smap.fwd(input)
+            let input = Input::new(haystack).range(start..end);
+            let config = Config::from_input_forward(&input);
+            let start =
+                config.get_look_behind().map_or(Start::Text, |b| smap.get(b));
+            start
         };
 
         assert_eq!(Start::Text, f("", 0, 0));
@@ -287,8 +457,11 @@ mod tests {
     fn start_rev() {
         let f = |haystack, start, end| {
             let smap = StartByteMap::new(&LookMatcher::default());
-            let input = &Input::new(haystack).range(start..end);
-            smap.rev(input)
+            let input = Input::new(haystack).range(start..end);
+            let config = Config::from_input_reverse(&input);
+            let start =
+                config.get_look_behind().map_or(Start::Text, |b| smap.get(b));
+            start
         };
 
         assert_eq!(Start::Text, f("", 0, 0));

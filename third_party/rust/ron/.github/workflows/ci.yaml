@@ -1,0 +1,199 @@
+name: CI
+on:
+  push:
+    branches:
+    - master
+    - 'v*.*'
+  pull_request:
+    branches:
+    - master
+    - 'v*.*'
+  schedule:
+    - cron: '0 0 * * 0'
+
+jobs:
+  lock:
+    name: Cargo.lock
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the Repository
+        uses: actions/checkout@v4
+      - name: Install the Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          profile: minimal
+          override: true
+      - name: Generate the minimum version lockfile
+        run: |
+          cargo update -Z minimal-versions
+          cargo update -Z direct-minimal-versions
+          mv Cargo.lock Cargo.lock.min
+      - name: Generate the current version lockfile
+        run: cargo update
+      - name: Upload the Cargo lockfiles
+        uses: actions/upload-artifact@v4
+        with:
+          name: Cargo.lock
+          path: |
+            Cargo.lock
+            Cargo.lock.min
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    needs: lock
+
+    strategy:
+      matrix:
+        rust: [1.64.0, stable, nightly]
+        lock: ["Cargo.lock", "Cargo.lock.min"]
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the Cargo lockfiles
+        uses: actions/download-artifact@v4
+        with:
+          name: Cargo.lock
+      - name: Rename ${{ matrix.lock }} to Cargo.lock
+        run: mv ${{ matrix.lock }} Cargo.lock
+        if: ${{ matrix.lock != 'Cargo.lock' }}
+      - uses: ./.github/actions/setup
+        with:
+          key: test-${{ matrix.rust }}-${{ matrix.lock }}
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          profile: minimal
+          override: true
+      # Downgrade some dependencies for MSRV 1.64
+      - run: |
+          cargo update -p serde_bytes --precise 0.11.16
+          cargo update -p indexmap --precise 2.5.0
+          cargo update -p once_cell --precise 1.20.3
+        if: ${{ matrix.rust == '1.64.0' }}
+      - run: cargo test
+      - run: cargo test --features integer128
+      - run: cargo test --features indexmap
+      - run: cargo test --all-features
+
+  clippy:
+    name: "Clippy: MSRV"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          key: clippy-msrv
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.64.0
+          profile: minimal
+          components: clippy
+          override: true
+      # Downgrade some dependencies for MSRV 1.64
+      - run: |
+          cargo update -p serde_bytes --precise 0.11.16
+          cargo update -p indexmap --precise 2.5.0
+          cargo update -p once_cell --precise 1.20.3
+      - run: cargo clippy -- -D warnings -A unknown-lints
+      - run: cargo clippy --features integer128 -- -D warnings -A unknown-lints
+      - run: cargo clippy --features indexmap -- -D warnings -A unknown-lints
+      - run: cargo clippy --all-features -- -D warnings -A unknown-lints
+
+  clippy-fuzz:
+    name: "Clippy: Fuzzer"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          key: clippy-fuzz
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          components: clippy
+          override: true
+      - run: cd fuzz && cargo clippy --all -- -D warnings
+  
+  rustfmt:
+    name: "Format: stable"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          key: rustfmt-stable
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          components: rustfmt
+          override: true
+      - run: cargo fmt --all -- --check
+      - run: cd fuzz && cargo fmt --all -- --check
+
+  coverage:
+    name: "Coverage: stable"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup
+        with:
+          key: coverage
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          components: llvm-tools-preview
+          override: true
+      - name: Download grcov
+        run: |
+          curl -sL https://github.com/mozilla/grcov/releases/download/v0.8.18/grcov-x86_64-unknown-linux-gnu.tar.bz2 | tar jxf -
+          chmod +x ./grcov
+      - name: Generate the coverage data
+        run: |
+          cargo clean
+          cargo test --all-targets
+          cargo test --features integer128 --all-targets
+          cargo test --features indexmap --all-targets
+          cargo test --all-features --all-targets
+        env:
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: -Cinstrument-coverage
+          RUSTDOCFLAGS: -Cinstrument-coverage
+          LLVM_PROFILE_FILE: coverage/coverage-%p-%m.profraw
+      - name: Generate the coverage reports
+        run: |
+          ./grcov . -s . --binary-path ./target/debug/deps \
+            -t lcov -o coverage.lcov --branch \
+            --keep-only "src/*" \
+            --keep-only "tests/*" \
+            --ignore-not-existing \
+            --excl-line GRCOV_EXCL_LINE \
+            --excl-start GRCOV_EXCL_START \
+            --excl-stop GRCOV_EXCL_STOP
+          ./grcov . -s . --binary-path ./target/debug/deps \
+            -t html --branch \
+            --keep-only "src/*" \
+            --keep-only "tests/*" \
+            --ignore-not-existing \
+            --excl-line GRCOV_EXCL_LINE \
+            --excl-start GRCOV_EXCL_START \
+            --excl-stop GRCOV_EXCL_STOP
+          rm -rf html/badges
+      # - name: Upload the coverage report to codecov.io
+      #   uses: codecov/codecov-action@v1
+      #   with:
+      #     files: coverage.lcov
+      #     fail_ci_if_error: true
+      - name: Deploy the code coverage report
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./html
+          destination_dir: coverage
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'

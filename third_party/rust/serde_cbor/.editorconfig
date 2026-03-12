@@ -1,0 +1,5 @@
+# see https://editorconfig.org for more options, and setup instructions for yours editor
+
+[*.rs]
+indent_style = space
+indent_size = 4

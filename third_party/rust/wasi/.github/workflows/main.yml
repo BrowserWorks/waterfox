@@ -1,0 +1,77 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [stable, beta, nightly]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Rust
+      run: rustup update ${{ matrix.rust }} && rustup default ${{ matrix.rust }} && rustup component add rustfmt
+    - run: rustup target add wasm32-wasip1 wasm32-unknown-unknown
+    - run: cargo build --workspace
+    - run: cargo build --workspace --no-default-features
+    - run: cargo build --workspace --target wasm32-wasip1
+    - run: cargo build --workspace --target wasm32-wasip1 --no-default-features
+    - run: cargo test --workspace --doc
+    - name: Install Wasmtime
+      uses: bytecodealliance/actions/wasmtime/setup@v1
+      with:
+        version: "v30.0.2"
+    - name: Install wasm-tools
+      uses: bytecodealliance/actions/wasm-tools/setup@v1
+      with:
+        version: "1.224.0"
+    - run: curl -LO https://github.com/bytecodealliance/wasmtime/releases/download/v30.0.2/wasi_snapshot_preview1.command.wasm
+
+    - run: cargo build --examples --target wasm32-wasip1 --no-default-features
+
+    - run: wasm-tools component new ./target/wasm32-wasip1/debug/examples/hello-world-no_std.wasm --adapt ./wasi_snapshot_preview1.command.wasm -o component.wasm
+    - run: wasmtime run component.wasm
+
+    - run: cargo build --examples --target wasm32-unknown-unknown --no-default-features
+
+    - run: wasm-tools component new ./target/wasm32-unknown-unknown/debug/examples/cli_command_no_std.wasm -o component.wasm
+    - run: wasmtime run component.wasm
+
+    - run: wasm-tools component new ./target/wasm32-unknown-unknown/debug/examples/http_proxy_no_std.wasm -o component.wasm
+    - run: wasm-tools component targets wit component.wasm -w wasi:http/proxy
+
+    - run: cargo build --examples --target wasm32-wasip1
+
+    - run: wasm-tools component new ./target/wasm32-wasip1/debug/examples/hello-world.wasm --adapt ./wasi_snapshot_preview1.command.wasm -o component.wasm
+    - run: wasmtime run component.wasm
+
+    - run: cargo build --examples --target wasm32-unknown-unknown
+
+    - run: wasm-tools component new ./target/wasm32-unknown-unknown/debug/examples/cli_command.wasm -o component.wasm
+    - run: wasmtime run component.wasm
+
+    - run: wasm-tools component new ./target/wasm32-unknown-unknown/debug/examples/http_proxy.wasm -o component.wasm
+    - run: wasm-tools component targets wit component.wasm -w wasi:http/proxy
+
+    - run: cargo build --examples --workspace --target wasm32-wasip1 --features rand
+
+    - run: wasm-tools component new ./target/wasm32-wasip1/debug/examples/rand.wasm --adapt ./wasi_snapshot_preview1.command.wasm -o component.wasm
+    - run: wasmtime run component.wasm
+
+  generate:
+    name: Ensure generated code up-to-date
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Rust
+      run: rustup update stable && rustup default stable
+    # Re-vendor all WIT files and ensure that they're all up-to-date by ensuring
+    # that there's no git changes.
+    - name: Re-vendor WIT
+      run: |
+        ./ci/vendor-wit.sh
+        git diff --exit-code
+    - run: cargo install wit-bindgen-cli@0.39.0 --locked
+    - run: ./ci/regenerate.sh
+    - run: git diff --exit-code

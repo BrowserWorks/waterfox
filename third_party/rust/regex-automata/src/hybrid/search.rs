@@ -105,14 +105,14 @@ fn find_fwd_imp(
             // PERF: For justification of omitting bounds checks, it gives us a
             // ~10% bump in search time. This was used for a benchmark:
             //
-            //     regex-cli find hybrid dfa @bigfile '(?m)^.+$' -UBb
+            //     regex-cli find half hybrid -p '(?m)^.+$' -UBb bigfile
             //
             // PERF: For justification for the loop unrolling, we use a few
             // different tests:
             //
-            //     regex-cli find hybrid dfa @$bigfile '\w{50}' -UBb
-            //     regex-cli find hybrid dfa @$bigfile '(?m)^.+$' -UBb
-            //     regex-cli find hybrid dfa @$bigfile 'ZQZQZQZQ' -UBb
+            //     regex-cli find half hybrid -p '\w{50}' -UBb bigfile
+            //     regex-cli find half hybrid -p '(?m)^.+$' -UBb bigfile
+            //     regex-cli find half hybrid -p 'ZQZQZQZQ' -UBb bigfile
             //
             // And there are three different configurations:
             //
@@ -353,7 +353,7 @@ fn find_rev_imp(
             // anchored and on shorter haystacks. However, this still makes a
             // difference. Take this command for example:
             //
-            //     regex-cli find hybrid regex @$bigfile '(?m)^.+$' -UBb
+            //     regex-cli find match hybrid -p '(?m)^.+$' -UBb bigfile
             //
             // (Notice that we use 'find hybrid regex', not 'find hybrid dfa'
             // like in the justification for the forward direction. The 'regex'

@@ -81,9 +81,6 @@ pub(crate) fn dfa_try_search_half_fwd(
             } else if dfa.is_dead_state(sid) {
                 return Ok(mat.ok_or(at));
             } else if dfa.is_quit_state(sid) {
-                if mat.is_some() {
-                    return Ok(mat.ok_or(at));
-                }
                 return Err(MatchError::quit(input.haystack()[at], at).into());
             } else {
                 // Ideally we wouldn't use a DFA that specialized start states
@@ -122,9 +119,6 @@ pub(crate) fn hybrid_try_search_half_fwd(
             } else if sid.is_dead() {
                 return Ok(mat.ok_or(at));
             } else if sid.is_quit() {
-                if mat.is_some() {
-                    return Ok(mat.ok_or(at));
-                }
                 return Err(MatchError::quit(input.haystack()[at], at).into());
             } else {
                 // We should NEVER get an unknown state ID back from
@@ -162,9 +156,6 @@ fn dfa_eoi_fwd(
                 let pattern = dfa.match_pattern(*sid, 0);
                 *mat = Some(HalfMatch::new(pattern, sp.end));
             } else if dfa.is_quit_state(*sid) {
-                if mat.is_some() {
-                    return Ok(());
-                }
                 return Err(MatchError::quit(b, sp.end));
             }
         }
@@ -201,9 +192,6 @@ fn hybrid_eoi_fwd(
                 let pattern = dfa.match_pattern(cache, *sid, 0);
                 *mat = Some(HalfMatch::new(pattern, sp.end));
             } else if sid.is_quit() {
-                if mat.is_some() {
-                    return Ok(());
-                }
                 return Err(MatchError::quit(b, sp.end));
             }
         }

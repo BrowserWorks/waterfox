@@ -1,0 +1,64 @@
+name: enarxbot
+
+on:
+  check_run:
+  check_suite:
+  create:
+  delete:
+  deployment:
+  deployment_status:
+  fork:
+  gollum:
+  issue_comment:
+  issues:
+  label:
+  milestone:
+  page_build:
+  project:
+  project_card:
+  project_column:
+  public:
+  pull_request_target:
+    types:
+      - assigned
+      - unassigned
+      - labeled
+      - unlabeled
+      - opened
+      - edited
+      - closed
+      - reopened
+      - synchronize
+      - ready_for_review
+      - locked
+      - unlocked
+      - review_requested
+      - review_request_removed
+  push:
+  registry_package:
+  release:
+  status:
+  watch:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  enarxbot:
+    runs-on: ubuntu-latest
+    env:
+      BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+    name: enarxbot
+    steps:
+      - uses: enarx/bot@master
+  pull-request-responsibility:
+    runs-on: ubuntu-latest
+    env:
+      BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+    name: pull-request-responsibility
+    steps:
+      - uses: actions-automation/pull-request-responsibility@main
+        with:
+          actions: "request,assign,copy-labels-linked,merge"
+          reviewers: "reviews"
+          num_to_request: 3

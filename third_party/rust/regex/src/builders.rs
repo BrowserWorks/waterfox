@@ -552,7 +552,7 @@ pub(crate) mod string {
 
         /// This configures verbose mode for the entire pattern.
         ///
-        /// When enabled, whitespace will treated as insignifcant in the
+        /// When enabled, whitespace will treated as insignificant in the
         /// pattern and `#` can be used to start a comment until the next new
         /// line.
         ///
@@ -679,6 +679,7 @@ pub(crate) mod string {
         /// # Example
         ///
         /// ```
+        /// # if !cfg!(target_pointer_width = "64") { return; } // see #1041
         /// use regex::RegexBuilder;
         ///
         /// // It may surprise you how big some seemingly small patterns can
@@ -1132,7 +1133,7 @@ pub(crate) mod string {
 
         /// This configures verbose mode for all of the patterns.
         ///
-        /// When enabled, whitespace will treated as insignifcant in the
+        /// When enabled, whitespace will treated as insignificant in the
         /// pattern and `#` can be used to start a comment until the next new
         /// line.
         ///
@@ -1246,6 +1247,7 @@ pub(crate) mod string {
         /// # Example
         ///
         /// ```
+        /// # if !cfg!(target_pointer_width = "64") { return; } // see #1041
         /// use regex::RegexSetBuilder;
         ///
         /// // It may surprise you how big some seemingly small patterns can
@@ -1723,7 +1725,7 @@ pub(crate) mod bytes {
 
         /// This configures verbose mode for the entire pattern.
         ///
-        /// When enabled, whitespace will treated as insignifcant in the
+        /// When enabled, whitespace will treated as insignificant in the
         /// pattern and `#` can be used to start a comment until the next new
         /// line.
         ///
@@ -1856,6 +1858,7 @@ pub(crate) mod bytes {
         /// # Example
         ///
         /// ```
+        /// # if !cfg!(target_pointer_width = "64") { return; } // see #1041
         /// use regex::bytes::RegexBuilder;
         ///
         /// // It may surprise you how big some seemingly small patterns can
@@ -2314,7 +2317,7 @@ pub(crate) mod bytes {
 
         /// This configures verbose mode for all of the patterns.
         ///
-        /// When enabled, whitespace will treated as insignifcant in the
+        /// When enabled, whitespace will treated as insignificant in the
         /// pattern and `#` can be used to start a comment until the next new
         /// line.
         ///
@@ -2428,6 +2431,7 @@ pub(crate) mod bytes {
         /// # Example
         ///
         /// ```
+        /// # if !cfg!(target_pointer_width = "64") { return; } // see #1041
         /// use regex::bytes::RegexSetBuilder;
         ///
         /// // It may surprise you how big some seemingly small patterns can

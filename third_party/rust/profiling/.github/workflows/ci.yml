@@ -1,0 +1,157 @@
+name: CI
+
+on: [push, pull_request]
+
+env:
+  CARGO_TERM_COLOR: always
+
+# Just test windows as several of the profilers don't do anything or fail to build on other platforms
+jobs:
+  build:
+    strategy:
+      matrix:
+        toolchain: [stable, beta]
+        os: [windows-2022, ubuntu-22.04, macos-12]
+        exclude:
+          - os: macos-12
+            toolchain: beta
+          - os: windows-2022
+            toolchain: beta
+    runs-on: ${{ matrix.os }}
+    needs: clean
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          override: true
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            target
+          key: ${{ runner.os }}-cargo-check-test-${{ matrix.toolchain }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build (puffin)
+        run: cargo build --all-targets --features=profile-with-puffin
+        env:
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: "-C debuginfo=0 -D warnings"
+
+      - name: Build (superluminal)
+        run: cargo build --all-targets --features=profile-with-superluminal
+        if: ${{ runner.os == 'Windows' && matrix.toolchain == 'stable' }}
+        env:
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: "-C debuginfo=0 -D warnings"
+
+      - name: Build (optick)
+        run: cargo build --all-targets --features=profile-with-optick
+        if: ${{ runner.os == 'Windows' && matrix.toolchain == 'stable' }}
+        env:
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: "-C debuginfo=0 -D warnings"
+
+      - name: Build (tracing)
+        run: cargo build --all-targets --features=profile-with-tracing
+        env:
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: "-C debuginfo=0 -D warnings"
+
+      - name: Build (tracy)
+        run: cargo build --all-targets --features=profile-with-tracy
+        env:
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: "-C debuginfo=0 -D warnings"
+
+      - name: Build (type-check)
+        run: cargo build --all-targets --features=type-check
+        env:
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: "-C debuginfo=0 -D warnings"
+
+      # Only do this on windows, some of the profilers only support windows
+      - name: Run tests
+        run: cargo test --workspace
+        if: ${{ runner.os == 'Windows' && matrix.toolchain == 'stable' }}
+        env:
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: "-C debuginfo=0 -D warnings"
+
+      # Test that we compile with no default features enabled
+      # Only do this on windows, some of the profilers only support windows
+      - name: Run tests (
+        run: cargo build --no-default-features
+        env:
+          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: "-C debuginfo=0 -D warnings"
+
+  deny-check:
+    name: cargo-deny
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v1
+      - uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          command: check ${{ matrix.checks }}
+
+  clean:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+          override: true
+
+      - name: Check the format
+        run: cargo fmt --all -- --check
+
+      - name: Run clippy (puffin)
+        run: >
+          cargo clippy
+          --all-targets
+          --features profile-with-puffin
+          --
+          -D warnings
+
+      - name: Run clippy (optick)
+        run: >
+          cargo clippy
+          --all-targets
+          --features profile-with-optick
+          --
+          -D warnings
+
+      - name: Run clippy (superluminal)
+        run: >
+          cargo clippy
+          --all-targets
+          --features profile-with-superluminal
+          --
+          -D warnings
+
+      - name: Run clippy (tracing)
+        run: >
+          cargo clippy
+          --all-targets
+          --features profile-with-tracing
+          --
+          -D warnings
+
+      - name: Run clippy (tracy)
+        run: >
+          cargo clippy
+          --all-targets
+          --features profile-with-tracy
+          --
+          -D warnings
+
+      - name: Run clippy (type-check)
+        run: >
+          cargo clippy
+          --all-targets
+          --features type-check
+          --
+          -D warnings

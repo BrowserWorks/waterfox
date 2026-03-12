@@ -133,7 +133,7 @@ compiled DFAs.
 */
 
 pub use self::{
-    error::{BuildError, CacheError},
+    error::{BuildError, CacheError, StartError},
     id::LazyStateID,
 };
 
