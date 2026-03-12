@@ -782,3 +782,49 @@ match-kind = "all"
 search-kind = "overlapping"
 unicode = true
 utf8 = true
+
+# This tests that the PikeVM and the meta regex agree on a particular regex.
+# This test previously failed when the ad hoc engines inside the meta engine
+# did not handle quit states correctly. Namely, the Unicode word boundary here
+# combined with a non-ASCII codepoint provokes the quit state. The ad hoc
+# engines were previously returning a match even after entering the quit state
+# if a match had been previously detected, but this is incorrect. The reason
+# is that if a quit state is found, then the search must give up *immediately*
+# because it prevents the search from finding the "proper" leftmost-first
+# match. If it instead returns a match that has been found, it risks reporting
+# an improper match, as it did in this case.
+#
+# See: https://github.com/rust-lang/regex/issues/1046
+[[test]]
+name = "non-prefix-literal-quit-state"
+regex = '.+\b\n'
+haystack = "β77\n"
+matches = [[0, 5]]
+
+# This is a regression test for some errant HIR interval set operations that
+# were made in the regex-syntax 0.8.0 release and then reverted in 0.8.1. The
+# issue here is that the HIR produced from the regex had out-of-order ranges.
+#
+# See: https://github.com/rust-lang/regex/issues/1103
+# Ref: https://github.com/rust-lang/regex/pull/1051
+# Ref: https://github.com/rust-lang/regex/pull/1102
+[[test]]
+name = "hir-optimization-out-of-order-class"
+regex = '^[[:alnum:]./-]+$'
+haystack = "a-b"
+matches = [[0, 3]]
+
+# This is a regression test for an improper reverse suffix optimization. This
+# occurred when I "broadened" the applicability of the optimization to include
+# multiple possible literal suffixes instead of only sticking to a non-empty
+# longest common suffix. It turns out that, at least given how the reverse
+# suffix optimization works, we need to stick to the longest common suffix for
+# now.
+#
+# See: https://github.com/rust-lang/regex/issues/1110
+# See also: https://github.com/astral-sh/ruff/pull/7980
+[[test]]
+name = 'improper-reverse-suffix-optimization'
+regex = '(\\N\{[^}]+})|([{}])'
+haystack = 'hiya \N{snowman} bye'
+matches = [[[5, 16], [5, 16], []]]
