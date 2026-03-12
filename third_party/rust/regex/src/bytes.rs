@@ -68,8 +68,8 @@ bytes:
 1. The `u` flag can be disabled even when disabling it might cause the regex to
 match invalid UTF-8. When the `u` flag is disabled, the regex is said to be in
 "ASCII compatible" mode.
-2. In ASCII compatible mode, neither Unicode scalar values nor Unicode
-character classes are allowed.
+2. In ASCII compatible mode, Unicode character classes are not allowed. Literal
+Unicode scalar values outside of character classes are allowed.
 3. In ASCII compatible mode, Perl character classes (`\w`, `\d` and `\s`)
 revert to their typical ASCII definition. `\w` maps to `[[:word:]]`, `\d` maps
 to `[[:digit:]]` and `\s` maps to `[[:space:]]`.

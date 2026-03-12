@@ -152,9 +152,19 @@ pub trait Flags: Sized + 'static {
         Self::from_bits_retain(truncated)
     }
 
+    /// Get the known bits from a flags value.
+    fn known_bits(&self) -> Self::Bits {
+        self.bits() & Self::all().bits()
+    }
+
+    /// Get the unknown bits from a flags value.
+    fn unknown_bits(&self) -> Self::Bits {
+        self.bits() & !Self::all().bits()
+    }
+
     /// This method will return `true` if any unknown bits are set.
     fn contains_unknown_bits(&self) -> bool {
-        Self::all().bits() & self.bits() != self.bits()
+        self.unknown_bits() != Self::Bits::EMPTY
     }
 
     /// Get the underlying bits value.
@@ -216,6 +226,11 @@ pub trait Flags: Sized + 'static {
     /// Any unknown bits, or bits not corresponding to a contained flag will not be yielded.
     fn iter_names(&self) -> iter::IterNames<Self> {
         iter::IterNames::new(self)
+    }
+
+    /// Yield a set of all named flags defined by [`Self::FLAGS`].
+    fn iter_defined_names() -> iter::IterDefinedNames<Self> {
+        iter::IterDefinedNames::new()
     }
 
     /// Whether all bits in this flags value are unset.

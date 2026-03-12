@@ -1,0 +1,119 @@
+// IMPORTANT NOTE: In case of breaking changes increase ADBLOCK_RUST_DAT_VERSION
+// This helps to speed up browser startup process after the update.
+//
+// To build *_generated.rs run:
+// 1. flatc --rust --gen-object-api -o src/flatbuffers/ src/flatbuffers/fb_network_filter.fbs
+// 2. cargo fmt
+namespace fb;
+
+table NetworkFilter {
+  mask: uint32;  // NetworkFilterMask (network.rs)
+
+  /// These arrays contain sorted (ascending) indices in the |unique_domains_hashes|
+  /// instead of the hashes themselves. This approach saves memory, as there
+  /// typically aren’t many unique hashes
+  opt_domains: [uint32];
+  opt_not_domains: [uint32];
+
+  patterns: [string];
+  modifier_option: string;
+  hostname: string;
+
+  tag: string;
+
+  raw_line: string;
+}
+
+table NetworkFilterList {
+  filter_map_index: [uint32] (required);
+  filter_map_values: [NetworkFilter] (required);
+}
+
+/// A table to store the most host-specific cosmetic rules.
+/// Although, the most common kind of rule (see hostname_inject_script_*
+/// and hostname_hide_*) are stored separately to save memory.
+table HostnameSpecificRules {
+  /// Simple hide exception rules, e.g. `example.com#@#.ad`.
+  /// The content is the rule's CSS selector.
+  unhide: [string];
+
+  /// Rules to except a scriptlet to inject along with any arguments, e.g.
+  /// `example.com#@#+js(acis, Number.isNan)`.
+  /// The content is the contents of the `+js(...)` syntax construct.
+  /// In practice, these rules are extremely rare in filter lists.
+  uninject_script: [string];
+
+  /// Procedural filters and/or filters with a [`CosmeticFilterAction`].
+  /// Each is a [`ProceduralOrActionFilter`] struct serialized as JSON.
+  procedural_action: [string];
+
+  /// Exceptions for procedural filters and/or filters with a [`CosmeticFilterAction`].
+  /// Each is a [`ProceduralOrActionFilter`] struct serialized as JSON.
+  procedural_action_exception: [string];
+}
+
+table StringVector {
+  data: [string] (required);
+}
+
+/// A table to store cosmetic filter rules (including supported structures).
+table CosmeticFilters {
+  /// Rules that are just the CSS class of an element to be hidden on all sites, e.g. `##.ad`.
+  /// Stored as a flat_set.
+  simple_class_rules: [string] (required);
+
+  /// Rules that are just the CSS id of an element to be hidden on all sites, e.g. `###banner`.
+  /// Stored as a flat_set.
+  simple_id_rules: [string] (required);
+
+  /// Rules that are the CSS selector of an element to be hidden on all sites that do not fit
+  /// into any of the class or id buckets, e.g. `##a[href="https://malware.com"]`
+  /// Stored as a flat_set.
+  misc_generic_selectors: [string] (required);
+
+  /// Rules that are the CSS selector of an element to be hidden on all sites, starting with a
+  /// class, e.g. `##.ad image`.
+  /// Stored as a multi-map `hostname_hash` => `selector`
+  complex_class_rules_index: [string] (required);
+  complex_class_rules_values: [StringVector] (required);
+
+  /// Rules that are the CSS selector of an element to be hidden on all sites, starting with an
+  /// id, e.g. `###banner > .text a`.
+  /// Stored as a multi-map `hostname_hash` => `selector`
+  complex_id_rules_index: [string] (required);
+  complex_id_rules_values: [StringVector] (required);
+
+  /// Simple hostname-specific hide rules, e.g. `example.com##.ad`.
+  /// Stored as a multi-map `hostname_hash` => `selector`.
+  /// Doesn't belong to HostnameSpecificRules for performance reasons.
+  hostname_hide_index: [uint64] (required);
+  hostname_hide_values: [string] (required);
+
+  /// Rules with a scriptlet to inject along with any arguments, e.g.
+  /// `example.com##+js(acis, Number.isNan)`.
+  /// Stored as a multi-map `hostname_hash` => `script_plus_permission_byte`
+  /// The content is the contents of the `+js(...)` syntax construct plus
+  /// last byte stores permission to save memory.
+  /// Doesn't belong to HostnameSpecificRules for performance reasons.
+  hostname_inject_script_index: [uint64] (required);
+  hostname_inject_script_values: [string] (required);
+
+  /// A map to store the other host-specific cosmetic rules.
+  hostname_index: [uint64] (required);
+  hostname_values: [HostnameSpecificRules] (required);
+}
+
+/// A root type containing a serialized Engine.
+table Engine {
+  /// Contains several NetworkFilterList matching to different kinds of lists.
+  /// The indexes are matching NetworkFilterListId.
+  /// The size must be NetworkFilterListId::Size.
+  network_rules: [NetworkFilterList] (required);
+
+  /// Contains hashes for opt_(not)_domains. See opt_domains for details.
+  unique_domains_hashes: [uint64] (required);
+
+  cosmetic_filters: CosmeticFilters (required);
+}
+
+root_type Engine;

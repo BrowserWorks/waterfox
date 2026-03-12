@@ -1,0 +1,61 @@
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+name: CI
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        rust:
+          - 1.36.0  # MSRV
+          - stable
+          - beta
+          - nightly
+        features:
+          - ""
+          - "serde"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+
+      - name: Build (no_std)
+        run: cargo build --no-default-features
+
+      - name: Build
+        run: cargo build --features "${{ matrix.features }}"
+
+      - name: Test
+        run: cargo test --features "${{ matrix.features }}"
+
+      - name: Doc
+        run: cargo doc --features "${{ matrix.features }}"
+
+  clippy:
+    name: Rustfmt and Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up nightly Rust
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt, clippy
+
+      - name: Rustfmt
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy  # -- -D warnings

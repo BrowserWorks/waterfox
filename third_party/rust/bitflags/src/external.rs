@@ -67,7 +67,7 @@ __impl_external_bitflags_my_library! {
 
 pub(crate) mod __private {
     #[cfg(feature = "serde")]
-    pub use serde;
+    pub use serde_core as serde;
 
     #[cfg(feature = "arbitrary")]
     pub use arbitrary;
@@ -155,7 +155,7 @@ macro_rules! __impl_external_bitflags_serde {
             ) -> $crate::__private::core::result::Result<Self, D::Error> {
                 let flags: $PublicBitFlags = $crate::serde::deserialize(deserializer)?;
 
-                Ok(flags.0)
+                $crate::__private::core::result::Result::Ok(flags.0)
             }
         }
     };

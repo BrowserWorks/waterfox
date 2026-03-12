@@ -61,7 +61,7 @@ enum State {
     Look { look: Look, next: StateID },
     /// An empty state that records the start of a capture location. This is an
     /// unconditional epsilon transition like `Empty`, except it can be used to
-    /// record position information for a captue group when using the NFA for
+    /// record position information for a capture group when using the NFA for
     /// search.
     CaptureStart {
         /// The ID of the pattern that this capture was defined.
@@ -77,7 +77,7 @@ enum State {
     },
     /// An empty state that records the end of a capture location. This is an
     /// unconditional epsilon transition like `Empty`, except it can be used to
-    /// record position information for a captue group when using the NFA for
+    /// record position information for a capture group when using the NFA for
     /// search.
     CaptureEnd {
         /// The ID of the pattern that this capture was defined.
@@ -128,7 +128,7 @@ enum State {
 }
 
 impl State {
-    /// If this state is an unconditional espilon transition, then this returns
+    /// If this state is an unconditional epsilon transition, then this returns
     /// the target of the transition.
     fn goto(&self) -> Option<StateID> {
         match *self {

@@ -1,0 +1,3 @@
+allow-mixed-uninlined-format-args = false
+allow-unwrap-in-tests = true
+doc-valid-idents = ["NetBSD", "OpenBSD", ".."]

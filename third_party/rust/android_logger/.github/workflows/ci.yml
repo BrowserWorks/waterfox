@@ -1,0 +1,42 @@
+name: Continuous integration
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ci:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macOS-latest
+        toolchain:
+          - stable
+          - beta
+          - nightly
+        target:
+          - arm-linux-androideabi
+          - armv7-linux-androideabi
+          - aarch64-linux-android
+          - i686-linux-android
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          target: ${{ matrix.target }}
+
+      - run: cargo build --target=${{ matrix.target }}
+      - run: cargo doc --target=${{ matrix.target }}
+      # Temporary test non-target only.
+      # TODO: Test in emulator or something.
+      - run: cargo test

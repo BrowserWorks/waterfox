@@ -1,4 +1,4 @@
-use crate::{hybrid::id::LazyStateIDError, nfa};
+use crate::{hybrid::id::LazyStateIDError, nfa, util::search::Anchored};
 
 /// An error that occurs when initial construction of a lazy DFA fails.
 ///
@@ -80,16 +80,122 @@ impl core::fmt::Display for BuildError {
             BuildErrorKind::InsufficientCacheCapacity { minimum, given } => {
                 write!(
                     f,
-                    "given cache capacity ({}) is smaller than \
-                     minimum required ({})",
-                    given, minimum,
+                    "given cache capacity ({given}) is smaller than \
+                     minimum required ({minimum})",
                 )
             }
             BuildErrorKind::InsufficientStateIDCapacity { ref err } => {
                 err.fmt(f)
             }
             BuildErrorKind::Unsupported(ref msg) => {
-                write!(f, "unsupported regex feature for DFAs: {}", msg)
+                write!(f, "unsupported regex feature for DFAs: {msg}")
+            }
+        }
+    }
+}
+
+/// An error that can occur when computing the start state for a search.
+///
+/// Computing a start state can fail for a few reasons, either
+/// based on incorrect configuration or even based on whether
+/// the look-behind byte triggers a quit state. Typically
+/// one does not need to handle this error if you're using
+/// [`DFA::start_state_forward`](crate::hybrid::dfa::DFA::start_state_forward)
+/// (or its reverse counterpart), as that routine automatically converts
+/// `StartError` to a [`MatchError`](crate::MatchError) for you.
+///
+/// This error may be returned by the
+/// [`DFA::start_state`](crate::hybrid::dfa::DFA::start_state) routine.
+///
+/// This error implements the `std::error::Error` trait when the `std` feature
+/// is enabled.
+///
+/// This error is marked as non-exhaustive. New variants may be added in a
+/// semver compatible release.
+#[non_exhaustive]
+#[derive(Clone, Debug)]
+pub enum StartError {
+    /// An error that occurs when cache inefficiency has dropped below the
+    /// configured heuristic thresholds.
+    Cache {
+        /// The underlying cache error that occurred.
+        err: CacheError,
+    },
+    /// An error that occurs when a starting configuration's look-behind byte
+    /// is in this DFA's quit set.
+    Quit {
+        /// The quit byte that was found.
+        byte: u8,
+    },
+    /// An error that occurs when the caller requests an anchored mode that
+    /// isn't supported by the DFA.
+    UnsupportedAnchored {
+        /// The anchored mode given that is unsupported.
+        mode: Anchored,
+    },
+}
+
+impl StartError {
+    pub(crate) fn cache(err: CacheError) -> StartError {
+        StartError::Cache { err }
+    }
+
+    pub(crate) fn quit(byte: u8) -> StartError {
+        StartError::Quit { byte }
+    }
+
+    pub(crate) fn unsupported_anchored(mode: Anchored) -> StartError {
+        StartError::UnsupportedAnchored { mode }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for StartError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match *self {
+            StartError::Cache { ref err } => Some(err),
+            _ => None,
+        }
+    }
+}
+
+impl core::fmt::Display for StartError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match *self {
+            StartError::Cache { .. } => write!(
+                f,
+                "error computing start state because of cache inefficiency"
+            ),
+            StartError::Quit { byte } => write!(
+                f,
+                "error computing start state because the look-behind byte \
+                 {:?} triggered a quit state",
+                crate::util::escape::DebugByte(byte),
+            ),
+            StartError::UnsupportedAnchored { mode: Anchored::Yes } => {
+                write!(
+                    f,
+                    "error computing start state because \
+                     anchored searches are not supported or enabled"
+                )
+            }
+            StartError::UnsupportedAnchored { mode: Anchored::No } => {
+                write!(
+                    f,
+                    "error computing start state because \
+                     unanchored searches are not supported or enabled"
+                )
+            }
+            StartError::UnsupportedAnchored {
+                mode: Anchored::Pattern(pid),
+            } => {
+                write!(
+                    f,
+                    "error computing start state because \
+                     anchored searches for a specific pattern ({}) \
+                     are not supported or enabled",
+                    pid.as_usize(),
+                )
             }
         }
     }
@@ -126,11 +232,7 @@ impl CacheError {
 }
 
 #[cfg(feature = "std")]
-impl std::error::Error for CacheError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        None
-    }
-}
+impl std::error::Error for CacheError {}
 
 impl core::fmt::Display for CacheError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

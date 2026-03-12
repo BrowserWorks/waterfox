@@ -38,6 +38,18 @@ unescape = true
 line-terminator = '\xFF'
 utf8 = false
 
+# This tests a tricky case where the line terminator is set to \r. This ensures
+# that the StartLF look-behind assertion is tracked when computing the start
+# state.
+[[test]]
+name = "carriage"
+regex = '(?m)^[a-z]+'
+haystack = 'ABC\rabc'
+matches = [[4, 7]]
+bounds = [4, 7]
+unescape = true
+line-terminator = '\r'
+
 # This tests that we can set the line terminator to a byte corresponding to a
 # word character, and things work as expected.
 [[test]]

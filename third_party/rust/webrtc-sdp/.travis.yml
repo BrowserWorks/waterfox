@@ -1,0 +1,107 @@
+language: rust
+cache: cargo
+sudo: required
+dist: trusty
+os:
+  - linux
+  - osx
+
+env:
+  - FEATURES=""
+  - FEATURES="serialize"
+rust:
+  - nightly
+  - beta
+  - stable
+  # minimum stable version
+  - 1.45.0
+
+matrix:
+  allow_failures:
+    - rust: nightly
+
+addons:
+  apt:
+    packages:
+      - libcurl4-openssl-dev
+      - zlib1g-dev
+      - libiberty-dev
+      - libelf-dev
+      - libdw-dev
+      - cmake
+      - gcc
+      - binutils-dev
+      - libssl-dev
+
+# Add tarpaulin
+before_cache: |
+  if [[ "$TRAVIS_OS_NAME" == "linux" && "$TRAVIS_RUST_VERSION" == "nightly" && "$FEATURES" == "serialize" ]]; then
+    RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin -f
+  fi
+
+# Add clippy
+before_script:
+  - export PATH=$PATH:~/.cargo/bin
+  - |
+    if [[ "$TRAVIS_RUST_VERSION" == "stable" ]]; then
+      rustup component add rustfmt-preview
+      rustup component add clippy
+      cargo install --force cargo-audit
+      cargo generate-lockfile
+    fi
+
+script:
+  - echo FEATURES="$FEATURES"
+  - |
+    if [[ "$TRAVIS_RUST_VERSION" == "stable" ]]; then
+      cargo audit
+      cargo fmt --all -- --check
+    fi
+  - cargo clean
+  - cargo build --verbose --all --features="$FEATURES"
+  - |
+    if [[ "$TRAVIS_RUST_VERSION" == "stable" ]]; then
+      cargo clippy --all-targets --all-features -- -D warnings;
+    fi
+  - cargo test --all-targets --all-features --verbose --all
+  - cargo run --example file_parser examples/sdps/02.sdp
+  - cargo run --example file_parser examples/sdps/03.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/04.sdp
+  - cargo run --example file_parser examples/sdps/05.sdp
+  - cargo run --example file_parser examples/sdps/06.sdp
+  - cargo run --example file_parser examples/sdps/07.sdp
+  - cargo run --example file_parser examples/sdps/08.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/09.sdp
+  - cargo run --example file_parser examples/sdps/10.sdp
+  - cargo run --example file_parser examples/sdps/11.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/12.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/13.sdp
+  - cargo run --example file_parser examples/sdps/14.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/15.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/16.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/17.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/18.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/19.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/20.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/21.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/22.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/23.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/24.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/25.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/26.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/27.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/28.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/29.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/30.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/31.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/32.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/33.sdp --expect-failure
+  - cargo run --example file_parser examples/sdps/34.sdp
+  - cargo run --example file_parser examples/sdps/35.sdp
+  - cargo run --example file_parser examples/sdps/36.sdp
+  - cargo run --example file_parser examples/sdps/37.sdp
+  - cargo run --example file_parser examples/sdps/38.sdp
+  - cargo run --example file_parser examples/sdps/39.sdp
+  - cargo run --example file_parser examples/sdps/40.sdp
+  - cargo run --example file_parser examples/sdps/41.sdp --expect-failure
+

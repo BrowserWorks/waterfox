@@ -131,7 +131,7 @@ pub(crate) fn next(
     if !state.look_need().is_empty() {
         // Add look-ahead assertions that are now true based on the current
         // input unit.
-        let mut look_have = state.look_have().clone();
+        let mut look_have = state.look_have();
         match unit.as_u8() {
             Some(b'\r') => {
                 if !rev || !state.is_half_crlf() {
@@ -145,9 +145,10 @@ pub(crate) fn next(
             }
             Some(_) => {}
             None => {
-                look_have = look_have.insert(Look::End);
-                look_have = look_have.insert(Look::EndLF);
-                look_have = look_have.insert(Look::EndCRLF);
+                look_have = look_have
+                    .insert(Look::End)
+                    .insert(Look::EndLF)
+                    .insert(Look::EndCRLF);
             }
         }
         if unit.is_byte(lookm.get_line_terminator()) {
@@ -160,11 +161,26 @@ pub(crate) fn next(
             look_have = look_have.insert(Look::StartCRLF);
         }
         if state.is_from_word() == unit.is_word_byte() {
-            look_have = look_have.insert(Look::WordUnicodeNegate);
-            look_have = look_have.insert(Look::WordAsciiNegate);
+            look_have = look_have
+                .insert(Look::WordAsciiNegate)
+                .insert(Look::WordUnicodeNegate);
         } else {
-            look_have = look_have.insert(Look::WordUnicode);
-            look_have = look_have.insert(Look::WordAscii);
+            look_have =
+                look_have.insert(Look::WordAscii).insert(Look::WordUnicode);
+        }
+        if !unit.is_word_byte() {
+            look_have = look_have
+                .insert(Look::WordEndHalfAscii)
+                .insert(Look::WordEndHalfUnicode);
+        }
+        if state.is_from_word() && !unit.is_word_byte() {
+            look_have = look_have
+                .insert(Look::WordEndAscii)
+                .insert(Look::WordEndUnicode);
+        } else if !state.is_from_word() && unit.is_word_byte() {
+            look_have = look_have
+                .insert(Look::WordStartAscii)
+                .insert(Look::WordStartUnicode);
         }
         // If we have new assertions satisfied that are among the set of
         // assertions that exist in this state (that is, just because we added
@@ -220,6 +236,14 @@ pub(crate) fn next(
     {
         builder.set_look_have(|have| have.insert(Look::StartCRLF));
     }
+    // And also for the start-half word boundary assertions. As long as the
+    // look-behind byte is not a word char, then the assertions are satisfied.
+    if nfa.look_set_any().contains_word() && !unit.is_word_byte() {
+        builder.set_look_have(|have| {
+            have.insert(Look::WordStartHalfAscii)
+                .insert(Look::WordStartHalfUnicode)
+        });
+    }
     for nfa_id in sparses.set1.iter() {
         match *nfa.state(nfa_id) {
             thompson::State::Union { .. }
@@ -245,7 +269,7 @@ pub(crate) fn next(
                 // guarantee here, but it's subtle. In particular, a Thompson
                 // NFA guarantees that each pattern has exactly one match
                 // state. Moreover, since we're iterating over the NFA state
-                // IDs in a set, we are guarateed not to have any duplicative
+                // IDs in a set, we are guaranteed not to have any duplicative
                 // match states. Thus, it is impossible to add the same pattern
                 // ID more than once.
                 //
@@ -563,47 +587,95 @@ pub(crate) fn set_lookbehind_from_start(
 ) {
     let rev = nfa.is_reverse();
     let lineterm = nfa.look_matcher().get_line_terminator();
+    let lookset = nfa.look_set_any();
     match *start {
-        Start::NonWordByte => {}
+        Start::NonWordByte => {
+            if lookset.contains_word() {
+                builder.set_look_have(|have| {
+                    have.insert(Look::WordStartHalfAscii)
+                        .insert(Look::WordStartHalfUnicode)
+                });
+            }
+        }
         Start::WordByte => {
-            builder.set_is_from_word();
+            if lookset.contains_word() {
+                builder.set_is_from_word();
+            }
         }
         Start::Text => {
-            builder.set_look_have(|have| {
-                have.insert(Look::Start)
-                    .insert(Look::StartLF)
-                    .insert(Look::StartCRLF)
-            });
+            if lookset.contains_anchor_haystack() {
+                builder.set_look_have(|have| have.insert(Look::Start));
+            }
+            if lookset.contains_anchor_line() {
+                builder.set_look_have(|have| {
+                    have.insert(Look::StartLF).insert(Look::StartCRLF)
+                });
+            }
+            if lookset.contains_word() {
+                builder.set_look_have(|have| {
+                    have.insert(Look::WordStartHalfAscii)
+                        .insert(Look::WordStartHalfUnicode)
+                });
+            }
         }
         Start::LineLF => {
             if rev {
-                builder.set_is_half_crlf();
-                builder.set_look_have(|have| have.insert(Look::StartLF));
+                if lookset.contains_anchor_crlf() {
+                    builder.set_is_half_crlf();
+                }
+                if lookset.contains_anchor_line() {
+                    builder.set_look_have(|have| have.insert(Look::StartLF));
+                }
             } else {
-                builder.set_look_have(|have| have.insert(Look::StartCRLF));
+                if lookset.contains_anchor_line() {
+                    builder.set_look_have(|have| have.insert(Look::StartCRLF));
+                }
             }
-            if lineterm == b'\n' {
+            if lookset.contains_anchor_line() && lineterm == b'\n' {
                 builder.set_look_have(|have| have.insert(Look::StartLF));
+            }
+            if lookset.contains_word() {
+                builder.set_look_have(|have| {
+                    have.insert(Look::WordStartHalfAscii)
+                        .insert(Look::WordStartHalfUnicode)
+                });
             }
         }
         Start::LineCR => {
-            if rev {
-                builder.set_look_have(|have| have.insert(Look::StartCRLF));
-            } else {
-                builder.set_is_half_crlf();
+            if lookset.contains_anchor_crlf() {
+                if rev {
+                    builder.set_look_have(|have| have.insert(Look::StartCRLF));
+                } else {
+                    builder.set_is_half_crlf();
+                }
             }
-            if lineterm == b'\r' {
+            if lookset.contains_anchor_line() && lineterm == b'\r' {
                 builder.set_look_have(|have| have.insert(Look::StartLF));
+            }
+            if lookset.contains_word() {
+                builder.set_look_have(|have| {
+                    have.insert(Look::WordStartHalfAscii)
+                        .insert(Look::WordStartHalfUnicode)
+                });
             }
         }
         Start::CustomLineTerminator => {
-            builder.set_look_have(|have| have.insert(Look::StartLF));
+            if lookset.contains_anchor_line() {
+                builder.set_look_have(|have| have.insert(Look::StartLF));
+            }
             // This is a bit of a tricky case, but if the line terminator was
             // set to a word byte, then we also need to behave as if the start
             // configuration is Start::WordByte. That is, we need to mark our
             // state as having come from a word byte.
-            if utf8::is_word_byte(lineterm) {
-                builder.set_is_from_word();
+            if lookset.contains_word() {
+                if utf8::is_word_byte(lineterm) {
+                    builder.set_is_from_word();
+                } else {
+                    builder.set_look_have(|have| {
+                        have.insert(Look::WordStartHalfAscii)
+                            .insert(Look::WordStartHalfUnicode)
+                    });
+                }
             }
         }
     }

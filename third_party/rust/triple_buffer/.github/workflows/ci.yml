@@ -1,0 +1,220 @@
+# There are two kinds of continuous integration jobs in this project:
+#
+# - Every code submission or master push passes continuous integration on the
+#   minimal supported Rust version and the current stable Rust version.
+# - Two times a month, a scheduled job makes sure that the code remains
+#   compatible and lint-free on upcoming Rust toolchains (beta and nightly).
+#
+# No caching of Rust toolchains or target directories is performed on unstable
+# runs, since those runs are rare and the caches would be invalidated inbetween
+# two of them (especially for nightly toolchains).
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 0 2,16 * *'
+
+name: Continuous Integration
+
+env:
+  RUSTFLAGS: -D warnings
+
+jobs:
+  # Auto-format, clippy and rustc lints do not depend on the operating system
+  # and only need to be tested on the latest supported release of each CI run.
+  # We don't care about warnings on the minimum supported Rust version, only
+  # about building and running correctly.
+  lints:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      # NOTE: No need to put OS and rust version in key since only one is used
+      - name: Cache stable toolchain
+        if: github.event_name != 'schedule'
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.rustup/settings.toml
+            ~/.rustup/toolchains/stable-*
+            ~/.rustup/update-hashes/stable-*
+          key: lints-toolchain
+
+      - name: Install stable toolchain
+        id: toolchain-stable
+        if: github.event_name != 'schedule'
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+
+      - name: Install nightly toolchain
+        if: github.event_name == 'schedule'
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+          components: rustfmt, clippy
+
+      - name: Check format
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+      - name: Cache Cargo registry and index
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/git
+            ~/.cargo/registry
+          key: alljobs-deps-lock_${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: alljobs-deps
+
+      # NOTE: No dependency on OS since only one is used
+      - name: Cache stable Cargo check target directory
+        if: github.event_name != 'schedule'
+        uses: actions/cache@v2
+        with:
+          path: target
+          key: lints-target-rust_${{ steps.toolchain.outputs.rustc_hash }}-lock_${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: |
+            lints-target-rust_${{ steps.toolchain.outputs.rustc_hash }}
+
+      - name: Type-check the program
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+
+      - name: Check clippy lints
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: -- -D warnings
+
+
+  # Run the tests on all supported OSes and Rust versions
+  test-stable:
+    if: github.event_name != 'schedule'
+
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+        rust:
+          - stable
+          - 1.36.0  # Minimum supported Rust version
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Cache stable toolchain
+        if: github.event_name != 'schedule'
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.rustup/settings.toml
+            ~/.rustup/toolchains/${{ matrix.rust }}-*
+            ~/.rustup/update-hashes/${{ matrix.rust }}-*
+          key: test-toolchain-os_${{ runner.os }}-rust_${{ matrix.rust }}
+
+      - name: Install toolchain
+        id: toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+
+      - name: Cache Cargo registry and index
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/git
+            ~/.cargo/registry
+          key: alljobs-deps-lock_${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: alljobs-deps
+
+      - name: Cache stable Cargo test target directory
+        if: github.event_name != 'schedule'
+        uses: actions/cache@v2
+        with:
+          path: target
+          key: test-target-os_${{ runner.os }}-rust_${{ steps.toolchain.outputs.rustc_hash }}-lock_${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: |
+            test-target-os_${{ runner.os }}-rust_${{ steps.toolchain.outputs.rustc_hash }}
+
+      - name: Run basic tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+
+      - name: Run concurrent tests and benchmarks
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --release -- --ignored --nocapture --test-threads=1
+
+
+  # Variant of the test-stable job for unstable periodical builds
+  #
+  # FIXME: There should be a way to use conditional build matrices without
+  #        duplicating the whole job recipe...
+  #
+  test-unstable:
+    if: github.event_name == 'schedule'
+
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+          - macos-latest
+        rust:
+          - beta
+          - nightly
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install toolchain
+        id: toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+
+      - name: Cache Cargo registry and index
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/git
+            ~/.cargo/registry
+          key: alljobs-deps-lock_${{ hashFiles('**/Cargo.toml') }}
+          restore-keys: alljobs-deps
+
+      - name: Run basic tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+
+      - name: Run concurrent tests and benchmarks
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --release -- --ignored --nocapture --test-threads=1

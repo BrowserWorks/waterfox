@@ -1,0 +1,46 @@
+language: rust
+sudo: false
+cache: cargo
+
+rust:
+- stable
+- beta
+- nightly
+
+os:
+- linux
+- osx
+
+env:
+  global:
+  - RUST_BACKTRACE=1
+  - CRATES=fin_model,fin_data,fin_iex
+
+matrix:
+  fast_finish: true
+  allow_failures:
+  - rust: nightly
+
+  include:
+  - name: 'Rust: format check'
+    rust: stable
+    install:
+    - rustup component add rustfmt
+    script:
+    - cargo fmt --verbose --all -- --check
+
+  - name: 'Rust: style check'
+    rust: stable
+    install:
+    - rustup component add clippy
+    script:
+    - cargo clippy --verbose --all -- -D warnings
+
+# Only initiate build on mainline branches
+branches:
+  only: master
+
+# Suppress at least some emails
+notifications:
+  email:
+    on_success: never

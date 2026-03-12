@@ -1,0 +1,220 @@
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches:
+      - master
+      - "[1-9].x"
+
+name: Continuous integration
+
+jobs:
+  ci:
+    name: Build and test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - stable
+          - beta
+
+    services:
+      postgres:
+        image: postgres:11.6
+        env:
+          POSTGRES_PASSWORD: ''
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: ''
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+        ports:
+          - 3306:3306
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Cache cargo registry
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-${{ matrix.backend }}-cargo-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install libpq-dev
+
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+
+      - uses: davidB/rust-cargo-make@v1
+
+      - name: Build rust-decimal
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --workspace --all-features # Important to keep this to ensure docs.rs passes
+
+      - name: Run no_std tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: test-no-std
+
+      - name: Run default tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: test-default
+
+      - name: Run legacy operation tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: test-legacy-ops
+
+      - name: Run mathematical function tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: test-maths
+
+      - name: Run miscellaneous tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: test-misc
+
+      - name: Run database tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: test-db
+
+      - name: Run serde tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: test-serde
+
+      - name: Run macro tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: test-macros
+
+      - name: Run `rand` tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: test-rand
+
+  check_style:
+    name: Check file formatting and style
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          components: clippy, rustfmt
+          override: true
+
+      - name: Cache cargo registry
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: clippy-cargo-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install libpq-dev
+
+      - name: Check file formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
+      - name: Run clippy
+        uses: actions-rs/cargo@v1
+        with:
+          command: clippy
+          args: --workspace --all-features
+
+  fuzz:
+    name: Fuzz
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          override: true
+          profile: minimal
+          toolchain: nightly
+
+      - uses: davidB/rust-cargo-make@v1
+
+      - uses: actions-rs/install@v0.1
+        with:
+          crate: cargo-fuzz
+          use-tool-cache: true
+
+      - name: Run fuzz tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: make
+          args: fuzz
+
+  minimum_rust_version:
+    name: Check minimum rust version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: 1.60.0
+          profile: minimal
+          override: true
+
+      - name: Cache cargo registry
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: minimal_rust_version-cargo-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install libpq-dev
+
+      - name: Use minimal dependencies
+        run: |
+          RUSTC_BOOTSTRAP=1 cargo update -Z minimal-versions
+
+      - name: Check build
+        uses: actions-rs/cargo@v1
+        with:
+          command: check
+          args: --workspace
