@@ -1004,6 +1004,7 @@ dependencies = [
  "cstr",
  "nserror",
  "nsstring",
+ "serde_json",
  "thin-vec",
  "xpcom",
 ]
