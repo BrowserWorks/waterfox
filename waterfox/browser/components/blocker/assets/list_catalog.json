@@ -1,0 +1,1059 @@
+[
+  {
+    "id": "core-easylist",
+    "title": "EasyList",
+    "desc": "Primary ad and tracker blocking list",
+    "category": "core",
+    "langs": [],
+    "hidden": true,
+    "default_enabled": true,
+    "sources": [
+      {
+        "url": "https://easylist.to/easylist/easylist.txt",
+        "filename": "easylist.txt",
+        "title": "EasyList",
+        "format": "Standard"
+      }
+    ],
+    "bundled": true
+  },
+  {
+    "id": "core-easyprivacy",
+    "title": "EasyPrivacy",
+    "desc": "Privacy protection rules for trackers",
+    "category": "core",
+    "langs": [],
+    "hidden": true,
+    "default_enabled": true,
+    "sources": [
+      {
+        "url": "https://easylist.to/easylist/easyprivacy.txt",
+        "filename": "easyprivacy.txt",
+        "title": "EasyPrivacy",
+        "format": "Standard"
+      }
+    ],
+    "bundled": true
+  },
+  {
+    "id": "core-ublock-filters",
+    "title": "uBO filters",
+    "desc": "uBlock Origin core filters (base, yearly, and general)",
+    "category": "core",
+    "langs": [],
+    "hidden": true,
+    "default_enabled": true,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/filters.txt",
+        "filename": "ublock-filters.txt",
+        "title": "uBlock Origin Filters",
+        "format": "Standard"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/filters-2020.txt",
+        "filename": "ublock-filters-2020.txt",
+        "title": "uBlock Origin 2020 Filters",
+        "format": "Standard"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/filters-2021.txt",
+        "filename": "ublock-filters-2021.txt",
+        "title": "uBlock Origin 2021 Filters",
+        "format": "Standard"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/filters-2022.txt",
+        "filename": "ublock-filters-2022.txt",
+        "title": "uBlock Origin 2022 Filters",
+        "format": "Standard"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/filters-2023.txt",
+        "filename": "ublock-filters-2023.txt",
+        "title": "uBlock Origin 2023 Filters",
+        "format": "Standard"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/filters-2024.txt",
+        "filename": "ublock-filters-2024.txt",
+        "title": "uBlock Origin 2024 Filters",
+        "format": "Standard"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/filters-2025.txt",
+        "filename": "ublock-filters-2025.txt",
+        "title": "uBlock Origin 2025 Filters",
+        "format": "Standard"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/filters-2026.txt",
+        "filename": "ublock-filters-2026.txt",
+        "title": "uBlock Origin 2026 Filters",
+        "format": "Standard"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/filters-general.txt",
+        "filename": "ublock-filters-general.txt",
+        "title": "uBlock Origin filters - General",
+        "format": "Standard"
+      }
+    ],
+    "bundled": true
+  },
+  {
+    "id": "core-ublock-unbreak",
+    "title": "uBO unbreak",
+    "desc": "Fixes for broken site behavior",
+    "category": "core",
+    "langs": [],
+    "hidden": true,
+    "default_enabled": true,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/unbreak.txt",
+        "filename": "ublock-unbreak.txt",
+        "title": "uBlock Origin filters - Unbreak",
+        "format": "Standard"
+      }
+    ],
+    "bundled": true
+  },
+  {
+    "id": "core-ublock-quick-fixes",
+    "title": "uBO quick-fixes",
+    "desc": "Rapid fixes for emerging breakage",
+    "category": "core",
+    "langs": [],
+    "hidden": true,
+    "default_enabled": true,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/quick-fixes.txt",
+        "filename": "ublock-quick-fixes.txt",
+        "title": "uBlock Origin filters - Quick Fixes",
+        "format": "Standard"
+      }
+    ],
+    "bundled": true
+  },
+  {
+    "id": "privacy-ublock-privacy",
+    "title": "uBO Privacy",
+    "desc": "uBlock Origin privacy protection list",
+    "category": "privacy",
+    "langs": [],
+    "hidden": false,
+    "default_enabled": true,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/privacy.txt",
+        "filename": "ublock-privacy.txt",
+        "title": "uBlock Origin filters – Privacy",
+        "format": "Standard"
+      }
+    ],
+    "bundled": true
+  },
+  {
+    "id": "privacy-ublock-badware",
+    "title": "uBO Badware",
+    "desc": "uBlock Origin badware and malicious domains list",
+    "category": "privacy",
+    "langs": [],
+    "hidden": false,
+    "default_enabled": true,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/badware.txt",
+        "filename": "ublock-badware.txt",
+        "title": "uBlock Origin filters - Badware risks",
+        "format": "Standard"
+      }
+    ],
+    "bundled": true
+  },
+  {
+    "id": "privacy-ublock-resource-abuse",
+    "title": "uBO Resource Abuse",
+    "desc": "uBlock Origin resource abuse list",
+    "category": "privacy",
+    "langs": [],
+    "hidden": false,
+    "default_enabled": true,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/resource-abuse.txt",
+        "filename": "ublock-resource-abuse.txt",
+        "title": "uBlock Origin filters – Resource abuse",
+        "format": "Standard"
+      }
+    ],
+    "bundled": true
+  },
+  {
+    "id": "privacy-adguard-tracking",
+    "title": "AdGuard Tracking Protection",
+    "desc": "AdGuard URL tracking protection filters (filter_17)",
+    "category": "privacy",
+    "langs": [],
+    "hidden": false,
+    "default_enabled": true,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/AdguardTeam/FiltersRegistry/master/filters/filter_17_TrackParam/filter.txt",
+        "filename": "adguard-tracking-protection.txt",
+        "title": "AdGuard URL Tracking Protection Filters",
+        "format": "Standard"
+      }
+    ],
+    "bundled": true
+  },
+  {
+    "id": "peter-lowe-adservers",
+    "title": "Peter Lowe's Ad and Tracking Server List",
+    "desc": "A comprehensive hosts-format list of ad and tracking servers",
+    "category": "privacy",
+    "langs": [],
+    "hidden": false,
+    "default_enabled": true,
+    "sources": [
+      {
+        "url": "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=adblockplus&showintro=1&mimetype=plaintext",
+        "filename": "peter-lowe-adservers.txt",
+        "title": "Peter Lowe's Ad and Tracking Server List",
+        "format": "Standard"
+      }
+    ],
+    "bundled": true
+  },
+  {
+    "id": "annoyances-easylist-cookie",
+    "title": "EasyList Cookie",
+    "desc": "Cookie and consent notice blocking",
+    "category": "annoyances",
+    "langs": [],
+    "hidden": false,
+    "default_enabled": true,
+    "sources": [
+      {
+        "url": "https://secure.fanboy.co.nz/fanboy-cookiemonster_ubo.txt",
+        "filename": "easylist-cookie.txt",
+        "title": "EasyList-Cookie",
+        "format": "Standard"
+      }
+    ],
+    "bundled": true
+  },
+  {
+    "id": "annoyances-ublock-cookies",
+    "title": "uBO annoyances-cookies",
+    "desc": "uBlock Origin cookie annoyance rules",
+    "category": "annoyances",
+    "langs": [],
+    "hidden": false,
+    "default_enabled": true,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/annoyances-cookies.txt",
+        "filename": "ublock-annoyances-cookies.txt",
+        "title": "uBlock filters – Cookie Notices",
+        "format": "Standard"
+      }
+    ],
+    "bundled": true
+  },
+  {
+    "id": "regional-arabic",
+    "title": "Arabic website ad blocker",
+    "desc": "Liste AR",
+    "category": "regional",
+    "langs": [
+      "ar"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://easylist-downloads.adblockplus.org/Liste_AR.txt",
+        "filename": "regional-arabic-liste_ar.txt",
+        "title": "Arabic website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-bulgarian",
+    "title": "Bulgarian website ad blocker",
+    "desc": "Bulgarian Adblock list",
+    "category": "regional",
+    "langs": [
+      "bg"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://stanev.org/abp/adblock_bg.txt",
+        "filename": "regional-bulgarian-adblock_bg.txt",
+        "title": "Bulgarian website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-chinese",
+    "title": "Chinese website ad blocker",
+    "desc": "AdGuard Chinese",
+    "category": "regional",
+    "langs": [
+      "zh"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://filters.adtidy.org/extension/ublock/filters/224.txt",
+        "filename": "regional-chinese-224.txt",
+        "title": "Chinese website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-czech-slovak",
+    "title": "Czech and Slovak website ad blocker",
+    "desc": "EasyList Czech and Slovak",
+    "category": "regional",
+    "langs": [
+      "cs",
+      "sk"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/tomasko126/easylistczechandslovak/master/filters.txt",
+        "filename": "regional-czech-slovak-filters.txt",
+        "title": "Czech and Slovak website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-dutch",
+    "title": "Dutch website ad blocker",
+    "desc": "AdGuard Dutch",
+    "category": "regional",
+    "langs": [
+      "nl"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://filters.adtidy.org/extension/ublock/filters/8.txt",
+        "filename": "regional-dutch-8.txt",
+        "title": "Dutch website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-estonian",
+    "title": "Estonian website ad blocker",
+    "desc": "Eesti saitidele kohandatud filter",
+    "category": "regional",
+    "langs": [
+      "et"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://ubo-et.lepik.io/list.txt",
+        "filename": "regional-estonian-list.txt",
+        "title": "Estonian website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-finnish",
+    "title": "Finnish website ad blocker",
+    "desc": "EasyList Finnish",
+    "category": "regional",
+    "langs": [
+      "fi"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/finnish-easylist-addition/finnish-easylist-addition/gh-pages/Finland_adb.txt",
+        "filename": "regional-finnish-finland_adb.txt",
+        "title": "Finnish website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-french",
+    "title": "French website ad blocker",
+    "desc": "AdGuard Français",
+    "category": "regional",
+    "langs": [
+      "fr"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://filters.adtidy.org/extension/ublock/filters/16.txt",
+        "filename": "regional-french-16.txt",
+        "title": "French website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-german",
+    "title": "German website ad blocker",
+    "desc": "EasyList Germany",
+    "category": "regional",
+    "langs": [
+      "de"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://easylist-downloads.adblockplus.org/easylistgermany.txt",
+        "filename": "regional-german-easylistgermany.txt",
+        "title": "German website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-greek",
+    "title": "Greek website ad blocker",
+    "desc": "Greek AdBlock Filter",
+    "category": "regional",
+    "langs": [
+      "el"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/kargig/greek-adblockplus-filter/master/void-gr-filters.txt",
+        "filename": "regional-greek-void-gr-filters.txt",
+        "title": "Greek website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-hebrew",
+    "title": "Hebrew website ad blocker",
+    "desc": "EasyList Hebrew",
+    "category": "regional",
+    "langs": [
+      "he"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/easylist/EasyListHebrew/master/EasyListHebrew.txt",
+        "filename": "regional-hebrew-easylisthebrew.txt",
+        "title": "Hebrew website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-hindi",
+    "title": "Hindi website ad blocker",
+    "desc": "IndianList",
+    "category": "regional",
+    "langs": [
+      "hi"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://easylist-downloads.adblockplus.org/indianlist.txt",
+        "filename": "regional-hindi-indianlist.txt",
+        "title": "Hindi website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-hungarian",
+    "title": "Hungarian website ad blocker",
+    "desc": "Hufilter",
+    "category": "regional",
+    "langs": [
+      "hu"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://cdn.jsdelivr.net/gh/hufilter/hufilter@gh-pages/hufilter-ublock.txt",
+        "filename": "regional-hungarian-hufilter-ublock.txt",
+        "title": "Hungarian website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-icelandic",
+    "title": "Icelandic website ad blocker",
+    "desc": "Icelandic ABP List",
+    "category": "regional",
+    "langs": [
+      "is"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/brave/adblock-lists/master/custom/is.txt",
+        "filename": "regional-icelandic-is.txt",
+        "title": "Icelandic website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-indonesian",
+    "title": "Indonesian website ad blocker",
+    "desc": "ABPindo",
+    "category": "regional",
+    "langs": [
+      "id"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/heradhis/indonesianadblockrules/master/subscriptions/abpindo.txt",
+        "filename": "regional-indonesian-abpindo.txt",
+        "title": "Indonesian website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-italian",
+    "title": "Italian website ad blocker",
+    "desc": "EasyList Italy",
+    "category": "regional",
+    "langs": [
+      "it"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://easylist-downloads.adblockplus.org/easylistitaly.txt",
+        "filename": "regional-italian-easylistitaly.txt",
+        "title": "Italian website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-japanese",
+    "title": "Japanese website ad blocker",
+    "desc": "Adguard Japanese filters 日本用フィルタ",
+    "category": "regional",
+    "langs": [
+      "ja"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://filters.adtidy.org/extension/ublock/filters/7.txt",
+        "filename": "regional-japanese-7.txt",
+        "title": "Japanese website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-korean",
+    "title": "Korean website ad blocker",
+    "desc": "List KR",
+    "category": "regional",
+    "langs": [
+      "ko"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/yous/YousList/master/youslist.txt",
+        "filename": "regional-korean-youslist.txt",
+        "title": "Korean website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-latvian",
+    "title": "Latvian website ad blocker",
+    "desc": "Latvian List",
+    "category": "regional",
+    "langs": [
+      "lv"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/Latvian-List/adblock-latvian/master/lists/latvian-list.txt",
+        "filename": "regional-latvian-latvian-list.txt",
+        "title": "Latvian website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-lithuanian",
+    "title": "Lithuanian website ad blocker",
+    "desc": "EasyList Lithuania",
+    "category": "regional",
+    "langs": [
+      "lt"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/EasyList-Lithuania/easylist_lithuania/master/easylistlithuania.txt",
+        "filename": "regional-lithuanian-easylistlithuania.txt",
+        "title": "Lithuanian website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-macedonian",
+    "title": "Macedonian website ad blocker",
+    "desc": "Macedonian adBlock Filters",
+    "category": "regional",
+    "langs": [
+      "mk"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/DeepSpaceHarbor/Macedonian-adBlock-Filters/master/Filters",
+        "filename": "regional-macedonian-macedonian-website-ad-blocker.txt",
+        "title": "Macedonian website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-nordic",
+    "title": "Nordic website ad blocker",
+    "desc": "Dandelion Sprout's Nordic filters",
+    "category": "regional",
+    "langs": [
+      "nb",
+      "nn",
+      "no",
+      "da",
+      "is"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/DandelionSprout/adfilt/master/NorwegianList.txt",
+        "filename": "regional-nordic-norwegianlist.txt",
+        "title": "Nordic website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-persian",
+    "title": "Persian website ad blocker",
+    "desc": "PersianBlocker",
+    "category": "regional",
+    "langs": [
+      "fa"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/MasterKia/PersianBlocker/main/PersianBlocker-Deprecated.txt",
+        "filename": "regional-persian-persianblocker-deprecated.txt",
+        "title": "Persian website ad blocker",
+        "format": "Standard"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/MasterKia/PersianBlocker/main/PersianBlockerAds.txt",
+        "filename": "regional-persian-persianblockerads.txt",
+        "title": "Persian website ad blocker",
+        "format": "Standard"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/MasterKia/PersianBlocker/main/PersianBlockerTrackers.txt",
+        "filename": "regional-persian-persianblockertrackers.txt",
+        "title": "Persian website ad blocker",
+        "format": "Standard"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/MasterKia/PersianBlocker/main/PersianBlockerCensor.txt",
+        "filename": "regional-persian-persianblockercensor.txt",
+        "title": "Persian website ad blocker",
+        "format": "Standard"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/MasterKia/PersianBlocker/main/PersianBlockerHalfPrice.txt",
+        "filename": "regional-persian-persianblockerhalfprice.txt",
+        "title": "Persian website ad blocker",
+        "format": "Standard"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/MasterKia/PersianBlocker/main/PersianBlockerMalware.txt",
+        "filename": "regional-persian-persianblockermalware.txt",
+        "title": "Persian website ad blocker",
+        "format": "Standard"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/MasterKia/PersianBlocker/main/PersianBlockerPhishing.txt",
+        "filename": "regional-persian-persianblockerphishing.txt",
+        "title": "Persian website ad blocker",
+        "format": "Standard"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/MasterKia/PersianBlocker/main/PersianBlockerMobile.txt",
+        "filename": "regional-persian-persianblockermobile.txt",
+        "title": "Persian website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-polish",
+    "title": "Polish website ad blocker",
+    "desc": "Oficjalne Polskie Filtry do AdBlocka",
+    "category": "regional",
+    "langs": [
+      "pl"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/MajkiIT/polish-ads-filter/master/polish-adblock-filters/adblock.txt",
+        "filename": "regional-polish-adblock.txt",
+        "title": "Polish website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-romanian",
+    "title": "Romanian website ad blocker",
+    "desc": "Romanian Ad (ROad) Block List Light",
+    "category": "regional",
+    "langs": [
+      "ro"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/tcptomato/ROad-Block/master/road-block-filters-light.txt",
+        "filename": "regional-romanian-road-block-filters-light.txt",
+        "title": "Romanian website ad blocker",
+        "format": "Standard"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/tcptomato/ROad-Block/master/road-ubo.txt",
+        "filename": "regional-romanian-road-ubo.txt",
+        "title": "Romanian website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-russian-adguard",
+    "title": "Russian website ad blocker - AdGuard Russian",
+    "desc": "AdGuard Russian filter",
+    "category": "regional",
+    "langs": [
+      "ru"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://filters.adtidy.org/extension/ublock/filters/1.txt",
+        "filename": "regional-russian-adguard-1.txt",
+        "title": "Russian website ad blocker - AdGuard Russian",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-russian-ruadlist",
+    "title": "Russian website ad blocker - RU AdList",
+    "desc": "RU List",
+    "category": "regional",
+    "langs": [
+      "ru",
+      "uk",
+      "be"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://easylist-downloads.adblockplus.org/advblock.txt",
+        "filename": "regional-russian-ruadlist-advblock.txt",
+        "title": "Russian website ad blocker - RU AdList",
+        "format": "Standard"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/easylist/ruadlist/master/js-fixes-experimental.txt",
+        "filename": "regional-russian-ruadlist-js-fixes-experimental.txt",
+        "title": "Russian website ad blocker - RU AdList",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-slovenian",
+    "title": "Slovenian website ad blocker",
+    "desc": "Slovenian List",
+    "category": "regional",
+    "langs": [
+      "sl"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/betterwebleon/slovenian-list/master/filters.txt",
+        "filename": "regional-slovenian-filters.txt",
+        "title": "Slovenian website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-spanish",
+    "title": "Spanish website ad blocker",
+    "desc": "EasyList Spanish",
+    "category": "regional",
+    "langs": [
+      "es"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://easylist-downloads.adblockplus.org/easylistspanish.txt",
+        "filename": "regional-spanish-easylistspanish.txt",
+        "title": "Spanish website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-spanish-portuguese",
+    "title": "Spanish and Portuguese website ad blocker",
+    "desc": "AdGuard Spanish/Portuguese",
+    "category": "regional",
+    "langs": [
+      "es",
+      "pt"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://filters.adtidy.org/extension/ublock/filters/9.txt",
+        "filename": "regional-spanish-portuguese-9.txt",
+        "title": "Spanish and Portuguese website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-swedish",
+    "title": "Swedish website ad blocker",
+    "desc": "Frellwit's Swedish Filter",
+    "category": "regional",
+    "langs": [
+      "sv"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/lassekongo83/Frellwits-filter-lists/master/Frellwits-Swedish-Filter.txt",
+        "filename": "regional-swedish-frellwits-swedish-filter.txt",
+        "title": "Swedish website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-thai",
+    "title": "Thai website ad blocker",
+    "desc": "EasyList Thailand",
+    "category": "regional",
+    "langs": [
+      "th"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/easylist-thailand/easylist-thailand/master/subscription/easylist-thailand.txt",
+        "filename": "regional-thai-easylist-thailand.txt",
+        "title": "Thai website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-turkish",
+    "title": "Turkish website ad blocker",
+    "desc": "AdGuard Turkish",
+    "category": "regional",
+    "langs": [
+      "tr"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://filters.adtidy.org/extension/ublock/filters/13.txt",
+        "filename": "regional-turkish-13.txt",
+        "title": "Turkish website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "regional-vietnamese",
+    "title": "Vietnamese website ad blocker",
+    "desc": "ABPVN",
+    "category": "regional",
+    "langs": [
+      "vi"
+    ],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/abpvn/abpvn/master/filter/abpvn_ublock.txt",
+        "filename": "regional-vietnamese-abpvn_ublock.txt",
+        "title": "Vietnamese website ad blocker",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "optional-fanboy-annoyances",
+    "title": "Fanboy's Annoyances",
+    "desc": "Fanboy's Annoyances (full)",
+    "category": "optional",
+    "langs": [],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://secure.fanboy.co.nz/fanboy-annoyance_ubo.txt",
+        "filename": "optional-fanboy-annoyances-fanboy-annoyance_ubo.txt",
+        "title": "Fanboy's Annoyances",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "optional-fanboy-social",
+    "title": "Fanboy's Social",
+    "desc": "Fanboy's Social",
+    "category": "optional",
+    "langs": [],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://easylist-downloads.adblockplus.org/fanboy-social.txt",
+        "filename": "optional-fanboy-social-fanboy-social.txt",
+        "title": "Fanboy's Social",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "optional-fanboy-newsletter",
+    "title": "Fanboy's Anti-Newsletter",
+    "desc": "Fanboy's Anti-Newsletter",
+    "category": "optional",
+    "langs": [],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://secure.fanboy.co.nz/fanboy-newsletter.txt",
+        "filename": "optional-fanboy-newsletter-fanboy-newsletter.txt",
+        "title": "Fanboy's Anti-Newsletter",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "optional-fanboy-chat-apps",
+    "title": "Fanboy's Anti-Chat Apps",
+    "desc": "Fanboy's Anti-Chat Apps",
+    "category": "optional",
+    "langs": [],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://raw.githubusercontent.com/easylist/easylist/master/fanboy-addon/fanboy_chatapps_third-party.txt",
+        "filename": "optional-fanboy-chat-apps-fanboy_chatapps_third-party.txt",
+        "title": "Fanboy's Anti-Chat Apps",
+        "format": "Standard"
+      }
+    ]
+  },
+  {
+    "id": "optional-fanboy-mobile-notifications",
+    "title": "Fanboy's Mobile Notifications",
+    "desc": "Fanboy's Mobile Notifications",
+    "category": "optional",
+    "langs": [],
+    "hidden": false,
+    "default_enabled": false,
+    "sources": [
+      {
+        "url": "https://secure.fanboy.co.nz/fanboy-mobile-notifications.txt",
+        "filename": "optional-fanboy-mobile-notifications-fanboy-mobile-notifications.txt",
+        "title": "Fanboy's Mobile Notifications",
+        "format": "Standard"
+      }
+    ]
+  }
+]
