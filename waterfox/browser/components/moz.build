@@ -9,6 +9,7 @@ DIRS += [
     "aboutwelcome",
     "aboutpasswords",
     "addonstores",
+    "blocker",
     "preferences",
     "privatetab",
     "search",
