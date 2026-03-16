@@ -1,0 +1,33 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#WaterfoxBlockerCustomFilterListsDialog {
+  width: 45em;
+  min-height: 36em;
+}
+
+#WaterfoxBlockerCustomFilterListsDialog #url {
+  flex: 1;
+}
+
+#WaterfoxBlockerCustomFilterListsDialog #urlListBox {
+  flex: 1 auto;
+  height: 18em;
+  min-height: 70px;
+}
+
+#WaterfoxBlockerCustomFilterListsDialog #urlCol,
+#WaterfoxBlockerCustomFilterListsDialog #urlListBox > richlistitem {
+  min-height: 35px;
+}
+
+#WaterfoxBlockerCustomFilterListsDialog #urlListBox > richlistitem > hbox {
+  flex: 1;
+  align-items: center;
+}
+
+#WaterfoxBlockerCustomFilterListsDialog #urlCol {
+  flex: 3 3 auto;
+  width: 0;
+}
