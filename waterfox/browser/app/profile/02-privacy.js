@@ -12,6 +12,26 @@ pref("browser.region.update.enabled", false, locked);
 pref("browser.search.region", "US", locked); // Set a neutral region
 pref("browser.search.serpEventTelemetryCategorization.enabled", false, locked);
 
+// --- Waterfox Adblocking ---
+// Master toggle for Waterfox's built-in blocker.
+pref("waterfox.blocker.enabled", false);
+// Show Ad Blocking controls in about:preferences.
+pref("waterfox.blocker.ui.enabled", false);
+// Show blocked count badge on the blocker toolbar button.
+pref("waterfox.blocker.showBadge", true);
+// Allow ads on configured Waterfox search partner domains.
+pref("waterfox.blocker.allowSearchPartnerAds", true);
+// Site exceptions as a JSON array string.
+pref("waterfox.blocker.siteExceptions", "[]");
+// Additional custom filter list URLs as a comma-delimited string.
+pref("waterfox.blocker.filterListUrls", "");
+// Per-list enabled overrides as a JSON object mapping list IDs to booleans.
+pref("waterfox.blocker.enabledLists", "{}");
+// Whether to suppress startup detection notifications for adblocking extensions.
+pref("waterfox.blocker.extensionDetectionDismissed", false);
+// Extension IDs for which install warnings have already been dismissed.
+pref("waterfox.blocker.dismissedExtensionInstallWarnings", "[]");
+
 // --- Tracking Protection & Fingerprinting Resistance ---
 // Lower the priority of network loads for resources on tracking protection lists.
 pref("privacy.trackingprotection.lower_network_priority", true);

@@ -1,0 +1,113 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+:root {
+  color-scheme: light dark;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  align-items: center;
+  background: color-mix(in srgb, Canvas 94%, CanvasText 6%);
+  display: flex;
+  font: message-box;
+  justify-content: center;
+  padding: 24px;
+}
+
+.blocked-page {
+  background: Canvas;
+  border: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  border-radius: 12px;
+  box-shadow: 0 8px 28px color-mix(in srgb, CanvasText 15%, transparent);
+  max-width: 760px;
+  padding: 24px;
+  width: min(760px, 100%);
+}
+
+.blocked-page h1 {
+  margin: 0 0 10px;
+}
+
+.description {
+  color: color-mix(in srgb, CanvasText 75%, transparent);
+  margin: 0;
+}
+
+.details {
+  border: 1px solid color-mix(in srgb, CanvasText 18%, transparent);
+  border-radius: 8px;
+  margin-top: 18px;
+  overflow: hidden;
+}
+
+.detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 12px;
+}
+
+.detail-row + .detail-row {
+  border-top: 1px solid color-mix(in srgb, CanvasText 14%, transparent);
+}
+
+.label {
+  color: color-mix(in srgb, CanvasText 65%, transparent);
+  font-size: 0.85em;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  overflow-wrap: anywhere;
+  white-space: break-spaces;
+}
+
+.hint {
+  color: color-mix(in srgb, CanvasText 75%, transparent);
+  margin: 14px 0 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 22px;
+}
+
+.actions button {
+  min-width: 120px;
+  padding: 7px 12px;
+}
+
+.actions button.primary {
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  body {
+    padding: 16px;
+  }
+
+  .blocked-page {
+    padding: 18px;
+  }
+
+  .actions {
+    justify-content: stretch;
+  }
+
+  .actions button {
+    flex: 1;
+  }
+}
