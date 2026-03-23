@@ -3725,5 +3725,28 @@
         ]
       }
     ]
+  },
+  "0000000": {
+    "label": "discord.com",
+    "bugs": {
+      "0000000": {
+        "issue": "waterfox-blocked-features",
+        "matches": [
+          "*://discord.com/*",
+          "*://*.discord.com/*"
+        ]
+      }
+    },
+    "interventions": [
+      {
+        "platforms": ["all"],
+        "ua_string": [
+          {
+            "change": "mimic_Firefox_UA",
+            "version": "149.0"
+          }
+        ]
+      }
+    ]
   }
 }
