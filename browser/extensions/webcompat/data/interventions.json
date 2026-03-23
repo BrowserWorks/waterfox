@@ -3725,5 +3725,53 @@
         ]
       }
     ]
+  },
+  "1969603": {
+    "label": "discord.com",
+    "bugs": {
+      "1969603": {
+        "issue": "broken-audio",
+        "matches": [
+          "*://discord.com/*",
+          "*://*.discord.com/*"
+        ]
+      }
+    },
+    "interventions": [
+      {
+        "platforms": ["all"],
+        "ua_string": [
+          {
+            "change": "mimic_Firefox_UA",
+            "enabled": true,
+            "version": "152.0"
+          }
+        ]
+      }
+    ]
+  },
+  "2003583": {
+    "label": "chase.com",
+    "bugs": {
+      "2003583": {
+        "issue": "unsupported-warning",
+        "matches": [
+          "*://chase.com/*",
+          "*://*.chase.com/*"
+        ]
+      }
+    },
+    "interventions": [
+      {
+        "platforms": ["all"],
+        "ua_string": [
+          {
+            "change": "mimic_Firefox_UA",
+            "enabled": true,
+            "version": "152.0"
+          }
+        ]
+      }
+    ]
   }
 }
