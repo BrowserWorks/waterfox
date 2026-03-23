@@ -275,6 +275,14 @@ var InterventionHelpers = {
       }
       return `${head}${fx}${major - 1}${tail.slice(major.toString().length)}`;
     },
+    mimic_Firefox_UA: (ua, config) => {
+      const version = config.version || UAHelpers.getRunningFirefoxVersion();
+      return ua
+        .replace(/rv:[0-9.]+/i, `rv:${version}`)
+        .replace(/Firefox\/[0-9.]+/i, `Firefox/${version}`)
+        .replace(/\s{2,}/g, " ")
+        .trim();
+    },
     Safari: (ua, config) => {
       return UAHelpers.safari(config);
     },
