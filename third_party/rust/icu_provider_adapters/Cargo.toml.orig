@@ -1,0 +1,39 @@
+# This file is part of ICU4X. For terms of use, please see the file
+# called LICENSE at the top level of the ICU4X source tree
+# (online at: https://github.com/unicode-org/icu4x/blob/main/LICENSE ).
+
+[package]
+name = "icu_provider_adapters"
+description = "Adapters for composing and manipulating data providers."
+
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+homepage.workspace = true
+include.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+icu_locid = { workspace = true, features = ["zerovec"] }
+icu_locid_transform = { workspace = true }
+icu_provider = { workspace = true, features = ["macros"] }
+tinystr = { workspace = true, features = ["zerovec"] }
+zerovec = { workspace = true, features = ["yoke"] }
+
+databake = { workspace = true, features = ["derive"], optional = true}
+serde = { workspace = true, features = ["derive", "alloc"], optional = true }
+
+[dev-dependencies]
+icu_provider = { path = "../../provider/core", features = ["macros", "deserialize_json"] }
+icu_provider_fs = { path = "../../provider/fs" }
+icu_provider_blob = { path = "../../provider/blob" }
+icu_locid_transform = { path = "../../components/locid_transform" }
+writeable = { path = "../../utils/writeable" }
+
+[features]
+std = ["icu_locid/std", "icu_provider/std"]
+serde = ["dep:serde", "zerovec/serde", "icu_locid/serde", "icu_locid_transform/serde", "icu_provider/serde"]
+datagen = ["std", "serde", "icu_provider/datagen"]

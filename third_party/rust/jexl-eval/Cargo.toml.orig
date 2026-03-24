@@ -1,0 +1,15 @@
+[package]
+edition = '2018'
+name = "jexl-eval"
+version = "0.3.0"
+authors = ["Mike Cooper <mythmon@gmail.com>", "The Sync Team <sync-team@mozilla.com>", "The Glean Team <glean-team@mozilla.com>"]
+description = "A JEXL evaluator written in Rust"
+license = "MPL-2.0"
+repository = "https://github.com/mozilla/jexl-rs"
+
+[dependencies]
+jexl-parser = { version = "^0.3.0", path = "../jexl-parser" }
+serde_json = "1"
+serde = "1"
+thiserror = "1"
+anyhow = "1"

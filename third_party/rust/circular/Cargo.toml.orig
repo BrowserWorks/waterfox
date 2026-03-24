@@ -1,0 +1,19 @@
+[package]
+name = "circular"
+version = "0.3.0"
+authors = ["Geoffroy Couprie <geo.couprie@gmail.com>"]
+description = "A stream abstraction designed for use with nom"
+license = "MIT"
+repository = "https://github.com/sozu-proxy/circular"
+readme = "README.md"
+
+include = [
+  "LICENSE",
+  "README.md",
+  ".gitignore",
+  ".travis.yml",
+  "Cargo.toml",
+  "src/*.rs",
+]
+
+[dependencies]

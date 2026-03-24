@@ -1,0 +1,40 @@
+[package]
+name = "uniffi_macros"
+version = "0.29.2"
+description = "a multi-language bindings generator for rust (convenience macros)"
+documentation = "https://mozilla.github.io/uniffi-rs"
+homepage = "https://mozilla.github.io/uniffi-rs"
+repository = "https://github.com/mozilla/uniffi-rs"
+license = "MPL-2.0"
+edition = "2021"
+keywords = ["ffi", "bindgen"]
+readme = "../README.md"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+camino = "1.0.8"
+fs-err = "2.7.0"
+once_cell = "1.10.0"
+proc-macro2 = "1.0"
+quote = "1.0"
+serde = { version = "1.0.136", features = ["derive"] }
+syn = { version = "2.0", features = ["full", "visit-mut"] }
+toml = "0.5.9"
+uniffi_build = { path = "../uniffi_build", version = "=0.29.2", optional = true }
+uniffi_meta = { path = "../uniffi_meta", version = "=0.29.2" }
+
+[features]
+default = []
+# Enable the generate_and_include_scaffolding! macro
+trybuild = [ "dep:uniffi_build" ]
+# Generate extra scaffolding functions that use FfiBuffer to pass arguments and return values
+scaffolding-ffi-buffer-fns = []
+# Enable extra features that require a nightly compiler:
+# * Add the full module path of exported items to FFI metadata instead of just the crate name.
+#   This may be used by language backends to generate nested module structures in the future.
+nightly = []
+# Support for WebAssembly targets in a single-threaded environment.
+# This feature is unstable and may change in the future.
+wasm-unstable-single-threaded = []

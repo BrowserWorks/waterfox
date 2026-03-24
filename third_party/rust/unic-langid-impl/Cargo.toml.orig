@@ -1,0 +1,56 @@
+[package]
+name = "unic-langid-impl"
+description = "API for managing Unicode Language Identifiers"
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+repository.workspace = true
+readme.workspace = true
+license.workspace = true
+categories.workspace = true
+include.workspace = true
+
+[dependencies]
+tinystr = "0.7.0"
+serde = { version = "1.0", optional = true }
+serde_json = { version = "1.0", optional = true }
+
+[dev-dependencies]
+criterion = "0.3"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[features]
+likelysubtags = []
+binary = ["serde", "serde_json"]
+
+[[bin]]
+name = "generate_likelysubtags"
+required-features = ["binary"]
+
+[[bin]]
+name = "generate_layout"
+required-features = ["binary"]
+
+[[test]]
+name = "likelysubtags"
+path = "tests/likelysubtags.rs"
+required-features = ["likelysubtags"]
+
+[[bench]]
+name = "parser"
+harness = false
+
+[[bench]]
+name = "langid"
+harness = false
+
+[[bench]]
+name = "canonicalize"
+harness = false
+
+[[bench]]
+name = "likely_subtags"
+harness = false
+required-features = ["likelysubtags"]

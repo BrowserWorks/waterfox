@@ -1,0 +1,16 @@
+[package]
+name = "cachemap2"
+version = "0.3.0"
+authors = ["Alex Franchuk <alex.franchuk@gmail.com>"]
+edition = "2021"
+keywords = ["sync", "data-structure", "cache", "hash-map"]
+categories = ["concurrency", "data-structures", "caching"]
+description = "A concurrent insert-only hashmap for caching values"
+homepage = "https://github.com/afranchuk/cachemap2"
+readme = "README.md"
+license = "MIT"
+
+
+[dependencies]
+dashmap = { version = "5.1", optional = true }
+abi_stable = { version = ">=0.9", optional = true }

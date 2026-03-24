@@ -1,0 +1,17 @@
+[package]
+name = "dogear"
+description = "A library for merging bookmark trees."
+version = "0.5.0"
+repository = "https://github.com/mozilla/dogear"
+authors = ["Lina Cambridge <lina@mozilla.com>"]
+license = "Apache-2.0"
+exclude = ["/.travis/**", ".travis.yml", "/docs/**", "book.toml"]
+edition = "2018"
+readme = "README.md"
+
+[dependencies]
+log = "0.4"
+smallbitvec = "2.3.0"
+
+[dev-dependencies]
+env_logger = "0.5.6"

@@ -1,0 +1,31 @@
+[package]
+name = "serde_bytes"
+version = "0.11.9" # remember to update html_root_url
+authors = ["David Tolnay <dtolnay@gmail.com>"]
+categories = ["encoding", "no-std"]
+description = "Optimized handling of `&[u8]` and `Vec<u8>` for Serde"
+documentation = "https://docs.rs/serde_bytes"
+edition = "2018"
+keywords = ["serde", "serialization", "no_std", "bytes"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/serde-rs/bytes"
+rust-version = "1.31"
+
+[features]
+default = ["std"]
+std = ["serde/std"]
+alloc = ["serde/alloc"]
+
+[dependencies]
+serde = { version = "1.0", default-features = false }
+
+[dev-dependencies]
+bincode = "1.0"
+serde_derive = "1.0"
+serde_test = "1.0"
+
+[lib]
+doc-scrape-examples = false
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]

@@ -37,6 +37,9 @@ ID
 # third-party packages is dealt with by the script vendoring them.
 *.egg-info/
 
+# Rust vendoring unignore rules are kept at end-of-file so they override
+# later global ignore rules (for example, .vscode/).
+
 # Ignore pywebsocket3 intermediate files.
 testing/web-platform/tests/tools/third_party/pywebsocket3/pywebsocket3.egg-info
 testing/web-platform/tests/tools/third_party/pywebsocket3/build
@@ -376,3 +379,13 @@ toolkit/crashreporter/minidump-analyzer/analyzer-test/target/
 
 # Ignore personal preferences files
 CLAUDE.local.md
+
+# Still add Cargo.toml.orig and dotfiles in third_party/rust because cargo
+# vendored crates contain those files, which some other rules ignore.
+# These rules must be last so they override broader ignore patterns above.
+# lint-ignore-next-line: syntax-difference
+!third_party/rust/**/Cargo.toml.orig
+# lint-ignore-next-line: syntax-difference
+!third_party/rust/**/.*
+# lint-ignore-next-line: syntax-difference
+!third_party/rust/**/.*/**

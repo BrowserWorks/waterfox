@@ -1,0 +1,22 @@
+[package]
+name = "libz-rs-sys"
+readme = "README.md"
+description.workspace = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[features]
+default = ["std", "rust-allocator"] # when used as a rust crate, use the rust allocator
+c-allocator = ["zlib-rs/c-allocator"] # by default, use malloc/free for memory allocation
+rust-allocator = ["zlib-rs/rust-allocator"] # by default, use the rust global alloctor for memory allocation
+std = ["zlib-rs/std"] # assume `::std` is available
+custom-prefix = [] # use the LIBZ_RS_SYS_PREFIX to prefix all exported symbols
+testing-prefix = [] # prefix all symbols with LIBZ_RS_SYS_TEST_ for testing
+
+[dependencies]
+zlib-rs = { workspace = true, default-features = false }

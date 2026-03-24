@@ -1,0 +1,25 @@
+[package]
+edition = "2018"
+name = "thin-vec"
+version = "0.2.12"
+authors = ["Aria Beingessner <a.beingessner@gmail.com>"]
+description = "A vec that takes up less space on the stack"
+license = "MIT/Apache-2.0"
+repository = "https://github.com/gankra/thin-vec"
+homepage = "https://github.com/gankra/thin-vec"
+readme = "README.md"
+
+[features]
+unstable = []
+default = []
+
+# Gecko specific features. These features cause thin-vec to have the same layout
+# and behaviour as nsTArray, allowing it to be used in C++ FFI. Requires
+# the empty header to be statically linked in with the symbol name "sEmptyTArrayHeader"
+gecko-ffi = []
+
+[dependencies]
+serde = {version = "1.0", optional = true}
+
+[dev-dependencies]
+serde_test = "1.0"
