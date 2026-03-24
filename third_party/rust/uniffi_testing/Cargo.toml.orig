@@ -1,0 +1,20 @@
+[package]
+name = "uniffi_testing"
+version = "0.29.2"
+description = "a multi-language bindings generator for rust (testing helpers)"
+documentation = "https://mozilla.github.io/uniffi-rs"
+homepage = "https://mozilla.github.io/uniffi-rs"
+repository = "https://github.com/mozilla/uniffi-rs"
+edition = "2021"
+license = "MPL-2.0"
+readme = "../README.md"
+
+[dependencies]
+anyhow = "1"
+camino = "1.0.8"
+cargo_metadata = "0.19"
+fs-err = "2.7.0"
+once_cell = "1.12"
+
+[features]
+ffi-trace = []

@@ -1,0 +1,21 @@
+[package]
+name = "glsl"
+version = "6.0.2"
+license = "BSD-3-Clause"
+authors = ["Dimitri Sabadie <dimitri.sabadie@gmail.com>"]
+description = "A GLSL450/GLSL460 parser."
+keywords = ["GLSL", "OpenGL", "SPIR-V", "parser"]
+categories = ["parsing", "rendering"]
+homepage = "https://github.com/phaazon/glsl"
+repository = "https://github.com/phaazon/glsl"
+documentation = "https://docs.rs/glsl"
+readme = "README.md"
+
+edition = "2018"
+
+[features]
+spirv = ["shaderc"]
+
+[dependencies]
+nom = { version = "7", default-features = false, features = ["std"] }
+shaderc = { version = "0.6", optional = true }

@@ -1,0 +1,51 @@
+[package]
+authors = ["Nick Fitzgerald <fitzgen@gmail.com>"]
+categories = ["command-line-utilities", "development-tools", "development-tools::testing", "wasm"]
+description = "A WebAssembly test case generator"
+documentation = "https://docs.rs/wasm-smith"
+edition.workspace = true
+license.workspace = true
+name = "wasm-smith"
+readme = "./README.md"
+repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasm-smith"
+version.workspace = true
+exclude = ["/benches/corpus"]
+rust-version.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+
+[[bench]]
+name = "corpus"
+harness = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+arbitrary = { workspace = true, features = ["derive"] }
+clap = { workspace = true, optional = true }
+flagset = "0.4"
+indexmap = { workspace = true }
+leb128 = { workspace = true }
+serde = { workspace = true, optional = true }
+serde_derive = { workspace = true, optional = true }
+wasm-encoder = { workspace = true }
+wasmparser = { workspace = true, optional = true, features = ['validate'] }
+wat = { workspace = true, optional = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
+rand = { workspace = true }
+wasmparser = { workspace = true, features = ["validate", "features"] }
+wasmprinter = { workspace = true }
+wat = { workspace = true }
+
+[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
+libfuzzer-sys = { workspace = true }
+
+[features]
+_internal_cli = ["clap", "flagset/serde", "serde", "serde_derive", "wasmparser", "wat"]
+wasmparser = ['dep:wasmparser', 'wasm-encoder/wasmparser']
+component-model = ['wasm-encoder/component-model']

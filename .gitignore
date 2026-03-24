@@ -377,3 +377,13 @@ toolkit/crashreporter/minidump-analyzer/analyzer-test/target/
 # Ignore personal preferences files
 CLAUDE.local.md
 .claude/settings.local.json
+
+# Still add Cargo.toml.orig and dotfiles in third_party/rust because cargo
+# vendored crates contain those files, which some other rules ignore.
+# These rules must be last so they override broader ignore patterns above.
+# lint-ignore-next-line: syntax-difference
+!third_party/rust/**/Cargo.toml.orig
+# lint-ignore-next-line: syntax-difference
+!third_party/rust/**/.*
+# lint-ignore-next-line: syntax-difference
+!third_party/rust/**/.*/**
