@@ -1,0 +1,61 @@
+[package]
+name = "uniffi"
+description = "a multi-language bindings generator for rust"
+documentation = "https://mozilla.github.io/uniffi-rs"
+homepage = "https://mozilla.github.io/uniffi-rs"
+repository = "https://github.com/mozilla/uniffi-rs"
+# Incrementing the minor version here means a breaking change to consumers.
+#   * See `docs/uniffi-versioning.md` for guidance on when to increment this
+#   * Make sure to also update `uniffi_bindgen::UNIFFI_CONTRACT_VERSION"
+version = "0.29.2"
+license = "MPL-2.0"
+edition = "2021"
+keywords = ["ffi", "bindgen"]
+readme = "../README.md"
+
+[dependencies]
+uniffi_bindgen = { path = "../uniffi_bindgen", version = "=0.29.2", optional = true }
+uniffi_build = { path = "../uniffi_build", version = "=0.29.2", optional = true }
+uniffi_core = { path = "../uniffi_core", version = "=0.29.2" }
+uniffi_macros = { path = "../uniffi_macros", version = "=0.29.2" }
+uniffi_pipeline = { path = "../uniffi_pipeline", version = "=0.29.2" }
+anyhow = "1"
+camino = { version = "1.0.8", optional = true }
+cargo_metadata = { version = "0.19", optional = true }
+# avoid 'clap/color' due to dependency hell.
+clap = { version = "4", default-features = false, features = [ "cargo", "derive", "error-context", "help", "suggestions", "std", "usage" ], optional = true }
+
+[dev-dependencies]
+trybuild = "1"
+
+[features]
+default = ["cargo-metadata"]
+# Printout tracing information on FFI calls.  Useful for debugging issues with the bindings code.
+ffi-trace = ["uniffi_core/ffi-trace", "uniffi_bindgen?/ffi-trace"]
+# Support for features needed by the `build.rs` script. Enable this in your
+# `build-dependencies`.
+build = [ "dep:uniffi_build" ]
+# Support for `uniffi_bindgen::generate_bindings`.
+# Enable this feature for your `uniffi-bindgen` binaries if you don't need the full CLI.
+bindgen = ["dep:uniffi_bindgen"]
+cargo-metadata = ["dep:cargo_metadata", "uniffi_bindgen?/cargo-metadata"]
+
+# Support for `uniffi_bindgen_main()`. Enable this feature for your
+# `uniffi-bindgen` binaries.
+cli = [ "bindgen", "dep:clap", "dep:camino" ]
+# Support for running example/fixture tests for `uniffi-bindgen`.  You probably
+# don't need to enable this.
+bindgen-tests = [ "dep:uniffi_bindgen", "uniffi_bindgen?/bindgen-tests" ]
+# Enable support for Tokio's futures.
+# This must still be opted into on a per-function basis using `#[uniffi::export(async_runtime = "tokio")]`.
+tokio = ["uniffi_core/tokio"]
+# Generate extra scaffolding functions that use FfiBuffer to pass arguments and return values
+# This is needed for the gecko-js bindings.
+scaffolding-ffi-buffer-fns = ["uniffi_core/scaffolding-ffi-buffer-fns", "uniffi_macros/scaffolding-ffi-buffer-fns"]
+
+# Support for WebAssembly targets in a single-threaded environment.
+# This feature is unstable and may change in the future.
+wasm-unstable-single-threaded = [
+    "uniffi_core/wasm-unstable-single-threaded",
+    "uniffi_macros/wasm-unstable-single-threaded",
+]

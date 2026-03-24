@@ -1,0 +1,15 @@
+[package]
+name = "android-tzdata"
+version = "0.1.1"
+authors = ["RumovZ"]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+description = "Parser for the Android-specific tzdata file"
+repository = "https://github.com/RumovZ/android-tzdata"
+readme = "README.md"
+categories = ["date-and-time"]
+keywords = ["parser", "android", "timezone"]
+include = ["src/**/*", "LICENSE-*", "README.md"]
+
+[dev-dependencies]
+zip = "0.6.4"

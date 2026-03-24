@@ -1,0 +1,85 @@
+[package]
+name = "wasmparser"
+version.workspace = true
+authors = ["Yury Delendik <ydelendik@mozilla.com>"]
+license.workspace = true
+repository = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasmparser"
+homepage = "https://github.com/bytecodealliance/wasm-tools/tree/main/crates/wasmparser"
+keywords = ["parser", "WebAssembly", "wasm"]
+description = """
+A simple event-driven library for parsing WebAssembly binary files.
+"""
+edition.workspace = true
+exclude = ["benches/*.wasm"]
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+bitflags = "2.4.1"
+indexmap = { workspace = true, optional = true }
+semver = { workspace = true, optional = true }
+hashbrown = { workspace = true, optional = true }
+ahash = { workspace = true, optional = true }
+serde = { workspace = true, optional = true }
+
+[dev-dependencies]
+anyhow = { workspace = true }
+criterion = { workspace = true }
+wat = { path = "../wat" }
+wast = { path = "../wast" }
+rayon = { workspace = true }
+once_cell = "1.13.0"
+wasm-encoder = { path = "../wasm-encoder" }
+env_logger.workspace = true
+log.workspace = true
+
+[[bench]]
+name = "benchmark"
+harness = false
+
+[features]
+default = ['std', 'validate', 'serde', 'features', 'component-model']
+
+# A feature which enables implementations of `std::error::Error` as appropriate
+# along with other convenience APIs. This additionally uses the standard
+# library's source of randomness for seeding hash maps.
+std = ['indexmap/std']
+
+# Tells the wasmparser crate to avoid using hash based maps and sets.
+#
+# Some embedded environments cannot provide a random source which is required
+# to properly initialize hashmap based data structures for resilience against
+# malious actors that control their inputs.
+no-hash-maps = []
+
+# A feature that enables validating WebAssembly files. This is enabled by
+# default but not required if you're only parsing a file, for example, as
+# opposed to validating all of its contents.
+validate = [
+  'dep:indexmap',
+  'dep:semver',
+  'dep:hashbrown',
+  'dep:ahash',
+]
+
+# Enable Serialize/Deserialize implementations for types in
+# `wasmparser::collections`
+serde = ['dep:serde', 'indexmap/serde', 'hashbrown/serde']
+
+# A feature that enables the guts of the `WasmFeatures` type in this crate.
+#
+# This feature is enabled by default. When disabled this crate does not support
+# runtime configuration of WebAssembly features. Instead the set of WebAssembly
+# features/proposals support are fixed at compile time to `wasmparser`'s default
+# set of supported features.
+features = []
+
+# A feature that enables parsing and validating the component-model proposal for
+# WebAssembly. This is enabled by default but if your use case is only
+# interested in working with core modules then this feature can be disabled.
+component-model = []

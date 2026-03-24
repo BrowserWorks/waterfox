@@ -1,0 +1,14 @@
+[package]
+name = "tracy-rs"
+version = "0.1.2"
+authors = ["Glenn Watson <git@intuitionlibrary.com>"]
+edition = "2018"
+description = "Rust bindings for the tracy realtime profiler"
+license = "MPL-2.0"
+
+[dependencies]
+minidl = { version = "0.1", optional = true }
+
+[features]
+default = []
+enable_profiler = [ "minidl" ]

@@ -1,0 +1,37 @@
+[package]
+name = "rand_distr"
+version = "0.4.3"
+authors = ["The Rand Project Developers"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/rust-random/rand"
+documentation = "https://docs.rs/rand_distr"
+homepage = "https://rust-random.github.io/book"
+description = """
+Sampling from random number distributions
+"""
+keywords = ["random", "rng", "distribution", "probability"]
+categories = ["algorithms", "no-std"]
+edition = "2018"
+include = ["src/", "LICENSE-*", "README.md", "CHANGELOG.md", "COPYRIGHT"]
+
+[features]
+default = ["std"]
+std = ["alloc", "rand/std"]
+alloc = ["rand/alloc"]
+std_math = ["num-traits/std"]
+serde1 = ["serde", "rand/serde1"]
+
+[dependencies]
+rand = { path = "..", version = "0.8.0", default-features = false }
+num-traits = { version = "0.2", default-features = false, features = ["libm"] }
+serde = { version = "1.0.103", features = ["derive"], optional = true }
+
+[dev-dependencies]
+rand_pcg = { version = "0.3.0", path = "../rand_pcg" }
+# For inline examples
+rand = { path = "..", version = "0.8.0", default-features = false, features = ["std_rng", "std", "small_rng"] }
+# Histogram implementation for testing uniformity
+average = { version = "0.13", features = [ "std" ] }
+# Special functions for testing distributions
+special = "0.8.1"

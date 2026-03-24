@@ -1,0 +1,33 @@
+[package]
+name = "litrs"
+version = "0.4.1"
+authors = ["Lukas Kalbertodt <lukas.kalbertodt@gmail.com>"]
+edition = "2018"
+rust-version = "1.54"
+
+description = """
+Parse and inspect Rust literals (i.e. tokens in the Rust programming language
+representing fixed values). Particularly useful for proc macros, but can also
+be used outside of a proc-macro context.
+"""
+documentation = "https://docs.rs/litrs/"
+repository = "https://github.com/LukasKalbertodt/litrs/"
+readme = "README.md"
+license = "MIT/Apache-2.0"
+
+keywords = ["literal", "parsing", "proc-macro", "type", "procedural"]
+categories = [
+    "development-tools::procedural-macro-helpers",
+    "parser-implementations",
+    "development-tools::build-utils",
+]
+exclude = [".github"]
+
+
+[features]
+default = ["proc-macro2"]
+check_suffix = ["unicode-xid"]
+
+[dependencies]
+proc-macro2 = { version = "1", optional = true }
+unicode-xid = { version = "0.2.4", optional = true }

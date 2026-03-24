@@ -1,0 +1,101 @@
+[package]
+name = "zip"
+version = "2.1.3"
+authors = [
+    "Mathijs van de Nes <git@mathijs.vd-nes.nl>",
+    "Marli Frost <marli@frost.red>",
+    "Ryan Levick <ryan.levick@gmail.com>",
+    "Chris Hennick <hennickc@amazon.com>",
+]
+license = "MIT"
+repository = "https://github.com/zip-rs/zip2.git"
+keywords = ["zip", "archive", "compression"]
+rust-version = "1.73.0"
+description = """
+Library to support the reading and writing of zip files.
+"""
+edition = "2021"
+exclude = ["tests/**", "examples/**", ".github/**", "fuzz/**"]
+build = "src/build.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[workspace.dependencies]
+time = { version = "0.3.36", default-features = false }
+
+[dependencies]
+aes = { version = "0.8.4", optional = true }
+bzip2 = { version = "0.4.4", optional = true }
+chrono = { version = "0.4.38", optional = true }
+constant_time_eq = { version = "0.3.0", optional = true }
+crc32fast = "1.4.2"
+displaydoc = { version = "0.2.4", default-features = false }
+flate2 = { version = "1.0.30", default-features = false, optional = true }
+indexmap = "2"
+hmac = { version = "0.12.1", optional = true, features = ["reset"] }
+memchr = "2.7.2"
+pbkdf2 = { version = "0.12.2", optional = true }
+rand = { version = "0.8.5", optional = true }
+sha1 = { version = "0.10.6", optional = true }
+thiserror = "1.0.61"
+time = { workspace = true, optional = true, features = [
+    "std",
+] }
+zeroize = { version = "1.8.1", optional = true, features = ["zeroize_derive"] }
+zstd = { version = "0.13.1", optional = true, default-features = false }
+zopfli = { version = "0.8.1", optional = true }
+deflate64 = { version = "0.1.8", optional = true }
+lzma-rs = { version = "0.3.0", default-features = false, optional = true }
+
+[target.'cfg(any(all(target_arch = "arm", target_pointer_width = "32"), target_arch = "mips", target_arch = "powerpc"))'.dependencies]
+crossbeam-utils = "0.8.20"
+
+[target.'cfg(fuzzing)'.dependencies]
+arbitrary = { version = "1.3.2", features = ["derive"] }
+
+[dev-dependencies]
+bencher = "0.1.5"
+getrandom = { version = "0.2.15", features = ["js", "std"] }
+walkdir = "2.5.0"
+time = { workspace = true, features = ["formatting", "macros"] }
+anyhow = "1"
+clap = { version = "=4.4.18", features = ["derive"] }
+tempdir = "0.3.7"
+
+[features]
+aes-crypto = ["aes", "constant_time_eq", "hmac", "pbkdf2", "sha1", "rand", "zeroize"]
+chrono = ["chrono/default"]
+_deflate-any = []
+_all-features = [] # Detect when --all-features is used
+deflate = ["flate2/rust_backend", "deflate-zopfli", "deflate-flate2"]
+deflate-flate2 = ["flate2/any_impl", "_deflate-any"]
+# DEPRECATED: previously enabled `flate2/miniz_oxide` which is equivalent to `flate2/rust_backend`
+deflate-miniz = ["deflate", "deflate-flate2"]
+deflate-zlib = ["flate2/zlib", "deflate-flate2"]
+deflate-zlib-ng = ["flate2/zlib-ng", "deflate-flate2"]
+deflate-zopfli = ["zopfli", "_deflate-any"]
+lzma = ["lzma-rs/stream"]
+unreserved = []
+default = [
+    "aes-crypto",
+    "bzip2",
+    "deflate64",
+    "deflate",
+    "lzma",
+    "time",
+    "zstd",
+]
+
+[[bench]]
+name = "read_entry"
+harness = false
+
+[[bench]]
+name = "read_metadata"
+harness = false
+
+[[bench]]
+name = "merge_archive"
+harness = false

@@ -1,0 +1,17 @@
+[package]
+name = "io-surface"
+description = "Bindings to IO Surface for macOS"
+homepage = "https://github.com/servo/core-foundation-rs"
+repository = "https://github.com/servo/core-foundation-rs"
+version = "0.15.1"
+authors = ["The Servo Project Developers"]
+license = "MIT / Apache-2.0"
+
+[package.metadata.docs.rs]
+default-target = "x86_64-apple-darwin"
+
+[dependencies]
+libc = "0.2"
+core-foundation = { path = "../core-foundation", version = "0.9" }
+cgl = "0.3"
+leaky-cow = "0.1.1"

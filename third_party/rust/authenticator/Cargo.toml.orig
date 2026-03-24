@@ -1,0 +1,77 @@
+[package]
+name = "authenticator"
+version = "0.4.1"
+authors = [ "Dana Keeler <dkeeler@mozilla.com>", "J.C. Jones <jc@mozilla.com>", "John Schanck <jschanck@mozilla.com>", "Kyle Machulis <kyle@nonpolynomial.com>", "Martin Sirringhaus <martin.sirringhaus@suse.com", "Tim Taubert <ttaubert@mozilla.com>" ]
+keywords = ["ctap2", "u2f", "fido", "webauthn"]
+categories = ["cryptography", "hardware-support", "os"]
+repository = "https://github.com/mozilla/authenticator-rs/"
+license = "MPL-2.0"
+description = "Library for interacting with CTAP1/2 security keys for Web Authentication. Used by Firefox."
+edition = "2018"
+
+[badges]
+travis-ci = { repository = "mozilla/authenticator-rs", branch = "master" }
+maintenance = { status = "actively-developed" }
+
+[features]
+default = ["crypto_nss"]
+binding-recompile = ["bindgen"]
+# Crypto backends
+# NOTE: These are mutually exclusive, but cargo does not support that.
+#       Selecting more than one will result in a compilation error!
+# Default: NSS
+crypto_dummy = []
+crypto_openssl = ["openssl", "openssl-sys"]
+crypto_nss = ["nss-gk-api", "pkcs11-bindings"]
+gecko = ["nss-gk-api/gecko"]
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libudev = "^0.2"
+
+[target.'cfg(target_os = "freebsd")'.dependencies]
+devd-rs = "0.3"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.9"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+memoffset = "0.8"
+
+[target.'cfg(target_os = "windows")'.dependencies.winapi]
+version = "^0.3"
+features = [
+    "handleapi",
+    "hidclass",
+    "hidpi",
+    "hidusage",
+    "setupapi",
+]
+
+[build-dependencies]
+bindgen = { version = "^0.58.1", optional = true }
+
+[dependencies]
+rand = "0.8"
+log = "0.4"
+libc = "0.2"
+runloop = "0.1.0"
+bitflags = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_bytes = "0.11"
+serde_cbor = "0.11"
+serde_json = "1.0"
+bytes = { version = "0.5", optional = true, features = ["serde"] }
+base64 = "^0.21"
+sha2 = "^0.10.0"
+cfg-if = "1.0"
+# Crypto backends
+openssl-sys = { version = "0.9", optional = true}
+openssl = { version = "0.10", optional = true}
+nss-gk-api = { version = "0.3.0", optional = true }
+pkcs11-bindings = { version = "0.1.4", optional = true }
+
+[dev-dependencies]
+env_logger = "^0.6"
+getopts = "^0.2"
+assert_matches = "1.2"
+rpassword = "5.0"
