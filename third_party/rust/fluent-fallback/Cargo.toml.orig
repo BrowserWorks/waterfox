@@ -1,0 +1,33 @@
+[package]
+name = "fluent-fallback"
+description = """
+High-level abstraction model for managing localization resources
+and runtime localization lifecycle.
+"""
+version = "0.7.0"
+edition = "2021"
+authors = [
+    "Zibi Braniecki <gandalf@mozilla.com>",
+    "Staś Małolepszy <stas@mozilla.com>"
+]
+homepage = "http://www.projectfluent.org"
+license = "Apache-2.0/MIT"
+repository = "https://github.com/projectfluent/fluent-rs"
+readme = "README.md"
+keywords = ["localization", "l10n", "i18n", "intl", "internationalization"]
+categories = ["localization", "internationalization"]
+
+[dependencies]
+chunky-vec = "0.1"
+fluent-bundle = { version = "0.15.2", path = "../fluent-bundle" }
+futures = "0.3"
+async-trait = "0.1"
+unic-langid = { version = "0.9" }
+once_cell = "1.9"
+rustc-hash = "1"
+
+[dev-dependencies]
+fluent-langneg = "0.13"
+unic-langid = { version = "0.9", features = ["macros"] }
+fluent-resmgr = { path = "../fluent-resmgr" }
+tokio = { version = "1.0", features = ["rt-multi-thread", "macros"] }

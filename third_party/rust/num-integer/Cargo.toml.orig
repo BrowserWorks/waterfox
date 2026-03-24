@@ -1,0 +1,29 @@
+[package]
+authors = ["The Rust Project Developers"]
+description = "Integer traits and functions"
+documentation = "https://docs.rs/num-integer"
+homepage = "https://github.com/rust-num/num-integer"
+keywords = ["mathematics", "numerics"]
+categories = ["algorithms", "science", "no-std"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/rust-num/num-integer"
+name = "num-integer"
+version = "0.1.45"
+readme = "README.md"
+build = "build.rs"
+exclude = ["/bors.toml", "/ci/*", "/.github/*"]
+
+[package.metadata.docs.rs]
+features = ["std"]
+
+[dependencies.num-traits]
+version = "0.2.11"
+default-features = false
+
+[features]
+default = ["std"]
+i128 = ["num-traits/i128"]
+std = ["num-traits/std"]
+
+[build-dependencies]
+autocfg = "1"

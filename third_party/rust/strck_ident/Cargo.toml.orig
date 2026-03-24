@@ -1,0 +1,24 @@
+[package]
+name = "strck_ident"
+version = "0.1.2"
+authors = ["Quinn Okabayashi <quinnokabayashi@gmail.com>"]
+edition = "2021"
+description = "Checked owned and borrowed Unicode-based identifiers"
+keywords = ["text", "ident", "identifier", "validate", "unicode"]
+categories = ["rust-patterns", "memory-management"]
+license = "MIT"
+repository = "https://github.com/QnnOkabayashi/strck"
+
+[features]
+serde = ["strck/serde"]
+rust = []
+
+[dependencies]
+strck = { version = "0.1.2", path = "../strck" }
+unicode-ident = "1.0"
+
+[dev-dependencies]
+strck_ident = { path = ".", features = ["serde", "rust"] }
+
+[package.metadata.docs.rs]
+all-features = true

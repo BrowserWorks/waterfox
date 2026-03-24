@@ -1,0 +1,64 @@
+[package]
+name = "fluent-syntax"
+description = """
+Parser/Serializer tools for Fluent Syntax. 
+"""
+version = "0.11.0"
+edition = "2018"
+authors = [
+    "Zibi Braniecki <gandalf@mozilla.com>",
+    "Staś Małolepszy <stas@mozilla.com>"
+]
+homepage = "http://www.projectfluent.org"
+license = "Apache-2.0/MIT"
+repository = "https://github.com/projectfluent/fluent-rs"
+readme = "README.md"
+keywords = ["localization", "l10n", "i18n", "intl", "internationalization"]
+categories = ["localization", "internationalization"]
+include = [
+	"src/**/*",
+	"benches/*.rs",
+	"Cargo.toml",
+	"README.md",
+	"LICENSE-APACHE",
+	"LICENSE-MIT"
+]
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"], optional = true }
+serde_json = { version = "1.0", optional = true }
+thiserror = "1.0"
+
+[dev-dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+glob = "0.3"
+criterion = "0.3"
+iai = "0.1"
+
+[features]
+default = []
+json = ["serde", "serde_json"]
+all-benchmarks = []
+
+[[bench]]
+name = "parser"
+harness = false
+
+[[bench]]
+name = "parser_iai"
+harness = false
+
+[[bin]]
+name = "parser"
+path = "src/bin/parser.rs"
+
+[[bin]]
+name = "update_fixtures"
+path = "src/bin/update_fixtures.rs"
+required-features = ["json"]
+
+[[test]]
+name = "parser_fixtures"
+path = "tests/parser_fixtures.rs"
+required-features = ["json"]
