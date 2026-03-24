@@ -1,0 +1,41 @@
+[package]
+name = "minidump"
+description = "A parser for the minidump format."
+version = "0.24.0"
+authors = ["Ted Mielczarek <ted@mielczarek.org>"]
+license = "MIT"
+homepage = "https://github.com/rust-minidump/rust-minidump"
+repository = "https://github.com/rust-minidump/rust-minidump"
+keywords = ["breakpad", "symbols", "minidump"]
+categories = ["parsing"]
+readme = "README.md"
+edition = "2018"
+
+[dependencies]
+arbitrary = { version = "1", optional = true, features = ["derive"] }
+debugid = "0.8.0"
+encoding_rs = "0.8"
+tracing = { version = "0.1.34", features = ["log"] }
+memmap2 = "0.9"
+minidump-common = { version = "0.24.0", path = "../minidump-common" }
+num-traits = "0.2"
+procfs-core = { version = "0.17", default-features = false }
+range-map = "0.2"
+scroll = "0.12.0"
+thiserror = "1.0.37"
+time = { version = "0.3.34", features = ["formatting"] }
+uuid = "1.0.0"
+
+[dev-dependencies]
+ctor = "0.2"
+env_logger = "0.11.1"
+minidump-synth = { path = "../minidump-synth" }
+test-assembler = "0.1.6"
+doc-comment = "0.3.3"
+
+[features]
+# This is a hack to get around the fact that namespaced-features aren't yet on stable
+# This can be replaced with
+# arbitrary = ["minidump-common/arbitrary", "dep:arbitrary"]
+# as soon as https://github.com/rust-lang/cargo/issues/5565 is on an old enough cargo
+arbitrary_impls = ["minidump-common/arbitrary", "arbitrary"]

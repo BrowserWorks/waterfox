@@ -1,0 +1,18 @@
+[package]
+name        = "dirs-sys"
+version     = "0.3.7"
+authors     = ["Simon Ochsenreither <simon@ochsenreither.de>"]
+description = "System-level helper functions for the dirs and directories crates."
+readme      = "README.md"
+license     = "MIT OR Apache-2.0"
+repository  = "https://github.com/dirs-dev/dirs-sys-rs"
+maintenance = { status = "as-is" }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(target_os = "redox")'.dependencies]
+redox_users = { version = "0.4", default-features = false }
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["knownfolders", "objbase", "shlobj", "winbase", "winerror"] }

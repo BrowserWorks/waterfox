@@ -1,0 +1,39 @@
+[package]
+name = "pe-unwind-info"
+version = "0.2.3"
+authors = ["Alex Franchuk <alex.franchuk@gmail.com>"]
+edition = "2021"
+keywords = ["unwind", "pe", "microsoft", "x86_64", "x64"]
+categories = ["parser-implementations"]
+description = "Parsers for PE unwind info"
+homepage = "https://github.com/afranchuk/pe-unwind-info"
+readme = "README.md"
+license = "MIT"
+exclude = ["/fixture"]
+
+[dependencies]
+bitflags = "2"
+thiserror = "1"
+zerocopy = "0.7.32"
+zerocopy-derive = "0.7.32"
+arrayvec = "0.7"
+
+[dev-dependencies]
+hex-literal = "0.4"
+memmap2 = "0.7"
+object = "0.31"
+
+[package.metadata.release]
+tag-name = "{{version}}"
+pre-release-commit-message = "Prepare for version {{version}}"
+tag-message = "Release {{crate_name}} version {{version}}"
+
+[[package.metadata.release.pre-release-replacements]]
+file = "ChangeLog.md"
+search = "## \\[Unreleased\\]"
+replace = "## [Unreleased]\n\n## [{{version}}] - {{date}}"
+
+[[package.metadata.release.pre-release-replacements]]
+file = "ChangeLog.md"
+search = "\\[Unreleased\\]: (.*)/(.*)\\.\\.\\.HEAD$"
+replace = "[Unreleased]: $1/{{tag_name}}...HEAD\n[{{version}}]: $1/$2...{{tag_name}}"

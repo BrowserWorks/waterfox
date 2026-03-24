@@ -1,0 +1,33 @@
+[package]
+name = "zlib-rs"
+readme = "README.md"
+description.workspace = true
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = ["std", "c-allocator"]
+std = ["rust-allocator"]
+c-allocator = [] # expose a malloc-based C allocator
+rust-allocator = [] # expose a rust global alloctor
+__internal-fuzz = ["arbitrary"]
+__internal-fuzz-disable-checksum = [] # disable checksum validation on inflate
+__internal-test = ["quickcheck"]
+ZLIB_DEBUG = []
+
+
+[dependencies]
+arbitrary = { workspace = true, optional = true, features = ["derive"] }
+quickcheck = { workspace = true, optional = true }
+
+[dev-dependencies]
+crc32fast = "1.3.2"
+memoffset = "0.9.1"
+quickcheck.workspace = true

@@ -1,0 +1,18 @@
+[package]
+name = "embed-manifest"
+description = "Build script library to easily embed a Windows manifest."
+version = "1.4.0"
+authors = ["Carey Evans <carey@carey.geek.nz>"]
+edition = "2021"
+rust-version = "1.56"
+license = "MIT"
+repository = "https://gitlab.com/careyevans/embed-manifest"
+keywords = ["build", "manifest", "windows"]
+categories = ["development-tools::build-utils"]
+
+[dev-dependencies]
+object = { version = "0.31.1", default-features = false, features = ["read_core", "coff"] }
+tempfile = "3.5.0"
+
+[workspace]
+members = ["test", "test/asm", "test/cli", "test/gen"]

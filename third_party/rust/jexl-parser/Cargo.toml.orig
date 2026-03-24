@@ -1,0 +1,12 @@
+[package]
+edition = '2018'
+name = "jexl-parser"
+version = "0.3.0"
+authors = ["Mike Cooper <mythmon@gmail.com>", "The Sync Team <sync-team@mozilla.com>", "The Glean Team <glean-team@mozilla.com>"]
+description = "A JEXL parser written in Rust"
+license = "MPL-2.0"
+repository = "https://github.com/mozilla/jexl-rs"
+
+[dependencies]
+lalrpop-util = { version = "0.19", features = ["lexer"] }
+regex = "1.3"

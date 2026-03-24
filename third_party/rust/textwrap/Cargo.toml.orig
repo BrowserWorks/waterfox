@@ -1,0 +1,44 @@
+[package]
+name = "textwrap"
+version = "0.16.1"
+authors = ["Martin Geisler <martin@geisler.net>"]
+description = "Library for word wrapping, indenting, and dedenting strings. Has optional support for Unicode and emojis as well as machine hyphenation."
+documentation = "https://docs.rs/textwrap/"
+repository = "https://github.com/mgeisler/textwrap"
+readme = "README.md"
+keywords = ["text", "formatting", "wrap", "typesetting", "hyphenation"]
+categories = ["text-processing", "command-line-interface"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.56"
+exclude = [".github/", ".gitignore", "benchmarks/", "examples/", "fuzz/", "images/"]
+
+[[example]]
+name = "hyphenation"
+path = "examples/hyphenation.rs"
+required-features = ["hyphenation"]
+
+[[example]]
+name = "termwidth"
+path = "examples/termwidth.rs"
+required-features = ["terminal_size"]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[features]
+default = ["unicode-linebreak", "unicode-width", "smawk"]
+
+[dependencies]
+hyphenation = { version = "0.8.4", optional = true, features = ["embed_en-us"] }
+smawk = { version = "0.3.1", optional = true }
+terminal_size = { version = "0.2.1", optional = true }
+unicode-linebreak = { version = "0.1.4", optional = true }
+unicode-width = { version = "0.1.10", optional = true }
+
+[dev-dependencies]
+unic-emoji-char = "0.9.0"
+version-sync = "0.9.4"
+
+[target.'cfg(unix)'.dev-dependencies]
+termion = "2.0.1"

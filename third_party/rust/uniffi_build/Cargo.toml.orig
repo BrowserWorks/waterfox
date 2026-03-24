@@ -1,0 +1,21 @@
+[package]
+name = "uniffi_build"
+version = "0.29.2"
+description = "a multi-language bindings generator for rust (build script helpers)"
+documentation = "https://mozilla.github.io/uniffi-rs"
+homepage = "https://mozilla.github.io/uniffi-rs"
+repository = "https://github.com/mozilla/uniffi-rs"
+license = "MPL-2.0"
+edition = "2021"
+keywords = ["ffi", "bindgen"]
+readme = "../README.md"
+
+[dependencies]
+anyhow = "1"
+camino = "1.0.8"
+uniffi_bindgen = { path = "../uniffi_bindgen", default-features = false, version = "=0.29.2" }
+
+[features]
+default = []
+# Deprecated feature that doesn't do anything anymore, but we still allow for backwards-compatibility.
+builtin-bindgen = []

@@ -1,0 +1,32 @@
+[package]
+name = "sha3"
+version = "0.10.8"
+description = """
+Pure Rust implementation of SHA-3, a family of Keccak-based hash functions
+including the SHAKE family of eXtendable-Output Functions (XOFs), as well as
+the accelerated variant TurboSHAKE
+"""
+authors = ["RustCrypto Developers"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+edition = "2018"
+documentation = "https://docs.rs/sha3"
+repository = "https://github.com/RustCrypto/hashes"
+keywords = ["crypto", "sha3", "keccak", "hash", "digest"]
+categories = ["cryptography", "no-std"]
+
+[dependencies]
+digest = "0.10.4"
+keccak = "0.1.4"
+
+[dev-dependencies]
+digest = { version = "0.10.4", features = ["dev"] }
+hex-literal = "0.2.2"
+
+[features]
+default = ["std"]
+std = ["digest/std"]
+
+asm = ["keccak/asm"] # Enable ASM (currently ARMv8 only). WARNING: Bumps MSRV to 1.59
+oid = ["digest/oid"] # Enable OID support. WARNING: Bumps MSRV to 1.57
+reset = [] # Enable reset functionality

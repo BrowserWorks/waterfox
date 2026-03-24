@@ -1,0 +1,36 @@
+[package]
+name = "fs-err"
+description = "A drop-in replacement for std::fs with more helpful error messages."
+version = "2.9.0"
+authors = ["Andrew Hickman <andrew.hickman1@sky.com>"]
+edition = "2018"
+repository = "https://github.com/andrewhickman/fs-err"
+documentation = "https://docs.rs/fs-err"
+categories = ["command-line-interface", "filesystem"]
+license = "MIT/Apache-2.0"
+readme = "README.md"
+exclude = [".github", ".gitignore", "README.tpl"]
+
+[dependencies]
+tokio = { version = "1.21", optional = true, default_features = false, features = ["fs"] }
+
+[dev-dependencies]
+serde_json = "1.0.64"
+
+[features]
+# Adds I/O safety traits introduced in Rust 1.63
+io_safety = []
+
+[package.metadata.release]
+tag-name = "{{version}}"
+sign-tag = true
+
+[[package.metadata.release.pre-release-replacements]]
+file = "src/lib.rs"
+search = "html_root_url = \"https://docs\\.rs/fs-err/.*?\""
+replace = "html_root_url = \"https://docs.rs/fs-err/{{version}}\""
+exactly = 1
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

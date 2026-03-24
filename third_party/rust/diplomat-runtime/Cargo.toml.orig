@@ -1,0 +1,21 @@
+[package]
+name = "diplomat-runtime"
+description = "Common runtime utilities used by diplomat codegen"
+version = "0.8.0"
+authors = [
+    "Shadaj Laddad <shadaj@users.noreply.github.com>",
+    "Manish Goregaokar <manishsmail@gmail.com>",
+    "Quinn Okabayashi <QnnOkabayashi@users.noreply.github.com>"
+]
+edition = "2018"
+license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/diplomat_core/"
+keywords = ["ffi", "codegen"]
+categories = ["development-tools"]
+repository = "https://github.com/rust-diplomat/diplomat"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+log = { version = "0.4", optional = true }

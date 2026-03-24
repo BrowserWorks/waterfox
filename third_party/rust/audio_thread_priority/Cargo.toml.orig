@@ -1,0 +1,43 @@
+[package]
+name = "audio_thread_priority"
+version = "0.32.0"
+authors = ["Paul Adenot <paul@paul.cx>"]
+description = "Bump a thread to real-time priority, for audio work, on Linux, Windows and macOS"
+license = "MPL-2.0"
+repository = "https://github.com/padenot/audio_thread_priority"
+edition = "2018"
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+name = "audio_thread_priority"
+
+[dependencies]
+cfg-if = "1.0"
+log = "0.4"
+simple_logger = { version =  "0.4", optional = true }
+
+[dev-dependencies]
+nix = "0.26"
+
+[features]
+terminal-logging = ["simple_logger"]
+with_dbus = ["dbus"]
+default = ["with_dbus"]
+
+[target.'cfg(target_os = "macos")'.dependencies]
+mach = "0.3"
+libc = "0.2"
+
+[target.'cfg(target_os = "windows")'.dependencies.windows-sys]
+version = "0.52"
+features = [
+    "Win32_Foundation",
+    "Win32_System_LibraryLoader",
+]
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
+
+[target.'cfg(target_os = "linux")'.dependencies.dbus]
+version = "0.6.4"
+optional = true

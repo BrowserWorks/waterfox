@@ -1,0 +1,59 @@
+[package]
+name = "tokio-util"
+# When releasing to crates.io:
+# - Remove path dependencies
+# - Update CHANGELOG.md.
+# - Create "tokio-util-0.7.x" git tag.
+version = "0.7.2"
+edition = "2018"
+rust-version = "1.49"
+authors = ["Tokio Contributors <team@tokio.rs>"]
+license = "MIT"
+repository = "https://github.com/tokio-rs/tokio"
+homepage = "https://tokio.rs"
+description = """
+Additional utilities for working with Tokio.
+"""
+categories = ["asynchronous"]
+
+[features]
+# No features on by default
+default = []
+
+# Shorthand for enabling everything
+full = ["codec", "compat", "io-util", "time", "net", "rt"]
+
+net = ["tokio/net"]
+compat = ["futures-io",]
+codec = ["tracing"]
+time = ["tokio/time","slab"]
+io = []
+io-util = ["io", "tokio/rt", "tokio/io-util"]
+rt = ["tokio/rt", "tokio/sync", "futures-util"]
+
+__docs_rs = ["futures-util"]
+
+[dependencies]
+tokio = { version = "1.7.0", path = "../tokio", features = ["sync"] }
+
+bytes = "1.0.0"
+futures-core = "0.3.0"
+futures-sink = "0.3.0"
+futures-io = { version = "0.3.0", optional = true }
+futures-util = { version = "0.3.0", optional = true }
+pin-project-lite = "0.2.0"
+slab = { version = "0.4.4", optional = true } # Backs `DelayQueue`
+tracing = { version = "0.1.25", optional = true }
+
+[dev-dependencies]
+tokio = { version = "1.0.0", path = "../tokio", features = ["full"] }
+tokio-test = { version = "0.4.0", path = "../tokio-test" }
+tokio-stream = { version = "0.1", path = "../tokio-stream" }
+
+async-stream = "0.3.0"
+futures = "0.3.0"
+futures-test = "0.3.5"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

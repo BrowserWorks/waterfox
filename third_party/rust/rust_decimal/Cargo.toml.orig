@@ -1,0 +1,87 @@
+[[bench]]
+harness = false
+name = "comparison"
+path = "benches/comparison.rs"
+
+[package]
+authors = ["Paul Mason <paul@form1.co.nz>"]
+build = "build.rs"
+categories = ["science","mathematics","data-structures"]
+description = "Decimal number implementation written in pure Rust suitable for financial and fixed-precision calculations."
+documentation = "https://docs.rs/rust_decimal/"
+edition = "2021"
+exclude = [ "tests/generated/*" ]
+keywords = ["decimal","financial","fixed","precision","number"]
+license = "MIT"
+name = "rust_decimal"
+readme = "./README.md"
+repository = "https://github.com/paupino/rust-decimal"
+rust-version = "1.60"
+version = "1.28.1"
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+arbitrary = { default-features = false, optional = true, version = "1.0" }
+arrayvec = { default-features = false, version = "0.7" }
+borsh = { default-features = false, optional = true, version = "0.10.0" }
+bytecheck = { default-features= false, optional = true, version = "0.6" }
+byteorder = { default-features = false, optional = true, version = "1.0" }
+bytes = { default-features = false, optional = true, version = "1.0" }
+diesel1 = { default-features = false, optional = true, package = "diesel", version = "1.0" }
+diesel2 = { default-features = false, optional = true, package = "diesel", version = "2.0" }
+num-traits = { default-features = false, features = ["i128"], version = "0.2" }
+postgres = { default-features = false, optional = true, version = "0.19" }
+rand = { default-features = false, optional = true, version = "0.8" }
+rkyv = { default-features = false, features = ["size_32", "std"], optional = true, version = "0.7" }
+rocket = { default-features = false, optional = true, version = "0.5.0-rc.1" }
+serde = { default-features = false, optional = true, version = "1.0" }
+serde_json = { default-features = false, optional = true, version = "1.0" }
+tokio-postgres = { default-features = false, optional = true, version = "0.7" }
+
+[dev-dependencies]
+bincode = { default-features = false, version = "1.0" }
+bytes = { default-features = false, version = "1.0" }
+criterion = { default-features = false, version = "0.4.0" }
+csv = "1"
+futures = { default-features = false, version = "0.3" }
+rand = { default-features = false, features = ["getrandom"], version = "0.8" }
+rust_decimal_macros = { path = "macros" } # This should be ok since it's just for tests
+serde = { default-features = false, features = ["derive"], version = "1.0" }
+serde_json = "1.0"
+tokio = { default-features = false, features = ["macros", "rt-multi-thread", "test-util"], version = "1.0" }
+version-sync = { default-features = false, features = ["html_root_url_updated", "markdown_deps_updated"], version = "0.9" }
+
+[features]
+default = ["serde", "std"]
+
+c-repr = [] # Force Decimal to be repr(C)
+db-diesel-mysql = ["db-diesel1-mysql"]
+db-diesel-postgres = ["db-diesel1-postgres"]
+db-diesel1-mysql = ["diesel1/mysql", "std"]
+db-diesel1-postgres = ["diesel1/postgres", "std"]
+db-diesel2-mysql = ["diesel2/mysql", "std"]
+db-diesel2-postgres = ["diesel2/postgres", "std"]
+db-postgres = ["byteorder", "bytes", "postgres", "std"]
+db-tokio-postgres = ["byteorder", "bytes", "postgres", "std", "tokio-postgres"]
+
+legacy-ops = []
+maths = []
+maths-nopanic = ["maths"]
+rkyv-safe = ["bytecheck", "rkyv/validation"]
+rocket-traits = ["rocket"]
+rust-fuzz = ["arbitrary"]
+serde = ["dep:serde"]
+serde-arbitrary-precision = ["serde-with-arbitrary-precision"]
+serde-bincode = ["serde-str"] # Backwards compatability
+serde-float = ["serde-with-float"]
+serde-str = ["serde-with-str"]
+serde-with-arbitrary-precision = ["serde", "serde_json/arbitrary_precision", "serde_json/std"]
+serde-with-float = ["serde"]
+serde-with-str = ["serde"]
+std = ["arrayvec/std", "borsh?/std", "bytecheck?/std", "byteorder?/std", "bytes?/std", "rand?/std", "rkyv?/std", "serde?/std", "serde_json?/std"]
+tokio-pg = ["db-tokio-postgres"] # Backwards compatability
+
+[workspace]
+members = [".", "./macros"]

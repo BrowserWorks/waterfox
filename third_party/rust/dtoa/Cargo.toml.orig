@@ -1,0 +1,14 @@
+[package]
+name = "dtoa"
+version = "0.4.8" # remember to update html_root_url
+authors = ["David Tolnay <dtolnay@gmail.com>"]
+license = "MIT OR Apache-2.0"
+description = "Fast functions for printing floating-point primitives to an io::Write"
+repository = "https://github.com/dtolnay/dtoa"
+documentation = "https://docs.rs/dtoa"
+categories = ["value-formatting"]
+readme = "README.md"
+exclude = ["performance.png"]
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]

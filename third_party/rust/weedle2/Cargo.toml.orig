@@ -1,0 +1,22 @@
+[package]
+name = "weedle2"
+version = "5.0.0"
+authors = ["Sharad Chand <sharad.d.chand@gmail.com>", "Jan-Erik Rediger <jrediger@mozilla.com>"]
+description = "A WebIDL Parser"
+license = "MIT"
+documentation = "https://docs.rs/weedle2"
+homepage = "https://github.com/mozilla/uniffi-rs/tree/main/weedle2"
+repository = "https://github.com/mozilla/uniffi-rs"
+readme = "README.md"
+edition = "2021"
+# No need to include the large tests in the published package
+exclude = ["tests"]
+
+[lib]
+name = "weedle"
+
+[dependencies]
+nom = "7.1.0"
+
+[dev-dependencies]
+fs-err = "2.7.0"

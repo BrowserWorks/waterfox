@@ -1,0 +1,25 @@
+[package]
+name = "clubcard-crlite"
+authors = ["John M. Schanck <jschanck@mozilla.com>"]
+version = "0.3.0"
+license = "MPL-2.0"
+repository = "https://github.com/mozilla/clubcard-crlite/"
+description = "An instantiation of Clubcard for use in CRLite"
+edition = "2021"
+
+[dependencies]
+base64 = "0.21"
+bincode = "1.3"
+clubcard = "0.3"
+rand = { version = "0.8", optional = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = { version = "1", optional = true }
+sha2 = "0.10"
+
+[features]
+builder = ["dep:rand", "dep:serde_json", "clubcard/builder"]
+
+[dev-dependencies]
+rand = "0.8"
+sha2 = "0.10"
+x509-parser = { version = "0.16", features = ["verify"] }
