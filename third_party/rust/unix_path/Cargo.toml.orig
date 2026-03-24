@@ -1,0 +1,21 @@
+[package]
+name = "unix_path"
+version = "1.0.1"
+description = "Unix-compatible paths regardless of platform."
+repository = "https://gitlab.com/SnejUgal/unix_path"
+readme = "./Readme.md"
+license = "MIT OR Apache-2.0"
+authors = ["SnejUgal <contact@snejugal.ru>"]
+edition = "2018"
+keywords = ["unix", "path", "pathbuf"]
+categories = ["no-std"]
+
+[features]
+default = ["std"]
+alloc = ["unix_str/alloc"]
+std = ["alloc", "unix_str/std"]
+shrink_to = ["unix_str/shrink_to"]
+
+[dependencies]
+unix_str = { version = "1", default-features = false }
+serde = { version = "1", optional = true }

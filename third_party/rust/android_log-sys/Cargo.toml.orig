@@ -1,0 +1,18 @@
+[package]
+name = "android_log-sys"
+version = "0.2.0"
+authors = [
+    "Nerijus Arlauskas <nercury@gmail.com>",
+]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/nercury/android_log-sys-rs"
+description = """
+FFI bindings to Android log Library.
+"""
+documentation = "https://docs.rs/android_log-sys"
+keywords = ["ffi", "android", "log"]
+categories = ["external-ffi-bindings"]
+
+[lib]
+name = "android_log_sys"

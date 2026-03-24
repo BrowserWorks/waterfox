@@ -1,0 +1,56 @@
+[package]
+name = "fluent-bundle"
+description = """
+A localization system designed to unleash the entire expressive power of
+natural language translations.
+"""
+version = "0.15.2"
+edition = "2018"
+authors = [
+    "Zibi Braniecki <gandalf@mozilla.com>",
+    "Staś Małolepszy <stas@mozilla.com>"
+]
+homepage = "http://www.projectfluent.org"
+license = "Apache-2.0/MIT"
+repository = "https://github.com/projectfluent/fluent-rs"
+readme = "README.md"
+keywords = ["localization", "l10n", "i18n", "intl", "internationalization"]
+categories = ["localization", "internationalization"]
+include = [
+	"src/**/*",
+	"benches/*.rs",
+	"Cargo.toml",
+	"README.md",
+	"LICENSE-APACHE",
+	"LICENSE-MIT"
+]
+
+[dependencies]
+fluent-langneg = "0.13"
+fluent-syntax = { version = "0.11", path = "../fluent-syntax" }
+intl_pluralrules = "7.0.1"
+intl-memoizer = { version = "0.5", path = "../intl-memoizer" }
+rustc-hash = "1"
+self_cell = "0.10"
+smallvec = "1"
+unic-langid = "0.9"
+
+[dev-dependencies]
+criterion = "0.3"
+iai = "0.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.8"
+rand = "0.8"
+unic-langid = { version = "0.9", features = ["macros"] }
+
+[features]
+default = []
+all-benchmarks = []
+
+[[bench]]
+name = "resolver"
+harness = false
+
+[[bench]]
+name = "resolver_iai"
+harness = false

@@ -1,0 +1,30 @@
+[package]
+name = "typed-arena-nomut"
+version = "0.1.0"
+authors = ["Simon Sapin <simon.sapin@exyr.org>", "Nick Fitzgerald <fitzgen@gmail.com>"]
+license = "MIT"
+description = "The arena, a fast but limited type of allocator"
+documentation = "https://docs.rs/typed-arena"
+repository = "https://github.com/jrmuizel/typed-arena-nomut"
+categories = ["memory-management", "no-std"]
+keywords = ["arena"]
+readme = "./README.md"
+
+[lib]
+name = "typed_arena_nomut"
+path = "src/lib.rs"
+
+[features]
+default = ["std"]
+std = []
+
+[dev-dependencies]
+criterion = "0.3.4"
+
+[[bench]]
+name = "benches"
+path = "benches/benches.rs"
+harness = false
+
+[profile.bench]
+debug = true

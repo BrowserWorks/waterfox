@@ -1,0 +1,19 @@
+[package]
+name = "unix_str"
+version = "1.0.0"
+description = "Unix-compatible strings regardless of platform."
+repository = "https://gitlab.com/SnejUgal/unix_str"
+readme = "./Readme.md"
+license = "MIT OR Apache-2.0"
+authors = ["SnejUgal <contact@snejugal.ru>"]
+edition = "2018"
+keywords = ["unix", "str", "string"]
+categories = ["no-std"]
+
+[features]
+unixstring_ascii = []
+shrink_to = []
+toowned_clone_into = []
+alloc = []
+std = ["alloc"]
+default = ["std"]

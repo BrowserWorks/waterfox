@@ -1,0 +1,19 @@
+[package]
+name = "uniffi_udl"
+version = "0.29.2"
+description = "udl parsing for the uniffi project"
+documentation = "https://mozilla.github.io/uniffi-rs"
+homepage = "https://mozilla.github.io/uniffi-rs"
+repository = "https://github.com/mozilla/uniffi-rs"
+license = "MPL-2.0"
+edition = "2021"
+keywords = ["ffi", "bindgen"]
+readme = "../README.md"
+
+[dependencies]
+anyhow = "1"
+weedle2 = { version = "5.0.0", path = "../weedle2" }
+# Don't include the `unicode-linebreak` or `unicode-width` since that functionality isn't needed for
+# docstrings.
+textwrap = { version = "0.16", features = ["smawk"], default-features = false }
+uniffi_meta = { path = "../uniffi_meta", version = "=0.29.2" }

@@ -1,0 +1,25 @@
+[package]
+name = "replace_with"
+version = "0.1.7"
+license = "MIT OR Apache-2.0"
+authors = ["Alec Mocatta <alec@mocatta.net>"]
+categories = ["rust-patterns"]
+keywords = ["mutability"]
+description = """
+Temporarily take ownership of a value at a mutable location, and replace it with a new value based on the old one.
+"""
+repository = "https://github.com/alecmocatta/replace_with"
+homepage = "https://github.com/alecmocatta/replace_with"
+documentation = "https://docs.rs/replace_with"
+readme = "README.md"
+edition = "2018"
+
+[badges]
+azure-devops = { project = "alecmocatta/replace_with", pipeline = "tests", build = "11" }
+maintenance = { status = "actively-developed" }
+
+[features]
+default = ["std"]
+std = []
+nightly = []
+panic_abort = []

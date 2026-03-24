@@ -1,0 +1,18 @@
+[package]
+name = "clubcard"
+authors = ["John M. Schanck <jschanck@mozilla.com>"]
+version = "0.3.2"
+license = "MPL-2.0"
+repository = "https://github.com/mozilla/clubcard/"
+description = "Clubcard is an exact membership query filter for static sets"
+edition = "2021"
+
+[dependencies]
+rand = { version = "0.8.5", optional = true }
+serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+sha2 = "0.10"
+
+[features]
+builder = ["dep:rand"]

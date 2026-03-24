@@ -1,0 +1,24 @@
+[package]
+name = "serde_path_to_error"
+version = "0.1.11" # remember to update html_root_url
+authors = ["David Tolnay <dtolnay@gmail.com>"]
+categories = ["encoding"]
+description = "Path to the element that failed to deserialize"
+edition = "2018"
+keywords = ["serde", "serialization"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/dtolnay/path-to-error"
+rust-version = "1.31"
+
+[dependencies]
+serde = "1.0"
+
+[dev-dependencies]
+serde_derive = "1.0"
+serde_json = "1.0"
+
+[lib]
+doc-scrape-examples = false
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]

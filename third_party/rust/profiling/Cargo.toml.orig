@@ -1,0 +1,66 @@
+[workspace]
+members = [
+    "profiling-procmacros",
+    ".",
+]
+
+[package]
+name = "profiling"
+version = "1.0.7"
+authors = ["Philip Degarmo <aclysma@gmail.com>"]
+edition = "2018"
+description = "This crate provides a very thin abstraction over other profiler crates."
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/aclysma/profiling"
+homepage = "https://github.com/aclysma/profiling"
+keywords = ["performance", "profiling"]
+categories = ["development-tools::profiling"]
+exclude = ["/examples", "/screenshots"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+puffin = { version = "0.12.1", optional = true }
+optick = { version = "1.3", optional = true }
+tracing = { version = "0.1", optional = true }
+tracy-client = { version = "0.14.1", optional = true }
+superluminal-perf = { version = "0.1", optional = true }
+profiling-procmacros = { version = "1.0.7", path = "profiling-procmacros", optional = true }
+
+[dev-dependencies]
+# Needed for the puffin example
+rafx = { version = "=0.0.14", features = ["rafx-vulkan", "framework"] }
+winit = "0.25"
+bincode = "1.3.1"
+lazy_static = "1"
+imgui = "0.8"
+imgui-winit-support = "0.8"
+puffin-imgui = "0.15.0"
+glam = "0.8.6"
+
+log = "0.4"
+env_logger = "0.6"
+
+tracing-tracy = { version = "0.4.0" }
+tracing-subscriber = { version = "0.2" }
+
+[features]
+default = ["procmacros"]
+profile-with-puffin = ["puffin", "profiling-procmacros/profile-with-puffin"]
+profile-with-optick = ["optick", "profiling-procmacros/profile-with-optick"]
+profile-with-superluminal = ["superluminal-perf", "profiling-procmacros/profile-with-superluminal"]
+profile-with-tracing = ["tracing", "profiling-procmacros/profile-with-tracing"]
+profile-with-tracy = ["tracy-client", "profiling-procmacros/profile-with-tracy"]
+type-check = []
+procmacros = ["profiling-procmacros"]
+
+[[example]]
+name = "puffin"
+path = "examples/puffin/puffin.rs"
+required-features = ["profile-with-puffin"]
+
+[[example]]
+name = "simple"
+path = "examples/simple.rs"
+required-features = []

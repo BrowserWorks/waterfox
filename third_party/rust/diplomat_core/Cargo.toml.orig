@@ -1,0 +1,39 @@
+[package]
+name = "diplomat_core"
+description = "Shared utilities between Diplomat macros and code generation"
+version = "0.8.0"
+authors = [
+    "Shadaj Laddad <shadaj@users.noreply.github.com>",
+    "Manish Goregaokar <manishsmail@gmail.com>",
+    "Quinn Okabayashi <QnnOkabayashi@users.noreply.github.com>"
+]
+license = "MIT OR Apache-2.0"
+documentation = "https://docs.rs/diplomat_core/"
+edition = "2021"
+keywords = ["ffi", "codegen"]
+categories = ["development-tools"]
+repository = "https://github.com/rust-diplomat/diplomat"
+
+[lib]
+path = "src/lib.rs"
+
+[features]
+# Enable the higher level IR
+hir = ["either"]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[dependencies]
+syn = { version = "2", features = [ "full", "extra-traits" ] }
+quote = "1.0"
+proc-macro2 = "1.0.27"
+lazy_static = "1.4.0"
+serde = { version = "1.0", features = ["derive"] }
+displaydoc = { version = "0.2", optional = true }
+smallvec = "1.9.0"
+strck_ident = { version = "0.1", features = ["rust"] }
+either = {version = "1.9.0", optional = true, default_features = false}
+
+[dev-dependencies]
+insta = "1.7.1"

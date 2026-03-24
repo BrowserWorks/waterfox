@@ -1,0 +1,58 @@
+[package]
+name = "lmdb-rkv"
+# NB: When modifying, also modify html_root_url in lib.rs
+version = "0.14.0"
+authors = ["Dan Burkert <dan@danburkert.com>", "Victor Porof <vporof@mozilla.com>"]
+license = "Apache-2.0"
+description = "Idiomatic and safe LMDB wrapper."
+documentation = "https://docs.rs/lmdb-rkv"
+homepage = "https://github.com/mozilla/lmdb-rs"
+repository = "https://github.com/mozilla/lmdb-rs.git"
+readme = "README.md"
+keywords = ["LMDB", "database", "storage-engine", "bindings", "library"]
+categories = ["database"]
+
+exclude = [
+  # Exclude CI config files from package.
+  "/.appveyor.yml",
+  "/.travis.yml",
+  "/azure-pipelines-template.yml",
+  "/azure-pipelines.yml",
+]
+
+[lib]
+name = "lmdb"
+
+[badges]
+travis-ci = { repository = "mozilla/lmdb-rs" }
+appveyor = { repository = "mozilla/lmdb-rs" }
+
+[workspace]
+members = [
+  "lmdb-sys",
+]
+
+[dependencies]
+bitflags = "1"
+byteorder = "1"
+libc = "0.2"
+
+# In order to ensure that we test lmdb-rkv in CI against the in-tree version
+# of lmdb-rkv-sys, we specify the dependency as a path here.
+#
+# But we can't publish the lmdb-rkv crate to crates.io with a path dependency,
+# so we have to temporarily change this to point to the current version
+# of lmdb-rkv-sys on crates.io when publishing lmdb-rkv to that crate registry.
+#
+# (See "Publishing to crates.io" in README.md for more information.)
+lmdb-rkv-sys = "0.11.0"
+
+[dev-dependencies]
+rand = "0.4"
+tempdir = "0.3"
+
+[features]
+default = []
+with-asan = ["lmdb-rkv-sys/with-asan"]
+with-fuzzer = ["lmdb-rkv-sys/with-fuzzer"]
+with-fuzzer-no-link = ["lmdb-rkv-sys/with-fuzzer-no-link"]
