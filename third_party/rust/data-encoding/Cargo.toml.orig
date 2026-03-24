@@ -1,0 +1,19 @@
+[package]
+name = "data-encoding"
+version = "2.3.3"
+authors = ["Julien Cretin <git@ia0.eu>"]
+license = "MIT"
+edition = "2018"
+rust-version = "1.46"
+keywords = ["no_std", "base64", "base32", "hex"]
+categories = ["encoding", "no-std"]
+readme = "README.md"
+repository = "https://github.com/ia0/data-encoding"
+documentation = "https://docs.rs/data-encoding"
+description = "Efficient and customizable data-encoding functions like base64, base32, and hex"
+include = ["Cargo.toml", "LICENSE", "README.md", "src/lib.rs"]
+
+[features]
+default = ["std"]
+alloc = []
+std = ["alloc"]

@@ -1,0 +1,23 @@
+[package]
+name = "core-text"
+version = "20.1.0"
+authors = ["The Servo Project Developers"]
+description = "Bindings to the Core Text framework."
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/servo/core-foundation-rs"
+
+[package.metadata.docs.rs]
+all-features = true
+default-target = "x86_64-apple-darwin"
+
+[features]
+default = ["mountainlion"]
+# For OS X 10.7 compat, exclude this feature. It will exclude some things from
+# the exposed APIs in the crate.
+mountainlion = []
+
+[dependencies]
+foreign-types = "0.5"
+libc = "0.2"
+core-foundation = { path = "../core-foundation", version = "0.9" }
+core-graphics = { path = "../core-graphics", version = "0.23.0" }

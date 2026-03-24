@@ -1,0 +1,21 @@
+[package]
+name = "line-wrap"
+version = "0.1.1"
+authors = ["Marshall Pierce <marshall@mpierce.org>"]
+description = "Efficiently insert line separators"
+repository = "https://bitbucket.org/marshallpierce/line-wrap-rs/src"
+documentation = "https://docs.rs/line-wrap/"
+readme = "README.md"
+categories = ["encoding"]
+keywords = ["line-wrap", "line", "wrap"]
+license = "Apache-2.0"
+
+[dependencies]
+safemem = "0.3"
+
+[dev-dependencies]
+rand = "0.5.5"
+
+[profile.bench]
+# Useful for better disassembly when using `perf record` and `perf annotate`
+debug = true
