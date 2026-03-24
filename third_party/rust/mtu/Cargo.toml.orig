@@ -1,0 +1,84 @@
+[package]
+name = "mtu"
+description = "Obtain the local network interface MTU towards a given IP address."
+keywords = ["mozilla", "interface", "mtu"]
+categories = ["network-programming", "web-programming"]
+homepage = "https://github.com/mozilla/mtu/"
+repository = "https://github.com/mozilla/mtu/"
+authors = ["The Mozilla Necko Team <necko@mozilla.com>"]
+readme = "README.md"
+version = "0.2.6"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+# Don't increase beyond what Firefox is currently using:
+# https://searchfox.org/mozilla-central/search?q=MINIMUM_RUST_VERSION&path=python/mozboot/mozboot/util.py
+rust-version = "1.76.0"
+
+[badges]
+codecov = { repository = "mozilla/mtu", branch = "main" }
+is-it-maintained-issue-resolution = { repository = "mozilla/mtu", branch = "main" }
+is-it-maintained-open-issues = { repository = "mozilla/mtu", branch = "main" }
+maintenance = { status = "actively-developed", branch = "main" }
+
+[dependencies]
+# Don't increase beyond what Firefox is currently using: https://searchfox.org/mozilla-central/source/Cargo.lock
+libc = { version = "0.2", default-features = false }
+static_assertions = { version = "1.1", default-features = false }
+
+[target.'cfg(windows)'.dependencies]
+# Don't increase beyond what Firefox is currently using: https://searchfox.org/mozilla-central/source/Cargo.lock
+windows = { version = ">=0.58,<0.60", features = [
+  "Win32_Foundation",
+  "Win32_NetworkManagement_IpHelper",
+  "Win32_NetworkManagement_Ndis",
+  "Win32_Networking_WinSock",
+] }
+
+[build-dependencies]
+cfg_aliases = { version = "0.2", default-features = false }
+mozbuild = { version = "0.1", default-features = false, optional = true }
+# Don't increase beyond what Firefox is currently using: https://searchfox.org/mozilla-central/source/Cargo.lock
+bindgen = { version = "0.69", default-features = false, features = ["runtime"] }
+
+[features]
+gecko = ["dep:mozbuild"]
+
+[lints.rust]
+absolute_paths_not_starting_with_crate = "warn"
+ambiguous_negative_literals = "warn"
+closure_returning_async_block = "warn"
+explicit_outlives_requirements = "warn"
+macro_use_extern_crate = "warn"
+missing_abi = "warn"
+non_ascii_idents = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+trivial_numeric_casts = "warn"
+unit_bindings = "warn"
+unused_import_braces = "warn"
+unused_lifetimes = "warn"
+unused_macro_rules = "warn"
+# unused_qualifications = "warn" # Try to re-enable when MSRV is > 1.76
+
+[lints.clippy]
+cargo = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+multiple_crate_versions = "allow"
+cfg_not_test = "warn"
+clone_on_ref_ptr = "warn"
+create_dir = "warn"
+if_then_some_else_none = "warn"
+get_unwrap = "warn"
+multiple_inherent_impl = "warn"
+pathbuf_init_then_push = "warn"
+redundant_type_annotations = "warn"
+ref_patterns = "warn"
+renamed_function_params = "warn"
+semicolon_inside_block = "warn"
+try_err = "warn"
+unneeded_field_pattern = "warn"
+unused_result_ok = "warn"
+unused_trait_names = "warn"
+unwrap_used = "warn"
+unwrap_in_result = "warn"

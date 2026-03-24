@@ -1,0 +1,26 @@
+[package]
+name = "whatsys"
+version = "0.3.1"
+authors = ["Jan-Erik Rediger <janerik@fnordig.de>"]
+edition = "2018"
+description = "Determine the kernel version"
+license = "MIT"
+repository = "https://github.com/badboy/whatsys"
+
+[package.metadata.docs.rs]
+default-target = "x86_64-unknown-linux-gnu"
+targets = ["x86_64-unknown-linux-gnu", "x86_64-apple-darwin", "x86_64-pc-windows-msvc"]
+
+[dependencies]
+cfg-if = "1.0"
+libc = "0.2"
+
+[build-dependencies]
+cc = "1.0"
+
+[workspace]
+members = [
+    ".",
+    "windows-example"
+]
+default-members = ["."]

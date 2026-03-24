@@ -1,0 +1,184 @@
+[package]
+authors = [
+    "Ashley Mannix<ashleymannix@live.com.au>",
+    "Christopher Armstrong",
+    "Dylan DPC<dylan.dpc@gmail.com>",
+    "Hunar Roop Kahlon<hunar.roop@gmail.com>"
+]
+categories = [
+    "data-structures",
+    "no-std",
+    "parser-implementations",
+    "wasm"
+]
+description = "A library to generate and parse UUIDs."
+documentation = "https://docs.rs/uuid"
+edition = "2018"
+exclude = [
+    ".github/**"
+]
+keywords = [
+    "guid",
+    "unique",
+    "uuid"
+]
+license = "Apache-2.0 OR MIT"
+homepage = "https://github.com/uuid-rs/uuid"
+name = "uuid"
+readme = "README.md"
+repository = "https://github.com/uuid-rs/uuid"
+version = "1.3.0" # remember to update html_root_url in lib.rs
+
+[package.metadata.docs.rs]
+rustc-args = ["--cfg", "uuid_unstable"]
+rustdoc-args = ["--cfg", "uuid_unstable"]
+targets = ["x86_64-unknown-linux-gnu"]
+features = ["serde", "arbitrary", "slog", "v1", "v3", "v4", "v5", "v6", "v7", "v8"]
+
+[package.metadata.playground]
+features = ["serde", "v1", "v3", "v4", "v5", "v6", "v7", "v8"]
+
+[badges.is-it-maintained-issue-resolution]
+repository = "uuid-rs/uuid"
+
+[badges.is-it-maintained-open-issues]
+repository = "uuid-rs/uuid"
+
+[badges.maintenance]
+status = "actively-developed"
+
+[features]
+default = ["std"]
+std = []
+macro-diagnostics = ["uuid-macro-internal"]
+
+# NOTE: When adding new features, check the `ci.yml` workflow                                              ..
+# and include them where necessary (you can follow along with existing features)
+v1 = ["atomic"]
+v3 = ["md5"]
+v4 = ["rng"]
+v5 = ["sha1"]
+v6 = ["atomic"]
+v7 = ["atomic", "rng"]
+v8 = []
+
+js = ["wasm-bindgen", "getrandom", "getrandom/js"]
+
+rng = ["getrandom"]
+fast-rng = ["rng", "rand"]
+
+sha1 = ["sha1_smol"]
+md5 = ["md-5"]
+
+# Public: Used in trait impls on `Uuid`
+[dependencies.serde]
+default-features = false
+optional = true
+version = "1.0.56"
+
+# Public: Used in trait impls on `Uuid`
+[dependencies.slog]
+optional = true
+version = "2"
+
+# Public: Used in trait impls on `Uuid`
+[dependencies.arbitrary]
+optional = true
+version = "1.1.3"
+
+# Public (unstable): Used in `zerocopy` derive
+# Unstable: also need RUSTFLAGS="--cfg uuid_unstable" to work
+# This feature may break between releases, or be removed entirely before
+# stabilization.
+# See: https://github.com/uuid-rs/uuid/issues/588
+[dependencies.zerocopy]
+optional = true
+version = "0.6"
+
+# Private
+# Don't depend on this optional feature directly: it may change at any time
+# use the `rng` feature instead
+[dependencies.getrandom]
+package = "getrandom"
+optional = true
+version = "0.2"
+
+# Private
+# Don't depend on this optional feature directly: it may change at any time
+# use the `fast-rng` feature instead
+[dependencies.rand]
+package = "rand"
+optional = true
+version = "0.8"
+
+# Private
+# Don't depend on this optional feature directly: it may change at any time
+# Use the `md5` feature instead
+[dependencies.md-5]
+package = "md-5"
+default-features = false
+optional = true
+version = "0.10"
+
+# Private
+# Don't depend on this optional feature directly: it may change at any time
+# Use the `sha1` feature instead
+[dependencies.sha1_smol]
+package = "sha1_smol"
+default-features = false
+optional = true
+version = "1"
+
+# Public: Re-exported
+# Don't depend on this optional feature directly: it may change at any time
+# Use the `macro-diagnostics` feature instead
+[dependencies.uuid-macro-internal]
+package = "uuid-macro-internal"
+version = "1.3.0"
+path = "macros"
+optional = true
+
+[dependencies.atomic]
+package = "atomic"
+default-features = false
+optional = true
+version = "0.5"
+
+[dependencies.wasm-bindgen]
+package = "wasm-bindgen"
+version = "0.2"
+optional = true
+
+[dev-dependencies.bincode]
+version = "1.0"
+
+[dev-dependencies.serde_derive]
+version = "1.0.79"
+
+[dev-dependencies.serde_json]
+version = "1.0"
+
+[dev-dependencies.serde_test]
+version = "1.0.56"
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies.wasm-bindgen]
+package = "wasm-bindgen"
+version = "0.2"
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies.wasm-bindgen-test]
+version = "0.3"
+
+[dev-dependencies.trybuild]
+version = "1.0.52"
+
+[dev-dependencies.rustversion]
+version = "1"
+
+[target.'cfg(windows)'.dev-dependencies.windows-sys]
+version = "0.45.0"
+features = ["Win32_System_Com"]
+
+[workspace]
+members = [
+    "macros"
+]

@@ -1,0 +1,21 @@
+[package]
+name = "cubeb-sys"
+version = "0.13.0"
+authors = ["Dan Glastonbury <dglastonbury@mozilla.com>"]
+repository = "https://github.com/mozilla/cubeb-rs"
+license = "ISC"
+description = "Native bindings to the cubeb library"
+exclude = ["libcubeb/googletest/"]
+
+links = "cubeb"
+build = "build.rs"
+
+[badges]
+circle-ci = { repository = "mozilla/cubeb-rs" }
+
+[features]
+gecko-in-tree = []
+
+[build-dependencies]
+pkg-config = "0.3"
+cmake = "0.1.2"

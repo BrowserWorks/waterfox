@@ -1,0 +1,27 @@
+[package]
+name = "unic-langid"
+description = "API for managing Unicode Language Identifiers"
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+repository.workspace = true
+readme.workspace = true
+license.workspace = true
+categories.workspace = true
+include.workspace = true
+
+[dependencies]
+unic-langid-impl = { workspace = true }
+unic-langid-macros = { workspace = true, optional = true }
+
+[dev-dependencies]
+unic-langid-macros = { workspace = true }
+
+[features]
+default = []
+serde = ["unic-langid-impl/serde"]
+
+# Provide macros.
+macros = ["unic-langid-macros"]
+likelysubtags = ["unic-langid-impl/likelysubtags"]

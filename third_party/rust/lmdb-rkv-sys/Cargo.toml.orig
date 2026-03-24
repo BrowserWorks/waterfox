@@ -1,0 +1,56 @@
+[package]
+name = "lmdb-rkv-sys"
+# NB: When modifying, also modify html_root_url in lib.rs
+version = "0.11.2"
+authors = ["Dan Burkert <dan@danburkert.com>", "Victor Porof <vporof@mozilla.com>"]
+license = "Apache-2.0"
+description = "Rust bindings for liblmdb."
+documentation = "https://docs.rs/lmdb-rkv-sys"
+homepage = "https://github.com/mozilla/lmdb-rs"
+repository = "https://github.com/mozilla/lmdb-rs.git"
+readme = "../README.md"
+keywords = ["LMDB", "database", "storage-engine", "bindings", "library"]
+categories = ["database", "external-ffi-bindings"]
+
+# NB: Use "--features bindgen" to generate bindings.
+build = "build.rs"
+
+[lib]
+name = "lmdb_sys"
+
+[badges]
+travis-ci = { repository = "mozilla/lmdb-rs" }
+appveyor = { repository = "mozilla/lmdb-rs" }
+
+[dependencies]
+libc = "0.2"
+
+[build-dependencies]
+pkg-config = "0.3"
+cc = "1.0"
+bindgen = { version = "0.53.2", default-features = false, optional = true, features = ["runtime"] }
+
+[features]
+default = []
+with-asan = []
+with-fuzzer = []
+with-fuzzer-no-link = []
+
+# These features configure the MDB_IDL_LOGN macro, which determines
+# the size of the free and dirty page lists (and thus the amount of memory
+# allocated when opening an LMDB environment in read-write mode).
+#
+# Each feature defines MDB_IDL_LOGN as the value in the name of the feature.
+# That means these features are mutually exclusive, and you must not specify
+# more than one at the same time (or the crate will fail to compile).
+#
+# For more information on the motivation for these features (and their effect),
+# see https://github.com/mozilla/lmdb/pull/2.
+mdb_idl_logn_8 = []
+mdb_idl_logn_9 = []
+mdb_idl_logn_10 = []
+mdb_idl_logn_11 = []
+mdb_idl_logn_12 = []
+mdb_idl_logn_13 = []
+mdb_idl_logn_14 = []
+mdb_idl_logn_15 = []

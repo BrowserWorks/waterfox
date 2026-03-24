@@ -1,0 +1,14 @@
+[package]
+name = "cache-padded"
+# When publishing a new version:
+# - Update CHANGELOG.md
+# - Create "v1.x.y" git tag
+version = "1.2.0"
+authors = ["Stjepan Glavina <stjepang@gmail.com>"]
+edition = "2018"
+description = "Prevent false sharing by padding and aligning to the length of a cache line"
+license = "Apache-2.0 OR MIT"
+repository = "https://github.com/smol-rs/cache-padded"
+homepage = "https://github.com/smol-rs/cache-padded"
+keywords = ["cache", "padding", "lock-free", "atomic"]
+categories = ["concurrency", "no-std"]

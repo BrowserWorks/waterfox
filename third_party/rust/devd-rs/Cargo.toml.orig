@@ -1,0 +1,16 @@
+[package]
+name = "devd-rs"
+version = "0.3.6"
+authors = [ "Val Packett <val@packett.cool>" ]
+keywords = [ "System", "FreeBSD", "DragonFlyBSD", "devd", "hotplug" ]
+categories = [ "os::unix-apis" ]
+description = "An interface to devd, the device hotplug daemon on FreeBSD and DragonFlyBSD"
+license = "Unlicense/MIT"
+readme = "README.md"
+homepage = "https://codeberg.org/valpackett/devd-rs"
+repository = "https://codeberg.org/valpackett/devd-rs"
+edition = "2018"
+
+[dependencies]
+libc = "0"
+nom = { version = "7", default-features = false, features = ["std"] }

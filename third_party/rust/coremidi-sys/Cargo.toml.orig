@@ -1,0 +1,15 @@
+[package]
+name = "coremidi-sys"
+version = "3.1.0"
+authors = ["Jonas Klesy", "Patrick Reisert"]
+description = "Low-level FFI bindings for the CoreMIDI framework"
+license = "MIT"
+repository = "https://github.com/jonas-k/coremidi-sys"
+documentation = "https://docs.rs/coremidi-sys"
+categories = ["external-ffi-bindings", "multimedia::audio"]
+
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
+core-foundation-sys = "0.8.3"
+
+[package.metadata.docs.rs]
+default-target = "x86_64-apple-darwin"

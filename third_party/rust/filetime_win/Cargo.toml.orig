@@ -1,0 +1,26 @@
+[package]
+name = "filetime_win"
+version = "0.2.0"
+authors = ["Adam Gashlin <agashlin@mozilla.com>"]
+description = "Windows FILETIME and SYSTEMTIME string and binary serialization"
+keywords = ["windows", "com", "win32"]
+categories = ["api-bindings", "date-and-time", "os::windows-apis"]
+license = "MIT/Apache-2.0"
+repository = "https://github.com/agashlin/filetime_win"
+
+[package.metadata.docs.rs]
+default-target = "x86_64-pc-windows-msvc"
+
+[features]
+filetime_serde = ["serde", "serde_derive"]
+
+[dependencies]
+comedy = "0.2.0"
+winapi = { version = "0.3.6", features = ["minwinbase",
+                                          "minwindef",
+                                          "ntdef",
+                                          "sysinfoapi",
+                                          "timezoneapi"] }
+
+serde = { version = "1.0.80", optional = true }
+serde_derive = { version = "1.0.80", optional = true }

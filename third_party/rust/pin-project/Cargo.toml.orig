@@ -1,0 +1,41 @@
+[package]
+name = "pin-project"
+version = "1.1.0"
+edition = "2018"
+rust-version = "1.56"
+license = "Apache-2.0 OR MIT"
+repository = "https://github.com/taiki-e/pin-project"
+keywords = ["pin", "macros", "attribute"]
+categories = ["no-std", "rust-patterns"]
+exclude = ["/.*", "/ci", "/tools"]
+description = """
+A crate for safe and ergonomic pin-projection.
+"""
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[workspace]
+members = [
+    "pin-project-internal",
+    "tests/auxiliary/macro",
+    "tests/no-core",
+    "tests/no-std",
+    "tests/rust-2015",
+]
+
+[lib]
+doc-scrape-examples = false
+
+[dependencies]
+pin-project-internal = { version = "=1.1.0", path = "pin-project-internal" }
+
+[dev-dependencies]
+pin-project-auxiliary-macro = { path = "tests/auxiliary/macro" }
+macrotest = "1.0.9"
+rustversion = "1"
+static_assertions = "1"
+trybuild = "1.0.67"
+
+[patch.crates-io]
+prettyplease = { git = "https://github.com/taiki-e/prettyplease.git", branch = "dev" } # lower MSRV

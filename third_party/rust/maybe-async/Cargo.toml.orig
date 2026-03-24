@@ -1,0 +1,45 @@
+[package]
+name = "maybe-async"
+version = "0.2.10"
+authors = [ "Guoli Lyu <guoli-lv@hotmail.com>" ]
+edition = "2021"
+readme = "README.md"
+license = "MIT"
+description = "A procedure macro to unify SYNC and ASYNC implementation"
+repository = "https://github.com/fMeow/maybe-async-rs"
+documentation = "https://docs.rs/maybe-async"
+keywords = [ "maybe", "async", "futures", "macros", "proc_macro" ]
+
+[dependencies]
+proc-macro2 = "1.0"
+quote = "1.0"
+
+  [dependencies.syn]
+  version = "2.0"
+  features = [ "visit-mut", "full" ]
+
+[lib]
+proc-macro = true
+path = "src/lib.rs"
+
+[badges.maintenance]
+status = "actively-developed"
+
+[dev-dependencies]
+async-trait = "0.1"
+
+  [dev-dependencies.trybuild]
+  version = "1"
+  features = [ "diff" ]
+
+  [dev-dependencies.async-std]
+  version = "1"
+  features = [ "attributes" ]
+
+  [dev-dependencies.tokio]
+  version = "1"
+  features = [ "macros", "rt-multi-thread" ]
+
+[features]
+default = [ ]
+is_sync = [ ]

@@ -1,0 +1,24 @@
+[package]
+name = "bhttp"
+version = "0.3.1"
+authors = ["Martin Thomson <mt@lowentropy.net>"]
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Binary HTTP messages (draft-ietf-httpbis-binary-message)"
+repository = "https://github.com/martinthomson/ohttp"
+
+[features]
+default = ["bhttp"]
+bhttp = ["read-bhttp", "write-bhttp"]
+http = ["read-http", "write-http"]
+read-bhttp = []
+write-bhttp = []
+read-http = ["url"]
+write-http = []
+
+[dependencies]
+thiserror = "1"
+url = {version = "2", optional = true}
+
+[dev-dependencies]
+hex = "0.4"

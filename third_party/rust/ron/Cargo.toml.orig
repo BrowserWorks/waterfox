@@ -1,0 +1,49 @@
+[package]
+name = "ron"
+# Memo: update version in src/lib.rs too (doc link)
+version = "0.10.1"
+license = "MIT OR Apache-2.0"
+keywords = ["parser", "serde", "serialization"]
+authors = [
+	"Christopher Durham <cad97@cad97.com>",
+	"Dzmitry Malyshau <kvarkus@gmail.com>",
+	"Thomas Schaller <torkleyy@gmail.com>",
+	"Juniper Tyree <juniper.tyree@helsinki.fi>",
+]
+edition = "2021"
+description = "Rusty Object Notation"
+categories = ["encoding"]
+readme = "README.md"
+homepage = "https://github.com/ron-rs/ron"
+repository = "https://github.com/ron-rs/ron"
+documentation = "https://docs.rs/ron/"
+rust-version = "1.64.0"
+
+[features]
+default = []
+integer128 = []
+
+[dependencies]
+# FIXME @juntyr remove base64 once old byte strings are fully deprecated
+base64 = { version = "0.22", default-features = false, features = ["std"] }
+bitflags = { version = "2.1", default-features = false, features = ["serde"] }
+indexmap = { version = "2.0", default-features = false, features = ["std", "serde"], optional = true }
+# serde supports i128/u128 from 1.0.60 onwards
+# serde's IntoDeserializer impls suport new constructor from 1.0.139 onwards
+# serde's adjacently tagged enums support integer tags from 1.0.181 onwards
+serde = { version = "1.0.181", default-features = false, features = ["std"] }
+serde_derive = { version = "1.0.181", default-features = false }
+unicode-ident = { version = "1.0", default-features = false }
+
+[dev-dependencies]
+serde = { version = "1.0.181", default-features = false, features = ["std", "derive"] }
+serde_bytes = { version = "0.11", default-features = false, features = ["std"] }
+# serde_json supports the std feature from 1.0.60 onwards
+serde_json = { version = "1.0.60", default-features = false, features = ["std"] }
+option_set = { version = "0.3", default-features = false }
+typetag = { version = "0.2", default-features = false }
+bytes = { version = "1.3", default-features = false, features = ["serde"] }
+
+[package.metadata.docs.rs]
+features = ["integer128", "indexmap"]
+rustdoc-args = ["--generate-link-to-definition"]

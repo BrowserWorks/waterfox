@@ -1,0 +1,16 @@
+[package]
+name = "encoding_c_mem"
+description = "C API for encoding_rs::mem"
+version = "0.2.6"
+authors = ["Henri Sivonen <hsivonen@hsivonen.fi>"]
+edition = "2018"
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+documentation = "https://docs.rs/encoding_c_mem/"
+homepage = "https://docs.rs/encoding_c_mem/"
+repository = "https://github.com/hsivonen/encoding_c_mem"
+keywords = ["ffi", "capi", "encoding", "unicode", "charset"]
+links = "encoding_c_mem"
+
+[dependencies]
+encoding_rs = "0.8.19"
