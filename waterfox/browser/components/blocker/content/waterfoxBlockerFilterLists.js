@@ -7,6 +7,8 @@ const { WaterfoxBlockerService } = ChromeUtils.importESModule(
 );
 
 const PREF_ENABLED_LISTS = "waterfox.blocker.enabledLists";
+const PREF_FILTER_LIST_URLS = "waterfox.blocker.filterListUrls";
+const PREF_CUSTOM_RULES = "waterfox.blocker.customRules";
 
 const CATEGORY_ORDER = [
   "core",
@@ -109,6 +111,91 @@ function createXULElement(tag, attrs = {}) {
   return element;
 }
 
+function getCustomFilterListUrlsFromPref() {
+  const raw = Services.prefs.getStringPref(PREF_FILTER_LIST_URLS, "");
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return normalizeCustomFilterListUrls(parsed).urls;
+    }
+  } catch (_) {}
+
+  return normalizeCustomFilterListUrls(raw.split(/[,\n\r]+/)).urls;
+}
+
+function normalizeCustomFilterListUrls(values) {
+  const urls = [];
+  const invalid = [];
+  const seen = new Set();
+
+  for (const value of values) {
+    const candidate = String(value || "").trim();
+    if (!candidate) {
+      continue;
+    }
+
+    let parsed;
+    try {
+      parsed = new URL(candidate);
+    } catch (_) {
+      invalid.push(candidate);
+      continue;
+    }
+
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      invalid.push(candidate);
+      continue;
+    }
+
+    if (seen.has(parsed.href)) {
+      continue;
+    }
+
+    seen.add(parsed.href);
+    urls.push(parsed.href);
+
+    if (urls.length >= 100) {
+      break;
+    }
+  }
+
+  return { invalid, urls };
+}
+
+function normalizeCustomRulesText(value) {
+  return String(value || "")
+    .split(/\r?\n/)
+    .map(line => line.trimEnd())
+    .slice(0, 10000)
+    .join("\n")
+    .trim();
+}
+
+async function showInvalidCustomFilterListUrlAlert(invalid) {
+  const urls = invalid.slice(0, 5).join("\n");
+
+  try {
+    const [title, message] = await document.l10n.formatValues([
+      { id: "waterfox-blocker-filter-lists-invalid-url-title" },
+      {
+        id: "waterfox-blocker-filter-lists-invalid-url-message",
+        args: { urls },
+      },
+    ]);
+    Services.prompt.alert(window, title, message);
+  } catch (_) {
+    Services.prompt.alert(
+      window,
+      "Invalid filter list URL",
+      `Use only HTTP or HTTPS URLs. Could not save:\n${urls}`
+    );
+  }
+}
+
 /**
  * Manages the dialog for blocker filter lists.
  *
@@ -119,7 +206,9 @@ function createXULElement(tag, attrs = {}) {
 var gWaterfoxBlockerFilterListsManager = {
   _categorySections: new Map(),
   _entries: [],
-  _prefLocked: false,
+  _customRulesPrefLocked: false,
+  _customUrlsPrefLocked: false,
+  _enabledListsPrefLocked: false,
 
   /**
    * Called on `DOMContentLoaded` to set up the dialog UI.
@@ -137,12 +226,36 @@ var gWaterfoxBlockerFilterListsManager = {
     this._categoriesContainer = document.getElementById(
       "waterfoxBlockerFilterListsCategories"
     );
+    this._customListUrlsField = document.getElementById(
+      "waterfoxBlockerCustomFilterListUrls"
+    );
+    this._customRulesField = document.getElementById(
+      "waterfoxBlockerCustomRules"
+    );
 
-    this._prefLocked = Services.prefs.prefIsLocked(PREF_ENABLED_LISTS);
+    this._enabledListsPrefLocked =
+      Services.prefs.prefIsLocked(PREF_ENABLED_LISTS);
+    this._customUrlsPrefLocked = Services.prefs.prefIsLocked(
+      PREF_FILTER_LIST_URLS
+    );
+    this._customRulesPrefLocked =
+      Services.prefs.prefIsLocked(PREF_CUSTOM_RULES);
     const acceptButton = document
       .getElementById("waterfoxBlockerFilterListsDialog")
       .getButton("accept");
-    acceptButton.disabled = this._prefLocked;
+    acceptButton.disabled =
+      this._enabledListsPrefLocked &&
+      this._customUrlsPrefLocked &&
+      this._customRulesPrefLocked;
+
+    this._customListUrlsField.value =
+      getCustomFilterListUrlsFromPref().join("\n");
+    this._customListUrlsField.disabled = this._customUrlsPrefLocked;
+    this._customRulesField.value = Services.prefs.getStringPref(
+      PREF_CUSTOM_RULES,
+      ""
+    );
+    this._customRulesField.disabled = this._customRulesPrefLocked;
 
     this._entries = await this._loadEntries();
     this._buildSections();
@@ -296,7 +409,7 @@ var gWaterfoxBlockerFilterListsManager = {
 
       const toggle = createXULElement("checkbox");
       toggle.checked = !!entry.enabled;
-      toggle.disabled = this._prefLocked;
+      toggle.disabled = this._enabledListsPrefLocked;
       toggle.addEventListener("command", () => {
         entry.enabled = !!toggle.checked;
         this._updateCategoryCounter(category);
@@ -356,21 +469,50 @@ var gWaterfoxBlockerFilterListsManager = {
   },
 
   /**
-   * Saves the current enabled state for each filter list.
+   * Saves filter list toggles, custom subscription URLs, and custom rules.
    *
-   * @returns {boolean} Always `true` to allow the dialog to close.
+   * @returns {boolean} `true` to close the dialog, or `false` for invalid input.
    */
   onDialogAccept() {
-    if (this._prefLocked) {
-      return true;
+    let customUrls = null;
+    if (!this._customUrlsPrefLocked) {
+      const { invalid, urls } = normalizeCustomFilterListUrls(
+        this._customListUrlsField.value.split(/\r?\n/)
+      );
+      if (invalid.length) {
+        showInvalidCustomFilterListUrlAlert(invalid);
+        this._customListUrlsField.focus();
+        return false;
+      }
+      customUrls = urls;
     }
 
-    const nextState = {};
-    for (const entry of this._entries) {
-      nextState[entry.id] = !!entry.enabled;
+    if (!this._enabledListsPrefLocked) {
+      const nextState = {};
+      for (const entry of this._entries) {
+        nextState[entry.id] = !!entry.enabled;
+      }
+
+      Services.prefs.setStringPref(
+        PREF_ENABLED_LISTS,
+        JSON.stringify(nextState)
+      );
     }
 
-    Services.prefs.setStringPref(PREF_ENABLED_LISTS, JSON.stringify(nextState));
+    if (customUrls) {
+      Services.prefs.setStringPref(
+        PREF_FILTER_LIST_URLS,
+        JSON.stringify(customUrls)
+      );
+    }
+
+    if (!this._customRulesPrefLocked) {
+      Services.prefs.setStringPref(
+        PREF_CUSTOM_RULES,
+        normalizeCustomRulesText(this._customRulesField.value)
+      );
+    }
+
     return true;
   },
 

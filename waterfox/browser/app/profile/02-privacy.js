@@ -23,8 +23,11 @@ pref("waterfox.blocker.showBadge", true);
 pref("waterfox.blocker.allowSearchPartnerAds", true);
 // Site exceptions as a JSON array string.
 pref("waterfox.blocker.siteExceptions", "[]");
-// Additional custom filter list URLs as a comma-delimited string.
-pref("waterfox.blocker.filterListUrls", "");
+// Additional custom filter list URLs as a JSON array. Legacy comma-delimited
+// values are still accepted by the blocker service.
+pref("waterfox.blocker.filterListUrls", "[]");
+// User-authored adblock filter rules, one rule per line.
+pref("waterfox.blocker.customRules", "");
 // Per-list enabled overrides as a JSON object mapping list IDs to booleans.
 pref("waterfox.blocker.enabledLists", "{}");
 // Whether to suppress startup detection notifications for adblocking extensions.

@@ -12,6 +12,24 @@
   max-height: 400px;
 }
 
+#WaterfoxBlockerFilterListsWindow .waterfox-blocker-section-title {
+  font-weight: 600;
+  margin-block: 4px;
+}
+
+#WaterfoxBlockerFilterListsWindow .waterfox-blocker-textarea {
+  box-sizing: border-box;
+  font: inherit;
+  margin-block: 6px 8px;
+  min-height: 5em;
+  width: 100%;
+}
+
+#WaterfoxBlockerFilterListsWindow .waterfox-blocker-rules-textarea {
+  font-family: monospace;
+  min-height: 9em;
+}
+
 #WaterfoxBlockerFilterListsWindow .waterfox-blocker-category {
   margin-bottom: 8px;
 }

@@ -5,6 +5,7 @@
 const COSMETIC_STYLE_ID = "waterfox-blocker-cosmetic-style";
 const INITIAL_RESOURCES_RETRY_DELAY_MS = 1000;
 const MAX_QUERIED_TOKENS = 50000;
+const MAX_PROCEDURAL_ACTIONS = 1000;
 
 /*
  * Module rationale:
@@ -89,7 +90,9 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
     this._queriedClasses = new Set();
     this._queriedIds = new Set();
     this._cosmeticExceptions = [];
+    this._proceduralActionFilters = [];
     this._retriedResources = false;
+    this._shouldResolveGenericSelectors = false;
 
     let enabled;
     try {
@@ -146,7 +149,9 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
     this._queriedClasses = null;
     this._queriedIds = null;
     this._pendingInitialResources = null;
+    this._proceduralActionFilters = null;
     this._retriedResources = false;
+    this._shouldResolveGenericSelectors = false;
 
     try {
       this._clearCosmeticSelectors();
@@ -286,8 +291,21 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
       this._injectScriptlet(resources.injectedScript);
     }
 
-    if (!resources.generichide) {
-      this._setupGenericHideObserver(resources.exceptions || []);
+    const proceduralActions = this._parseProceduralActions(
+      resources.proceduralActions
+    );
+    if (proceduralActions.length) {
+      this._proceduralActionFilters = proceduralActions;
+      this._applyProceduralActions();
+    } else {
+      this._proceduralActionFilters = [];
+    }
+
+    if (!resources.generichide || proceduralActions.length) {
+      this._setupGenericHideObserver(
+        resources.exceptions || [],
+        !resources.generichide
+      );
     }
   }
 
@@ -299,8 +317,10 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
    * Starts watching for DOM changes and refreshes selectors used in generic hiding.
    *
    * @param {string[]} exceptions Domain exceptions applied during generic hiding matches.
+   * @param {boolean} shouldResolveGenericSelectors Whether class/id snapshots
+   *   should be sent to the parent actor for generic hiding.
    */
-  _setupGenericHideObserver(exceptions) {
+  _setupGenericHideObserver(exceptions, shouldResolveGenericSelectors = true) {
     const doc = this.document;
     if (!doc) {
       return;
@@ -309,6 +329,7 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
     this._cosmeticExceptions = Array.isArray(exceptions) ? exceptions : [];
     this._queriedClasses = new Set();
     this._queriedIds = new Set();
+    this._shouldResolveGenericSelectors = !!shouldResolveGenericSelectors;
 
     const contentWin = this.contentWindow;
     if (!contentWin) {
@@ -320,14 +341,19 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
     // Initial collect: full DOM scan to establish baseline.
     this._initialCollectTimeout = contentWin.setTimeout(() => {
       this._initialCollectTimeout = null;
-      const snapshot = this._collectClassIdSnapshot();
-      for (const cls of snapshot.classes) {
-        this._queriedClasses.add(cls);
+      if (this._shouldResolveGenericSelectors) {
+        const snapshot = this._collectClassIdSnapshot();
+        for (const cls of snapshot.classes) {
+          this._queriedClasses.add(cls);
+        }
+        for (const id of snapshot.ids) {
+          this._queriedIds.add(id);
+        }
+        this._queryAndApplyNewSelectors(snapshot.classes, snapshot.ids);
       }
-      for (const id of snapshot.ids) {
-        this._queriedIds.add(id);
+      if (this._proceduralActionFilters?.length) {
+        this._applyProceduralActions();
       }
-      this._queryAndApplyNewSelectors(snapshot.classes, snapshot.ids);
     }, 100);
 
     this._pendingClasses = [];
@@ -335,11 +361,14 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
 
     this._observer = new contentWin.MutationObserver(mutations => {
       if (
-        this._queriedClasses.size + this._queriedIds.size >=
-        MAX_QUERIED_TOKENS
+        this._shouldResolveGenericSelectors &&
+        this._queriedClasses.size + this._queriedIds.size >= MAX_QUERIED_TOKENS
       ) {
-        this._observer.disconnect();
-        return;
+        this._shouldResolveGenericSelectors = false;
+        if (!this._proceduralActionFilters?.length) {
+          this._observer.disconnect();
+          return;
+        }
       }
 
       // Extract tokens immediately so we hold only strings, not DOM nodes.
@@ -349,6 +378,14 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
       }
       if (delta.ids.length) {
         this._pendingIds.push(...delta.ids);
+      }
+
+      if (delta.elements.length && this._proceduralActionFilters?.length) {
+        this._applyProceduralActions(delta.elements);
+      }
+
+      if (!this._shouldResolveGenericSelectors) {
+        return;
       }
 
       if (this._mutationTimeout) {
@@ -379,10 +416,11 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
    * Extracts only previously unseen class/id tokens from mutation records.
    *
    * @param {MutationRecord[]} mutations
-   * @returns {{classes: string[], ids: string[]}}
+   * @returns {{classes: string[], elements: Element[], ids: string[]}}
    */
   _extractDeltaFromMutations(mutations) {
     const newClasses = [];
+    const newElements = new Set();
     const newIds = [];
     const seenClasses = this._queriedClasses;
     const seenIds = this._queriedIds;
@@ -391,6 +429,8 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
       if (!el || el.nodeType !== 1) {
         return;
       }
+
+      newElements.add(el);
 
       if (el.id && !seenIds.has(el.id)) {
         newIds.push(el.id);
@@ -412,7 +452,7 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
         for (const node of mutation.addedNodes) {
           processElement(node);
           if (node.nodeType === 1 && node.querySelectorAll) {
-            for (const el of node.querySelectorAll("[class], [id]")) {
+            for (const el of node.querySelectorAll("*")) {
               processElement(el);
             }
           }
@@ -422,7 +462,11 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
       }
     }
 
-    return { classes: newClasses, ids: newIds };
+    return {
+      classes: newClasses,
+      elements: Array.from(newElements),
+      ids: newIds,
+    };
   }
 
   /**
@@ -500,6 +544,493 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
         // Invalid selector — skip.
       }
     }
+  }
+
+  _parseProceduralActions(actions) {
+    if (!Array.isArray(actions)) {
+      return [];
+    }
+
+    const out = [];
+    for (const rawAction of actions) {
+      let parsed = rawAction;
+      try {
+        if (typeof rawAction === "string") {
+          parsed = JSON.parse(rawAction);
+        }
+      } catch (_) {
+        continue;
+      }
+
+      if (
+        !parsed ||
+        typeof parsed !== "object" ||
+        !Array.isArray(parsed.selector) ||
+        !parsed.selector.length
+      ) {
+        continue;
+      }
+
+      out.push({
+        action: parsed.action,
+        selector: parsed.selector,
+      });
+
+      if (out.length >= MAX_PROCEDURAL_ACTIONS) {
+        break;
+      }
+    }
+
+    return out;
+  }
+
+  _applyProceduralActions(addedElements = undefined) {
+    const doc = this.document;
+    if (!doc || !this._proceduralActionFilters?.length) {
+      return;
+    }
+
+    for (const { action, selector } of this._proceduralActionFilters) {
+      try {
+        let matchingElements;
+        let startOperator = 0;
+
+        if (
+          addedElements === undefined &&
+          selector[0]?.type === "css-selector"
+        ) {
+          matchingElements = Array.from(doc.querySelectorAll(selector[0].arg));
+          startOperator = 1;
+        } else if (addedElements === undefined) {
+          matchingElements = Array.from(doc.querySelectorAll("*"));
+        } else {
+          matchingElements = addedElements;
+        }
+
+        const matches =
+          startOperator === selector.length
+            ? matchingElements
+            : this._applyProceduralSelector(
+                selector.slice(startOperator),
+                matchingElements
+              );
+
+        for (const element of matches) {
+          this._performProceduralAction(element, action);
+        }
+      } catch (err) {
+        console.error("[WaterfoxBlockerChild] procedural action failed:", err);
+      }
+    }
+  }
+
+  _applyProceduralSelector(selector, initElements = undefined) {
+    if (!Array.isArray(selector) || !selector.length) {
+      return [];
+    }
+
+    let nodesToConsider = [];
+    let startIndex = 0;
+    const firstOperator = selector[0];
+
+    if (initElements !== undefined) {
+      nodesToConsider = Array.from(initElements).filter(
+        el => el?.nodeType === 1
+      );
+    } else if (firstOperator.type === "css-selector") {
+      nodesToConsider = Array.from(
+        this.document.querySelectorAll(firstOperator.arg)
+      );
+      startIndex = 1;
+    } else if (firstOperator.type === "xpath") {
+      nodesToConsider = this._operatorXPath(
+        firstOperator.arg,
+        this.document.documentElement
+      );
+      startIndex = 1;
+    } else {
+      nodesToConsider = Array.from(this.document.querySelectorAll("*"));
+    }
+
+    for (
+      let index = startIndex;
+      nodesToConsider.length && index < selector.length;
+      index++
+    ) {
+      const operator = selector[index];
+
+      if (
+        operator.type === "matches-media" ||
+        operator.type === "matches-path"
+      ) {
+        if (
+          !this._applyProceduralOperator(operator, nodesToConsider[0]).length
+        ) {
+          nodesToConsider = [];
+        }
+        continue;
+      }
+
+      const nextNodes = [];
+      for (const element of nodesToConsider) {
+        nextNodes.push(...this._applyProceduralOperator(operator, element));
+      }
+      nodesToConsider = nextNodes;
+    }
+
+    return nodesToConsider;
+  }
+
+  _applyProceduralOperator(operator, element) {
+    if (!operator || !element || element.nodeType !== 1) {
+      return [];
+    }
+
+    const arg = operator.arg;
+    switch (operator.type) {
+      case "contains":
+      case "has-text":
+        return this._matchesText(arg, element.innerText || "") ? [element] : [];
+
+      case "css-selector":
+        return this._operatorCssSelector(arg, element);
+
+      case "has":
+        return this._operatorHas(arg, element);
+
+      case "matches-attr":
+        return this._matchesKeyValueRule(
+          arg,
+          element.getAttributeNames(),
+          name => element.getAttribute(name)
+        )
+          ? [element]
+          : [];
+
+      case "matches-css":
+        return this._matchesCssRule(null, arg, element) ? [element] : [];
+
+      case "matches-css-after":
+        return this._matchesCssRule("::after", arg, element) ? [element] : [];
+
+      case "matches-css-before":
+        return this._matchesCssRule("::before", arg, element) ? [element] : [];
+
+      case "matches-media":
+        return this.contentWindow?.matchMedia(arg).matches ? [element] : [];
+
+      case "matches-path":
+        return this._matchesPathRule(arg) ? [element] : [];
+
+      case "matches-property":
+        return this._matchesPropertyRule(arg, element) ? [element] : [];
+
+      case "min-text-length": {
+        return this._operatorMinTextLength(arg, element);
+      }
+
+      case "not":
+        return this._operatorNot(arg, element);
+
+      case "upward":
+        return this._operatorUpward(arg, element);
+
+      case "xpath":
+        return this._operatorXPath(arg, element);
+
+      default:
+        return [];
+    }
+  }
+
+  _operatorHas(instruction, element) {
+    if (Array.isArray(instruction)) {
+      const initElements =
+        instruction[0]?.type === "css-selector"
+          ? [element]
+          : Array.from(element.querySelectorAll("*"));
+      return this._applyProceduralSelector(instruction, initElements).length
+        ? [element]
+        : [];
+    }
+    return element.querySelector(instruction) ? [element] : [];
+  }
+
+  _operatorMinTextLength(instruction, element) {
+    const minLength = Number(instruction);
+    return Number.isFinite(minLength) &&
+      (element.innerText || "").trim().length >= minLength
+      ? [element]
+      : [];
+  }
+
+  _operatorNot(instruction, element) {
+    if (Array.isArray(instruction)) {
+      return this._applyProceduralSelector(instruction, [element]).length
+        ? []
+        : [element];
+    }
+    return element.matches(instruction) ? [] : [element];
+  }
+
+  _operatorCssSelector(selector, element) {
+    const trimmed = String(selector || "").trimStart();
+    try {
+      if (trimmed.startsWith("+")) {
+        const next = element.nextElementSibling;
+        const subSelector = trimmed.slice(1).trimStart();
+        return next?.matches(subSelector) ? [next] : [];
+      }
+      if (trimmed.startsWith("~")) {
+        const subSelector = trimmed.slice(1).trimStart();
+        const parent = element.parentElement;
+        if (!parent) {
+          return [];
+        }
+        return Array.from(parent.children).filter(
+          sibling => sibling !== element && sibling.matches(subSelector)
+        );
+      }
+      if (trimmed.startsWith(">")) {
+        const subSelector = trimmed.slice(1).trimStart();
+        return Array.from(element.children).filter(child =>
+          child.matches(subSelector)
+        );
+      }
+      if (String(selector || "").startsWith(" ")) {
+        return Array.from(element.querySelectorAll(`:scope ${trimmed}`));
+      }
+      return element.matches(selector) ? [element] : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  _operatorUpward(instruction, element) {
+    const distance = Number(instruction);
+    if (Number.isInteger(distance)) {
+      if (distance < 1 || distance >= 256) {
+        return [];
+      }
+      let current = element;
+      for (let i = 0; i < distance && current; i++) {
+        current = current.parentElement;
+      }
+      return current ? [current] : [];
+    }
+
+    if (Array.isArray(instruction)) {
+      let current = element;
+      while (current) {
+        if (this._applyProceduralSelector(instruction, [current]).length) {
+          return [current];
+        }
+        current = current.parentElement;
+      }
+      return [];
+    }
+
+    let current = element;
+    while (current) {
+      try {
+        if (current.matches(instruction)) {
+          return [current];
+        }
+      } catch (_) {
+        return [];
+      }
+      current = current.parentElement;
+    }
+    return [];
+  }
+
+  _operatorXPath(instruction, element) {
+    const doc = this.document;
+    if (!doc || !element) {
+      return [];
+    }
+
+    try {
+      const result = doc.evaluate(
+        instruction,
+        element,
+        null,
+        this.contentWindow.XPathResult.UNORDERED_NODE_ITERATOR_TYPE,
+        null
+      );
+      const matches = [];
+      let currentNode;
+      while ((currentNode = result.iterateNext())) {
+        if (currentNode.nodeType === 1) {
+          matches.push(currentNode);
+        }
+      }
+      return matches;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  _performProceduralAction(element, action) {
+    if (!element || element.nodeType !== 1) {
+      return;
+    }
+
+    if (!action) {
+      element.style.setProperty("display", "none", "important");
+      return;
+    }
+
+    switch (action.type) {
+      case "style":
+        if (typeof action.arg === "string" && action.arg.trim()) {
+          element.style.cssText += `;${action.arg}`;
+        }
+        break;
+
+      case "remove":
+        element.remove();
+        break;
+
+      case "remove-attr":
+        element.removeAttribute(action.arg);
+        break;
+
+      case "remove-class":
+        if (element.classList?.contains(action.arg)) {
+          element.classList.remove(action.arg);
+        }
+        break;
+    }
+  }
+
+  _matchesCssRule(pseudoElement, instruction, element) {
+    const separatorIndex = String(instruction || "").indexOf(":");
+    if (separatorIndex <= 0) {
+      return false;
+    }
+
+    const property = instruction.slice(0, separatorIndex).trim();
+    const expected = instruction.slice(separatorIndex + 1).trim();
+    let actual = "";
+    try {
+      actual = this.contentWindow
+        .getComputedStyle(element, pseudoElement)
+        .getPropertyValue(property);
+    } catch (_) {
+      return false;
+    }
+
+    return this._matchesText(expected, actual, true);
+  }
+
+  _matchesKeyValueRule(instruction, keys, valueGetter) {
+    const [keyTest, valueTest] = this._parseKeyValueMatchRules(instruction);
+    for (const key of keys) {
+      if (!keyTest(key)) {
+        continue;
+      }
+      const value = valueGetter(key);
+      if (valueTest && !valueTest(String(value ?? ""))) {
+        continue;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  _matchesPathRule(instruction) {
+    const location = this.contentWindow?.location;
+    if (!location) {
+      return false;
+    }
+
+    return this._matchesText(
+      this._extractValueFromRule(instruction, true),
+      `${location.pathname}${location.search}`
+    );
+  }
+
+  _matchesPropertyRule(instruction, element) {
+    const [keyTest, valueTest] = this._parseKeyValueMatchRules(instruction);
+    for (const key of Object.keys(element)) {
+      if (!keyTest(key)) {
+        continue;
+      }
+
+      let value;
+      try {
+        value = element[key];
+      } catch (_) {
+        continue;
+      }
+
+      if (valueTest && !valueTest(String(value ?? ""))) {
+        continue;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  _parseKeyValueMatchRules(instruction) {
+    const text = String(instruction || "");
+    const [key, valueStart] = this._extractKeyFromRule(text);
+    const keyTest = value => this._matchesText(key, value, true);
+    if (valueStart === undefined) {
+      return [keyTest, undefined];
+    }
+
+    const expectedValue = this._extractValueFromRule(text, false, valueStart);
+    return [keyTest, value => this._matchesText(expectedValue, value, true)];
+  }
+
+  _extractKeyFromRule(text) {
+    const isQuoted = text.startsWith('"');
+    const start = isQuoted ? 1 : 0;
+    const terminator = isQuoted ? '"=' : "=";
+    const index = text.indexOf(terminator, start);
+    if (index < 0) {
+      return [
+        isQuoted && text.endsWith('"') ? text.slice(1, -1) : text,
+        undefined,
+      ];
+    }
+    return [text.slice(start, index), index + terminator.length];
+  }
+
+  _extractValueFromRule(text, uriEncode = false, start = 0) {
+    const isQuoted = text[start] === '"';
+    const valueStart = isQuoted ? start + 1 : start;
+    const valueEnd =
+      isQuoted && text.endsWith('"') ? text.length - 1 : text.length;
+    let value = text.slice(valueStart, valueEnd);
+    if (uriEncode) {
+      value = Array.from(value, char =>
+        char.charCodeAt(0) > 0x7f ? encodeURIComponent(char) : char
+      ).join("");
+    }
+    return value;
+  }
+
+  _matchesText(expected, actual, exact = false) {
+    const test = String(expected || "");
+    const value = String(actual || "");
+    if (test.startsWith("/") && test.lastIndexOf("/") > 0) {
+      try {
+        const lastSlash = test.lastIndexOf("/");
+        return new RegExp(
+          test.slice(1, lastSlash),
+          test.slice(lastSlash + 1)
+        ).test(value);
+      } catch (_) {
+        return false;
+      }
+    }
+    if (!test) {
+      return !value.trim();
+    }
+    return exact ? value === test : value.includes(test);
   }
 
   /**

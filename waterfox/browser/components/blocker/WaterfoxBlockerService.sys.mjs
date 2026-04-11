@@ -18,6 +18,7 @@ const PREF_ENABLED = "waterfox.blocker.enabled";
 const PREF_ALLOW_SEARCH_PARTNER_ADS = "waterfox.blocker.allowSearchPartnerAds";
 const PREF_SITE_EXCEPTIONS = "waterfox.blocker.siteExceptions";
 const PREF_FILTER_LIST_URLS = "waterfox.blocker.filterListUrls";
+const PREF_CUSTOM_RULES = "waterfox.blocker.customRules";
 const PREF_ENABLED_LISTS = "waterfox.blocker.enabledLists";
 const PREF_BRANCH = "waterfox.blocker.";
 
@@ -94,8 +95,43 @@ function bytesToHex(binaryString) {
   return out;
 }
 
+function hashStringHex(text) {
+  const hasher = Cc["@mozilla.org/security/hash;1"].createInstance(
+    Ci.nsICryptoHash
+  );
+  hasher.init(hasher.SHA256);
+
+  const bytes = new TextEncoder().encode(String(text));
+  hasher.update(bytes, bytes.length);
+
+  return bytesToHex(hasher.finish(false));
+}
+
 function nowISO() {
   return new Date().toISOString();
+}
+
+function normalizeFilterListUrl(input) {
+  const value = String(input || "").trim();
+  if (!value) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return parsed.href;
+    }
+  } catch (_) {}
+
+  try {
+    const uri = Services.io.newURI(value);
+    if (uri.schemeIs("http") || uri.schemeIs("https")) {
+      return uri.spec;
+    }
+  } catch (_) {}
+
+  return "";
 }
 
 /**
@@ -215,6 +251,11 @@ export const WaterfoxBlockerService = {
       const sep = encoder.encode("\n---\n");
       hasher.update(sep, sep.length);
     }
+
+    const customRulesBytes = encoder.encode(
+      `\ncustom-rules\n${this._getCustomRules().join("\n")}`
+    );
+    hasher.update(customRulesBytes, customRulesBytes.length);
 
     return bytesToHex(hasher.finish(false));
   },
@@ -359,10 +400,66 @@ export const WaterfoxBlockerService = {
       return [];
     }
 
-    return raw
-      .split(",")
-      .map(s => s.trim())
-      .filter(Boolean);
+    let values = [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        values = parsed;
+      }
+    } catch (_) {}
+
+    if (!values.length) {
+      values = raw.split(/[,\n\r]+/);
+    }
+
+    const out = [];
+    const seen = new Set();
+    for (const value of values) {
+      const url = normalizeFilterListUrl(value);
+      if (!url || seen.has(url)) {
+        continue;
+      }
+
+      seen.add(url);
+      out.push(url);
+
+      if (out.length >= 100) {
+        break;
+      }
+    }
+
+    return out;
+  },
+
+  _getCustomRules() {
+    const raw = Services.prefs.getStringPref(PREF_CUSTOM_RULES, "");
+    if (!raw) {
+      return [];
+    }
+
+    const out = [];
+    const seen = new Set();
+    for (const line of raw.split(/\r?\n/)) {
+      const rule = line.trim();
+      if (
+        !rule ||
+        rule.startsWith("!") ||
+        rule.startsWith("[") ||
+        rule.length > 4096 ||
+        seen.has(rule)
+      ) {
+        continue;
+      }
+
+      seen.add(rule);
+      out.push(rule);
+
+      if (out.length >= 10000) {
+        break;
+      }
+    }
+
+    return out;
   },
 
   _getEnabledListOverrides() {
@@ -437,11 +534,11 @@ export const WaterfoxBlockerService = {
 
     // Add custom user URLs from pref.
     const customUrls = this._getCustomFilterListUrls();
-    for (let i = 0; i < customUrls.length; i++) {
+    for (const url of customUrls) {
       descriptors.push({
         bundledUrl: null,
-        filename: `custom-${i + 1}.txt`,
-        url: customUrls[i],
+        filename: `custom-${hashStringHex(url).slice(0, 24)}.txt`,
+        url,
       });
     }
 
@@ -478,6 +575,8 @@ export const WaterfoxBlockerService = {
         }
       }
     }
+
+    rules.push(...this._getCustomRules());
 
     if (!rules.length) {
       throw new Error("Filter lists contained no valid rules");
@@ -552,16 +651,18 @@ export const WaterfoxBlockerService = {
     if (this._initGeneration !== generation) {
       return;
     }
-    if (!bundledLists.length) {
+    if (!bundledLists.length && !this._getCustomRules().length) {
       throw new Error("No bundled filter lists available for fallback");
     }
 
     // Persist bundled fallback to profile so startup has a stable local source.
-    await this._persistListRecordsAndMetadata(
-      bundledLists,
-      descriptors,
-      true /* forceImmediateRefresh */
-    );
+    if (bundledLists.length) {
+      await this._persistListRecordsAndMetadata(
+        bundledLists,
+        descriptors,
+        true /* forceImmediateRefresh */
+      );
+    }
 
     if (this._initGeneration !== generation) {
       return;
@@ -596,7 +697,7 @@ export const WaterfoxBlockerService = {
       if (this._initGeneration !== generation) {
         return;
       }
-      if (!descriptors.length) {
+      if (!descriptors.length && !this._getCustomRules().length) {
         this._engine = null;
         return;
       }
@@ -1953,6 +2054,8 @@ export const WaterfoxBlockerService = {
 
       case PREF_FILTER_LIST_URLS:
         if (this.isEnabled()) {
+          this._engine = null;
+          this._initGeneration++;
           this._refreshListsAndEngine().catch(err => {
             console.error(
               "[WaterfoxBlocker] Failed to refresh lists after pref change:",
@@ -1962,6 +2065,7 @@ export const WaterfoxBlockerService = {
         }
         break;
 
+      case PREF_CUSTOM_RULES:
       case PREF_ENABLED_LISTS:
         if (this.isEnabled()) {
           this._engine = null;
