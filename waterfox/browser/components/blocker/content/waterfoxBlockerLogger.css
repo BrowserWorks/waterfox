@@ -1,0 +1,166 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+@import url("chrome://browser/skin/preferences/preferences.css");
+
+:root {
+  color-scheme: light dark;
+}
+
+.contentPane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.waterfox-blocker-section-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.waterfox-blocker-logger-toolbar,
+.waterfox-blocker-logger-summary-row {
+  gap: 8px;
+  min-width: 0;
+}
+
+.waterfox-blocker-logger-summary {
+  margin-inline-end: 8px;
+}
+
+.waterfox-blocker-logger-state {
+  padding: 2px 8px;
+  border-radius: 8px;
+  background-color: color-mix(in srgb, currentColor 12%, transparent);
+  font-size: 0.95em;
+}
+
+.waterfox-blocker-logger-state[data-paused="true"] {
+  background-color: color-mix(in srgb, #d97706 18%, transparent);
+}
+
+.waterfox-blocker-logger-state[data-paused="false"] {
+  background-color: color-mix(in srgb, #16a34a 18%, transparent);
+}
+
+.waterfox-blocker-logger-list {
+  min-height: 300px;
+  max-height: 100%;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 8px;
+}
+
+.waterfox-blocker-logger-item {
+  padding: 10px 12px;
+}
+
+.waterfox-blocker-logger-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.waterfox-blocker-logger-item-topline {
+  min-width: 0;
+  gap: 8px;
+}
+
+.waterfox-blocker-logger-item-time {
+  margin-inline-end: 4px;
+  font-size: 0.95em;
+}
+
+.waterfox-blocker-logger-action-pill {
+  padding: 1px 8px;
+  border-radius: 8px;
+  font-size: 0.9em;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.waterfox-blocker-logger-action-pill[data-action="block"] {
+  background-color: color-mix(in srgb, #dc2626 20%, transparent);
+}
+
+.waterfox-blocker-logger-action-pill[data-action="allow"] {
+  background-color: color-mix(in srgb, #16a34a 20%, transparent);
+}
+
+.waterfox-blocker-logger-action-pill[data-action="exception"] {
+  background-color: color-mix(in srgb, #2563eb 18%, transparent);
+}
+
+.waterfox-blocker-logger-action-pill[data-action="redirect"] {
+  background-color: color-mix(in srgb, #7c3aed 18%, transparent);
+}
+
+.waterfox-blocker-logger-action-pill[data-action="csp"] {
+  background-color: color-mix(in srgb, #0891b2 18%, transparent);
+}
+
+.waterfox-blocker-logger-action-pill[data-action="noop"] {
+  background-color: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.waterfox-blocker-logger-url {
+  font-weight: 600;
+  min-width: 0;
+}
+
+.waterfox-blocker-logger-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.waterfox-blocker-logger-meta .text-deemphasized {
+  font-size: 0.95em;
+}
+
+.waterfox-blocker-logger-details-card {
+  min-height: 180px;
+}
+
+.waterfox-blocker-logger-details-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.waterfox-blocker-logger-detail-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+.waterfox-blocker-logger-detail-label {
+  flex: 0 0 160px;
+  font-weight: 600;
+}
+
+.waterfox-blocker-logger-detail-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.waterfox-blocker-logger-empty-state {
+  padding: 20px 12px;
+  text-align: center;
+}
+
+.waterfox-blocker-logger-empty-state .text-deemphasized {
+  margin: 0;
+}
+
+.waterfox-blocker-logger-details-empty {
+  margin: 0;
+}

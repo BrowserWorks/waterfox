@@ -21,12 +21,19 @@ const CURRENT_PLACEMENT_VERSION = 1;
 const TOPIC_BLOCKED_COUNT_UPDATED = "WaterfoxBlocker:BlockedCountUpdated";
 const TOPIC_BLOCKED_COUNTS_CLEARED = "WaterfoxBlocker:BlockedCountsCleared";
 const TOPIC_CONTENT_BLOCKING_EVENT = "SiteProtection:ContentBlockingEvent";
+const TOPIC_LOGGER_UPDATED = "WaterfoxBlocker:LoggerUpdated";
+const TOPIC_PICKER_RULE_ADDED = "WaterfoxBlocker:PickerRuleAdded";
+const TOPIC_PICKER_STATE_CHANGED = "WaterfoxBlocker:PickerStateChanged";
+const TOPIC_ZAPPER_STATE_CHANGED = "WaterfoxBlocker:ZapperStateChanged";
 
 const OBSERVED_TOPICS = [
   "browser-delayed-startup-finished",
   TOPIC_CONTENT_BLOCKING_EVENT,
   TOPIC_BLOCKED_COUNT_UPDATED,
   TOPIC_BLOCKED_COUNTS_CLEARED,
+  TOPIC_PICKER_RULE_ADDED,
+  TOPIC_PICKER_STATE_CHANGED,
+  TOPIC_ZAPPER_STATE_CHANGED,
 ];
 
 const HTML_NS = "http://www.w3.org/1999/xhtml";
@@ -42,8 +49,14 @@ const PANEL_IDS = {
   headerSection: "waterfox-blocker-header-section",
   header: "waterfox-blocker-header-label",
   blockedCount: "waterfox-blocker-panel-blocked-count",
+  cosmeticFilteringButton: "waterfox-blocker-panel-cosmetic-filtering-button",
+  loggerButton: "waterfox-blocker-panel-logger-button",
+  remoteFontsButton: "waterfox-blocker-panel-remote-fonts-button",
   settingsButton: "waterfox-blocker-settings-button",
+  pickerButton: "waterfox-blocker-panel-picker-button",
+  scriptingButton: "waterfox-blocker-panel-scripting-button",
   siteToggle: "waterfox-blocker-panel-site-toggle",
+  zapperButton: "waterfox-blocker-panel-zapper-button",
 };
 
 const L10N_IDS = {
@@ -51,7 +64,18 @@ const L10N_IDS = {
   disabled: "waterfox-blocker-panel-disabled",
   partnerAllowed: "waterfox-blocker-panel-partner-allowed",
   siteExcepted: "waterfox-blocker-panel-site-excepted",
+  cosmeticFilteringDisable: "waterfox-blocker-panel-cosmetic-filtering-disable",
+  cosmeticFilteringEnable: "waterfox-blocker-panel-cosmetic-filtering-enable",
+  loggerButton: "waterfox-blocker-panel-logger-button",
+  remoteFontsDisable: "waterfox-blocker-panel-remote-fonts-disable",
+  remoteFontsEnable: "waterfox-blocker-panel-remote-fonts-enable",
   settingsButton: "waterfox-blocker-panel-settings-button",
+  pickerStart: "waterfox-blocker-panel-picker-start",
+  pickerStop: "waterfox-blocker-panel-picker-stop",
+  scriptingDisable: "waterfox-blocker-panel-scripting-disable",
+  scriptingEnable: "waterfox-blocker-panel-scripting-enable",
+  zapperStart: "waterfox-blocker-panel-zapper-start",
+  zapperStop: "waterfox-blocker-panel-zapper-stop",
   headerHost: "protections-header",
   stats: "waterfox-blocker-stats",
   toggle: "waterfox-blocker-panel-toggle",
@@ -99,6 +123,9 @@ export const WaterfoxBlockerPanel = {
   _widgetRegistered: false,
   _windowState: new WeakMap(),
   _styledWindows: new WeakSet(),
+  _loggerWindows: new Map(),
+  _pickerActiveByBrowserId: new Map(),
+  _zapperActiveByBrowserId: new Map(),
 
   _buildPanel(doc) {
     const panel = createXUL(doc, "panel", {
@@ -199,6 +226,59 @@ export const WaterfoxBlockerPanel = {
     statsSection.appendChild(statsRow);
     body.appendChild(statsSection);
 
+    body.appendChild(createXUL(doc, "toolbarseparator"));
+
+    const toolsSection = createXUL(doc, "vbox", {
+      class: "protections-popup-section",
+    });
+
+    const cosmeticFilteringButton = createXUL(doc, "toolbarbutton", {
+      class: "subviewbutton",
+      id: PANEL_IDS.cosmeticFilteringButton,
+    });
+    setNodeL10nAttributes(
+      doc,
+      cosmeticFilteringButton,
+      L10N_IDS.cosmeticFilteringDisable
+    );
+    toolsSection.appendChild(cosmeticFilteringButton);
+
+    const scriptingButton = createXUL(doc, "toolbarbutton", {
+      class: "subviewbutton",
+      id: PANEL_IDS.scriptingButton,
+    });
+    setNodeL10nAttributes(doc, scriptingButton, L10N_IDS.scriptingDisable);
+    toolsSection.appendChild(scriptingButton);
+
+    const remoteFontsButton = createXUL(doc, "toolbarbutton", {
+      class: "subviewbutton",
+      id: PANEL_IDS.remoteFontsButton,
+    });
+    setNodeL10nAttributes(doc, remoteFontsButton, L10N_IDS.remoteFontsDisable);
+    toolsSection.appendChild(remoteFontsButton);
+
+    const zapperButton = createXUL(doc, "toolbarbutton", {
+      class: "subviewbutton",
+      id: PANEL_IDS.zapperButton,
+    });
+    setNodeL10nAttributes(doc, zapperButton, L10N_IDS.zapperStart);
+    toolsSection.appendChild(zapperButton);
+
+    const pickerButton = createXUL(doc, "toolbarbutton", {
+      class: "subviewbutton",
+      id: PANEL_IDS.pickerButton,
+    });
+    setNodeL10nAttributes(doc, pickerButton, L10N_IDS.pickerStart);
+    toolsSection.appendChild(pickerButton);
+
+    const loggerButton = createXUL(doc, "toolbarbutton", {
+      class: "subviewbutton",
+      id: PANEL_IDS.loggerButton,
+    });
+    setNodeL10nAttributes(doc, loggerButton, L10N_IDS.loggerButton);
+    toolsSection.appendChild(loggerButton);
+    body.appendChild(toolsSection);
+
     mainView.appendChild(body);
 
     mainView.appendChild(createXUL(doc, "toolbarseparator"));
@@ -268,12 +348,45 @@ export const WaterfoxBlockerPanel = {
   },
 
   _handlePanelCommand(win, event) {
-    if (event.target?.id !== PANEL_IDS.settingsButton) {
-      return;
-    }
+    switch (event.target?.id) {
+      case PANEL_IDS.settingsButton:
+        this._openBlockerPreferences(win, event.target);
+        event.stopPropagation();
+        break;
 
-    this._openBlockerPreferences(win, event.target);
-    event.stopPropagation();
+      case PANEL_IDS.zapperButton:
+        this._toggleElementZapperForCurrentTab(win, event.target);
+        event.stopPropagation();
+        break;
+
+      case PANEL_IDS.cosmeticFilteringButton:
+        this._toggleCosmeticFilteringForCurrentSite(win, event.target);
+        event.stopPropagation();
+        break;
+
+      case PANEL_IDS.scriptingButton:
+        this._toggleScriptingForCurrentSite(win, event.target);
+        event.stopPropagation();
+        break;
+
+      case PANEL_IDS.remoteFontsButton:
+        this._toggleRemoteFontsForCurrentSite(win, event.target);
+        event.stopPropagation();
+        break;
+
+      case PANEL_IDS.pickerButton:
+        this._toggleElementPickerForCurrentTab(win, event.target);
+        event.stopPropagation();
+        break;
+
+      case PANEL_IDS.loggerButton:
+        this._openLoggerWindow(win, event.target);
+        event.stopPropagation();
+        break;
+
+      default:
+        break;
+    }
   },
 
   _handlePanelToggle(win, event) {
@@ -385,6 +498,8 @@ export const WaterfoxBlockerPanel = {
         const browserId = browser?.browsingContext?.top?.browserId || 0;
         if (browserId) {
           WaterfoxBlockerService.resetBlockedCount(browserId);
+          this._pickerActiveByBrowserId.delete(browserId);
+          this._zapperActiveByBrowserId.delete(browserId);
         }
       }
 
@@ -406,6 +521,8 @@ export const WaterfoxBlockerPanel = {
         event.target?.linkedBrowser?.browsingContext?.top?.browserId || 0;
       if (browserId) {
         this._blockedCountByBrowserId.delete(browserId);
+        this._pickerActiveByBrowserId.delete(browserId);
+        this._zapperActiveByBrowserId.delete(browserId);
       }
       this._refreshWindow(win);
     };
@@ -474,6 +591,91 @@ export const WaterfoxBlockerPanel = {
     }
   },
 
+  _onZapperStateChanged(subject) {
+    const payload = subject?.wrappedJSObject;
+    const browserId = Number(payload?.browserId || 0);
+    if (!browserId) {
+      return;
+    }
+
+    if (payload?.active) {
+      this._zapperActiveByBrowserId.set(browserId, true);
+    } else {
+      this._zapperActiveByBrowserId.delete(browserId);
+    }
+
+    this._refreshAllWindows();
+  },
+
+  _onPickerStateChanged(subject) {
+    const payload = subject?.wrappedJSObject;
+    const browserId = Number(payload?.browserId || 0);
+    if (!browserId) {
+      return;
+    }
+
+    if (payload?.active) {
+      this._pickerActiveByBrowserId.set(browserId, true);
+    } else {
+      this._pickerActiveByBrowserId.delete(browserId);
+    }
+
+    this._refreshAllWindows();
+  },
+
+  _onPickerRuleAdded(subject) {
+    const payload = subject?.wrappedJSObject;
+    const browserId = Number(payload?.browserId || 0);
+    if (!browserId || !payload?.added) {
+      return;
+    }
+
+    this._refreshAllWindows();
+
+    const win = this._findBrowserWindowByBrowserId(browserId);
+    if (win) {
+      this._reloadCurrentTab(win);
+    }
+  },
+
+  _findBrowserWindowByBrowserId(browserId) {
+    let found = null;
+    this._forEachBrowserWindow(win => {
+      if (found) {
+        return;
+      }
+
+      if (this._getCurrentBrowserId(win) === browserId) {
+        found = win;
+      }
+    });
+    return found;
+  },
+
+  _stopElementPickerForCurrentTab(win, sourceNode = null) {
+    const browser = this._getCurrentBrowser(win);
+    const browserId = browser?.browsingContext?.top?.browserId || 0;
+    const actor =
+      browser?.browsingContext?.currentWindowGlobal?.getActor(
+        "WaterfoxBlocker"
+      );
+
+    if (!browserId || !actor) {
+      this._refreshWindow(win);
+      return;
+    }
+
+    this._pickerActiveByBrowserId.delete(browserId);
+    try {
+      actor.sendAsyncMessage("WaterfoxBlocker:StopElementPicker");
+    } catch (err) {
+      console.error("[WaterfoxBlockerPanel] failed to stop picker:", err);
+    }
+
+    this._hidePanelForNode(sourceNode);
+    this._refreshWindow(win);
+  },
+
   _openToolbarPanel(win, event = null) {
     const doc = win?.document;
     if (!doc) {
@@ -522,6 +724,319 @@ export const WaterfoxBlockerPanel = {
     } catch (_) {
       // Fallback opener may be unavailable in non-standard windows.
     }
+  },
+
+  _toggleElementZapperForCurrentTab(win, sourceNode = null) {
+    const browser = this._getCurrentBrowser(win);
+    const browserId = browser?.browsingContext?.top?.browserId || 0;
+    const actor =
+      browser?.browsingContext?.currentWindowGlobal?.getActor(
+        "WaterfoxBlocker"
+      );
+
+    if (!browserId || !actor || !this._isCurrentPageProtectable(win)) {
+      this._refreshWindow(win);
+      return;
+    }
+
+    const nextActive = !this._zapperActiveByBrowserId.has(browserId);
+    const pickerActive = this._pickerActiveByBrowserId.has(browserId);
+    if (nextActive) {
+      this._zapperActiveByBrowserId.set(browserId, true);
+      if (pickerActive) {
+        this._pickerActiveByBrowserId.delete(browserId);
+        try {
+          actor.sendAsyncMessage("WaterfoxBlocker:StopElementPicker");
+        } catch (_) {}
+      }
+    } else {
+      this._zapperActiveByBrowserId.delete(browserId);
+    }
+
+    try {
+      actor.sendAsyncMessage(
+        nextActive
+          ? "WaterfoxBlocker:StartElementZapper"
+          : "WaterfoxBlocker:StopElementZapper"
+      );
+    } catch (err) {
+      this._zapperActiveByBrowserId.delete(browserId);
+      console.error("[WaterfoxBlockerPanel] failed to toggle zapper:", err);
+    }
+
+    this._hidePanelForNode(sourceNode);
+    this._refreshWindow(win);
+  },
+
+  _toggleElementPickerForCurrentTab(win, sourceNode = null) {
+    const browser = this._getCurrentBrowser(win);
+    const browserId = browser?.browsingContext?.top?.browserId || 0;
+    const actor =
+      browser?.browsingContext?.currentWindowGlobal?.getActor(
+        "WaterfoxBlocker"
+      );
+
+    if (!browserId || !actor || !this._isCurrentPageProtectable(win)) {
+      this._refreshWindow(win);
+      return;
+    }
+
+    const pickerActive = this._pickerActiveByBrowserId.has(browserId);
+    const zapperActive = this._zapperActiveByBrowserId.has(browserId);
+    const nextActive = !pickerActive;
+
+    try {
+      actor.sendAsyncMessage(
+        nextActive
+          ? "WaterfoxBlocker:StartElementPicker"
+          : "WaterfoxBlocker:StopElementPicker"
+      );
+      if (nextActive) {
+        this._pickerActiveByBrowserId.set(browserId, true);
+        if (zapperActive) {
+          this._zapperActiveByBrowserId.delete(browserId);
+          try {
+            actor.sendAsyncMessage("WaterfoxBlocker:StopElementZapper");
+          } catch (_) {}
+        }
+      } else {
+        this._pickerActiveByBrowserId.delete(browserId);
+      }
+    } catch (err) {
+      this._pickerActiveByBrowserId.delete(browserId);
+      console.error("[WaterfoxBlockerPanel] failed to toggle picker:", err);
+    }
+
+    this._hidePanelForNode(sourceNode);
+    this._refreshWindow(win);
+  },
+
+  _toggleCosmeticFilteringForCurrentSite(win, sourceNode = null) {
+    const host = this._getCurrentHost(win);
+    if (!host || !this._isCurrentPageProtectable(win)) {
+      this._refreshWindow(win);
+      return;
+    }
+
+    const currentlyDisabled =
+      WaterfoxBlockerService.isCosmeticFilteringDisabled(host);
+
+    if (currentlyDisabled) {
+      WaterfoxBlockerService.removeNoCosmeticFilteringSite(host);
+    } else {
+      WaterfoxBlockerService.addNoCosmeticFilteringSite(host);
+    }
+
+    this._refreshWindow(win);
+    this._hidePanelForNode(sourceNode);
+    this._reloadCurrentTab(win);
+  },
+
+  _toggleScriptingForCurrentSite(win, sourceNode = null) {
+    const host = this._getCurrentHost(win);
+    if (!host || !this._isCurrentPageProtectable(win)) {
+      this._refreshWindow(win);
+      return;
+    }
+
+    const currentlyDisabled = WaterfoxBlockerService.isScriptingDisabled(host);
+
+    if (currentlyDisabled) {
+      WaterfoxBlockerService.removeNoScriptingSite(host);
+    } else {
+      WaterfoxBlockerService.addNoScriptingSite(host);
+    }
+
+    this._refreshWindow(win);
+    this._hidePanelForNode(sourceNode);
+    this._reloadCurrentTab(win);
+  },
+
+  _toggleRemoteFontsForCurrentSite(win, sourceNode = null) {
+    const host = this._getCurrentHost(win);
+    if (!host || !this._isCurrentPageProtectable(win)) {
+      this._refreshWindow(win);
+      return;
+    }
+
+    const currentlyDisabled =
+      WaterfoxBlockerService.isRemoteFontsDisabled(host);
+
+    if (currentlyDisabled) {
+      WaterfoxBlockerService.removeNoRemoteFontsSite(host);
+    } else {
+      WaterfoxBlockerService.addNoRemoteFontsSite(host);
+    }
+
+    this._refreshWindow(win);
+    this._hidePanelForNode(sourceNode);
+    this._reloadCurrentTab(win);
+  },
+
+  _getLoggerWindow() {
+    const loggerWin = Services.wm.getMostRecentWindow(
+      "waterfox:blocker-logger"
+    );
+    if (!loggerWin || loggerWin.closed) {
+      return null;
+    }
+    return loggerWin;
+  },
+
+  _getLoggerWindowApi(loggerWin) {
+    if (!loggerWin || loggerWin.closed) {
+      return null;
+    }
+
+    return (
+      loggerWin.WaterfoxBlockerLogger ||
+      loggerWin.gWaterfoxBlockerLogger ||
+      null
+    );
+  },
+
+  _syncLoggerWindow(loggerWin) {
+    const state = this._loggerWindows.get(loggerWin);
+    const api = this._getLoggerWindowApi(loggerWin);
+    if (!state || !api) {
+      return;
+    }
+
+    const sourceWin = state.sourceWindow;
+    const browserId =
+      sourceWin && !sourceWin.closed ? this._getCurrentBrowserId(sourceWin) : 0;
+
+    api.setCurrentBrowserId(browserId);
+    api.setPaused(WaterfoxBlockerService.isLoggerPaused());
+    api.setEntries(WaterfoxBlockerService.getLoggerEntries(0));
+  },
+
+  _teardownLoggerWindow(loggerWin) {
+    const state = this._loggerWindows.get(loggerWin);
+    if (!state) {
+      return;
+    }
+
+    try {
+      Services.obs.removeObserver(state.observer, TOPIC_LOGGER_UPDATED);
+    } catch (_) {}
+
+    try {
+      loggerWin.removeEventListener("load", state.onLoad);
+      loggerWin.removeEventListener("unload", state.onUnload);
+      loggerWin.document?.removeEventListener("command", state.onCommand);
+    } catch (_) {}
+
+    this._loggerWindows.delete(loggerWin);
+  },
+
+  _registerLoggerWindow(loggerWin, sourceWin) {
+    if (!loggerWin || loggerWin.closed) {
+      return;
+    }
+
+    const existingState = this._loggerWindows.get(loggerWin);
+    if (existingState) {
+      existingState.sourceWindow = sourceWin;
+      this._syncLoggerWindow(loggerWin);
+      return;
+    }
+
+    const observer = {
+      observe: (_subject, topic) => {
+        if (topic === TOPIC_LOGGER_UPDATED) {
+          this._syncLoggerWindow(loggerWin);
+        }
+      },
+    };
+
+    const onCommand = event => {
+      const api = this._getLoggerWindowApi(loggerWin);
+      if (!api) {
+        return;
+      }
+
+      switch (event.target?.id) {
+        case "waterfoxBlockerLoggerPause":
+          WaterfoxBlockerService.setLoggerPaused(!!api.getSnapshot?.().paused);
+          break;
+
+        case "waterfoxBlockerLoggerClear":
+          WaterfoxBlockerService.clearLoggerEntries();
+          break;
+      }
+    };
+
+    const onLoad = () => {
+      try {
+        loggerWin.document?.addEventListener("command", onCommand);
+      } catch (_) {}
+      this._syncLoggerWindow(loggerWin);
+    };
+
+    const onUnload = () => {
+      this._teardownLoggerWindow(loggerWin);
+    };
+
+    this._loggerWindows.set(loggerWin, {
+      observer,
+      onCommand,
+      onLoad,
+      onUnload,
+      sourceWindow: sourceWin,
+    });
+
+    Services.obs.addObserver(observer, TOPIC_LOGGER_UPDATED);
+    loggerWin.addEventListener("load", onLoad, { once: true });
+    loggerWin.addEventListener("unload", onUnload, { once: true });
+
+    if (loggerWin.document?.readyState === "complete") {
+      onLoad();
+    }
+  },
+
+  _syncLoggerWindowsForSourceWindow(sourceWin) {
+    for (const [loggerWin, state] of this._loggerWindows.entries()) {
+      if (!loggerWin || loggerWin.closed) {
+        this._teardownLoggerWindow(loggerWin);
+        continue;
+      }
+
+      if (state.sourceWindow === sourceWin) {
+        this._syncLoggerWindow(loggerWin);
+      }
+    }
+  },
+
+  _openLoggerWindow(win, sourceNode = null) {
+    this._hidePanelForNode(sourceNode);
+
+    const existingWindow = this._getLoggerWindow();
+    if (existingWindow) {
+      this._registerLoggerWindow(existingWindow, win);
+      this._syncLoggerWindow(existingWindow);
+      existingWindow.focus();
+      return;
+    }
+
+    const url = "chrome://browser/content/blocker/waterfoxBlockerLogger.xhtml";
+    const dialogFeatures =
+      "chrome,resizable,dialog=no,centerscreen,width=1100,height=760";
+    const params = {
+      browserId: this._getCurrentBrowserId(win),
+      currentTabOnly: true,
+      entries: WaterfoxBlockerService.getLoggerEntries(0),
+      paused: WaterfoxBlockerService.isLoggerPaused(),
+    };
+
+    const loggerWin = win?.openDialog?.(
+      url,
+      "WaterfoxBlockerLogger",
+      dialogFeatures,
+      params
+    );
+
+    this._registerLoggerWindow(loggerWin, win);
   },
 
   _primeBlockedCountCache() {
@@ -574,63 +1089,178 @@ export const WaterfoxBlockerPanel = {
     });
   },
 
+  _getPanelSiteState(win, enabled) {
+    const host = this._getCurrentHost(win);
+    const protectable = this._isCurrentPageProtectable(win);
+    const activeEnabled =
+      enabled ?? Services.prefs.getBoolPref(PREF_ENABLED, true);
+    const excepted = host ? WaterfoxBlockerService.isSiteExcepted(host) : false;
+    const cosmeticFilteringDisabled = host
+      ? WaterfoxBlockerService.isCosmeticFilteringDisabled(host)
+      : false;
+    const remoteFontsDisabled = host
+      ? WaterfoxBlockerService.isRemoteFontsDisabled(host)
+      : false;
+    const scriptingDisabled = host
+      ? WaterfoxBlockerService.isScriptingDisabled(host)
+      : false;
+    const partnerBypass =
+      activeEnabled &&
+      protectable &&
+      !excepted &&
+      WaterfoxBlockerService.shouldBypassBlocking(host);
+
+    return {
+      activeEnabled,
+      cosmeticFilteringDisabled,
+      excepted,
+      host,
+      partnerBypass,
+      protectable,
+      remoteFontsDisabled,
+      scriptingDisabled,
+      siteBlockingEnabled:
+        activeEnabled && protectable && !excepted && !partnerBypass,
+    };
+  },
+
+  _refreshPanelHeader(doc, siteState) {
+    const header = doc.getElementById(PANEL_IDS.header);
+    if (!header) {
+      return;
+    }
+
+    setNodeL10nAttributes(
+      doc,
+      header,
+      siteState.protectable && siteState.host
+        ? L10N_IDS.headerHost
+        : L10N_IDS.notAvailable,
+      siteState.protectable && siteState.host
+        ? { host: siteState.host }
+        : undefined
+    );
+  },
+
+  _refreshSiteToggle(doc, siteState) {
+    const siteToggle = doc.getElementById(PANEL_IDS.siteToggle);
+    if (!siteToggle) {
+      return;
+    }
+
+    siteToggle.pressed = siteState.siteBlockingEnabled;
+    siteToggle.disabled =
+      !siteState.activeEnabled ||
+      !siteState.protectable ||
+      siteState.partnerBypass;
+    setNodeL10nAttributes(doc, siteToggle, L10N_IDS.toggle);
+  },
+
+  _refreshBlockedCountLabel(doc, siteState, count) {
+    const blockedCountLabel = doc.getElementById(PANEL_IDS.blockedCount);
+    if (!blockedCountLabel) {
+      return;
+    }
+
+    if (!siteState.activeEnabled) {
+      setNodeL10nAttributes(doc, blockedCountLabel, L10N_IDS.disabled);
+      return;
+    }
+
+    if (siteState.excepted) {
+      setNodeL10nAttributes(doc, blockedCountLabel, L10N_IDS.siteExcepted);
+      return;
+    }
+
+    if (siteState.partnerBypass) {
+      setNodeL10nAttributes(doc, blockedCountLabel, L10N_IDS.partnerAllowed);
+      return;
+    }
+
+    setNodeL10nAttributes(doc, blockedCountLabel, L10N_IDS.stats, {
+      count,
+    });
+  },
+
+  _refreshToolButton(doc, buttonId, disabled, l10nId) {
+    const button = doc.getElementById(buttonId);
+    if (!button) {
+      return;
+    }
+
+    button.disabled = !!disabled;
+    setNodeL10nAttributes(doc, button, l10nId);
+  },
+
   _refreshPanelForWindow(win, blockedCount, enabled) {
     const doc = win?.document;
     if (!doc) {
       return;
     }
 
-    const host = this._getCurrentHost(win);
-    const protectable = this._isCurrentPageProtectable(win);
-    const activeEnabled =
-      enabled ?? Services.prefs.getBoolPref(PREF_ENABLED, true);
-    const excepted = host ? WaterfoxBlockerService.isSiteExcepted(host) : false;
-    const partnerBypass =
-      activeEnabled &&
-      protectable &&
-      !excepted &&
-      WaterfoxBlockerService.shouldBypassBlocking(host);
-    const siteBlockingEnabled =
-      activeEnabled && protectable && !excepted && !partnerBypass;
-
+    const siteState = this._getPanelSiteState(win, enabled);
     const count =
       blockedCount !== undefined
         ? blockedCount
         : this._readBlockedCount(this._getCurrentBrowserId(win));
+    const browserId = this._getCurrentBrowserId(win);
+    const zapperActive = this._zapperActiveByBrowserId.has(browserId);
+    const pickerActive = this._pickerActiveByBrowserId.has(browserId);
 
-    const header = doc.getElementById(PANEL_IDS.header);
-    if (header) {
-      setNodeL10nAttributes(
-        doc,
-        header,
-        protectable && host ? L10N_IDS.headerHost : L10N_IDS.notAvailable,
-        protectable && host ? { host } : undefined
-      );
-    }
+    this._refreshPanelHeader(doc, siteState);
+    this._refreshSiteToggle(doc, siteState);
+    this._refreshBlockedCountLabel(doc, siteState, count);
 
-    const siteToggle = doc.getElementById(PANEL_IDS.siteToggle);
-    if (siteToggle) {
-      siteToggle.pressed = siteBlockingEnabled;
-      siteToggle.disabled = !activeEnabled || !protectable || partnerBypass;
-      setNodeL10nAttributes(doc, siteToggle, L10N_IDS.toggle);
-    }
+    const siteSwitchesDisabled =
+      !siteState.activeEnabled ||
+      !siteState.protectable ||
+      siteState.excepted ||
+      siteState.partnerBypass;
 
-    const blockedCountLabel = doc.getElementById(PANEL_IDS.blockedCount);
-    if (blockedCountLabel) {
-      if (!activeEnabled) {
-        setNodeL10nAttributes(doc, blockedCountLabel, L10N_IDS.disabled);
-      } else if (excepted) {
-        setNodeL10nAttributes(doc, blockedCountLabel, L10N_IDS.siteExcepted);
-      } else if (partnerBypass) {
-        setNodeL10nAttributes(doc, blockedCountLabel, L10N_IDS.partnerAllowed);
-      } else {
-        setNodeL10nAttributes(doc, blockedCountLabel, L10N_IDS.stats, {
-          count,
-        });
-      }
-    }
+    this._refreshToolButton(
+      doc,
+      PANEL_IDS.cosmeticFilteringButton,
+      siteSwitchesDisabled,
+      siteState.cosmeticFilteringDisabled
+        ? L10N_IDS.cosmeticFilteringEnable
+        : L10N_IDS.cosmeticFilteringDisable
+    );
+    this._refreshToolButton(
+      doc,
+      PANEL_IDS.scriptingButton,
+      siteSwitchesDisabled,
+      siteState.scriptingDisabled
+        ? L10N_IDS.scriptingEnable
+        : L10N_IDS.scriptingDisable
+    );
+    this._refreshToolButton(
+      doc,
+      PANEL_IDS.remoteFontsButton,
+      siteSwitchesDisabled,
+      siteState.remoteFontsDisabled
+        ? L10N_IDS.remoteFontsEnable
+        : L10N_IDS.remoteFontsDisable
+    );
+    this._refreshToolButton(
+      doc,
+      PANEL_IDS.zapperButton,
+      !siteState.protectable,
+      zapperActive ? L10N_IDS.zapperStop : L10N_IDS.zapperStart
+    );
+    this._refreshToolButton(
+      doc,
+      PANEL_IDS.pickerButton,
+      !siteState.protectable,
+      pickerActive ? L10N_IDS.pickerStop : L10N_IDS.pickerStart
+    );
+    this._refreshToolButton(
+      doc,
+      PANEL_IDS.loggerButton,
+      false,
+      L10N_IDS.loggerButton
+    );
 
-    this._updateToolbarButtonForWindow(win, count, protectable);
+    this._updateToolbarButtonForWindow(win, count, siteState.protectable);
   },
 
   _refreshWindow(win) {
@@ -646,6 +1276,7 @@ export const WaterfoxBlockerPanel = {
     const enabled = Services.prefs.getBoolPref(PREF_ENABLED, true);
 
     this._refreshPanelForWindow(win, blockedCount, enabled);
+    this._syncLoggerWindowsForSourceWindow(win);
   },
 
   _registerWidget() {
@@ -872,6 +1503,18 @@ export const WaterfoxBlockerPanel = {
         this._blockedCountByBrowserId.clear();
         this._refreshAllWindows();
         break;
+
+      case TOPIC_ZAPPER_STATE_CHANGED:
+        this._onZapperStateChanged(subject);
+        break;
+
+      case TOPIC_PICKER_STATE_CHANGED:
+        this._onPickerStateChanged(subject);
+        break;
+
+      case TOPIC_PICKER_RULE_ADDED:
+        this._onPickerRuleAdded(subject);
+        break;
     }
   },
 
@@ -900,7 +1543,13 @@ export const WaterfoxBlockerPanel = {
       this._unhookBrowserWindow(win);
     });
 
+    for (const loggerWin of this._loggerWindows.keys()) {
+      this._teardownLoggerWindow(loggerWin);
+    }
+
     this._destroyWidget();
     this._blockedCountByBrowserId.clear();
+    this._pickerActiveByBrowserId.clear();
+    this._zapperActiveByBrowserId.clear();
   },
 };

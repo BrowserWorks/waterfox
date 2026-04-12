@@ -61,9 +61,77 @@ export class WaterfoxBlockerParent extends JSWindowActorParent {
         return this._getCosmeticResources(message.data);
       case "WaterfoxBlocker:GetHiddenClassIdSelectors":
         return this._getHiddenClassIdSelectors(message.data);
+      case "WaterfoxBlocker:CommitPickedRule":
+        return this._commitPickedRule(message.data);
+      case "WaterfoxBlocker:ZapperStateChanged":
+        this._notifyZapperStateChanged(message.data);
+        return undefined;
+      case "WaterfoxBlocker:PickerStateChanged":
+        this._notifyPickerStateChanged(message.data);
+        return undefined;
+      case "WaterfoxBlocker:PickedElementRule":
+        this._notifyPickerRuleAdded(message.data);
+        return undefined;
       default:
         return undefined;
     }
+  }
+
+  _notifyZapperStateChanged({ active } = {}) {
+    const browserId = Number(this.browsingContext?.top?.browserId || 0);
+    if (!browserId) {
+      return;
+    }
+
+    Services.obs.notifyObservers(
+      {
+        wrappedJSObject: {
+          active: !!active,
+          browserId,
+        },
+      },
+      "WaterfoxBlocker:ZapperStateChanged"
+    );
+  }
+
+  _notifyPickerStateChanged({ active } = {}) {
+    const browserId = Number(this.browsingContext?.top?.browserId || 0);
+    if (!browserId) {
+      return;
+    }
+
+    Services.obs.notifyObservers(
+      {
+        wrappedJSObject: {
+          active: !!active,
+          browserId,
+        },
+      },
+      "WaterfoxBlocker:PickerStateChanged"
+    );
+  }
+
+  _notifyPickerRuleAdded({ rule = "", selector = "", added = false } = {}) {
+    if (!added) {
+      return;
+    }
+
+    const browserId = Number(this.browsingContext?.top?.browserId || 0);
+    if (!browserId) {
+      return;
+    }
+
+    Services.obs.notifyObservers(
+      {
+        wrappedJSObject: {
+          added: !!added,
+          browserId,
+          rule,
+          selector,
+        },
+      },
+      "WaterfoxBlocker:PickerRuleAdded"
+    );
   }
 
   /**
@@ -79,6 +147,24 @@ export class WaterfoxBlockerParent extends JSWindowActorParent {
   _getCosmeticResources({ url } = {}) {
     if (!url) {
       return null;
+    }
+
+    let hostname = "";
+    try {
+      hostname = new URL(url).hostname || "";
+    } catch (_) {}
+
+    if (
+      hostname &&
+      WaterfoxBlockerService.isCosmeticFilteringDisabled(hostname)
+    ) {
+      return {
+        exceptions: [],
+        generichide: true,
+        hideSelectors: [],
+        injectedScript: "",
+        proceduralActions: [],
+      };
     }
 
     const resources = WaterfoxBlockerService.getCosmeticResources(url);
@@ -109,5 +195,56 @@ export class WaterfoxBlockerParent extends JSWindowActorParent {
       ids || [],
       exceptions || []
     );
+  }
+
+  _commitPickedRule({ rule = "", selector = "", host = "" } = {}) {
+    const cleanedRule = String(rule || "").trim();
+    const cleanedSelector = String(selector || "").trim();
+    const cleanedHost = String(host || "").trim();
+    const normalizedHost = cleanedHost ? cleanedHost.toLowerCase() : "";
+
+    if (!cleanedRule || !cleanedSelector || !normalizedHost) {
+      return { added: false, ok: false };
+    }
+
+    let nextRules = "";
+    let added = false;
+
+    try {
+      const rawRules = Services.prefs.getStringPref(
+        "waterfox.blocker.customRules",
+        ""
+      );
+      const existing = rawRules
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean);
+      const existingSet = new Set(existing);
+
+      if (!existingSet.has(cleanedRule)) {
+        const updated = rawRules.trim()
+          ? `${rawRules.replace(/\s+$/, "")}\n${cleanedRule}`
+          : cleanedRule;
+        Services.prefs.setStringPref("waterfox.blocker.customRules", updated);
+        added = true;
+        nextRules = updated;
+      } else {
+        nextRules = rawRules;
+      }
+    } catch (err) {
+      console.error(
+        "[WaterfoxBlockerParent] failed to persist picked rule:",
+        err
+      );
+      return { added: false, ok: false };
+    }
+
+    return {
+      added,
+      ok: true,
+      rule: cleanedRule,
+      selector: cleanedSelector,
+      rules: nextRules,
+    };
   }
 }

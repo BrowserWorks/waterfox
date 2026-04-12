@@ -2,10 +2,21 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+import { toSafeDomain } from "resource:///modules/WaterfoxBlockerUtils.sys.mjs";
+
 const COSMETIC_STYLE_ID = "waterfox-blocker-cosmetic-style";
 const INITIAL_RESOURCES_RETRY_DELAY_MS = 1000;
 const MAX_QUERIED_TOKENS = 50000;
 const MAX_PROCEDURAL_ACTIONS = 1000;
+const ZAPPER_CLOSE_BUTTON_ID = "waterfox-blocker-zapper-close";
+const ZAPPER_HIGHLIGHT_ID = "waterfox-blocker-zapper-highlight";
+const ZAPPER_OVERLAY_ID = "waterfox-blocker-zapper-overlay";
+const ZAPPER_Z_INDEX = 2147483647;
+const PICKER_CLOSE_BUTTON_ID = "waterfox-blocker-picker-close";
+const PICKER_HIGHLIGHT_ID = "waterfox-blocker-picker-highlight";
+const PICKER_OVERLAY_ID = "waterfox-blocker-picker-overlay";
+const PICKER_STATUS_ID = "waterfox-blocker-picker-status";
+const PICKER_Z_INDEX = 2147483647;
 
 /*
  * Module rationale:
@@ -52,6 +63,20 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
 
         case "WaterfoxBlocker:CollectClassIdSnapshot":
           return this._collectClassIdSnapshot(message.data || {});
+
+        case "WaterfoxBlocker:StartElementZapper":
+          return this._startElementZapper();
+
+        case "WaterfoxBlocker:StopElementZapper":
+          this._stopElementZapper();
+          return { ok: true };
+
+        case "WaterfoxBlocker:StartElementPicker":
+          return this._startElementPicker();
+
+        case "WaterfoxBlocker:StopElementPicker":
+          this._stopElementPicker();
+          return { ok: true };
 
         default:
           return undefined;
@@ -152,6 +177,8 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
     this._proceduralActionFilters = null;
     this._retriedResources = false;
     this._shouldResolveGenericSelectors = false;
+    this._stopElementZapper({ notify: false });
+    this._stopElementPicker({ notify: false });
 
     try {
       this._clearCosmeticSelectors();
@@ -160,6 +187,952 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
         "[WaterfoxBlockerChild] failed clearing cosmetic selectors during destroy:",
         err
       );
+    }
+  }
+
+  _startElementZapper() {
+    const doc = this.document;
+    const contentWin = this.contentWindow;
+    if (!doc || !contentWin) {
+      return { active: false, ok: false };
+    }
+
+    if (this._zapperActive) {
+      return { active: true, ok: true };
+    }
+
+    const overlay = this._ensureZapperOverlay(doc);
+    if (!overlay) {
+      return { active: false, ok: false };
+    }
+
+    this._zapperActive = true;
+    this._zapperHighlight = overlay.firstElementChild;
+    this._zapperOverlay = overlay;
+    this._zapperTarget = null;
+
+    this._boundZapperMouseMove ||= event => {
+      this._onZapperMouseMove(event);
+    };
+    this._boundZapperMouseDown ||= event => {
+      this._onZapperMouseDown(event);
+    };
+    this._boundZapperClick ||= event => {
+      this._onZapperClick(event);
+    };
+    this._boundZapperKeyDown ||= event => {
+      this._onZapperKeyDown(event);
+    };
+    this._boundZapperViewportChange ||= () => {
+      this._updateZapperHighlight();
+    };
+    this._boundZapperCloseClick ||= event => {
+      event.preventDefault();
+      event.stopPropagation();
+      this._stopElementZapper();
+    };
+
+    doc.addEventListener("mousemove", this._boundZapperMouseMove, true);
+    doc.addEventListener("mousedown", this._boundZapperMouseDown, true);
+    doc.addEventListener("click", this._boundZapperClick, true);
+    doc.addEventListener("keydown", this._boundZapperKeyDown, true);
+    contentWin.addEventListener(
+      "scroll",
+      this._boundZapperViewportChange,
+      true
+    );
+    contentWin.addEventListener(
+      "resize",
+      this._boundZapperViewportChange,
+      true
+    );
+    doc
+      .getElementById(ZAPPER_CLOSE_BUTTON_ID)
+      ?.addEventListener("click", this._boundZapperCloseClick, true);
+
+    this._notifyZapperStateChange(true);
+    return { active: true, ok: true };
+  }
+
+  _stopElementZapper({ notify = true } = {}) {
+    const doc = this.document;
+    const contentWin = this.contentWindow;
+
+    if (doc && this._boundZapperMouseMove) {
+      doc.removeEventListener("mousemove", this._boundZapperMouseMove, true);
+      doc.removeEventListener("mousedown", this._boundZapperMouseDown, true);
+      doc.removeEventListener("click", this._boundZapperClick, true);
+      doc.removeEventListener("keydown", this._boundZapperKeyDown, true);
+      doc
+        .getElementById(ZAPPER_CLOSE_BUTTON_ID)
+        ?.removeEventListener("click", this._boundZapperCloseClick, true);
+    }
+
+    if (contentWin && this._boundZapperViewportChange) {
+      contentWin.removeEventListener(
+        "scroll",
+        this._boundZapperViewportChange,
+        true
+      );
+      contentWin.removeEventListener(
+        "resize",
+        this._boundZapperViewportChange,
+        true
+      );
+    }
+
+    this._zapperActive = false;
+    this._zapperTarget = null;
+    this._zapperHighlight = null;
+    this._zapperOverlay?.remove();
+    this._zapperOverlay = null;
+
+    if (notify) {
+      this._notifyZapperStateChange(false);
+    }
+  }
+
+  _notifyZapperStateChange(active) {
+    try {
+      this.sendAsyncMessage("WaterfoxBlocker:ZapperStateChanged", {
+        active: !!active,
+      });
+    } catch (err) {
+      console.error(
+        "[WaterfoxBlockerChild] failed to notify zapper state change:",
+        err
+      );
+    }
+  }
+
+  _startElementPicker() {
+    const doc = this.document;
+    const contentWin = this.contentWindow;
+    if (!doc || !contentWin) {
+      return { active: false, ok: false };
+    }
+
+    if (this._pickerActive) {
+      return { active: true, ok: true };
+    }
+
+    const overlay = this._ensurePickerOverlay(doc);
+    if (!overlay) {
+      return { active: false, ok: false };
+    }
+
+    this._pickerActive = true;
+    this._pickerOverlay = overlay;
+    this._pickerHighlight = overlay.querySelector(`#${PICKER_HIGHLIGHT_ID}`);
+    this._pickerStatus = overlay.querySelector(`#${PICKER_STATUS_ID}`);
+    this._pickerTarget = null;
+
+    this._boundPickerMouseMove ||= event => {
+      this._onPickerMouseMove(event);
+    };
+    this._boundPickerMouseDown ||= event => {
+      this._onPickerMouseDown(event);
+    };
+    this._boundPickerClick ||= event => {
+      void this._onPickerClick(event);
+    };
+    this._boundPickerKeyDown ||= event => {
+      this._onPickerKeyDown(event);
+    };
+    this._boundPickerViewportChange ||= () => {
+      this._updatePickerHighlight();
+    };
+    this._boundPickerCloseClick ||= event => {
+      event.preventDefault();
+      event.stopPropagation();
+      this._stopElementPicker();
+    };
+
+    this._pickerOriginalCursor = doc.documentElement?.style?.cursor || "";
+    this._pickerOriginalBodyCursor = doc.body?.style?.cursor || "";
+    if (doc.documentElement?.style) {
+      doc.documentElement.style.cursor = "crosshair";
+    }
+    if (doc.body?.style) {
+      doc.body.style.cursor = "crosshair";
+    }
+
+    doc.addEventListener("mousemove", this._boundPickerMouseMove, true);
+    doc.addEventListener("mousedown", this._boundPickerMouseDown, true);
+    doc.addEventListener("click", this._boundPickerClick, true);
+    doc.addEventListener("keydown", this._boundPickerKeyDown, true);
+    contentWin.addEventListener(
+      "scroll",
+      this._boundPickerViewportChange,
+      true
+    );
+    contentWin.addEventListener(
+      "resize",
+      this._boundPickerViewportChange,
+      true
+    );
+    doc
+      .getElementById(PICKER_CLOSE_BUTTON_ID)
+      ?.addEventListener("click", this._boundPickerCloseClick, true);
+
+    this._updatePickerStatus("Click an element to create a rule.");
+    this._notifyPickerStateChange(true);
+    return { active: true, ok: true };
+  }
+
+  _stopElementPicker({ notify = true } = {}) {
+    const doc = this.document;
+    const contentWin = this.contentWindow;
+
+    if (doc && this._boundPickerMouseMove) {
+      doc.removeEventListener("mousemove", this._boundPickerMouseMove, true);
+      doc.removeEventListener("mousedown", this._boundPickerMouseDown, true);
+      doc.removeEventListener("click", this._boundPickerClick, true);
+      doc.removeEventListener("keydown", this._boundPickerKeyDown, true);
+      doc
+        .getElementById(PICKER_CLOSE_BUTTON_ID)
+        ?.removeEventListener("click", this._boundPickerCloseClick, true);
+    }
+
+    if (contentWin && this._boundPickerViewportChange) {
+      contentWin.removeEventListener(
+        "scroll",
+        this._boundPickerViewportChange,
+        true
+      );
+      contentWin.removeEventListener(
+        "resize",
+        this._boundPickerViewportChange,
+        true
+      );
+    }
+
+    if (doc?.documentElement?.style) {
+      doc.documentElement.style.cursor = this._pickerOriginalCursor || "";
+    }
+    if (doc?.body?.style) {
+      doc.body.style.cursor = this._pickerOriginalBodyCursor || "";
+    }
+
+    this._pickerActive = false;
+    this._pickerTarget = null;
+    this._pickerHighlight = null;
+    this._pickerStatus = null;
+    this._pickerOverlay?.remove();
+    this._pickerOverlay = null;
+    this._pickerOriginalCursor = "";
+    this._pickerOriginalBodyCursor = "";
+
+    if (notify) {
+      this._notifyPickerStateChange(false);
+    }
+  }
+
+  _notifyPickerStateChange(active) {
+    try {
+      this.sendAsyncMessage("WaterfoxBlocker:PickerStateChanged", {
+        active: !!active,
+      });
+    } catch (err) {
+      console.error(
+        "[WaterfoxBlockerChild] failed to notify picker state change:",
+        err
+      );
+    }
+  }
+
+  _notifyPickedElementRule(rule, selector, added) {
+    try {
+      this.sendAsyncMessage("WaterfoxBlocker:PickedElementRule", {
+        added: !!added,
+        rule,
+        selector,
+      });
+    } catch (err) {
+      console.error(
+        "[WaterfoxBlockerChild] failed to notify picked rule:",
+        err
+      );
+    }
+  }
+
+  _ensurePickerOverlay(doc) {
+    let overlay = doc.getElementById(PICKER_OVERLAY_ID);
+    if (overlay) {
+      return overlay;
+    }
+
+    const container = doc.body || doc.documentElement;
+    if (!container) {
+      return null;
+    }
+
+    overlay = doc.createElement("div");
+    overlay.id = PICKER_OVERLAY_ID;
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.style.cssText = `
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      cursor: crosshair;
+      z-index: ${PICKER_Z_INDEX};
+    `;
+
+    const status = doc.createElement("div");
+    status.id = PICKER_STATUS_ID;
+    status.style.cssText = `
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      max-width: min(460px, calc(100vw - 32px));
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: rgba(20, 20, 28, 0.94);
+      color: #fff;
+      font: 13px/1.4 system-ui, sans-serif;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+      pointer-events: none;
+      white-space: pre-wrap;
+    `;
+    status.textContent = "Click an element to create a rule.";
+    overlay.appendChild(status);
+
+    const highlight = doc.createElement("div");
+    highlight.id = PICKER_HIGHLIGHT_ID;
+    highlight.style.cssText = `
+      position: fixed;
+      display: none;
+      pointer-events: none;
+      box-sizing: border-box;
+      border: 2px solid #f7d154;
+      background: rgba(247, 209, 84, 0.16);
+      border-radius: 6px;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+    `;
+    overlay.appendChild(highlight);
+
+    const closeButton = doc.createElement("button");
+    closeButton.id = PICKER_CLOSE_BUTTON_ID;
+    closeButton.type = "button";
+    closeButton.textContent = "\u00d7";
+    closeButton.setAttribute("aria-label", "Close");
+    closeButton.style.cssText = `
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      width: 32px;
+      height: 32px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(20, 20, 28, 0.92);
+      color: white;
+      font: 600 24px/1 sans-serif;
+      pointer-events: auto;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    `;
+    overlay.appendChild(closeButton);
+
+    container.appendChild(overlay);
+    return overlay;
+  }
+
+  _onPickerMouseMove(event) {
+    if (!this._pickerActive) {
+      return;
+    }
+
+    const candidate = this._getPickerCandidateFromPoint(
+      event.clientX,
+      event.clientY
+    );
+    this._setPickerTarget(candidate);
+  }
+
+  _onPickerMouseDown(event) {
+    if (!this._pickerActive || event.button !== 0) {
+      return;
+    }
+
+    if (event.target?.id === PICKER_CLOSE_BUTTON_ID) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  async _onPickerClick(event) {
+    if (!this._pickerActive || event.button !== 0) {
+      return;
+    }
+
+    if (event.target?.id === PICKER_CLOSE_BUTTON_ID) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const target =
+      this._pickerTarget ||
+      this._getPickerCandidateFromPoint(event.clientX, event.clientY);
+    if (!target) {
+      this._updatePickerStatus("Select an element to create a rule.");
+      return;
+    }
+
+    const generated = this._buildCosmeticRuleForElement(target);
+    if (!generated) {
+      this._updatePickerStatus("Could not build a rule for that element.");
+      return;
+    }
+
+    this._updatePickerStatus(`Saving rule:\n${generated.rule}`);
+    const result = await this._commitPickedRule(generated);
+    if (!result?.ok) {
+      this._updatePickerStatus("Could not save the rule. Try another element.");
+      return;
+    }
+
+    if (result.added) {
+      this._applyPickedRulePreview(generated.selector);
+    }
+
+    this._notifyPickedElementRule(
+      generated.rule,
+      generated.selector,
+      !!result.added
+    );
+    this._stopElementPicker();
+  }
+
+  _onPickerKeyDown(event) {
+    if (!this._pickerActive) {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      this._stopElementPicker();
+    }
+  }
+
+  _getPickerCandidateFromPoint(clientX, clientY) {
+    const doc = this.document;
+    if (!doc) {
+      return null;
+    }
+
+    if (this._pickerOverlay) {
+      this._pickerOverlay.style.display = "none";
+    }
+
+    let target = null;
+    try {
+      target = doc.elementFromPoint(clientX, clientY);
+    } catch (_) {
+      target = null;
+    }
+
+    if (this._pickerOverlay) {
+      this._pickerOverlay.style.display = "";
+    }
+
+    while (target && this._isPickerUiNode(target)) {
+      target = target.parentElement;
+    }
+
+    if (!target || target === doc.documentElement || target === doc.body) {
+      return null;
+    }
+
+    return target;
+  }
+
+  _isPickerUiNode(node) {
+    return (
+      node?.id === PICKER_OVERLAY_ID ||
+      node?.id === PICKER_HIGHLIGHT_ID ||
+      node?.id === PICKER_CLOSE_BUTTON_ID ||
+      node?.id === PICKER_STATUS_ID ||
+      node?.closest?.(`#${PICKER_OVERLAY_ID}`) !== null
+    );
+  }
+
+  _setPickerTarget(target) {
+    if (this._pickerTarget === target) {
+      return;
+    }
+
+    this._pickerTarget = target || null;
+    this._updatePickerHighlight();
+  }
+
+  _updatePickerHighlight() {
+    const highlight = this._pickerHighlight;
+    const target = this._pickerTarget;
+    if (!highlight || !target?.isConnected) {
+      if (highlight) {
+        highlight.style.display = "none";
+      }
+      this._pickerTarget = null;
+      this._updatePickerStatus("Click an element to create a rule.");
+      return;
+    }
+
+    const rect = target.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      highlight.style.display = "none";
+      return;
+    }
+
+    highlight.style.display = "block";
+    highlight.style.left = `${Math.max(0, rect.left)}px`;
+    highlight.style.top = `${Math.max(0, rect.top)}px`;
+    highlight.style.width = `${rect.width}px`;
+    highlight.style.height = `${rect.height}px`;
+
+    const generated = this._buildCosmeticRuleForElement(target);
+    if (generated) {
+      this._updatePickerStatus(`Rule:\n${generated.rule}`);
+    }
+  }
+
+  _updatePickerStatus(text) {
+    if (this._pickerStatus) {
+      this._pickerStatus.textContent = String(text || "");
+    }
+  }
+
+  _applyPickedRulePreview(selector) {
+    const doc = this.document;
+    if (!doc || !selector) {
+      return;
+    }
+
+    let style = doc.getElementById(`${PICKER_OVERLAY_ID}-style`);
+    if (!style) {
+      style = doc.createElement("style");
+      style.id = `${PICKER_OVERLAY_ID}-style`;
+      (doc.head || doc.documentElement || doc.body)?.appendChild(style);
+    }
+
+    try {
+      style.textContent = `${selector} { display: none !important; }`;
+    } catch (_) {}
+  }
+
+  _buildCosmeticRuleForElement(element) {
+    const doc = this.document;
+    if (!doc || !element || !element.isConnected) {
+      return null;
+    }
+
+    const host = toSafeDomain(
+      doc.location?.hostname || doc.location?.host || ""
+    );
+    if (!host) {
+      return null;
+    }
+
+    const selector = this._buildUniqueCssSelector(element);
+    if (!selector) {
+      return null;
+    }
+
+    return {
+      host,
+      rule: `${host}##${selector}`,
+      selector,
+    };
+  }
+
+  _buildUniqueCssSelector(element) {
+    const doc = this.document;
+    if (!doc || !element || !element.isConnected) {
+      return "";
+    }
+
+    const segments = [];
+    let current = element;
+    for (
+      let depth = 0;
+      current && current.nodeType === 1 && depth < 8;
+      depth++
+    ) {
+      const segment = this._buildSelectorSegment(current);
+      if (!segment) {
+        break;
+      }
+
+      segments.unshift(segment);
+      const selector = segments.join(" > ");
+      if (this._isUniqueSelector(selector)) {
+        return selector;
+      }
+
+      current = current.parentElement;
+      if (!current || current === doc.documentElement) {
+        break;
+      }
+    }
+
+    const fallback = segments.join(" > ");
+    return this._isUniqueSelector(fallback) ? fallback : fallback || "";
+  }
+
+  _isUniqueSelector(selector) {
+    const doc = this.document;
+    if (!doc || !selector) {
+      return false;
+    }
+
+    try {
+      return doc.querySelectorAll(selector).length === 1;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  _buildSelectorSegment(element) {
+    const doc = this.document;
+    if (!doc || !element || element.nodeType !== 1) {
+      return "";
+    }
+
+    const tag = String(element.localName || "").toLowerCase();
+    if (!tag) {
+      return "";
+    }
+
+    const id = String(element.id || "").trim();
+    if (id) {
+      const escapedId = this._escapeCssIdentifier(id);
+      if (escapedId) {
+        const idSelector = `#${escapedId}`;
+        if (this._isUniqueSelector(idSelector)) {
+          return idSelector;
+        }
+      }
+    }
+
+    const classes = [];
+    if (element.classList?.length) {
+      for (const cls of element.classList) {
+        const clean = String(cls || "").trim();
+        if (!clean || clean.length > 32 || !/^[A-Za-z_]/.test(clean)) {
+          continue;
+        }
+        classes.push(clean);
+        if (classes.length >= 2) {
+          break;
+        }
+      }
+    }
+
+    let selector = tag;
+    if (classes.length) {
+      selector += classes
+        .map(cls => `.${this._escapeCssIdentifier(cls)}`)
+        .join("");
+    }
+
+    const siblings = element.parentElement
+      ? Array.from(element.parentElement.children).filter(
+          child => child.localName === element.localName
+        )
+      : [];
+    if (siblings.length > 1) {
+      const index = siblings.indexOf(element) + 1;
+      if (index > 0) {
+        selector += `:nth-of-type(${index})`;
+      }
+    }
+
+    return selector;
+  }
+
+  _escapeCssIdentifier(value) {
+    const text = String(value || "");
+    if (!text) {
+      return "";
+    }
+
+    try {
+      if (typeof CSS?.escape === "function") {
+        return CSS.escape(text);
+      }
+    } catch (_) {}
+
+    return text.replace(/[^a-zA-Z0-9_-]/g, char => {
+      const hex = char.codePointAt(0).toString(16).toUpperCase();
+      return `\\${hex} `;
+    });
+  }
+
+  async _commitPickedRule({ host, rule, selector } = {}) {
+    try {
+      return await this.sendQuery("WaterfoxBlocker:CommitPickedRule", {
+        host,
+        rule,
+        selector,
+      });
+    } catch (err) {
+      console.error(
+        "[WaterfoxBlockerChild] failed to commit picked rule:",
+        err
+      );
+      return { added: false, ok: false };
+    }
+  }
+
+  _ensureZapperOverlay(doc) {
+    let overlay = doc.getElementById(ZAPPER_OVERLAY_ID);
+    if (overlay) {
+      return overlay;
+    }
+
+    const container = doc.body || doc.documentElement;
+    if (!container) {
+      return null;
+    }
+
+    overlay = doc.createElement("div");
+    overlay.id = ZAPPER_OVERLAY_ID;
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.style.cssText = `
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      cursor: crosshair;
+      z-index: ${ZAPPER_Z_INDEX};
+    `;
+
+    const highlight = doc.createElement("div");
+    highlight.id = ZAPPER_HIGHLIGHT_ID;
+    highlight.style.cssText = `
+      position: fixed;
+      display: none;
+      pointer-events: none;
+      box-sizing: border-box;
+      border: 2px solid #36d1ff;
+      background: rgba(54, 209, 255, 0.18);
+      border-radius: 6px;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+    `;
+    overlay.appendChild(highlight);
+
+    const closeButton = doc.createElement("button");
+    closeButton.id = ZAPPER_CLOSE_BUTTON_ID;
+    closeButton.type = "button";
+    closeButton.textContent = "\u00d7";
+    closeButton.setAttribute("aria-label", "Close");
+    closeButton.style.cssText = `
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      width: 32px;
+      height: 32px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(20, 20, 28, 0.92);
+      color: white;
+      font: 600 24px/1 sans-serif;
+      pointer-events: auto;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    `;
+    overlay.appendChild(closeButton);
+
+    container.appendChild(overlay);
+    return overlay;
+  }
+
+  _onZapperMouseMove(event) {
+    if (!this._zapperActive) {
+      return;
+    }
+
+    const candidate = this._getZapperCandidateFromPoint(
+      event.clientX,
+      event.clientY
+    );
+    this._setZapperTarget(candidate);
+  }
+
+  _onZapperMouseDown(event) {
+    if (!this._zapperActive || event.button !== 0) {
+      return;
+    }
+
+    if (event.target?.id === ZAPPER_CLOSE_BUTTON_ID) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  _onZapperClick(event) {
+    if (!this._zapperActive || event.button !== 0) {
+      return;
+    }
+
+    if (event.target?.id === ZAPPER_CLOSE_BUTTON_ID) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const target =
+      this._zapperTarget ||
+      this._getZapperCandidateFromPoint(event.clientX, event.clientY);
+    if (!target) {
+      return;
+    }
+
+    this._zapElement(target);
+  }
+
+  _onZapperKeyDown(event) {
+    if (!this._zapperActive) {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      this._stopElementZapper();
+      return;
+    }
+
+    if (event.key !== "Delete" && event.key !== "Backspace") {
+      return;
+    }
+
+    if (!this._zapperTarget) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    this._zapElement(this._zapperTarget);
+  }
+
+  _getZapperCandidateFromPoint(clientX, clientY) {
+    const doc = this.document;
+    if (!doc) {
+      return null;
+    }
+
+    if (this._zapperOverlay) {
+      this._zapperOverlay.style.display = "none";
+    }
+
+    let target = null;
+    try {
+      target = doc.elementFromPoint(clientX, clientY);
+    } catch (_) {
+      target = null;
+    }
+
+    if (this._zapperOverlay) {
+      this._zapperOverlay.style.display = "";
+    }
+
+    while (target && this._isZapperUiNode(target)) {
+      target = target.parentElement;
+    }
+
+    if (!target || target === doc.documentElement || target === doc.body) {
+      return null;
+    }
+
+    return target;
+  }
+
+  _isZapperUiNode(node) {
+    return (
+      node?.id === ZAPPER_OVERLAY_ID ||
+      node?.id === ZAPPER_HIGHLIGHT_ID ||
+      node?.id === ZAPPER_CLOSE_BUTTON_ID ||
+      node?.closest?.(`#${ZAPPER_OVERLAY_ID}`) !== null
+    );
+  }
+
+  _setZapperTarget(target) {
+    if (this._zapperTarget === target) {
+      return;
+    }
+
+    this._zapperTarget = target || null;
+    this._updateZapperHighlight();
+  }
+
+  _updateZapperHighlight() {
+    const highlight = this._zapperHighlight;
+    const target = this._zapperTarget;
+    if (!highlight || !target?.isConnected) {
+      if (highlight) {
+        highlight.style.display = "none";
+      }
+      this._zapperTarget = null;
+      return;
+    }
+
+    const rect = target.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      highlight.style.display = "none";
+      return;
+    }
+
+    highlight.style.display = "block";
+    highlight.style.left = `${Math.max(0, rect.left)}px`;
+    highlight.style.top = `${Math.max(0, rect.top)}px`;
+    highlight.style.width = `${rect.width}px`;
+    highlight.style.height = `${rect.height}px`;
+  }
+
+  _zapElement(element) {
+    if (!element || !element.isConnected || this._isZapperUiNode(element)) {
+      return;
+    }
+
+    try {
+      element.remove();
+    } catch (_) {
+      element.style.setProperty("display", "none", "important");
+    }
+
+    this._setZapperTarget(null);
+    this._restoreDocumentScrolling();
+  }
+
+  _restoreDocumentScrolling() {
+    const doc = this.document;
+    if (!doc) {
+      return;
+    }
+
+    for (const element of [doc.documentElement, doc.body]) {
+      if (!element?.style) {
+        continue;
+      }
+      element.style.removeProperty("overflow");
+      element.style.removeProperty("overflow-x");
+      element.style.removeProperty("overflow-y");
     }
   }
 

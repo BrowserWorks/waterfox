@@ -9,6 +9,9 @@ browser.jar:
     content/browser/blocker/waterfoxBlockerFilterLists.xhtml             (content/waterfoxBlockerFilterLists.xhtml)
     content/browser/blocker/waterfoxBlockerFilterLists.js                (content/waterfoxBlockerFilterLists.js)
     content/browser/blocker/waterfoxBlockerFilterLists.css               (content/waterfoxBlockerFilterLists.css)
+    content/browser/blocker/waterfoxBlockerLogger.xhtml                  (content/waterfoxBlockerLogger.xhtml)
+    content/browser/blocker/waterfoxBlockerLogger.js                     (content/waterfoxBlockerLogger.js)
+    content/browser/blocker/waterfoxBlockerLogger.css                    (content/waterfoxBlockerLogger.css)
     content/browser/blocker/waterfoxBlockerPreferences.inc.xhtml         (content/waterfoxBlockerPreferences.inc.xhtml)
     content/browser/blocker/waterfoxBlockerPreferences.css               (content/waterfoxBlockerPreferences.css)
     content/browser/blocker/waterfoxBlockerPanel.css                     (content/waterfoxBlockerPanel.css)
@@ -17,6 +20,8 @@ browser.jar:
     content/browser/preferences/dialogs/waterfoxBlockerExceptions.js     (content/waterfoxBlockerExceptions.js)
     content/browser/preferences/dialogs/waterfoxBlockerFilterLists.xhtml (content/waterfoxBlockerFilterLists.xhtml)
     content/browser/preferences/dialogs/waterfoxBlockerFilterLists.js    (content/waterfoxBlockerFilterLists.js)
+    content/browser/preferences/dialogs/waterfoxBlockerLogger.xhtml      (content/waterfoxBlockerLogger.xhtml)
+    content/browser/preferences/dialogs/waterfoxBlockerLogger.js         (content/waterfoxBlockerLogger.js)
 
 
 %   resource waterfox %waterfox/ contentaccessible=yes

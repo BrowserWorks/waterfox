@@ -42,48 +42,102 @@
         data-l10n-id="waterfox-blocker-filter-lists-description"
       />
       <separator class="thin" />
-      <label
-        class="waterfox-blocker-section-title"
-        data-l10n-id="waterfox-blocker-filter-lists-custom-urls"
-      />
-      <description
-        class="text-deemphasized"
-        data-l10n-id="waterfox-blocker-filter-lists-custom-urls-description"
-      />
-      <html:textarea
-        id="waterfoxBlockerCustomFilterListUrls"
-        class="waterfox-blocker-textarea"
-        data-l10n-id="waterfox-blocker-filter-lists-custom-urls-placeholder"
-        data-l10n-attrs="placeholder"
-        rows="4"
-      />
-      <separator class="thin" />
-      <label
-        class="waterfox-blocker-section-title"
-        data-l10n-id="waterfox-blocker-filter-lists-custom-rules"
-      />
-      <description
-        class="text-deemphasized"
-        data-l10n-id="waterfox-blocker-filter-lists-custom-rules-description"
-      />
-      <html:textarea
-        id="waterfoxBlockerCustomRules"
-        class="waterfox-blocker-textarea waterfox-blocker-rules-textarea"
-        data-l10n-id="waterfox-blocker-filter-lists-custom-rules-placeholder"
-        data-l10n-attrs="placeholder"
-        rows="7"
-      />
-      <separator class="thin" />
-      <label
-        class="waterfox-blocker-section-title"
-        data-l10n-id="waterfox-blocker-filter-lists-built-in"
-      />
-      <vbox
-        id="waterfoxBlockerFilterListsScrollContainer"
-        class="info-box-container waterfox-blocker-scroll-container"
-        flex="1"
-      >
-        <vbox id="waterfoxBlockerFilterListsCategories" flex="1" />
+      <vbox class="waterfox-blocker-section-card">
+        <label
+          class="waterfox-blocker-section-title"
+          data-l10n-id="waterfox-blocker-filter-lists-custom-urls"
+        />
+        <description
+          class="text-deemphasized waterfox-blocker-section-description"
+          data-l10n-id="waterfox-blocker-filter-lists-custom-urls-description"
+        />
+        <html:textarea
+          id="waterfoxBlockerCustomFilterListUrls"
+          class="waterfox-blocker-textarea"
+          data-l10n-id="waterfox-blocker-filter-lists-custom-urls-placeholder"
+          data-l10n-attrs="placeholder"
+          rows="4"
+        />
+        <hbox class="waterfox-blocker-editor-toolbar" align="center">
+          <spacer flex="1" />
+          <button
+            id="waterfoxBlockerImportUrls"
+            data-l10n-id="waterfox-blocker-filter-lists-import-urls"
+          />
+          <button
+            id="waterfoxBlockerExportUrls"
+            data-l10n-id="waterfox-blocker-filter-lists-export-urls"
+          />
+        </hbox>
+      </vbox>
+      <vbox class="waterfox-blocker-section-card">
+        <label
+          class="waterfox-blocker-section-title"
+          data-l10n-id="waterfox-blocker-filter-lists-custom-rules"
+        />
+        <description
+          class="text-deemphasized waterfox-blocker-section-description"
+          data-l10n-id="waterfox-blocker-filter-lists-custom-rules-description"
+        />
+        <html:textarea
+          id="waterfoxBlockerCustomRules"
+          class="waterfox-blocker-textarea waterfox-blocker-rules-textarea"
+          data-l10n-id="waterfox-blocker-filter-lists-custom-rules-placeholder"
+          data-l10n-attrs="placeholder"
+          rows="7"
+        />
+        <hbox class="waterfox-blocker-editor-toolbar" align="center">
+          <spacer flex="1" />
+          <button
+            id="waterfoxBlockerImportRules"
+            data-l10n-id="waterfox-blocker-filter-lists-import-rules"
+          />
+          <button
+            id="waterfoxBlockerExportRules"
+            data-l10n-id="waterfox-blocker-filter-lists-export-rules"
+          />
+        </hbox>
+      </vbox>
+      <vbox class="waterfox-blocker-section-card" flex="1">
+        <label
+          class="waterfox-blocker-section-title"
+          data-l10n-id="waterfox-blocker-filter-lists-built-in"
+        />
+        <description
+          class="text-deemphasized waterfox-blocker-section-description"
+          data-l10n-id="waterfox-blocker-filter-lists-built-in-description"
+        />
+        <vbox class="waterfox-blocker-filter-bar">
+          <label
+            class="waterfox-blocker-filter-bar-title"
+            data-l10n-id="waterfox-blocker-filter-lists-search"
+          />
+          <hbox align="center" class="waterfox-blocker-filter-bar-row">
+            <html:input
+              id="waterfoxBlockerFilterListSearch"
+              class="waterfox-blocker-search-field"
+              data-l10n-id="waterfox-blocker-filter-lists-search-placeholder"
+              data-l10n-attrs="placeholder"
+              type="search"
+            />
+            <button
+              id="waterfoxBlockerFilterListSearchClear"
+              class="waterfox-blocker-search-clear"
+              data-l10n-id="waterfox-blocker-filter-lists-search-clear"
+            />
+          </hbox>
+          <description
+            id="waterfoxBlockerFilterListSearchSummary"
+            class="text-deemphasized waterfox-blocker-search-summary"
+          />
+        </vbox>
+        <vbox
+          id="waterfoxBlockerFilterListsScrollContainer"
+          class="info-box-container waterfox-blocker-scroll-container"
+          flex="1"
+        >
+          <vbox id="waterfoxBlockerFilterListsCategories" flex="1" />
+        </vbox>
       </vbox>
     </vbox>
   </dialog>

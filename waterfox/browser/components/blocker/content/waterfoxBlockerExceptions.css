@@ -4,14 +4,55 @@
 
 #WaterfoxBlockerExceptionsDialog {
   width: 45em;
-  min-height: 36em;
+  min-height: 40em;
 }
 
-#WaterfoxBlockerExceptionsDialog #url {
-  flex: 1;
+#WaterfoxBlockerExceptionsDialog .contentPane {
+  gap: 10px;
 }
 
 #WaterfoxBlockerExceptionsDialog #siteCol {
   flex: 3 3 auto;
   width: 0;
+}
+
+#WaterfoxBlockerExceptionsDialog .waterfox-blocker-section-card {
+  background-color: color-mix(
+    in srgb,
+    var(--in-content-box-background) 82%,
+    transparent
+  );
+  border: 1px solid var(--in-content-box-border-color);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+#WaterfoxBlockerExceptionsDialog .waterfox-blocker-section-title {
+  font-weight: 600;
+  margin: 0;
+}
+
+#WaterfoxBlockerExceptionsDialog .waterfox-blocker-section-description {
+  margin: 4px 0 0;
+}
+
+#WaterfoxBlockerExceptionsDialog .waterfox-blocker-textarea {
+  background-color: var(--in-content-page-background);
+  border: 1px solid var(--in-content-box-border-color);
+  border-radius: 6px;
+  box-sizing: border-box;
+  font: inherit;
+  margin-block: 10px 0;
+  min-height: 5.5em;
+  padding: 10px 12px;
+  width: 100%;
+}
+
+#WaterfoxBlockerExceptionsDialog .waterfox-blocker-allowlist-textarea {
+  min-height: 7.5em;
+}
+
+#WaterfoxBlockerExceptionsDialog .waterfox-blocker-editor-toolbar {
+  gap: 8px;
+  margin-top: 10px;
 }

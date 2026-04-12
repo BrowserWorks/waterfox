@@ -17,6 +17,10 @@ const CONTRACT_ID = "@waterfox.com/waterfox-blocker-engine;1";
 const PREF_ENABLED = "waterfox.blocker.enabled";
 const PREF_ALLOW_SEARCH_PARTNER_ADS = "waterfox.blocker.allowSearchPartnerAds";
 const PREF_SITE_EXCEPTIONS = "waterfox.blocker.siteExceptions";
+const PREF_NO_COSMETIC_FILTERING_SITES =
+  "waterfox.blocker.noCosmeticFilteringSites";
+const PREF_NO_REMOTE_FONTS_SITES = "waterfox.blocker.noRemoteFontsSites";
+const PREF_NO_SCRIPTING_SITES = "waterfox.blocker.noScriptingSites";
 const PREF_FILTER_LIST_URLS = "waterfox.blocker.filterListUrls";
 const PREF_CUSTOM_RULES = "waterfox.blocker.customRules";
 const PREF_ENABLED_LISTS = "waterfox.blocker.enabledLists";
@@ -66,6 +70,7 @@ const BLOCKED_COUNT_MAP_MAX_ENTRIES = 500;
 const BLOCKED_COUNT_MAP_TRIM_TO_ENTRIES = 250;
 const TOPIC_BLOCKED_COUNT_UPDATED = "WaterfoxBlocker:BlockedCountUpdated";
 const TOPIC_BLOCKED_COUNTS_CLEARED = "WaterfoxBlocker:BlockedCountsCleared";
+const TOPIC_LOGGER_UPDATED = "WaterfoxBlocker:LoggerUpdated";
 const TOPIC_HTTP_ON_MODIFY_REQUEST = "http-on-modify-request";
 const TOPIC_HTTP_ON_EXAMINE_RESPONSE = "http-on-examine-response";
 const TOPIC_HTTP_ON_EXAMINE_CACHED_RESPONSE = "http-on-examine-cached-response";
@@ -86,6 +91,7 @@ const BUNDLED_FILTERS_BASE = "resource://waterfox/blocker/assets/filters/";
 const BLOCKED_PAGE_URL = "chrome://browser/content/blocker/blockedPage.xhtml";
 const BLOCKED_PAGE_BYPASS_TOKEN_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const BLOCKED_PAGE_BYPASS_TOKEN_MAX_ENTRIES = 250;
+const LOGGER_MAX_ENTRIES = 2000;
 
 function bytesToHex(binaryString) {
   let out = "";
@@ -194,6 +200,11 @@ export const WaterfoxBlockerService = {
   ]),
 
   _blockedCountByBrowserId: new Map(),
+  _loggerEntries: [],
+  _loggerPaused: false,
+  _noCosmeticFilteringSitesCache: null,
+  _noRemoteFontsSitesCache: null,
+  _noScriptingSitesCache: null,
   _siteExceptionsCache: null,
   _pendingDocumentBypassTokens: new Map(),
   _sessionSiteExceptions: new Set(),
@@ -565,6 +576,71 @@ export const WaterfoxBlockerService = {
     }
   },
 
+  _getNoCosmeticFilteringSites() {
+    if (this._noCosmeticFilteringSitesCache) {
+      return this._noCosmeticFilteringSitesCache;
+    }
+
+    const raw = Services.prefs.getStringPref(
+      PREF_NO_COSMETIC_FILTERING_SITES,
+      "[]"
+    );
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        this._noCosmeticFilteringSitesCache = [];
+        return this._noCosmeticFilteringSitesCache;
+      }
+      this._noCosmeticFilteringSitesCache = parsed
+        .map(toSafeDomain)
+        .filter(Boolean);
+      return this._noCosmeticFilteringSitesCache;
+    } catch (_) {
+      this._noCosmeticFilteringSitesCache = [];
+      return this._noCosmeticFilteringSitesCache;
+    }
+  },
+
+  _getNoRemoteFontsSites() {
+    if (this._noRemoteFontsSitesCache) {
+      return this._noRemoteFontsSitesCache;
+    }
+
+    const raw = Services.prefs.getStringPref(PREF_NO_REMOTE_FONTS_SITES, "[]");
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        this._noRemoteFontsSitesCache = [];
+        return this._noRemoteFontsSitesCache;
+      }
+      this._noRemoteFontsSitesCache = parsed.map(toSafeDomain).filter(Boolean);
+      return this._noRemoteFontsSitesCache;
+    } catch (_) {
+      this._noRemoteFontsSitesCache = [];
+      return this._noRemoteFontsSitesCache;
+    }
+  },
+
+  _getNoScriptingSites() {
+    if (this._noScriptingSitesCache) {
+      return this._noScriptingSitesCache;
+    }
+
+    const raw = Services.prefs.getStringPref(PREF_NO_SCRIPTING_SITES, "[]");
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        this._noScriptingSitesCache = [];
+        return this._noScriptingSitesCache;
+      }
+      this._noScriptingSitesCache = parsed.map(toSafeDomain).filter(Boolean);
+      return this._noScriptingSitesCache;
+    } catch (_) {
+      this._noScriptingSitesCache = [];
+      return this._noScriptingSitesCache;
+    }
+  },
+
   async _initEngineFromListRecords(listRecords) {
     const rules = [];
     for (const record of listRecords) {
@@ -891,6 +967,55 @@ export const WaterfoxBlockerService = {
     } catch (_) {}
   },
 
+  _notifyLoggerUpdated(browserId = 0) {
+    try {
+      Services.obs.notifyObservers(
+        {
+          wrappedJSObject: {
+            browserId: Number(browserId || 0),
+            paused: !!this._loggerPaused,
+          },
+        },
+        TOPIC_LOGGER_UPDATED
+      );
+    } catch (_) {}
+  },
+
+  _appendLoggerEntry(entry) {
+    if (this._loggerPaused || !entry || typeof entry !== "object") {
+      return;
+    }
+
+    const nextEntry = {
+      browserId: Number(entry.browserId || 0),
+      decision: String(entry.decision || "allow"),
+      docURL: String(entry.docURL || ""),
+      hostname: String(entry.hostname || ""),
+      message: String(
+        entry.message ||
+          (entry.thirdParty ? "Third-party request" : "First-party request")
+      ),
+      phase: String(entry.phase || "network"),
+      requestType: String(entry.requestType || "other"),
+      rule: String(entry.rule || ""),
+      source: String(entry.source || entry.phase || ""),
+      sourceHostname: String(entry.sourceHostname || ""),
+      thirdParty: !!entry.thirdParty,
+      timeStamp: entry.timeStamp || Date.now(),
+      url: String(entry.url || ""),
+    };
+
+    this._loggerEntries.push(nextEntry);
+    if (this._loggerEntries.length > LOGGER_MAX_ENTRIES) {
+      this._loggerEntries.splice(
+        0,
+        this._loggerEntries.length - LOGGER_MAX_ENTRIES
+      );
+    }
+
+    this._notifyLoggerUpdated(nextEntry.browserId);
+  },
+
   _buildBlockedPageUrl(url, result, browserId, hostname) {
     const params = new URLSearchParams();
     params.set("url", String(url || ""));
@@ -985,6 +1110,48 @@ export const WaterfoxBlockerService = {
     }
 
     return "";
+  },
+
+  _getPolicyHostForLoadInfo(loadInfo, fallbackHost = "") {
+    const candidates = [
+      this._getPrincipalHost(loadInfo?.loadingPrincipal),
+      this._getPrincipalHost(loadInfo?.triggeringPrincipal),
+      toSafeDomain(fallbackHost),
+    ];
+
+    for (const candidate of candidates) {
+      const normalized = toSafeDomain(candidate);
+      if (normalized) {
+        return normalized;
+      }
+    }
+
+    return "";
+  },
+
+  _getSiteSwitchBlockReason(policyHost, requestType) {
+    if (!policyHost) {
+      return "";
+    }
+
+    if (requestType === "font" && this.isRemoteFontsDisabled(policyHost)) {
+      return "no-remote-fonts";
+    }
+
+    if (requestType === "script" && this.isScriptingDisabled(policyHost)) {
+      return "no-scripting";
+    }
+
+    return "";
+  },
+
+  _getSiteSwitchCspDirectives(hostname) {
+    const policyHost = toSafeDomain(hostname);
+    if (!policyHost || !this.isScriptingDisabled(policyHost)) {
+      return "";
+    }
+
+    return "script-src 'none'";
   },
 
   _hasTemporarySiteException(domain) {
@@ -1102,6 +1269,8 @@ export const WaterfoxBlockerService = {
     sourceHostname,
     hostname
   ) {
+    const browserId = loadInfo.browsingContext?.top?.browserId || 0;
+
     if (this._consumeDocumentBypassToken(loadInfo, url, hostname)) {
       return;
     }
@@ -1125,10 +1294,34 @@ export const WaterfoxBlockerService = {
       this._isThirdPartyChannel(channel)
     );
     if (!result.matched || result.exception) {
+      this._appendLoggerEntry({
+        browserId,
+        decision: "allow",
+        docURL: url,
+        hostname,
+        phase: "network",
+        requestType: "document",
+        rule: this._extractMatchedRule(result),
+        sourceHostname,
+        thirdParty: this._isThirdPartyChannel(channel),
+        url,
+      });
       return;
     }
 
-    const browserId = loadInfo.browsingContext?.top?.browserId;
+    this._appendLoggerEntry({
+      browserId,
+      decision: "redirect",
+      docURL: url,
+      hostname,
+      phase: "network",
+      requestType: "document",
+      rule: this._extractMatchedRule(result),
+      sourceHostname,
+      thirdParty: this._isThirdPartyChannel(channel),
+      url,
+    });
+
     try {
       const blockedPageUrl = this._buildBlockedPageUrl(
         url,
@@ -1211,13 +1404,58 @@ export const WaterfoxBlockerService = {
       return;
     }
 
+    const sourceHostname = this._getPrincipalHost(loadInfo.loadingPrincipal);
+    const thirdParty = this._isThirdPartyChannel(channel);
+    const browserId = loadInfo.browsingContext?.top?.browserId || 0;
+    const policyHost = this._getPolicyHostForLoadInfo(loadInfo, sourceHostname);
+    const siteSwitchReason = this._getSiteSwitchBlockReason(
+      policyHost,
+      requestType
+    );
+
+    if (siteSwitchReason) {
+      this._appendLoggerEntry({
+        browserId,
+        decision: "block",
+        docURL: "",
+        hostname,
+        phase: "network",
+        requestType,
+        rule: siteSwitchReason,
+        sourceHostname,
+        thirdParty,
+        url,
+      });
+
+      channel.cancel(Cr.NS_ERROR_ABORT);
+      try {
+        if (browserId) {
+          this.incrementBlockedCount(browserId);
+        }
+      } catch (_) {}
+      return;
+    }
+
     const result = this.checkRequest(
       url,
-      this._getPrincipalHost(loadInfo.loadingPrincipal),
+      sourceHostname,
       hostname,
       requestType,
-      this._isThirdPartyChannel(channel)
+      thirdParty
     );
+
+    this._appendLoggerEntry({
+      browserId,
+      decision: result.matched && !result.exception ? "block" : "allow",
+      docURL: "",
+      hostname,
+      phase: "network",
+      requestType,
+      rule: this._extractMatchedRule(result),
+      sourceHostname,
+      thirdParty,
+      url,
+    });
 
     if (result.matched && !result.exception) {
       if (result.redirect) {
@@ -1227,7 +1465,6 @@ export const WaterfoxBlockerService = {
       channel.cancel(Cr.NS_ERROR_ABORT);
 
       try {
-        const browserId = loadInfo.browsingContext?.top?.browserId;
         if (browserId) {
           this.incrementBlockedCount(browserId);
         }
@@ -1293,19 +1530,36 @@ export const WaterfoxBlockerService = {
       return;
     }
 
-    const directives = this.getCspDirectives(
+    const engineDirectives = this.getCspDirectives(
       url,
       this._getPrincipalHost(loadInfo.loadingPrincipal),
       hostname,
       requestType,
       this._isThirdPartyChannel(channel)
     );
+    const switchDirectives = this._getSiteSwitchCspDirectives(hostname);
+    const directives = [engineDirectives, switchDirectives]
+      .filter(Boolean)
+      .join("; ");
+
     if (!directives) {
       return;
     }
 
     try {
       channel.setResponseHeader("Content-Security-Policy", directives, true);
+      this._appendLoggerEntry({
+        browserId: loadInfo.browsingContext?.top?.browserId || 0,
+        decision: "csp",
+        docURL: url,
+        hostname,
+        phase: "response",
+        requestType,
+        rule: switchDirectives || engineDirectives,
+        sourceHostname: this._getPrincipalHost(loadInfo.loadingPrincipal),
+        thirdParty: this._isThirdPartyChannel(channel),
+        url,
+      });
     } catch (err) {
       console.error("[WaterfoxBlocker] Failed to apply CSP directives:", err);
     }
@@ -1441,6 +1695,33 @@ export const WaterfoxBlockerService = {
     this._siteExceptionsCache = null;
     const deduped = [...new Set(exceptions.map(toSafeDomain).filter(Boolean))];
     Services.prefs.setStringPref(PREF_SITE_EXCEPTIONS, JSON.stringify(deduped));
+  },
+
+  _setNoCosmeticFilteringSites(domains) {
+    this._noCosmeticFilteringSitesCache = null;
+    const deduped = [...new Set(domains.map(toSafeDomain).filter(Boolean))];
+    Services.prefs.setStringPref(
+      PREF_NO_COSMETIC_FILTERING_SITES,
+      JSON.stringify(deduped)
+    );
+  },
+
+  _setNoRemoteFontsSites(domains) {
+    this._noRemoteFontsSitesCache = null;
+    const deduped = [...new Set(domains.map(toSafeDomain).filter(Boolean))];
+    Services.prefs.setStringPref(
+      PREF_NO_REMOTE_FONTS_SITES,
+      JSON.stringify(deduped)
+    );
+  },
+
+  _setNoScriptingSites(domains) {
+    this._noScriptingSitesCache = null;
+    const deduped = [...new Set(domains.map(toSafeDomain).filter(Boolean))];
+    Services.prefs.setStringPref(
+      PREF_NO_SCRIPTING_SITES,
+      JSON.stringify(deduped)
+    );
   },
 
   _startPeriodicListUpdates() {
@@ -1762,6 +2043,40 @@ export const WaterfoxBlockerService = {
     return this._blockedCountByBrowserId.get(browserId) || 0;
   },
 
+  getLoggerEntries(browserId = 0, limit = LOGGER_MAX_ENTRIES) {
+    const activeBrowserId = Number(browserId || 0);
+    const maxEntries = Math.max(
+      1,
+      Math.min(Number(limit || LOGGER_MAX_ENTRIES), LOGGER_MAX_ENTRIES)
+    );
+    const entries =
+      activeBrowserId > 0
+        ? this._loggerEntries.filter(
+            entry => entry.browserId === activeBrowserId
+          )
+        : this._loggerEntries;
+
+    return entries.slice(-maxEntries);
+  },
+
+  clearLoggerEntries() {
+    if (!this._loggerEntries.length) {
+      return;
+    }
+
+    this._loggerEntries = [];
+    this._notifyLoggerUpdated(0);
+  },
+
+  isLoggerPaused() {
+    return !!this._loggerPaused;
+  },
+
+  setLoggerPaused(paused) {
+    this._loggerPaused = !!paused;
+    this._notifyLoggerUpdated(0);
+  },
+
   /**
    * Resets and publishes blocked count for a browser id.
    *
@@ -1997,6 +2312,39 @@ export const WaterfoxBlockerService = {
     );
   },
 
+  isCosmeticFilteringDisabled(domain) {
+    const normalized = toSafeDomain(domain);
+    if (!normalized) {
+      return false;
+    }
+
+    return this._getNoCosmeticFilteringSites().some(
+      ex => normalized === ex || normalized.endsWith(`.${ex}`)
+    );
+  },
+
+  isRemoteFontsDisabled(domain) {
+    const normalized = toSafeDomain(domain);
+    if (!normalized) {
+      return false;
+    }
+
+    return this._getNoRemoteFontsSites().some(
+      ex => normalized === ex || normalized.endsWith(`.${ex}`)
+    );
+  },
+
+  isScriptingDisabled(domain) {
+    const normalized = toSafeDomain(domain);
+    if (!normalized) {
+      return false;
+    }
+
+    return this._getNoScriptingSites().some(
+      ex => normalized === ex || normalized.endsWith(`.${ex}`)
+    );
+  },
+
   /**
    * Observer entry point for network and preference events.
    *
@@ -2083,6 +2431,18 @@ export const WaterfoxBlockerService = {
         this._siteExceptionsCache = null;
         break;
 
+      case PREF_NO_COSMETIC_FILTERING_SITES:
+        this._noCosmeticFilteringSitesCache = null;
+        break;
+
+      case PREF_NO_REMOTE_FONTS_SITES:
+        this._noRemoteFontsSitesCache = null;
+        break;
+
+      case PREF_NO_SCRIPTING_SITES:
+        this._noScriptingSitesCache = null;
+        break;
+
       default:
         break;
     }
@@ -2101,6 +2461,81 @@ export const WaterfoxBlockerService = {
 
     const exceptions = this._getSiteExceptions().filter(d => d !== normalized);
     this._setSiteExceptions(exceptions);
+  },
+
+  addNoCosmeticFilteringSite(domain) {
+    const normalized = toSafeDomain(domain);
+    if (!normalized) {
+      return;
+    }
+
+    const domains = this._getNoCosmeticFilteringSites();
+    if (!domains.includes(normalized)) {
+      domains.push(normalized);
+      this._setNoCosmeticFilteringSites(domains);
+    }
+  },
+
+  addNoRemoteFontsSite(domain) {
+    const normalized = toSafeDomain(domain);
+    if (!normalized) {
+      return;
+    }
+
+    const domains = this._getNoRemoteFontsSites();
+    if (!domains.includes(normalized)) {
+      domains.push(normalized);
+      this._setNoRemoteFontsSites(domains);
+    }
+  },
+
+  addNoScriptingSite(domain) {
+    const normalized = toSafeDomain(domain);
+    if (!normalized) {
+      return;
+    }
+
+    const domains = this._getNoScriptingSites();
+    if (!domains.includes(normalized)) {
+      domains.push(normalized);
+      this._setNoScriptingSites(domains);
+    }
+  },
+
+  removeNoCosmeticFilteringSite(domain) {
+    const normalized = toSafeDomain(domain);
+    if (!normalized) {
+      return;
+    }
+
+    const domains = this._getNoCosmeticFilteringSites().filter(
+      entry => entry !== normalized
+    );
+    this._setNoCosmeticFilteringSites(domains);
+  },
+
+  removeNoRemoteFontsSite(domain) {
+    const normalized = toSafeDomain(domain);
+    if (!normalized) {
+      return;
+    }
+
+    const domains = this._getNoRemoteFontsSites().filter(
+      entry => entry !== normalized
+    );
+    this._setNoRemoteFontsSites(domains);
+  },
+
+  removeNoScriptingSite(domain) {
+    const normalized = toSafeDomain(domain);
+    if (!normalized) {
+      return;
+    }
+
+    const domains = this._getNoScriptingSites().filter(
+      entry => entry !== normalized
+    );
+    this._setNoScriptingSites(domains);
   },
 
   /**
@@ -2204,19 +2639,73 @@ export const WaterfoxBlockerService = {
       hostname = contentLocation.host || "";
     } catch (_) {}
 
+    const sourceHostname = this._getPrincipalHost(loadInfo.loadingPrincipal);
+    const thirdParty = this._isThirdPartyLoadInfo(loadInfo);
+    const browserId = loadInfo.browsingContext?.top?.browserId || 0;
+    const policyHost = this._getPolicyHostForLoadInfo(loadInfo, sourceHostname);
+    const siteSwitchReason = this._getSiteSwitchBlockReason(
+      policyHost,
+      requestType
+    );
+
+    if (siteSwitchReason) {
+      this._appendLoggerEntry({
+        browserId,
+        decision: "block",
+        docURL: "",
+        hostname,
+        phase: "content-policy",
+        requestType,
+        rule: siteSwitchReason,
+        sourceHostname,
+        thirdParty,
+        url,
+      });
+      try {
+        if (browserId) {
+          this.incrementBlockedCount(browserId);
+        }
+      } catch (_) {}
+      return REJECT_TYPE;
+    }
+
     const result = this.checkRequest(
       url,
-      this._getPrincipalHost(loadInfo.loadingPrincipal),
+      sourceHostname,
       hostname,
       requestType,
-      this._isThirdPartyLoadInfo(loadInfo)
+      thirdParty
     );
     if (!result.matched || result.exception) {
+      this._appendLoggerEntry({
+        browserId,
+        decision: "allow",
+        docURL: "",
+        hostname,
+        phase: "content-policy",
+        requestType,
+        rule: this._extractMatchedRule(result),
+        sourceHostname,
+        thirdParty,
+        url,
+      });
       return ACCEPT;
     }
 
+    this._appendLoggerEntry({
+      browserId,
+      decision: "block",
+      docURL: "",
+      hostname,
+      phase: "content-policy",
+      requestType,
+      rule: this._extractMatchedRule(result),
+      sourceHostname,
+      thirdParty,
+      url,
+    });
+
     try {
-      const browserId = loadInfo.browsingContext?.top?.browserId;
       if (browserId) {
         this.incrementBlockedCount(browserId);
       }
@@ -2243,8 +2732,13 @@ export const WaterfoxBlockerService = {
     this._unregisterNetworkObservers();
     this._stopPeriodicListUpdates();
     this._clearBlockedCounts();
+    this._loggerEntries = [];
+    this._loggerPaused = false;
     this._pendingDocumentBypassTokens.clear();
     this._sessionSiteExceptions.clear();
+    this._noCosmeticFilteringSitesCache = null;
+    this._noRemoteFontsSitesCache = null;
+    this._noScriptingSitesCache = null;
     this._siteExceptionsCache = null;
     this._engine = null;
     this._engineInitialising = false;

@@ -5,6 +5,9 @@
 const { AppConstants } = ChromeUtils.importESModule(
   "resource://gre/modules/AppConstants.sys.mjs"
 );
+const { IOUtils } = ChromeUtils.importESModule(
+  "resource://gre/modules/IOUtils.sys.mjs"
+);
 
 const PREF_BLOCKER_EXCEPTIONS = "waterfox.blocker.siteExceptions";
 
@@ -22,6 +25,76 @@ function normalizeDomain(input) {
     domain = domain.slice(0, -1);
   }
   return domain;
+}
+
+function normalizeExceptionCandidates(text) {
+  const valid = [];
+  const invalid = [];
+  const seen = new Set();
+
+  for (const rawCandidate of String(text || "").split(/[\r\n,]+/)) {
+    const candidate = rawCandidate.trim();
+    if (!candidate) {
+      continue;
+    }
+
+    let normalized = "";
+    try {
+      const url =
+        candidate.startsWith("http://") || candidate.startsWith("https://")
+          ? new URL(candidate)
+          : new URL(`http://${candidate}`);
+      normalized = normalizeDomain(url.hostname);
+    } catch (_) {
+      normalized = "";
+    }
+
+    if (!normalized) {
+      invalid.push(candidate);
+      continue;
+    }
+
+    if (seen.has(normalized)) {
+      continue;
+    }
+
+    seen.add(normalized);
+    valid.push(normalized);
+  }
+
+  return { invalid, valid };
+}
+
+function makeFilePicker() {
+  return Cc["@mozilla.org/filepicker;1"].createInstance(Ci.nsIFilePicker);
+}
+
+async function pickTextFile(mode, title, defaultString) {
+  const picker = makeFilePicker();
+  picker.init(window.browsingContext, title, mode);
+  picker.appendFilters(Ci.nsIFilePicker.filterText);
+  picker.appendFilters(Ci.nsIFilePicker.filterAll);
+  if (defaultString) {
+    picker.defaultString = defaultString;
+  }
+
+  const result = await new Promise(resolve => picker.open(resolve));
+  if (
+    result !== Ci.nsIFilePicker.returnOK &&
+    result !== Ci.nsIFilePicker.returnReplace
+  ) {
+    return null;
+  }
+
+  return picker.file;
+}
+
+async function readTextFile(file) {
+  return IOUtils.readUTF8(file.path);
+}
+
+async function writeTextFile(file, contents) {
+  await IOUtils.writeUTF8(file.path, contents, { overwrite: true });
 }
 
 /**
@@ -82,6 +155,10 @@ var gWaterfoxBlockerExceptionsManager = {
     }
   },
   _prefLocked: false,
+  _refreshActionState() {
+    this.onExceptionInput();
+    this._setRemoveButtonState();
+  },
 
   _removeExceptionFromList(exception) {
     this._exceptions.delete(exception);
@@ -163,8 +240,9 @@ var gWaterfoxBlockerExceptionsManager = {
   /**
    * Adds a new exception from the URL input field.
    *
-   * The input is normalised to a hostname and added to the in-memory set.
-   * Invalid values show the standard invalid URI prompt.
+   * The input may contain one or more hostnames or URLs, one per line.
+   * Valid hostnames are added to the in-memory set and invalid entries are
+   * kept in the field so they can be corrected.
    */
   addException() {
     if (this._prefLocked) {
@@ -172,43 +250,39 @@ var gWaterfoxBlockerExceptionsManager = {
     }
 
     const textbox = document.getElementById("url");
-    let inputValue = textbox.value.trim(); // trim any leading and trailing space
-    if (!inputValue.startsWith("http:") && !inputValue.startsWith("https:")) {
-      inputValue = `http://${inputValue}`;
-    }
+    const { invalid, valid } = normalizeExceptionCandidates(textbox.value);
 
-    let domain = "";
-    try {
-      const uri = Services.io.newURI(inputValue);
-      domain = normalizeDomain(uri.host);
-      if (!domain) {
-        throw new Error("Invalid host");
-      }
-    } catch (_) {
-      document.l10n
-        .formatValues([
-          { id: "permissions-invalid-uri-title" },
-          { id: "permissions-invalid-uri-label" },
-        ])
-        .then(([title, message]) => {
-          Services.prompt.alert(window, title, message);
-        });
+    if (!valid.length && invalid.length) {
+      this._showInvalidEntriesAlert(invalid);
       return;
     }
 
-    if (!this._exceptions.has(domain)) {
-      this._exceptions.add(domain);
+    let addedCount = 0;
+    for (const domain of valid) {
+      if (!this._exceptions.has(domain)) {
+        this._exceptions.add(domain);
+        addedCount++;
+      }
+    }
+
+    if (addedCount > 0) {
       this.buildExceptionList();
     }
 
-    textbox.value = "";
+    if (invalid.length) {
+      // The text field keeps only the invalid entries so the user can fix
+      // them without retyping any valid allowlist values.
+      textbox.value = invalid.join("\n");
+      this._showInvalidEntriesAlert(invalid);
+      textbox.select();
+      textbox.focus();
+    } else {
+      textbox.value = "";
+    }
+
     textbox.focus();
 
-    // covers a case where the site exists already, so the buttons don't disable
-    this.onExceptionInput();
-
-    // enable "remove all" button as needed
-    this._setRemoveButtonState();
+    this._refreshActionState();
   },
 
   /**
@@ -253,6 +327,12 @@ var gWaterfoxBlockerExceptionsManager = {
       case "btnAddException":
         this.addException();
         break;
+      case "importExceptions":
+        this.importExceptions();
+        break;
+      case "exportExceptions":
+        this.exportExceptions();
+        break;
       case "removeException":
         this.onExceptionDelete();
         break;
@@ -269,6 +349,8 @@ var gWaterfoxBlockerExceptionsManager = {
     document.addEventListener("dialogaccept", () => this.onApplyChanges());
 
     this._btnAddException = document.getElementById("btnAddException");
+    this._importButton = document.getElementById("importExceptions");
+    this._exportButton = document.getElementById("exportExceptions");
     this._removeButton = document.getElementById("removeException");
     this._removeAllButton = document.getElementById("removeAllExceptions");
 
@@ -280,7 +362,7 @@ var gWaterfoxBlockerExceptionsManager = {
 
     this._urlField = document.getElementById("url");
     this._urlField.addEventListener("input", () => this.onExceptionInput());
-    this._urlField.addEventListener("keypress", event =>
+    this._urlField.addEventListener("keydown", event =>
       this.onExceptionKeyPress(event)
     );
 
@@ -303,9 +385,9 @@ var gWaterfoxBlockerExceptionsManager = {
     document.getElementById("exceptionDialog").getButton("accept").disabled =
       this._prefLocked;
     this._urlField.disabled = this._prefLocked;
+    this._importButton.disabled = this._prefLocked;
 
-    this.onExceptionInput();
-    this._setRemoveButtonState();
+    this._refreshActionState();
   },
 
   onAllExceptionsDelete() {
@@ -334,6 +416,10 @@ var gWaterfoxBlockerExceptionsManager = {
 
   onExceptionDelete() {
     const richlistitem = this._list.selectedItem;
+    if (!richlistitem) {
+      return;
+    }
+
     const exception = richlistitem.getAttribute("domain");
 
     this._removeExceptionFromList(exception);
@@ -342,18 +428,136 @@ var gWaterfoxBlockerExceptionsManager = {
   },
 
   onExceptionInput() {
-    this._btnAddException.disabled = this._prefLocked || !this._urlField.value;
+    this._btnAddException.disabled =
+      this._prefLocked || !this._urlField.value.trim();
+  },
+
+  _showInvalidEntriesAlert(invalid) {
+    const preview = invalid.slice(0, 5).join("\n");
+    document.l10n
+      .formatValues([
+        { id: "waterfox-blocker-exceptions-invalid-title" },
+        {
+          id: "waterfox-blocker-exceptions-invalid-message",
+          args: {
+            count: invalid.length,
+            entries: preview,
+          },
+        },
+      ])
+      .then(([title, message]) => {
+        Services.prompt.alert(window, title, message);
+      });
+  },
+
+  async importExceptions() {
+    if (this._prefLocked) {
+      return;
+    }
+
+    const [
+      importTitle,
+      importErrorTitle,
+      importErrorMessage,
+      importSummaryTitle,
+      importSummaryMessage,
+    ] = await document.l10n.formatValues([
+      { id: "waterfox-blocker-exceptions-import-title" },
+      { id: "waterfox-blocker-exceptions-import-error-title" },
+      { id: "waterfox-blocker-exceptions-import-error-message" },
+      { id: "waterfox-blocker-exceptions-import-summary-title" },
+      { id: "waterfox-blocker-exceptions-import-summary-message" },
+    ]);
+
+    const picker = await pickTextFile(
+      Ci.nsIFilePicker.modeOpen,
+      importTitle,
+      "waterfox-allowlist.txt"
+    );
+    if (!picker) {
+      return;
+    }
+
+    let text = "";
+    try {
+      text = await readTextFile(picker);
+    } catch (err) {
+      console.error("[WaterfoxBlocker] Failed to import allowlist:", err);
+      Services.prompt.alert(window, importErrorTitle, importErrorMessage);
+      return;
+    }
+
+    const { invalid, valid } = normalizeExceptionCandidates(text);
+    let addedCount = 0;
+    for (const domain of valid) {
+      if (!this._exceptions.has(domain)) {
+        this._exceptions.add(domain);
+        addedCount++;
+      }
+    }
+
+    if (addedCount > 0) {
+      this.buildExceptionList();
+    }
+
+    this._refreshActionState();
+
+    if (invalid.length) {
+      this._showInvalidEntriesAlert(invalid);
+      return;
+    }
+
+    Services.prompt.alert(window, importSummaryTitle, importSummaryMessage);
+  },
+
+  async exportExceptions() {
+    const [
+      exportTitle,
+      exportErrorTitle,
+      exportErrorMessage,
+      exportSummaryTitle,
+      exportSummaryMessage,
+    ] = await document.l10n.formatValues([
+      { id: "waterfox-blocker-exceptions-export-title" },
+      { id: "waterfox-blocker-exceptions-export-error-title" },
+      { id: "waterfox-blocker-exceptions-export-error-message" },
+      { id: "waterfox-blocker-exceptions-export-summary-title" },
+      { id: "waterfox-blocker-exceptions-export-summary-message" },
+    ]);
+
+    const file = await pickTextFile(
+      Ci.nsIFilePicker.modeSave,
+      exportTitle,
+      "waterfox-allowlist.txt"
+    );
+    if (!file) {
+      return;
+    }
+
+    const contents = Array.from(this._exceptions.values())
+      .sort((a, b) => a.localeCompare(b))
+      .join("\n");
+
+    try {
+      await writeTextFile(file, contents ? `${contents}\n` : "");
+    } catch (err) {
+      console.error("[WaterfoxBlocker] Failed to export allowlist:", err);
+      Services.prompt.alert(window, exportErrorTitle, exportErrorMessage);
+      return;
+    }
+
+    Services.prompt.alert(window, exportSummaryTitle, exportSummaryMessage);
   },
 
   /**
    * Handles keyboard interaction for the exception input field.
    *
-   * Pressing Enter adds the current exception when possible.
+   * Pressing Ctrl/Cmd+Enter adds the current entries when possible.
    *
    * @param {KeyboardEvent} event Keypress event from the input field.
    */
   onExceptionKeyPress(event) {
-    if (event.keyCode === KeyEvent.DOM_VK_RETURN) {
+    if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
       this._btnAddException.click();
       if (document.activeElement === this._urlField) {
         event.preventDefault();
