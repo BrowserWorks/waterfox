@@ -39,6 +39,7 @@ jobs:
 
       - name: 🌐 Clone l10n locales
         run: |
+          rm -rf browser/locales
           git clone https://github.com/subham8907/l10n.git browser/locales
 
       - name: 📣 Show runner details
