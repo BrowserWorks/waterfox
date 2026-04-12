@@ -41,7 +41,13 @@ jobs:
       - name: 📤 Checkout
         uses: actions/checkout@v6
         with:
-          submodules: recursive
+          submodules: false
+
+      - name: 🔁 Sync submodules
+        run: |
+          git config -f .gitmodules submodule.waterfox/browser/locales.url https://github.com/subham8907/l10n.git
+          git submodule sync --recursive
+          git submodule update --init --recursive
 
       - name: 📣 Show runner details
         run: |
