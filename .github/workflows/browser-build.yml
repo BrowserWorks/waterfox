@@ -39,27 +39,29 @@ jobs:
 
       - name: 🌐 Clone l10n locales
         run: |
-          rm -rf browser/locales
-          git clone https://github.com/subham8907/l10n.git browser/locales
+          git clone https://github.com/subham8907/l10n.git /tmp/l10n
+          cp -r /tmp/l10n/. browser/locales/
 
       - name: 📣 Show runner details
         run: |
           uname -a
           df -h
+
       - name: 💿 Bootstrap build environment
         run: |
           rustup override set 1.90.0
           mkdir -p "$HOME/.mozbuild"
-          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.macosx64-aarch64-clang-20.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
-          zstd -d clang.tar.zst
-          tar -xf clang.tar -C "$HOME/.mozbuild"
           ./mach --no-interactive bootstrap --application-choice=browser --no-system-changes
+
       - name: 🏗 Build
         run: ./mach build
+
       - name: 📦 Package
         run: ./mach package
+
       - name: 📣 List package outputs
         run: find obj-Darwin-arm64/dist -maxdepth 2 -print
+
       - name: ↑ Upload macOS ARM64 package
         uses: actions/upload-artifact@v7
         with:
