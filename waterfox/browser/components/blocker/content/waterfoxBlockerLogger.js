@@ -11,11 +11,17 @@ const DEFAULT_EXPORT_FILENAME = "waterfox-blocker-logger.json";
 
 const FALLBACK_L10N = Object.freeze({
   "waterfox-blocker-logger-clear": "Clear",
+  "waterfox-blocker-logger-column-action": "Action",
+  "waterfox-blocker-logger-column-rule": "Rule",
+  "waterfox-blocker-logger-column-source": "Source",
+  "waterfox-blocker-logger-column-time": "Time",
+  "waterfox-blocker-logger-column-type": "Type",
+  "waterfox-blocker-logger-column-url": "URL",
   "waterfox-blocker-logger-current-tab-only": "Current tab only",
   "waterfox-blocker-logger-details-empty": "Select an entry to inspect it.",
   "waterfox-blocker-logger-empty": "No blocker log entries yet.",
   "waterfox-blocker-logger-empty-filtered":
-    "No entries match the current tab filter.",
+    "No entries match the current tab or row filter.",
   "waterfox-blocker-logger-export": "Export…",
   "waterfox-blocker-logger-export-done-message":
     "The visible blocker log entries were saved.",
@@ -24,6 +30,7 @@ const FALLBACK_L10N = Object.freeze({
     "The blocker log could not be written.",
   "waterfox-blocker-logger-export-error-title": "Export failed",
   "waterfox-blocker-logger-export-title": "Export Blocker Log",
+  "waterfox-blocker-logger-filter": "Filter logger rows",
   "waterfox-blocker-logger-field-action": "Action",
   "waterfox-blocker-logger-field-document-url": "Document URL",
   "waterfox-blocker-logger-field-message": "Message",
@@ -307,8 +314,10 @@ function createDetailRow(labelL10nId, valueText) {
 var gWaterfoxBlockerLogger = {
   _allEntries: [],
   _currentBrowserId: 0,
+  _currentFilterText: "",
   _detailsRows: null,
   _exportButton: null,
+  _filterInput: null,
   _list: null,
   _pauseButton: null,
   _paused: false,
@@ -327,6 +336,7 @@ var gWaterfoxBlockerLogger = {
     this._stateLabel = document.getElementById("waterfoxBlockerLoggerState");
     this._pauseButton = document.getElementById("waterfoxBlockerLoggerPause");
     this._exportButton = document.getElementById("waterfoxBlockerLoggerExport");
+    this._filterInput = document.getElementById("waterfoxBlockerLoggerFilter");
     this._currentTabOnlyCheckbox = document.getElementById(
       "waterfoxBlockerLoggerCurrentTabOnly"
     );
@@ -338,6 +348,15 @@ var gWaterfoxBlockerLogger = {
       .addEventListener("command", () => this.clearEntries());
     this._currentTabOnlyCheckbox.addEventListener("command", () => {
       this.setCurrentTabOnly(!!this._currentTabOnlyCheckbox.checked);
+    });
+    this._filterInput.addEventListener("input", () => {
+      this.setFilterText(this._filterInput.value);
+    });
+    this._filterInput.addEventListener("keydown", event => {
+      if (event.key === "Escape" && this._filterInput.value) {
+        this.setFilterText("");
+        event.preventDefault();
+      }
     });
     this._list.addEventListener("select", () => this._onSelectEntry());
 
@@ -355,6 +374,7 @@ var gWaterfoxBlockerLogger = {
       setCurrentBrowserId: browserId => this.setCurrentBrowserId(browserId),
       setCurrentTabOnly: enabled => this.setCurrentTabOnly(enabled),
       setEntries: entries => this.setEntries(entries),
+      setFilterText: text => this.setFilterText(text),
       setPaused: paused => this.setPaused(paused),
       togglePause: () => this.togglePause(),
     };
@@ -381,6 +401,8 @@ var gWaterfoxBlockerLogger = {
     } else {
       this._currentTabOnlyCheckbox.checked = true;
     }
+    this._currentFilterText = String(state.filterText || "").trim();
+    this._filterInput.value = this._currentFilterText;
 
     let initialEntries = [];
     if (Array.isArray(state.entries)) {
@@ -406,17 +428,41 @@ var gWaterfoxBlockerLogger = {
   },
 
   _getVisibleEntries() {
-    if (!this._currentTabOnlyCheckbox?.checked) {
-      return [...this._allEntries];
+    let entries = this._allEntries;
+
+    if (this._currentTabOnlyCheckbox?.checked && this._currentBrowserId) {
+      entries = entries.filter(
+        entry => !entry.browserId || entry.browserId === this._currentBrowserId
+      );
     }
 
-    if (!this._currentBrowserId) {
-      return [...this._allEntries];
+    const query = this._currentFilterText.trim().toLowerCase();
+    if (!query) {
+      return [...entries];
     }
 
-    return this._allEntries.filter(
-      entry => !entry.browserId || entry.browserId === this._currentBrowserId
+    const terms = query.split(/\s+/).filter(Boolean);
+    return entries.filter(entry =>
+      terms.every(term => this._getEntrySearchText(entry).includes(term))
     );
+  },
+
+  _getEntrySearchText(entry) {
+    return [
+      formatTimestamp(entry.timestamp),
+      formatAction(entry.decision),
+      formatEntryScope(entry, this._currentBrowserId),
+      entry.type,
+      entry.source,
+      entry.rule,
+      entry.message,
+      entry.documentUrl,
+      entry.url,
+      entry.browserId,
+    ]
+      .filter(value => value !== undefined && value !== null)
+      .join(" ")
+      .toLowerCase();
   },
 
   _getSelectedEntry() {
@@ -484,7 +530,7 @@ var gWaterfoxBlockerLogger = {
       });
       setLabelL10nAttributes(
         label,
-        this._currentTabOnlyCheckbox.checked
+        this._currentTabOnlyCheckbox.checked || this._currentFilterText
           ? "waterfox-blocker-logger-empty-filtered"
           : "waterfox-blocker-logger-empty"
       );
@@ -533,25 +579,22 @@ var gWaterfoxBlockerLogger = {
       browserid: entry.browserId || 0,
     });
 
-    const content = createXULElement("vbox", {
-      class: "waterfox-blocker-logger-item-content",
-      flex: "1",
-    });
-
-    const topline = createXULElement("hbox", {
-      class: "waterfox-blocker-logger-item-topline",
+    const row = createXULElement("hbox", {
+      class: "waterfox-blocker-logger-row",
       align: "center",
     });
 
     const timeLabel = createXULElement("label", {
-      class: "waterfox-blocker-logger-item-time text-deemphasized",
+      class:
+        "waterfox-blocker-logger-cell waterfox-blocker-logger-cell-time text-deemphasized",
+      crop: "end",
     });
     timeLabel.setAttribute("value", formatTimestamp(entry.timestamp));
 
-    const spacer = createXULElement("spacer", { flex: "1" });
-
     const action = createXULElement("label", {
-      class: "waterfox-blocker-logger-action-pill",
+      class:
+        "waterfox-blocker-logger-cell waterfox-blocker-logger-cell-action waterfox-blocker-logger-action-pill",
+      crop: "end",
     });
     action.setAttribute(
       "data-action",
@@ -559,61 +602,44 @@ var gWaterfoxBlockerLogger = {
     );
     action.setAttribute("value", formatAction(entry.decision));
 
-    topline.appendChild(timeLabel);
-    topline.appendChild(spacer);
-    topline.appendChild(action);
+    const typeLabel = createXULElement("label", {
+      class:
+        "waterfox-blocker-logger-cell waterfox-blocker-logger-cell-type text-deemphasized",
+      crop: "end",
+    });
+    typeLabel.setAttribute("value", entry.type || "—");
+
+    const sourceLabel = createXULElement("label", {
+      class:
+        "waterfox-blocker-logger-cell waterfox-blocker-logger-cell-source text-deemphasized",
+      crop: "end",
+    });
+    sourceLabel.setAttribute(
+      "value",
+      formatEntryScope(entry, this._currentBrowserId) || entry.source || "—"
+    );
+
+    const ruleLabel = createXULElement("label", {
+      class:
+        "waterfox-blocker-logger-cell waterfox-blocker-logger-cell-rule text-deemphasized",
+      crop: "end",
+    });
+    ruleLabel.setAttribute("value", entry.rule || entry.source || "—");
 
     const urlLabel = createXULElement("label", {
-      class: "waterfox-blocker-logger-url",
+      class:
+        "waterfox-blocker-logger-cell waterfox-blocker-logger-cell-url waterfox-blocker-logger-url",
       crop: "end",
-      flex: "1",
     });
     urlLabel.setAttribute("value", entry.url || entry.title || "—");
 
-    const meta = createXULElement("hbox", {
-      class: "waterfox-blocker-logger-meta",
-      align: "center",
-    });
-
-    const scope = formatEntryScope(entry, this._currentBrowserId);
-    if (scope) {
-      const scopeLabel = createXULElement("label", {
-        class: "text-deemphasized",
-      });
-      scopeLabel.setAttribute("value", scope);
-      meta.appendChild(scopeLabel);
-    }
-
-    if (entry.type) {
-      const typeLabel = createXULElement("label", {
-        class: "text-deemphasized",
-      });
-      typeLabel.setAttribute("value", entry.type);
-      meta.appendChild(typeLabel);
-    }
-
-    if (entry.rule) {
-      const ruleLabel = createXULElement("label", {
-        class: "text-deemphasized",
-        crop: "end",
-        flex: "1",
-      });
-      ruleLabel.setAttribute("value", entry.rule);
-      meta.appendChild(ruleLabel);
-    } else if (entry.source) {
-      const sourceLabel = createXULElement("label", {
-        class: "text-deemphasized",
-        crop: "end",
-        flex: "1",
-      });
-      sourceLabel.setAttribute("value", entry.source);
-      meta.appendChild(sourceLabel);
-    }
-
-    content.appendChild(topline);
-    content.appendChild(urlLabel);
-    content.appendChild(meta);
-    item.appendChild(content);
+    row.appendChild(timeLabel);
+    row.appendChild(action);
+    row.appendChild(typeLabel);
+    row.appendChild(sourceLabel);
+    row.appendChild(ruleLabel);
+    row.appendChild(urlLabel);
+    item.appendChild(row);
     return item;
   },
 
@@ -745,6 +771,7 @@ var gWaterfoxBlockerLogger = {
       currentBrowserId: this._currentBrowserId,
       currentTabOnly: !!this._currentTabOnlyCheckbox?.checked,
       entries: [...this._allEntries],
+      filterText: this._currentFilterText,
       paused: this._paused,
       pausedQueueLength: this._pausedQueue.length,
       selectedEntryId: this._selectedEntryId,
@@ -759,6 +786,15 @@ var gWaterfoxBlockerLogger = {
 
   setCurrentTabOnly(enabled) {
     this._currentTabOnlyCheckbox.checked = !!enabled;
+    this._render();
+  },
+
+  setFilterText(text) {
+    this._currentFilterText = String(text || "").trim();
+    if (this._filterInput.value !== this._currentFilterText) {
+      this._filterInput.value = this._currentFilterText;
+    }
+    this._selectedEntryId = "";
     this._render();
   },
 

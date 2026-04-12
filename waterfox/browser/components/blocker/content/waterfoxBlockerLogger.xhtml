@@ -49,6 +49,14 @@
           data-l10n-id="waterfox-blocker-logger-current-tab-only"
           label="Current tab only"
         />
+        <html:input
+          id="waterfoxBlockerLoggerFilter"
+          class="waterfox-blocker-logger-filter"
+          data-l10n-id="waterfox-blocker-logger-filter"
+          data-l10n-attrs="placeholder"
+          placeholder="Filter logger rows"
+          type="search"
+        />
         <spacer flex="1" />
         <button
           id="waterfoxBlockerLoggerPause"
@@ -64,6 +72,43 @@
           id="waterfoxBlockerLoggerExport"
           data-l10n-id="waterfox-blocker-logger-export"
           label="Export…"
+        />
+      </hbox>
+
+      <hbox
+        class="waterfox-blocker-logger-table-header"
+        align="center"
+        aria-hidden="true"
+      >
+        <label
+          class="waterfox-blocker-logger-cell waterfox-blocker-logger-cell-time"
+          data-l10n-id="waterfox-blocker-logger-column-time"
+          value="Time"
+        />
+        <label
+          class="waterfox-blocker-logger-cell waterfox-blocker-logger-cell-action"
+          data-l10n-id="waterfox-blocker-logger-column-action"
+          value="Action"
+        />
+        <label
+          class="waterfox-blocker-logger-cell waterfox-blocker-logger-cell-type"
+          data-l10n-id="waterfox-blocker-logger-column-type"
+          value="Type"
+        />
+        <label
+          class="waterfox-blocker-logger-cell waterfox-blocker-logger-cell-source"
+          data-l10n-id="waterfox-blocker-logger-column-source"
+          value="Source"
+        />
+        <label
+          class="waterfox-blocker-logger-cell waterfox-blocker-logger-cell-rule"
+          data-l10n-id="waterfox-blocker-logger-column-rule"
+          value="Rule"
+        />
+        <label
+          class="waterfox-blocker-logger-cell waterfox-blocker-logger-cell-url"
+          data-l10n-id="waterfox-blocker-logger-column-url"
+          value="URL"
         />
       </hbox>
 

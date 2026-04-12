@@ -28,6 +28,18 @@
   min-width: 0;
 }
 
+.waterfox-blocker-logger-filter {
+  background-color: var(--in-content-page-background);
+  border: 1px solid var(--in-content-box-border-color);
+  border-radius: 6px;
+  box-sizing: border-box;
+  color: var(--in-content-page-color);
+  flex: 1 1 28em;
+  font: inherit;
+  min-width: 12em;
+  padding: 6px 8px;
+}
+
 .waterfox-blocker-logger-summary {
   margin-inline-end: 8px;
 }
@@ -51,31 +63,46 @@
   min-height: 300px;
   max-height: 100%;
   border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
-  border-radius: 8px;
+  border-radius: 0 0 8px 8px;
+}
+
+.waterfox-blocker-logger-table-header,
+.waterfox-blocker-logger-row {
+  display: grid;
+  grid-template-columns: 7.5em 7em 7em 10em minmax(10em, 1fr) minmax(18em, 2fr);
+  min-width: 0;
+}
+
+.waterfox-blocker-logger-table-header {
+  background-color: color-mix(in srgb, currentColor 8%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+  font-weight: 600;
+  padding: 6px 8px;
 }
 
 .waterfox-blocker-logger-item {
-  padding: 10px 12px;
+  padding: 0;
 }
 
-.waterfox-blocker-logger-item-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.waterfox-blocker-logger-row {
+  padding: 7px 8px;
+}
+
+.waterfox-blocker-logger-cell {
   min-width: 0;
+  padding-inline-end: 8px;
 }
 
-.waterfox-blocker-logger-item-topline {
-  min-width: 0;
-  gap: 8px;
-}
-
-.waterfox-blocker-logger-item-time {
-  margin-inline-end: 4px;
+.waterfox-blocker-logger-cell-time {
   font-size: 0.95em;
 }
 
 .waterfox-blocker-logger-action-pill {
+  align-self: center;
+  box-sizing: border-box;
+  max-width: max-content;
   padding: 1px 8px;
   border-radius: 8px;
   font-size: 0.9em;
@@ -109,18 +136,6 @@
 
 .waterfox-blocker-logger-url {
   font-weight: 600;
-  min-width: 0;
-}
-
-.waterfox-blocker-logger-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  min-width: 0;
-}
-
-.waterfox-blocker-logger-meta .text-deemphasized {
-  font-size: 0.95em;
 }
 
 .waterfox-blocker-logger-details-card {
