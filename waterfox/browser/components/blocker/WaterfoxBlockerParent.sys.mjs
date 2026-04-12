@@ -4,6 +4,15 @@
 
 import { WaterfoxBlockerService } from "resource:///modules/WaterfoxBlockerService.sys.mjs";
 
+function normalizeCustomRulesText(value) {
+  return String(value || "")
+    .split(/\r?\n/)
+    .map(line => line.trimEnd())
+    .slice(0, 10000)
+    .join("\n")
+    .trim();
+}
+
 /*
  * Module rationale:
  *
@@ -225,9 +234,8 @@ export class WaterfoxBlockerParent extends JSWindowActorParent {
     let added = false;
 
     try {
-      const rawRules = Services.prefs.getStringPref(
-        "waterfox.blocker.customRules",
-        ""
+      const rawRules = normalizeCustomRulesText(
+        Services.prefs.getStringPref("waterfox.blocker.customRules", "")
       );
       const existing = rawRules
         .split(/\r?\n/)
@@ -236,9 +244,9 @@ export class WaterfoxBlockerParent extends JSWindowActorParent {
       const existingSet = new Set(existing);
 
       if (!existingSet.has(cleanedRule)) {
-        const updated = rawRules.trim()
-          ? `${rawRules.replace(/\s+$/, "")}\n${cleanedRule}`
-          : cleanedRule;
+        const updated = normalizeCustomRulesText(
+          rawRules ? `${rawRules}\n${cleanedRule}` : cleanedRule
+        );
         Services.prefs.setStringPref("waterfox.blocker.customRules", updated);
         added = true;
         nextRules = updated;
