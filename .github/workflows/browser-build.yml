@@ -1,7 +1,6 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
 name: 🧪 Browser Build
 run-name: Browser build for ${{ github.ref_name }}
-
 on:
   workflow_dispatch:
   pull_request:
@@ -19,35 +18,33 @@ on:
       - '**/*.md'
       - 'docs/**'
       - '.github/ISSUE_TEMPLATE/**'
-
 permissions:
   contents: read
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
-
 env:
   CARGO_TERM_COLOR: always
   MOZCONFIG: .mozconfig
-
 jobs:
   macos-arm64:
     name: 🍎 macOS ARM64
     runs-on: macos-14
     timeout-minutes: 360
-
     steps:
       - name: 📤 Checkout
         uses: actions/checkout@v6
         with:
-          submodules: recursive
+          submodules: false
+
+      - name: 🌐 Clone l10n locales
+        run: |
+          git clone https://github.com/subham8907/l10n.git browser/locales
 
       - name: 📣 Show runner details
         run: |
           uname -a
           df -h
-
       - name: 💿 Bootstrap build environment
         run: |
           rustup override set 1.90.0
@@ -56,16 +53,12 @@ jobs:
           zstd -d clang.tar.zst
           tar -xf clang.tar -C "$HOME/.mozbuild"
           ./mach --no-interactive bootstrap --application-choice=browser --no-system-changes
-
       - name: 🏗 Build
         run: ./mach build
-
       - name: 📦 Package
         run: ./mach package
-
       - name: 📣 List package outputs
         run: find obj-Darwin-arm64/dist -maxdepth 2 -print
-
       - name: ↑ Upload macOS ARM64 package
         uses: actions/upload-artifact@v7
         with:
