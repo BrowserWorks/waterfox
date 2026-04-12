@@ -1248,6 +1248,10 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
 
     this._pendingInitialResources = null;
 
+    if (resources.noScripting) {
+      this._renderNoscriptElements(doc);
+    }
+
     const allSelectors = [];
     if (
       Array.isArray(resources.hideSelectors) &&
@@ -1284,6 +1288,54 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
 
   _hasInjectionTarget(doc) {
     return !!(doc.head || doc.documentElement || doc.body);
+  }
+
+  _renderNoscriptElements(doc) {
+    const noscriptElements = Array.from(doc.getElementsByTagName("noscript"));
+    if (!noscriptElements.length) {
+      return;
+    }
+
+    for (const noscript of noscriptElements) {
+      if (!noscript?.parentNode || noscript.dataset.waterfoxBlockerRendered) {
+        continue;
+      }
+
+      const text = noscript.textContent || "";
+      if (!text.trim()) {
+        noscript.dataset.waterfoxBlockerRendered = "true";
+        continue;
+      }
+
+      try {
+        const parserUtils = Cc["@mozilla.org/parserutils;1"].getService(
+          Ci.nsIParserUtils
+        );
+        const context = doc.createElement("div");
+        const baseURI = Services.io.newURI(doc.baseURI || doc.documentURI);
+        const fragment = parserUtils.parseFragment(
+          text,
+          parserUtils.SanitizerAllowStyle,
+          false,
+          baseURI,
+          context
+        );
+
+        if (!fragment?.childNodes.length) {
+          noscript.dataset.waterfoxBlockerRendered = "true";
+          continue;
+        }
+
+        noscript.parentNode.insertBefore(fragment, noscript);
+        noscript.dataset.waterfoxBlockerRendered = "true";
+        noscript.hidden = true;
+      } catch (err) {
+        console.error(
+          "[WaterfoxBlockerChild] failed to render noscript content:",
+          err
+        );
+      }
+    }
   }
 
   /**

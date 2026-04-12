@@ -25,6 +25,7 @@ import { WaterfoxBlockerService } from "resource:///modules/WaterfoxBlockerServi
  * @property {boolean} generichide
  * @property {string[]} hideSelectors
  * @property {string} injectedScript
+ * @property {boolean} noScripting
  * @property {Array<any>} proceduralActions
  */
 
@@ -163,6 +164,9 @@ export class WaterfoxBlockerParent extends JSWindowActorParent {
         generichide: true,
         hideSelectors: [],
         injectedScript: "",
+        noScripting: !!(
+          hostname && WaterfoxBlockerService.isScriptingDisabled(hostname)
+        ),
         proceduralActions: [],
       };
     }
@@ -177,6 +181,9 @@ export class WaterfoxBlockerParent extends JSWindowActorParent {
       generichide: !!resources.generichide,
       hideSelectors: resources.hide_selectors || [],
       injectedScript: resources.injected_script || "",
+      noScripting: !!(
+        hostname && WaterfoxBlockerService.isScriptingDisabled(hostname)
+      ),
       proceduralActions: resources.procedural_actions || [],
     };
   }
