@@ -742,7 +742,7 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
       return null;
     }
 
-    const selector = this._buildUniqueCssSelector(element);
+    const selector = this._buildPickerCosmeticSelector(element);
     if (!selector) {
       return null;
     }
@@ -754,29 +754,21 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
     };
   }
 
-  _buildUniqueCssSelector(element) {
+  _buildPickerCosmeticSelector(element) {
     const doc = this.document;
     if (!doc || !element || !element.isConnected) {
       return "";
     }
 
-    const segments = [];
+    const selectors = [];
     let current = element;
-    for (
-      let depth = 0;
-      current && current.nodeType === 1 && depth < 8;
-      depth++
-    ) {
-      const segment = this._buildSelectorSegment(current);
-      if (!segment) {
+    while (current && current.nodeType === 1 && current !== doc.body) {
+      const selector = this._buildPickerSelectorForElement(current);
+      if (!selector) {
         break;
       }
 
-      segments.unshift(segment);
-      const selector = segments.join(" > ");
-      if (this._isUniqueSelector(selector)) {
-        return selector;
-      }
+      selectors.push(selector);
 
       current = current.parentElement;
       if (!current || current === doc.documentElement) {
@@ -784,79 +776,194 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
       }
     }
 
-    const fallback = segments.join(" > ");
-    return this._isUniqueSelector(fallback) ? fallback : fallback || "";
+    if (!selectors.length) {
+      return "";
+    }
+
+    let candidate = selectors[0];
+    if (this._countSelectorMatches(candidate) <= 1) {
+      return candidate;
+    }
+
+    for (let i = 1; i < selectors.length; i++) {
+      candidate = `${selectors[i]} > ${candidate}`;
+      if (this._countSelectorMatches(candidate) <= 1) {
+        return candidate;
+      }
+    }
+
+    if (
+      doc.body &&
+      !candidate.startsWith("#") &&
+      !candidate.startsWith("body > ")
+    ) {
+      const bodyCandidate = `body > ${candidate}`;
+      if (this._countSelectorMatches(bodyCandidate) <= 1) {
+        return bodyCandidate;
+      }
+      return bodyCandidate;
+    }
+
+    return candidate;
   }
 
-  _isUniqueSelector(selector) {
+  _countSelectorMatches(selector) {
     const doc = this.document;
     if (!doc || !selector) {
-      return false;
+      return Number.POSITIVE_INFINITY;
     }
 
     try {
-      return doc.querySelectorAll(selector).length === 1;
+      return doc.querySelectorAll(selector).length;
     } catch (_) {
-      return false;
+      return Number.POSITIVE_INFINITY;
     }
   }
 
-  _buildSelectorSegment(element) {
+  _countScopedSelectorMatches(parent, selector) {
+    if (!parent || !selector) {
+      return Number.POSITIVE_INFINITY;
+    }
+
+    try {
+      return parent.querySelectorAll(`:scope > ${selector}`).length;
+    } catch (_) {
+      return Number.POSITIVE_INFINITY;
+    }
+  }
+
+  _buildPickerSelectorForElement(element) {
     const doc = this.document;
     if (!doc || !element || element.nodeType !== 1) {
       return "";
     }
 
-    const tag = String(element.localName || "").toLowerCase();
-    if (!tag) {
+    const tagName = this._escapeCssIdentifier(
+      String(element.localName || "").toLowerCase()
+    );
+    if (!tagName) {
       return "";
     }
 
-    const id = String(element.id || "").trim();
-    if (id) {
-      const escapedId = this._escapeCssIdentifier(id);
+    let selector = "";
+
+    const idValue = String(element.id || "").trim();
+    if (idValue) {
+      const escapedId = this._escapeCssIdentifier(idValue);
       if (escapedId) {
-        const idSelector = `#${escapedId}`;
-        if (this._isUniqueSelector(idSelector)) {
-          return idSelector;
-        }
+        selector = `#${escapedId}`;
       }
     }
 
-    const classes = [];
     if (element.classList?.length) {
-      for (const cls of element.classList) {
-        const clean = String(cls || "").trim();
-        if (!clean || clean.length > 32 || !/^[A-Za-z_]/.test(clean)) {
-          continue;
-        }
-        classes.push(clean);
-        if (classes.length >= 2) {
-          break;
+      for (let i = element.classList.length - 1; i >= 0; i--) {
+        const className = this._escapeCssIdentifier(element.classList.item(i));
+        if (className) {
+          selector += `.${className}`;
         }
       }
     }
 
-    let selector = tag;
-    if (classes.length) {
-      selector += classes
-        .map(cls => `.${this._escapeCssIdentifier(cls)}`)
-        .join("");
+    if (!selector) {
+      selector = this._buildPickerAttributeSelector(element, tagName);
     }
 
-    const siblings = element.parentElement
-      ? Array.from(element.parentElement.children).filter(
-          child => child.localName === element.localName
-        )
-      : [];
-    if (siblings.length > 1) {
-      const index = siblings.indexOf(element) + 1;
+    const parent = element.parentElement || element.parentNode;
+    if (!selector || this._countScopedSelectorMatches(parent, selector) > 1) {
+      selector = `${tagName}${selector}`;
+    }
+
+    if (this._countScopedSelectorMatches(parent, selector) > 1) {
+      let index = 1;
+      let previous = element.previousSibling;
+      while (previous !== null) {
+        if (
+          typeof previous.localName === "string" &&
+          previous.localName === element.localName
+        ) {
+          index++;
+        }
+        previous = previous.previousSibling;
+      }
       if (index > 0) {
         selector += `:nth-of-type(${index})`;
       }
     }
 
     return selector;
+  }
+
+  _buildPickerAttributeSelector(element, tagName) {
+    switch (tagName) {
+      case "a": {
+        let href = element.getAttribute("href");
+        if (href) {
+          href = href.trim().replace(/\?.*$/, "");
+          if (href.length) {
+            return this._formatPickerAttributeSelector(element, "href", href);
+          }
+        }
+        break;
+      }
+
+      case "iframe":
+      case "img": {
+        let src = element.getAttribute("src");
+        if (src && src.length !== 0) {
+          src = src.trim();
+          if (src.startsWith("data:")) {
+            const pos = src.indexOf(",");
+            if (pos !== -1) {
+              src = src.slice(0, pos + 1);
+            }
+          } else if (src.startsWith("blob:")) {
+            try {
+              const url = new URL(src.slice(5));
+              url.pathname = "";
+              src = `blob:${url.href}`;
+            } catch (_) {}
+          }
+
+          return this._formatPickerAttributeSelector(
+            element,
+            "src",
+            src.slice(0, 256)
+          );
+        }
+
+        const alt = element.getAttribute("alt");
+        if (alt && alt.length !== 0) {
+          return this._formatPickerAttributeSelector(element, "alt", alt);
+        }
+        break;
+      }
+
+      default:
+        break;
+    }
+
+    return "";
+  }
+
+  _formatPickerAttributeSelector(element, key, value) {
+    const rawValue = String(value || "");
+    if (!rawValue) {
+      return "";
+    }
+
+    const actualValue = String(element.getAttribute(key) || "");
+    if (!actualValue) {
+      return "";
+    }
+
+    const escapedValue = rawValue.replace(/([^\\])"/g, '$1\\"');
+    if (rawValue === actualValue) {
+      return `[${key}="${escapedValue}"]`;
+    }
+    if (actualValue.startsWith(rawValue)) {
+      return `[${key}^="${escapedValue}"]`;
+    }
+    return `[${key}*="${escapedValue}"]`;
   }
 
   _escapeCssIdentifier(value) {
