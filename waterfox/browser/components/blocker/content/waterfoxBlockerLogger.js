@@ -9,6 +9,37 @@ const { IOUtils } = ChromeUtils.importESModule(
 const MAX_LOG_ENTRIES = 5000;
 const DEFAULT_EXPORT_FILENAME = "waterfox-blocker-logger.json";
 
+const FALLBACK_L10N = Object.freeze({
+  "waterfox-blocker-logger-clear": "Clear",
+  "waterfox-blocker-logger-current-tab-only": "Current tab only",
+  "waterfox-blocker-logger-details-empty": "Select an entry to inspect it.",
+  "waterfox-blocker-logger-empty": "No blocker log entries yet.",
+  "waterfox-blocker-logger-empty-filtered":
+    "No entries match the current tab filter.",
+  "waterfox-blocker-logger-export": "Export…",
+  "waterfox-blocker-logger-export-done-message":
+    "The visible blocker log entries were saved.",
+  "waterfox-blocker-logger-export-done-title": "Export complete",
+  "waterfox-blocker-logger-export-error-message":
+    "The blocker log could not be written.",
+  "waterfox-blocker-logger-export-error-title": "Export failed",
+  "waterfox-blocker-logger-export-title": "Export Blocker Log",
+  "waterfox-blocker-logger-field-action": "Action",
+  "waterfox-blocker-logger-field-document-url": "Document URL",
+  "waterfox-blocker-logger-field-message": "Message",
+  "waterfox-blocker-logger-field-rule": "Rule",
+  "waterfox-blocker-logger-field-scope": "Scope",
+  "waterfox-blocker-logger-field-source": "Source",
+  "waterfox-blocker-logger-field-tab-id": "Tab ID",
+  "waterfox-blocker-logger-field-time": "Timestamp",
+  "waterfox-blocker-logger-field-type": "Type",
+  "waterfox-blocker-logger-field-url": "URL",
+  "waterfox-blocker-logger-pause": "Pause",
+  "waterfox-blocker-logger-resume": "Resume",
+  "waterfox-blocker-logger-state-live": "Live",
+  "waterfox-blocker-logger-state-paused": "Paused",
+});
+
 function createXULElement(tag, attrs = {}) {
   const element = document.createXULElement(tag);
   for (const [name, value] of Object.entries(attrs)) {
@@ -19,9 +50,26 @@ function createXULElement(tag, attrs = {}) {
   return element;
 }
 
+function formatFallback(l10nId, args = null) {
+  if (l10nId === "waterfox-blocker-logger-summary") {
+    return `${Number(args?.shown || 0)} of ${Number(
+      args?.total || 0
+    )} entries shown`;
+  }
+
+  return FALLBACK_L10N[l10nId] || "";
+}
+
 function setLabelL10nAttributes(element, l10nId, args = null) {
   if (!element || !l10nId) {
     return;
+  }
+
+  const fallback = formatFallback(l10nId, args);
+  if (fallback) {
+    element.setAttribute("label", fallback);
+    element.setAttribute("value", fallback);
+    element.textContent = fallback;
   }
 
   document.l10n.setAttributes(element, l10nId, args || undefined);
@@ -32,7 +80,33 @@ function setTextL10nAttributes(element, l10nId, args = null) {
     return;
   }
 
+  const fallback = formatFallback(l10nId, args);
+  if (fallback) {
+    element.textContent = fallback;
+    element.setAttribute("value", fallback);
+  }
+
   document.l10n.setAttributes(element, l10nId, args || undefined);
+}
+
+async function formatValueWithFallback(l10nId, args = null) {
+  const fallback = formatFallback(l10nId, args) || l10nId;
+  try {
+    const value = await document.l10n.formatValue(l10nId, args || undefined);
+    if (value && value !== l10nId) {
+      return value;
+    }
+  } catch (_) {}
+
+  return fallback;
+}
+
+async function formatValuesWithFallback(requests) {
+  const values = [];
+  for (const request of requests) {
+    values.push(await formatValueWithFallback(request.id, request.args));
+  }
+  return values;
 }
 
 function readFirstString(raw, keys) {
@@ -378,6 +452,14 @@ var gWaterfoxBlockerLogger = {
         ? "waterfox-blocker-logger-resume"
         : "waterfox-blocker-logger-pause"
     );
+    this._pauseButton.setAttribute(
+      "label",
+      formatFallback(
+        this._paused
+          ? "waterfox-blocker-logger-resume"
+          : "waterfox-blocker-logger-pause"
+      )
+    );
 
     this._currentTabOnlyCheckbox.disabled = !this._currentBrowserId;
     this._exportButton.disabled = !visibleEntries.length;
@@ -628,7 +710,7 @@ var gWaterfoxBlockerLogger = {
     try {
       file = await pickTextFile(
         Ci.nsIFilePicker.modeSave,
-        await document.l10n.formatValue("waterfox-blocker-logger-export-title"),
+        await formatValueWithFallback("waterfox-blocker-logger-export-title"),
         defaultName
       );
     } catch (err) {
@@ -643,14 +725,14 @@ var gWaterfoxBlockerLogger = {
     const contents = `${JSON.stringify(entries, null, 2)}\n`;
     try {
       await writeTextFile(file, contents);
-      const [title, message] = await document.l10n.formatValues([
+      const [title, message] = await formatValuesWithFallback([
         { id: "waterfox-blocker-logger-export-done-title" },
         { id: "waterfox-blocker-logger-export-done-message" },
       ]);
       Services.prompt.alert(window, title, message);
     } catch (err) {
       console.error("[WaterfoxBlockerLogger] Failed to export entries:", err);
-      const [title, message] = await document.l10n.formatValues([
+      const [title, message] = await formatValuesWithFallback([
         { id: "waterfox-blocker-logger-export-error-title" },
         { id: "waterfox-blocker-logger-export-error-message" },
       ]);

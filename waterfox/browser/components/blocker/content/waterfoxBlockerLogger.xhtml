@@ -13,6 +13,7 @@
   data-l10n-id="waterfox-blocker-logger-window"
   data-l10n-attrs="title"
   persist="width height screenX screenY"
+  title="Blocker Logger"
   width="1100"
   height="760"
   windowtype="waterfox:blocker-logger"
@@ -37,26 +38,32 @@
     <description
       id="waterfoxBlockerLoggerDescription"
       data-l10n-id="waterfox-blocker-logger-description"
-    />
+    >
+      Review blocker activity from the current browsing session.
+    </description>
 
     <vbox class="waterfox-blocker-section-card" flex="1">
       <hbox class="waterfox-blocker-logger-toolbar" align="center">
         <checkbox
           id="waterfoxBlockerLoggerCurrentTabOnly"
           data-l10n-id="waterfox-blocker-logger-current-tab-only"
+          label="Current tab only"
         />
         <spacer flex="1" />
         <button
           id="waterfoxBlockerLoggerPause"
           data-l10n-id="waterfox-blocker-logger-pause"
+          label="Pause"
         />
         <button
           id="waterfoxBlockerLoggerClear"
           data-l10n-id="waterfox-blocker-logger-clear"
+          label="Clear"
         />
         <button
           id="waterfoxBlockerLoggerExport"
           data-l10n-id="waterfox-blocker-logger-export"
+          label="Export…"
         />
       </hbox>
 
@@ -86,11 +93,14 @@
       <label
         class="waterfox-blocker-section-title"
         data-l10n-id="waterfox-blocker-logger-details-title"
+        value="Entry details"
       />
       <description
         class="text-deemphasized waterfox-blocker-section-description"
         data-l10n-id="waterfox-blocker-logger-details-hint"
-      />
+      >
+        Select an entry to inspect it.
+      </description>
       <vbox
         id="waterfoxBlockerLoggerDetailsRows"
         class="waterfox-blocker-logger-details-rows"

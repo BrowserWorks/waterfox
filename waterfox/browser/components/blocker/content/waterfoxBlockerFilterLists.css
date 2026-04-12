@@ -7,88 +7,22 @@
   min-height: 36em;
 }
 
-#WaterfoxBlockerFilterListsWindow .contentPane {
-  gap: 10px;
-}
-
 #WaterfoxBlockerFilterListsWindow .waterfox-blocker-scroll-container {
   overflow-y: auto;
   max-height: 400px;
 }
 
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-section-card {
-  background-color: color-mix(
-    in srgb,
-    var(--in-content-box-background) 82%,
-    transparent
-  );
-  border: 1px solid var(--in-content-box-border-color);
-  border-radius: 6px;
-  padding: 12px;
-}
-
 #WaterfoxBlockerFilterListsWindow .waterfox-blocker-section-title {
   font-weight: 600;
-  margin: 0;
-}
-
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-section-description {
-  margin: 4px 0 0;
-}
-
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-filter-bar {
-  margin-block: 8px 2px;
-}
-
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-filter-bar-title {
-  font-weight: 600;
-  margin: 0 0 6px;
-}
-
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-filter-bar-row {
-  gap: 8px;
-}
-
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-search-field {
-  background-color: var(--in-content-page-background);
-  border: 1px solid var(--in-content-box-border-color);
-  border-radius: 6px;
-  box-sizing: border-box;
-  color: var(--in-content-page-color);
-  flex: 1;
-  font: inherit;
-  min-width: 0;
-  padding: 8px 10px;
-}
-
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-search-field::placeholder {
-  color: color-mix(in srgb, currentColor 48%, transparent);
-}
-
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-search-clear,
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-list-action {
-  border-radius: 6px;
-}
-
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-search-summary {
-  margin: 6px 0 0;
+  margin-block: 4px;
 }
 
 #WaterfoxBlockerFilterListsWindow .waterfox-blocker-textarea {
-  background-color: var(--in-content-page-background);
-  border: 1px solid var(--in-content-box-border-color);
-  border-radius: 6px;
   box-sizing: border-box;
   font: inherit;
-  margin-block: 10px 0;
+  margin-block: 6px 8px;
   min-height: 5em;
-  padding: 10px 12px;
   width: 100%;
-}
-
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-editor-toolbar {
-  gap: 8px;
-  margin-top: 10px;
 }
 
 #WaterfoxBlockerFilterListsWindow .waterfox-blocker-rules-textarea {
@@ -97,15 +31,12 @@
 }
 
 #WaterfoxBlockerFilterListsWindow .waterfox-blocker-category {
-  border: 1px solid var(--in-content-box-border-color);
-  border-radius: 6px;
-  margin-bottom: 10px;
-  overflow: hidden;
+  margin-bottom: 8px;
 }
 
 #WaterfoxBlockerFilterListsWindow .waterfox-blocker-category-header {
-  background-color: var(--in-content-page-background);
-  padding: 8px 10px;
+  border-radius: 4px;
+  padding: 6px;
 }
 
 #WaterfoxBlockerFilterListsWindow .waterfox-blocker-category-header:hover {
@@ -118,72 +49,20 @@
 }
 
 #WaterfoxBlockerFilterListsWindow .waterfox-blocker-category-counter {
-  background-color: var(--in-content-button-background);
-  border-radius: 999px;
   margin-inline-start: 8px;
-  padding: 1px 8px;
 }
 
 #WaterfoxBlockerFilterListsWindow .waterfox-blocker-category-lists {
-  padding: 8px 12px 10px;
+  padding-inline-start: 20px;
 }
 
 #WaterfoxBlockerFilterListsWindow .waterfox-blocker-list-row {
-  border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
-  gap: 10px;
-  margin: 0;
-  padding: 8px 2px;
-}
-
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-list-row:first-child {
-  border-top: 0;
-}
-
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-list-text {
-  min-width: 0;
-}
-
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-list-title-row {
-  gap: 8px;
-}
-
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-list-title {
-  font-weight: 600;
-  min-width: 0;
-}
-
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-list-status {
-  background-color: var(--in-content-button-background);
-  border: 1px solid var(--in-content-box-border-color);
-  border-radius: 999px;
-  font-size: 0.9em;
-  padding: 1px 8px;
-}
-
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-list-status[data-state="enabled"] {
-  opacity: 1;
-}
-
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-list-status[data-state="disabled"] {
-  opacity: 0.8;
-}
-
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-list-description {
-  margin: 2px 0 0;
+  margin-block: 2px;
+  padding-inline-end: 6px;
 }
 
 #WaterfoxBlockerFilterListsWindow .waterfox-blocker-list-source {
-  margin: 2px 0 0;
   font-size: 0.95em;
-}
-
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-list-actions {
-  gap: 6px;
-  margin: 6px 0 0;
-}
-
-#WaterfoxBlockerFilterListsWindow .waterfox-blocker-list-action {
-  padding: 4px 8px;
 }
 
 #WaterfoxBlockerFilterListsWindow .text-deemphasized {

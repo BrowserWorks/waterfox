@@ -5,9 +5,6 @@
 const { WaterfoxBlockerService } = ChromeUtils.importESModule(
   "resource:///modules/WaterfoxBlockerService.sys.mjs"
 );
-const { IOUtils } = ChromeUtils.importESModule(
-  "resource://gre/modules/IOUtils.sys.mjs"
-);
 
 const PREF_ENABLED_LISTS = "waterfox.blocker.enabledLists";
 const PREF_FILTER_LIST_URLS = "waterfox.blocker.filterListUrls";
@@ -104,93 +101,6 @@ function getSourceHost(entry) {
   return match?.[1] || firstUrl;
 }
 
-function getSourceTitle(entry) {
-  const firstTitle = String(entry?.sources?.[0]?.title || "").trim();
-  if (firstTitle) {
-    return firstTitle;
-  }
-
-  return getSourceHost(entry);
-}
-
-function getSourceUrl(entry) {
-  const firstUrl = String(entry?.sources?.[0]?.url || "").trim();
-  return firstUrl || "";
-}
-
-function getSourceSummary(entry) {
-  const sourceTitle = getSourceTitle(entry);
-  const sourceHost = getSourceHost(entry);
-  if (!sourceTitle && !sourceHost) {
-    return "";
-  }
-
-  if (
-    sourceTitle &&
-    sourceHost &&
-    sourceTitle.toLowerCase() !== sourceHost.toLowerCase()
-  ) {
-    return `${sourceTitle} · ${sourceHost}`;
-  }
-
-  return sourceTitle || sourceHost;
-}
-
-function getSearchableText(entry) {
-  return [
-    entry.title,
-    entry.desc,
-    entry.category,
-    entry.sourceHost,
-    entry.sourceTitle,
-    entry.sourceUrl,
-    entry.id,
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-}
-
-function matchesSearchQuery(entry, query) {
-  const normalizedQuery = String(query || "")
-    .trim()
-    .toLowerCase();
-  if (!normalizedQuery) {
-    return true;
-  }
-
-  const terms = normalizedQuery.split(/\s+/).filter(Boolean);
-  if (!terms.length) {
-    return true;
-  }
-
-  const haystack = entry.searchText || "";
-  return terms.every(term => haystack.includes(term));
-}
-
-function copyTextToClipboard(text) {
-  const value = String(text || "");
-  try {
-    Cc["@mozilla.org/widget/clipboardhelper;1"]
-      .getService(Ci.nsIClipboardHelper)
-      .copyString(value);
-    return true;
-  } catch (err) {
-    console.error("[WaterfoxBlocker] Clipboard copy failed:", err);
-  }
-
-  try {
-    if (navigator?.clipboard?.writeText) {
-      navigator.clipboard.writeText(value);
-      return true;
-    }
-  } catch (err) {
-    console.error("[WaterfoxBlocker] navigator.clipboard copy failed:", err);
-  }
-
-  return false;
-}
-
 function createXULElement(tag, attrs = {}) {
   const element = document.createXULElement(tag);
   for (const [name, value] of Object.entries(attrs)) {
@@ -199,38 +109,6 @@ function createXULElement(tag, attrs = {}) {
     }
   }
   return element;
-}
-
-function makeFilePicker() {
-  return Cc["@mozilla.org/filepicker;1"].createInstance(Ci.nsIFilePicker);
-}
-
-async function pickTextFile(mode, title, defaultString) {
-  const picker = makeFilePicker();
-  picker.init(window.browsingContext, title, mode);
-  picker.appendFilters(Ci.nsIFilePicker.filterText);
-  picker.appendFilters(Ci.nsIFilePicker.filterAll);
-  if (defaultString) {
-    picker.defaultString = defaultString;
-  }
-
-  const result = await new Promise(resolve => picker.open(resolve));
-  if (
-    result !== Ci.nsIFilePicker.returnOK &&
-    result !== Ci.nsIFilePicker.returnReplace
-  ) {
-    return null;
-  }
-
-  return picker.file;
-}
-
-async function readTextFile(file) {
-  return IOUtils.readUTF8(file.path);
-}
-
-async function writeTextFile(file, contents) {
-  await IOUtils.writeUTF8(file.path, contents, { overwrite: true });
 }
 
 function getCustomFilterListUrlsFromPref() {
@@ -328,18 +206,9 @@ async function showInvalidCustomFilterListUrlAlert(invalid) {
 var gWaterfoxBlockerFilterListsManager = {
   _categorySections: new Map(),
   _entries: [],
-  _expandedCategories: new Map(),
   _customRulesPrefLocked: false,
   _customUrlsPrefLocked: false,
   _enabledListsPrefLocked: false,
-  _searchQuery: "",
-  _showAlert(titleId, messageId, args = {}) {
-    return document.l10n
-      .formatValues([{ id: titleId }, { id: messageId, args }])
-      .then(([title, message]) => {
-        Services.prompt.alert(window, title, message);
-      });
-  },
 
   /**
    * Called on `DOMContentLoaded` to set up the dialog UI.
@@ -353,23 +222,6 @@ var gWaterfoxBlockerFilterListsManager = {
     });
   },
 
-  handleEvent(event) {
-    switch (event.target.id) {
-      case "waterfoxBlockerImportUrls":
-        this._importUrls();
-        break;
-      case "waterfoxBlockerExportUrls":
-        this._exportUrls();
-        break;
-      case "waterfoxBlockerImportRules":
-        this._importRules();
-        break;
-      case "waterfoxBlockerExportRules":
-        this._exportRules();
-        break;
-    }
-  },
-
   async _initialise() {
     this._categoriesContainer = document.getElementById(
       "waterfoxBlockerFilterListsCategories"
@@ -379,27 +231,6 @@ var gWaterfoxBlockerFilterListsManager = {
     );
     this._customRulesField = document.getElementById(
       "waterfoxBlockerCustomRules"
-    );
-    this._searchField = document.getElementById(
-      "waterfoxBlockerFilterListSearch"
-    );
-    this._searchClearButton = document.getElementById(
-      "waterfoxBlockerFilterListSearchClear"
-    );
-    this._searchSummary = document.getElementById(
-      "waterfoxBlockerFilterListSearchSummary"
-    );
-    this._importUrlsButton = document.getElementById(
-      "waterfoxBlockerImportUrls"
-    );
-    this._exportUrlsButton = document.getElementById(
-      "waterfoxBlockerExportUrls"
-    );
-    this._importRulesButton = document.getElementById(
-      "waterfoxBlockerImportRules"
-    );
-    this._exportRulesButton = document.getElementById(
-      "waterfoxBlockerExportRules"
     );
 
     this._enabledListsPrefLocked =
@@ -420,44 +251,11 @@ var gWaterfoxBlockerFilterListsManager = {
     this._customListUrlsField.value =
       getCustomFilterListUrlsFromPref().join("\n");
     this._customListUrlsField.disabled = this._customUrlsPrefLocked;
-    this._customListUrlsField.addEventListener("input", () =>
-      this._updateUrlExportState()
-    );
     this._customRulesField.value = Services.prefs.getStringPref(
       PREF_CUSTOM_RULES,
       ""
     );
     this._customRulesField.disabled = this._customRulesPrefLocked;
-    this._customRulesField.addEventListener("input", () =>
-      this._updateRuleExportState()
-    );
-
-    this._searchField.value = "";
-    this._searchField.addEventListener("input", () => {
-      this._searchQuery = this._searchField.value;
-      this._buildSections();
-    });
-    this._searchField.addEventListener("keydown", event => {
-      if (event.key === "Escape" && this._searchField.value) {
-        this._searchField.value = "";
-        this._searchQuery = "";
-        this._buildSections();
-        event.preventDefault();
-      }
-    });
-    this._searchClearButton.addEventListener("command", () => {
-      if (!this._searchField.value) {
-        return;
-      }
-      this._searchField.value = "";
-      this._searchQuery = "";
-      this._buildSections();
-      this._searchField.focus();
-    });
-
-    document.addEventListener("command", this);
-    this._updateUrlExportState();
-    this._updateRuleExportState();
 
     this._entries = await this._loadEntries();
     this._buildSections();
@@ -478,25 +276,10 @@ var gWaterfoxBlockerFilterListsManager = {
     return catalog
       .map(entry => ({
         category: getCategoryKey(entry.category),
-        categoryLabel: getCategoryLabelInfo(entry.category).fallback,
-        desc: String(entry.desc || ""),
         enabled: !!entry.enabled,
         id: String(entry.id || ""),
         sourceHost: getSourceHost(entry),
-        sourceTitle: getSourceTitle(entry),
-        sourceUrl: getSourceUrl(entry),
-        sourceCount: Array.isArray(entry.sources) ? entry.sources.length : 0,
         title: String(entry.title || entry.id || ""),
-        searchText: getSearchableText({
-          category: getCategoryKey(entry.category),
-          categoryLabel: getCategoryLabelInfo(entry.category).fallback,
-          desc: String(entry.desc || ""),
-          id: String(entry.id || ""),
-          sourceHost: getSourceHost(entry),
-          sourceTitle: getSourceTitle(entry),
-          sourceUrl: getSourceUrl(entry),
-          title: String(entry.title || entry.id || ""),
-        }),
       }))
       .filter(entry => !!entry.id)
       .sort((a, b) => {
@@ -515,13 +298,8 @@ var gWaterfoxBlockerFilterListsManager = {
   },
 
   _buildSections() {
-    const visibleEntries = this._entries.filter(entry =>
-      matchesSearchQuery(entry, this._searchQuery)
-    );
-
     this._categoriesContainer.replaceChildren();
     this._categorySections.clear();
-    this._updateSearchSummary(visibleEntries.length, this._entries.length);
 
     if (!this._entries.length) {
       const emptyLabel = createXULElement("label");
@@ -533,18 +311,8 @@ var gWaterfoxBlockerFilterListsManager = {
       return;
     }
 
-    if (!visibleEntries.length) {
-      const emptyLabel = createXULElement("label");
-      setLabelL10nAttributes(
-        emptyLabel,
-        "waterfox-blocker-filter-lists-no-matches"
-      );
-      this._categoriesContainer.appendChild(emptyLabel);
-      return;
-    }
-
     const grouped = new Map();
-    for (const entry of visibleEntries) {
+    for (const entry of this._entries) {
       if (!grouped.has(entry.category)) {
         grouped.set(entry.category, []);
       }
@@ -567,241 +335,6 @@ var gWaterfoxBlockerFilterListsManager = {
       this._categoriesContainer.appendChild(section.container);
       this._updateCategoryCounter(category);
     }
-  },
-
-  _updateSearchSummary(shownCount, totalCount) {
-    if (this._searchSummary) {
-      setLabelL10nAttributes(
-        this._searchSummary,
-        "waterfox-blocker-filter-lists-search-results",
-        {
-          shown: shownCount,
-          total: totalCount,
-        }
-      );
-    }
-
-    if (this._searchClearButton) {
-      this._searchClearButton.disabled = !this._searchField?.value;
-    }
-  },
-
-  _updateUrlExportState() {
-    if (this._exportUrlsButton) {
-      this._exportUrlsButton.disabled = !this._customListUrlsField.value.trim();
-    }
-    if (this._importUrlsButton) {
-      this._importUrlsButton.disabled = this._customUrlsPrefLocked;
-    }
-  },
-
-  _updateRuleExportState() {
-    if (this._exportRulesButton) {
-      this._exportRulesButton.disabled = !this._customRulesField.value.trim();
-    }
-    if (this._importRulesButton) {
-      this._importRulesButton.disabled = this._customRulesPrefLocked;
-    }
-  },
-
-  _normalizeTextLines(text) {
-    return String(text || "")
-      .split(/\r?\n/)
-      .map(line => line.trim())
-      .filter(Boolean);
-  },
-
-  _getTextareaNormalizedLines(textarea, validator) {
-    const valid = [];
-    const invalid = [];
-    const seen = new Set();
-
-    for (const line of this._normalizeTextLines(textarea.value)) {
-      const normalized = validator(line);
-      if (!normalized) {
-        invalid.push(line);
-        continue;
-      }
-      if (seen.has(normalized)) {
-        continue;
-      }
-      seen.add(normalized);
-      valid.push(normalized);
-    }
-
-    return { invalid, valid };
-  },
-
-  _normalizeCustomUrl(url) {
-    try {
-      const parsed = new URL(url);
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-        return "";
-      }
-      return parsed.href;
-    } catch (_) {
-      return "";
-    }
-  },
-
-  async _importTextFile(titleId, defaultString) {
-    const title = await document.l10n.formatValue(titleId);
-    return pickTextFile(Ci.nsIFilePicker.modeOpen, title, defaultString);
-  },
-
-  async _exportTextFile(titleId, defaultString, contents) {
-    const title = await document.l10n.formatValue(titleId);
-    const file = await pickTextFile(
-      Ci.nsIFilePicker.modeSave,
-      title,
-      defaultString
-    );
-    if (!file) {
-      return false;
-    }
-
-    await writeTextFile(file, contents);
-    return true;
-  },
-
-  async _importUrls() {
-    if (this._customUrlsPrefLocked) {
-      return;
-    }
-
-    const file = await this._importTextFile(
-      "waterfox-blocker-filter-lists-import-urls-title",
-      "waterfox-filter-list-urls.txt"
-    );
-    if (!file) {
-      return;
-    }
-
-    let text = "";
-    try {
-      text = await readTextFile(file);
-    } catch (err) {
-      console.error(
-        "[WaterfoxBlocker] Failed to import filter list URLs:",
-        err
-      );
-      this._showAlert(
-        "waterfox-blocker-filter-lists-import-error-title",
-        "waterfox-blocker-filter-lists-import-error-message"
-      );
-      return;
-    }
-
-    const { invalid, valid } = normalizeCustomFilterListUrls(
-      text.split(/[\r\n,]+/)
-    );
-    this._customListUrlsField.value = valid.join("\n");
-    this._updateUrlExportState();
-
-    if (invalid.length) {
-      this._showAlert(
-        "waterfox-blocker-filter-lists-import-partial-title",
-        "waterfox-blocker-filter-lists-import-partial-message",
-        { count: invalid.length }
-      );
-      return;
-    }
-
-    this._showAlert(
-      "waterfox-blocker-filter-lists-import-done-title",
-      "waterfox-blocker-filter-lists-import-urls-done-message",
-      { count: valid.length }
-    );
-  },
-
-  async _exportUrls() {
-    const contents = this._customListUrlsField.value.trim();
-    if (!contents) {
-      return;
-    }
-
-    try {
-      await this._exportTextFile(
-        "waterfox-blocker-filter-lists-export-urls-title",
-        "waterfox-filter-list-urls.txt",
-        `${contents}\n`
-      );
-    } catch (err) {
-      console.error(
-        "[WaterfoxBlocker] Failed to export filter list URLs:",
-        err
-      );
-      this._showAlert(
-        "waterfox-blocker-filter-lists-export-error-title",
-        "waterfox-blocker-filter-lists-export-error-message"
-      );
-      return;
-    }
-
-    this._showAlert(
-      "waterfox-blocker-filter-lists-export-done-title",
-      "waterfox-blocker-filter-lists-export-urls-done-message"
-    );
-  },
-
-  async _importRules() {
-    if (this._customRulesPrefLocked) {
-      return;
-    }
-
-    const file = await this._importTextFile(
-      "waterfox-blocker-filter-lists-import-rules-title",
-      "waterfox-custom-rules.txt"
-    );
-    if (!file) {
-      return;
-    }
-
-    try {
-      this._customRulesField.value = normalizeCustomRulesText(
-        await readTextFile(file)
-      );
-    } catch (err) {
-      console.error("[WaterfoxBlocker] Failed to import custom rules:", err);
-      this._showAlert(
-        "waterfox-blocker-filter-lists-import-error-title",
-        "waterfox-blocker-filter-lists-import-error-message"
-      );
-      return;
-    }
-
-    this._updateRuleExportState();
-    this._showAlert(
-      "waterfox-blocker-filter-lists-import-done-title",
-      "waterfox-blocker-filter-lists-import-rules-done-message"
-    );
-  },
-
-  async _exportRules() {
-    const contents = normalizeCustomRulesText(this._customRulesField.value);
-    if (!contents) {
-      return;
-    }
-
-    try {
-      await this._exportTextFile(
-        "waterfox-blocker-filter-lists-export-rules-title",
-        "waterfox-custom-rules.txt",
-        `${contents}\n`
-      );
-    } catch (err) {
-      console.error("[WaterfoxBlocker] Failed to export custom rules:", err);
-      this._showAlert(
-        "waterfox-blocker-filter-lists-export-error-title",
-        "waterfox-blocker-filter-lists-export-error-message"
-      );
-      return;
-    }
-
-    this._showAlert(
-      "waterfox-blocker-filter-lists-export-done-title",
-      "waterfox-blocker-filter-lists-export-rules-done-message"
-    );
   },
 
   _buildCategorySection(category, entries) {
@@ -853,94 +386,24 @@ var gWaterfoxBlockerFilterListsManager = {
 
     for (const entry of entries) {
       const row = createXULElement("hbox", {
-        align: "start",
+        align: "center",
         class: "waterfox-blocker-list-row",
       });
 
       const textColumn = createXULElement("vbox", {
         flex: "1",
-        class: "waterfox-blocker-list-text",
       });
 
-      const titleRow = createXULElement("hbox", {
-        align: "center",
-        class: "waterfox-blocker-list-title-row",
-      });
       const titleLabel = createXULElement("label", {
-        class: "waterfox-blocker-list-title",
-        crop: "end",
-        flex: "1",
         value: entry.title,
       });
-      titleRow.appendChild(titleLabel);
-
-      const statusLabel = createXULElement("label", {
-        class: "waterfox-blocker-list-status",
-        crop: "end",
-      });
-      setLabelL10nAttributes(
-        statusLabel,
-        entry.enabled
-          ? "waterfox-blocker-filter-lists-row-status-enabled"
-          : "waterfox-blocker-filter-lists-row-status-disabled"
-      );
-      statusLabel.setAttribute(
-        "data-state",
-        entry.enabled ? "enabled" : "disabled"
-      );
-      titleRow.appendChild(statusLabel);
-      textColumn.appendChild(titleRow);
-
-      if (entry.desc) {
-        const descLabel = createXULElement("label", {
-          class: "text-deemphasized waterfox-blocker-list-description",
-          crop: "end",
-          value: entry.desc,
-        });
-        textColumn.appendChild(descLabel);
-      }
+      textColumn.appendChild(titleLabel);
 
       const sourceLabel = createXULElement("label", {
         class: "text-deemphasized waterfox-blocker-list-source",
-        crop: "end",
-        value:
-          entry.sourceCount > 1
-            ? `${getSourceSummary(entry)} (${entry.sourceCount} sources)`
-            : getSourceSummary(entry),
+        value: entry.sourceHost,
       });
       textColumn.appendChild(sourceLabel);
-
-      if (entry.sourceUrl) {
-        const sourceActions = createXULElement("hbox", {
-          class: "waterfox-blocker-list-actions",
-        });
-
-        const openButton = createXULElement("button", {
-          class: "waterfox-blocker-list-action",
-        });
-        setLabelL10nAttributes(
-          openButton,
-          "waterfox-blocker-filter-lists-row-open-source"
-        );
-        openButton.addEventListener("command", () => {
-          window.openTrustedLinkIn(entry.sourceUrl, "tab");
-        });
-        sourceActions.appendChild(openButton);
-
-        const copyButton = createXULElement("button", {
-          class: "waterfox-blocker-list-action",
-        });
-        setLabelL10nAttributes(
-          copyButton,
-          "waterfox-blocker-filter-lists-row-copy-source"
-        );
-        copyButton.addEventListener("command", () => {
-          copyTextToClipboard(entry.sourceUrl);
-        });
-        sourceActions.appendChild(copyButton);
-
-        textColumn.appendChild(sourceActions);
-      }
 
       row.appendChild(textColumn);
 
@@ -965,14 +428,11 @@ var gWaterfoxBlockerFilterListsManager = {
       twisty,
     };
 
-    const expanded = this._expandedCategories.has(category)
-      ? this._expandedCategories.get(category)
-      : EXPANDED_BY_DEFAULT.has(category);
+    const expanded = EXPANDED_BY_DEFAULT.has(category);
     this._setSectionExpanded(section, expanded);
 
     const onToggle = () => {
       const nextExpanded = listContainer.hasAttribute("hidden");
-      this._expandedCategories.set(category, nextExpanded);
       this._setSectionExpanded(section, nextExpanded);
     };
 
