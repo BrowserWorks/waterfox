@@ -60,41 +60,22 @@
         control="url"
         data-l10n-id="waterfox-blocker-exceptions-description"
       />
-      <vbox class="waterfox-blocker-section-card">
-        <label
-          id="urlLabel"
-          control="url"
-          class="waterfox-blocker-section-title"
-          data-l10n-id="waterfox-blocker-exceptions-entry-field"
+      <separator class="thin" />
+      <label
+        id="urlLabel"
+        control="url"
+        data-l10n-id="permissions-doh-entry-field"
+      />
+      <hbox align="start">
+        <html:input id="url" type="text" />
+      </hbox>
+      <hbox pack="end">
+        <button
+          id="btnAddException"
+          disabled="true"
+          data-l10n-id="permissions-doh-add-exception"
         />
-        <description
-          class="text-deemphasized waterfox-blocker-section-description"
-          data-l10n-id="waterfox-blocker-exceptions-entry-field-description"
-        />
-        <html:textarea
-          id="url"
-          class="waterfox-blocker-textarea waterfox-blocker-allowlist-textarea"
-          data-l10n-id="waterfox-blocker-exceptions-placeholder"
-          data-l10n-attrs="placeholder"
-          rows="4"
-        />
-        <hbox class="waterfox-blocker-editor-toolbar" align="center">
-          <spacer flex="1" />
-          <button
-            id="btnAddException"
-            disabled="true"
-            data-l10n-id="waterfox-blocker-exceptions-add"
-          />
-          <button
-            id="importExceptions"
-            data-l10n-id="waterfox-blocker-exceptions-import"
-          />
-          <button
-            id="exportExceptions"
-            data-l10n-id="waterfox-blocker-exceptions-export"
-          />
-        </hbox>
-      </vbox>
+      </hbox>
       <separator class="thin" />
       <listheader>
         <treecol
