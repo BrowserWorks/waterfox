@@ -43,6 +43,17 @@ import { WaterfoxBlockerService } from "resource:///modules/WaterfoxBlockerServi
  * from the child actor.
  */
 export class WaterfoxBlockerParent extends JSWindowActorParent {
+  _createEmptyCosmeticResources({ noScripting = false } = {}) {
+    return {
+      exceptions: [],
+      generichide: true,
+      hideSelectors: [],
+      injectedScript: "",
+      noScripting: !!noScripting,
+      proceduralActions: [],
+    };
+  }
+
   /**
    * Routes incoming child actor messages to blocker service APIs.
    *
@@ -155,20 +166,18 @@ export class WaterfoxBlockerParent extends JSWindowActorParent {
       hostname = new URL(url).hostname || "";
     } catch (_) {}
 
+    const noScripting =
+      !!hostname && WaterfoxBlockerService.isScriptingDisabled(hostname);
+
+    if (hostname && WaterfoxBlockerService.shouldBypassBlocking(hostname)) {
+      return this._createEmptyCosmeticResources();
+    }
+
     if (
       hostname &&
       WaterfoxBlockerService.isCosmeticFilteringDisabled(hostname)
     ) {
-      return {
-        exceptions: [],
-        generichide: true,
-        hideSelectors: [],
-        injectedScript: "",
-        noScripting: !!(
-          hostname && WaterfoxBlockerService.isScriptingDisabled(hostname)
-        ),
-        proceduralActions: [],
-      };
+      return this._createEmptyCosmeticResources({ noScripting });
     }
 
     const resources = WaterfoxBlockerService.getCosmeticResources(url);
@@ -181,9 +190,7 @@ export class WaterfoxBlockerParent extends JSWindowActorParent {
       generichide: !!resources.generichide,
       hideSelectors: resources.hide_selectors || [],
       injectedScript: resources.injected_script || "",
-      noScripting: !!(
-        hostname && WaterfoxBlockerService.isScriptingDisabled(hostname)
-      ),
+      noScripting,
       proceduralActions: resources.procedural_actions || [],
     };
   }

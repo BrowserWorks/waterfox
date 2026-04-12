@@ -21,7 +21,6 @@ const CURRENT_PLACEMENT_VERSION = 1;
 const TOPIC_BLOCKED_COUNT_UPDATED = "WaterfoxBlocker:BlockedCountUpdated";
 const TOPIC_BLOCKED_COUNTS_CLEARED = "WaterfoxBlocker:BlockedCountsCleared";
 const TOPIC_CONTENT_BLOCKING_EVENT = "SiteProtection:ContentBlockingEvent";
-const TOPIC_LOGGER_UPDATED = "WaterfoxBlocker:LoggerUpdated";
 const TOPIC_PICKER_RULE_ADDED = "WaterfoxBlocker:PickerRuleAdded";
 const TOPIC_PICKER_STATE_CHANGED = "WaterfoxBlocker:PickerStateChanged";
 const TOPIC_ZAPPER_STATE_CHANGED = "WaterfoxBlocker:ZapperStateChanged";
@@ -50,7 +49,6 @@ const PANEL_IDS = {
   header: "waterfox-blocker-header-label",
   blockedCount: "waterfox-blocker-panel-blocked-count",
   cosmeticFilteringButton: "waterfox-blocker-panel-cosmetic-filtering-button",
-  loggerButton: "waterfox-blocker-panel-logger-button",
   remoteFontsButton: "waterfox-blocker-panel-remote-fonts-button",
   settingsButton: "waterfox-blocker-settings-button",
   pickerButton: "waterfox-blocker-panel-picker-button",
@@ -66,7 +64,6 @@ const L10N_IDS = {
   siteExcepted: "waterfox-blocker-panel-site-excepted",
   cosmeticFilteringDisable: "waterfox-blocker-panel-cosmetic-filtering-disable",
   cosmeticFilteringEnable: "waterfox-blocker-panel-cosmetic-filtering-enable",
-  loggerButton: "waterfox-blocker-panel-logger-button",
   remoteFontsDisable: "waterfox-blocker-panel-remote-fonts-disable",
   remoteFontsEnable: "waterfox-blocker-panel-remote-fonts-enable",
   settingsButton: "waterfox-blocker-panel-settings-button",
@@ -123,7 +120,6 @@ export const WaterfoxBlockerPanel = {
   _widgetRegistered: false,
   _windowState: new WeakMap(),
   _styledWindows: new WeakSet(),
-  _loggerWindows: new Map(),
   _pickerActiveByBrowserId: new Map(),
   _zapperActiveByBrowserId: new Map(),
 
@@ -270,13 +266,6 @@ export const WaterfoxBlockerPanel = {
     });
     setNodeL10nAttributes(doc, pickerButton, L10N_IDS.pickerStart);
     toolsSection.appendChild(pickerButton);
-
-    const loggerButton = createXUL(doc, "toolbarbutton", {
-      class: "subviewbutton",
-      id: PANEL_IDS.loggerButton,
-    });
-    setNodeL10nAttributes(doc, loggerButton, L10N_IDS.loggerButton);
-    toolsSection.appendChild(loggerButton);
     body.appendChild(toolsSection);
 
     mainView.appendChild(body);
@@ -376,11 +365,6 @@ export const WaterfoxBlockerPanel = {
 
       case PANEL_IDS.pickerButton:
         this._toggleElementPickerForCurrentTab(win, event.target);
-        event.stopPropagation();
-        break;
-
-      case PANEL_IDS.loggerButton:
-        this._openLoggerWindow(win, event.target);
         event.stopPropagation();
         break;
 
@@ -873,172 +857,6 @@ export const WaterfoxBlockerPanel = {
     this._reloadCurrentTab(win);
   },
 
-  _getLoggerWindow() {
-    const loggerWin = Services.wm.getMostRecentWindow(
-      "waterfox:blocker-logger"
-    );
-    if (!loggerWin || loggerWin.closed) {
-      return null;
-    }
-    return loggerWin;
-  },
-
-  _getLoggerWindowApi(loggerWin) {
-    if (!loggerWin || loggerWin.closed) {
-      return null;
-    }
-
-    return (
-      loggerWin.WaterfoxBlockerLogger ||
-      loggerWin.gWaterfoxBlockerLogger ||
-      null
-    );
-  },
-
-  _syncLoggerWindow(loggerWin) {
-    const state = this._loggerWindows.get(loggerWin);
-    const api = this._getLoggerWindowApi(loggerWin);
-    if (!state || !api) {
-      return;
-    }
-
-    const sourceWin = state.sourceWindow;
-    const browserId =
-      sourceWin && !sourceWin.closed ? this._getCurrentBrowserId(sourceWin) : 0;
-
-    api.setCurrentBrowserId(browserId);
-    api.setPaused(WaterfoxBlockerService.isLoggerPaused());
-    api.setEntries(WaterfoxBlockerService.getLoggerEntries(0));
-  },
-
-  _teardownLoggerWindow(loggerWin) {
-    const state = this._loggerWindows.get(loggerWin);
-    if (!state) {
-      return;
-    }
-
-    try {
-      Services.obs.removeObserver(state.observer, TOPIC_LOGGER_UPDATED);
-    } catch (_) {}
-
-    try {
-      loggerWin.removeEventListener("load", state.onLoad);
-      loggerWin.removeEventListener("unload", state.onUnload);
-      loggerWin.document?.removeEventListener("command", state.onCommand);
-    } catch (_) {}
-
-    this._loggerWindows.delete(loggerWin);
-  },
-
-  _registerLoggerWindow(loggerWin, sourceWin) {
-    if (!loggerWin || loggerWin.closed) {
-      return;
-    }
-
-    const existingState = this._loggerWindows.get(loggerWin);
-    if (existingState) {
-      existingState.sourceWindow = sourceWin;
-      this._syncLoggerWindow(loggerWin);
-      return;
-    }
-
-    const observer = {
-      observe: (_subject, topic) => {
-        if (topic === TOPIC_LOGGER_UPDATED) {
-          this._syncLoggerWindow(loggerWin);
-        }
-      },
-    };
-
-    const onCommand = event => {
-      const api = this._getLoggerWindowApi(loggerWin);
-      if (!api) {
-        return;
-      }
-
-      switch (event.target?.id) {
-        case "waterfoxBlockerLoggerPause":
-          WaterfoxBlockerService.setLoggerPaused(!!api.getSnapshot?.().paused);
-          break;
-
-        case "waterfoxBlockerLoggerClear":
-          WaterfoxBlockerService.clearLoggerEntries();
-          break;
-      }
-    };
-
-    const onLoad = () => {
-      try {
-        loggerWin.document?.addEventListener("command", onCommand);
-      } catch (_) {}
-      this._syncLoggerWindow(loggerWin);
-    };
-
-    const onUnload = () => {
-      this._teardownLoggerWindow(loggerWin);
-    };
-
-    this._loggerWindows.set(loggerWin, {
-      observer,
-      onCommand,
-      onLoad,
-      onUnload,
-      sourceWindow: sourceWin,
-    });
-
-    Services.obs.addObserver(observer, TOPIC_LOGGER_UPDATED);
-    loggerWin.addEventListener("load", onLoad, { once: true });
-    loggerWin.addEventListener("unload", onUnload, { once: true });
-
-    if (loggerWin.document?.readyState === "complete") {
-      onLoad();
-    }
-  },
-
-  _syncLoggerWindowsForSourceWindow(sourceWin) {
-    for (const [loggerWin, state] of this._loggerWindows.entries()) {
-      if (!loggerWin || loggerWin.closed) {
-        this._teardownLoggerWindow(loggerWin);
-        continue;
-      }
-
-      if (state.sourceWindow === sourceWin) {
-        this._syncLoggerWindow(loggerWin);
-      }
-    }
-  },
-
-  _openLoggerWindow(win, sourceNode = null) {
-    this._hidePanelForNode(sourceNode);
-
-    const existingWindow = this._getLoggerWindow();
-    if (existingWindow) {
-      this._registerLoggerWindow(existingWindow, win);
-      this._syncLoggerWindow(existingWindow);
-      existingWindow.focus();
-      return;
-    }
-
-    const url = "chrome://browser/content/blocker/waterfoxBlockerLogger.xhtml";
-    const dialogFeatures =
-      "chrome,resizable,dialog=no,centerscreen,width=1100,height=760";
-    const params = {
-      browserId: this._getCurrentBrowserId(win),
-      currentTabOnly: true,
-      entries: WaterfoxBlockerService.getLoggerEntries(0),
-      paused: WaterfoxBlockerService.isLoggerPaused(),
-    };
-
-    const loggerWin = win?.openDialog?.(
-      url,
-      "WaterfoxBlockerLogger",
-      dialogFeatures,
-      params
-    );
-
-    this._registerLoggerWindow(loggerWin, win);
-  },
-
   _primeBlockedCountCache() {
     if (!Services.prefs.getBoolPref(PREF_ENABLED, true)) {
       return;
@@ -1253,12 +1071,6 @@ export const WaterfoxBlockerPanel = {
       !siteState.protectable,
       pickerActive ? L10N_IDS.pickerStop : L10N_IDS.pickerStart
     );
-    this._refreshToolButton(
-      doc,
-      PANEL_IDS.loggerButton,
-      false,
-      L10N_IDS.loggerButton
-    );
 
     this._updateToolbarButtonForWindow(win, count, siteState.protectable);
   },
@@ -1276,7 +1088,6 @@ export const WaterfoxBlockerPanel = {
     const enabled = Services.prefs.getBoolPref(PREF_ENABLED, true);
 
     this._refreshPanelForWindow(win, blockedCount, enabled);
-    this._syncLoggerWindowsForSourceWindow(win);
   },
 
   _registerWidget() {
@@ -1542,10 +1353,6 @@ export const WaterfoxBlockerPanel = {
     this._forEachBrowserWindow(win => {
       this._unhookBrowserWindow(win);
     });
-
-    for (const loggerWin of this._loggerWindows.keys()) {
-      this._teardownLoggerWindow(loggerWin);
-    }
 
     this._destroyWidget();
     this._blockedCountByBrowserId.clear();
