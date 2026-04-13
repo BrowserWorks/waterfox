@@ -7,9 +7,19 @@
   min-height: 36em;
 }
 
+#WaterfoxBlockerFilterListsDialog {
+  height: 100%;
+}
+
+#WaterfoxBlockerFilterListsWindow .contentPane {
+  min-height: 0;
+}
+
 #WaterfoxBlockerFilterListsWindow .waterfox-blocker-scroll-container {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
-  max-height: 400px;
+  overflow-x: hidden;
 }
 
 #WaterfoxBlockerFilterListsWindow .waterfox-blocker-section-title {
@@ -22,6 +32,8 @@
   font: inherit;
   margin-block: 6px 8px;
   min-height: 5em;
+  overflow: auto;
+  resize: vertical;
   width: 100%;
 }
 
