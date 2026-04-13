@@ -17,8 +17,6 @@ The normal end-to-end flow is:
 
 Each of `build.yml`, `sign.yml`, `publish.yml`, and `stage.yml` can also be run directly via `workflow_dispatch` for manual operations.
 
-`browser-build.yml` is a contributor validation workflow. It runs a macOS ARM64 browser build and package without signing or publishing release artifacts.
-
 ---
 
 ## Prerequisites
@@ -209,22 +207,7 @@ gh workflow run stage.yml \
 - `ARTIFACTS_APP_ID`
 - `ARTIFACTS_APP_PRIVATE_KEY`
 
-### 6. `browser-build.yml`
-**Purpose:** validate browser changes by building and packaging a native macOS ARM64 browser artifact on the GitHub-hosted `macos-14` runner.
-
-**How to run manually:**
-```sh
-gh workflow run browser-build.yml \
-  -R BrowserWorks/waterfox \
-  -r current
-```
-
-Notes:
-- This workflow is for CI validation and contributor branches, not releases.
-- It uploads a short-lived `waterfox-macos-arm64` artifact for manual smoke testing.
-- Release builds should continue to use `pipeline.yml` or the reusable `build.yml`.
-
-### 7. `production.yml` — 🚀 Production
+### 6) `production.yml` — 🚀 Production
 **Purpose:** production promotion / redirects / final release publishing steps.
 
 Normally invoked by `publish.yml` after staging.
