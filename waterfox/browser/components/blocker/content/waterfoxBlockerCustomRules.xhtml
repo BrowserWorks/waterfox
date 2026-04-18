@@ -1,0 +1,54 @@
+<?xml version="1.0"?>
+
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<?csp default-src chrome:; style-src chrome:; ?>
+
+<window
+  id="WaterfoxBlockerCustomRulesWindow"
+  xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+  xmlns:html="http://www.w3.org/1999/xhtml"
+  data-l10n-id="waterfox-blocker-custom-rules-window"
+  data-l10n-attrs="title"
+  persist="width height"
+>
+  <dialog
+    id="waterfoxBlockerCustomRulesDialog"
+    buttons="accept,cancel"
+    data-l10n-id="waterfox-blocker-custom-rules-dialog"
+    data-l10n-attrs="buttonlabelaccept, buttonaccesskeyaccept"
+  >
+    <linkset>
+      <html:link rel="stylesheet" href="chrome://global/skin/global.css" />
+      <html:link
+        rel="stylesheet"
+        href="chrome://browser/skin/preferences/preferences.css"
+      />
+      <html:link
+        rel="stylesheet"
+        href="chrome://browser/content/blocker/waterfoxBlockerCustomRules.css"
+      />
+
+      <html:link rel="localization" href="browser/waterfox.ftl" />
+    </linkset>
+
+    <script src="chrome://browser/content/preferences/dialogs/waterfoxBlockerCustomRules.js" />
+
+    <vbox class="contentPane" flex="1">
+      <label
+        id="waterfoxBlockerCustomRulesDescription"
+        data-l10n-id="waterfox-blocker-custom-rules-description"
+      />
+      <separator class="thin" />
+      <html:textarea
+        id="waterfoxBlockerCustomRules"
+        class="waterfox-blocker-rules-textarea"
+        data-l10n-id="waterfox-blocker-custom-rules-placeholder"
+        data-l10n-attrs="placeholder"
+        rows="18"
+      />
+    </vbox>
+  </dialog>
+</window>

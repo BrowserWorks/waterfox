@@ -1,0 +1,27 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#WaterfoxBlockerCustomRulesWindow {
+  width: 52em;
+  min-height: 30em;
+}
+
+#WaterfoxBlockerCustomRulesDialog {
+  height: 100%;
+}
+
+#WaterfoxBlockerCustomRulesWindow .contentPane {
+  min-height: 0;
+}
+
+#WaterfoxBlockerCustomRulesWindow .waterfox-blocker-rules-textarea {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  font: inherit;
+  font-family: monospace;
+  min-height: 20em;
+  overflow: auto;
+  resize: vertical;
+  width: 100%;
+}
