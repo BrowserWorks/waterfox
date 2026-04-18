@@ -1678,9 +1678,6 @@ zefoy.com##^script:has-text(/'.adsbygoogle'|text-danger|warning|Adblock|_0x/)
 zefoy.com##+js(rmnt, script, /'.adsbygoogle'|text-danger|warning|Adblock|_0x/)
 !#endif
 
-! https://github.com/AdguardTeam/AdguardFilters/issues/140616
-alludemycourses.com##+js(aeld, DOMContentLoaded, adsBlocked)
-
 ! https://github.com/uBlockOrigin/uAssets/issues/17838
 unitystr.com##+js(no-fetch-if, googlesyndication)
 
@@ -1760,17 +1757,18 @@ reshare.pm##+js(nowoif)
 ||googlesyndication.com^$script,redirect=noopjs,domain=flysas.com
 
 ! https://github.com/uBlockOrigin/uAssets/issues/21553
-gamedrive.org##+js(aost, document.querySelector, /showModal|chooseAction|doAction|callbackAdsBlocked/)
-gamedrive.org##+js(acs, eval, replace)
-gamedrive.org##+js(aopr, b2a)
-gamedrive.org##+js(aeld, DOMContentLoaded, window.open)
 gamedrive.org##.code-block a[href][target="_blank"] > img[data-recalc-dims]
 gamedrive.org##a[href][target="_blank"][rel="noopener noreferrer"] > img
 gamedrive.org##.netflix-banner
 gamedrive.org##.hbo-banner
-!gamedrive.org##+js(rmnt, script, isOwner)
-gamedrive.org##+js(aeld, click, _shouldProcessLink)
+gamedrive.org##+js(aost, document.querySelector, /showModal|chooseAction|doAction|callbackAdsBlocked/)
 gamedrive.org##+js(acs,  String.fromCharCode, fetch)
+gamedrive.org##+js(acs, eval, replace)
+gamedrive.org##+js(aopr, b2a)
+!gamedrive.org##+js(rmnt, script, isOwner)
+gamedrive.org##+js(aeld, DOMContentLoaded, window.open)
+gamedrive.org##+js(aeld, click, _shouldProcessLink)
+gamedrive.org##+js(aeld, click, preventDefault)
 ! https://github.com/uBlockOrigin/uAssets/issues/31131
 cybar.xyz,cybar.to##+js(aeld, click, open)
 cybar.xyz,cybar.to##+js(nowoif, cpmecs)
@@ -2136,9 +2134,6 @@ dvdrev.com##+js(rmnt, #text, 関連動画)
 betweenjpandkr.blog##+js(rmnt, #text, PR:)
 ! https://nft-media.net/ interstitail
 nft-media.net##+js(rmnt, script, leave_recommend)
-
-! After article
-ghacks.net##+js(rmnt, #text, /Advertisement/)
 
 ! https://www.code-source.net ad
 ||images2.imgbox.com/67/0e/zUAgdBDk_o.gif$3p
@@ -4167,7 +4162,8 @@ twitter.com,x.com,~platform.twitter.com##+js(json-prune-xhr-response, data.user.
 twitter.com,x.com,~platform.twitter.com##+js(json-prune-xhr-response, data.immersiveMedia.timeline.instructions.[].entries.[-].content.itemContent.promotedMetadata, , propsToMatch, url:/ImmersiveMedia)
 ! https://github.com/uBlockOrigin/uAssets/issues/29749#issuecomment-3277237498
 x.com##article[data-testid="tweet"] a[href^="https://linkneverdiel.com"]
-x.com##+js(nowoif, /\.php\b.*_blank/)
+! https://github.com/uBlockOrigin/uAssets/issues/32488
+! x.com##+js(nowoif, /\.php\b.*_blank/)
 ! https://github.com/uBlockOrigin/uAssets/issues/29749#issuecomment-3281040355
 ! https://github.com/uBlockOrigin/uAssets/issues/32060
 ! x.com##+js(trusted-json-edit, .[?.media_entities.*.video_info.variants]..url_data.url="https://twitter.undefined")

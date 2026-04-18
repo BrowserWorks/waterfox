@@ -585,6 +585,10 @@ iteraplay.com##+js(trusted-set-local-storage-item, itera_cookie_consent, '{"stri
 cinemark.com.br##+js(set-cookie, cookies_config, deny)
 ! https://github.com/uBlockOrigin/uAssets/pull/32262
 theweathernetwork.com##+js(trusted-click-element, #didomi-notice-disagree-button)
+! https://github.com/uBlockOrigin/uAssets/pull/32538
+craftelier.com##+js(trusted-set-cookie, pr-cookie-consent, [], , , domain, .craftelier.com)
+! https://github.com/uBlockOrigin/uAssets/pull/32556
+moleson.rentalp.com##+js(trusted-set-cookie, USE_COOKIE_CONSENT_STATE, '{"firstParty":true,"thirdParty":false,"necessary":true}')
 
 
 !! Needs additional cookies
@@ -1023,9 +1027,9 @@ mafu.de##+js(trusted-set-cookie, wmm-visitor_token, 4cb8860d-4194-4ab5-be04-10f9
 ! essential only
 paf.com##+js(trusted-set-cookie, cookieConsent, {%22essential%22:true%2C%22tracking%22:false%2C%22marketing%22:false})
 ! Continue without agreeing, hide consent flash (.didomi-continue-without-agreeing)
-raymond-weil.com,auto.it,beauxarts.com,beinsports.com,bfmtv.com,boursobank.com,boursorama.com,boursier.com,brut.media,canalplus.com,decathlon.fr,diverto.tv,eden-park.com,foodvisor.io,franceinfo.fr,frandroid.com,jobijoba.*,hotelsbarriere.com,intersport.*,idealista.it,o2.fr,lejdd.fr,lechorepublicain.fr,la-croix.com,linfo.re,lamontagne.fr,laredoute.fr,largus.fr,leprogres.fr,lesnumeriques.com,libramemoria.com,lopinion.fr,marieclaire.fr,maville.com,michelin.*,midilibre.fr,meteofrance.com,mondialtissus.fr,orange.fr,orpi.com,oscaro.com,ouest-france.fr,parismatch.com,pagesjaunes.fr,programme-television.org,publicsenat.fr,rmcbfmplay.com,science-et-vie.com,seloger.com,societe.com,suzuki.fr,sudouest.fr,web-agri.fr###didomi-host
-mappy.com,raymond-weil.com,auto.it,beauxarts.com,beinsports.com,bfmtv.com,boursobank.com,boursorama.com,boursier.com,brut.media,canalplus.com,decathlon.fr,diverto.tv,eden-park.com,foodvisor.io,franceinfo.fr,jobijoba.*,hotelsbarriere.com,intersport.*,idealista.it,o2.fr,lejdd.fr,lechorepublicain.fr,la-croix.com,linfo.re,lamontagne.fr,laredoute.fr,largus.fr,leprogres.fr,lesnumeriques.com,libramemoria.com,lopinion.fr,marieclaire.fr,maville.com,michelin.*,midilibre.fr,meteofrance.com,mondialtissus.fr,orange.fr,orpi.com,oscaro.com,ouest-france.fr,parismatch.com,pagesjaunes.fr,programme-television.org,publicsenat.fr,rmcbfmplay.com,science-et-vie.com,seloger.com,societe.com,suzuki.fr,sudouest.fr,web-agri.fr##+js(trusted-click-element, .didomi-continue-without-agreeing, , 1000)
-raymond-weil.com,auto.it,beauxarts.com,beinsports.com,bfmtv.com,boursobank.com,boursorama.com,boursier.com,brut.media,canalplus.com,decathlon.fr,diverto.tv,eden-park.com,foodvisor.io,frandroid.com,jobijoba.*,hotelsbarriere.com,intersport.*,idealista.it,o2.fr,lejdd.fr,lechorepublicain.fr,la-croix.com,linfo.re,lamontagne.fr,laredoute.fr,largus.fr,leprogres.fr,lesnumeriques.com,libramemoria.com,lopinion.fr,marieclaire.fr,maville.com,michelin.*,midilibre.fr,meteofrance.com,mondialtissus.fr,orange.fr,orpi.com,oscaro.com,ouest-france.fr,parismatch.com,pagesjaunes.fr,programme-television.org,publicsenat.fr,rmcbfmplay.com,science-et-vie.com,seloger.com,societe.com,suzuki.fr,sudouest.fr,web-agri.fr##body.didomi-popup-open:style(overflow: auto !important;)
+euronews.com,raymond-weil.com,auto.it,beauxarts.com,beinsports.com,bfmtv.com,boursobank.com,boursorama.com,boursier.com,brut.media,canalplus.com,decathlon.fr,diverto.tv,eden-park.com,foodvisor.io,franceinfo.fr,frandroid.com,jobijoba.*,hotelsbarriere.com,intersport.*,idealista.it,o2.fr,lejdd.fr,lechorepublicain.fr,la-croix.com,linfo.re,lamontagne.fr,laredoute.fr,largus.fr,leprogres.fr,lesnumeriques.com,libramemoria.com,lopinion.fr,marieclaire.fr,maville.com,michelin.*,midilibre.fr,meteofrance.com,mondialtissus.fr,orange.fr,orpi.com,oscaro.com,ouest-france.fr,parismatch.com,pagesjaunes.fr,programme-television.org,publicsenat.fr,rmcbfmplay.com,science-et-vie.com,seloger.com,societe.com,suzuki.fr,sudouest.fr,web-agri.fr###didomi-host
+euronews.com,mappy.com,raymond-weil.com,auto.it,beauxarts.com,beinsports.com,bfmtv.com,boursobank.com,boursorama.com,boursier.com,brut.media,canalplus.com,decathlon.fr,diverto.tv,eden-park.com,foodvisor.io,franceinfo.fr,jobijoba.*,hotelsbarriere.com,intersport.*,idealista.it,o2.fr,lejdd.fr,lechorepublicain.fr,la-croix.com,linfo.re,lamontagne.fr,laredoute.fr,largus.fr,leprogres.fr,lesnumeriques.com,libramemoria.com,lopinion.fr,marieclaire.fr,maville.com,michelin.*,midilibre.fr,meteofrance.com,mondialtissus.fr,orange.fr,orpi.com,oscaro.com,ouest-france.fr,parismatch.com,pagesjaunes.fr,programme-television.org,publicsenat.fr,rmcbfmplay.com,science-et-vie.com,seloger.com,societe.com,suzuki.fr,sudouest.fr,web-agri.fr##+js(trusted-click-element, .didomi-continue-without-agreeing, , 1000)
+euronews.com,raymond-weil.com,auto.it,beauxarts.com,beinsports.com,bfmtv.com,boursobank.com,boursorama.com,boursier.com,brut.media,canalplus.com,decathlon.fr,diverto.tv,eden-park.com,foodvisor.io,frandroid.com,jobijoba.*,hotelsbarriere.com,intersport.*,idealista.it,o2.fr,lejdd.fr,lechorepublicain.fr,la-croix.com,linfo.re,lamontagne.fr,laredoute.fr,largus.fr,leprogres.fr,lesnumeriques.com,libramemoria.com,lopinion.fr,marieclaire.fr,maville.com,michelin.*,midilibre.fr,meteofrance.com,mondialtissus.fr,orange.fr,orpi.com,oscaro.com,ouest-france.fr,parismatch.com,pagesjaunes.fr,programme-television.org,publicsenat.fr,rmcbfmplay.com,science-et-vie.com,seloger.com,societe.com,suzuki.fr,sudouest.fr,web-agri.fr##body.didomi-popup-open:style(overflow: auto !important;)
 ! functional only, ad/analytics denied
 flip.gr##+js(trusted-set-cookie, consts, '{%22ad_storage%22:%22denied%22%2C%22analytics_storage%22:%22denied%22%2C%22functionality_storage%22:%22granted%22}')
 ! necessarry
@@ -1467,7 +1471,7 @@ n-tv.de##+js(trusted-set-cookie, consentUUID, a8dac56d-c5d7-4a8a-bab2-da9eb2f28d
 ! reject, allow Listen to this article
 lbc.co.uk##+js(trusted-set-cookie, consentUUID, de4972d9-e581-40c3-921b-296d6456fad0_34)
 ! reject
-aftonbladet.se,omniekonomi.se,bt.no,vg.no##+js(trusted-set-cookie, consentUUID, 1_34_38)
+omniekonomi.se,bt.no,vg.no##+js(trusted-set-cookie, consentUUID, 1_34_38)
 
 ! derstandard.at,derstandard.de
 ! https://old.reddit.com/r/uBlockOrigin/comments/1evyir1/derstandardat/
@@ -1619,7 +1623,7 @@ bloodyelbow.com>>,consent.radiotimes.com##+js(trusted-click-element, button[titl
 sp-consent.szbz.de##+js(trusted-click-element, button[title="Alles akzeptieren"], , 1000)
 
 ! agree
-cmp.omni.se,cmp.svd.se,cmp.aftonbladet.se,cmp.tv.nu##+js(trusted-click-element, button[title="Godkänn alla cookies"], , 1000)
+cmp.omni.se,cmp.svd.se,cmp.tv.nu##+js(trusted-click-element, button[title="Godkänn alla cookies"], , 1000)
 
 ! accept weltkunst.de
 weltkunst.de>>##+js(trusted-click-element, button[title="ALLE AKZEPTIEREN"], , 1000)
@@ -2366,6 +2370,15 @@ dskdirect.bg##+js(trusted-click-element, a#CybotCookiebotDialogBodyButtonAcceptA
 ! essential
 cmpv2.dba.dk##+js(trusted-click-element, button[title="Kun nødvendige"], , 2500)
 
+! reject
+portal.newdaycards.com##+js(trusted-set-cookie, cookieConsents, '{"analytics":false,"marketing":false,"userPreferences":false}')
+
+! functional
+app.trakt.tv##+js(trusted-click-element, button[aria-label="Accept functional cookies only"], , 1000)
+
+! reject
+dropreference.com##+js(trusted-set-cookie, DR-cookie-consent, '{"necessary":true,"analytics":false,"marketing":false}')
+
 ! accept
 ! gbnews.com/cdn.privacy-mgmt.com
 spcmp.crosswordsolver.com,gbnews.com>>##+js(trusted-click-element, button[title="Accept"], , 1000)
@@ -2990,6 +3003,21 @@ lta.org.uk##+js(trusted-set-cookie, cookieprefs, '{"func":false,"perf":false,"tr
 
 ! refuse
 app.lepermislibre.fr##+js(trusted-click-element, button[data-testid="cookie-modal-actions-decline"], , 1000)
+
+! Continue without accepting
+leboncoin.fr##+js(trusted-click-element, button[aria-label="Continuer sans accepter"], , 1000)
+
+! reject
+parkingbase.com##+js(trusted-set-local-storage-item, cookie-consent, '{"hasConsent":true,"preferences":{"necessary":true,"analytics":false,"marketing":false},"timestamp":"$currentISODate$"}')
+
+! reject tracking
+palaisgalliera.paris.fr##+js(trusted-set-cookie, orejime, '{"strictly_necessary":true,"tracking":false,"youtube":true,"dailymotion":true,"Facebook":true}')
+
+! consent wall, accept
+cmp.klart.se##+js(trusted-click-element, button[aria-label="Godkänn alla"], , 1000)
+
+! reject, allow language switching
+caixabank.com##+js(trusted-click-element, span###cookies-deny-button, , 1000)
 
 ! decline
 cremadescalvosotelo.com##+js(trusted-set-cookie, cookies_consent, !gtag=false)
@@ -5476,3 +5504,19 @@ e-jumbo.ro##+js(trusted-set-cookie, {ConsentChecked, '"userHasSetCookies":true,"
 ! https://github.com/uBlockOrigin/uAssets/issues/32456
 @@||onetrust.com^$script,xhr,domain=nectar.com
 nectar.com##+js(trusted-click-element, button[id="onetrust-reject-all-handler"], , 1500)
+
+! https://github.com/uBlockOrigin/uAssets/issues/22466#issuecomment-4222244532
+@@||cdn.cookielaw.org/scripttemplates/*/otBannerSdk.js$script,domain=nowtv.com.tr
+nowtv.com.tr#@##onetrust-consent-sdk
+nowtv.com.tr#@##onetrust-banner-sdk
+nowtv.com.tr##+js(trusted-click-element, button[id="onetrust-reject-all-handler"], , 1500)
+
+! https://github.com/uBlockOrigin/uAssets/issues/32498
+scandinavianoutdoor.fi##+js(trusted-set-local-storage-item, cookieconsent, {"consents":["ESSENTIAL"]})
+
+! Essential only
+ixolabs.ai##+js(trusted-set-cookie, ixo_cookie_consent, '{"essential":true,"analytics":false,"functional":false}')
+
+! Accept
+! https://github.com/brave-experiments/cookiecrumbler-issues/issues/1996
+aftonbladet.se##+js(trusted-click-element, #notice button[title="Godkänn alla"])

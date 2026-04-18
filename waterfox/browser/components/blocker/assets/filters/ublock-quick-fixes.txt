@@ -98,12 +98,12 @@ www.youtube.com##+js(trusted-replace-fetch-response, '"adSlots"', '"no_ads"', /g
 ! web.facebook.com,www.facebook.com##+js(json-prune-xhr-response, data.viewer.sideFeed.nodes.0.{-}.nodes.0.rhc_ad, , propsToMatch, /api/graphql)
 web.facebook.com,www.facebook.com##+js(json-prune, require.0.3.0.__bbox.require.[].3.1.__bbox.result.data.viewer.sideFeedUnit.nodes.[].new_adverts.nodes.[-].sponsored_data)
 web.facebook.com,www.facebook.com##+js(json-prune-xhr-response, data.viewer.sideFeedUnit.nodes.[].new_adverts.nodes.[-].sponsored_data, , propsToMatch, /graphql)
-web.facebook.com,www.facebook.com##+js(json-edit, ..sideFeed.nodes.*[?.__typename=="AdsSideFeedUnit"])
+web.facebook.com,www.facebook.com##+js(json-edit, ..sideFeedUnit.nodes.*[?.__typename=="AdsSideFeedUnit"])
 web.facebook.com,www.facebook.com##+js(set, Env.nxghljssj, false)
 ! https://github.com/uBlockOrigin/uAssets/issues/3367#issuecomment-3060431385
-web.facebook.com,www.facebook.com##div[role="complementary"] a[aria-labelledby][attributionsrc^="/privacy_sandbox/comet/register/source/?eid="][href^="http"][target="_blank"]
+web.facebook.com,www.facebook.com##div[role="complementary"] a[aria-labelledby][attributionsrc^="/privacy_sandbox/comet/register/source/./?eid="][href^="http"][target="_blank"]
 web.facebook.com,www.facebook.com##div[role="complementary"] div[data-visualcompletion="ignore-dynamic"] a[aria-label][attributionsrc="_blank"][href*="utm_medium"][href*="utm_source"][href*="utm_id"][href*="utm_content"][href*="utm_term"][href*="utm_campaign"]
-web.facebook.com,www.facebook.com##div[role="complementary"] a[aria-labelledby][attributionsrc][href^="http"][target="_blank"][role="link"][rel="nofollow noreferrer"]:has(img[src])
+web.facebook.com,www.facebook.com##div[role="complementary"] a[aria-labelledby][attributionsrc][href^="http"][target="_blank"][role="link"][rel$="noreferrer"]:has(img[src])
 web.facebook.com,www.facebook.com##+js(json-prune, require.0.3.0.__bbox.require.[].3.1.__bbox.result.data.serpResponse.results.edges.[-].rendering_strategy.view_model.story.sponsored_data.ad_id)
 web.facebook.com,www.facebook.com##+js(json-edit, ..__bbox.result.data.node[?@.*.__typename=="SponsoredData"])
 web.facebook.com,www.facebook.com##+js(jsonl-edit-xhr-response, .data[?@.category=="SPONSORED"].node, propsToMatch, /graphql)
@@ -112,11 +112,12 @@ web.facebook.com,www.facebook.com##+js(jsonl-edit-xhr-response, .data.viewer.new
 
 ! https://github.com/uBlockOrigin/uAssets/issues/24745 - https://voe.sx/e/2z9smej3tebe
 ! VOE sites
-||imasdk.googleapis.com/js/sdkloader/ima3.js$script,3p,redirect=google-ima.js,domain=dianaavoidthey.com,important
-dianaavoidthey.com##+js(nowoif)
-dianaavoidthey.com##+js(set, console.clear, undefined)
-dianaavoidthey.com##+js(acs, globalThis, break;case)
-dianaavoidthey.com##+js(acs, WebAssembly, atob)
+||imasdk.googleapis.com/js/sdkloader/ima3.js$script,3p,redirect=google-ima.js,domain=marissasharecareer.com,important
+marissasharecareer.com##+js(nowoif)
+marissasharecareer.com##+js(set, console.clear, undefined)
+marissasharecareer.com##+js(acs, globalThis, break;case)
+marissasharecareer.com##+js(acs, WebAssembly, atob)
+||marissasharecareer.com^$badfilter
 
 ! next-episode .net
 !next-episode.net##+js(rmnt, script, '/[\s\S]{0,}head[\s\S]{1900,}/')
@@ -168,7 +169,10 @@ japscan.*##+js(norafif, requestAnimationFrame)
 japscan.*##+js(acs, Array.prototype.join, /^[\S\s]{2000\,6000}$/)
 japscan.*##+js(acs, DOMTokenList.prototype.remove, /^[\S\s]{3000\,4000}$/)
 japscan.*##+js(acs, Node.prototype.appendChild, /cssText'|:'style'/)
-japscan.*##+js(acs, Promise.resolve, jso$)
+japscan.*##+js(acs, Promise.resolve, /jso\$|\(_0x|(['"`]\s*[-0-9A-Z_a-z]+\s*['"`]\,\s*){50\,}/)
+japscan.*##+js(trusted-set, aclib, 'json:{"isShowingPop":false}')
+japscan.*##+js(set, aclib.runInterstitial, {}, as, function)
+japscan.*##+js(trusted-replace-outbound-text, Function.prototype.toString, ( ) => value, 'runInterstitial(e){if(this.#fe.interstitial)return void this.#r.error("interstitial zone already loaded on page");this.#fe.interstitial=!0;const{zoneId:t,sub1:r,isAutoTag:n,collectiveZoneId:i,linkedZoneId:o,aggressivity:s,recordPageView:a,abTest:c,tagVersionSuffix:u}=e;if(!t)throw new Error("mandatory zoneId is not provided!");if(!we(t))throw new Error("zoneId is not a string!");this.#r.debug("loading interstitial on page");const l={zoneId:t,sub1:r,isAutoTag:n,collectiveZoneId:i,linkedZoneId:o,aggressivity:s,recordPageView:a,abTest:c,tagVersionSuffix:u,adcashGlobalName:this.#xe,adserverDomain:this.#v,adblockSettings:this.#s,uniqueFingerprint:this.#C,isLoadedAsPartOfLibrary:!1};if(this.#pe.add(t),this.#Ce.Interstitial)return l.isLoadedAsPartOfLibrary=!0,void new this.#Ce.Interstitial(l);if(window.Interstitial)new Interstitial(l);else{const e=document.createElement("script");e.type="text/javascript",e.src=`${location.protocol}//${this.#he}/script/interstitial.js`,e.setAttribute("a-lib","1"),e.onload=()=>{new Interstitial(l)},e.onerror=()=>{this.#r.error(`failed loading ${e.src}`)},document.head.appendChild(e)}}')
 
 ! https://github.com/uBlockOrigin/uAssets/issues/21064
 ! https://github.com/uBlockOrigin/uAssets/issues/24220
@@ -300,9 +304,14 @@ bing.com##ol#b_results > li.b_algo:has(.b_lineclamp3:matches-css-before(content:
 ! https://github.com/uBlockOrigin/uAssets/issues/29059#issuecomment-3322889596
 ! https://github.com/uBlockOrigin/uAssets/issues/29059#issuecomment-3327077921
 @@*$image,xhr,domain=bg-gledai.*|gledaitv.*|bg-gledai.video|gledaitv.fan|gledaitv.live
-@@||gledaitv.$ghide
-@@||pagead2.googlesyndication.com^$script,domain=gledaitv.fan
+@@*$ghide,domain=bg-gledai.*|gledaitv.*|bg-gledai.video|gledaitv.fan|gledaitv.live
+@@||pagead2.googlesyndication.com^$script,domain=bg-gledai.*|gledaitv.*|bg-gledai.video|gledaitv.fan|gledaitv.live
 gledaitv.*###ad-overlay:remove()
+gledaitv.*##+js(trusted-replace-argument, document.getElementById, 0, json:"body", condition, ad-detection-bait)
+gledaitv.*##+js(trusted-replace-argument, document.querySelector, 0, json:"body", condition, -id-)
+gledaitv.*##+js(set, scriptBlocked, false)
+gledaitv.*##+js(set, blocked, false)
+gledaitv.*##+js(set, testUrls, [])
 
 ! https://github.com/uBlockOrigin/uAssets/issues/1093
 @@||ads.*.js|$script,3p,domain=seirsanduk.*|seir-sanduk.com|seirsanduk.com|seirsanduk.net|seirsanduk.online
@@ -330,11 +339,10 @@ pvpoke-re.com##+js(ra, data-instype, ins.adsbygoogle:has(> div#aswift_0_host), s
 pvpoke-re.com##+js(trusted-set-attr, ins.adsbygoogle.nitro-side\,ins.adsbygoogle.nitro-banner, data-ad-status, filled)
 pvpoke-re.com##+js(no-fetch-if, url:https://googleads.g.doubleclick.net/pagead/ads?client=ca-pub-3497863494706299 method:HEAD mode:no-cors, , , throttle, 121)
 pvpoke-re.com##+js(trusted-replace-argument, String.prototype.indexOf, 0, json:"/", condition, /premium)
-pvpoke-re.com##+js(trusted-rpnt, script, var menuSlideProtection, /*start*/!function(){"use strict";const e=Function.prototype.toString\,t=new WeakMap;let n=0;const o=(e\,n)=>{if("function"==typeof e&&(t.set(e\,`function ${n}() { [native code] }`)\,n))try{Object.defineProperty(e\,"name"\,{value:n\,configurable:!0})}catch(e){}return e}\,r=()=>{const e=(new Error).stack;return e&&/[A-Za-z]{3}\d[0-9A-Za-z]{4\,}\.js\?v=/.test(e)?e:null};let i=0;const a=window.Date\,c=a.now\,s=window.performance.now.bind(window.performance);window.Date=o(class extends a{constructor(...e){return 0===e.length&&r()?(new a):super(...e)}static now(){return r()&&(n++\,n<=2)?1770030787823+i:c()}}\,"Date")\,window.performance.now=o((()=>s()+i)\,"now");const p=e=>{try{const t=Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype\,"contentWindow").get;Object.defineProperty(e\,"contentWindow"\,{get:function(){const e=t.apply(this);return e&&e.Function&&e.Function.prototype.toString!==window.Function.prototype.toString&&(e.Function.prototype.toString=window.Function.prototype.toString)\,e}\,configurable:!0})}catch(e){}}\,u=document.createElement;document.createElement=o((function(e){const t=u.apply(this\,arguments);return e&&"iframe"===e.toLowerCase()&&p(t)\,t})\,"createElement");const l=Element.prototype.appendChild;Element.prototype.appendChild=o((function(e){return e&&"IFRAME"===e.tagName&&p(e)\,l.apply(this\,arguments)})\,"appendChild");const d=window.performance\,y=d.getEntriesByType\,g=(e\,t)=>{const n=Object.create(PerformanceResourceTiming.prototype)\,o={name:{value:e\,enumerable:!0}\,entryType:{value:"resource"\,enumerable:!0}\,initiatorType:{value:t\,enumerable:!0}\,duration:{value:15\,enumerable:!0}\,startTime:{value:100\,enumerable:!0}\,responseEnd:{value:115\,enumerable:!0}\,transferSize:{value:0\,enumerable:!0}\,encodedBodySize:{value:0\,enumerable:!0}\,decodedBodySize:{value:0\,enumerable:!0}};return Object.defineProperties(n\,o)\,n}\,m=o((function(e){let t=[];try{t=y.call(d\,e)}catch(e){t=[]}return"resource"===e&&r()?[...t\,g("https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3497863494706299"\,"script")\,g("https://pagead2.googlesyndication.com/managed/js/adsense/m202602170101/show_ads_impl_fy2021.js"\,"script")\,g("https://googleads.g.doubleclick.net/pagead/html/r20260218/r20190131/zrt_lookup_fy2021.html"\,"iframe")\,g("https://pagead2.googlesyndication.com/pagead/gen_204"\,"img")\,g("https://pagead2.googlesyndication.com/pagead/ping?e=1"\,"fetch")]:t})\,"getEntriesByType");try{Object.defineProperty(d\,"getEntriesByType"\,{value:m\,writable:!1\,configurable:!0})}catch(e){d.getEntriesByType=m}const f=Array.prototype.push;Array.prototype.push=o((function(...e){if((e=>{if(!e)return!1;const t=e.split("\n").length-1\,n=e.includes("_executeCallback")\,o=/at\s+([0-9A-Z_a-z]{1\,3}|<anonymous>)\s+\(/.test(e);return t>=4&&t<=6&&(n||o)})((new Error).stack)){const t=["fetch"\,"XMLHttpRequest"]\,n=e.filter((e=>!t.includes(e)));return 0===n.length&&e.length>0?this.length:f.apply(this\,n)}return f.apply(this\,e)})\,"push");const h=window.XMLHttpRequest\,w=o((function(){return new h(...arguments)})\,"XMLHttpRequest");w.prototype=h.prototype\,Object.setPrototypeOf(w\,h)\,window.XMLHttpRequest=w\,Function.prototype.toString=o((function(){if(t.has(this))return t.get(this);return["XMLHttpRequest"\,"fetch"\,"querySelectorAll"\,"bind"\,"push"\,"toString"\,"addEventListener"\,"now"\,"Date"\,"match"\,"createElement"\,"getEntriesByType"\,"setTimeout"].includes(this.name)?`function ${this.name}() { [native code] }`:e.apply(this\,arguments)})\,"toString");const b=window.fetch;window.fetch=o((function(e){return"string"==typeof e&&e.includes("googleads")?b.apply(this\,arguments).then((e=>(i+=40\,e))):b.apply(this\,arguments)})\,"fetch");const E=window.setTimeout;window.setTimeout=o((function(e\,t){if("function"==typeof e){const t=e.toString().replace(/\s+/g\,"");if(t.length<50&&/[$0-9A-Z_a-z]+&&[$0-9A-Z_a-z]+\(\)/i.test(t))return}return E.apply(this\,arguments)})\,"setTimeout")}();document.currentScript.textContent=document.currentScript.textContent.replace(/\/\*start\*\/(.*)\/\*end\*\//\,"");/*end*/var menuSlideProtection, sedCount, 1)
+pvpoke-re.com##+js(trusted-rpnt, script, var menuSlideProtection, /*start*/!function(){"use strict";const e=Function.prototype.toString\,t=new WeakMap;let n=0\,o=0;const r=(e\,n)=>{if("function"==typeof e&&(t.set(e\,`function ${n}() { [native code] }`)\,n))try{Object.defineProperty(e\,"name"\,{value:n\,configurable:!0})}catch(e){}return e}\,i=()=>{const e=(new Error).stack;return e&&/[A-Za-z]{3}\d[0-9A-Za-z]{4\,}\.js\?v=/.test(e)?e:null};try{const e=Object.getOwnPropertyDescriptor(MessagePort.prototype\,"onmessage")\,t=e?e.set:function(e){this._onmessage=e}\,n=e?e.get:function(){return this._onmessage};Object.defineProperty(MessagePort.prototype\,"onmessage"\,{set:r((function(e){return"function"==typeof e&&i()?t.call(this\,r((function(){})\,"")):t.call(this\,e)})\,"set onmessage")\,get:r((function(){return n.call(this)})\,"get onmessage")\,configurable:!0})}catch(e){}["A1"\,"A6"].forEach((e=>{try{Object.defineProperty(window\,e\,{get:()=>!1\,set:()=>{}\,configurable:!0})}catch(e){}}));const s=window.Date\,c=s.now\,a=window.performance.now.bind(window.performance);window.Date=r(class extends s{constructor(...e){return 0===e.length&&i()?(new s):super(...e)}static now(){return i()&&(n++\,n<=2)?1770030787823+o:c()}}\,"Date")\,window.performance.now=r((()=>a()+o)\,"now");const p=e=>{try{const t=Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype\,"contentWindow").get;Object.defineProperty(e\,"contentWindow"\,{get:function(){const e=t.apply(this);return e&&e.Function&&e.Function.prototype.toString!==window.Function.prototype.toString&&(e.Function.prototype.toString=window.Function.prototype.toString)\,e}\,configurable:!0})}catch(e){}}\,u=document.createElement;document.createElement=r((function(e){const t=u.apply(this\,arguments);return e&&"iframe"===e.toLowerCase()&&p(t)\,t})\,"createElement");const l=Element.prototype.appendChild;Element.prototype.appendChild=r((function(e){return e&&"IFRAME"===e.tagName&&p(e)\,l.apply(this\,arguments)})\,"appendChild")\,window.addEventListener("load"\,(()=>{const e=()=>document.querySelectorAll("iframe").forEach((e=>{const t=e.getAttribute("src");if(t&&t.includes("lmt=")){const n=t.replace(/([?&]lmt=)\d+/\,`$1${Math.floor(Date.now()/1e3)}`);t!==n&&e.setAttribute("src"\,n)}}));setTimeout(e\,150)\,setTimeout(e\,1e3)}));const d=window.performance\,g=d.getEntriesByType\,y=(e\,t)=>{const n=Object.create(PerformanceResourceTiming.prototype);return Object.defineProperties(n\,{name:{value:e\,enumerable:!0}\,entryType:{value:"resource"\,enumerable:!0}\,initiatorType:{value:t\,enumerable:!0}\,duration:{value:15\,enumerable:!0}\,startTime:{value:100\,enumerable:!0}\,responseEnd:{value:115\,enumerable:!0}\,transferSize:{value:0\,enumerable:!0}\,encodedBodySize:{value:0\,enumerable:!0}\,decodedBodySize:{value:0\,enumerable:!0}})\,n}\,f=r((function(e){let t=[];try{t=g.call(d\,e)}catch(e){t=[]}return"resource"===e&&i()?[...t\,y("https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3497863494706299"\,"script")\,y("https://pagead2.googlesyndication.com/managed/js/adsense/m202602170101/show_ads_impl_fy2021.js"\,"script")\,y("https://googleads.g.doubleclick.net/pagead/html/r20260218/r20190131/zrt_lookup_fy2021.html"\,"iframe")\,y("https://pagead2.googlesyndication.com/pagead/gen_204"\,"img")\,y("https://pagead2.googlesyndication.com/pagead/ping?e=1"\,"fetch")]:t})\,"getEntriesByType");try{Object.defineProperty(d\,"getEntriesByType"\,{value:f\,configurable:!0})}catch(e){d.getEntriesByType=f}const m=Array.prototype.push;Array.prototype.push=r((function(...e){if((e=>{if(!e)return!1;const t=e.split("\n").length-1;return t>=4&&t<=6&&(e.includes("_executeCallback")||/at\s+([0-9A-Z_a-z]{1\,3}|<anonymous>)\s+\(/.test(e))})((new Error).stack)){const t=e.filter((e=>!["fetch"\,"XMLHttpRequest"].includes(e)));return 0===t.length&&e.length>0?this.length:m.apply(this\,t)}return m.apply(this\,e)})\,"push");const h=window.XMLHttpRequest;window.XMLHttpRequest=r((function(){return new h(...arguments)})\,"XMLHttpRequest")\,window.XMLHttpRequest.prototype=h.prototype\,Object.setPrototypeOf(window.XMLHttpRequest\,h)\,Function.prototype.toString=r((function(){if(t.has(this))return t.get(this);return["XMLHttpRequest"\,"fetch"\,"querySelectorAll"\,"bind"\,"push"\,"toString"\,"addEventListener"\,"now"\,"Date"\,"match"\,"createElement"\,"getEntriesByType"\,"setTimeout"\,"MessageChannel"\,"postMessage"].includes(this.name)?`function ${this.name}() { [native code] }`:e.apply(this\,arguments)})\,"toString");const w=window.fetch;window.fetch=r((function(e){return"string"==typeof e&&e.includes("googleads")?w.apply(this\,arguments).then((e=>(o+=40\,e))):w.apply(this\,arguments)})\,"fetch");const b=window.setTimeout;window.setTimeout=r((function(e\,t){if("function"==typeof e){const t=e.toString().replace(/\s+/g\,"");if(t.length<50&&/[$0-9A-Z_a-z]+&&[$0-9A-Z_a-z]+\(\)/i.test(t))return}return b.apply(this\,arguments)})\,"setTimeout")}();document.currentScript.textContent=document.currentScript.textContent.replace(/\/\*start\*\/(.*)\/\*end\*\//\,"");/*end*/var menuSlideProtection, sedCount, 1)
 pvpoke-re.com##+js(trusted-set-attr, ins.adsbygoogle, data-adsbygoogle-status, done)
 ||pvpoke-re.com/*.js?v=$replace=/try\{GameMaster/try{return;GameMaster/
 pvpoke-re.com##+js(trusted-override-element-method, HTMLIFrameElement.prototype.remove, iframe[src^="https://googleads.g.doubleclick.net/pagead/ads?client=ca-pub-3497863494706299"])
-pvpoke-re.com##iframe[style="position: fixed; left: -9999px; top: -9999px; width: 1px; height: 1px; visibility: hidden; border: 0px; pointer-events: none;"]:remove()
 
 ! https://github.com/uBlockOrigin/uAssets/issues/27884
 ! https://github.com/uBlockOrigin/uAssets/issues/27886
@@ -445,5 +453,13 @@ magma.com##+js(trusted-set, Object.prototype.adsStrategy, 'json:{"tag":"","phase
 ! https://github.com/uBlockOrigin/uAssets/issues/31775
 embedtv.best##+js(rpnt, script, (popupLoaded), (true))
 
-! https://www.reddit.com/r/uBlockOrigin/comments/1scukvq/comment/oeesd07/
-facebook.com,facebookwkhpilnemxj7asaniu7vnjjbiltxjqhye3mhbshg7kx5tfyd.onion#@#div[role="feed"] > div:has(div[role="article"] a[attributionsrc^="/privacy_sandbox/comet/register/source/"])
+! https://github.com/easylist/easylist/commit/73460e0ef8aff07d3f60b53cf4d30c659c941e28
+ranking.sanrio.co.jp#@#.is-ad
+
+! https://www.reddit.com/r/uBlockOrigin/comments/1sgy34h/ads_showing_on_myanimelist/
+! https://github.com/uBlockOrigin/uAssets/issues/17018#issuecomment-4226692901
+myanimelist.net##a.ga-click[data-ga-click-type="hia"]
+myanimelist.net##div[id$="_NXU_wrap"], div[id$="_NXU_TITLE_wrap"]
+
+! https://github.com/uBlockOrigin/uAssets/issues/32546#issuecomment-4253067253
+||ac.rule34.xxx^$badfilter

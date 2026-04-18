@@ -15,6 +15,11 @@
 !
 ! NOTE: Generic rules
 !
+! True Anthem
+! https://github.com/AdguardTeam/AdguardFilters/issues/228929
+! https://github.com/AdguardTeam/AdguardFilters/issues/222986
+$removeparam=link_source
+$removeparam=taid
 ! Telergam Ads click tracking
 $removeparam=tgclid
 ! https://github.com/AdguardTeam/AdguardFilters/issues/224235
@@ -515,6 +520,9 @@ $removeparam=tduid
 ! Bad: ||example.org^$xmlhttprequest,redirect=noopvast-3.0 (for instance, should be in specific.txt)
 !
 !
+! https://github.com/AdguardTeam/AdguardFilters/issues/228812
+||kuper.ru^$removeparam=ads_identity_ads_promo_identity_site_uid
+||kuper.ru^$removeparam=ads_identity_ads_promo_identity_placement_uid
 ! https://github.com/AdguardTeam/AdguardFilters/issues/228746
 ||fboom.me^$removeparam=site
 ! https://github.com/AdguardTeam/AdguardFilters/issues/228267
@@ -594,9 +602,6 @@ ref=shadcn.com^$removeparam=ref
 ||ratel-ad.com^$removeparam=advertiser
 ||123chat.jp/promotion/$removeparam=cid
 ||123chat.jp/promotion/$removeparam=p
-! https://github.com/AdguardTeam/AdguardFilters/issues/222986
-||tw.news.yahoo.com^$removeparam=link_source
-||tw.news.yahoo.com^$removeparam=taid
 ! https://github.com/AdguardTeam/AdguardFilters/issues/223033
 ||netmonet.co^$removeparam=id
 ||netmonet.co^$removeparam=wpid

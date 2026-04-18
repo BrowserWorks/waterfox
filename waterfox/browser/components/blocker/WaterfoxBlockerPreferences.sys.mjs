@@ -22,8 +22,10 @@ const PREF_ENABLED = "waterfox.blocker.enabled";
 const PREF_UI_ENABLED = "waterfox.blocker.ui.enabled";
 const PREF_ALLOW_SEARCH_PARTNER_ADS = "waterfox.blocker.allowSearchPartnerAds";
 const PREF_SHOW_BADGE = "waterfox.blocker.showBadge";
+const PREF_CNAME_UNCLOAKING = "waterfox.blocker.cnameUncloaking";
 const PREF_SITE_EXCEPTIONS = "waterfox.blocker.siteExceptions";
 const PREF_FILTER_LIST_URLS = "waterfox.blocker.filterListUrls";
+const PREF_CUSTOM_RULES = "waterfox.blocker.customRules";
 
 const BOUND_ATTR = "data-waterfox-blocker-bound";
 const PREF_LISTENERS_ATTR = "data-waterfox-blocker-pref-listeners";
@@ -142,6 +144,7 @@ export const WaterfoxBlockerPreferences = {
     return {
       exceptionsButton: document.getElementById("waterfoxBlockerExceptions"),
       filterListsButton: document.getElementById("waterfoxBlockerFilterLists"),
+      customRulesButton: document.getElementById("waterfoxBlockerCustomRules"),
       group,
       modeRadioGroup: document.getElementById("waterfoxBlockerModeRadioGroup"),
       offOptionBox: document.getElementById("waterfoxBlockerOptionOff"),
@@ -159,6 +162,9 @@ export const WaterfoxBlockerPreferences = {
       searchPartnerMode: document.getElementById(
         "waterfoxBlockerSearchPartnerMode"
       ),
+      cnameUncloakingCheckbox: document.getElementById(
+        "waterfoxBlockerCnameUncloaking"
+      ),
       showBadgeCheckbox: document.getElementById("waterfoxBlockerShowBadge"),
     };
   },
@@ -174,9 +180,11 @@ export const WaterfoxBlockerPreferences = {
       controls.onOptionBox &&
       controls.offOptionBox &&
       controls.searchPartnerMode &&
+      controls.cnameUncloakingCheckbox &&
       controls.showBadgeCheckbox &&
       controls.exceptionsButton &&
       controls.filterListsButton &&
+      controls.customRulesButton &&
       controls.thirdPartyNotice &&
       controls.thirdPartyNoticeDescription
     );
@@ -238,10 +246,32 @@ export const WaterfoxBlockerPreferences = {
   _openFilterListsDialog(win) {
     const url =
       "chrome://browser/content/preferences/dialogs/waterfoxBlockerFilterLists.xhtml";
-    const dialogName = "WaterfoxBlockerFilterListsDialog";
+
+    try {
+      if (typeof win?.gSubDialog?.open === "function") {
+        win.gSubDialog.open(url, "resizable=yes");
+        return;
+      }
+    } catch (_) {}
+
+    const browserWin =
+      Services.wm.getMostRecentWindow("navigator:browser") || win;
+    try {
+      browserWin.openDialog(
+        url,
+        "WaterfoxBlockerFilterListsDialog",
+        "chrome,centerscreen,titlebar,resizable"
+      );
+    } catch (_) {}
+  },
+
+  _openCustomRulesDialog(win) {
+    const url =
+      "chrome://browser/content/preferences/dialogs/waterfoxBlockerCustomRules.xhtml";
+    const dialogName = "WaterfoxBlockerCustomRulesDialog";
     const dialogFeatures = "resizable,chrome,modal,titlebar,centerscreen";
     const params = {
-      origin: "waterfox-blocker-filter-lists",
+      origin: "waterfox-blocker-custom-rules",
     };
 
     try {
@@ -273,8 +303,10 @@ export const WaterfoxBlockerPreferences = {
       { id: PREF_UI_ENABLED, type: "bool" },
       { id: PREF_ALLOW_SEARCH_PARTNER_ADS, type: "bool" },
       { id: PREF_SHOW_BADGE, type: "bool" },
+      { id: PREF_CNAME_UNCLOAKING, type: "bool" },
       { id: PREF_SITE_EXCEPTIONS, type: "string" },
       { id: PREF_FILTER_LIST_URLS, type: "string" },
+      { id: PREF_CUSTOM_RULES, type: "string" },
     ];
 
     for (const prefInfo of prefs) {
@@ -348,9 +380,11 @@ export const WaterfoxBlockerPreferences = {
       onOptionBox,
       offOptionBox,
       searchPartnerMode,
+      cnameUncloakingCheckbox,
       showBadgeCheckbox,
       exceptionsButton,
       filterListsButton,
+      customRulesButton,
       onDetails,
     } = controls;
 
@@ -361,6 +395,10 @@ export const WaterfoxBlockerPreferences = {
         true
       );
       const showBadge = readBooleanPreference(PREF_SHOW_BADGE, true);
+      const cnameUncloaking = readBooleanPreference(
+        PREF_CNAME_UNCLOAKING,
+        true
+      );
 
       modeRadioGroup.value = enabled ? BLOCKER_MODE_ON : BLOCKER_MODE_OFF;
 
@@ -379,6 +417,8 @@ export const WaterfoxBlockerPreferences = {
 
       showBadgeCheckbox.checked = showBadge;
       showBadgeCheckbox.disabled = !enabled;
+      cnameUncloakingCheckbox.checked = cnameUncloaking;
+      cnameUncloakingCheckbox.disabled = !enabled;
 
       onOptionBox.classList.toggle("selected", enabled);
       offOptionBox.classList.toggle("selected", !enabled);
@@ -468,6 +508,18 @@ export const WaterfoxBlockerPreferences = {
       showBadgeCheckbox.setAttribute(BOUND_ATTR, "true");
     }
 
+    if (!cnameUncloakingCheckbox.hasAttribute(BOUND_ATTR)) {
+      cnameUncloakingCheckbox.addEventListener("command", () => {
+        writeBooleanPreference(
+          Preferences,
+          PREF_CNAME_UNCLOAKING,
+          !!cnameUncloakingCheckbox.checked
+        );
+        syncFromPrefs();
+      });
+      cnameUncloakingCheckbox.setAttribute(BOUND_ATTR, "true");
+    }
+
     if (!exceptionsButton.hasAttribute(BOUND_ATTR)) {
       exceptionsButton.addEventListener("command", event => {
         event.preventDefault();
@@ -486,6 +538,15 @@ export const WaterfoxBlockerPreferences = {
       filterListsButton.setAttribute(BOUND_ATTR, "true");
     }
 
+    if (!customRulesButton.hasAttribute(BOUND_ATTR)) {
+      customRulesButton.addEventListener("command", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        this._openCustomRulesDialog(win);
+      });
+      customRulesButton.setAttribute(BOUND_ATTR, "true");
+    }
+
     if (!group.hasAttribute(PREF_LISTENERS_ATTR)) {
       try {
         Preferences?.get?.(PREF_ENABLED)?.on("change", syncFromPrefs);
@@ -500,6 +561,10 @@ export const WaterfoxBlockerPreferences = {
 
       try {
         Preferences?.get?.(PREF_SHOW_BADGE)?.on("change", syncFromPrefs);
+      } catch (_) {}
+
+      try {
+        Preferences?.get?.(PREF_CNAME_UNCLOAKING)?.on("change", syncFromPrefs);
       } catch (_) {}
 
       group.setAttribute(PREF_LISTENERS_ATTR, "true");

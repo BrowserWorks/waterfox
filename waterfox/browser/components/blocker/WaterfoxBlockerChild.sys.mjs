@@ -2,9 +2,71 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+import { toSafeDomain } from "resource:///modules/WaterfoxBlockerUtils.sys.mjs";
+
+const lazy = {};
+
+ChromeUtils.defineESModuleGetters(lazy, {
+  NetUtil: "resource://gre/modules/NetUtil.sys.mjs",
+});
+
 const COSMETIC_STYLE_ID = "waterfox-blocker-cosmetic-style";
+const FARBLING_SCRIPT_URL =
+  "chrome://browser/content/blocker/waterfoxFarbling.js";
 const INITIAL_RESOURCES_RETRY_DELAY_MS = 1000;
 const MAX_QUERIED_TOKENS = 50000;
+const MAX_PROCEDURAL_ACTIONS = 1000;
+const ZAPPER_CLOSE_BUTTON_ID = "waterfox-blocker-zapper-close";
+const ZAPPER_HIGHLIGHT_ID = "waterfox-blocker-zapper-highlight";
+const ZAPPER_OVERLAY_ID = "waterfox-blocker-zapper-overlay";
+const ZAPPER_Z_INDEX = 2147483647;
+const PICKER_CLOSE_BUTTON_ID = "waterfox-blocker-picker-close";
+const PICKER_HIGHLIGHT_ID = "waterfox-blocker-picker-highlight";
+const PICKER_OVERLAY_ID = "waterfox-blocker-picker-overlay";
+const PICKER_PANEL_ID = "waterfox-blocker-picker-panel";
+const PICKER_PICK_ANOTHER_BUTTON_ID = "waterfox-blocker-picker-pick-another";
+const PICKER_PREVIEW_BUTTON_ID = "waterfox-blocker-picker-preview";
+const PICKER_CREATE_BUTTON_ID = "waterfox-blocker-picker-create";
+const PICKER_NEXT_BUTTON_ID = "waterfox-blocker-picker-next";
+const PICKER_PREVIOUS_BUTTON_ID = "waterfox-blocker-picker-previous";
+const PICKER_RULE_ID = "waterfox-blocker-picker-rule";
+const PICKER_SELECTION_ID = "waterfox-blocker-picker-selection";
+const PICKER_STATUS_ID = "waterfox-blocker-picker-status";
+const PICKER_Z_INDEX = 2147483647;
+
+let gFarblingScriptTextPromise = null;
+
+function readChromeText(url) {
+  if (!gFarblingScriptTextPromise) {
+    gFarblingScriptTextPromise = new Promise((resolve, reject) => {
+      lazy.NetUtil.asyncFetch(
+        { uri: url, loadUsingSystemPrincipal: true },
+        (inputStream, status) => {
+          if (!Components.isSuccessCode(status)) {
+            reject(Components.Exception(`Failed to load ${url}`, status));
+            return;
+          }
+
+          try {
+            resolve(
+              lazy.NetUtil.readInputStreamToString(
+                inputStream,
+                inputStream.available(),
+                {
+                  charset: "utf-8",
+                }
+              )
+            );
+          } catch (err) {
+            reject(err);
+          }
+        }
+      );
+    });
+  }
+
+  return gFarblingScriptTextPromise;
+}
 
 /*
  * Module rationale:
@@ -52,6 +114,20 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
         case "WaterfoxBlocker:CollectClassIdSnapshot":
           return this._collectClassIdSnapshot(message.data || {});
 
+        case "WaterfoxBlocker:StartElementZapper":
+          return this._startElementZapper();
+
+        case "WaterfoxBlocker:StopElementZapper":
+          this._stopElementZapper();
+          return { ok: true };
+
+        case "WaterfoxBlocker:StartElementPicker":
+          return this._startElementPicker();
+
+        case "WaterfoxBlocker:StopElementPicker":
+          this._stopElementPicker();
+          return { ok: true };
+
         default:
           return undefined;
       }
@@ -89,18 +165,9 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
     this._queriedClasses = new Set();
     this._queriedIds = new Set();
     this._cosmeticExceptions = [];
+    this._proceduralActionFilters = [];
     this._retriedResources = false;
-
-    let enabled;
-    try {
-      enabled = await this.sendQuery("WaterfoxBlocker:IsEnabled");
-    } catch (_) {
-      return;
-    }
-
-    if (!enabled) {
-      return;
-    }
+    this._shouldResolveGenericSelectors = false;
 
     let url;
     try {
@@ -114,28 +181,38 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
       return;
     }
 
-    let resources;
+    let initial;
     try {
-      resources = await this.sendQuery("WaterfoxBlocker:GetCosmeticResources", {
+      initial = await this.sendQuery("WaterfoxBlocker:GetInitialResources", {
         url,
       });
     } catch (err) {
       console.error(
-        "[WaterfoxBlockerChild] sendQuery(GetCosmeticResources) failed:",
+        "[WaterfoxBlockerChild] sendQuery(GetInitialResources) failed:",
         err
       );
       return;
     }
 
-    if (!resources) {
+    // Allow strict shields to run even when the blocker service is disabled.
+    if (!initial?.enabled && !initial?.shieldLevel) {
       return;
     }
 
-    this._pendingInitialResources = resources;
-    this._flushInitialResources();
+    if (initial.enabled) {
+      const resources = initial.resources;
+      if (resources) {
+        this._pendingInitialResources = resources;
+        this._flushInitialResources();
 
-    if (this._isInitialResourcesResponseEmpty(resources)) {
-      this._scheduleInitialResourcesRetry(doc);
+        if (this._isInitialResourcesResponseEmpty(resources)) {
+          this._scheduleInitialResourcesRetry(doc);
+        }
+      }
+    }
+
+    if (initial.shieldLevel >= 2) {
+      void this._injectFarblingScript(doc);
     }
   }
 
@@ -146,7 +223,11 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
     this._queriedClasses = null;
     this._queriedIds = null;
     this._pendingInitialResources = null;
+    this._proceduralActionFilters = null;
     this._retriedResources = false;
+    this._shouldResolveGenericSelectors = false;
+    this._stopElementZapper({ notify: false });
+    this._stopElementPicker({ notify: false });
 
     try {
       this._clearCosmeticSelectors();
@@ -155,6 +236,1737 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
         "[WaterfoxBlockerChild] failed clearing cosmetic selectors during destroy:",
         err
       );
+    }
+  }
+
+  _startElementZapper() {
+    const doc = this.document;
+    const contentWin = this.contentWindow;
+    if (!doc || !contentWin) {
+      return { active: false, ok: false };
+    }
+
+    if (this._zapperActive) {
+      return { active: true, ok: true };
+    }
+
+    const overlay = this._ensureZapperOverlay(doc);
+    if (!overlay) {
+      return { active: false, ok: false };
+    }
+
+    this._zapperActive = true;
+    this._zapperHighlight = overlay.firstElementChild;
+    this._zapperOverlay = overlay;
+    this._zapperTarget = null;
+
+    this._boundZapperMouseMove ||= event => {
+      this._onZapperMouseMove(event);
+    };
+    this._boundZapperMouseDown ||= event => {
+      this._onZapperMouseDown(event);
+    };
+    this._boundZapperClick ||= event => {
+      this._onZapperClick(event);
+    };
+    this._boundZapperKeyDown ||= event => {
+      this._onZapperKeyDown(event);
+    };
+    this._boundZapperViewportChange ||= () => {
+      this._updateZapperHighlight();
+    };
+    this._boundZapperCloseClick ||= event => {
+      event.preventDefault();
+      event.stopPropagation();
+      this._stopElementZapper();
+    };
+
+    doc.addEventListener("mousemove", this._boundZapperMouseMove, true);
+    doc.addEventListener("mousedown", this._boundZapperMouseDown, true);
+    doc.addEventListener("click", this._boundZapperClick, true);
+    doc.addEventListener("keydown", this._boundZapperKeyDown, true);
+    contentWin.addEventListener(
+      "scroll",
+      this._boundZapperViewportChange,
+      true
+    );
+    contentWin.addEventListener(
+      "resize",
+      this._boundZapperViewportChange,
+      true
+    );
+    doc
+      .getElementById(ZAPPER_CLOSE_BUTTON_ID)
+      ?.addEventListener("click", this._boundZapperCloseClick, true);
+
+    this._notifyZapperStateChange(true);
+    return { active: true, ok: true };
+  }
+
+  _stopElementZapper({ notify = true } = {}) {
+    const doc = this.document;
+    const contentWin = this.contentWindow;
+
+    if (doc && this._boundZapperMouseMove) {
+      doc.removeEventListener("mousemove", this._boundZapperMouseMove, true);
+      doc.removeEventListener("mousedown", this._boundZapperMouseDown, true);
+      doc.removeEventListener("click", this._boundZapperClick, true);
+      doc.removeEventListener("keydown", this._boundZapperKeyDown, true);
+      doc
+        .getElementById(ZAPPER_CLOSE_BUTTON_ID)
+        ?.removeEventListener("click", this._boundZapperCloseClick, true);
+    }
+
+    if (contentWin && this._boundZapperViewportChange) {
+      contentWin.removeEventListener(
+        "scroll",
+        this._boundZapperViewportChange,
+        true
+      );
+      contentWin.removeEventListener(
+        "resize",
+        this._boundZapperViewportChange,
+        true
+      );
+    }
+
+    this._zapperActive = false;
+    this._zapperTarget = null;
+    this._zapperHighlight = null;
+    this._zapperOverlay?.remove();
+    this._zapperOverlay = null;
+
+    if (notify) {
+      this._notifyZapperStateChange(false);
+    }
+  }
+
+  _notifyZapperStateChange(active) {
+    try {
+      this.sendAsyncMessage("WaterfoxBlocker:ZapperStateChanged", {
+        active: !!active,
+      });
+    } catch (err) {
+      console.error(
+        "[WaterfoxBlockerChild] failed to notify zapper state change:",
+        err
+      );
+    }
+  }
+
+  _startElementPicker() {
+    const doc = this.document;
+    const contentWin = this.contentWindow;
+    if (!doc || !contentWin) {
+      return { active: false, ok: false };
+    }
+
+    if (this._pickerActive) {
+      return { active: true, ok: true };
+    }
+
+    const overlay = this._ensurePickerOverlay(doc);
+    if (!overlay) {
+      return { active: false, ok: false };
+    }
+
+    this._pickerActive = true;
+    this._pickerOverlay = overlay;
+    this._pickerHighlight = overlay.querySelector(`#${PICKER_HIGHLIGHT_ID}`);
+    this._pickerPanel = overlay.querySelector(`#${PICKER_PANEL_ID}`);
+    this._pickerRule = overlay.querySelector(`#${PICKER_RULE_ID}`);
+    this._pickerSelection = overlay.querySelector(`#${PICKER_SELECTION_ID}`);
+    this._pickerStatus = overlay.querySelector(`#${PICKER_STATUS_ID}`);
+    this._pickerCandidates = [];
+    this._pickerCandidateIndex = 0;
+    this._pickerPaused = false;
+    this._pickerPreviewEnabled = true;
+    this._pickerTarget = null;
+
+    this._boundPickerMouseMove ||= event => {
+      this._onPickerMouseMove(event);
+    };
+    this._boundPickerMouseDown ||= event => {
+      this._onPickerMouseDown(event);
+    };
+    this._boundPickerClick ||= event => {
+      void this._onPickerClick(event);
+    };
+    this._boundPickerKeyDown ||= event => {
+      this._onPickerKeyDown(event);
+    };
+    this._boundPickerViewportChange ||= () => {
+      this._updatePickerHighlight();
+    };
+    this._boundPickerButtonClick ||= event => {
+      this._onPickerButtonClick(event);
+    };
+
+    this._pickerOriginalCursor = doc.documentElement?.style?.cursor || "";
+    this._pickerOriginalBodyCursor = doc.body?.style?.cursor || "";
+    if (doc.documentElement?.style) {
+      doc.documentElement.style.cursor = "crosshair";
+    }
+    if (doc.body?.style) {
+      doc.body.style.cursor = "crosshair";
+    }
+
+    doc.addEventListener("mousemove", this._boundPickerMouseMove, true);
+    doc.addEventListener("mousedown", this._boundPickerMouseDown, true);
+    doc.addEventListener("click", this._boundPickerClick, true);
+    doc.addEventListener("keydown", this._boundPickerKeyDown, true);
+    contentWin.addEventListener(
+      "scroll",
+      this._boundPickerViewportChange,
+      true
+    );
+    contentWin.addEventListener(
+      "resize",
+      this._boundPickerViewportChange,
+      true
+    );
+    overlay.addEventListener("click", this._boundPickerButtonClick, true);
+
+    this._setPickerPaused(false);
+    this._clearPickerPreview();
+    this._updatePickerStatus("Click an element to inspect candidate rules.");
+    this._notifyPickerStateChange(true);
+    return { active: true, ok: true };
+  }
+
+  _stopElementPicker({ notify = true } = {}) {
+    const doc = this.document;
+    const contentWin = this.contentWindow;
+
+    if (doc && this._boundPickerMouseMove) {
+      doc.removeEventListener("mousemove", this._boundPickerMouseMove, true);
+      doc.removeEventListener("mousedown", this._boundPickerMouseDown, true);
+      doc.removeEventListener("click", this._boundPickerClick, true);
+      doc.removeEventListener("keydown", this._boundPickerKeyDown, true);
+    }
+
+    if (contentWin && this._boundPickerViewportChange) {
+      contentWin.removeEventListener(
+        "scroll",
+        this._boundPickerViewportChange,
+        true
+      );
+      contentWin.removeEventListener(
+        "resize",
+        this._boundPickerViewportChange,
+        true
+      );
+    }
+
+    this._pickerOverlay?.removeEventListener(
+      "click",
+      this._boundPickerButtonClick,
+      true
+    );
+
+    if (doc?.documentElement?.style) {
+      doc.documentElement.style.cursor = this._pickerOriginalCursor || "";
+    }
+    if (doc?.body?.style) {
+      doc.body.style.cursor = this._pickerOriginalBodyCursor || "";
+    }
+
+    this._pickerActive = false;
+    this._pickerPaused = false;
+    this._pickerCandidates = [];
+    this._pickerCandidateIndex = 0;
+    this._pickerPreviewEnabled = true;
+    this._pickerPanel = null;
+    this._pickerRule = null;
+    this._pickerSelection = null;
+    this._pickerTarget = null;
+    this._pickerHighlight = null;
+    this._pickerStatus = null;
+    this._clearPickerPreview();
+    this._pickerOverlay?.remove();
+    this._pickerOverlay = null;
+    this._pickerOriginalCursor = "";
+    this._pickerOriginalBodyCursor = "";
+
+    if (notify) {
+      this._notifyPickerStateChange(false);
+    }
+  }
+
+  _notifyPickerStateChange(active) {
+    try {
+      this.sendAsyncMessage("WaterfoxBlocker:PickerStateChanged", {
+        active: !!active,
+      });
+    } catch (err) {
+      console.error(
+        "[WaterfoxBlockerChild] failed to notify picker state change:",
+        err
+      );
+    }
+  }
+
+  _notifyPickedElementRule(rule, selector, added) {
+    try {
+      this.sendAsyncMessage("WaterfoxBlocker:PickedElementRule", {
+        added: !!added,
+        rule,
+        selector,
+      });
+    } catch (err) {
+      console.error(
+        "[WaterfoxBlockerChild] failed to notify picked rule:",
+        err
+      );
+    }
+  }
+
+  _ensurePickerOverlay(doc) {
+    let overlay = doc.getElementById(PICKER_OVERLAY_ID);
+    if (overlay) {
+      return overlay;
+    }
+
+    const container = doc.body || doc.documentElement;
+    if (!container) {
+      return null;
+    }
+
+    overlay = doc.createElement("div");
+    overlay.id = PICKER_OVERLAY_ID;
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.style.cssText = `
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      cursor: crosshair;
+      z-index: ${PICKER_Z_INDEX};
+    `;
+
+    const status = doc.createElement("div");
+    status.id = PICKER_STATUS_ID;
+    status.style.cssText = `
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      max-width: min(460px, calc(100vw - 32px));
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: rgba(20, 20, 28, 0.94);
+      color: #fff;
+      font: 13px/1.4 system-ui, sans-serif;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+      pointer-events: none;
+      white-space: pre-wrap;
+    `;
+    status.textContent = "Click an element to inspect candidate rules.";
+    overlay.appendChild(status);
+
+    const panel = doc.createElement("div");
+    panel.id = PICKER_PANEL_ID;
+    panel.style.cssText = `
+      position: fixed;
+      top: 92px;
+      left: 16px;
+      width: min(520px, calc(100vw - 32px));
+      max-height: calc(100vh - 124px);
+      display: none;
+      box-sizing: border-box;
+      padding: 12px;
+      border-radius: 8px;
+      background: rgba(20, 20, 28, 0.96);
+      color: #fff;
+      font: 13px/1.45 system-ui, sans-serif;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+      pointer-events: auto;
+      overflow: auto;
+    `;
+
+    const selection = doc.createElement("div");
+    selection.id = PICKER_SELECTION_ID;
+    selection.style.cssText = `
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.92);
+    `;
+    selection.textContent = "Candidate 0 of 0";
+    panel.appendChild(selection);
+
+    const rule = doc.createElement("textarea");
+    rule.id = PICKER_RULE_ID;
+    rule.readOnly = true;
+    rule.rows = 4;
+    rule.style.cssText = `
+      width: 100%;
+      min-height: 88px;
+      box-sizing: border-box;
+      margin: 0 0 10px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 6px;
+      background: rgba(10, 10, 16, 0.84);
+      color: inherit;
+      font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+      resize: vertical;
+    `;
+    panel.appendChild(rule);
+
+    const actions = doc.createElement("div");
+    actions.style.cssText = `
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    `;
+
+    for (const buttonSpec of [
+      {
+        id: PICKER_PREVIOUS_BUTTON_ID,
+        label: "Previous",
+      },
+      {
+        id: PICKER_NEXT_BUTTON_ID,
+        label: "Next",
+      },
+      {
+        id: PICKER_PREVIEW_BUTTON_ID,
+        label: "Preview on",
+      },
+      {
+        id: PICKER_PICK_ANOTHER_BUTTON_ID,
+        label: "Pick another",
+      },
+      {
+        id: PICKER_CREATE_BUTTON_ID,
+        label: "Create rule",
+      },
+      {
+        id: PICKER_CLOSE_BUTTON_ID,
+        label: "Close",
+      },
+    ]) {
+      const button = doc.createElement("button");
+      button.id = buttonSpec.id;
+      button.type = "button";
+      button.textContent = buttonSpec.label;
+      button.style.cssText = `
+        border: 0;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.14);
+        color: inherit;
+        font: inherit;
+        padding: 7px 10px;
+        cursor: pointer;
+      `;
+      actions.appendChild(button);
+    }
+
+    panel.appendChild(actions);
+    overlay.appendChild(panel);
+
+    const highlight = doc.createElement("div");
+    highlight.id = PICKER_HIGHLIGHT_ID;
+    highlight.style.cssText = `
+      position: fixed;
+      display: none;
+      pointer-events: none;
+      box-sizing: border-box;
+      border: 2px solid #f7d154;
+      background: rgba(247, 209, 84, 0.16);
+      border-radius: 6px;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+    `;
+    overlay.appendChild(highlight);
+
+    const closeButton = doc.createElement("button");
+    closeButton.id = PICKER_CLOSE_BUTTON_ID;
+    closeButton.type = "button";
+    closeButton.textContent = "\u00d7";
+    closeButton.setAttribute("aria-label", "Close");
+    closeButton.style.cssText = `
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      width: 32px;
+      height: 32px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(20, 20, 28, 0.92);
+      color: white;
+      font: 600 24px/1 sans-serif;
+      pointer-events: auto;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    `;
+    overlay.appendChild(closeButton);
+
+    container.appendChild(overlay);
+    return overlay;
+  }
+
+  _onPickerMouseMove(event) {
+    if (!this._pickerActive || this._pickerPaused) {
+      return;
+    }
+
+    const candidate = this._getPickerCandidateFromPoint(
+      event.clientX,
+      event.clientY
+    );
+    this._setPickerTarget(candidate);
+  }
+
+  _onPickerMouseDown(event) {
+    if (!this._pickerActive || event.button !== 0) {
+      return;
+    }
+
+    if (this._isPickerUiNode(event.target)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  async _onPickerClick(event) {
+    if (!this._pickerActive || event.button !== 0) {
+      return;
+    }
+
+    if (this._isPickerUiNode(event.target)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const target =
+      this._pickerTarget ||
+      this._getPickerCandidateFromPoint(event.clientX, event.clientY);
+    if (!target) {
+      this._updatePickerStatus("Select an element to create a rule.");
+      return;
+    }
+
+    const candidates = this._buildPickerCandidates(
+      target,
+      event.clientX,
+      event.clientY
+    );
+    if (!candidates.length) {
+      this._updatePickerStatus("Could not build any candidate rules.");
+      return;
+    }
+
+    this._pickerCandidates = candidates;
+    this._pickerCandidateIndex = 0;
+    this._setPickerPaused(true);
+    this._applyCurrentPickerCandidate();
+  }
+
+  _onPickerKeyDown(event) {
+    if (!this._pickerActive) {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      this._stopElementPicker();
+      return;
+    }
+
+    if (!this._pickerPaused) {
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      event.stopPropagation();
+      void this._createCurrentPickerRule();
+      return;
+    }
+
+    if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
+      event.preventDefault();
+      event.stopPropagation();
+      this._stepPickerCandidate(-1);
+      return;
+    }
+
+    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
+      event.preventDefault();
+      event.stopPropagation();
+      this._stepPickerCandidate(1);
+      return;
+    }
+
+    if (event.key.toLowerCase() === "p") {
+      event.preventDefault();
+      event.stopPropagation();
+      this._togglePickerPreview();
+    }
+  }
+
+  _getPickerCandidateFromPoint(clientX, clientY) {
+    const doc = this.document;
+    if (!doc) {
+      return null;
+    }
+
+    if (this._pickerOverlay) {
+      this._pickerOverlay.style.display = "none";
+    }
+
+    let target = null;
+    try {
+      target = doc.elementFromPoint(clientX, clientY);
+    } catch (_) {
+      target = null;
+    }
+
+    if (this._pickerOverlay) {
+      this._pickerOverlay.style.display = "";
+    }
+
+    while (target && this._isPickerUiNode(target)) {
+      target = target.parentElement;
+    }
+
+    if (!target || target === doc.documentElement || target === doc.body) {
+      return null;
+    }
+
+    return target;
+  }
+
+  _isPickerUiNode(node) {
+    return (
+      node?.id === PICKER_OVERLAY_ID ||
+      node?.id === PICKER_HIGHLIGHT_ID ||
+      node?.id === PICKER_CLOSE_BUTTON_ID ||
+      node?.id === PICKER_PANEL_ID ||
+      node?.id === PICKER_PICK_ANOTHER_BUTTON_ID ||
+      node?.id === PICKER_PREVIEW_BUTTON_ID ||
+      node?.id === PICKER_CREATE_BUTTON_ID ||
+      node?.id === PICKER_NEXT_BUTTON_ID ||
+      node?.id === PICKER_PREVIOUS_BUTTON_ID ||
+      node?.id === PICKER_RULE_ID ||
+      node?.id === PICKER_SELECTION_ID ||
+      node?.id === PICKER_STATUS_ID ||
+      node?.closest?.(`#${PICKER_OVERLAY_ID}`) !== null
+    );
+  }
+
+  _setPickerTarget(target) {
+    if (this._pickerTarget === target) {
+      return;
+    }
+
+    this._pickerTarget = target || null;
+    this._updatePickerHighlight();
+  }
+
+  _updatePickerHighlight() {
+    const highlight = this._pickerHighlight;
+    const target = this._pickerTarget;
+    if (!highlight || !target?.isConnected) {
+      if (highlight) {
+        highlight.style.display = "none";
+      }
+      this._pickerTarget = null;
+      this._updatePickerStatus("Click an element to inspect candidate rules.");
+      return;
+    }
+
+    const rect = target.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      highlight.style.display = "none";
+      return;
+    }
+
+    highlight.style.display = "block";
+    highlight.style.left = `${Math.max(0, rect.left)}px`;
+    highlight.style.top = `${Math.max(0, rect.top)}px`;
+    highlight.style.width = `${rect.width}px`;
+    highlight.style.height = `${rect.height}px`;
+
+    if (!this._pickerPaused) {
+      const generated = this._buildCosmeticRuleForElement(target);
+      if (generated) {
+        this._updatePickerStatus(`Candidate rule:\n${generated.rule}`);
+      }
+    }
+  }
+
+  _updatePickerStatus(text) {
+    if (this._pickerStatus) {
+      this._pickerStatus.textContent = String(text || "");
+    }
+  }
+
+  _onPickerButtonClick(event) {
+    const buttonId = event.target?.id;
+    if (!buttonId) {
+      return;
+    }
+
+    switch (buttonId) {
+      case PICKER_CLOSE_BUTTON_ID:
+        event.preventDefault();
+        event.stopPropagation();
+        this._stopElementPicker();
+        break;
+
+      case PICKER_PICK_ANOTHER_BUTTON_ID:
+        event.preventDefault();
+        event.stopPropagation();
+        this._setPickerPaused(false);
+        this._updatePickerHighlight();
+        break;
+
+      case PICKER_PREVIOUS_BUTTON_ID:
+        event.preventDefault();
+        event.stopPropagation();
+        this._stepPickerCandidate(-1);
+        break;
+
+      case PICKER_NEXT_BUTTON_ID:
+        event.preventDefault();
+        event.stopPropagation();
+        this._stepPickerCandidate(1);
+        break;
+
+      case PICKER_PREVIEW_BUTTON_ID:
+        event.preventDefault();
+        event.stopPropagation();
+        this._togglePickerPreview();
+        break;
+
+      case PICKER_CREATE_BUTTON_ID:
+        event.preventDefault();
+        event.stopPropagation();
+        void this._createCurrentPickerRule();
+        break;
+    }
+  }
+
+  _setPickerPaused(paused) {
+    this._pickerPaused = !!paused;
+    if (this._pickerPanel) {
+      this._pickerPanel.style.display = this._pickerPaused ? "block" : "none";
+    }
+    if (!this._pickerPaused) {
+      this._pickerCandidates = [];
+      this._pickerCandidateIndex = 0;
+      this._clearPickerPreview();
+      if (this._pickerSelection) {
+        this._pickerSelection.textContent = "Candidate 0 of 0";
+      }
+      if (this._pickerRule) {
+        this._pickerRule.value = "";
+      }
+      this._updatePickerPreviewButton();
+      this._updatePickerStatus("Click an element to inspect candidate rules.");
+    }
+  }
+
+  _stepPickerCandidate(offset) {
+    if (!this._pickerCandidates?.length) {
+      return;
+    }
+
+    const count = this._pickerCandidates.length;
+    this._pickerCandidateIndex =
+      (this._pickerCandidateIndex + offset + count) % count;
+    this._applyCurrentPickerCandidate();
+  }
+
+  _togglePickerPreview() {
+    this._pickerPreviewEnabled = !this._pickerPreviewEnabled;
+    if (!this._pickerPreviewEnabled) {
+      this._clearPickerPreview();
+    } else {
+      this._applyCurrentPickerPreview();
+    }
+    this._updatePickerPreviewButton();
+  }
+
+  _updatePickerPreviewButton() {
+    const button = this.document?.getElementById(PICKER_PREVIEW_BUTTON_ID);
+    if (button) {
+      button.textContent = this._pickerPreviewEnabled
+        ? "Preview on"
+        : "Preview off";
+    }
+  }
+
+  _applyCurrentPickerCandidate() {
+    const candidate = this._pickerCandidates?.[this._pickerCandidateIndex];
+    if (!candidate) {
+      return;
+    }
+
+    if (this._pickerSelection) {
+      this._pickerSelection.textContent = `Candidate ${
+        this._pickerCandidateIndex + 1
+      } of ${this._pickerCandidates.length} (${candidate.kind})`;
+    }
+    if (this._pickerRule) {
+      this._pickerRule.value = candidate.rule;
+    }
+    this._applyCurrentPickerPreview();
+    this._updatePickerStatus(
+      "Review the candidate, preview it, or create the rule."
+    );
+  }
+
+  _applyCurrentPickerPreview() {
+    this._clearPickerPreview();
+    if (!this._pickerPreviewEnabled) {
+      return;
+    }
+
+    const candidate = this._pickerCandidates?.[this._pickerCandidateIndex];
+    if (!candidate) {
+      return;
+    }
+
+    if (candidate.kind === "cosmetic" && candidate.selector) {
+      this._applyPickedRulePreview(candidate.selector);
+      return;
+    }
+
+    if (candidate.kind !== "network") {
+      return;
+    }
+
+    const doc = this.document;
+    if (!doc) {
+      return;
+    }
+
+    const matches = this._queryElementsForNetworkRule(candidate.rule);
+    if (!matches.length) {
+      return;
+    }
+
+    let style = doc.getElementById(`${PICKER_OVERLAY_ID}-style`);
+    if (!style) {
+      style = doc.createElement("style");
+      style.id = `${PICKER_OVERLAY_ID}-style`;
+      (doc.head || doc.documentElement || doc.body)?.appendChild(style);
+    }
+    style.textContent =
+      '[data-waterfox-blocker-picker-preview="true"] { display: none !important; }';
+
+    for (const match of matches) {
+      match.setAttribute("data-waterfox-blocker-picker-preview", "true");
+    }
+  }
+
+  _clearPickerPreview() {
+    const doc = this.document;
+    if (!doc) {
+      return;
+    }
+
+    doc
+      .querySelectorAll('[data-waterfox-blocker-picker-preview="true"]')
+      .forEach(node =>
+        node.removeAttribute("data-waterfox-blocker-picker-preview")
+      );
+
+    doc.getElementById(`${PICKER_OVERLAY_ID}-style`)?.remove();
+  }
+
+  async _createCurrentPickerRule() {
+    const candidate = this._pickerCandidates?.[this._pickerCandidateIndex];
+    if (!candidate) {
+      return;
+    }
+
+    this._updatePickerStatus(`Saving rule:\n${candidate.rule}`);
+    const result = await this._commitPickedRule(candidate);
+    if (!result?.ok) {
+      this._updatePickerStatus(
+        "Could not save the rule. Try another candidate."
+      );
+      return;
+    }
+
+    if (candidate.kind === "cosmetic" && candidate.selector) {
+      this._applyCommittedPickerRule(candidate.selector);
+    }
+
+    this._notifyPickedElementRule(
+      candidate.rule,
+      candidate.selector || "",
+      !!result.added
+    );
+    this._stopElementPicker();
+  }
+
+  _applyPickedRulePreview(selector) {
+    const doc = this.document;
+    if (!doc || !selector) {
+      return;
+    }
+
+    let style = doc.getElementById(`${PICKER_OVERLAY_ID}-style`);
+    if (!style) {
+      style = doc.createElement("style");
+      style.id = `${PICKER_OVERLAY_ID}-style`;
+      (doc.head || doc.documentElement || doc.body)?.appendChild(style);
+    }
+
+    try {
+      style.textContent = `${selector} { display: none !important; }`;
+    } catch (_) {}
+  }
+
+  _applyCommittedPickerRule(selector) {
+    const doc = this.document;
+    if (!doc || !selector) {
+      return;
+    }
+
+    const [cleanSelector] = this._normalizeSelectors([selector]);
+    if (!cleanSelector) {
+      return;
+    }
+
+    const style = this._ensureStyleElement(doc);
+    if (!style) {
+      return;
+    }
+
+    const sheet = style.sheet;
+    if (!sheet) {
+      return;
+    }
+
+    for (const rule of sheet.cssRules) {
+      if (rule?.selectorText === cleanSelector) {
+        return;
+      }
+    }
+
+    try {
+      sheet.insertRule(
+        `${cleanSelector} { display: none !important; }`,
+        sheet.cssRules.length
+      );
+    } catch (_) {}
+  }
+
+  _buildPickerCandidates(target, clientX, clientY) {
+    const host = toSafeDomain(
+      this.document?.location?.hostname || this.document?.location?.host || ""
+    );
+    if (!host || !target) {
+      return [];
+    }
+
+    const candidates = [];
+    const seen = new Set();
+    const elementsAtPoint = this._getPickerElementsAtPoint(clientX, clientY);
+
+    for (const candidate of this._buildNetworkCandidates(
+      elementsAtPoint,
+      host
+    )) {
+      if (seen.has(candidate.rule)) {
+        continue;
+      }
+      seen.add(candidate.rule);
+      candidates.push(candidate);
+    }
+
+    for (const candidate of this._buildCosmeticCandidates(target, host)) {
+      if (seen.has(candidate.rule)) {
+        continue;
+      }
+      seen.add(candidate.rule);
+      candidates.push(candidate);
+    }
+
+    return candidates;
+  }
+
+  _getPickerElementsAtPoint(clientX, clientY) {
+    const doc = this.document;
+    if (!doc || typeof clientX !== "number" || typeof clientY !== "number") {
+      return [];
+    }
+
+    if (this._pickerOverlay) {
+      this._pickerOverlay.style.display = "none";
+    }
+
+    let elements = [];
+    try {
+      elements = Array.from(doc.elementsFromPoint(clientX, clientY) || []);
+    } catch (_) {
+      elements = [];
+    }
+
+    if (this._pickerOverlay) {
+      this._pickerOverlay.style.display = "";
+    }
+
+    return elements.filter(
+      element =>
+        element &&
+        element.nodeType === 1 &&
+        !this._isPickerUiNode(element) &&
+        element !== doc.documentElement &&
+        element !== doc.body
+    );
+  }
+
+  _buildNetworkCandidates(elements, host) {
+    const candidates = [];
+    const seen = new Set();
+
+    for (const element of elements) {
+      for (const resource of this._resourceURLsFromElement(element)) {
+        const urls = [resource.url];
+        const fullRule = this._formatNetworkRule(resource.url, resource.option);
+        if (fullRule && !seen.has(fullRule)) {
+          seen.add(fullRule);
+          candidates.push({
+            host,
+            kind: "network",
+            option: resource.option,
+            rule: fullRule,
+            selector: "",
+            url: resource.url,
+          });
+        }
+
+        const questionIndex = resource.url.indexOf("?");
+        if (questionIndex > 0) {
+          const trimmedUrl = resource.url.slice(0, questionIndex);
+          const trimmedRule = this._formatNetworkRule(
+            trimmedUrl,
+            resource.option
+          );
+          if (trimmedRule && !seen.has(trimmedRule)) {
+            seen.add(trimmedRule);
+            candidates.push({
+              host,
+              kind: "network",
+              option: resource.option,
+              rule: trimmedRule,
+              selector: "",
+              url: trimmedUrl,
+            });
+          }
+        }
+
+        if (urls.length >= 4) {
+          break;
+        }
+      }
+    }
+
+    return candidates;
+  }
+
+  _formatNetworkRule(url, option = "") {
+    const normalized = String(url || "").replace(/^https?:\/\//i, "");
+    if (!normalized) {
+      return "";
+    }
+
+    return option ? `||${normalized}$${option}` : `||${normalized}`;
+  }
+
+  _resourceURLsFromElement(element) {
+    const resources = [];
+    const seen = new Set();
+
+    const addResource = (value, option = "") => {
+      const normalized = this._normalizePickerUrl(value);
+      if (!normalized || seen.has(`${normalized}|${option}`)) {
+        return;
+      }
+      seen.add(`${normalized}|${option}`);
+      resources.push({ option, url: normalized });
+    };
+
+    switch (String(element.localName || "").toLowerCase()) {
+      case "img":
+        addResource(element.currentSrc || element.getAttribute("src"), "image");
+        break;
+      case "iframe":
+        addResource(element.getAttribute("src"), "subdocument");
+        break;
+      case "audio":
+      case "video":
+        addResource(element.currentSrc || element.getAttribute("src"), "media");
+        break;
+      case "source":
+        addResource(element.currentSrc || element.getAttribute("src"), "media");
+        break;
+      case "embed":
+      case "object":
+        addResource(
+          element.getAttribute("src") || element.getAttribute("data"),
+          "object"
+        );
+        break;
+      case "a":
+        addResource(element.getAttribute("href"), "popup");
+        break;
+    }
+
+    const backgroundImage = this._backgroundImageURLFromElement(element);
+    if (backgroundImage) {
+      addResource(backgroundImage, "image");
+    }
+
+    return resources;
+  }
+
+  _normalizePickerUrl(value) {
+    const raw = String(value || "").trim();
+    if (!raw || raw.startsWith("data:") || raw.startsWith("blob:")) {
+      return "";
+    }
+
+    try {
+      const url = new URL(raw, this.document?.location?.href || undefined);
+      if (url.protocol === "http:" || url.protocol === "https:") {
+        return url.href;
+      }
+    } catch (_) {}
+
+    return "";
+  }
+
+  _backgroundImageURLFromElement(element) {
+    try {
+      const image =
+        this.contentWindow?.getComputedStyle(element)?.backgroundImage;
+      const match = /url\((["']?)(.*?)\1\)/.exec(image || "");
+      return this._normalizePickerUrl(match?.[2] || "");
+    } catch (_) {
+      return "";
+    }
+  }
+
+  _buildCosmeticCandidates(element, host) {
+    const candidates = [];
+    const selectors = [];
+    let current = element;
+    while (
+      current &&
+      current.nodeType === 1 &&
+      current !== this.document?.body
+    ) {
+      const selector = this._buildPickerSelectorForElement(current);
+      if (!selector) {
+        break;
+      }
+
+      selectors.push(selector);
+
+      let combined = selectors[0];
+      for (let i = 1; i < selectors.length; i++) {
+        combined = `${selectors[i]} > ${combined}`;
+      }
+
+      candidates.push({
+        host,
+        kind: "cosmetic",
+        rule: `${host}##${combined}`,
+        selector: combined,
+      });
+
+      current = current.parentElement;
+    }
+
+    if (candidates.length) {
+      const finalSelector = candidates[candidates.length - 1].selector;
+      if (
+        finalSelector &&
+        !finalSelector.startsWith("#") &&
+        !finalSelector.startsWith("body > ") &&
+        this._countSelectorMatches(finalSelector) > 1
+      ) {
+        candidates.push({
+          host,
+          kind: "cosmetic",
+          rule: `${host}##body > ${finalSelector}`,
+          selector: `body > ${finalSelector}`,
+        });
+      }
+    }
+
+    return candidates;
+  }
+
+  _queryElementsForNetworkRule(rule) {
+    const doc = this.document;
+    if (!doc || !rule.startsWith("||")) {
+      return [];
+    }
+
+    const [pattern, option] = rule.split("$");
+    const needle = pattern.slice(2);
+    if (!needle) {
+      return [];
+    }
+
+    let selector = "a,audio,embed,iframe,img,object,source,video,*";
+    switch (option) {
+      case "subdocument":
+        selector = "iframe";
+        break;
+      case "image":
+        selector = "img";
+        break;
+      case "media":
+        selector = "audio,source,video";
+        break;
+      case "object":
+        selector = "embed,object";
+        break;
+    }
+
+    const matches = [];
+    for (const element of doc.querySelectorAll(selector)) {
+      const resources = this._resourceURLsFromElement(element);
+      if (
+        resources.some(resource =>
+          resource.url.replace(/^https?:\/\//i, "").startsWith(needle)
+        )
+      ) {
+        matches.push(element);
+      }
+    }
+    return matches;
+  }
+
+  _buildCosmeticRuleForElement(element) {
+    const doc = this.document;
+    if (!doc || !element || !element.isConnected) {
+      return null;
+    }
+
+    const host = toSafeDomain(
+      doc.location?.hostname || doc.location?.host || ""
+    );
+    if (!host) {
+      return null;
+    }
+
+    const selector = this._buildPickerCosmeticSelector(element);
+    if (!selector) {
+      return null;
+    }
+
+    return {
+      host,
+      rule: `${host}##${selector}`,
+      selector,
+    };
+  }
+
+  _buildPickerCosmeticSelector(element) {
+    const doc = this.document;
+    if (!doc || !element || !element.isConnected) {
+      return "";
+    }
+
+    const selectors = [];
+    let current = element;
+    while (current && current.nodeType === 1 && current !== doc.body) {
+      const selector = this._buildPickerSelectorForElement(current);
+      if (!selector) {
+        break;
+      }
+
+      selectors.push(selector);
+
+      current = current.parentElement;
+      if (!current || current === doc.documentElement) {
+        break;
+      }
+    }
+
+    if (!selectors.length) {
+      return "";
+    }
+
+    let candidate = selectors[0];
+    if (this._countSelectorMatches(candidate) <= 1) {
+      return candidate;
+    }
+
+    for (let i = 1; i < selectors.length; i++) {
+      candidate = `${selectors[i]} > ${candidate}`;
+      if (this._countSelectorMatches(candidate) <= 1) {
+        return candidate;
+      }
+    }
+
+    if (
+      doc.body &&
+      !candidate.startsWith("#") &&
+      !candidate.startsWith("body > ")
+    ) {
+      const bodyCandidate = `body > ${candidate}`;
+      if (this._countSelectorMatches(bodyCandidate) <= 1) {
+        return bodyCandidate;
+      }
+      return bodyCandidate;
+    }
+
+    return candidate;
+  }
+
+  _countSelectorMatches(selector) {
+    const doc = this.document;
+    if (!doc || !selector) {
+      return Number.POSITIVE_INFINITY;
+    }
+
+    try {
+      return doc.querySelectorAll(selector).length;
+    } catch (_) {
+      return Number.POSITIVE_INFINITY;
+    }
+  }
+
+  _countScopedSelectorMatches(parent, selector) {
+    if (!parent || !selector) {
+      return Number.POSITIVE_INFINITY;
+    }
+
+    try {
+      return parent.querySelectorAll(`:scope > ${selector}`).length;
+    } catch (_) {
+      return Number.POSITIVE_INFINITY;
+    }
+  }
+
+  _buildPickerSelectorForElement(element) {
+    const doc = this.document;
+    if (!doc || !element || element.nodeType !== 1) {
+      return "";
+    }
+
+    const tagName = this._escapeCssIdentifier(
+      String(element.localName || "").toLowerCase()
+    );
+    if (!tagName) {
+      return "";
+    }
+
+    let selector = "";
+
+    const idValue = String(element.id || "").trim();
+    if (idValue) {
+      const escapedId = this._escapeCssIdentifier(idValue);
+      if (escapedId) {
+        selector = `#${escapedId}`;
+      }
+    }
+
+    if (element.classList?.length) {
+      for (let i = element.classList.length - 1; i >= 0; i--) {
+        const className = this._escapeCssIdentifier(element.classList.item(i));
+        if (className) {
+          selector += `.${className}`;
+        }
+      }
+    }
+
+    if (!selector) {
+      selector = this._buildPickerAttributeSelector(element, tagName);
+    }
+
+    const parent = element.parentElement || element.parentNode;
+    if (!selector || this._countScopedSelectorMatches(parent, selector) > 1) {
+      selector = `${tagName}${selector}`;
+    }
+
+    if (this._countScopedSelectorMatches(parent, selector) > 1) {
+      let index = 1;
+      let previous = element.previousSibling;
+      while (previous !== null) {
+        if (
+          typeof previous.localName === "string" &&
+          previous.localName === element.localName
+        ) {
+          index++;
+        }
+        previous = previous.previousSibling;
+      }
+      if (index > 0) {
+        selector += `:nth-of-type(${index})`;
+      }
+    }
+
+    return selector;
+  }
+
+  _buildPickerAttributeSelector(element, tagName) {
+    switch (tagName) {
+      case "a": {
+        let href = element.getAttribute("href");
+        if (href) {
+          href = href.trim().replace(/\?.*$/, "");
+          if (href.length) {
+            return this._formatPickerAttributeSelector(element, "href", href);
+          }
+        }
+        break;
+      }
+
+      case "iframe":
+      case "img": {
+        let src = element.getAttribute("src");
+        if (src && src.length !== 0) {
+          src = src.trim();
+          if (src.startsWith("data:")) {
+            const pos = src.indexOf(",");
+            if (pos !== -1) {
+              src = src.slice(0, pos + 1);
+            }
+          } else if (src.startsWith("blob:")) {
+            try {
+              const url = new URL(src.slice(5));
+              url.pathname = "";
+              src = `blob:${url.href}`;
+            } catch (_) {}
+          }
+
+          return this._formatPickerAttributeSelector(
+            element,
+            "src",
+            src.slice(0, 256)
+          );
+        }
+
+        const alt = element.getAttribute("alt");
+        if (alt && alt.length !== 0) {
+          return this._formatPickerAttributeSelector(element, "alt", alt);
+        }
+        break;
+      }
+
+      default:
+        break;
+    }
+
+    return "";
+  }
+
+  _formatPickerAttributeSelector(element, key, value) {
+    const rawValue = String(value || "");
+    if (!rawValue) {
+      return "";
+    }
+
+    const actualValue = String(element.getAttribute(key) || "");
+    if (!actualValue) {
+      return "";
+    }
+
+    const escapedValue = rawValue.replace(/([^\\])"/g, '$1\\"');
+    if (rawValue === actualValue) {
+      return `[${key}="${escapedValue}"]`;
+    }
+    if (actualValue.startsWith(rawValue)) {
+      return `[${key}^="${escapedValue}"]`;
+    }
+    return `[${key}*="${escapedValue}"]`;
+  }
+
+  _escapeCssIdentifier(value) {
+    const text = String(value || "");
+    if (!text) {
+      return "";
+    }
+
+    try {
+      if (typeof CSS?.escape === "function") {
+        return CSS.escape(text);
+      }
+    } catch (_) {}
+
+    return text.replace(/[^a-zA-Z0-9_-]/g, char => {
+      const hex = char.codePointAt(0).toString(16).toUpperCase();
+      return `\\${hex} `;
+    });
+  }
+
+  async _commitPickedRule({ host, rule, selector } = {}) {
+    try {
+      return await this.sendQuery("WaterfoxBlocker:CommitPickedRule", {
+        host,
+        rule,
+        selector,
+      });
+    } catch (err) {
+      console.error(
+        "[WaterfoxBlockerChild] failed to commit picked rule:",
+        err
+      );
+      return { added: false, ok: false };
+    }
+  }
+
+  _ensureZapperOverlay(doc) {
+    let overlay = doc.getElementById(ZAPPER_OVERLAY_ID);
+    if (overlay) {
+      return overlay;
+    }
+
+    const container = doc.body || doc.documentElement;
+    if (!container) {
+      return null;
+    }
+
+    overlay = doc.createElement("div");
+    overlay.id = ZAPPER_OVERLAY_ID;
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.style.cssText = `
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      cursor: crosshair;
+      z-index: ${ZAPPER_Z_INDEX};
+    `;
+
+    const highlight = doc.createElement("div");
+    highlight.id = ZAPPER_HIGHLIGHT_ID;
+    highlight.style.cssText = `
+      position: fixed;
+      display: none;
+      pointer-events: none;
+      box-sizing: border-box;
+      border: 2px solid #36d1ff;
+      background: rgba(54, 209, 255, 0.18);
+      border-radius: 6px;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+    `;
+    overlay.appendChild(highlight);
+
+    const closeButton = doc.createElement("button");
+    closeButton.id = ZAPPER_CLOSE_BUTTON_ID;
+    closeButton.type = "button";
+    closeButton.textContent = "\u00d7";
+    closeButton.setAttribute("aria-label", "Close");
+    closeButton.style.cssText = `
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      width: 32px;
+      height: 32px;
+      border: 0;
+      border-radius: 999px;
+      background: rgba(20, 20, 28, 0.92);
+      color: white;
+      font: 600 24px/1 sans-serif;
+      pointer-events: auto;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    `;
+    overlay.appendChild(closeButton);
+
+    container.appendChild(overlay);
+    return overlay;
+  }
+
+  _onZapperMouseMove(event) {
+    if (!this._zapperActive) {
+      return;
+    }
+
+    const candidate = this._getZapperCandidateFromPoint(
+      event.clientX,
+      event.clientY
+    );
+    this._setZapperTarget(candidate);
+  }
+
+  _onZapperMouseDown(event) {
+    if (!this._zapperActive || event.button !== 0) {
+      return;
+    }
+
+    if (event.target?.id === ZAPPER_CLOSE_BUTTON_ID) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  _onZapperClick(event) {
+    if (!this._zapperActive || event.button !== 0) {
+      return;
+    }
+
+    if (event.target?.id === ZAPPER_CLOSE_BUTTON_ID) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const target =
+      this._zapperTarget ||
+      this._getZapperCandidateFromPoint(event.clientX, event.clientY);
+    if (!target) {
+      return;
+    }
+
+    this._zapElement(target);
+  }
+
+  _onZapperKeyDown(event) {
+    if (!this._zapperActive) {
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      event.stopPropagation();
+      this._stopElementZapper();
+      return;
+    }
+
+    if (event.key !== "Delete" && event.key !== "Backspace") {
+      return;
+    }
+
+    if (!this._zapperTarget) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    this._zapElement(this._zapperTarget);
+  }
+
+  _getZapperCandidateFromPoint(clientX, clientY) {
+    const doc = this.document;
+    if (!doc) {
+      return null;
+    }
+
+    if (this._zapperOverlay) {
+      this._zapperOverlay.style.display = "none";
+    }
+
+    let target = null;
+    try {
+      target = doc.elementFromPoint(clientX, clientY);
+    } catch (_) {
+      target = null;
+    }
+
+    if (this._zapperOverlay) {
+      this._zapperOverlay.style.display = "";
+    }
+
+    while (target && this._isZapperUiNode(target)) {
+      target = target.parentElement;
+    }
+
+    if (!target || target === doc.documentElement || target === doc.body) {
+      return null;
+    }
+
+    return target;
+  }
+
+  _isZapperUiNode(node) {
+    return (
+      node?.id === ZAPPER_OVERLAY_ID ||
+      node?.id === ZAPPER_HIGHLIGHT_ID ||
+      node?.id === ZAPPER_CLOSE_BUTTON_ID ||
+      node?.closest?.(`#${ZAPPER_OVERLAY_ID}`) !== null
+    );
+  }
+
+  _setZapperTarget(target) {
+    if (this._zapperTarget === target) {
+      return;
+    }
+
+    this._zapperTarget = target || null;
+    this._updateZapperHighlight();
+  }
+
+  _updateZapperHighlight() {
+    const highlight = this._zapperHighlight;
+    const target = this._zapperTarget;
+    if (!highlight || !target?.isConnected) {
+      if (highlight) {
+        highlight.style.display = "none";
+      }
+      this._zapperTarget = null;
+      return;
+    }
+
+    const rect = target.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      highlight.style.display = "none";
+      return;
+    }
+
+    highlight.style.display = "block";
+    highlight.style.left = `${Math.max(0, rect.left)}px`;
+    highlight.style.top = `${Math.max(0, rect.top)}px`;
+    highlight.style.width = `${rect.width}px`;
+    highlight.style.height = `${rect.height}px`;
+  }
+
+  _zapElement(element) {
+    if (!element || !element.isConnected || this._isZapperUiNode(element)) {
+      return;
+    }
+
+    try {
+      element.remove();
+    } catch (_) {
+      element.style.setProperty("display", "none", "important");
+    }
+
+    this._setZapperTarget(null);
+    this._restoreDocumentScrolling();
+  }
+
+  _restoreDocumentScrolling() {
+    const doc = this.document;
+    if (!doc) {
+      return;
+    }
+
+    for (const element of [doc.documentElement, doc.body]) {
+      if (!element?.style) {
+        continue;
+      }
+      element.style.removeProperty("overflow");
+      element.style.removeProperty("overflow-x");
+      element.style.removeProperty("overflow-y");
     }
   }
 
@@ -286,8 +2098,21 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
       this._injectScriptlet(resources.injectedScript);
     }
 
-    if (!resources.generichide) {
-      this._setupGenericHideObserver(resources.exceptions || []);
+    const proceduralActions = this._parseProceduralActions(
+      resources.proceduralActions
+    );
+    if (proceduralActions.length) {
+      this._proceduralActionFilters = proceduralActions;
+      this._applyProceduralActions();
+    } else {
+      this._proceduralActionFilters = [];
+    }
+
+    if (!resources.generichide || proceduralActions.length) {
+      this._setupGenericHideObserver(
+        resources.exceptions || [],
+        !resources.generichide
+      );
     }
   }
 
@@ -299,8 +2124,10 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
    * Starts watching for DOM changes and refreshes selectors used in generic hiding.
    *
    * @param {string[]} exceptions Domain exceptions applied during generic hiding matches.
+   * @param {boolean} shouldResolveGenericSelectors Whether class/id snapshots
+   *   should be sent to the parent actor for generic hiding.
    */
-  _setupGenericHideObserver(exceptions) {
+  _setupGenericHideObserver(exceptions, shouldResolveGenericSelectors = true) {
     const doc = this.document;
     if (!doc) {
       return;
@@ -309,6 +2136,7 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
     this._cosmeticExceptions = Array.isArray(exceptions) ? exceptions : [];
     this._queriedClasses = new Set();
     this._queriedIds = new Set();
+    this._shouldResolveGenericSelectors = !!shouldResolveGenericSelectors;
 
     const contentWin = this.contentWindow;
     if (!contentWin) {
@@ -320,14 +2148,19 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
     // Initial collect: full DOM scan to establish baseline.
     this._initialCollectTimeout = contentWin.setTimeout(() => {
       this._initialCollectTimeout = null;
-      const snapshot = this._collectClassIdSnapshot();
-      for (const cls of snapshot.classes) {
-        this._queriedClasses.add(cls);
+      if (this._shouldResolveGenericSelectors) {
+        const snapshot = this._collectClassIdSnapshot();
+        for (const cls of snapshot.classes) {
+          this._queriedClasses.add(cls);
+        }
+        for (const id of snapshot.ids) {
+          this._queriedIds.add(id);
+        }
+        this._queryAndApplyNewSelectors(snapshot.classes, snapshot.ids);
       }
-      for (const id of snapshot.ids) {
-        this._queriedIds.add(id);
+      if (this._proceduralActionFilters?.length) {
+        this._applyProceduralActions();
       }
-      this._queryAndApplyNewSelectors(snapshot.classes, snapshot.ids);
     }, 100);
 
     this._pendingClasses = [];
@@ -335,11 +2168,14 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
 
     this._observer = new contentWin.MutationObserver(mutations => {
       if (
-        this._queriedClasses.size + this._queriedIds.size >=
-        MAX_QUERIED_TOKENS
+        this._shouldResolveGenericSelectors &&
+        this._queriedClasses.size + this._queriedIds.size >= MAX_QUERIED_TOKENS
       ) {
-        this._observer.disconnect();
-        return;
+        this._shouldResolveGenericSelectors = false;
+        if (!this._proceduralActionFilters?.length) {
+          this._observer.disconnect();
+          return;
+        }
       }
 
       // Extract tokens immediately so we hold only strings, not DOM nodes.
@@ -349,6 +2185,14 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
       }
       if (delta.ids.length) {
         this._pendingIds.push(...delta.ids);
+      }
+
+      if (delta.elements.length && this._proceduralActionFilters?.length) {
+        this._applyProceduralActions(delta.elements);
+      }
+
+      if (!this._shouldResolveGenericSelectors) {
+        return;
       }
 
       if (this._mutationTimeout) {
@@ -379,10 +2223,11 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
    * Extracts only previously unseen class/id tokens from mutation records.
    *
    * @param {MutationRecord[]} mutations
-   * @returns {{classes: string[], ids: string[]}}
+   * @returns {{classes: string[], elements: Element[], ids: string[]}}
    */
   _extractDeltaFromMutations(mutations) {
     const newClasses = [];
+    const newElements = new Set();
     const newIds = [];
     const seenClasses = this._queriedClasses;
     const seenIds = this._queriedIds;
@@ -391,6 +2236,8 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
       if (!el || el.nodeType !== 1) {
         return;
       }
+
+      newElements.add(el);
 
       if (el.id && !seenIds.has(el.id)) {
         newIds.push(el.id);
@@ -412,7 +2259,7 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
         for (const node of mutation.addedNodes) {
           processElement(node);
           if (node.nodeType === 1 && node.querySelectorAll) {
-            for (const el of node.querySelectorAll("[class], [id]")) {
+            for (const el of node.querySelectorAll("*")) {
               processElement(el);
             }
           }
@@ -422,7 +2269,11 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
       }
     }
 
-    return { classes: newClasses, ids: newIds };
+    return {
+      classes: newClasses,
+      elements: Array.from(newElements),
+      ids: newIds,
+    };
   }
 
   /**
@@ -502,6 +2353,493 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
     }
   }
 
+  _parseProceduralActions(actions) {
+    if (!Array.isArray(actions)) {
+      return [];
+    }
+
+    const out = [];
+    for (const rawAction of actions) {
+      let parsed = rawAction;
+      try {
+        if (typeof rawAction === "string") {
+          parsed = JSON.parse(rawAction);
+        }
+      } catch (_) {
+        continue;
+      }
+
+      if (
+        !parsed ||
+        typeof parsed !== "object" ||
+        !Array.isArray(parsed.selector) ||
+        !parsed.selector.length
+      ) {
+        continue;
+      }
+
+      out.push({
+        action: parsed.action,
+        selector: parsed.selector,
+      });
+
+      if (out.length >= MAX_PROCEDURAL_ACTIONS) {
+        break;
+      }
+    }
+
+    return out;
+  }
+
+  _applyProceduralActions(addedElements = undefined) {
+    const doc = this.document;
+    if (!doc || !this._proceduralActionFilters?.length) {
+      return;
+    }
+
+    for (const { action, selector } of this._proceduralActionFilters) {
+      try {
+        let matchingElements;
+        let startOperator = 0;
+
+        if (
+          addedElements === undefined &&
+          selector[0]?.type === "css-selector"
+        ) {
+          matchingElements = Array.from(doc.querySelectorAll(selector[0].arg));
+          startOperator = 1;
+        } else if (addedElements === undefined) {
+          matchingElements = Array.from(doc.querySelectorAll("*"));
+        } else {
+          matchingElements = addedElements;
+        }
+
+        const matches =
+          startOperator === selector.length
+            ? matchingElements
+            : this._applyProceduralSelector(
+                selector.slice(startOperator),
+                matchingElements
+              );
+
+        for (const element of matches) {
+          this._performProceduralAction(element, action);
+        }
+      } catch (err) {
+        console.error("[WaterfoxBlockerChild] procedural action failed:", err);
+      }
+    }
+  }
+
+  _applyProceduralSelector(selector, initElements = undefined) {
+    if (!Array.isArray(selector) || !selector.length) {
+      return [];
+    }
+
+    let nodesToConsider = [];
+    let startIndex = 0;
+    const firstOperator = selector[0];
+
+    if (initElements !== undefined) {
+      nodesToConsider = Array.from(initElements).filter(
+        el => el?.nodeType === 1
+      );
+    } else if (firstOperator.type === "css-selector") {
+      nodesToConsider = Array.from(
+        this.document.querySelectorAll(firstOperator.arg)
+      );
+      startIndex = 1;
+    } else if (firstOperator.type === "xpath") {
+      nodesToConsider = this._operatorXPath(
+        firstOperator.arg,
+        this.document.documentElement
+      );
+      startIndex = 1;
+    } else {
+      nodesToConsider = Array.from(this.document.querySelectorAll("*"));
+    }
+
+    for (
+      let index = startIndex;
+      nodesToConsider.length && index < selector.length;
+      index++
+    ) {
+      const operator = selector[index];
+
+      if (
+        operator.type === "matches-media" ||
+        operator.type === "matches-path"
+      ) {
+        if (
+          !this._applyProceduralOperator(operator, nodesToConsider[0]).length
+        ) {
+          nodesToConsider = [];
+        }
+        continue;
+      }
+
+      const nextNodes = [];
+      for (const element of nodesToConsider) {
+        nextNodes.push(...this._applyProceduralOperator(operator, element));
+      }
+      nodesToConsider = nextNodes;
+    }
+
+    return nodesToConsider;
+  }
+
+  _applyProceduralOperator(operator, element) {
+    if (!operator || !element || element.nodeType !== 1) {
+      return [];
+    }
+
+    const arg = operator.arg;
+    switch (operator.type) {
+      case "contains":
+      case "has-text":
+        return this._matchesText(arg, element.innerText || "") ? [element] : [];
+
+      case "css-selector":
+        return this._operatorCssSelector(arg, element);
+
+      case "has":
+        return this._operatorHas(arg, element);
+
+      case "matches-attr":
+        return this._matchesKeyValueRule(
+          arg,
+          element.getAttributeNames(),
+          name => element.getAttribute(name)
+        )
+          ? [element]
+          : [];
+
+      case "matches-css":
+        return this._matchesCssRule(null, arg, element) ? [element] : [];
+
+      case "matches-css-after":
+        return this._matchesCssRule("::after", arg, element) ? [element] : [];
+
+      case "matches-css-before":
+        return this._matchesCssRule("::before", arg, element) ? [element] : [];
+
+      case "matches-media":
+        return this.contentWindow?.matchMedia(arg).matches ? [element] : [];
+
+      case "matches-path":
+        return this._matchesPathRule(arg) ? [element] : [];
+
+      case "matches-property":
+        return this._matchesPropertyRule(arg, element) ? [element] : [];
+
+      case "min-text-length": {
+        return this._operatorMinTextLength(arg, element);
+      }
+
+      case "not":
+        return this._operatorNot(arg, element);
+
+      case "upward":
+        return this._operatorUpward(arg, element);
+
+      case "xpath":
+        return this._operatorXPath(arg, element);
+
+      default:
+        return [];
+    }
+  }
+
+  _operatorHas(instruction, element) {
+    if (Array.isArray(instruction)) {
+      const initElements =
+        instruction[0]?.type === "css-selector"
+          ? [element]
+          : Array.from(element.querySelectorAll("*"));
+      return this._applyProceduralSelector(instruction, initElements).length
+        ? [element]
+        : [];
+    }
+    return element.querySelector(instruction) ? [element] : [];
+  }
+
+  _operatorMinTextLength(instruction, element) {
+    const minLength = Number(instruction);
+    return Number.isFinite(minLength) &&
+      (element.innerText || "").trim().length >= minLength
+      ? [element]
+      : [];
+  }
+
+  _operatorNot(instruction, element) {
+    if (Array.isArray(instruction)) {
+      return this._applyProceduralSelector(instruction, [element]).length
+        ? []
+        : [element];
+    }
+    return element.matches(instruction) ? [] : [element];
+  }
+
+  _operatorCssSelector(selector, element) {
+    const trimmed = String(selector || "").trimStart();
+    try {
+      if (trimmed.startsWith("+")) {
+        const next = element.nextElementSibling;
+        const subSelector = trimmed.slice(1).trimStart();
+        return next?.matches(subSelector) ? [next] : [];
+      }
+      if (trimmed.startsWith("~")) {
+        const subSelector = trimmed.slice(1).trimStart();
+        const parent = element.parentElement;
+        if (!parent) {
+          return [];
+        }
+        return Array.from(parent.children).filter(
+          sibling => sibling !== element && sibling.matches(subSelector)
+        );
+      }
+      if (trimmed.startsWith(">")) {
+        const subSelector = trimmed.slice(1).trimStart();
+        return Array.from(element.children).filter(child =>
+          child.matches(subSelector)
+        );
+      }
+      if (String(selector || "").startsWith(" ")) {
+        return Array.from(element.querySelectorAll(`:scope ${trimmed}`));
+      }
+      return element.matches(selector) ? [element] : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  _operatorUpward(instruction, element) {
+    const distance = Number(instruction);
+    if (Number.isInteger(distance)) {
+      if (distance < 1 || distance >= 256) {
+        return [];
+      }
+      let current = element;
+      for (let i = 0; i < distance && current; i++) {
+        current = current.parentElement;
+      }
+      return current ? [current] : [];
+    }
+
+    if (Array.isArray(instruction)) {
+      let current = element;
+      while (current) {
+        if (this._applyProceduralSelector(instruction, [current]).length) {
+          return [current];
+        }
+        current = current.parentElement;
+      }
+      return [];
+    }
+
+    let current = element;
+    while (current) {
+      try {
+        if (current.matches(instruction)) {
+          return [current];
+        }
+      } catch (_) {
+        return [];
+      }
+      current = current.parentElement;
+    }
+    return [];
+  }
+
+  _operatorXPath(instruction, element) {
+    const doc = this.document;
+    if (!doc || !element) {
+      return [];
+    }
+
+    try {
+      const result = doc.evaluate(
+        instruction,
+        element,
+        null,
+        this.contentWindow.XPathResult.UNORDERED_NODE_ITERATOR_TYPE,
+        null
+      );
+      const matches = [];
+      let currentNode;
+      while ((currentNode = result.iterateNext())) {
+        if (currentNode.nodeType === 1) {
+          matches.push(currentNode);
+        }
+      }
+      return matches;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  _performProceduralAction(element, action) {
+    if (!element || element.nodeType !== 1) {
+      return;
+    }
+
+    if (!action) {
+      element.style.setProperty("display", "none", "important");
+      return;
+    }
+
+    switch (action.type) {
+      case "style":
+        if (typeof action.arg === "string" && action.arg.trim()) {
+          element.style.cssText += `;${action.arg}`;
+        }
+        break;
+
+      case "remove":
+        element.remove();
+        break;
+
+      case "remove-attr":
+        element.removeAttribute(action.arg);
+        break;
+
+      case "remove-class":
+        if (element.classList?.contains(action.arg)) {
+          element.classList.remove(action.arg);
+        }
+        break;
+    }
+  }
+
+  _matchesCssRule(pseudoElement, instruction, element) {
+    const separatorIndex = String(instruction || "").indexOf(":");
+    if (separatorIndex <= 0) {
+      return false;
+    }
+
+    const property = instruction.slice(0, separatorIndex).trim();
+    const expected = instruction.slice(separatorIndex + 1).trim();
+    let actual = "";
+    try {
+      actual = this.contentWindow
+        .getComputedStyle(element, pseudoElement)
+        .getPropertyValue(property);
+    } catch (_) {
+      return false;
+    }
+
+    return this._matchesText(expected, actual, true);
+  }
+
+  _matchesKeyValueRule(instruction, keys, valueGetter) {
+    const [keyTest, valueTest] = this._parseKeyValueMatchRules(instruction);
+    for (const key of keys) {
+      if (!keyTest(key)) {
+        continue;
+      }
+      const value = valueGetter(key);
+      if (valueTest && !valueTest(String(value ?? ""))) {
+        continue;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  _matchesPathRule(instruction) {
+    const location = this.contentWindow?.location;
+    if (!location) {
+      return false;
+    }
+
+    return this._matchesText(
+      this._extractValueFromRule(instruction, true),
+      `${location.pathname}${location.search}`
+    );
+  }
+
+  _matchesPropertyRule(instruction, element) {
+    const [keyTest, valueTest] = this._parseKeyValueMatchRules(instruction);
+    for (const key of Object.keys(element)) {
+      if (!keyTest(key)) {
+        continue;
+      }
+
+      let value;
+      try {
+        value = element[key];
+      } catch (_) {
+        continue;
+      }
+
+      if (valueTest && !valueTest(String(value ?? ""))) {
+        continue;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  _parseKeyValueMatchRules(instruction) {
+    const text = String(instruction || "");
+    const [key, valueStart] = this._extractKeyFromRule(text);
+    const keyTest = value => this._matchesText(key, value, true);
+    if (valueStart === undefined) {
+      return [keyTest, undefined];
+    }
+
+    const expectedValue = this._extractValueFromRule(text, false, valueStart);
+    return [keyTest, value => this._matchesText(expectedValue, value, true)];
+  }
+
+  _extractKeyFromRule(text) {
+    const isQuoted = text.startsWith('"');
+    const start = isQuoted ? 1 : 0;
+    const terminator = isQuoted ? '"=' : "=";
+    const index = text.indexOf(terminator, start);
+    if (index < 0) {
+      return [
+        isQuoted && text.endsWith('"') ? text.slice(1, -1) : text,
+        undefined,
+      ];
+    }
+    return [text.slice(start, index), index + terminator.length];
+  }
+
+  _extractValueFromRule(text, uriEncode = false, start = 0) {
+    const isQuoted = text[start] === '"';
+    const valueStart = isQuoted ? start + 1 : start;
+    const valueEnd =
+      isQuoted && text.endsWith('"') ? text.length - 1 : text.length;
+    let value = text.slice(valueStart, valueEnd);
+    if (uriEncode) {
+      value = Array.from(value, char =>
+        char.charCodeAt(0) > 0x7f ? encodeURIComponent(char) : char
+      ).join("");
+    }
+    return value;
+  }
+
+  _matchesText(expected, actual, exact = false) {
+    const test = String(expected || "");
+    const value = String(actual || "");
+    if (test.startsWith("/") && test.lastIndexOf("/") > 0) {
+      try {
+        const lastSlash = test.lastIndexOf("/");
+        return new RegExp(
+          test.slice(1, lastSlash),
+          test.slice(lastSlash + 1)
+        ).test(value);
+      } catch (_) {
+        return false;
+      }
+    }
+    if (!test) {
+      return !value.trim();
+    }
+    return exact ? value === test : value.includes(test);
+  }
+
   /**
    * Injects one scriptlet payload into page scope.
    *
@@ -551,6 +2889,48 @@ const scriptletGlobals = globalThis.scriptletGlobals;
       script.remove();
     } catch (err) {
       console.error("[WaterfoxBlockerChild] failed to inject scriptlet:", err);
+    }
+  }
+
+  async _injectFarblingScript(doc) {
+    if (!doc) {
+      return;
+    }
+
+    let pageWindow;
+    try {
+      pageWindow = this.contentWindow?.wrappedJSObject;
+    } catch (_) {
+      return;
+    }
+    if (!pageWindow) {
+      return;
+    }
+
+    const pageDoc = pageWindow.document;
+    const parent = pageDoc.head || pageDoc.documentElement;
+    if (!parent) {
+      return;
+    }
+
+    const sessionToken = Math.trunc(Math.random() * 0xffffffff);
+
+    try {
+      const tokenScript = pageDoc.createElement("script");
+      tokenScript.textContent = `var __waterfoxFarblingSession__ = ${sessionToken};`;
+      parent.appendChild(tokenScript);
+      tokenScript.remove();
+
+      const scriptText = await readChromeText(FARBLING_SCRIPT_URL);
+      const script = pageDoc.createElement("script");
+      script.textContent = scriptText;
+      parent.appendChild(script);
+      script.remove();
+    } catch (err) {
+      console.error(
+        "[WaterfoxBlockerChild] failed to inject farbling script:",
+        err
+      );
     }
   }
 

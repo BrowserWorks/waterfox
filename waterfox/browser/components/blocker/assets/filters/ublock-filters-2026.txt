@@ -69,10 +69,6 @@ hostserverz.com##+js(no-xhr-if, googlesyndication)
 ! https://github.com/uBlockOrigin/uAssets/issues/31400
 youboxtv.com##+js(rmnt, script, '"hidden"')
 
-! https://github.com/uBlockOrigin/uAssets/issues/31403
-rootz.so##+js(nowoif, _blank)
-rootz.so##+js(aeld, click, preventDefault)
-
 ! https://github.com/AdguardTeam/AdguardFilters/issues/221901
 beta.xfreehd.com##.col-md-12:has(a[href^="https://landing.brazzersnetwork.com/"])
 beta.xfreehd.com##.ad-container
@@ -319,6 +315,7 @@ japannews.yomiuri.co.jp##+js(rmnt, script, piano)
 ! https://github.com/uBlockOrigin/uAssets/issues/31918
 comix.to##+js(aeld, click, _pop)
 comix.to##+js(nowoif)
+comix.to##+js(nosiif, window.open)
 ||imacdn.com/apics/*.gif
 comix.to##[src*=".gif"]
 ! https://github.com/uBlockOrigin/uAssets/issues/31644
@@ -372,12 +369,14 @@ fitnesstipz.com##body > .adblock_subtitle > p
 ||cdn.ziffstatic.com/pg/$script,domain=maxroll.gg,redirect=noopjs
 
 ! https://github.com/AdguardTeam/AdguardFilters/issues/226186
+! https://github.com/uBlockOrigin/uAssets/issues/32480
 ||cfd/rfdtagarg/*.js
-||qwik-cf-nuxt.cdn-n.net^
-||ember-cf-netlify.cdn-x.net^
-/^https:\/\/[a-z]+-cf-[a-z]+\.cdn-[a-z]\.net\/$/$xhr,3p,to=net
+||cdn-n.net^
+||cdn-x.net^
+||cdn-z.net^
+/^https:\/\/[a-z-]+\.cdn-[a-z]\.net\/$/$xhr,3p,to=net
 ! https://github.com/uBlockOrigin/uAssets/commit/545818b4fa1a8876dbf4cd4cfa7f5a6a8d78b58c#commitcomment-178640689
-/^https:\/\/get[0-9]+\.host[0-9]+[a-z]\.cfd\/\?tag=[A-Z0-9]+/$all,match-case,to=cfd
+/^https:\/\/get[0-9]+\.host[0-9]+[a-z]\.cfd\/\?tag=[a-zA-Z0-9]+/$all,match-case,to=cfd
 /^https:\/\/\d+\.cfd\/[a-z]{3}tag[a-z]{3}\/v\d\/[a-zA-Z0-9]+:C\d\.js\b/$script,3p,match-case,to=cfd
 !#if env_safari
 /^https:\/\/[0-9]+\.cfd\/[a-z][a-z][a-z]tag[a-z][a-z][a-z]\/v[0-9]\/[a-zA-Z0-9]+:C[0-9]\.js\b/$script,3p,match-case,to=cfd
@@ -564,6 +563,8 @@ weebcentral.com##div[class][style]:has(> div.notranslate > iframe[sandbox*="allo
 ! https://github.com/uBlockOrigin/uAssets/issues/32452
 getthispdf.com##+js(rmnt, script, /popunder/i)
 getthispdf.com##+js(nostif, /detect|bait/i)
+getthispdf.com##+js(rpnt, script, loadAdPlacements();)
+getthispdf.com##+js(rmnt, script, checkBait)
 
 ! https://github.com/uBlockOrigin/uAssets/issues/30024#issuecomment-4193302125
 forum.ixbt.com##+js(trusted-set-cookie-reload, s, '180,,4,,a')
@@ -572,3 +573,68 @@ forum.ixbt.com##+js(trusted-set-cookie-reload, s, '180,,4,,a')
 ||jads.co^$script,redirect=noop.js,domain=litomi.in
 litomi.in##+js(trusted-create-html, #juicy-ads-banner > div[data-juicy-ads-slot] > div, <iframe></iframe>)
 litomi.in##ins
+litomi.in##+js(trusted-create-html, head, <img src="x" onerror="'use strict';const DocumentElement=document.documentElement\,Observer=new MutationObserver(()=>{var e\,t;const n=document.querySelector('main #juicy-ads-banner');if(!n)return;const o=Object.keys(n).find(e=>e.startsWith('__reactFiber$'))\,i=o?n[o]:void 0;'function'==typeof(null===(t=null===(e=null==i?void 0:i.child)||void 0===e?void 0:e.memoizedProps)||void 0===t?void 0:t.onAdClick)&&(i.child.memoizedProps.onAdClick()\,Observer.disconnect())});Observer.observe(DocumentElement\,{childList:!0\,subtree:!0\,attributes:!0});">)
+
+! https://github.com/uBlockOrigin/uAssets/issues/32477
+animetsu.net##+js(rmnt, script, navigator?.brave)
+
+! https://forums.lanik.us/viewtopic.php?t=48952-tophostdeal-com
+tophostdeal.com##+js(no-xhr-if, googlesyndication)
+
+! https://github.com/uBlockOrigin/uAssets/issues/32484
+/sw.js$script,domain=miruro.*|miruro.to|miruro.bz|miruro.online|miruro.tv
+/registerSW.js$script,domain=miruro.*|miruro.to|miruro.bz|miruro.online|miruro.tv
+/api/events$xhr,domain=miruro.*|miruro.to|miruro.bz|miruro.online|miruro.tv
+/promo/*$image,domain=miruro.*|miruro.to|miruro.bz|miruro.online|miruro.tv
+
+! https://github.com/uBlockOrigin/uAssets/issues/32493
+math-aids.com##+js(nostif, En(e-1))
+math-aids.com##.footer__ads
+math-aids.com##.banner
+
+! https://github.com/uBlockOrigin/uAssets/issues/32494
+||ad.doubleclick.net^$image,redirect=1x1.gif,domain=cricket365.com|football365.com|golf365.com|loverugbyleague.com|planetf1.com|planetfootball.com|planetrugby.com|teamtalk.com|tennis365.com
+
+! https://github.com/uBlockOrigin/uAssets/issues/32487
+||clickcandy2.com^$all
+
+! https://github.com/uBlockOrigin/uAssets/issues/32499
+||coinpaper.com/*/position/cpa_pos-min.php
+coinpaper.com##body:style(margin-top: 0 !important;)
+coinpaper.com##div[class^="RenderHTMLTextstyles__Container"] > div.my-6
+coinpaper.com##div[class^="Sidebarstyles__StickyContainer"] > div:has(a[href^="https://link.coinpaper.com/"])
+coinpaper.com##div[class^="Sidebarstyles__StickyContainer"] > div.w-full:has-text(Sponsored)
+
+! https://legendei.net/euphoria-s03e01-1080p-web-h265-ethel/
+||facilecompilare.it/noticia.php?token=aHR0c$doc,urlskip=?token -base64
+
+! https://github.com/uBlockOrigin/uAssets/issues/32528
+hdstreamverse.cloud##+js(rmnt, script, offsetHeight)
+
+! https://github.com/uBlockOrigin/uAssets/issues/32517
+||climate-data.org/stay.js$script
+||compare-static.climate-data.org/tag.js$script,1p
+||stay22.com^$3p
+
+! https://github.com/uBlockOrigin/uAssets/issues/32526
+embedplayer.xyz##+js(trusted-replace-argument, document.querySelector, 0, json:"none", condition, ads)
+embedplayer.xyz##+js(nowoif)
+embedplayer.xyz##meta[name^="ads-"]:remove()
+||embedplayer.xyz/embed/guard.js$script,1p
+
+! https://github.com/uBlockOrigin/uAssets/issues/32534
+worder.cat##+js(set, ab.dt, false)
+worder.cat##+js(trusted-replace-argument, document.getElementById, 0, json:"header", condition, /[a-z][A-Z]/)
+worder.cat##.ads
+
+! https://github.com/uBlockOrigin/uAssets/issues/32414
+mlb.com##+js(json-prune-xhr-response, data.initPlaybackSession.adScenarios data.initPlaybackSession.adExperience.adExperienceTypes, , propsToMatch, /graphql)
+mlb.com##+js(trusted-json-edit-xhr-response, .data.initPlaybackSession.adExperience.adsEnabled=false, propsToMatch, /graphql)
+
+! https://github.com/uBlockOrigin/uAssets/issues/32551
+newplayer.huaren.live,newplayer.huavod.net##+js(rpnt, script, '"ads"', '"ads":{},"noads"')
+
+! https://github.com/uBlockOrigin/uAssets/issues/32571
+@@||lamontagne.fr^$script,1p
+lamontagne.fr##.w-full.mb-7.relative
+lamontagne.fr###cf-digiteka-player

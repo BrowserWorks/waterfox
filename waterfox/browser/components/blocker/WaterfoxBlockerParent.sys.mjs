@@ -3,6 +3,16 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { WaterfoxBlockerService } from "resource:///modules/WaterfoxBlockerService.sys.mjs";
+import { WaterfoxShields } from "resource:///modules/WaterfoxShields.sys.mjs";
+
+function normalizeCustomRulesText(value) {
+  return String(value || "")
+    .split(/\r?\n/)
+    .map(line => line.trimEnd())
+    .slice(0, 10000)
+    .join("\n")
+    .trim();
+}
 
 /*
  * Module rationale:
@@ -42,6 +52,17 @@ import { WaterfoxBlockerService } from "resource:///modules/WaterfoxBlockerServi
  * from the child actor.
  */
 export class WaterfoxBlockerParent extends JSWindowActorParent {
+  _createEmptyCosmeticResources() {
+    return {
+      exceptions: [],
+      generichide: true,
+      specifichide: false,
+      hideSelectors: [],
+      injectedScript: "",
+      proceduralActions: [],
+    };
+  }
+
   /**
    * Routes incoming child actor messages to blocker service APIs.
    *
@@ -57,13 +78,132 @@ export class WaterfoxBlockerParent extends JSWindowActorParent {
     switch (message.name) {
       case "WaterfoxBlocker:IsEnabled":
         return WaterfoxBlockerService.isEnabled();
+      case "WaterfoxBlocker:GetShieldLevel":
+        return this._getShieldLevel(message.data);
+      case "WaterfoxBlocker:GetInitialResources":
+        return this._getInitialResources(message.data);
       case "WaterfoxBlocker:GetCosmeticResources":
         return this._getCosmeticResources(message.data);
       case "WaterfoxBlocker:GetHiddenClassIdSelectors":
         return this._getHiddenClassIdSelectors(message.data);
+      case "WaterfoxBlocker:CommitPickedRule":
+        return this._commitPickedRule(message.data);
+      case "WaterfoxBlocker:ZapperStateChanged":
+        this._notifyZapperStateChanged(message.data);
+        return undefined;
+      case "WaterfoxBlocker:PickerStateChanged":
+        this._notifyPickerStateChanged(message.data);
+        return undefined;
+      case "WaterfoxBlocker:PickedElementRule":
+        this._notifyPickerRuleAdded(message.data);
+        return undefined;
       default:
         return undefined;
     }
+  }
+
+  _notifyZapperStateChanged({ active } = {}) {
+    const browserId = Number(this.browsingContext?.top?.browserId || 0);
+    if (!browserId) {
+      return;
+    }
+
+    Services.obs.notifyObservers(
+      {
+        wrappedJSObject: {
+          active: !!active,
+          browserId,
+        },
+      },
+      "WaterfoxBlocker:ZapperStateChanged"
+    );
+  }
+
+  _notifyPickerStateChanged({ active } = {}) {
+    const browserId = Number(this.browsingContext?.top?.browserId || 0);
+    if (!browserId) {
+      return;
+    }
+
+    Services.obs.notifyObservers(
+      {
+        wrappedJSObject: {
+          active: !!active,
+          browserId,
+        },
+      },
+      "WaterfoxBlocker:PickerStateChanged"
+    );
+  }
+
+  _notifyPickerRuleAdded({ rule = "", selector = "", added = false } = {}) {
+    if (!added) {
+      return;
+    }
+
+    const browserId = Number(this.browsingContext?.top?.browserId || 0);
+    if (!browserId) {
+      return;
+    }
+
+    Services.obs.notifyObservers(
+      {
+        wrappedJSObject: {
+          added: !!added,
+          browserId,
+          rule,
+          selector,
+        },
+      },
+      "WaterfoxBlocker:PickerRuleAdded"
+    );
+  }
+
+  /**
+   * Returns the effective fingerprinting shield level for the given hostname.
+   * This is what the child actor uses to decide whether to inject the farbling
+   * content script.
+   *
+   * @param {object} [data={}]
+   * @param {string} [data.hostname]
+   * @returns {number} 0=off, 1=standard, 2=strict
+   */
+  _getShieldLevel({ hostname } = {}) {
+    if (!hostname) {
+      return WaterfoxShields.getGlobalFingerprintingLevel();
+    }
+    return WaterfoxShields.getEffectiveFingerprintingLevel(hostname);
+  }
+
+  _getInitialResources({ url } = {}) {
+    if (!url) {
+      return {
+        enabled: false,
+        resources: null,
+        shieldLevel: 0,
+      };
+    }
+
+    let hostname = "";
+    try {
+      hostname = new URL(url).hostname || "";
+    } catch (_) {}
+
+    const shieldLevel = this._getShieldLevel({ hostname });
+
+    if (!WaterfoxBlockerService.isEnabled()) {
+      return {
+        enabled: false,
+        resources: null,
+        shieldLevel,
+      };
+    }
+
+    return {
+      enabled: true,
+      resources: this._getCosmeticResources({ url }),
+      shieldLevel,
+    };
   }
 
   /**
@@ -81,6 +221,15 @@ export class WaterfoxBlockerParent extends JSWindowActorParent {
       return null;
     }
 
+    let hostname = "";
+    try {
+      hostname = new URL(url).hostname || "";
+    } catch (_) {}
+
+    if (hostname && WaterfoxBlockerService.shouldBypassBlocking(hostname)) {
+      return this._createEmptyCosmeticResources();
+    }
+
     const resources = WaterfoxBlockerService.getCosmeticResources(url);
     if (!resources) {
       return null;
@@ -89,6 +238,7 @@ export class WaterfoxBlockerParent extends JSWindowActorParent {
     return {
       exceptions: resources.exceptions || [],
       generichide: !!resources.generichide,
+      specifichide: !!resources.specifichide,
       hideSelectors: resources.hide_selectors || [],
       injectedScript: resources.injected_script || "",
       proceduralActions: resources.procedural_actions || [],
@@ -109,5 +259,55 @@ export class WaterfoxBlockerParent extends JSWindowActorParent {
       ids || [],
       exceptions || []
     );
+  }
+
+  async _commitPickedRule({ rule = "", selector = "", host = "" } = {}) {
+    const cleanedRule = String(rule || "").trim();
+    const cleanedSelector = String(selector || "").trim();
+    const cleanedHost = String(host || "").trim();
+    const normalizedHost = cleanedHost ? cleanedHost.toLowerCase() : "";
+
+    if (!cleanedRule || !normalizedHost) {
+      return { added: false, ok: false };
+    }
+
+    let nextRules = "";
+    let added = false;
+
+    try {
+      const rawRules = normalizeCustomRulesText(
+        Services.prefs.getStringPref("waterfox.blocker.customRules", "")
+      );
+      const existing = rawRules
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean);
+      const existingSet = new Set(existing);
+
+      if (!existingSet.has(cleanedRule)) {
+        const updated = normalizeCustomRulesText(
+          rawRules ? `${rawRules}\n${cleanedRule}` : cleanedRule
+        );
+        await WaterfoxBlockerService.replaceCustomRules(updated);
+        added = true;
+        nextRules = updated;
+      } else {
+        nextRules = rawRules;
+      }
+    } catch (err) {
+      console.error(
+        "[WaterfoxBlockerParent] failed to persist picked rule:",
+        err
+      );
+      return { added: false, ok: false };
+    }
+
+    return {
+      added,
+      ok: true,
+      rule: cleanedRule,
+      selector: cleanedSelector,
+      rules: nextRules,
+    };
   }
 }

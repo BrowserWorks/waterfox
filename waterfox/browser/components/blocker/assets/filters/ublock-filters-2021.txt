@@ -527,9 +527,6 @@ mylegalporno.com##.rmedia
 mylegalporno.com##.zone
 ||mylegalporno.com^$frame,1p
 
-! server.satunivers. tv anti adb
-server.satunivers.tv##+js(aeld, load, 2000)
-
 ! https://www.reddit.com/r/uBlockOrigin/comments/l5rxxk/fix_for_winaerocom_blocking_content_if_ublock/
 winaero.com#@#.entry-content > div > div
 winaero.com##[href^="/idx.php"]
@@ -1318,9 +1315,6 @@ freeadultcomix.com##+js(nowoif)
 ipa-apps.me##+js(nano-sib, timer)
 ipa-apps.me##[src="https://ipa-apps.me/Download.GIF"]
 
-! https://www.reddit.com/r/uBlockOrigin/comments/mowltd/detected/
-coursewikia.com##+js(nostif, brave_load_popup)
-
 ! https://github.com/uBlockOrigin/uAssets/issues/8871
 novelism.jp##+js(aeld, blur, native code)
 
@@ -1767,6 +1761,7 @@ anigogo.net,fbgo.*,kinoking.cc,sbbrisk.com,sbchill.com,sbchip.*,sbflix.*,sbplay.
 streamsb.*##+js(nowoif)
 streamsb.*##+js(aopr, DoodPop)
 streamsb.*##body > div[style*="z-index:"]
+sbplay.*##+js(acs, document.addEventListener, offsetHeight)
 sbplay.*##+js(set, console.clear, noopFunc)
 sbplay.*##^script:has-text(debugger)
 ! https://github.com/uBlockOrigin/uAssets/issues/18860
@@ -2317,9 +2312,6 @@ crackevil.com##+js(acs, mMcreateCookie)
 ! https://github.com/bogachenko/fuckfuckadblock/issues/213
 buydekhke.com##+js(aost, String.prototype.charCodeAt, ai_)
 
-! https://github.com/uBlockOrigin/uAssets/issues/9638
-mylinkconverter.com##a[href^="https://go.nordvpn.net/aff"] > img
-
 ! https://github.com/orgs/uBlockOrigin/teams/ublock-filters-volunteers/discussions/356
 talkjarvis.com##+js(nostif, css_class.show)
 cardiagn.com##+js(acs, eval, replace)
@@ -2495,9 +2487,6 @@ oosex.net,xteensex.net##+js(aopr, exoNoExternalUI38djdkjDDJsio96)
 
 ! https://www.reddit.com/r/uBlockOrigin/comments/p54deb/countdown_timer_on_imslporg_for_any_file_download/
 imslp.org##+js(nano-sib, timer)
-
-! https://github.com/uBlockOrigin/uAssets/issues/9771
-cover-addict.com##[href^="https://www.winxdvd.com/"]
 
 ! https://github.com/uBlockOrigin/uAssets/issues/9780
 nudes7.com##+js(acs, document.addEventListener, adsbygoogle)
@@ -2848,11 +2837,6 @@ apfelpatient.de##+js(nostif, css_class)
 ! https://github.com/uBlockOrigin/uAssets/pull/10015
 myfirstname.rocks##.xcontent.container
 
-! https://www.reddit.com/r/uBlockOrigin/comments/ppj5hz/adblock_detected_shorturlunityassets4freecom/
-shorturl.unityassets4free.com##+js(aopr, app_vars.force_disable_adblock)
-shorturl.unityassets4free.com##+js(aopr, open)
-shorturl.unityassets4free.com##+js(set, blurred, false)
-
 ! https://github.com/uBlockOrigin/uAssets/issues/10026
 szexkepek.net##+js(aopr, document.dispatchEvent)
 szexkepek.net##div[style="display:inline;float:left;width:300px;height:250px;margin-left:15px;"]
@@ -2914,11 +2898,6 @@ unsplash.com##div[style^="--row-gutter"] > div a[href="/brands"]:upward(div[styl
 unsplash.com##div[data-test="SearchInFeedAd-AffiliateFallback-Container"]
 ! https://www.reddit.com/r/uBlockOrigin/comments/1acckcx/unsplashcom/
 unsplash.com##div[data-test^="masonry-grid"] > div[style^="--row"] > div:not([itemprop="image"])
-
-! https://github.com/AdguardTeam/AdguardFilters/issues/95275
-! https://github.com/uBlockOrigin/uAssets/issues/12954
-@@||samuraiscan.com^$ghide
-samuraiscan.com##+js(acs, eval, replace)
 
 ! https://github.com/uBlockOrigin/uAssets/issues/10055
 milanworld.net##+js(acs, $, test)
@@ -3315,13 +3294,6 @@ buffstream.*##+js(aopr, mm)
 ! https://www.reddit.com/r/uBlockOrigin/comments/qjxtzk/antiadblock_subedlc/
 subedlc.com##+js(acs, document.addEventListener, nextFunction)
 
-! https://github.com/AdguardTeam/AdguardFilters/issues/98602
-! https://github.com/AdguardTeam/AdguardFilters/issues/103871
-avjamack.com,avjamak.net##+js(nostif, nextFunction, 250)
-avjamack.com,avjamak.net##.widget-img
-||avjamack.com/data/by_banner/
-||avjamak.net/data/by_banner/
-
 ! https://github.com/AdguardTeam/AdguardFilters/issues/98703
 iimanga.com##+js(aeld, DOMContentLoaded, adsBlocked)
 iimanga.com##div[id^="teaser"]
@@ -3439,14 +3411,9 @@ alphagames4u.com##+js(acs, addEventListener, ai_)
 wikirise.com##+js(acs, decodeURIComponent, ai_)
 
 ! https://github.com/AdguardTeam/AdguardFilters/issues/100103
-filesus.com,gotxx.*,sturls.com##+js(nostif, getComputedStyle, 250)
+gotxx.*##+js(nostif, getComputedStyle, 250)
 gotxx.*##+js(aost, Element.prototype.matches, litespeed)
-sturls.com##+js(acs, decodeURI, decodeURIComponent)
 gotxx.*##div[class][style^="position: absolute; cursor: pointer; z-index: 2147483646"]
-! https://github.com/uBlockOrigin/uAssets/issues/15580 timer and focus detection
-sturls.com##+js(set, blurred, false)
-sturls.com###cc:style(display: block !important;)
-sturls.com###timer
 
 ! https://www.reddit.com/r/uBlockOrigin/comments/qtvlfk/adblock_detected_on_edealinfocom/
 edealinfo.com##+js(acs, $, offsetHeight)

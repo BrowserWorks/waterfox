@@ -34,8 +34,6 @@ export const ADBLOCK_NAME_PATTERNS = Object.freeze([
   /\bublock/i,
   /\bad\s*guard/i,
   /\bad\s*blocker/i,
-  /\btracker\s*block/i,
-  /\bcontent\s*block/i,
 ]);
 
 /**
@@ -77,8 +75,8 @@ export function addonDisplayName(addon) {
 /**
  * Returns whether an addon looks like an ad/content blocker.
  *
- * Checks the known ID list first, then falls back to pattern matching
- * against the addon's name and description.
+ * Checks the known ID list first, then falls back to conservative name
+ * matching for well-known ad blocker terms.
  *
  * @param {object} addon
  * @returns {boolean}
@@ -92,7 +90,7 @@ export function isAdblockAddon(addon) {
     return true;
   }
 
-  const searchableName = `${addon.name || ""} ${addon.description || ""}`;
+  const searchableName = String(addon.name || "");
   if (!searchableName.trim()) {
     return false;
   }

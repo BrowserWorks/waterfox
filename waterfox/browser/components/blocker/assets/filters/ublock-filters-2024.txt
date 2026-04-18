@@ -418,7 +418,6 @@ file-upload.net##+js(set, advertisement3, true)
 /werbebanner-$badfilter
 ! https://github.com/uBlockOrigin/uAssets/issues/15914
 file-upload.*##+js(aopr, start)
-||remaininghopefully.com^
 ! https://github.com/uBlockOrigin/uAssets/issues/31945
 file-upload.org##+js(acs, JSON.parse, document.head.appendChild)
 ||cfd/tags/*.js$script,3p
@@ -1258,10 +1257,11 @@ qwant.com##div[data-testid="pam.container"]:style(max-height: 1px !important; op
 @@||spite.cz^$ghide
 
 ! https://github.com/uBlockOrigin/uAssets/issues/22203
-civitai.com,civitai.green##+js(no-fetch-if, googlesyndication)
-civitai.com,civitai.green##div:is(.shadow, .flex.w-full.justify-center[style=""], .flex.flex-col.items-center.justify-center.gap-2[style^="min-height:"]):has(a[href="/pricing"] img[alt="Please support civitai and creators by disabling adblock"]):remove()
-civitai.com,civitai.green##div[id][class^="mantine-"].flex.relative.box-content:style(min-height: 0px !important; visibility: collapse !important; padding: 0px !important;)
+civitai.red,civitai.com,civitai.green##+js(no-fetch-if, googlesyndication)
+civitai.red,civitai.com,civitai.green##div:is(.shadow, .flex.w-full.justify-center[style=""], .flex.flex-col.items-center.justify-center.gap-2[style^="min-height:"]):has(a[href="/pricing"] img[alt="Please support civitai and creators by disabling adblock"]):remove()
+civitai.red,civitai.com,civitai.green##div[id][class^="mantine-"].flex.relative.box-content:style(min-height: 0px !important; visibility: collapse !important; padding: 0px !important;)
 ||ads.civitai.$script,1p,redirect=noopjs
+||advertising.civitai.com^$xhr
 
 ! https://github.com/uBlockOrigin/uAssets/issues/22220
 ! https://github.com/uBlockOrigin/uAssets/issues/22492
@@ -2848,9 +2848,9 @@ chasingthedonkey.com##+js(nowoif)
 taste.com.au##.main-header:style(top: 0 !important)
 
 ! https://github.com/uBlockOrigin/uAssets/issues/24714
-@@||codicibancari.it/scripts/tracking/pixel/conversion/prebid_*.js$domain=decompiler.com
+@@/prebid.$script,from=decompiler.com
+decompiler.com##+js(trusted-replace-node-text, script, /if.*?\(.*?\)/, if(false), condition, /\.style\.pointerEvents|\.style\.opacity|\.setAttribute\('hr'|\.createElement\("button"\)|\.addEventListener\("click"|window\['al'\+'ert'\]|oldButton\['replaceWith'\]|' \+ '|replaceSubmit|replaceSubmitWithWarnButton|'pointerEvents'|disableLink/)
 decompiler.com##+js(acs, document.getElementById, /adblock/i)
-decompiler.com##+js(rpnt, script, /if.*?\(.*?\)/, if(false), condition, /\[String|parentNode\.replaceChild|fromCharCode/)
 
 ! ytlarge detection
 @@||ytlarge.com^$ghide
@@ -2861,7 +2861,7 @@ decompiler.com##+js(rpnt, script, /if.*?\(.*?\)/, if(false), condition, /\[Strin
 @@*$script,frame,xhr,1p,domain=ytlarge.com
 .com/ad/$~image,third-party,domain=~mediaplex.com|~warpwire.com|~wsj.com,badfilter
 .com/adz/$badfilter
-@@*$script,domain=ytlarge.com,denyallow=googletagmanager.com|googlesyndication.com|topcreativeformat.com
+ytlarge.com##.overflow-hidden.items-center.flex-col:has([id^="ezoic-pub-ad-"])
 ytlarge.com##ins.adsbygoogle[data-ad-slot]
 *.gif$domain=ytlarge.com,image
 
@@ -2905,9 +2905,6 @@ avxhm.se##center:has(a[href^="https://canv.ai/"]) ~ span:has(a[href^="https://ca
 
 ! https://github.com/uBlockOrigin/uAssets/issues/24842
 repack-games.com##+js(rmnt, script, ai_adb)
-
-! hesgoal-*.io detection
-hesgoal-tv.io,hesgoal-vip.io##+js(rmnt, script, /adbl/i)
 
 ! hesgoal. watch popups
 ||hesgoal.watch^$csp=sandbox allow-forms allow-same-origin allow-scripts allow-modals allow-orientation-lock allow-pointer-lock allow-presentation allow-top-navigation
@@ -2978,9 +2975,6 @@ cgcosplay.org###page + div[id][class*=" "]
 ! https://github.com/uBlockOrigin/uAssets/issues/24937
 ||sainsburys.co.uk/groceries-api/$xhr,1p,removeparam=include[PRODUCT_AD]
 sainsburys.co.uk##+js(json-prune, ads.[-].ad_id)
-
-! https://tiroalpaloes.com/ - anti-adb
-tiroalpaloes.com##+js(aeld, load, nextFunction)
 
 ! https://github.com/uBlockOrigin/uAssets/issues/24953
 crackshash.com##+js(acs, document.getElementsByClassName, wp-ad)
@@ -3815,10 +3809,6 @@ akirabox.com,akirabox.to##+js(nowoif, _blank)
 ||rapidsend.cfd^$all
 ||generating.link^$all
 
-! https://github.com/AdguardTeam/AdguardFilters/issues/193137
-redvido.com##+js(acs, onload, open)
-redvido.com##+js(aopr, Adcash)
-
 ! https://github.com/AdguardTeam/AdguardFilters/issues/193130
 ! https://github.com/AdguardTeam/AdguardFilters/issues/216165
 upns.*##+js(nowoif)
@@ -3842,6 +3832,7 @@ movielinkbd.*,mcloud.guru##+js(nowoif, _blank)
 neodrive.xyz##+js(rmnt, script, FingerprintJS)
 ||jaya9.app/?af=$doc,popup
 ||jaya9.best/?af=$doc,popup
+||jaya9bangladesh.com/?af=$doc,popup
 ||staletraffic.com^$popup,doc
 
 ! https://github.com/uBlockOrigin/uAssets/issues/26527
@@ -3862,7 +3853,6 @@ viralxxxporn.com##+js(set, flashvars.mlogo, '')
 
 ! https://www.reddit.com/r/uBlockOrigin/comments/1gvr4li/adblock_detection_on_zdsptvcom/
 @@*$ghide,domain=activo.mx|dynamicsupply.net|foroactivo.com|zdsports.org|~www.activo.mx|~www.foroactivo.com
-@@||blogspot.com^$ghide,domain=zscnl.blogspot.com|zsnls.blogspot.com
 tarjetarojaenvivo.lat##^script#aclib
 ||tarjetarojaenvivo.lat/lib.js^
 
@@ -4124,9 +4114,6 @@ ebook-hell.to##+js(nowoif)
 
 ! https://github.com/uBlockOrigin/uAssets/issues/26371
 ibooks.to##+js(rmnt, script, ai_adb)
-
-! https://www.gpldose.com/ anti-adb
-gpldose.com##+js(aopr, Dataffcecd)
 
 ! https://github.com/uBlockOrigin/uAssets/issues/26395
 ##.sharethis-inline-share-buttons.st-hidden

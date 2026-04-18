@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { toSafeDomain } from "resource:///modules/WaterfoxBlockerUtils.sys.mjs";
+import { WaterfoxShields } from "resource:///modules/WaterfoxShields.sys.mjs";
 
 const lazy = {};
 
@@ -17,11 +18,19 @@ const CONTRACT_ID = "@waterfox.com/waterfox-blocker-engine;1";
 const PREF_ENABLED = "waterfox.blocker.enabled";
 const PREF_ALLOW_SEARCH_PARTNER_ADS = "waterfox.blocker.allowSearchPartnerAds";
 const PREF_SITE_EXCEPTIONS = "waterfox.blocker.siteExceptions";
+const PREF_NO_COSMETIC_FILTERING_SITES =
+  "waterfox.blocker.noCosmeticFilteringSites";
+const PREF_NO_REMOTE_FONTS_SITES = "waterfox.blocker.noRemoteFontsSites";
 const PREF_FILTER_LIST_URLS = "waterfox.blocker.filterListUrls";
+const PREF_CUSTOM_RULES = "waterfox.blocker.customRules";
 const PREF_ENABLED_LISTS = "waterfox.blocker.enabledLists";
+const PREF_LIST_REFRESH_INTERVAL_HOURS =
+  "waterfox.blocker.listRefreshIntervalHours";
 const PREF_BRANCH = "waterfox.blocker.";
+const PREF_LANGUAGE_REDUCTION = "waterfox.shields.languageReduction";
 
 const SEARCH_PARTNER_DOMAINS = Object.freeze([
+  "startpage.com",
   "www.startpage.com",
   "search.waterfox.com",
 ]);
@@ -40,6 +49,8 @@ const ADBLOCK_ENGINE_VERSION = "adblock-rust-ffi-v1";
 // List update cadence.
 const UPDATE_INTERVAL_MS = 12 * 60 * 60 * 1000; // 12h
 const DEFAULT_LIST_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const MIN_LIST_TTL_MS = 60 * 60 * 1000; // 1 hour
+const MAX_LIST_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 /*
  * Service design rationale:
@@ -65,6 +76,7 @@ const BLOCKED_COUNT_MAP_MAX_ENTRIES = 500;
 const BLOCKED_COUNT_MAP_TRIM_TO_ENTRIES = 250;
 const TOPIC_BLOCKED_COUNT_UPDATED = "WaterfoxBlocker:BlockedCountUpdated";
 const TOPIC_BLOCKED_COUNTS_CLEARED = "WaterfoxBlocker:BlockedCountsCleared";
+const TOPIC_NATIVE_BLOCKED_REQUEST = "WaterfoxBlocker:NativeBlockedRequest";
 const TOPIC_HTTP_ON_MODIFY_REQUEST = "http-on-modify-request";
 const TOPIC_HTTP_ON_EXAMINE_RESPONSE = "http-on-examine-response";
 const TOPIC_HTTP_ON_EXAMINE_CACHED_RESPONSE = "http-on-examine-cached-response";
@@ -94,8 +106,158 @@ function bytesToHex(binaryString) {
   return out;
 }
 
+function hashStringHex(text) {
+  const hasher = Cc["@mozilla.org/security/hash;1"].createInstance(
+    Ci.nsICryptoHash
+  );
+  hasher.init(hasher.SHA256);
+
+  const bytes = new TextEncoder().encode(String(text));
+  hasher.update(bytes, bytes.length);
+
+  return bytesToHex(hasher.finish(false));
+}
+
 function nowISO() {
   return new Date().toISOString();
+}
+
+function clampNumber(value, min, max, fallback) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return fallback;
+  }
+  return Math.max(min, Math.min(max, number));
+}
+
+function parseDurationMs(value) {
+  const input = String(value || "")
+    .trim()
+    .toLowerCase();
+  const match = input.match(/^(\d+(?:\.\d+)?)\s*([a-z]+)?/);
+  if (!match) {
+    return 0;
+  }
+
+  const amount = Number(match[1]);
+  if (!Number.isFinite(amount) || amount <= 0) {
+    return 0;
+  }
+
+  const unit = match[2] || "days";
+  if (unit.startsWith("h")) {
+    return amount * 60 * 60 * 1000;
+  }
+  if (unit.startsWith("m")) {
+    return amount * 60 * 1000;
+  }
+  if (unit.startsWith("w")) {
+    return amount * 7 * 24 * 60 * 60 * 1000;
+  }
+  return amount * 24 * 60 * 60 * 1000;
+}
+
+function parseListMetadataRefreshMs(text) {
+  for (const line of String(text || "")
+    .split(/\r?\n/)
+    .slice(0, 80)) {
+    const match = line.match(/^\s*!\s*expires\s*:\s*(.+)$/i);
+    if (!match) {
+      continue;
+    }
+    const duration = parseDurationMs(match[1]);
+    if (duration) {
+      return clampNumber(
+        duration,
+        MIN_LIST_TTL_MS,
+        MAX_LIST_TTL_MS,
+        DEFAULT_LIST_TTL_MS
+      );
+    }
+  }
+  return 0;
+}
+
+function parseHeaderRefreshMs(response) {
+  const cacheControl = response.headers.get("Cache-Control") || "";
+  const maxAgeMatch = cacheControl.match(/(?:^|,)\s*max-age=(\d+)/i);
+  if (maxAgeMatch) {
+    return clampNumber(
+      Number(maxAgeMatch[1]) * 1000,
+      MIN_LIST_TTL_MS,
+      MAX_LIST_TTL_MS,
+      DEFAULT_LIST_TTL_MS
+    );
+  }
+
+  const expires = response.headers.get("Expires") || "";
+  const expiresTime = Date.parse(expires);
+  if (Number.isFinite(expiresTime)) {
+    const duration = expiresTime - Date.now();
+    if (duration > 0) {
+      return clampNumber(
+        duration,
+        MIN_LIST_TTL_MS,
+        MAX_LIST_TTL_MS,
+        DEFAULT_LIST_TTL_MS
+      );
+    }
+  }
+
+  return 0;
+}
+
+function normalizeFilterListUrl(input) {
+  const value = String(input || "").trim();
+  if (!value) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+      return parsed.href;
+    }
+  } catch (_) {}
+
+  try {
+    const uri = Services.io.newURI(value);
+    if (uri.schemeIs("http") || uri.schemeIs("https")) {
+      return uri.spec;
+    }
+  } catch (_) {}
+
+  return "";
+}
+
+function domainFromHostname(hostname) {
+  const normalized = toSafeDomain(hostname);
+  if (!normalized) {
+    return "";
+  }
+
+  const parts = normalized.split(".");
+  if (parts.length <= 2) {
+    return normalized;
+  }
+
+  return parts.slice(-2).join(".");
+}
+
+function is3rdPartyHost(srcHostname, desHostname) {
+  if (desHostname === "*" || srcHostname === "*" || srcHostname === "") {
+    return false;
+  }
+
+  const srcDomain = domainFromHostname(srcHostname) || srcHostname;
+  if (!desHostname.endsWith(srcDomain)) {
+    return true;
+  }
+
+  return (
+    desHostname.length !== srcDomain.length &&
+    desHostname.charAt(desHostname.length - srcDomain.length - 1) !== "."
+  );
 }
 
 /**
@@ -158,6 +320,9 @@ export const WaterfoxBlockerService = {
   ]),
 
   _blockedCountByBrowserId: new Map(),
+  _pageRequestStatsByBrowserId: new Map(),
+  _noCosmeticFilteringSitesCache: null,
+  _noRemoteFontsSitesCache: null,
   _siteExceptionsCache: null,
   _pendingDocumentBypassTokens: new Map(),
   _sessionSiteExceptions: new Set(),
@@ -192,6 +357,19 @@ export const WaterfoxBlockerService = {
     this._notifyBlockedCountsCleared();
   },
 
+  _recordBlockedChannel(channel, browserId, url, hostname, requestType) {
+    try {
+      channel.cancel(Cr.NS_ERROR_ABORT);
+    } catch (_) {}
+
+    try {
+      if (browserId) {
+        this.incrementBlockedCount(browserId);
+      }
+    } catch (_) {}
+    this._recordPageRequest(browserId, url, hostname, requestType, true);
+  },
+
   _computeListsHash(descriptors, listRecords) {
     const byFilename = new Map(
       listRecords.map(record => [record.filename, record.text ?? ""])
@@ -215,6 +393,11 @@ export const WaterfoxBlockerService = {
       const sep = encoder.encode("\n---\n");
       hasher.update(sep, sep.length);
     }
+
+    const customRulesBytes = encoder.encode(
+      `\ncustom-rules\n${this._getCustomRules().join("\n")}`
+    );
+    hasher.update(customRulesBytes, customRulesBytes.length);
 
     return bytesToHex(hasher.finish(false));
   },
@@ -292,12 +475,14 @@ export const WaterfoxBlockerService = {
           url: descriptor.url,
         });
 
+        const refreshAfterMs = this._getRefreshAfterMs(result);
         metadataEntries.push({
           etag: result.etag || "",
-          expiresAt: now + DEFAULT_LIST_TTL_MS,
+          expiresAt: now + refreshAfterMs,
           filename: descriptor.filename,
           lastFetched: now,
           lastModified: result.lastModified || "",
+          refreshAfterMs,
           url: descriptor.url,
         });
       } catch (err) {
@@ -333,7 +518,10 @@ export const WaterfoxBlockerService = {
     });
 
     if (response.status === 304) {
-      return { notModified: true };
+      return {
+        headerRefreshAfterMs: parseHeaderRefreshMs(response),
+        notModified: true,
+      };
     }
 
     if (!response.ok) {
@@ -347,8 +535,10 @@ export const WaterfoxBlockerService = {
 
     return {
       etag: response.headers.get("ETag") || "",
+      headerRefreshAfterMs: parseHeaderRefreshMs(response),
       lastModified: response.headers.get("Last-Modified") || "",
       notModified: false,
+      refreshAfterMs: parseListMetadataRefreshMs(text),
       text,
     };
   },
@@ -359,10 +549,100 @@ export const WaterfoxBlockerService = {
       return [];
     }
 
-    return raw
-      .split(",")
-      .map(s => s.trim())
-      .filter(Boolean);
+    let values = [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        values = parsed;
+      }
+    } catch (_) {}
+
+    if (!values.length) {
+      values = raw.split(/[,\n\r]+/);
+    }
+
+    const out = [];
+    const seen = new Set();
+    for (const value of values) {
+      const url = normalizeFilterListUrl(value);
+      if (!url || seen.has(url)) {
+        continue;
+      }
+
+      seen.add(url);
+      out.push(url);
+
+      if (out.length >= 100) {
+        break;
+      }
+    }
+
+    return out;
+  },
+
+  _getConfiguredListRefreshIntervalMs() {
+    const hours = Services.prefs.getIntPref(
+      PREF_LIST_REFRESH_INTERVAL_HOURS,
+      DEFAULT_LIST_TTL_MS / (60 * 60 * 1000)
+    );
+    return clampNumber(
+      hours * 60 * 60 * 1000,
+      MIN_LIST_TTL_MS,
+      MAX_LIST_TTL_MS,
+      DEFAULT_LIST_TTL_MS
+    );
+  },
+
+  _getRefreshAfterMs(resultOrMetadata = null) {
+    const configuredRefreshAfterMs = this._getConfiguredListRefreshIntervalMs();
+    const advertisedRefreshAfterMs =
+      Number(resultOrMetadata?.refreshAfterMs || 0) ||
+      Number(resultOrMetadata?.headerRefreshAfterMs || 0);
+
+    if (!advertisedRefreshAfterMs) {
+      return configuredRefreshAfterMs;
+    }
+
+    return Math.min(
+      configuredRefreshAfterMs,
+      clampNumber(
+        advertisedRefreshAfterMs,
+        MIN_LIST_TTL_MS,
+        MAX_LIST_TTL_MS,
+        configuredRefreshAfterMs
+      )
+    );
+  },
+
+  _getCustomRules() {
+    const raw = Services.prefs.getStringPref(PREF_CUSTOM_RULES, "");
+    if (!raw) {
+      return [];
+    }
+
+    const out = [];
+    const seen = new Set();
+    for (const line of raw.split(/\r?\n/)) {
+      const rule = line.trim();
+      if (
+        !rule ||
+        rule.startsWith("!") ||
+        rule.startsWith("[") ||
+        rule.length > 4096 ||
+        seen.has(rule)
+      ) {
+        continue;
+      }
+
+      seen.add(rule);
+      out.push(rule);
+
+      if (out.length >= 10000) {
+        break;
+      }
+    }
+
+    return out;
   },
 
   _getEnabledListOverrides() {
@@ -437,11 +717,11 @@ export const WaterfoxBlockerService = {
 
     // Add custom user URLs from pref.
     const customUrls = this._getCustomFilterListUrls();
-    for (let i = 0; i < customUrls.length; i++) {
+    for (const url of customUrls) {
       descriptors.push({
         bundledUrl: null,
-        filename: `custom-${i + 1}.txt`,
-        url: customUrls[i],
+        filename: `custom-${hashStringHex(url).slice(0, 24)}.txt`,
+        url,
       });
     }
 
@@ -468,6 +748,151 @@ export const WaterfoxBlockerService = {
     }
   },
 
+  _getNoCosmeticFilteringSites() {
+    if (this._noCosmeticFilteringSitesCache) {
+      return this._noCosmeticFilteringSitesCache;
+    }
+
+    const raw = Services.prefs.getStringPref(
+      PREF_NO_COSMETIC_FILTERING_SITES,
+      "[]"
+    );
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        this._noCosmeticFilteringSitesCache = [];
+        return this._noCosmeticFilteringSitesCache;
+      }
+      this._noCosmeticFilteringSitesCache = parsed
+        .map(toSafeDomain)
+        .filter(Boolean);
+      return this._noCosmeticFilteringSitesCache;
+    } catch (_) {
+      this._noCosmeticFilteringSitesCache = [];
+      return this._noCosmeticFilteringSitesCache;
+    }
+  },
+
+  _getNoRemoteFontsSites() {
+    if (this._noRemoteFontsSitesCache) {
+      return this._noRemoteFontsSitesCache;
+    }
+
+    const raw = Services.prefs.getStringPref(PREF_NO_REMOTE_FONTS_SITES, "[]");
+    try {
+      const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) {
+        this._noRemoteFontsSitesCache = [];
+        return this._noRemoteFontsSitesCache;
+      }
+      this._noRemoteFontsSitesCache = parsed.map(toSafeDomain).filter(Boolean);
+      return this._noRemoteFontsSitesCache;
+    } catch (_) {
+      this._noRemoteFontsSitesCache = [];
+      return this._noRemoteFontsSitesCache;
+    }
+  },
+
+  _recordPageRequest(
+    browserId,
+    requestUrl,
+    requestHostname,
+    requestType,
+    blocked
+  ) {
+    const id = Number(browserId || 0);
+    const normalizedHostname = toSafeDomain(requestHostname);
+    if (!id || !normalizedHostname) {
+      return;
+    }
+
+    const pageState = this._pageRequestStatsByBrowserId.get(id);
+    if (!pageState?.pageHostname) {
+      return;
+    }
+
+    let details = pageState.hostnameDict[normalizedHostname];
+    if (!details) {
+      details = pageState.hostnameDict[normalizedHostname] = {
+        counts: {
+          allowed: { any: 0, frame: 0, image: 0, script: 0 },
+          blocked: { any: 0, frame: 0, image: 0, script: 0 },
+        },
+        domain: domainFromHostname(normalizedHostname) || normalizedHostname,
+        samples: {},
+      };
+    }
+
+    const bucket = blocked ? details.counts.blocked : details.counts.allowed;
+    bucket.any++;
+    if (requestType === "script") {
+      bucket.script++;
+    } else if (requestType === "image") {
+      bucket.image++;
+    } else if (requestType === "subdocument" || requestType === "object") {
+      bucket.frame++;
+    }
+
+    const sampleKey = [];
+    sampleKey.push(requestType === "script" ? "script" : requestType);
+    if (requestType === "script") {
+      sampleKey.push(
+        is3rdPartyHost(pageState.pageHostname, normalizedHostname)
+          ? "3p-script"
+          : "1p-script"
+      );
+    }
+    if (requestType === "subdocument" || requestType === "object") {
+      sampleKey.push("3p-frame");
+    }
+    if (is3rdPartyHost(pageState.pageHostname, normalizedHostname)) {
+      sampleKey.push("3p");
+    }
+    sampleKey.push("*");
+
+    const url = String(requestUrl || "").trim();
+    if (url) {
+      for (const key of sampleKey) {
+        if (!details.samples[key]) {
+          details.samples[key] = url;
+        }
+      }
+    }
+  },
+
+  _resetPageRequestStats(browserId, pageHostname) {
+    const id = Number(browserId || 0);
+    const normalizedPageHostname = toSafeDomain(pageHostname);
+    if (!id || !normalizedPageHostname) {
+      return;
+    }
+
+    this._pageRequestStatsByBrowserId.set(id, {
+      hostnameDict: {
+        [normalizedPageHostname]: {
+          counts: {
+            allowed: { any: 0, frame: 0, image: 0, script: 0 },
+            blocked: { any: 0, frame: 0, image: 0, script: 0 },
+          },
+          domain:
+            domainFromHostname(normalizedPageHostname) ||
+            normalizedPageHostname,
+        },
+      },
+      pageDomain:
+        domainFromHostname(normalizedPageHostname) || normalizedPageHostname,
+      pageHostname: normalizedPageHostname,
+    });
+  },
+
+  _syncAllPopupPermissions() {
+    // No-op: popup permission syncing removed.
+  },
+
+  _clearAllPopupPermissions() {
+    // No-op: popup permission syncing removed.
+  },
+
   async _initEngineFromListRecords(listRecords) {
     const rules = [];
     for (const record of listRecords) {
@@ -478,6 +903,8 @@ export const WaterfoxBlockerService = {
         }
       }
     }
+
+    rules.push(...this._getCustomRules());
 
     if (!rules.length) {
       throw new Error("Filter lists contained no valid rules");
@@ -552,16 +979,18 @@ export const WaterfoxBlockerService = {
     if (this._initGeneration !== generation) {
       return;
     }
-    if (!bundledLists.length) {
+    if (!bundledLists.length && !this._getCustomRules().length) {
       throw new Error("No bundled filter lists available for fallback");
     }
 
     // Persist bundled fallback to profile so startup has a stable local source.
-    await this._persistListRecordsAndMetadata(
-      bundledLists,
-      descriptors,
-      true /* forceImmediateRefresh */
-    );
+    if (bundledLists.length) {
+      await this._persistListRecordsAndMetadata(
+        bundledLists,
+        descriptors,
+        true /* forceImmediateRefresh */
+      );
+    }
 
     if (this._initGeneration !== generation) {
       return;
@@ -596,7 +1025,7 @@ export const WaterfoxBlockerService = {
       if (this._initGeneration !== generation) {
         return;
       }
-      if (!descriptors.length) {
+      if (!descriptors.length && !this._getCustomRules().length) {
         this._engine = null;
         return;
       }
@@ -886,6 +1315,125 @@ export const WaterfoxBlockerService = {
     return "";
   },
 
+  _getPolicyHostForLoadInfo(loadInfo, fallbackHost = "") {
+    const candidates = [
+      this._getPrincipalHost(loadInfo?.loadingPrincipal),
+      this._getPrincipalHost(loadInfo?.triggeringPrincipal),
+      toSafeDomain(fallbackHost),
+    ];
+
+    for (const candidate of candidates) {
+      const normalized = toSafeDomain(candidate);
+      if (normalized) {
+        return normalized;
+      }
+    }
+
+    return "";
+  },
+
+  _getSiteSwitchBlockReason(_policyHost, _requestType) {
+    return "";
+  },
+
+  _getBuiltinCspDirectivesForDocument(
+    url,
+    sourceHostname,
+    hostname,
+    requestType,
+    isThirdParty
+  ) {
+    const directives = [];
+
+    const engineDirectives = this.getCspDirectives(
+      url,
+      sourceHostname,
+      hostname,
+      requestType,
+      isThirdParty
+    );
+    if (engineDirectives) {
+      directives.push(engineDirectives);
+    }
+
+    return directives.join("; ");
+  },
+
+  _applyJavascriptHostSwitchToBrowsingContext(browsingContext, hostname) {
+    const normalizedHostname = toSafeDomain(hostname);
+    if (!browsingContext || !normalizedHostname) {
+      return;
+    }
+
+    const allowJavascript = true;
+
+    try {
+      if (browsingContext.allowJavascript !== allowJavascript) {
+        browsingContext.allowJavascript = allowJavascript;
+      }
+    } catch (_) {}
+  },
+
+  _applyJavascriptPolicyForLoadInfo(loadInfo, hostname) {
+    this._applyJavascriptHostSwitchToBrowsingContext(
+      loadInfo?.browsingContext?.top || loadInfo?.browsingContext || null,
+      hostname
+    );
+  },
+
+  _getProtectableHostnameFromBrowser(browser) {
+    const uri = browser?.currentURI;
+    try {
+      if (!uri || (!uri.schemeIs("http") && !uri.schemeIs("https"))) {
+        return "";
+      }
+      return toSafeDomain(uri.host || "");
+    } catch (_) {
+      return "";
+    }
+  },
+
+  _syncJavascriptPolicyForBrowser(browser) {
+    const browsingContext =
+      browser?.browsingContext?.top || browser?.browsingContext || null;
+    if (!browsingContext) {
+      return;
+    }
+
+    const hostname = this.isEnabled()
+      ? this._getProtectableHostnameFromBrowser(browser)
+      : "";
+
+    if (!hostname) {
+      try {
+        if (browsingContext.allowJavascript !== true) {
+          browsingContext.allowJavascript = true;
+        }
+      } catch (_) {}
+      return;
+    }
+
+    this._applyJavascriptHostSwitchToBrowsingContext(browsingContext, hostname);
+  },
+
+  _syncAllJavascriptPolicies() {
+    const windows = Services.wm.getEnumerator("navigator:browser");
+    while (windows.hasMoreElements()) {
+      const win = windows.getNext();
+      for (const browser of win?.gBrowser?.browsers || []) {
+        this._syncJavascriptPolicyForBrowser(browser);
+      }
+    }
+  },
+
+  _shouldBlockLargeMediaResponse(channel, loadInfo, policyHost, requestType) {
+    void channel;
+    void loadInfo;
+    void policyHost;
+    void requestType;
+    return false;
+  },
+
   _hasTemporarySiteException(domain) {
     const normalized = toSafeDomain(domain);
     if (!normalized || !this._sessionSiteExceptions.size) {
@@ -1001,6 +1549,13 @@ export const WaterfoxBlockerService = {
     sourceHostname,
     hostname
   ) {
+    const browserId = loadInfo.browsingContext?.top?.browserId || 0;
+    if (browserId && hostname) {
+      this._resetPageRequestStats(browserId, hostname);
+    }
+
+    this._applyJavascriptPolicyForLoadInfo(loadInfo, hostname);
+
     if (this._consumeDocumentBypassToken(loadInfo, url, hostname)) {
       return;
     }
@@ -1023,11 +1578,21 @@ export const WaterfoxBlockerService = {
       "document",
       this._isThirdPartyChannel(channel)
     );
+
+     // $removeparam: redirect to the cleaned URL before any block check.
+    if (result.rewrittenUrl) {
+      try {
+        channel.redirectTo(Services.io.newURI(result.rewrittenUrl));
+        return;
+      } catch (_) {
+        // Fall through — treat normally.
+      }
+    } 
+
     if (!result.matched || result.exception) {
       return;
     }
 
-    const browserId = loadInfo.browsingContext?.top?.browserId;
     try {
       const blockedPageUrl = this._buildBlockedPageUrl(
         url,
@@ -1061,10 +1626,6 @@ export const WaterfoxBlockerService = {
    * @param {nsISupports} subject Observer subject expected to QI to `nsIHttpChannel`.
    */
   _onModifyRequest(subject) {
-    if (!this._engine) {
-      return;
-    }
-
     let channel;
     try {
       channel = subject.QueryInterface(Ci.nsIHttpChannel);
@@ -1092,6 +1653,10 @@ export const WaterfoxBlockerService = {
       hostname = uri.host || "";
     } catch (_) {}
 
+    // Apply Accept-Language reduction before any block/bypass checks so it
+    // still takes effect when the shield is enabled for the current site.
+    this._reduceAcceptLanguage(channel, hostname);
+
     if (requestType === "document" && loadInfo.isTopLevelLoad) {
       this._handleTopLevelDocumentRequest(
         channel,
@@ -1110,27 +1675,87 @@ export const WaterfoxBlockerService = {
       return;
     }
 
-    const result = this.checkRequest(
-      url,
-      this._getPrincipalHost(loadInfo.loadingPrincipal),
-      hostname,
-      requestType,
-      this._isThirdPartyChannel(channel)
+    const sourceHostname = this._getPrincipalHost(loadInfo.loadingPrincipal);
+    const thirdParty = this._isThirdPartyChannel(channel);
+    const browserId = loadInfo.browsingContext?.top?.browserId || 0;
+    const policyHost = this._getPolicyHostForLoadInfo(loadInfo, sourceHostname);
+    const siteSwitchReason = this._getSiteSwitchBlockReason(
+      policyHost,
+      requestType
     );
 
-    if (result.matched && !result.exception) {
-      if (result.redirect) {
-        // TODO: Apply `result.redirect` (a data: URL stub) via a synthetic
-        // response instead of canceling, so redirect rules return a payload.
-      }
-      channel.cancel(Cr.NS_ERROR_ABORT);
+    if (siteSwitchReason) {
+      this._recordBlockedChannel(
+        channel,
+        browserId,
+        url,
+        hostname,
+        requestType
+      );
+      return;
+    }
 
+    const result = this.checkRequest(
+      url,
+      sourceHostname,
+      hostname,
+      requestType,
+      thirdParty
+    );
+    // $removeparam: engine rewrote the URL to strip tracking parameters.
+    // Redirect the channel to the cleaned URL before any block check so the
+    // request continues with the sanitised URL even if it is not blocked.
+    if (result.rewrittenUrl) {
       try {
-        const browserId = loadInfo.browsingContext?.top?.browserId;
-        if (browserId) {
-          this.incrementBlockedCount(browserId);
+        channel.redirectTo(Services.io.newURI(result.rewrittenUrl));
+        return;
+      } catch (_) {
+        // Fall through — rewrittenUrl was unusable, treat normally.
+      }
+    }
+
+
+    if (result.exception) {
+      return;
+    }
+
+    if (result.matched) {
+      if (result.redirect) {
+        // $redirect: engine resolved the rule to a stub resource (data: URI).
+        // Redirect the channel to the stub so the browser receives a real
+        // payload instead of an error.  If the URI is somehow invalid, fall
+        // through and cancel as a safe fallback.
+        try {
+          channel.redirectTo(Services.io.newURI(result.redirect));
+          return; // Not counted as blocked — a valid stub was served.
+        } catch (_) {
+          // Fall through to cancel.
         }
-      } catch (_) {}
+      }
+      this._recordBlockedChannel(
+        channel,
+        browserId,
+        url,
+        hostname,
+        requestType
+      );
+      return;
+    }
+
+    try {
+      this._engine?.maybeBlockRequestWithNativeAlias(
+        channel,
+        url,
+        sourceHostname,
+        hostname,
+        requestType,
+        browserId
+      );
+    } catch (err) {
+      console.error(
+        "[WaterfoxBlocker] native maybeBlockRequestWithNativeAlias failed:",
+        err
+      );
     }
   },
 
@@ -1143,10 +1768,6 @@ export const WaterfoxBlockerService = {
    * @param {nsISupports} subject Channel from the observer notification.
    */
   _onExamineResponse(subject) {
-    if (!this._engine) {
-      return;
-    }
-
     let channel;
     try {
       channel = subject.QueryInterface(Ci.nsIHttpChannel);
@@ -1167,9 +1788,6 @@ export const WaterfoxBlockerService = {
     const requestType = this._mapContentPolicyType(
       loadInfo.externalContentPolicyType
     );
-    if (requestType !== "document" && requestType !== "subdocument") {
-      return;
-    }
 
     const url = uri.spec;
 
@@ -1192,13 +1810,40 @@ export const WaterfoxBlockerService = {
       return;
     }
 
-    const directives = this.getCspDirectives(
+    const sourceHostname = this._getPrincipalHost(loadInfo.loadingPrincipal);
+    const policyHost = this._getPolicyHostForLoadInfo(loadInfo, sourceHostname);
+    const browserId = loadInfo.browsingContext?.top?.browserId || 0;
+
+    if (
+      this._shouldBlockLargeMediaResponse(
+        channel,
+        loadInfo,
+        policyHost,
+        requestType
+      )
+    ) {
+      channel.cancel(Cr.NS_ERROR_ABORT);
+      try {
+        if (browserId) {
+          this.incrementBlockedCount(browserId);
+        }
+      } catch (_) {}
+      this._recordPageRequest(browserId, url, hostname, requestType, true);
+      return;
+    }
+
+    if (requestType !== "document" && requestType !== "subdocument") {
+      return;
+    }
+
+    const directives = this._getBuiltinCspDirectivesForDocument(
       url,
-      this._getPrincipalHost(loadInfo.loadingPrincipal),
+      sourceHostname,
       hostname,
       requestType,
       this._isThirdPartyChannel(channel)
     );
+
     if (!directives) {
       return;
     }
@@ -1235,12 +1880,14 @@ export const WaterfoxBlockerService = {
         continue;
       }
 
+      const refreshAfterMs = this._getConfiguredListRefreshIntervalMs();
       entries.push({
         etag: "",
-        expiresAt: forceImmediateRefresh ? 0 : now + DEFAULT_LIST_TTL_MS,
+        expiresAt: forceImmediateRefresh ? 0 : now + refreshAfterMs,
         filename: descriptor.filename,
         lastFetched: now,
         lastModified: "",
+        refreshAfterMs,
         url: descriptor.url,
       });
     }
@@ -1342,16 +1989,38 @@ export const WaterfoxBlockerService = {
     Services.prefs.setStringPref(PREF_SITE_EXCEPTIONS, JSON.stringify(deduped));
   },
 
+  _setNoCosmeticFilteringSites(domains) {
+    this._noCosmeticFilteringSitesCache = null;
+    const deduped = [...new Set(domains.map(toSafeDomain).filter(Boolean))];
+    Services.prefs.setStringPref(
+      PREF_NO_COSMETIC_FILTERING_SITES,
+      JSON.stringify(deduped)
+    );
+  },
+
+  _setNoRemoteFontsSites(domains) {
+    this._noRemoteFontsSitesCache = null;
+    const deduped = [...new Set(domains.map(toSafeDomain).filter(Boolean))];
+    Services.prefs.setStringPref(
+      PREF_NO_REMOTE_FONTS_SITES,
+      JSON.stringify(deduped)
+    );
+  },
+
   _startPeriodicListUpdates() {
     if (this._updateTimerId) {
       return;
     }
 
+    const intervalMs = Math.min(
+      UPDATE_INTERVAL_MS,
+      this._getConfiguredListRefreshIntervalMs()
+    );
     this._updateTimerId = lazy.setInterval(() => {
       this._updateListsIfNeeded().catch(err => {
         console.warn("[WaterfoxBlocker] Periodic list update failed:", err);
       });
-    }, UPDATE_INTERVAL_MS);
+    }, intervalMs);
   },
 
   _stopPeriodicListUpdates() {
@@ -1472,23 +2141,27 @@ export const WaterfoxBlockerService = {
               filename: descriptor.filename,
               lastFetched: 0,
               lastModified: "",
+              refreshAfterMs: this._getConfiguredListRefreshIntervalMs(),
               url: descriptor.url,
             };
 
         if (isExpired) {
           try {
             const result = await this._fetchList(descriptor, oldEntry, true);
+            const refreshAfterMs = this._getRefreshAfterMs(result || oldEntry);
 
             if (result.notModified) {
               nextEntry.lastFetched = now;
-              nextEntry.expiresAt = now + DEFAULT_LIST_TTL_MS;
+              nextEntry.expiresAt = now + refreshAfterMs;
+              nextEntry.refreshAfterMs = refreshAfterMs;
               metadataChanged = true;
             } else if (result.text) {
               await this._writeText(listPath, result.text);
               nextEntry.lastFetched = now;
-              nextEntry.expiresAt = now + DEFAULT_LIST_TTL_MS;
+              nextEntry.expiresAt = now + refreshAfterMs;
               nextEntry.etag = result.etag || "";
               nextEntry.lastModified = result.lastModified || "";
+              nextEntry.refreshAfterMs = refreshAfterMs;
               metadataChanged = true;
               anyUpdated = true;
             }
@@ -1657,6 +2330,28 @@ export const WaterfoxBlockerService = {
     }
   },
 
+  checkRequestWithNativeAliasCache(url, sourceHostname, hostname, requestType) {
+    if (!this._engine) {
+      return this._normalizeCheckResult(null);
+    }
+
+    try {
+      const json = this._engine.checkRequestDetailedWithNativeAliasCache(
+        url,
+        sourceHostname,
+        hostname,
+        requestType
+      );
+      return this._normalizeCheckResult(JSON.parse(json));
+    } catch (err) {
+      console.error(
+        "[WaterfoxBlocker] checkRequestWithNativeAliasCache failed:",
+        err
+      );
+      return this._normalizeCheckResult(null);
+    }
+  },
+
   getBlockedCount(browserId) {
     return this._blockedCountByBrowserId.get(browserId) || 0;
   },
@@ -1676,6 +2371,14 @@ export const WaterfoxBlockerService = {
     this._blockedCountByBrowserId.set(id, 0);
     this._notifyBlockedCountUpdated(id, 0);
     return 0;
+  },
+
+  clearPageRequestStats(browserId) {
+    const id = Number(browserId || 0);
+    if (!id) {
+      return;
+    }
+    this._pageRequestStatsByBrowserId.delete(id);
   },
 
   /**
@@ -1747,11 +2450,50 @@ export const WaterfoxBlockerService = {
       Services.locale.appLocaleAsBCP47?.split("-")[0] || ""
     ).toLowerCase();
     const overrides = this._getEnabledListOverrides();
+    const meta = await this._readJSON(this._listsMetadataPath(), {
+      lists: [],
+    });
+    const metadataByUrl = new Map(
+      (meta?.lists || []).map(entry => [String(entry.url), entry])
+    );
 
-    return catalog.map(entry => ({
-      ...entry,
-      enabled: this._isCatalogEntryEnabled(entry, userLocale, overrides),
-    }));
+    return catalog.map(entry => {
+      const sourceMetadata = (entry.sources || []).map(source => {
+        const metadata = metadataByUrl.get(String(source?.url || "")) || {};
+        return {
+          etag: String(metadata.etag || ""),
+          expiresAt: Number(metadata.expiresAt || 0),
+          filename: String(source?.filename || metadata.filename || ""),
+          lastFetched: Number(metadata.lastFetched || 0),
+          lastModified: String(metadata.lastModified || ""),
+          refreshAfterMs: Number(metadata.refreshAfterMs || 0),
+          title: String(source?.title || ""),
+          url: String(source?.url || ""),
+        };
+      });
+      const fetchedEntries = sourceMetadata.filter(item => item.lastFetched);
+      const newestFetch = fetchedEntries.length
+        ? Math.max(...fetchedEntries.map(item => item.lastFetched))
+        : 0;
+      const nextExpiry = sourceMetadata
+        .map(item => item.expiresAt)
+        .filter(Boolean);
+
+      return {
+        ...entry,
+        enabled: this._isCatalogEntryEnabled(entry, userLocale, overrides),
+        metadata: {
+          expiresAt: nextExpiry.length ? Math.min(...nextExpiry) : 0,
+          lastFetched: newestFetch,
+          sourceMetadata,
+        },
+      };
+    });
+  },
+
+  async refreshFilterLists() {
+    await this._refreshListsAndEngine();
+    return this.getFilterListCatalog();
   },
 
   /**
@@ -1811,6 +2553,49 @@ export const WaterfoxBlockerService = {
   },
 
   /**
+   * Reduces the Accept-Language request header according to the effective
+   * language-reduction shield level for the current site.
+   *
+   * Level 0: no change.
+   * Level 1: keep only the primary language tag.
+   * Level 2: send the fixed fallback header used by the shields patch.
+   *
+   * @param {nsIHttpChannel} channel
+   * @param {string} hostname
+   */
+  _reduceAcceptLanguage(channel, hostname = "") {
+    const level = hostname
+      ? WaterfoxShields.getEffectiveLanguageReduction(hostname)
+      : Services.prefs.getIntPref(PREF_LANGUAGE_REDUCTION, 0);
+    if (level === 0) {
+      return;
+    }
+
+    let header;
+    try {
+      header = channel.getRequestHeader("Accept-Language");
+    } catch (_) {
+      return;
+    }
+
+    if (!header) {
+      return;
+    }
+
+    try {
+      if (level >= 2) {
+        channel.setRequestHeader("Accept-Language", "en-US,en;q=0.9", false);
+        return;
+      }
+
+      const primary = header.split(",")[0].split(";")[0].trim();
+      if (primary && primary !== header) {
+        channel.setRequestHeader("Accept-Language", primary, false);
+      }
+    } catch (_) {}
+  },
+
+  /**
    * Initialises observers, loads engine state, and starts periodic list updates.
    *
    * Safe to call more than once.
@@ -1822,6 +2607,7 @@ export const WaterfoxBlockerService = {
       return;
     }
     for (const topic of [
+      TOPIC_NATIVE_BLOCKED_REQUEST,
       TOPIC_HTTP_ON_MODIFY_REQUEST,
       TOPIC_HTTP_ON_EXAMINE_RESPONSE,
       TOPIC_HTTP_ON_EXAMINE_CACHED_RESPONSE,
@@ -1837,6 +2623,7 @@ export const WaterfoxBlockerService = {
       return;
     }
     for (const topic of [
+      TOPIC_NATIVE_BLOCKED_REQUEST,
       TOPIC_HTTP_ON_MODIFY_REQUEST,
       TOPIC_HTTP_ON_EXAMINE_RESPONSE,
       TOPIC_HTTP_ON_EXAMINE_CACHED_RESPONSE,
@@ -1862,6 +2649,8 @@ export const WaterfoxBlockerService = {
     }
 
     this._registerNetworkObservers();
+    this._syncAllPopupPermissions();
+    this._syncAllJavascriptPolicies();
 
     // Load the engine from the serialised cache synchronously so it is
     // ready before the first request arrives.
@@ -1908,6 +2697,23 @@ export const WaterfoxBlockerService = {
    * @param {string} data Preference name for notifications about preference changes.
    */
   observe(subject, topic, data) {
+    if (topic === TOPIC_NATIVE_BLOCKED_REQUEST) {
+      let payload = null;
+      try {
+        payload = JSON.parse(String(data || ""));
+      } catch (_) {}
+
+      const browserId = Number(payload?.browserId || 0);
+      const url = String(payload?.url || "");
+      const hostname = String(payload?.hostname || "");
+      const requestType = String(payload?.requestType || "");
+      if (browserId && url && hostname && requestType) {
+        this.incrementBlockedCount(browserId);
+        this._recordPageRequest(browserId, url, hostname, requestType, true);
+      }
+      return;
+    }
+
     if (topic === TOPIC_HTTP_ON_MODIFY_REQUEST) {
       this._onModifyRequest(subject);
       return;
@@ -1930,6 +2736,8 @@ export const WaterfoxBlockerService = {
       case PREF_ENABLED:
         if (this.isEnabled()) {
           this._registerNetworkObservers();
+          this._syncAllPopupPermissions();
+          this._syncAllJavascriptPolicies();
           this._initializeEngineIfNeeded()
             .then(() => this._startPeriodicListUpdates())
             .catch(err => {
@@ -1941,7 +2749,10 @@ export const WaterfoxBlockerService = {
         } else {
           this._unregisterNetworkObservers();
           this._stopPeriodicListUpdates();
+          this._clearAllPopupPermissions();
+          this._syncAllJavascriptPolicies();
           this._clearBlockedCounts();
+          this._pageRequestStatsByBrowserId.clear();
           this._pendingDocumentBypassTokens.clear();
           this._sessionSiteExceptions.clear();
           this._siteExceptionsCache = null;
@@ -1953,6 +2764,8 @@ export const WaterfoxBlockerService = {
 
       case PREF_FILTER_LIST_URLS:
         if (this.isEnabled()) {
+          this._engine = null;
+          this._initGeneration++;
           this._refreshListsAndEngine().catch(err => {
             console.error(
               "[WaterfoxBlocker] Failed to refresh lists after pref change:",
@@ -1962,6 +2775,20 @@ export const WaterfoxBlockerService = {
         }
         break;
 
+      case PREF_LIST_REFRESH_INTERVAL_HOURS:
+        if (this.isEnabled()) {
+          this._stopPeriodicListUpdates();
+          this._startPeriodicListUpdates();
+          this._updateListsIfNeeded().catch(err => {
+            console.error(
+              "[WaterfoxBlocker] Failed to refresh lists after refresh interval change:",
+              err
+            );
+          });
+        }
+        break;
+
+      case PREF_CUSTOM_RULES:
       case PREF_ENABLED_LISTS:
         if (this.isEnabled()) {
           this._engine = null;
@@ -1977,6 +2804,14 @@ export const WaterfoxBlockerService = {
 
       case PREF_SITE_EXCEPTIONS:
         this._siteExceptionsCache = null;
+        break;
+
+      case PREF_NO_COSMETIC_FILTERING_SITES:
+        this._noCosmeticFilteringSitesCache = null;
+        break;
+
+      case PREF_NO_REMOTE_FONTS_SITES:
+        this._noRemoteFontsSitesCache = null;
         break;
 
       default:
@@ -1997,6 +2832,56 @@ export const WaterfoxBlockerService = {
 
     const exceptions = this._getSiteExceptions().filter(d => d !== normalized);
     this._setSiteExceptions(exceptions);
+  },
+
+  addNoCosmeticFilteringSite(domain) {
+    const normalized = toSafeDomain(domain);
+    if (!normalized) {
+      return;
+    }
+
+    const domains = this._getNoCosmeticFilteringSites();
+    if (!domains.includes(normalized)) {
+      domains.push(normalized);
+      this._setNoCosmeticFilteringSites(domains);
+    }
+  },
+
+  addNoRemoteFontsSite(domain) {
+    const normalized = toSafeDomain(domain);
+    if (!normalized) {
+      return;
+    }
+
+    const domains = this._getNoRemoteFontsSites();
+    if (!domains.includes(normalized)) {
+      domains.push(normalized);
+      this._setNoRemoteFontsSites(domains);
+    }
+  },
+
+  removeNoCosmeticFilteringSite(domain) {
+    const normalized = toSafeDomain(domain);
+    if (!normalized) {
+      return;
+    }
+
+    const domains = this._getNoCosmeticFilteringSites().filter(
+      entry => entry !== normalized
+    );
+    this._setNoCosmeticFilteringSites(domains);
+  },
+
+  removeNoRemoteFontsSite(domain) {
+    const normalized = toSafeDomain(domain);
+    if (!normalized) {
+      return;
+    }
+
+    const domains = this._getNoRemoteFontsSites().filter(
+      entry => entry !== normalized
+    );
+    this._setNoRemoteFontsSites(domains);
   },
 
   /**
@@ -2049,15 +2934,12 @@ export const WaterfoxBlockerService = {
    * @param {nsILoadInfo} loadInfo
    * @returns {number} `nsIContentPolicy` decision code.
    */
+  // eslint-disable-next-line complexity
   shouldLoad(contentLocation, loadInfo) {
     const ACCEPT = Ci.nsIContentPolicy.ACCEPT;
     const REJECT_TYPE = Ci.nsIContentPolicy.REJECT_TYPE;
 
     if (!this.isEnabled() || !contentLocation || !loadInfo) {
-      return ACCEPT;
-    }
-
-    if (!this._engine) {
       return ACCEPT;
     }
 
@@ -2100,23 +2982,66 @@ export const WaterfoxBlockerService = {
       hostname = contentLocation.host || "";
     } catch (_) {}
 
+    const sourceHostname = this._getPrincipalHost(loadInfo.loadingPrincipal);
+    const thirdParty = this._isThirdPartyLoadInfo(loadInfo);
+    const browserId = loadInfo.browsingContext?.top?.browserId || 0;
+    const policyHost = this._getPolicyHostForLoadInfo(loadInfo, sourceHostname);
+    const siteSwitchReason = this._getSiteSwitchBlockReason(
+      policyHost,
+      requestType
+    );
+
+    if (siteSwitchReason) {
+      try {
+        if (browserId) {
+          this.incrementBlockedCount(browserId);
+        }
+      } catch (_) {}
+      this._recordPageRequest(browserId, url, hostname, requestType, true);
+      return REJECT_TYPE;
+    }
+
     const result = this.checkRequest(
       url,
-      this._getPrincipalHost(loadInfo.loadingPrincipal),
+      sourceHostname,
       hostname,
       requestType,
-      this._isThirdPartyLoadInfo(loadInfo)
+      thirdParty
     );
-    if (!result.matched || result.exception) {
+    if (result.exception) {
+      this._recordPageRequest(browserId, url, hostname, requestType, false);
+      return ACCEPT;
+    }
+
+    if (!result.matched) {
+      const nativeAliasResult = this.checkRequestWithNativeAliasCache(
+        url,
+        sourceHostname,
+        hostname,
+        requestType
+      );
+      if (nativeAliasResult.matched && !nativeAliasResult.exception) {
+        try {
+          if (browserId) {
+            this.incrementBlockedCount(browserId);
+          }
+        } catch (_) {}
+
+        this._recordPageRequest(browserId, url, hostname, requestType, true);
+        return REJECT_TYPE;
+      }
+
+      this._recordPageRequest(browserId, url, hostname, requestType, false);
       return ACCEPT;
     }
 
     try {
-      const browserId = loadInfo.browsingContext?.top?.browserId;
       if (browserId) {
         this.incrementBlockedCount(browserId);
       }
     } catch (_) {}
+
+    this._recordPageRequest(browserId, url, hostname, requestType, true);
 
     return REJECT_TYPE;
   },
@@ -2138,9 +3063,14 @@ export const WaterfoxBlockerService = {
 
     this._unregisterNetworkObservers();
     this._stopPeriodicListUpdates();
+    this._clearAllPopupPermissions();
+    this._syncAllJavascriptPolicies();
     this._clearBlockedCounts();
+    this._pageRequestStatsByBrowserId.clear();
     this._pendingDocumentBypassTokens.clear();
     this._sessionSiteExceptions.clear();
+    this._noCosmeticFilteringSitesCache = null;
+    this._noRemoteFontsSitesCache = null;
     this._siteExceptionsCache = null;
     this._engine = null;
     this._engineInitialising = false;

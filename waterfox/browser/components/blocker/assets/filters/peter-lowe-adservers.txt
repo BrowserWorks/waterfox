@@ -8,10 +8,10 @@
 !
 !For more information about this list, see: https://pgl.yoyo.org/adservers/
 !----
-!Last modified: Wed, 08 Apr 2026 11:50:49 GMT
+!Last modified: Sat, 11 Apr 2026 18:34:56 GMT
 !Homepage:      https://pgl.yoyo.org/adservers/
 !Format:        adblockplus
-!Entries:       3523
+!Entries:       3520
 !Credits:       Peter Lowe - pgl@yoyo.org - pgl on github - https://pgl.yoyo.org/
 !This URL:      https://pgl.yoyo.org/adservers/serverlist.php?hostformat=adblockplus&showintro=1&mimetype=plaintext
 !Policy:        https://pgl.yoyo.org/adservers/policy.php
@@ -91,6 +91,7 @@
 ||actuallysnake.com^
 ||acuityads.com^
 ||acuityplatform.com^
+||acustomizedgift.com^
 ||ad-balancer.at^
 ||ad-balancer.net^
 ||ad-cupid.com^
@@ -358,7 +359,6 @@
 ||ads.adultfriendfinder.com^
 ||ads.advance.net^
 ||ads.adverline.com^
-||ads.alive.com^
 ||ads.alt.com^
 ||ads.amdmb.com^
 ||ads.amigos.com^
@@ -413,7 +413,6 @@
 ||ads.economist.com^
 ||ads.elcarado.com^
 ||ads.electrocelt.com^
-||ads.elitetrader.com^
 ||ads.emdee.ca^
 ||ads.emirates.net.ae^
 ||ads.epi.sk^
@@ -792,6 +791,7 @@
 ||adverticum.net^
 ||advertipros.com^
 ||advertise.com^
+||advertiseireland.com^
 ||advertiserurl.com^
 ||advertising.com^
 ||advertisingbanners.com^
@@ -1276,7 +1276,6 @@
 ||click.uber.com^
 ||click.v.visionlab.es^
 ||click2freemoney.com^
-||click360v2-ingest.azurewebsites.net^
 ||click4.pro^
 ||clickadddilla.com^
 ||clickadz.com^
@@ -1453,7 +1452,6 @@
 ||damageddistance.com^
 ||damdoor.com^
 ||dapper.net^
-||data.namesakeoscilloscopemarquis.com^
 ||datapickles.com^
 ||datenow.link^
 ||daybreaklights.com^
@@ -2212,8 +2210,6 @@
 ||mediatext.com^
 ||mediavine.com^
 ||mediavoice.com^
-||mediax.angloinfo.com^
-||mediaz.angloinfo.com^
 ||medleyads.com^
 ||medyanetads.com^
 ||meetrics.net^
@@ -2324,6 +2320,7 @@
 ||mytop-in.net^
 ||n69.com^
 ||naj.sk^
+||nakedly.ai^
 ||nappyattack.com^
 ||nappyneck.com^
 ||nastydollars.com^
@@ -2785,6 +2782,7 @@
 ||rqtrk.eu^
 ||rs6.net^
 ||rsc-ads.vidaahub.com^
+||rsc-mntz.vidaahub.com^
 ||rta.dailymail.co.uk^
 ||rtb.gumgum.com^
 ||rtbadzesto.com^
@@ -3184,7 +3182,6 @@
 ||tnkexchange.com^
 ||tns-counter.ru^
 ||toolforthought.com^
-||top-casting-termine.de^
 ||top-site-list.com^
 ||top.list.ru^
 ||top.mail.ru^
@@ -3503,13 +3500,13 @@
 ||yepads.com^
 ||yesads.com^
 ||yesadvertising.com^
+||yg5sjx5kzy.com^
 ||yieldads.com^
 ||yieldlab.net^
 ||yieldmanager.net^
 ||yieldmo.com^
 ||yieldoptimizer.com^
 ||yieldtraffic.com^
-||yldbt.com^
 ||ymetrica1.com^
 ||yoads.net^
 ||yoggrt.com^

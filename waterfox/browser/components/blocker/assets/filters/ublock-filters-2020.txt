@@ -304,9 +304,6 @@ beermoneyforum.com##.samBackground:style(background-image:none !important)
 beermoneyforum.com##.samBackgroundItem.samItem
 beermoneyforum.com##body:style(overflow: auto !important)
 
-! https://github.com/NanoMeow/QuickReports/issues/3718
-@@||lesechos.fr^$ghide
-
 ! https://github.com/NanoMeow/QuickReports/issues/3721
 @@||ploudos.com^$ghide
 
@@ -369,36 +366,6 @@ tapetus.pl##+js(nostif, /^/)
 *$script,redirect-rule=noopjs,domain=tapetus.pl
 tapetus.pl##+js(acs, $, setTimeout)
 tapetus.pl##div[style="box-sizing: border-box; padding:0px 5px 0px 0px; text-align:center;"]
-
-! https://github.com/uBlockOrigin/uAssets/issues/7308
-! https://github.com/uBlockOrigin/uAssets/issues/12468
-!#if cap_html_filtering
-adblockeronstape.*,adblockplustape.*,adblockstreamtape.*,adblockstrtape.*,adblockstrtech.*,adblocktape.*,advertape.net,advertisertape.com,antiadtape.*,gettapeads.com,noblocktape.*,stapadblockuser.*,stape.*,strcloud.*,streamadblocker.*,streamadblockplus.*,streamnoads.com,streamta.*,streamtape.*,streamtapeadblockuser.*,strtape.*,strtapeadblock.*,strtapeadblocker.*,strtpe.*,tapeadsenjoyer.com,tapeadvertisement.com,tapeantiads.com,tapeblocker.com,tapelovesads.org,tapenoads.com,tapepops.com,tapewithadblock.org,watchadsontape.com##^script:has-text(/WebAssembly|forceunder/)
-!#else
-adblockeronstape.*,adblockplustape.*,adblockstreamtape.*,adblockstrtape.*,adblockstrtech.*,adblocktape.*,advertape.net,advertisertape.com,antiadtape.*,gettapeads.com,noblocktape.*,stapadblockuser.*,stape.*,strcloud.*,streamadblocker.*,streamadblockplus.*,streamnoads.com,streamta.*,streamtape.*,streamtapeadblockuser.*,strtape.*,strtapeadblock.*,strtapeadblocker.*,strtpe.*,tapeadsenjoyer.com,tapeadvertisement.com,tapeantiads.com,tapeblocker.com,tapelovesads.org,tapenoads.com,tapepops.com,tapewithadblock.org,watchadsontape.com##+js(rmnt, script, /WebAssembly|forceunder/)
-!#endif
-adblockeronstape.*,adblockplustape.*,adblockstreamtape.*,adblockstrtape.*,adblockstrtech.*,adblocktape.*,advertape.net,advertisertape.com,antiadtape.*,gettapeads.com,noblocktape.*,stapadblockuser.*,stape.*,strcloud.*,streamadblocker.*,streamadblockplus.*,streamnoads.com,streamta.*,streamtape.*,streamtapeadblockuser.*,strtape.*,strtapeadblock.*,strtapeadblocker.*,strtpe.*,tapeadsenjoyer.com,tapeadvertisement.com,tapeantiads.com,tapeblocker.com,tapelovesads.org,tapenoads.com,tapepops.com,tapewithadblock.org,watchadsontape.com##+js(nosiif, adblock)
-adblockeronstape.*,adblockplustape.*,adblockstreamtape.*,adblockstrtape.*,adblockstrtech.*,advertape.net,advertisertape.com,antiadtape.*,gettapeads.com,noblocktape.*,shavetape.*,stapadblockuser.*,stape.*,strcloud.*,streamadblocker.*,streamadblockplus.*,streamnoads.com,streamta.*,streamtape.*,streamtapeadblock.*,streamtapeadblockuser.*,strtape.*,strtapeadblock.*,strtapeadblocker.*,strtapewithadblock.*,strtpe.*,tapeadsenjoyer.com,tapeadvertisement.com,tapeantiads.com,tapeblocker.com,tapelovesads.org,tapenoads.com,tapepops.com,tapewithadblock.org,watchadsontape.com##+js(nowoif)
-! https://github.com/AdguardTeam/AdguardFilters/issues/222345
-adblockeronstape.*,adblockplustape.*,adblockstreamtape.*,adblockstrtape.*,adblockstrtech.*,advertape.net,advertisertape.com,antiadtape.*,gettapeads.com,noblocktape.*,shavetape.*,stapadblockuser.*,stape.*,strcloud.*,streamadblocker.*,streamadblockplus.*,streamnoads.com,streamta.*,streamtape.*,streamtapeadblock.*,streamtapeadblockuser.*,strtape.*,strtapeadblock.*,strtapeadblocker.*,strtapewithadblock.*,strtpe.*,tapeadsenjoyer.com,tapeadvertisement.com,tapeantiads.com,tapeblocker.com,tapelovesads.org,tapenoads.com,tapepops.com,tapewithadblock.org,watchadsontape.com##+js(aopr, Adcash)
-strcloud.*,streamtape.*,streamta.*,strtape.*,strtapeadblock.*##+js(ra, target, #downloadvideo)
-adblockeronstape.*,adblockplustape.*,adblocktape.*,advertape.net,advertisertape.com,antiadtape.*,gettapeads.com,noblocktape.*,shavetape.*,stapadblockuser.*,strcloud.*,streamadblockplus.*,streamnoads.com,streamta.*,streamtape.*,streamtapeadblockuser.*,strtape.*,strtapeadblock.*,tapeadsenjoyer.com,tapeadvertisement.com,tapeantiads.com,tapeblocker.com,tapelovesads.org,tapenoads.com,tapepops.com,tapewithadblock.org,watchadsontape.com##+js(nano-stb, counter)
-adblockstreamtape.*,adblockstrtape.*,adblockstrtech.*,antiadtape.*,stape.*,strcloud.*,streamtape.*,streamta.*,strtape.*,strtpe.*,strtapeadblock.*#@#.google-ad
-adblockstreamtape.*,adblockstrtape.*,adblockstrtech.*,antiadtape.*,shavetape.*,stape.*,strcloud.*,streamtape.*,streamta.*,strtape.*,strtpe.*,strtapeadblock.*##[class*="bn-container"], div[style*="z-index: 300000;"]
-@@*$ghide,domain=adblockstreamtape.*|adblockstrtape.*|adblockstrtech.*|antiadtape.*|shavetape.cash|stape.*|strcloud.*|streamta.*|streamtape.*|streamtapeadblock.*|strtape.*|strtpe.*
-strcloud.*,streamtape.*,streamta.*,strtape.*,strtpe.*,strtapeadblock.*##iframe[src^="data:"]
-/sw.js$script,1p,domain=strcloud.*|streamtape.*|streamta.*|strtape.*|strtpe.*|strtapeadblock.*
-streamadblocker.*##+js(acs, setTimeout, admc)
-streamnoads.com##+js(rmnt, script, FingerprintJS)
-||dzhzp0zlnyoe8.cloudfront.net^
-! https://github.com/uBlockOrigin/uAssets/issues/20336
-advertisertape.com,tapeadsenjoyer.com,tapeadvertisement.com,tapeantiads.com,tapelovesads.org,tapenoads.com,watchadsontape.com#@#.skyscraper.ad
-*$script,3p,denyallow=google.com|gstatic.com,domain=advertape.net|streamtape.*|watchadsontape.com
-*$object,3p,domain=advertape.net|streamtape.com|streamtape.to|tapepops.com|watchadsontape.com
-! downloads blocked
-*$popup,3p,from=tapepops.com,badfilter
-streamtape.*,watchadsontape.com##+js(aopr, Adcash)
-||pndax.love^
 
 ! https://github.com/AdguardTeam/AdguardFilters/issues/54846
 yabiladi.com##+js(set, adBlockDetected, null)
@@ -510,9 +477,6 @@ vidop.*##+js(nowoif)
 ! lagacetadesalamanca.es video ads
 lagacetadesalamanca.es##+js(aopr, videootv)
 
-! https://github.com/AdguardTeam/AdguardFilters/issues/55254
-sakaiplus.com##+js(acs, addEventListener, google_ad_client)
-
 ! https://github.com/uBlockOrigin/uAssets/issues/7346
 seriemega.*##+js(nowoif)
 seriemega.*##.bnr
@@ -529,9 +493,6 @@ ohmybrush.com##+js(set, ads_blocked, false)
 ! https://github.com/uBlockOrigin/uAssets/issues/7357
 thatav.net##+js(aopr, decodeURI)
 ||thatav.net/sw.js$script,1p
-
-! https://github.com/uBlockOrigin/uAssets/issues/7375
-phpscripttr.com##+js(noeval-if, ads)
 
 ! https://github.com/uBlockOrigin/uAssets/issues/7374
 pugam.com##+js(acs, jQuery, ai_adb)
@@ -831,9 +792,6 @@ animesanka.*##[id*="-ads-"]
 
 ! jetanimes .com popups
 jetanimes.*##+js(ra, href, #clickfakeplayer)
-
-! https://www.reddit.com/r/uBlockOrigin/comments/gxe9o4/help_with_ublock/
-novelasligera.com##+js(nosiif, visibility, 1000)
 
 ! https://github.com/NanoMeow/QuickReports/issues/4036
 ephoto360.com##+js(acs, $, Adblock)
@@ -1215,12 +1173,12 @@ kiemlua.com,link1s.*###baolink1s
 anhdep24.com##+js(acs, eval, replace)
 anhdep24.com##.popup-container, .text-center h2~*, .text-center h2, .site-logo
 anhdep24.com#@##link1s-wait1
-dreamcheeky.com,fidlarmusic.com,jncojeans.com,kiemlua.com,kingsleynyc.com,lucidcam.com,nguyenvanbao.com,nousdecor.com,pennbookcenter.com,publicananker.com,restorbio.com,staaker.com##+js(nano-sib, counter, *)
+dreamcheeky.com,fidlarmusic.com,jncojeans.com,kiemlua.com,kingsleynyc.com,lucidcam.com,nguyenvanbao.com,nousdecor.com,publicananker.com,restorbio.com,staaker.com##+js(nano-sib, counter, *)
 link1s.*##+js(set, blurred, false)
-dreamcheeky.com,fidlarmusic.com,jncojeans.com,kiemlua.com,kingsleynyc.com,lucidcam.com,nguyenvanbao.com,nousdecor.com,pennbookcenter.com,publicananker.com,restorbio.com,staaker.com###link1s-link
-dreamcheeky.com,fidlarmusic.com,jncojeans.com,kiemlua.com,kingsleynyc.com,lucidcam.com,nguyenvanbao.com,nousdecor.com,pennbookcenter.com,publicananker.com,restorbio.com,staaker.com###link1s-wait1
-dreamcheeky.com,fidlarmusic.com,jncojeans.com,kiemlua.com,kingsleynyc.com,lucidcam.com,nguyenvanbao.com,nousdecor.com,pennbookcenter.com,publicananker.com,restorbio.com,staaker.com###link1s-generate
-dreamcheeky.com,fidlarmusic.com,jncojeans.com,kiemlua.com,kingsleynyc.com,lucidcam.com,nguyenvanbao.com,nousdecor.com,pennbookcenter.com,publicananker.com,restorbio.com,staaker.com###link1s-snp:style(display:block!important)
+dreamcheeky.com,fidlarmusic.com,jncojeans.com,kiemlua.com,kingsleynyc.com,lucidcam.com,nguyenvanbao.com,nousdecor.com,publicananker.com,restorbio.com,staaker.com###link1s-link
+dreamcheeky.com,fidlarmusic.com,jncojeans.com,kiemlua.com,kingsleynyc.com,lucidcam.com,nguyenvanbao.com,nousdecor.com,publicananker.com,restorbio.com,staaker.com###link1s-wait1
+dreamcheeky.com,fidlarmusic.com,jncojeans.com,kiemlua.com,kingsleynyc.com,lucidcam.com,nguyenvanbao.com,nousdecor.com,publicananker.com,restorbio.com,staaker.com###link1s-generate
+dreamcheeky.com,fidlarmusic.com,jncojeans.com,kiemlua.com,kingsleynyc.com,lucidcam.com,nguyenvanbao.com,nousdecor.com,publicananker.com,restorbio.com,staaker.com###link1s-snp:style(display:block!important)
 *$3p,denyallow=bootstrapcdn.com|cloudflare.com|consensu.org|google.com|googleapis.com|gstatic.com|hcaptcha.com|jquery.com|jsdelivr.net|recaptcha.net,domain=link1s.*
 ||i.imgur.com^$image,domain=anhdep24.com|dreamcheeky.com|fidlarmusic.com|kiemlua.com|lucidcam.com|nousdecor.com|publicananker.com
 ! https://github.com/uBlockOrigin/uAssets/issues/18642
@@ -1544,9 +1502,6 @@ w3schools.com###tryitLeaderboard ~ #container:style(top: 48px!important;)
 !#endif
 ||w3schools.com/lib/sparteo.css
 
-! https://github.com/AdguardTeam/AdguardFilters/issues/60693
-unionmanga.xyz##+js(nosiif, visibility, 1000)
-
 ! https://github.com/AdguardTeam/AdguardFilters/issues/60713
 vviruslove.com##+js(nosiif, visibility, 1000)
 
@@ -1747,9 +1702,6 @@ thingiverse.com##+js(nano-sib)
 thingiverse.com##[class*="ThingPage__topAd"]
 ! https://github.com/uBlockOrigin/uAssets/issues/21961
 thingiverse.com##[class^="ItemCardContainer__itemCard"]:has(> [title="Advertisement"])
-
-! https://github.com/AdguardTeam/AdguardFilters/issues/62686
-surf-trx.com##+js(nosiif, visibility, 1000)
 
 ! https://github.com/uBlockOrigin/uAssets/issues/7848
 responsivevoice.org##.cp-modal-popup-container:remove()
@@ -2511,12 +2463,6 @@ exbulletin.com##+js(aost, String.prototype.charCodeAt, ai_)
 br0wsers.com##+js(acs, document.getElementsByClassName, offsetParent)
 br0wsers.com###show_ag:style(display:block !important)
 
-! https://github.com/AdguardTeam/AdguardFilters/issues/67517
-unityassets4free.com##+js(set, adsbygoogle.loaded, true)
-*$script,redirect-rule=noopjs,domain=unityassets4free.com
-unityassets4free.com##.AdWidget_HTMLWidget
-unityassets4free.com##img[src^="https://unityassets4free.com/wp-content/uploads/"][src$="/best-url-shortner-for-unityassets4free.jpg"]
-
 ! vlive.tv pre-roll ads
 vlive.tv##+js(json-prune, meta.advertise)
 
@@ -3234,9 +3180,6 @@ streamhub.*##+js(aopw, __aaZoneid)
 streamhub.*##+js(nowoif)
 streamingcommunity.*##+js(acs, decodeURI, decodeURIComponent)
 *$script,3p,denyallow=streamhub.to,domain=streamhub.*
-hdhub4u.*##.watch-hd
-hdhub4u.*##.hd-links
-hdhub4u.*##[href*="?aff"]
 superstream.*##+js(aopr, AaDetector)
 $script,3p,denyallow=bootstrapcdn.com,domain=uploadflix.*
 ||bloggingworld.net/wp-content/plugins^$3p

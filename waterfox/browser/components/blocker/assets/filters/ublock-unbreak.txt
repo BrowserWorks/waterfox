@@ -5942,3 +5942,18 @@ winaero.com#@#.windia:not(.thank-you-adguard)
 
 ! https://github.com/uBlockOrigin/uAssets/issues/32407
 ||imasdk.googleapis.com/js/sdkloader/ima3.js$script,3p,redirect=google-ima.js,domain=infiny.live
+
+! https://github.com/uBlockOrigin/uAssets/issues/32458
+alltransistors.com#@##reklama
+alltransistors.com###reklama:style(display: block !important;)
+
+! https://github.com/uBlockOrigin/uAssets/issues/32473
+conceptoweb-studio.com##+js(set, initJWPlayerMux, {})
+conceptoweb-studio.com##+js(set, initJWPlayerMux.utils, {})
+conceptoweb-studio.com##+js(set, initJWPlayerMux.utils.now, noopFunc)
+
+! https://x.com/Joe_Atsui/status/2042956181963161915 Dan Pollock FP
+||www.yodobashi.com^$badfilter
+
+! https://github.com/uBlockOrigin/uAssets/issues/32560
+||adman.gr^$media,domain=antenna.gr,redirect=noopmp3-0.1s
