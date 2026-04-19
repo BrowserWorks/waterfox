@@ -877,6 +877,7 @@ export const WaterfoxBlockerService = {
           domain:
             domainFromHostname(normalizedPageHostname) ||
             normalizedPageHostname,
+          samples: {},
         },
       },
       pageDomain:
