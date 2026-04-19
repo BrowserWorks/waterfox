@@ -40,6 +40,8 @@ EXTRA_JS_MODULES += [
     "WaterfoxShields.sys.mjs",
 ]
 
+XPCSHELL_TESTS_MANIFESTS += ["test/xpcshell/xpcshell.toml"]
+
 LOCAL_INCLUDES += [
     "/toolkit/components/content-classifier/content_classifier_engine",
 ]

@@ -17,7 +17,10 @@
 #include "nsIDNSService.h"
 #include "nsIEffectiveTLDService.h"
 #include "nsIObserverService.h"
+#include "nsIProtocolProxyCallback.h"
 #include "nsIProtocolProxyService.h"
+#include "nsIProtocolProxyService2.h"
+#include "nsIProxyInfo.h"
 #include "nsIURIMutator.h"
 #include "nsNetUtil.h"
 #include "nsReadableUtils.h"
@@ -138,47 +141,47 @@ class WaterfoxBlockerNativeAliasListener final : public nsIDNSListener {
 
 NS_IMPL_ISUPPORTS(WaterfoxBlockerNativeAliasListener, nsIDNSListener)
 
-}  // namespace
+class WaterfoxBlockerNativeAliasProxyListener final
+    : public nsIProtocolProxyCallback {
+ public:
+  NS_DECL_THREADSAFE_ISUPPORTS
+  NS_DECL_NSIPROTOCOLPROXYCALLBACK
 
-static bool HasNonEmptyStringPref(const char* aPrefName) {
-  nsCString value;
-  return NS_SUCCEEDED(mozilla::Preferences::GetCString(aPrefName, value)) &&
-         !value.IsEmpty();
-}
+  WaterfoxBlockerNativeAliasProxyListener(
+      WaterfoxBlockerNativeAlias* aOwner,
+      mozilla::ContentClassifierEngine* aEngine, nsIHttpChannel* aChannel,
+      const nsACString& aUrl, const nsACString& aSourceHostname,
+      const nsACString& aHostname, const nsACString& aRequestType,
+      uint64_t aBrowserId)
+      : mOwner(aOwner),
+        mEngine(aEngine),
+        mChannel(aChannel),
+        mUrl(aUrl),
+        mSourceHostname(aSourceHostname),
+        mHostname(aHostname),
+        mRequestType(aRequestType),
+        mBrowserId(aBrowserId) {}
+
+ private:
+  ~WaterfoxBlockerNativeAliasProxyListener() = default;
+
+  RefPtr<WaterfoxBlockerNativeAlias> mOwner;
+  mozilla::ContentClassifierEngine* mEngine = nullptr;
+  nsCOMPtr<nsIHttpChannel> mChannel;
+  nsCString mUrl;
+  nsCString mSourceHostname;
+  nsCString mHostname;
+  nsCString mRequestType;
+  uint64_t mBrowserId = 0;
+};
+
+NS_IMPL_ISUPPORTS(WaterfoxBlockerNativeAliasProxyListener,
+                  nsIProtocolProxyCallback)
+
+}  // namespace
 
 static bool IsCnameUncloakingEnabled() {
   return mozilla::Preferences::GetBool(kCnameUncloakingPref, true);
-}
-
-bool WaterfoxBlockerNativeAlias::ProxySettingsAllowUncloaking() const {
-  if (!IsCnameUncloakingEnabled()) {
-    return false;
-  }
-
-  nsCOMPtr<nsIProtocolProxyService> proxyService =
-      mozilla::components::ProtocolProxy::Service();
-  uint32_t proxyType = nsIProtocolProxyService::PROXYCONFIG_DIRECT;
-  if (proxyService) {
-    mozilla::Unused << proxyService->GetProxyConfigType(&proxyType);
-  }
-
-  switch (proxyType) {
-    case nsIProtocolProxyService::PROXYCONFIG_DIRECT:
-      return true;
-
-    case nsIProtocolProxyService::PROXYCONFIG_MANUAL:
-      return !(
-          mozilla::Preferences::GetBool("network.proxy.share_proxy_settings",
-                                        false) ||
-          HasNonEmptyStringPref("network.proxy.ssl") ||
-          HasNonEmptyStringPref("network.proxy.socks"));
-
-    case nsIProtocolProxyService::PROXYCONFIG_PAC:
-    case nsIProtocolProxyService::PROXYCONFIG_WPAD:
-    case nsIProtocolProxyService::PROXYCONFIG_SYSTEM:
-    default:
-      return false;
-  }
 }
 
 bool WaterfoxBlockerNativeAlias::GetCachedCanonicalHostname(
@@ -348,15 +351,60 @@ nsresult WaterfoxBlockerNativeAlias::MaybeBlockRequestWithNativeAlias(
   nsCString normalizedHostname = NormalizeHostname(aHostname);
   if (normalizedSource.IsEmpty() || normalizedHostname.IsEmpty() ||
       IsThirdPartyHost(normalizedSource, normalizedHostname) ||
-      !ProxySettingsAllowUncloaking()) {
+      !IsCnameUncloakingEnabled()) {
+    return NS_OK;
+  }
+
+  nsresult suspendRv = aChannel->Suspend();
+  NS_ENSURE_SUCCESS(suspendRv, suspendRv);
+
+  nsresult rv;
+  nsCOMPtr<nsIProtocolProxyService> pps =
+      mozilla::components::ProtocolProxy::Service(&rv);
+  if (NS_FAILED(rv) || !pps) {
+    mozilla::Unused << aChannel->Resume();
+    return NS_OK;
+  }
+
+  RefPtr<WaterfoxBlockerNativeAliasProxyListener> listener =
+      new WaterfoxBlockerNativeAliasProxyListener(
+          this, aEngine, aChannel, aUrl, normalizedSource, normalizedHostname,
+          aRequestType, aBrowserId);
+
+  nsCOMPtr<nsICancelable> request;
+  nsCOMPtr<nsIProtocolProxyService2> pps2 = do_QueryInterface(pps);
+  if (pps2) {
+    rv = pps2->AsyncResolve2(aChannel, 0, listener,
+                             mozilla::GetMainThreadSerialEventTarget(),
+                             getter_AddRefs(request));
+  } else {
+    rv = pps->AsyncResolve(aChannel, 0, listener,
+                           mozilla::GetMainThreadSerialEventTarget(),
+                           getter_AddRefs(request));
+  }
+  if (NS_FAILED(rv)) {
+    mozilla::Unused << aChannel->Resume();
+    return NS_OK;
+  }
+
+  return NS_OK;
+}
+
+nsresult WaterfoxBlockerNativeAlias::ContinueMaybeBlockRequestWithNativeAlias(
+    mozilla::ContentClassifierEngine* aEngine, nsIHttpChannel* aChannel,
+    const nsACString& aUrl, const nsACString& aSourceHostname,
+    const nsACString& aHostname, const nsACString& aRequestType,
+    uint64_t aBrowserId) {
+  if (!aEngine || !aChannel) {
     return NS_OK;
   }
 
   nsCString cachedCanonical;
-  if (GetCachedCanonicalHostname(normalizedHostname, cachedCanonical)) {
-    MaybeBlockWithCanonicalHostname(aEngine, aChannel, aUrl, normalizedSource,
-                                    normalizedHostname, aRequestType,
-                                    cachedCanonical, aBrowserId);
+  if (GetCachedCanonicalHostname(aHostname, cachedCanonical)) {
+    mozilla::Unused << aChannel->Resume();
+    MaybeBlockWithCanonicalHostname(aEngine, aChannel, aUrl, aSourceHostname,
+                                    aHostname, aRequestType, cachedCanonical,
+                                    aBrowserId);
     return NS_OK;
   }
 
@@ -365,18 +413,17 @@ nsresult WaterfoxBlockerNativeAlias::MaybeBlockRequestWithNativeAlias(
   NS_ENSURE_SUCCESS(rv, rv);
   NS_ENSURE_TRUE(dns, NS_ERROR_FAILURE);
 
-  nsresult suspendRv = aChannel->Suspend();
-  NS_ENSURE_SUCCESS(suspendRv, suspendRv);
-
   RefPtr<WaterfoxBlockerNativeAliasListener> listener =
       new WaterfoxBlockerNativeAliasListener(
-          this, aEngine, aChannel, aUrl, normalizedSource, normalizedHostname,
+          this, aEngine, aChannel, aUrl, aSourceHostname, aHostname,
           aRequestType, aBrowserId);
+
+  const auto canonicalLookupFlags = nsIDNSService::RESOLVE_CANONICAL_NAME;
 
   nsCOMPtr<nsICancelable> request;
   rv = dns->AsyncResolveNative(
-      normalizedHostname, nsIDNSService::RESOLVE_TYPE_DEFAULT,
-      nsIDNSService::RESOLVE_CANONICAL_NAME, nullptr, listener,
+      aHostname, nsIDNSService::RESOLVE_TYPE_DEFAULT,
+      canonicalLookupFlags, nullptr, listener,
       mozilla::GetMainThreadSerialEventTarget(), mozilla::OriginAttributes(),
       getter_AddRefs(request));
   if (NS_FAILED(rv)) {
@@ -384,6 +431,44 @@ nsresult WaterfoxBlockerNativeAlias::MaybeBlockRequestWithNativeAlias(
   }
 
   return rv;
+}
+
+NS_IMETHODIMP WaterfoxBlockerNativeAliasProxyListener::OnProxyAvailable(
+    nsICancelable* aRequest, nsIChannel* aChannel, nsIProxyInfo* aProxyInfo,
+    nsresult aStatus) {
+  nsCOMPtr<nsIHttpChannel> channel = mChannel;
+  RefPtr<WaterfoxBlockerNativeAlias> owner = mOwner;
+  if (!channel || !owner || !mEngine) {
+    return NS_OK;
+  }
+
+  if (NS_FAILED(aStatus)) {
+    mozilla::Unused << channel->Resume();
+    return NS_OK;
+  }
+
+  bool hasActiveProxy = false;
+  if (aProxyInfo) {
+    nsAutoCString proxyType;
+    if (NS_SUCCEEDED(aProxyInfo->GetType(proxyType)) &&
+        !proxyType.EqualsLiteral("direct")) {
+      hasActiveProxy = true;
+    }
+  }
+
+  if (hasActiveProxy) {
+    mozilla::Unused << channel->Resume();
+    return NS_OK;
+  }
+
+  nsresult rv = owner->ContinueMaybeBlockRequestWithNativeAlias(
+      mEngine, channel, mUrl, mSourceHostname, mHostname, mRequestType,
+      mBrowserId);
+  if (NS_FAILED(rv)) {
+    mozilla::Unused << channel->Resume();
+  }
+
+  return NS_OK;
 }
 
 NS_IMETHODIMP WaterfoxBlockerNativeAliasListener::OnLookupComplete(

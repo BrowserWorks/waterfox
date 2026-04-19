@@ -39,11 +39,15 @@ class WaterfoxBlockerNativeAlias final {
       const nsACString& aUrl, const nsACString& aSourceHostname,
       const nsACString& aHostname, const nsACString& aRequestType,
       const nsACString& aCanonicalHostname, uint64_t aBrowserId);
+  nsresult ContinueMaybeBlockRequestWithNativeAlias(
+      mozilla::ContentClassifierEngine* aEngine, nsIHttpChannel* aChannel,
+      const nsACString& aUrl, const nsACString& aSourceHostname,
+      const nsACString& aHostname, const nsACString& aRequestType,
+      uint64_t aBrowserId);
 
  private:
   ~WaterfoxBlockerNativeAlias() = default;
 
-  bool ProxySettingsAllowUncloaking() const;
   bool GetCachedCanonicalHostname(const nsACString& aHostname,
                                   nsACString& aOutCanonicalHostname) const;
   bool CheckRequestAgainstCanonicalHostname(
