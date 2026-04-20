@@ -130,27 +130,24 @@
   width: 100%;
 }
 
-#waterfox-blocker-panel .wfb-stats-strip {
-  align-items: center;
+#waterfox-blocker-panel .wfb-status-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  justify-content: space-between;
   padding: 10px 12px;
 }
 
-#waterfox-blocker-panel .wfb-blocked-count {
-  color: var(--wfb-muted-color);
-  font-size: 0.9em;
-}
-
-#waterfox-blocker-panel .wfb-cname-badge,
-#waterfox-blocker-panel .wfb-shield-level-badge {
+#waterfox-blocker-panel .wfb-status-pill {
   background: var(--wfb-button-background);
   border: 1px solid var(--wfb-border-color);
   border-radius: 999px;
   color: var(--wfb-muted-color);
   font-size: 0.78em;
   padding: 2px 8px;
+}
+
+#waterfox-blocker-panel .wfb-status-pill--off {
+  opacity: 0.5;
 }
 
 #waterfox-blocker-panel .wfb-popup-shield-row {

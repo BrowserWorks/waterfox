@@ -24,17 +24,37 @@
  *   2 (strict)   — always "en-US,en;q=0.9"
  */
 
+const PREF_AD_BLOCK_ENABLED = "waterfox.blocker.enabled";
 const PREF_FINGERPRINTING = "waterfox.shields.fingerprinting";
+const PREF_JAVASCRIPT = "waterfox.shields.javascript";
 const PREF_LANGUAGE_REDUCTION = "waterfox.shields.languageReduction";
 const PREF_SITE_SETTINGS = "waterfox.shields.siteSettings";
 
 // Maps fingerprinting level → privacy.resistFingerprinting pref value.
 const RFP_LEVELS = Object.freeze({ 0: false, 1: true, 2: true });
 
+function normalizeHostname(hostname) {
+  let normalized = String(hostname || "")
+    .trim()
+    .toLowerCase();
+  if (normalized.endsWith(".")) {
+    normalized = normalized.slice(0, -1);
+  }
+  return normalized;
+}
+
 export const WaterfoxShields = {
   // ---------------------------------------------------------------------------
   // Global defaults
   // ---------------------------------------------------------------------------
+
+  getGlobalAdBlockEnabled() {
+    return Services.prefs.getBoolPref(PREF_AD_BLOCK_ENABLED, true);
+  },
+
+  setGlobalAdBlockEnabled(enabled) {
+    Services.prefs.setBoolPref(PREF_AD_BLOCK_ENABLED, !!enabled);
+  },
 
   /**
    * Returns the global fingerprinting protection level (0/1/2).
@@ -76,20 +96,14 @@ export const WaterfoxShields = {
     try {
       if (level >= 2) {
         // Strict: block all host (local IP) ICE candidates.
-        Services.prefs.setBoolPref(
-          "media.peerconnection.ice.no_host",
-          true
-        );
+        Services.prefs.setBoolPref("media.peerconnection.ice.no_host", true);
         Services.prefs.setBoolPref(
           "media.peerconnection.ice.default_address_only",
           true
         );
       } else if (level >= 1) {
         // Standard: limit to default interface; hides most local IPs.
-        Services.prefs.setBoolPref(
-          "media.peerconnection.ice.no_host",
-          false
-        );
+        Services.prefs.setBoolPref("media.peerconnection.ice.no_host", false);
         Services.prefs.setBoolPref(
           "media.peerconnection.ice.default_address_only",
           true
@@ -125,9 +139,44 @@ export const WaterfoxShields = {
     Services.prefs.setIntPref(PREF_LANGUAGE_REDUCTION, clamped);
   },
 
+  /**
+   * Returns whether JavaScript is allowed by default.
+   *
+   * @returns {boolean}
+   */
+  getGlobalJavascriptEnabled() {
+    return Services.prefs.getBoolPref(PREF_JAVASCRIPT, true);
+  },
+
+  /**
+   * Sets whether JavaScript is allowed by default.
+   *
+   * @param {boolean} enabled
+   */
+  setGlobalJavascriptEnabled(enabled) {
+    Services.prefs.setBoolPref(PREF_JAVASCRIPT, !!enabled);
+  },
+
   // ---------------------------------------------------------------------------
   // Per-site settings
   // ---------------------------------------------------------------------------
+
+  _findBestMatchingHostKey(hostname, map) {
+    const normalized = normalizeHostname(hostname);
+    if (!normalized) {
+      return "";
+    }
+
+    const parts = normalized.split(".");
+    for (let index = 0; index < parts.length; index++) {
+      const candidate = parts.slice(index).join(".");
+      if (candidate && map[candidate] && typeof map[candidate] === "object") {
+        return candidate;
+      }
+    }
+
+    return "";
+  },
 
   /**
    * Parses and returns the full site-settings map from the pref.
@@ -162,11 +211,13 @@ export const WaterfoxShields = {
    * @returns {object}
    */
   getSiteSettings(hostname) {
-    if (!hostname) {
+    const normalized = normalizeHostname(hostname);
+    if (!normalized) {
       return {};
     }
     const map = this._loadSiteSettings();
-    return map[hostname] ?? {};
+    const key = this._findBestMatchingHostKey(normalized, map);
+    return key ? (map[key] ?? {}) : {};
   },
 
   /**
@@ -177,11 +228,12 @@ export const WaterfoxShields = {
    * @param {object} settings  e.g. { fingerprinting: 1 }
    */
   setSiteSettings(hostname, settings) {
-    if (!hostname || !settings || typeof settings !== "object") {
+    const normalized = normalizeHostname(hostname);
+    if (!normalized || !settings || typeof settings !== "object") {
       return;
     }
     const map = this._loadSiteSettings();
-    const existing = map[hostname] ?? {};
+    const existing = map[normalized] ?? {};
     for (const [key, value] of Object.entries(settings)) {
       if (value === null || value === undefined) {
         delete existing[key];
@@ -190,9 +242,9 @@ export const WaterfoxShields = {
       }
     }
     if (Object.keys(existing).length === 0) {
-      delete map[hostname];
+      delete map[normalized];
     } else {
-      map[hostname] = existing;
+      map[normalized] = existing;
     }
     this._saveSiteSettings(map);
   },
@@ -203,17 +255,114 @@ export const WaterfoxShields = {
    * @param {string} hostname
    */
   clearSiteSettings(hostname) {
-    if (!hostname) {
+    const normalized = normalizeHostname(hostname);
+    if (!normalized) {
       return;
     }
     const map = this._loadSiteSettings();
-    delete map[hostname];
+    delete map[normalized];
     this._saveSiteSettings(map);
+  },
+
+  hasSiteAdBlockOverride(hostname) {
+    const normalized = normalizeHostname(hostname);
+    if (!normalized) {
+      return false;
+    }
+
+    const map = this._loadSiteSettings();
+    const key = this._findBestMatchingHostKey(normalized, map);
+    return !!(key && typeof map[key]?.adBlock === "boolean");
+  },
+
+  hasSiteJavascriptOverride(hostname) {
+    const normalized = normalizeHostname(hostname);
+    if (!normalized) {
+      return false;
+    }
+
+    const map = this._loadSiteSettings();
+    const key = this._findBestMatchingHostKey(normalized, map);
+    return !!(key && typeof map[key]?.javascript === "boolean");
+  },
+
+  hasAnyAdBlockOverrides() {
+    const map = this._loadSiteSettings();
+    return Object.values(map).some(
+      settings =>
+        settings && typeof settings === "object" && settings.adBlock === true
+    );
+  },
+
+  hasAnyJavascriptOverrides() {
+    const map = this._loadSiteSettings();
+    return Object.values(map).some(
+      settings =>
+        settings &&
+        typeof settings === "object" &&
+        (typeof settings.javascript === "boolean" ||
+          typeof settings.languageReduction === "number")
+    );
+  },
+
+  requiresNetworkPolicyObservers() {
+    return (
+      !this.getGlobalJavascriptEnabled() ||
+      this.getGlobalLanguageReduction() > 0 ||
+      this.hasAnyJavascriptOverrides() ||
+      this.hasAnyAdBlockOverrides()
+    );
   },
 
   // ---------------------------------------------------------------------------
   // Effective (merged) values
   // ---------------------------------------------------------------------------
+
+  getEffectiveAdBlockEnabled(hostname) {
+    const normalized = normalizeHostname(hostname);
+    if (!normalized) {
+      return this.getGlobalAdBlockEnabled();
+    }
+
+    const site = this.getSiteSettings(normalized);
+    if (typeof site.adBlock === "boolean") {
+      return site.adBlock;
+    }
+
+    return this.getGlobalAdBlockEnabled();
+  },
+
+  setSiteAdBlockEnabled(hostname, enabled) {
+    const normalized = normalizeHostname(hostname);
+    if (!normalized) {
+      return;
+    }
+
+    this.setSiteSettings(normalized, { adBlock: !!enabled });
+  },
+
+  clearSiteAdBlockEnabled(hostname) {
+    const normalized = normalizeHostname(hostname);
+    if (!normalized) {
+      return;
+    }
+
+    this.setSiteSettings(normalized, { adBlock: null });
+  },
+
+  getSiteAdBlockExceptions() {
+    const map = this._loadSiteSettings();
+    return Object.entries(map)
+      .filter(
+        ([hostname, settings]) =>
+          normalizeHostname(hostname) &&
+          settings &&
+          typeof settings === "object" &&
+          settings.adBlock === false
+      )
+      .map(([hostname]) => normalizeHostname(hostname))
+      .sort();
+  },
 
   /**
    * Returns the effective fingerprinting level for `hostname`, combining the
@@ -252,6 +401,44 @@ export const WaterfoxShields = {
       return Math.max(0, Math.min(2, site.languageReduction));
     }
     return globalLevel;
+  },
+
+  /**
+   * Returns whether JavaScript is enabled for `hostname`.
+   *
+   * @param {string} hostname
+   * @returns {boolean}
+   */
+  getEffectiveJavascriptEnabled(hostname) {
+    const normalized = normalizeHostname(hostname);
+    if (!normalized) {
+      return this.getGlobalJavascriptEnabled();
+    }
+
+    const site = this.getSiteSettings(normalized);
+    if (typeof site.javascript === "boolean") {
+      return site.javascript;
+    }
+
+    return this.getGlobalJavascriptEnabled();
+  },
+
+  setSiteJavascriptEnabled(hostname, enabled) {
+    const normalized = normalizeHostname(hostname);
+    if (!normalized) {
+      return;
+    }
+
+    this.setSiteSettings(normalized, { javascript: !!enabled });
+  },
+
+  clearSiteJavascriptEnabled(hostname) {
+    const normalized = normalizeHostname(hostname);
+    if (!normalized) {
+      return;
+    }
+
+    this.setSiteSettings(normalized, { javascript: null });
   },
 
   /**

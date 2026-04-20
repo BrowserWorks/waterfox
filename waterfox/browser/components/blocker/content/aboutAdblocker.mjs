@@ -13,12 +13,15 @@ const PREF_ENABLED = "waterfox.blocker.enabled";
 const PREF_ALLOW_SEARCH_PARTNER_ADS = "waterfox.blocker.allowSearchPartnerAds";
 const PREF_SHOW_BADGE = "waterfox.blocker.showBadge";
 const PREF_CNAME_UNCLOAKING = "waterfox.blocker.cnameUncloaking";
-const PREF_SITE_EXCEPTIONS = "waterfox.blocker.siteExceptions";
 const PREF_FILTER_LIST_URLS = "waterfox.blocker.filterListUrls";
 const PREF_CUSTOM_RULES = "waterfox.blocker.customRules";
 const PREF_ENABLED_LISTS = "waterfox.blocker.enabledLists";
 const PREF_LIST_REFRESH_INTERVAL_HOURS =
   "waterfox.blocker.listRefreshIntervalHours";
+const PREF_SHIELDS_FINGERPRINTING = "waterfox.shields.fingerprinting";
+const PREF_SHIELDS_JAVASCRIPT = "waterfox.shields.javascript";
+const PREF_SHIELDS_LANGUAGE_REDUCTION = "waterfox.shields.languageReduction";
+const PREF_SHIELDS_SITE_SETTINGS = "waterfox.shields.siteSettings";
 const DEFAULT_LIST_REFRESH_INTERVAL_HOURS = 168;
 const MIN_LIST_REFRESH_INTERVAL_HOURS = 1;
 const MAX_LIST_REFRESH_INTERVAL_HOURS = 720;
@@ -155,27 +158,6 @@ function clampRefreshIntervalHours(value) {
   return Math.max(
     MIN_LIST_REFRESH_INTERVAL_HOURS,
     Math.min(MAX_LIST_REFRESH_INTERVAL_HOURS, Math.round(number))
-  );
-}
-
-function getSiteExceptions() {
-  const raw = Services.prefs.getStringPref(PREF_SITE_EXCEPTIONS, "[]");
-  if (!raw?.trim()) {
-    return new Set();
-  }
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return new Set(parsed.map(normalizeDomain).filter(Boolean));
-    }
-  } catch (_) {}
-  return new Set(raw.trim().split(",").map(normalizeDomain).filter(Boolean));
-}
-
-function saveSiteExceptions(exceptions) {
-  Services.prefs.setStringPref(
-    PREF_SITE_EXCEPTIONS,
-    JSON.stringify([...exceptions])
   );
 }
 
@@ -647,11 +629,12 @@ var gFilterListsDialog = {
 // ── Page manager ──────────────────────────────────────────────────────────────
 
 var gAdblockerPage = {
-  /** @type {Set<string>} In-memory copy of the site exceptions preference. */
-  _siteExceptions: new Set(),
+  /** @type {Set<string>} In-memory copy of sites with ad blocking disabled. */
+  _adBlockAllowlist: new Set(),
 
   /** @type {{[key: string]: boolean}} Map of pref key -> locked state. */
   _prefLocked: {},
+  _observingPrefs: false,
 
   onLoad() {
     this._checkPrefLocks();
@@ -661,9 +644,14 @@ var gAdblockerPage = {
     this._loadAllowlist();
     this._loadPrivacySettings();
     this._wireEvents();
+    this._observePrefs();
 
     // Wire dialog events once.
     gFilterListsDialog._wireEvents();
+  },
+
+  onUnload() {
+    this._unobservePrefs();
   },
 
   // ── Initialisation ──────────────────────────────────────────────────────────
@@ -674,11 +662,84 @@ var gAdblockerPage = {
       PREF_ALLOW_SEARCH_PARTNER_ADS,
       PREF_SHOW_BADGE,
       PREF_CNAME_UNCLOAKING,
-      PREF_SITE_EXCEPTIONS,
       PREF_FILTER_LIST_URLS,
       PREF_CUSTOM_RULES,
+      PREF_SHIELDS_FINGERPRINTING,
+      PREF_SHIELDS_JAVASCRIPT,
+      PREF_SHIELDS_LANGUAGE_REDUCTION,
+      PREF_SHIELDS_SITE_SETTINGS,
     ]) {
       this._prefLocked[pref] = Services.prefs.prefIsLocked(pref);
+    }
+  },
+
+  _observePrefs() {
+    if (this._observingPrefs) {
+      return;
+    }
+
+    for (const pref of [
+      PREF_ENABLED,
+      PREF_ALLOW_SEARCH_PARTNER_ADS,
+      PREF_SHOW_BADGE,
+      PREF_CNAME_UNCLOAKING,
+      PREF_SHIELDS_FINGERPRINTING,
+      PREF_SHIELDS_JAVASCRIPT,
+      PREF_SHIELDS_LANGUAGE_REDUCTION,
+      PREF_SHIELDS_SITE_SETTINGS,
+    ]) {
+      Services.prefs.addObserver(pref, this);
+    }
+    this._observingPrefs = true;
+  },
+
+  _unobservePrefs() {
+    if (!this._observingPrefs) {
+      return;
+    }
+
+    for (const pref of [
+      PREF_ENABLED,
+      PREF_ALLOW_SEARCH_PARTNER_ADS,
+      PREF_SHOW_BADGE,
+      PREF_CNAME_UNCLOAKING,
+      PREF_SHIELDS_FINGERPRINTING,
+      PREF_SHIELDS_JAVASCRIPT,
+      PREF_SHIELDS_LANGUAGE_REDUCTION,
+      PREF_SHIELDS_SITE_SETTINGS,
+    ]) {
+      try {
+        Services.prefs.removeObserver(pref, this);
+      } catch (_) {}
+    }
+    this._observingPrefs = false;
+  },
+
+  observe(_subject, topic, data) {
+    if (topic !== "nsPref:changed") {
+      return;
+    }
+
+    switch (data) {
+      case PREF_ENABLED:
+      case PREF_ALLOW_SEARCH_PARTNER_ADS:
+      case PREF_SHOW_BADGE:
+      case PREF_CNAME_UNCLOAKING:
+        this._loadGeneralSettings();
+        break;
+
+      case PREF_SHIELDS_FINGERPRINTING:
+      case PREF_SHIELDS_JAVASCRIPT:
+      case PREF_SHIELDS_LANGUAGE_REDUCTION:
+        this._loadPrivacySettings();
+        break;
+
+      case PREF_SHIELDS_SITE_SETTINGS:
+        this._loadAllowlist();
+        break;
+
+      default:
+        break;
     }
   },
 
@@ -703,7 +764,10 @@ var gAdblockerPage = {
       if (!el) {
         continue;
       }
-      el.checked = Services.prefs.getBoolPref(pref, defaultValue);
+      el.checked =
+        pref === PREF_ENABLED
+          ? WaterfoxShields.getGlobalAdBlockEnabled()
+          : Services.prefs.getBoolPref(pref, defaultValue);
       el.disabled = this._prefLocked[pref];
     }
 
@@ -740,7 +804,9 @@ var gAdblockerPage = {
   },
 
   _loadAllowlist() {
-    this._siteExceptions = getSiteExceptions();
+    this._adBlockAllowlist = new Set(
+      WaterfoxShields.getSiteAdBlockExceptions()
+    );
     this._renderAllowlist();
   },
 
@@ -753,7 +819,7 @@ var gAdblockerPage = {
     }
     container.replaceChildren();
 
-    const sorted = [...this._siteExceptions].sort();
+    const sorted = [...this._adBlockAllowlist].sort();
     for (const site of sorted) {
       const item = document.createElement("div");
       item.className = "adblocker-allowlist-item";
@@ -766,30 +832,49 @@ var gAdblockerPage = {
       removeBtn.textContent = "\xD7";
       removeBtn.setAttribute("aria-label", `Remove ${site}`);
       removeBtn.className = "adblocker-allowlist-remove";
+      removeBtn.disabled = this._prefLocked[PREF_SHIELDS_SITE_SETTINGS];
       removeBtn.addEventListener("click", () => {
-        this._removeSiteException(site);
+        this._removeAllowlistSite(site);
       });
       item.appendChild(removeBtn);
 
       container.appendChild(item);
     }
     container.hidden = !sorted.length;
+
+    const input = document.getElementById("allowlist-input");
+    if (input) {
+      input.disabled = this._prefLocked[PREF_SHIELDS_SITE_SETTINGS];
+    }
+
+    const addButton = document.getElementById("allowlist-add");
+    if (addButton) {
+      addButton.disabled = this._prefLocked[PREF_SHIELDS_SITE_SETTINGS];
+    }
   },
 
-  _addSiteException(domain) {
+  _addAllowlistSite(domain) {
+    if (this._prefLocked[PREF_SHIELDS_SITE_SETTINGS]) {
+      return false;
+    }
+
     const normalized = normalizeDomain(domain);
     if (!normalized) {
       return false;
     }
-    this._siteExceptions.add(normalized);
-    saveSiteExceptions(this._siteExceptions);
+    this._adBlockAllowlist.add(normalized);
+    WaterfoxShields.setSiteAdBlockEnabled(normalized, false);
     this._renderAllowlist();
     return true;
   },
 
-  _removeSiteException(domain) {
-    this._siteExceptions.delete(domain);
-    saveSiteExceptions(this._siteExceptions);
+  _removeAllowlistSite(domain) {
+    if (this._prefLocked[PREF_SHIELDS_SITE_SETTINGS]) {
+      return;
+    }
+
+    this._adBlockAllowlist.delete(domain);
+    WaterfoxShields.clearSiteAdBlockEnabled(domain);
     this._renderAllowlist();
     showStatus("status-allowlist", "waterfox-adblocker-status-allowlist-saved");
   },
@@ -864,7 +949,7 @@ var gAdblockerPage = {
         }
       },
       {
-        root: document.querySelector(".main-content"),
+        root: document.querySelector(".adblocker-main"),
         threshold: [0.25, 0.5, 0.75],
       }
     );
@@ -880,7 +965,7 @@ var gAdblockerPage = {
       return;
     }
     const domain = input.value.trim();
-    if (this._addSiteException(domain)) {
+    if (this._addAllowlistSite(domain)) {
       input.value = "";
       showStatus(
         "status-allowlist",
@@ -894,6 +979,7 @@ var gAdblockerPage = {
   _loadPrivacySettings() {
     const fpLevel = WaterfoxShields.getGlobalFingerprintingLevel();
     const langLevel = WaterfoxShields.getGlobalLanguageReduction();
+    const javascriptEnabled = WaterfoxShields.getGlobalJavascriptEnabled();
 
     const fpRadio = document.querySelector(
       `input[name="fingerprinting"][value="${fpLevel}"]`
@@ -908,21 +994,75 @@ var gAdblockerPage = {
     if (langRadio) {
       langRadio.checked = true;
     }
+
+    const javascriptRadio = document.querySelector(
+      `input[name="javascript"][value="${javascriptEnabled ? 1 : 0}"]`
+    );
+    if (javascriptRadio) {
+      javascriptRadio.checked = true;
+    }
+
+    const privacyControls = [
+      {
+        selector: 'input[name="fingerprinting"]',
+        pref: PREF_SHIELDS_FINGERPRINTING,
+      },
+      {
+        selector: 'input[name="languageReduction"]',
+        pref: PREF_SHIELDS_LANGUAGE_REDUCTION,
+      },
+      {
+        selector: 'input[name="javascript"]',
+        pref: PREF_SHIELDS_JAVASCRIPT,
+      },
+    ];
+
+    for (const { selector, pref } of privacyControls) {
+      for (const control of document.querySelectorAll(selector)) {
+        control.disabled = this._prefLocked[pref];
+      }
+    }
+
+    const saveButton = document.getElementById("save-privacy");
+    if (saveButton) {
+      saveButton.disabled = privacyControls.every(
+        ({ pref }) => this._prefLocked[pref]
+      );
+    }
   },
 
   _savePrivacySettings() {
-    const fpRadio = document.querySelector(
-      'input[name="fingerprinting"]:checked'
-    );
-    if (fpRadio) {
-      WaterfoxShields.setGlobalFingerprintingLevel(parseInt(fpRadio.value, 10));
+    if (!this._prefLocked[PREF_SHIELDS_FINGERPRINTING]) {
+      const fpRadio = document.querySelector(
+        'input[name="fingerprinting"]:checked'
+      );
+      if (fpRadio) {
+        WaterfoxShields.setGlobalFingerprintingLevel(
+          parseInt(fpRadio.value, 10)
+        );
+      }
     }
 
-    const langRadio = document.querySelector(
-      'input[name="languageReduction"]:checked'
-    );
-    if (langRadio) {
-      WaterfoxShields.setGlobalLanguageReduction(parseInt(langRadio.value, 10));
+    if (!this._prefLocked[PREF_SHIELDS_LANGUAGE_REDUCTION]) {
+      const langRadio = document.querySelector(
+        'input[name="languageReduction"]:checked'
+      );
+      if (langRadio) {
+        WaterfoxShields.setGlobalLanguageReduction(
+          parseInt(langRadio.value, 10)
+        );
+      }
+    }
+
+    if (!this._prefLocked[PREF_SHIELDS_JAVASCRIPT]) {
+      const javascriptRadio = document.querySelector(
+        'input[name="javascript"]:checked'
+      );
+      if (javascriptRadio) {
+        WaterfoxShields.setGlobalJavascriptEnabled(
+          javascriptRadio.value === "1"
+        );
+      }
     }
 
     showStatus("status-privacy", "waterfox-shields-status-saved");
@@ -944,7 +1084,11 @@ var gAdblockerPage = {
         }
         const el = document.getElementById(id);
         if (el) {
-          Services.prefs.setBoolPref(pref, el.checked);
+          if (pref === PREF_ENABLED) {
+            WaterfoxShields.setGlobalAdBlockEnabled(el.checked);
+          } else {
+            Services.prefs.setBoolPref(pref, el.checked);
+          }
         }
       }
       showStatus("status-general", "waterfox-adblocker-status-general-saved");
@@ -995,4 +1139,8 @@ var gAdblockerPage = {
 
 document.addEventListener("DOMContentLoaded", () => {
   gAdblockerPage.onLoad();
+});
+
+window.addEventListener("unload", () => {
+  gAdblockerPage.onUnload();
 });

@@ -23,7 +23,6 @@ const PREF_UI_ENABLED = "waterfox.blocker.ui.enabled";
 const PREF_ALLOW_SEARCH_PARTNER_ADS = "waterfox.blocker.allowSearchPartnerAds";
 const PREF_SHOW_BADGE = "waterfox.blocker.showBadge";
 const PREF_CNAME_UNCLOAKING = "waterfox.blocker.cnameUncloaking";
-const PREF_SITE_EXCEPTIONS = "waterfox.blocker.siteExceptions";
 const PREF_FILTER_LIST_URLS = "waterfox.blocker.filterListUrls";
 const PREF_CUSTOM_RULES = "waterfox.blocker.customRules";
 
@@ -142,7 +141,7 @@ export const WaterfoxBlockerPreferences = {
 
   _collectControls(document, group) {
     return {
-      exceptionsButton: document.getElementById("waterfoxBlockerExceptions"),
+      allowlistButton: document.getElementById("waterfoxBlockerAllowlist"),
       filterListsButton: document.getElementById("waterfoxBlockerFilterLists"),
       customRulesButton: document.getElementById("waterfoxBlockerCustomRules"),
       group,
@@ -182,7 +181,7 @@ export const WaterfoxBlockerPreferences = {
       controls.searchPartnerMode &&
       controls.cnameUncloakingCheckbox &&
       controls.showBadgeCheckbox &&
-      controls.exceptionsButton &&
+      controls.allowlistButton &&
       controls.filterListsButton &&
       controls.customRulesButton &&
       controls.thirdPartyNotice &&
@@ -210,37 +209,26 @@ export const WaterfoxBlockerPreferences = {
     head.appendChild(link);
   },
 
-  _openExceptionsDialog(win) {
+  _openAllowlistDialog(win) {
     const url =
-      "chrome://browser/content/preferences/dialogs/waterfoxBlockerExceptions.xhtml";
-    const dialogName = "WaterfoxBlockerExceptionsDialog";
-    const dialogFeatures = "resizable,chrome,modal,titlebar,centerscreen";
-    const params = {
-      origin: "waterfox-blocker-exceptions",
-      prefName: PREF_SITE_EXCEPTIONS,
-    };
+      "chrome://browser/content/preferences/dialogs/waterfoxBlockerAllowlist.xhtml";
 
     try {
       if (typeof win?.gSubDialog?.open === "function") {
-        win.gSubDialog.open(url, undefined, params);
+        win.gSubDialog.open(url, "resizable=yes");
         return;
       }
     } catch (_) {}
 
-    const candidateHosts = [
-      win,
-      Services.wm.getMostRecentWindow("navigator:browser"),
-      Services.appShell?.hiddenDOMWindow,
-    ];
-
-    for (const host of candidateHosts) {
-      try {
-        if (typeof host?.openDialog === "function") {
-          host.openDialog(url, dialogName, dialogFeatures, params);
-          return;
-        }
-      } catch (_) {}
-    }
+    const browserWin =
+      Services.wm.getMostRecentWindow("navigator:browser") || win;
+    try {
+      browserWin.openDialog(
+        url,
+        "WaterfoxBlockerAllowlistDialog",
+        "chrome,centerscreen,titlebar,resizable"
+      );
+    } catch (_) {}
   },
 
   _openFilterListsDialog(win) {
@@ -304,7 +292,6 @@ export const WaterfoxBlockerPreferences = {
       { id: PREF_ALLOW_SEARCH_PARTNER_ADS, type: "bool" },
       { id: PREF_SHOW_BADGE, type: "bool" },
       { id: PREF_CNAME_UNCLOAKING, type: "bool" },
-      { id: PREF_SITE_EXCEPTIONS, type: "string" },
       { id: PREF_FILTER_LIST_URLS, type: "string" },
       { id: PREF_CUSTOM_RULES, type: "string" },
     ];
@@ -382,7 +369,7 @@ export const WaterfoxBlockerPreferences = {
       searchPartnerMode,
       cnameUncloakingCheckbox,
       showBadgeCheckbox,
-      exceptionsButton,
+      allowlistButton,
       filterListsButton,
       customRulesButton,
       onDetails,
@@ -520,13 +507,13 @@ export const WaterfoxBlockerPreferences = {
       cnameUncloakingCheckbox.setAttribute(BOUND_ATTR, "true");
     }
 
-    if (!exceptionsButton.hasAttribute(BOUND_ATTR)) {
-      exceptionsButton.addEventListener("command", event => {
+    if (!allowlistButton.hasAttribute(BOUND_ATTR)) {
+      allowlistButton.addEventListener("command", event => {
         event.preventDefault();
         event.stopPropagation();
-        this._openExceptionsDialog(win);
+        this._openAllowlistDialog(win);
       });
-      exceptionsButton.setAttribute(BOUND_ATTR, "true");
+      allowlistButton.setAttribute(BOUND_ATTR, "true");
     }
 
     if (!filterListsButton.hasAttribute(BOUND_ATTR)) {

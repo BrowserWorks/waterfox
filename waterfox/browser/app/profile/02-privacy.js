@@ -21,8 +21,6 @@ pref("waterfox.blocker.ui.enabled", false);
 pref("waterfox.blocker.showBadge", true);
 // Allow ads on configured Waterfox search partner domains.
 pref("waterfox.blocker.allowSearchPartnerAds", true);
-// Site exceptions as a JSON array string.
-pref("waterfox.blocker.siteExceptions", "[]");
 // Additional custom filter list URLs as a JSON array. Legacy comma-delimited
 // values are still accepted by the blocker service.
 pref("waterfox.blocker.filterListUrls", "[]");
@@ -41,6 +39,7 @@ pref("waterfox.blocker.dismissedExtensionInstallWarnings", "[]");
 // --- Waterfox Privacy Shields ---
 // 0 = off, 1 = standard, 2 = strict.
 pref("waterfox.shields.fingerprinting", 1);
+pref("waterfox.shields.javascript", true);
 pref("waterfox.shields.languageReduction", 1);
 pref("waterfox.shields.siteSettings", "{}");
 pref("privacy.resistFingerprinting", true);

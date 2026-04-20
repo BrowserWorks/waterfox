@@ -17,7 +17,6 @@ const CONTRACT_ID = "@waterfox.com/waterfox-blocker-engine;1";
 // Prefs
 const PREF_ENABLED = "waterfox.blocker.enabled";
 const PREF_ALLOW_SEARCH_PARTNER_ADS = "waterfox.blocker.allowSearchPartnerAds";
-const PREF_SITE_EXCEPTIONS = "waterfox.blocker.siteExceptions";
 const PREF_NO_COSMETIC_FILTERING_SITES =
   "waterfox.blocker.noCosmeticFilteringSites";
 const PREF_NO_REMOTE_FONTS_SITES = "waterfox.blocker.noRemoteFontsSites";
@@ -27,7 +26,10 @@ const PREF_ENABLED_LISTS = "waterfox.blocker.enabledLists";
 const PREF_LIST_REFRESH_INTERVAL_HOURS =
   "waterfox.blocker.listRefreshIntervalHours";
 const PREF_BRANCH = "waterfox.blocker.";
+const PREF_SHIELDS_BRANCH = "waterfox.shields.";
+const PREF_SHIELDS_JAVASCRIPT = "waterfox.shields.javascript";
 const PREF_LANGUAGE_REDUCTION = "waterfox.shields.languageReduction";
+const PREF_SHIELDS_SITE_SETTINGS = "waterfox.shields.siteSettings";
 
 const SEARCH_PARTNER_DOMAINS = Object.freeze([
   "startpage.com",
@@ -323,7 +325,6 @@ export const WaterfoxBlockerService = {
   _pageRequestStatsByBrowserId: new Map(),
   _noCosmeticFilteringSitesCache: null,
   _noRemoteFontsSitesCache: null,
-  _siteExceptionsCache: null,
   _pendingDocumentBypassTokens: new Map(),
   _sessionSiteExceptions: new Set(),
   _catalog: null,
@@ -726,26 +727,6 @@ export const WaterfoxBlockerService = {
     }
 
     return descriptors;
-  },
-
-  _getSiteExceptions() {
-    if (this._siteExceptionsCache) {
-      return this._siteExceptionsCache;
-    }
-
-    const raw = Services.prefs.getStringPref(PREF_SITE_EXCEPTIONS, "[]");
-    try {
-      const parsed = JSON.parse(raw);
-      if (!Array.isArray(parsed)) {
-        this._siteExceptionsCache = [];
-        return this._siteExceptionsCache;
-      }
-      this._siteExceptionsCache = parsed.map(toSafeDomain).filter(Boolean);
-      return this._siteExceptionsCache;
-    } catch (_) {
-      this._siteExceptionsCache = [];
-      return this._siteExceptionsCache;
-    }
   },
 
   _getNoCosmeticFilteringSites() {
@@ -1344,20 +1325,22 @@ export const WaterfoxBlockerService = {
     requestType,
     isThirdParty
   ) {
-    const directives = [];
+    const protectedHostname = toSafeDomain(hostname || sourceHostname || "");
+    if (
+      !protectedHostname ||
+      !this._shouldRunBlockingEngine() ||
+      this.shouldBypassBlocking(protectedHostname)
+    ) {
+      return "";
+    }
 
-    const engineDirectives = this.getCspDirectives(
+    return this.getCspDirectives(
       url,
       sourceHostname,
       hostname,
       requestType,
       isThirdParty
     );
-    if (engineDirectives) {
-      directives.push(engineDirectives);
-    }
-
-    return directives.join("; ");
   },
 
   _applyJavascriptHostSwitchToBrowsingContext(browsingContext, hostname) {
@@ -1366,7 +1349,8 @@ export const WaterfoxBlockerService = {
       return;
     }
 
-    const allowJavascript = true;
+    const allowJavascript =
+      WaterfoxShields.getEffectiveJavascriptEnabled(normalizedHostname);
 
     try {
       if (browsingContext.allowJavascript !== allowJavascript) {
@@ -1401,9 +1385,7 @@ export const WaterfoxBlockerService = {
       return;
     }
 
-    const hostname = this.isEnabled()
-      ? this._getProtectableHostnameFromBrowser(browser)
-      : "";
+    const hostname = this._getProtectableHostnameFromBrowser(browser);
 
     if (!hostname) {
       try {
@@ -1557,14 +1539,11 @@ export const WaterfoxBlockerService = {
 
     this._applyJavascriptPolicyForLoadInfo(loadInfo, hostname);
 
-    if (this._consumeDocumentBypassToken(loadInfo, url, hostname)) {
+    if (!this._shouldRunBlockingEngine()) {
       return;
     }
 
-    const triggeringDomain = this._getPrincipalHost(
-      loadInfo.triggeringPrincipal
-    );
-    if (triggeringDomain && this.shouldBypassBlocking(triggeringDomain)) {
+    if (this._consumeDocumentBypassToken(loadInfo, url, hostname)) {
       return;
     }
 
@@ -1580,7 +1559,7 @@ export const WaterfoxBlockerService = {
       this._isThirdPartyChannel(channel)
     );
 
-     // $removeparam: redirect to the cleaned URL before any block check.
+    // $removeparam: redirect to the cleaned URL before any block check.
     if (result.rewrittenUrl) {
       try {
         channel.redirectTo(Services.io.newURI(result.rewrittenUrl));
@@ -1588,7 +1567,7 @@ export const WaterfoxBlockerService = {
       } catch (_) {
         // Fall through — treat normally.
       }
-    } 
+    }
 
     if (!result.matched || result.exception) {
       return;
@@ -1669,6 +1648,10 @@ export const WaterfoxBlockerService = {
       return;
     }
 
+    if (!this._shouldRunBlockingEngine()) {
+      return;
+    }
+
     const triggeringDomain = this._getPrincipalHost(
       loadInfo.triggeringPrincipal
     );
@@ -1680,6 +1663,11 @@ export const WaterfoxBlockerService = {
     const thirdParty = this._isThirdPartyChannel(channel);
     const browserId = loadInfo.browsingContext?.top?.browserId || 0;
     const policyHost = this._getPolicyHostForLoadInfo(loadInfo, sourceHostname);
+
+    if (this.shouldBypassBlocking(policyHost || hostname)) {
+      return;
+    }
+
     const siteSwitchReason = this._getSiteSwitchBlockReason(
       policyHost,
       requestType
@@ -1714,7 +1702,6 @@ export const WaterfoxBlockerService = {
         // Fall through — rewrittenUrl was unusable, treat normally.
       }
     }
-
 
     if (result.exception) {
       return;
@@ -1803,19 +1790,17 @@ export const WaterfoxBlockerService = {
     const triggeringDomain = this._getPrincipalHost(
       loadInfo.triggeringPrincipal
     );
-    if (triggeringDomain && this.shouldBypassBlocking(triggeringDomain)) {
-      return;
-    }
-
-    if (this.shouldBypassBlocking(hostname)) {
-      return;
-    }
 
     const sourceHostname = this._getPrincipalHost(loadInfo.loadingPrincipal);
     const policyHost = this._getPolicyHostForLoadInfo(loadInfo, sourceHostname);
     const browserId = loadInfo.browsingContext?.top?.browserId || 0;
+    const blockingBypassed =
+      !this._shouldRunBlockingEngine() ||
+      (triggeringDomain && this.shouldBypassBlocking(triggeringDomain)) ||
+      this.shouldBypassBlocking(policyHost || hostname);
 
     if (
+      !blockingBypassed &&
       this._shouldBlockLargeMediaResponse(
         channel,
         loadInfo,
@@ -1982,12 +1967,6 @@ export const WaterfoxBlockerService = {
     if (!this._engine) {
       await this._initializeEngineIfNeeded();
     }
-  },
-
-  _setSiteExceptions(exceptions) {
-    this._siteExceptionsCache = null;
-    const deduped = [...new Set(exceptions.map(toSafeDomain).filter(Boolean))];
-    Services.prefs.setStringPref(PREF_SITE_EXCEPTIONS, JSON.stringify(deduped));
   },
 
   _setNoCosmeticFilteringSites(domains) {
@@ -2252,22 +2231,16 @@ export const WaterfoxBlockerService = {
     this._sessionSiteExceptions.add(normalized);
   },
 
-  /**
-   * Adds a saved site exception for the given domain.
-   *
-   * @param {string} domain
-   */
-  addSiteException(domain) {
+  replaceCustomRules(text) {
+    Services.prefs.setStringPref(PREF_CUSTOM_RULES, String(text || ""));
+  },
+
+  setAdBlockEnabledForSite(domain, enabled) {
     const normalized = toSafeDomain(domain);
     if (!normalized) {
       return;
     }
-
-    const exceptions = this._getSiteExceptions();
-    if (!exceptions.includes(normalized)) {
-      exceptions.push(normalized);
-      this._setSiteExceptions(exceptions);
-    }
+    WaterfoxShields.setSiteAdBlockEnabled(normalized, enabled);
   },
 
   _normalizeCheckResult(rawResult) {
@@ -2643,15 +2616,59 @@ export const WaterfoxBlockerService = {
     }
 
     Services.prefs.addObserver(PREF_BRANCH, this);
+    Services.prefs.addObserver(PREF_SHIELDS_BRANCH, this);
     this._initialized = true;
 
-    if (!this.isEnabled()) {
-      return;
-    }
-
-    this._registerNetworkObservers();
+    this._updateNetworkObserversForCurrentPrefs();
     this._syncAllPopupPermissions();
     this._syncAllJavascriptPolicies();
+    await this._ensureBlockingEngineReady();
+  },
+
+  isEnabled() {
+    return Services.prefs.getBoolPref(PREF_ENABLED, true);
+  },
+
+  _shouldRunBlockingEngine() {
+    return this.isEnabled() || WaterfoxShields.hasAnyAdBlockOverrides();
+  },
+
+  _shouldObserveNetworkPolicies() {
+    return (
+      this._shouldRunBlockingEngine() ||
+      WaterfoxShields.requiresNetworkPolicyObservers()
+    );
+  },
+
+  _updateNetworkObserversForCurrentPrefs() {
+    if (this._shouldObserveNetworkPolicies()) {
+      this._registerNetworkObservers();
+      return;
+    }
+    this._unregisterNetworkObservers();
+  },
+
+  _clearBlockingRuntimeState() {
+    this._clearBlockedCounts();
+    this._pageRequestStatsByBrowserId.clear();
+    this._pendingDocumentBypassTokens.clear();
+    this._sessionSiteExceptions.clear();
+  },
+
+  _stopBlockingEngine() {
+    this._stopPeriodicListUpdates();
+    this._clearAllPopupPermissions();
+    this._clearBlockingRuntimeState();
+    this._engine = null;
+    this._engineInitialising = false;
+    this._initGeneration++;
+  },
+
+  async _ensureBlockingEngineReady() {
+    if (!this._shouldRunBlockingEngine()) {
+      this._stopBlockingEngine();
+      return;
+    }
 
     // Load the engine from the serialised cache synchronously so it is
     // ready before the first request arrives.
@@ -2661,28 +2678,75 @@ export const WaterfoxBlockerService = {
     this._startPeriodicListUpdates();
   },
 
-  isEnabled() {
-    return Services.prefs.getBoolPref(PREF_ENABLED, true);
+  _queueBlockingEngineRefresh(reason) {
+    if (!this._shouldRunBlockingEngine()) {
+      this._stopBlockingEngine();
+      return;
+    }
+
+    this._tryInitFromCacheSync();
+    this._initializeEngineIfNeeded()
+      .then(() => this._startPeriodicListUpdates())
+      .catch(err => {
+        console.error(`[WaterfoxBlocker] Failed to ${reason}:`, err);
+      });
   },
 
-  /**
-   * Returns whether a domain is covered by persisted site exceptions.
-   *
-   * Matching includes exact host and subdomain suffix matches for the stored
-   * exception value (for example, `example.com` matches `www.example.com`,
-   * while `www.example.com` does not match `example.com`).
-   *
-   * @param {string} domain
-   * @returns {boolean}
-   */
-  isSiteExcepted(domain) {
+  isBlockingEnabledForSite(domain) {
+    const normalized = toSafeDomain(domain);
+    if (!normalized) {
+      return this.isEnabled();
+    }
+    return WaterfoxShields.getEffectiveAdBlockEnabled(normalized);
+  },
+
+  isJavascriptEnabledForSite(domain) {
+    const normalized = toSafeDomain(domain);
+    if (!normalized) {
+      return WaterfoxShields.getGlobalJavascriptEnabled();
+    }
+    return WaterfoxShields.getEffectiveJavascriptEnabled(normalized);
+  },
+
+  setJavascriptEnabledForSite(domain, enabled) {
+    const normalized = toSafeDomain(domain);
+    if (!normalized) {
+      return;
+    }
+    WaterfoxShields.setSiteJavascriptEnabled(normalized, enabled);
+  },
+
+  getSiteShieldState(domain) {
+    const normalized = toSafeDomain(domain);
+    const adBlockEnabled = normalized
+      ? WaterfoxShields.getEffectiveAdBlockEnabled(normalized)
+      : this.isEnabled();
+    const javascriptEnabled = normalized
+      ? WaterfoxShields.getEffectiveJavascriptEnabled(normalized)
+      : WaterfoxShields.getGlobalJavascriptEnabled();
+    const searchPartnerAllowed =
+      adBlockEnabled && this.isSearchPartnerBypass(normalized);
+
+    return {
+      adBlockEnabled,
+      javascriptEnabled,
+      searchPartnerAllowed,
+      siteBlockingEnabled: adBlockEnabled && !searchPartnerAllowed,
+    };
+  },
+
+  isSearchPartnerBypass(domain) {
     const normalized = toSafeDomain(domain);
     if (!normalized) {
       return false;
     }
 
-    return this._getSiteExceptions().some(
-      ex => normalized === ex || normalized.endsWith(`.${ex}`)
+    if (!Services.prefs.getBoolPref(PREF_ALLOW_SEARCH_PARTNER_ADS, true)) {
+      return false;
+    }
+
+    return SEARCH_PARTNER_DOMAINS.some(
+      partner => normalized === partner || normalized.endsWith(`.${partner}`)
     );
   },
 
@@ -2735,36 +2799,14 @@ export const WaterfoxBlockerService = {
 
     switch (data) {
       case PREF_ENABLED:
-        if (this.isEnabled()) {
-          this._registerNetworkObservers();
-          this._syncAllPopupPermissions();
-          this._syncAllJavascriptPolicies();
-          this._initializeEngineIfNeeded()
-            .then(() => this._startPeriodicListUpdates())
-            .catch(err => {
-              console.error(
-                "[WaterfoxBlocker] Failed to initialise engine:",
-                err
-              );
-            });
-        } else {
-          this._unregisterNetworkObservers();
-          this._stopPeriodicListUpdates();
-          this._clearAllPopupPermissions();
-          this._syncAllJavascriptPolicies();
-          this._clearBlockedCounts();
-          this._pageRequestStatsByBrowserId.clear();
-          this._pendingDocumentBypassTokens.clear();
-          this._sessionSiteExceptions.clear();
-          this._siteExceptionsCache = null;
-          this._engine = null;
-          this._engineInitialising = false;
-          this._initGeneration++;
-        }
+        this._updateNetworkObserversForCurrentPrefs();
+        this._syncAllPopupPermissions();
+        this._syncAllJavascriptPolicies();
+        this._queueBlockingEngineRefresh("initialise engine");
         break;
 
       case PREF_FILTER_LIST_URLS:
-        if (this.isEnabled()) {
+        if (this._shouldRunBlockingEngine()) {
           this._engine = null;
           this._initGeneration++;
           this._refreshListsAndEngine().catch(err => {
@@ -2777,7 +2819,7 @@ export const WaterfoxBlockerService = {
         break;
 
       case PREF_LIST_REFRESH_INTERVAL_HOURS:
-        if (this.isEnabled()) {
+        if (this._shouldRunBlockingEngine()) {
           this._stopPeriodicListUpdates();
           this._startPeriodicListUpdates();
           this._updateListsIfNeeded().catch(err => {
@@ -2791,7 +2833,7 @@ export const WaterfoxBlockerService = {
 
       case PREF_CUSTOM_RULES:
       case PREF_ENABLED_LISTS:
-        if (this.isEnabled()) {
+        if (this._shouldRunBlockingEngine()) {
           this._engine = null;
           this._initGeneration++;
           this._refreshListsAndEngine().catch(err => {
@@ -2803,8 +2845,16 @@ export const WaterfoxBlockerService = {
         }
         break;
 
-      case PREF_SITE_EXCEPTIONS:
-        this._siteExceptionsCache = null;
+      case PREF_SHIELDS_JAVASCRIPT:
+        this._updateNetworkObserversForCurrentPrefs();
+        this._syncAllJavascriptPolicies();
+        break;
+
+      case PREF_LANGUAGE_REDUCTION:
+      case PREF_SHIELDS_SITE_SETTINGS:
+        this._updateNetworkObserversForCurrentPrefs();
+        this._syncAllJavascriptPolicies();
+        this._queueBlockingEngineRefresh("refresh engine after shields change");
         break;
 
       case PREF_NO_COSMETIC_FILTERING_SITES:
@@ -2818,21 +2868,6 @@ export const WaterfoxBlockerService = {
       default:
         break;
     }
-  },
-
-  /**
-   * Removes a saved site exception for the given domain.
-   *
-   * @param {string} domain
-   */
-  removeSiteException(domain) {
-    const normalized = toSafeDomain(domain);
-    if (!normalized) {
-      return;
-    }
-
-    const exceptions = this._getSiteExceptions().filter(d => d !== normalized);
-    this._setSiteExceptions(exceptions);
   },
 
   addNoCosmeticFilteringSite(domain) {
@@ -2910,18 +2945,11 @@ export const WaterfoxBlockerService = {
       return true;
     }
 
-    // User site exceptions apply first (hostname semantics).
-    if (this.isSiteExcepted(domain)) {
+    if (!this.isBlockingEnabledForSite(domain)) {
       return true;
     }
 
-    if (!Services.prefs.getBoolPref(PREF_ALLOW_SEARCH_PARTNER_ADS, true)) {
-      return false;
-    }
-
-    return SEARCH_PARTNER_DOMAINS.some(
-      p => domain === p || domain.endsWith(`.${p}`)
-    );
+    return this.isSearchPartnerBypass(domain);
   },
 
   /**
@@ -2940,7 +2968,7 @@ export const WaterfoxBlockerService = {
     const ACCEPT = Ci.nsIContentPolicy.ACCEPT;
     const REJECT_TYPE = Ci.nsIContentPolicy.REJECT_TYPE;
 
-    if (!this.isEnabled() || !contentLocation || !loadInfo) {
+    if (!contentLocation || !loadInfo || !this._shouldRunBlockingEngine()) {
       return ACCEPT;
     }
 
@@ -2987,6 +3015,12 @@ export const WaterfoxBlockerService = {
     const thirdParty = this._isThirdPartyLoadInfo(loadInfo);
     const browserId = loadInfo.browsingContext?.top?.browserId || 0;
     const policyHost = this._getPolicyHostForLoadInfo(loadInfo, sourceHostname);
+
+    if (this.shouldBypassBlocking(policyHost || hostname)) {
+      this._recordPageRequest(browserId, url, hostname, requestType, false);
+      return ACCEPT;
+    }
+
     const siteSwitchReason = this._getSiteSwitchBlockReason(
       policyHost,
       requestType
@@ -3060,19 +3094,16 @@ export const WaterfoxBlockerService = {
 
     try {
       Services.prefs.removeObserver(PREF_BRANCH, this);
+      Services.prefs.removeObserver(PREF_SHIELDS_BRANCH, this);
     } catch (_) {}
 
     this._unregisterNetworkObservers();
     this._stopPeriodicListUpdates();
     this._clearAllPopupPermissions();
     this._syncAllJavascriptPolicies();
-    this._clearBlockedCounts();
-    this._pageRequestStatsByBrowserId.clear();
-    this._pendingDocumentBypassTokens.clear();
-    this._sessionSiteExceptions.clear();
+    this._clearBlockingRuntimeState();
     this._noCosmeticFilteringSitesCache = null;
     this._noRemoteFontsSitesCache = null;
-    this._siteExceptionsCache = null;
     this._engine = null;
     this._engineInitialising = false;
     this._initGeneration++;

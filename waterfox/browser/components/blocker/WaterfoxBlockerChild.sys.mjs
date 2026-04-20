@@ -74,10 +74,10 @@ function readChromeText(url) {
  * This child actor runs in content processes and applies cosmetic filtering
  * and scriptlet decisions from the blocker to live documents.
  *
- * Scriptlets need execution in page scope, not in actor scope, so injection
- * goes through `this.contentWindow.wrappedJSObject`. That is the standard
- * privileged-to-content bridge used in Gecko for script execution in page
- * scope, including `ExtensionContent.sys.mjs`.
+ * Scriptlets need execution in page scope, not in actor scope. We compile them
+ * as page scripts and execute them in the content window global, matching the
+ * Gecko WebExtensions MAIN-world path and avoiding page CSP checks that would
+ * block DOM `<script>` insertion.
  *
  * Updates for selectors used in generic hiding use a `MutationObserver` with
  * timeout debouncing so DOM churn is coalesced before querying the parent
@@ -146,7 +146,12 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
     }
 
     if (event.type === "DOMDocElementInserted") {
-      this._flushInitialResources();
+      this._flushInitialResources().catch(err => {
+        console.error(
+          "[WaterfoxBlockerChild] failed flushing initial resources:",
+          err
+        );
+      });
     }
   }
 
@@ -203,7 +208,7 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
       const resources = initial.resources;
       if (resources) {
         this._pendingInitialResources = resources;
-        this._flushInitialResources();
+        await this._flushInitialResources();
 
         if (this._isInitialResourcesResponseEmpty(resources)) {
           this._scheduleInitialResourcesRetry(doc);
@@ -2063,13 +2068,13 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
     }
 
     this._pendingInitialResources = resources;
-    this._flushInitialResources();
+    await this._flushInitialResources();
   }
 
   /**
    * Applies pending initial resources once the document has an injection target.
    */
-  _flushInitialResources() {
+  async _flushInitialResources() {
     const resources = this._pendingInitialResources;
     if (!resources) {
       return;
@@ -2095,7 +2100,7 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
     }
 
     if (resources.injectedScript) {
-      this._injectScriptlet(resources.injectedScript);
+      await this._injectScriptlet(resources.injectedScript);
     }
 
     const proceduralActions = this._parseProceduralActions(
@@ -2841,55 +2846,100 @@ export class WaterfoxBlockerChild extends JSWindowActorChild {
   }
 
   /**
+   * Wraps code so top-level scriptlet globals resolve like page globals.
+   *
+   * @param {string} scriptText Script source to run.
+   * @param {string} [prelude] Additional source to run before the payload.
+   * @returns {string}
+   */
+  _wrapPageScopeScript(scriptText, prelude = "") {
+    return `
+(function(window, self, globalThis, document) {
+${prelude}
+${scriptText}
+}).call(window, window, window, window, window.document);
+`;
+  }
+
+  /**
+   * Executes JavaScript in the page's main global without using DOM script tags.
+   *
+   * This mirrors Gecko's WebExtensions MAIN-world implementation: compile the
+   * string to a PrecompiledScript, then execute it in the content window global.
+   * That preserves page-scope behaviour while avoiding strict page CSP.
+   *
+   * @param {string} scriptText Script source to run.
+   * @param {string} filename Redacted filename shown in developer tooling.
+   * @returns {Promise<boolean>} Whether the script ran.
+   */
+  async _executePageScopeScript(scriptText, filename) {
+    const targetWindow = this.contentWindow;
+    const targetDocument = this.document;
+    if (!targetWindow || !targetDocument || !scriptText) {
+      return false;
+    }
+
+    try {
+      const dataUrl = `data:text/javascript;charset=utf-8,${encodeURIComponent(
+        scriptText
+      )}`;
+      const script = await ChromeUtils.compileScript(dataUrl, {
+        filename,
+      });
+
+      if (
+        this.contentWindow !== targetWindow ||
+        this.document !== targetDocument
+      ) {
+        return false;
+      }
+
+      script.executeInGlobal(targetWindow, { reportExceptions: true });
+      return true;
+    } catch (err) {
+      console.error("[WaterfoxBlockerChild] page-scope script failed:", err);
+      return false;
+    }
+  }
+
+  /**
    * Injects one scriptlet payload into page scope.
    *
    * @param {string} scriptText Script source to inject.
+   * @returns {Promise<boolean>} Whether the scriptlet ran.
    */
-  _injectScriptlet(scriptText) {
+  async _injectScriptlet(scriptText) {
     const doc = this.document;
     if (!doc || !scriptText) {
-      return;
+      return false;
     }
 
-    let pageWindow;
-    try {
-      pageWindow = this.contentWindow?.wrappedJSObject;
-    } catch (err) {
-      console.error(
-        "[WaterfoxBlockerChild] failed to access wrappedJSObject for scriptlet injection:",
-        err
-      );
-      return;
-    }
-
-    if (!pageWindow) {
-      return;
-    }
-
-    const pageDoc = pageWindow.document;
-    const parent = pageDoc.head || pageDoc.documentElement;
-    if (!parent) {
-      return;
-    }
-
-    // uBO scriptlets expect scriptletGlobals to exist in their scope.
-    // TODO: Pages with strict script-src CSP will silently block this
-    // injection. Brave uses world: "MAIN" content scripts instead.
     const prelude = `
-if (typeof globalThis.scriptletGlobals === "undefined") {
-  globalThis.scriptletGlobals = new Map();
-}
-const scriptletGlobals = globalThis.scriptletGlobals;
+const scriptletGlobals = (() => {
+  const forwardedMapMethods = ["has", "get", "set"];
+  const handler = {
+    get(target, prop) {
+      if (forwardedMapMethods.includes(prop)) {
+        return Map.prototype[prop].bind(target);
+      }
+      return target.get(prop);
+    },
+    set(target, prop, value) {
+      if (!forwardedMapMethods.includes(prop)) {
+        target.set(prop, value);
+      }
+      return true;
+    },
+  };
+  return new Proxy(new Map(), handler);
+})();
+let deAmpEnabled = false;
 `;
 
-    try {
-      const script = pageDoc.createElement("script");
-      script.textContent = prelude + scriptText;
-      parent.appendChild(script);
-      script.remove();
-    } catch (err) {
-      console.error("[WaterfoxBlockerChild] failed to inject scriptlet:", err);
-    }
+    return this._executePageScopeScript(
+      this._wrapPageScopeScript(scriptText, prelude),
+      "waterfox-blocker-scriptlet.js"
+    );
   }
 
   async _injectFarblingScript(doc) {
@@ -2897,35 +2947,17 @@ const scriptletGlobals = globalThis.scriptletGlobals;
       return;
     }
 
-    let pageWindow;
-    try {
-      pageWindow = this.contentWindow?.wrappedJSObject;
-    } catch (_) {
-      return;
-    }
-    if (!pageWindow) {
-      return;
-    }
-
-    const pageDoc = pageWindow.document;
-    const parent = pageDoc.head || pageDoc.documentElement;
-    if (!parent) {
-      return;
-    }
-
     const sessionToken = Math.trunc(Math.random() * 0xffffffff);
 
     try {
-      const tokenScript = pageDoc.createElement("script");
-      tokenScript.textContent = `var __waterfoxFarblingSession__ = ${sessionToken};`;
-      parent.appendChild(tokenScript);
-      tokenScript.remove();
-
       const scriptText = await readChromeText(FARBLING_SCRIPT_URL);
-      const script = pageDoc.createElement("script");
-      script.textContent = scriptText;
-      parent.appendChild(script);
-      script.remove();
+      await this._executePageScopeScript(
+        this._wrapPageScopeScript(
+          scriptText,
+          `globalThis.__waterfoxFarblingSession__ = ${sessionToken};`
+        ),
+        "waterfox-farbling.js"
+      );
     } catch (err) {
       console.error(
         "[WaterfoxBlockerChild] failed to inject farbling script:",

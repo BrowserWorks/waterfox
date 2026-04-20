@@ -8,6 +8,8 @@
   box-sizing: border-box;
 }
 
+/* ── Page shell ───────────────────────────────────────────────────────────── */
+
 #preferences-root,
 #preferences-body {
   height: 100%;
@@ -26,19 +28,19 @@
   text-rendering: optimizeLegibility;
 }
 
-#preferences-stack {
-  flex: 1;
-  min-height: 0;
-}
+/* ── Two-column layout ────────────────────────────────────────────────────── */
 
-.adblocker-preferences-frame {
+.adblocker-layout {
   display: flex;
+  flex: 1;
   height: 100%;
   min-height: 0;
   width: 100%;
 }
 
-.navigation {
+/* ── Sidebar navigation ───────────────────────────────────────────────────── */
+
+.adblocker-nav {
   background: var(--in-content-page-background);
   border-inline-end: 1px solid var(--in-content-border-color);
   display: flex;
@@ -47,7 +49,6 @@
   overflow-x: hidden;
   overflow-y: auto;
   padding: var(--space-medium, 12px);
-  position: relative;
 }
 
 .adblocker-categories {
@@ -185,7 +186,9 @@
   background-image: url("chrome://mozapps/skin/extensions/extension.svg");
 }
 
-.main-content {
+/* ── Main content ─────────────────────────────────────────────────────────── */
+
+.adblocker-main {
   flex: 1;
   min-width: 0;
   overflow-x: hidden;
@@ -211,6 +214,8 @@
   font-size: var(--font-size-xlarge);
   margin: var(--space-xlarge, 24px) 0 var(--space-small, 8px);
 }
+
+/* ── Page content ─────────────────────────────────────────────────────────── */
 
 .adblocker-intro {
   align-items: flex-start;
@@ -422,6 +427,8 @@ button.primary:hover:not(:disabled) {
   color: var(--in-content-page-color);
 }
 
+/* ── Modal ────────────────────────────────────────────────────────────────── */
+
 dialog.adblocker-modal {
   background: var(--in-content-page-background);
   border: 1px solid var(--in-content-border-color);
@@ -512,6 +519,8 @@ dialog.adblocker-modal::backdrop {
   padding: var(--space-small, 8px);
   white-space: pre-wrap;
 }
+
+/* ── Filter list modal ────────────────────────────────────────────────────── */
 
 .fl-categories {
   display: flex;
@@ -623,44 +632,4 @@ dialog.adblocker-modal::backdrop {
   display: flex;
   gap: var(--space-small, 8px);
   padding: 5px var(--space-medium, 12px);
-}
-
-@media (max-width: 900px) {
-  .adblocker-preferences-frame {
-    flex-direction: column;
-    overflow-y: auto;
-  }
-
-  .navigation {
-    background: var(--in-content-page-background);
-    border-block-end: 1px solid var(--in-content-border-color);
-    border-inline-end: 0;
-    flex: 0 0 auto;
-    flex-direction: row;
-    overflow-x: auto;
-    overflow-y: hidden;
-    padding: var(--space-small, 8px) var(--space-medium, 12px);
-    position: sticky;
-    top: 0;
-    z-index: 1;
-  }
-
-  .adblocker-categories {
-    flex-direction: row;
-    flex-wrap: nowrap;
-  }
-
-  .category {
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
-
-  .main-content {
-    flex: none;
-    overflow-y: visible;
-  }
-
-  .sidebar-footer-list {
-    display: none;
-  }
 }
