@@ -2,9 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-const registrar = Components.manager.QueryInterface(
-  Components.interfaces.nsIComponentRegistrar
-);
+const registrar = Components.manager.QueryInterface(Ci.nsIComponentRegistrar);
 
 function generateFreeCID() {
   let uuid = Components.ID(Services.uuid.generateUUID().toString());
@@ -25,15 +23,17 @@ AboutPage.prototype = {
     }
     return this._uri;
   },
-  newChannel: function (_uri, loadInfo) {
+  newChannel(_uri, loadInfo) {
     const ch = Services.io.newChannelFromURIWithLoadInfo(this.uri, loadInfo);
     ch.owner = Services.scriptSecurityManager.getSystemPrincipal();
     return ch;
   },
-  getURIFlags: (_uri) =>
-    Components.interfaces.nsIAboutModule.ALLOW_SCRIPT |
-    Components.interfaces.nsIAboutModule.IS_SECURE_CHROME_UI,
-  getChromeURI: function (_uri) {
+  getURIFlags(_uri) {
+    return (
+      Ci.nsIAboutModule.ALLOW_SCRIPT | Ci.nsIAboutModule.IS_SECURE_CHROME_UI
+    );
+  },
+  getChromeURI(_uri) {
     return this.uri;
   },
   QueryInterface: ChromeUtils.generateQI(["nsIAboutModule"]),
@@ -50,6 +50,11 @@ const ABOUT_PAGES = [
     about: "passwords",
     chrome: "chrome://browser/content/passwordManager.xhtml",
     contract: "@mozilla.org/network/protocol/about;1?what=passwords",
+  },
+  {
+    about: "adblocker",
+    chrome: "chrome://browser/content/blocker/aboutAdblocker.xhtml",
+    contract: "@mozilla.org/network/protocol/about;1?what=adblocker",
   },
 ];
 
