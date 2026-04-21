@@ -1542,10 +1542,8 @@ BrowserGlue.prototype = {
 
     // If we are set to anything other than restore session,
     if (startupPref != 3) {
-      console.log("Value of: " + startupPref);
       restoreSession = { value: false };
     } else {
-      console.log("Value of: " + startupPref);
       restoreSession = { value: true };
     }
 
