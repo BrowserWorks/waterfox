@@ -12,6 +12,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
 });
 
 const PREF_BRANCH = "waterfox.blocker.";
+const PREF_SHIELDS_BRANCH = "waterfox.shields.";
 const PREF_ENABLED = "waterfox.blocker.enabled";
 const PREF_UI_ENABLED = "waterfox.blocker.ui.enabled";
 const PREF_SHOW_BADGE = "waterfox.blocker.showBadge";
@@ -21,12 +22,18 @@ const CURRENT_PLACEMENT_VERSION = 1;
 const TOPIC_BLOCKED_COUNT_UPDATED = "WaterfoxBlocker:BlockedCountUpdated";
 const TOPIC_BLOCKED_COUNTS_CLEARED = "WaterfoxBlocker:BlockedCountsCleared";
 const TOPIC_CONTENT_BLOCKING_EVENT = "SiteProtection:ContentBlockingEvent";
+const TOPIC_PICKER_RULE_ADDED = "WaterfoxBlocker:PickerRuleAdded";
+const TOPIC_PICKER_STATE_CHANGED = "WaterfoxBlocker:PickerStateChanged";
+const TOPIC_ZAPPER_STATE_CHANGED = "WaterfoxBlocker:ZapperStateChanged";
 
 const OBSERVED_TOPICS = [
   "browser-delayed-startup-finished",
   TOPIC_CONTENT_BLOCKING_EVENT,
   TOPIC_BLOCKED_COUNT_UPDATED,
   TOPIC_BLOCKED_COUNTS_CLEARED,
+  TOPIC_PICKER_RULE_ADDED,
+  TOPIC_PICKER_STATE_CHANGED,
+  TOPIC_ZAPPER_STATE_CHANGED,
 ];
 
 const HTML_NS = "http://www.w3.org/1999/xhtml";
@@ -40,23 +47,47 @@ const PANEL_IDS = {
   multiview: "waterfox-blocker-multiview",
   mainView: "waterfox-blocker-mainView",
   headerSection: "waterfox-blocker-header-section",
+  adBlockStatus: "waterfox-blocker-panel-adblock-status",
   header: "waterfox-blocker-header-label",
-  blockedCount: "waterfox-blocker-panel-blocked-count",
+  javascriptStatus: "waterfox-blocker-panel-javascript-status",
+  cnameStatus: "waterfox-blocker-panel-cname-status",
+  javascriptToggle: "waterfox-blocker-panel-javascript-toggle",
   settingsButton: "waterfox-blocker-settings-button",
+  statusRow: "waterfox-blocker-panel-status-row",
+  pickerButton: "waterfox-blocker-panel-picker-button",
   siteToggle: "waterfox-blocker-panel-site-toggle",
+  zapperButton: "waterfox-blocker-panel-zapper-button",
 };
 
 const L10N_IDS = {
   notAvailable: "waterfox-blocker-panel-not-available",
-  disabled: "waterfox-blocker-panel-disabled",
-  partnerAllowed: "waterfox-blocker-panel-partner-allowed",
-  siteExcepted: "waterfox-blocker-panel-site-excepted",
+  adBlockStatusOff: "waterfox-blocker-panel-adblock-status-off",
+  adBlockStatusOn: "waterfox-blocker-panel-adblock-status-on",
+  adBlockStatusSearchPartner:
+    "waterfox-blocker-panel-adblock-status-search-partner",
+  javascriptStatusAllowed: "waterfox-blocker-panel-javascript-status-allowed",
+  javascriptStatusBlocked: "waterfox-blocker-panel-javascript-status-blocked",
+  cnameStatusOn: "waterfox-blocker-panel-cname-status-on",
+  cnameStatusOff: "waterfox-blocker-panel-cname-status-off",
   settingsButton: "waterfox-blocker-panel-settings-button",
+  pickerStart: "waterfox-blocker-panel-picker-start",
+  pickerStop: "waterfox-blocker-panel-picker-stop",
+  zapperStart: "waterfox-blocker-panel-zapper-start",
+  zapperStop: "waterfox-blocker-panel-zapper-stop",
+  javascriptToggleOff: "waterfox-blocker-panel-javascript-toggle-off",
+  javascriptToggleOn: "waterfox-blocker-panel-javascript-toggle-on",
   headerHost: "protections-header",
-  stats: "waterfox-blocker-stats",
-  toggle: "waterfox-blocker-panel-toggle",
+  toggleOff: "waterfox-blocker-panel-toggle-off",
+  toggleOn: "waterfox-blocker-panel-toggle-on",
   toolbarButton: "waterfox-blocker-toolbar-button",
 };
+
+const POPUP_FALLBACK_TEXT = Object.freeze({
+  [PANEL_IDS.javascriptToggle]: "Block JavaScript",
+  [PANEL_IDS.zapperButton]: "Zap element",
+  [PANEL_IDS.pickerButton]: "Pick element",
+  [PANEL_IDS.settingsButton]: "Manage ad blocking settings",
+});
 
 function createXUL(doc, tag, attrs = {}) {
   const el = doc.createXULElement(tag);
@@ -99,8 +130,11 @@ export const WaterfoxBlockerPanel = {
   _widgetRegistered: false,
   _windowState: new WeakMap(),
   _styledWindows: new WeakSet(),
+  _pickerActiveByBrowserId: new Map(),
+  _zapperActiveByBrowserId: new Map(),
 
   _buildPanel(doc) {
+    // ── Outer XUL shell — must stay XUL (Firefox panel system) ───────────────
     const panel = createXUL(doc, "panel", {
       class: "panel-no-padding",
       id: PANEL_IDS.panel,
@@ -124,92 +158,129 @@ export const WaterfoxBlockerPanel = {
       "has-custom-header": "true",
     });
 
-    const headerSection = createXUL(doc, "vbox", {
+    // ─────────────────────────────────────────────────────────────────────────
+    // HEADER — dark-navy uBO-style band
+    // Contains: domain bar (shield · hostname · settings gear)
+    //           + full-width site on/off toggle
+    // ─────────────────────────────────────────────────────────────────────────
+    const headerSection = createHTML(doc, "div", {
       id: PANEL_IDS.headerSection,
+      class: "wfb-header",
     });
 
-    const header = createXUL(doc, "box", {
-      class: "panel-header",
-    });
+    // Domain bar
+    const domainBar = createHTML(doc, "div", { class: "wfb-domain-bar" });
 
-    const headerTitle = createHTML(doc, "h1");
+    const shieldIcon = createHTML(doc, "span", {
+      class: "wfb-shield-icon",
+      "aria-hidden": "true",
+    });
+    domainBar.appendChild(shieldIcon);
+
     const headerLabel = createHTML(doc, "span", {
       id: PANEL_IDS.header,
+      class: "wfb-host-name",
     });
     setNodeL10nAttributes(doc, headerLabel, L10N_IDS.notAvailable);
+    domainBar.appendChild(headerLabel);
 
-    headerTitle.appendChild(headerLabel);
-    header.appendChild(headerTitle);
-    headerSection.appendChild(header);
-    headerSection.appendChild(createXUL(doc, "toolbarseparator"));
-    mainView.appendChild(headerSection);
-
-    const body = createXUL(doc, "vbox", {
-      class: "panel-subview-body",
-    });
-
-    const toggleSection = createXUL(doc, "vbox", {
-      class: "protections-popup-section protections-popup-switch-section",
-    });
-
-    const toggleSectionHeader = createXUL(doc, "hbox", {
-      class: "protections-popup-switch-section-header",
-    });
-
-    const toggleBox = createXUL(doc, "vbox", {
-      flex: "1",
-      align: "stretch",
-    });
-
-    const siteToggle = createHTML(doc, "moz-toggle", {
-      id: PANEL_IDS.siteToggle,
-    });
-    setNodeL10nAttributes(doc, siteToggle, L10N_IDS.toggle);
-    toggleBox.appendChild(siteToggle);
-    toggleSectionHeader.appendChild(toggleBox);
-    toggleSection.appendChild(toggleSectionHeader);
-    body.appendChild(toggleSection);
-
-    body.appendChild(createXUL(doc, "toolbarseparator"));
-
-    const statsSection = createXUL(doc, "vbox", {
-      class: "protections-popup-section",
-    });
-
-    const statsRow = createXUL(doc, "hbox", {
-      align: "center",
-      style:
-        "margin: var(--arrowpanel-menuitem-margin); padding: var(--arrowpanel-menuitem-padding);",
-    });
-
-    const statsIcon = createXUL(doc, "image", {
-      class: "protections-popup-footer-icon protections-popup-show-report-icon",
-    });
-    statsRow.appendChild(statsIcon);
-
-    const blockedCount = createXUL(doc, "label", {
-      class: "text-deemphasized",
-      flex: "1",
-      id: PANEL_IDS.blockedCount,
-    });
-    setNodeL10nAttributes(doc, blockedCount, L10N_IDS.stats, {
-      count: 0,
-    });
-    statsRow.appendChild(blockedCount);
-    statsSection.appendChild(statsRow);
-    body.appendChild(statsSection);
-
-    mainView.appendChild(body);
-
-    mainView.appendChild(createXUL(doc, "toolbarseparator"));
-
-    const settingsButton = createXUL(doc, "toolbarbutton", {
-      class: "subviewbutton panel-subview-footer-button",
+    const settingsButton = createHTML(doc, "button", {
+      type: "button",
+      class: "wfb-settings-btn",
       id: PANEL_IDS.settingsButton,
     });
     setNodeL10nAttributes(doc, settingsButton, L10N_IDS.settingsButton);
-    mainView.appendChild(settingsButton);
+    domainBar.appendChild(settingsButton);
 
+    headerSection.appendChild(domainBar);
+
+    // Site toggle row
+    const toggleRow = createHTML(doc, "div", { class: "wfb-toggle-row" });
+    const siteToggle = createHTML(doc, "moz-toggle", {
+      "data-l10n-attrs": "label, description, aria-label",
+      id: PANEL_IDS.siteToggle,
+    });
+    setNodeL10nAttributes(doc, siteToggle, L10N_IDS.toggleOn);
+    toggleRow.appendChild(siteToggle);
+    headerSection.appendChild(toggleRow);
+
+    const javascriptToggleRow = createHTML(doc, "div", {
+      class: "wfb-toggle-row",
+    });
+    const javascriptToggle = createHTML(doc, "moz-toggle", {
+      "data-l10n-attrs": "label, description, aria-label",
+      id: PANEL_IDS.javascriptToggle,
+    });
+    setNodeL10nAttributes(doc, javascriptToggle, L10N_IDS.javascriptToggleOff);
+    javascriptToggleRow.appendChild(javascriptToggle);
+    headerSection.appendChild(javascriptToggleRow);
+
+    mainView.appendChild(headerSection);
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // BODY
+    // ─────────────────────────────────────────────────────────────────────────
+    const body = createHTML(doc, "div", {
+      class: "panel-subview-body wfb-body",
+    });
+
+    const statusRow = createHTML(doc, "div", {
+      class: "wfb-status-row",
+      id: PANEL_IDS.statusRow,
+    });
+
+    const adBlockStatus = createHTML(doc, "span", {
+      class: "wfb-status-pill",
+      id: PANEL_IDS.adBlockStatus,
+    });
+    setNodeL10nAttributes(doc, adBlockStatus, L10N_IDS.adBlockStatusOn);
+    statusRow.appendChild(adBlockStatus);
+
+    const javascriptStatus = createHTML(doc, "span", {
+      class: "wfb-status-pill",
+      id: PANEL_IDS.javascriptStatus,
+    });
+    setNodeL10nAttributes(
+      doc,
+      javascriptStatus,
+      L10N_IDS.javascriptStatusAllowed
+    );
+    statusRow.appendChild(javascriptStatus);
+
+    const cnameStatus = createHTML(doc, "span", {
+      class: "wfb-status-pill",
+      id: PANEL_IDS.cnameStatus,
+    });
+    setNodeL10nAttributes(doc, cnameStatus, L10N_IDS.cnameStatusOn);
+    statusRow.appendChild(cnameStatus);
+
+    body.appendChild(statusRow);
+
+    // ── Separator ────────────────────────────────────────────────────────────
+    body.appendChild(createHTML(doc, "hr", { class: "wfb-sep" }));
+
+    // ── Tools row (zapper + picker) ───────────────────────────────────────────
+    const toolsRow = createHTML(doc, "div", { class: "wfb-tools-row" });
+
+    const zapperButton = createHTML(doc, "button", {
+      type: "button",
+      class: "wfb-tool-btn",
+      id: PANEL_IDS.zapperButton,
+    });
+    setNodeL10nAttributes(doc, zapperButton, L10N_IDS.zapperStart);
+    toolsRow.appendChild(zapperButton);
+
+    const pickerButton = createHTML(doc, "button", {
+      type: "button",
+      class: "wfb-tool-btn",
+      id: PANEL_IDS.pickerButton,
+    });
+    setNodeL10nAttributes(doc, pickerButton, L10N_IDS.pickerStart);
+    toolsRow.appendChild(pickerButton);
+
+    body.appendChild(toolsRow);
+
+    mainView.appendChild(body);
     multiview.appendChild(mainView);
     panel.appendChild(multiview);
 
@@ -268,22 +339,46 @@ export const WaterfoxBlockerPanel = {
   },
 
   _handlePanelCommand(win, event) {
-    if (event.target?.id !== PANEL_IDS.settingsButton) {
-      return;
-    }
+    switch (event.target?.id) {
+      case PANEL_IDS.settingsButton:
+        this._openBlockerPreferences(win, event.target);
+        event.stopPropagation();
+        break;
 
-    this._openBlockerPreferences(win, event.target);
-    event.stopPropagation();
+      case PANEL_IDS.zapperButton:
+        this._toggleElementZapperForCurrentTab(win, event.target);
+        event.stopPropagation();
+        break;
+
+      case PANEL_IDS.pickerButton:
+        this._toggleElementPickerForCurrentTab(win, event.target);
+        event.stopPropagation();
+        break;
+
+      default:
+        break;
+    }
   },
 
   _handlePanelToggle(win, event) {
-    if (event.target?.id !== PANEL_IDS.siteToggle) {
-      return;
-    }
+    switch (event.target?.id) {
+      case PANEL_IDS.siteToggle: {
+        const pressed = !!event.target.pressed;
+        this._setAdBlockForCurrentSite(win, pressed, event.target);
+        event.stopPropagation();
+        break;
+      }
 
-    const pressed = !!event.target.pressed;
-    this._setSiteExceptionForCurrentSite(win, !pressed, event.target);
-    event.stopPropagation();
+      case PANEL_IDS.javascriptToggle: {
+        const blockJavascript = !!event.target.pressed;
+        this._setJavascriptForCurrentSite(win, !blockJavascript, event.target);
+        event.stopPropagation();
+        break;
+      }
+
+      default:
+        break;
+    }
   },
 
   _hidePanelForNode(node) {
@@ -385,6 +480,8 @@ export const WaterfoxBlockerPanel = {
         const browserId = browser?.browsingContext?.top?.browserId || 0;
         if (browserId) {
           WaterfoxBlockerService.resetBlockedCount(browserId);
+          this._pickerActiveByBrowserId.delete(browserId);
+          this._zapperActiveByBrowserId.delete(browserId);
         }
       }
 
@@ -406,6 +503,9 @@ export const WaterfoxBlockerPanel = {
         event.target?.linkedBrowser?.browsingContext?.top?.browserId || 0;
       if (browserId) {
         this._blockedCountByBrowserId.delete(browserId);
+        this._pickerActiveByBrowserId.delete(browserId);
+        this._zapperActiveByBrowserId.delete(browserId);
+        WaterfoxBlockerService.clearPageRequestStats(browserId);
       }
       this._refreshWindow(win);
     };
@@ -418,7 +518,7 @@ export const WaterfoxBlockerPanel = {
       this._unhookBrowserWindow(win);
     };
 
-    doc.addEventListener("command", onCommand, true);
+    doc.addEventListener("click", onCommand, true);
     doc.addEventListener("toggle", onToggle, true);
     gBrowser.addTabsProgressListener?.(progressListener);
     tabContainer.addEventListener("TabSelect", onTabSelect);
@@ -474,6 +574,72 @@ export const WaterfoxBlockerPanel = {
     }
   },
 
+  _onZapperStateChanged(subject) {
+    const payload = subject?.wrappedJSObject;
+    const browserId = Number(payload?.browserId || 0);
+    if (!browserId) {
+      return;
+    }
+
+    if (payload?.active) {
+      this._zapperActiveByBrowserId.set(browserId, true);
+    } else {
+      this._zapperActiveByBrowserId.delete(browserId);
+    }
+
+    this._refreshAllWindows();
+  },
+
+  _onPickerStateChanged(subject) {
+    const payload = subject?.wrappedJSObject;
+    const browserId = Number(payload?.browserId || 0);
+    if (!browserId) {
+      return;
+    }
+
+    if (payload?.active) {
+      this._pickerActiveByBrowserId.set(browserId, true);
+    } else {
+      this._pickerActiveByBrowserId.delete(browserId);
+    }
+
+    this._refreshAllWindows();
+  },
+
+  _onPickerRuleAdded(subject) {
+    const payload = subject?.wrappedJSObject;
+    const browserId = Number(payload?.browserId || 0);
+    if (!browserId || !payload?.added) {
+      return;
+    }
+
+    this._refreshAllWindows();
+  },
+
+  _stopElementPickerForCurrentTab(win, sourceNode = null) {
+    const browser = this._getCurrentBrowser(win);
+    const browserId = browser?.browsingContext?.top?.browserId || 0;
+    const actor =
+      browser?.browsingContext?.currentWindowGlobal?.getActor(
+        "WaterfoxBlocker"
+      );
+
+    if (!browserId || !actor) {
+      this._refreshWindow(win);
+      return;
+    }
+
+    this._pickerActiveByBrowserId.delete(browserId);
+    try {
+      actor.sendAsyncMessage("WaterfoxBlocker:StopElementPicker");
+    } catch (err) {
+      console.error("[WaterfoxBlockerPanel] failed to stop picker:", err);
+    }
+
+    this._hidePanelForNode(sourceNode);
+    this._refreshWindow(win);
+  },
+
   _openToolbarPanel(win, event = null) {
     const doc = win?.document;
     if (!doc) {
@@ -498,7 +664,9 @@ export const WaterfoxBlockerPanel = {
     win.PanelMultiView.openPopup(panel, button, {
       position: "bottomleft topleft",
       triggerEvent: event,
-    }).catch(console.error);
+    }).catch(err => {
+      console.error("[WaterfoxBlockerPanel] failed to open popup:", err);
+    });
   },
 
   _openBlockerPreferences(win, sourceNode = null) {
@@ -506,7 +674,7 @@ export const WaterfoxBlockerPanel = {
 
     try {
       if (typeof win.openTrustedLinkIn === "function") {
-        win.openTrustedLinkIn("about:preferences#privacy", "tab");
+        win.openTrustedLinkIn("about:adblocker", "tab");
         return;
       }
     } catch (_) {
@@ -514,21 +682,100 @@ export const WaterfoxBlockerPanel = {
     }
 
     try {
-      if (typeof win.openPreferences === "function") {
-        win.openPreferences("panePrivacy", {
-          origin: "waterfox-blocker",
-        });
+      if (typeof win.openUILinkIn === "function") {
+        win.openUILinkIn("about:adblocker", "tab");
       }
     } catch (_) {
       // Fallback opener may be unavailable in non-standard windows.
     }
   },
 
-  _primeBlockedCountCache() {
-    if (!Services.prefs.getBoolPref(PREF_ENABLED, true)) {
+  _toggleElementZapperForCurrentTab(win, sourceNode = null) {
+    const browser = this._getCurrentBrowser(win);
+    const browserId = browser?.browsingContext?.top?.browserId || 0;
+    const actor =
+      browser?.browsingContext?.currentWindowGlobal?.getActor(
+        "WaterfoxBlocker"
+      );
+
+    if (!browserId || !actor || !this._isCurrentPageProtectable(win)) {
+      this._refreshWindow(win);
       return;
     }
 
+    const nextActive = !this._zapperActiveByBrowserId.has(browserId);
+    const pickerActive = this._pickerActiveByBrowserId.has(browserId);
+    if (nextActive) {
+      this._zapperActiveByBrowserId.set(browserId, true);
+      if (pickerActive) {
+        this._pickerActiveByBrowserId.delete(browserId);
+        try {
+          actor.sendAsyncMessage("WaterfoxBlocker:StopElementPicker");
+        } catch (_) {}
+      }
+    } else {
+      this._zapperActiveByBrowserId.delete(browserId);
+    }
+
+    try {
+      actor.sendAsyncMessage(
+        nextActive
+          ? "WaterfoxBlocker:StartElementZapper"
+          : "WaterfoxBlocker:StopElementZapper"
+      );
+    } catch (err) {
+      this._zapperActiveByBrowserId.delete(browserId);
+      console.error("[WaterfoxBlockerPanel] failed to toggle zapper:", err);
+    }
+
+    this._hidePanelForNode(sourceNode);
+    this._refreshWindow(win);
+  },
+
+  _toggleElementPickerForCurrentTab(win, sourceNode = null) {
+    const browser = this._getCurrentBrowser(win);
+    const browserId = browser?.browsingContext?.top?.browserId || 0;
+    const actor =
+      browser?.browsingContext?.currentWindowGlobal?.getActor(
+        "WaterfoxBlocker"
+      );
+
+    if (!browserId || !actor || !this._isCurrentPageProtectable(win)) {
+      this._refreshWindow(win);
+      return;
+    }
+
+    const pickerActive = this._pickerActiveByBrowserId.has(browserId);
+    const zapperActive = this._zapperActiveByBrowserId.has(browserId);
+    const nextActive = !pickerActive;
+
+    try {
+      actor.sendAsyncMessage(
+        nextActive
+          ? "WaterfoxBlocker:StartElementPicker"
+          : "WaterfoxBlocker:StopElementPicker"
+      );
+      if (nextActive) {
+        this._pickerActiveByBrowserId.set(browserId, true);
+        if (zapperActive) {
+          this._zapperActiveByBrowserId.delete(browserId);
+          try {
+            actor.sendAsyncMessage("WaterfoxBlocker:StopElementZapper");
+          } catch (_) {}
+        }
+      } else {
+        this._pickerActiveByBrowserId.delete(browserId);
+      }
+    } catch (err) {
+      this._pickerActiveByBrowserId.delete(browserId);
+      console.error("[WaterfoxBlockerPanel] failed to toggle picker:", err);
+    }
+
+    this._hidePanelForNode(sourceNode);
+    this._refreshWindow(win);
+  },
+
+  _primeBlockedCountCache() {
     this._forEachBrowserWindow(win => {
       this._forEachTab(win, tab => {
         const browserId = tab?.linkedBrowser?.browsingContext?.top?.browserId;
@@ -553,7 +800,7 @@ export const WaterfoxBlockerPanel = {
   },
 
   _readBlockedCount(browserId) {
-    if (!browserId || !Services.prefs.getBoolPref(PREF_ENABLED, true)) {
+    if (!browserId) {
       return 0;
     }
 
@@ -574,63 +821,203 @@ export const WaterfoxBlockerPanel = {
     });
   },
 
+  _getPanelSiteState(win, enabled) {
+    const host = this._getCurrentHost(win);
+    const protectable = this._isCurrentPageProtectable(win);
+    const globalEnabled =
+      enabled ?? Services.prefs.getBoolPref(PREF_ENABLED, true);
+    const shieldState =
+      protectable && host
+        ? WaterfoxBlockerService.getSiteShieldState(host)
+        : {
+            adBlockEnabled: globalEnabled,
+            javascriptEnabled: true,
+            searchPartnerAllowed: false,
+            siteBlockingEnabled: globalEnabled,
+          };
+
+    return {
+      adBlockEnabled: shieldState.adBlockEnabled,
+      cnameEnabled: Services.prefs.getBoolPref(
+        "waterfox.blocker.cnameUncloaking",
+        true
+      ),
+      globalEnabled,
+      host,
+      javascriptBlocked: protectable && !shieldState.javascriptEnabled,
+      javascriptEnabled: shieldState.javascriptEnabled,
+      protectable,
+      searchPartnerAllowed: shieldState.searchPartnerAllowed,
+      siteBlockingEnabled: shieldState.siteBlockingEnabled,
+    };
+  },
+
+  _refreshPanelHeader(doc, siteState) {
+    const header = doc.getElementById(PANEL_IDS.header);
+    if (!header) {
+      return;
+    }
+
+    setNodeL10nAttributes(
+      doc,
+      header,
+      siteState.protectable && siteState.host
+        ? L10N_IDS.headerHost
+        : L10N_IDS.notAvailable,
+      siteState.protectable && siteState.host
+        ? { host: siteState.host }
+        : undefined
+    );
+  },
+
+  _refreshSiteToggle(doc, siteState) {
+    const siteToggle = doc.getElementById(PANEL_IDS.siteToggle);
+    if (!siteToggle) {
+      return;
+    }
+
+    siteToggle.pressed = siteState.adBlockEnabled;
+    siteToggle.disabled =
+      !siteState.protectable || siteState.searchPartnerAllowed;
+    setNodeL10nAttributes(
+      doc,
+      siteToggle,
+      siteState.adBlockEnabled ? L10N_IDS.toggleOn : L10N_IDS.toggleOff,
+      siteState.host ? { host: siteState.host } : undefined
+    );
+  },
+
+  _refreshJavascriptToggle(doc, siteState) {
+    const javascriptToggle = doc.getElementById(PANEL_IDS.javascriptToggle);
+    if (!javascriptToggle) {
+      return;
+    }
+
+    javascriptToggle.pressed = siteState.javascriptBlocked;
+    javascriptToggle.disabled = !siteState.protectable;
+    setNodeL10nAttributes(
+      doc,
+      javascriptToggle,
+      siteState.javascriptBlocked
+        ? L10N_IDS.javascriptToggleOn
+        : L10N_IDS.javascriptToggleOff,
+      siteState.host ? { host: siteState.host } : undefined
+    );
+  },
+
+  _refreshStatusRow(doc, siteState) {
+    const statusRow = doc.getElementById(PANEL_IDS.statusRow);
+    if (!statusRow) {
+      return;
+    }
+
+    statusRow.hidden = !siteState.protectable;
+    if (!siteState.protectable) {
+      return;
+    }
+
+    const adBlockStatus = doc.getElementById(PANEL_IDS.adBlockStatus);
+    if (adBlockStatus) {
+      let l10nId = siteState.adBlockEnabled
+        ? L10N_IDS.adBlockStatusOn
+        : L10N_IDS.adBlockStatusOff;
+      if (siteState.searchPartnerAllowed) {
+        l10nId = L10N_IDS.adBlockStatusSearchPartner;
+      }
+      setNodeL10nAttributes(doc, adBlockStatus, l10nId);
+    }
+
+    const javascriptStatus = doc.getElementById(PANEL_IDS.javascriptStatus);
+    if (javascriptStatus) {
+      setNodeL10nAttributes(
+        doc,
+        javascriptStatus,
+        siteState.javascriptBlocked
+          ? L10N_IDS.javascriptStatusBlocked
+          : L10N_IDS.javascriptStatusAllowed
+      );
+    }
+
+    const cnameStatus = doc.getElementById(PANEL_IDS.cnameStatus);
+    if (cnameStatus) {
+      setNodeL10nAttributes(
+        doc,
+        cnameStatus,
+        siteState.cnameEnabled
+          ? L10N_IDS.cnameStatusOn
+          : L10N_IDS.cnameStatusOff
+      );
+      cnameStatus.classList.toggle(
+        "wfb-status-pill--off",
+        !siteState.cnameEnabled
+      );
+    }
+  },
+
+  _refreshToolButton(doc, buttonId, disabled, l10nId) {
+    const button = doc.getElementById(buttonId);
+    if (!button) {
+      return;
+    }
+
+    button.disabled = !!disabled;
+    setNodeL10nAttributes(doc, button, l10nId);
+  },
+
   _refreshPanelForWindow(win, blockedCount, enabled) {
     const doc = win?.document;
     if (!doc) {
       return;
     }
 
-    const host = this._getCurrentHost(win);
-    const protectable = this._isCurrentPageProtectable(win);
-    const activeEnabled =
-      enabled ?? Services.prefs.getBoolPref(PREF_ENABLED, true);
-    const excepted = host ? WaterfoxBlockerService.isSiteExcepted(host) : false;
-    const partnerBypass =
-      activeEnabled &&
-      protectable &&
-      !excepted &&
-      WaterfoxBlockerService.shouldBypassBlocking(host);
-    const siteBlockingEnabled =
-      activeEnabled && protectable && !excepted && !partnerBypass;
-
+    const siteState = this._getPanelSiteState(win, enabled);
     const count =
       blockedCount !== undefined
         ? blockedCount
         : this._readBlockedCount(this._getCurrentBrowserId(win));
+    const browserId = this._getCurrentBrowserId(win);
+    const zapperActive = this._zapperActiveByBrowserId.has(browserId);
+    const pickerActive = this._pickerActiveByBrowserId.has(browserId);
 
-    const header = doc.getElementById(PANEL_IDS.header);
-    if (header) {
-      setNodeL10nAttributes(
-        doc,
-        header,
-        protectable && host ? L10N_IDS.headerHost : L10N_IDS.notAvailable,
-        protectable && host ? { host } : undefined
-      );
-    }
+    this._refreshPanelHeader(doc, siteState);
+    this._refreshSiteToggle(doc, siteState);
+    this._refreshJavascriptToggle(doc, siteState);
+    this._refreshStatusRow(doc, siteState);
+    this._refreshToolButton(
+      doc,
+      PANEL_IDS.zapperButton,
+      !siteState.protectable,
+      zapperActive ? L10N_IDS.zapperStop : L10N_IDS.zapperStart
+    );
+    this._refreshToolButton(
+      doc,
+      PANEL_IDS.pickerButton,
+      !siteState.protectable,
+      pickerActive ? L10N_IDS.pickerStop : L10N_IDS.pickerStart
+    );
 
-    const siteToggle = doc.getElementById(PANEL_IDS.siteToggle);
-    if (siteToggle) {
-      siteToggle.pressed = siteBlockingEnabled;
-      siteToggle.disabled = !activeEnabled || !protectable || partnerBypass;
-      setNodeL10nAttributes(doc, siteToggle, L10N_IDS.toggle);
-    }
+    this._applyPopupLabelFallbacks(doc);
+    this._updateToolbarButtonForWindow(win, count, siteState.protectable);
+  },
 
-    const blockedCountLabel = doc.getElementById(PANEL_IDS.blockedCount);
-    if (blockedCountLabel) {
-      if (!activeEnabled) {
-        setNodeL10nAttributes(doc, blockedCountLabel, L10N_IDS.disabled);
-      } else if (excepted) {
-        setNodeL10nAttributes(doc, blockedCountLabel, L10N_IDS.siteExcepted);
-      } else if (partnerBypass) {
-        setNodeL10nAttributes(doc, blockedCountLabel, L10N_IDS.partnerAllowed);
-      } else {
-        setNodeL10nAttributes(doc, blockedCountLabel, L10N_IDS.stats, {
-          count,
-        });
+  _applyPopupLabelFallbacks(doc) {
+    for (const [id, fallback] of Object.entries(POPUP_FALLBACK_TEXT)) {
+      const node = doc.getElementById(id);
+      if (!node) {
+        continue;
+      }
+
+      // HTML elements use textContent; XUL elements use the label attribute.
+      const text = String(node.textContent || "").trim();
+      const label = String(node.getAttribute("label") || "").trim();
+      if (!text && !label) {
+        if (node.namespaceURI === HTML_NS) {
+          node.textContent = fallback;
+        } else {
+          node.setAttribute("label", fallback);
+        }
       }
     }
-
-    this._updateToolbarButtonForWindow(win, count, protectable);
   },
 
   _refreshWindow(win) {
@@ -641,7 +1028,6 @@ export const WaterfoxBlockerPanel = {
     }
 
     this._injectPanelIntoWindow(win);
-
     const blockedCount = this._readBlockedCount(browserId);
     const enabled = Services.prefs.getBoolPref(PREF_ENABLED, true);
 
@@ -710,19 +1096,27 @@ export const WaterfoxBlockerPanel = {
     }
   },
 
-  _setSiteExceptionForCurrentSite(win, disableForSite, sourceNode = null) {
+  _setAdBlockForCurrentSite(win, enabled, sourceNode = null) {
     const host = this._getCurrentHost(win);
     if (!host) {
       this._refreshWindow(win);
       return;
     }
 
-    if (disableForSite) {
-      WaterfoxBlockerService.addSiteException(host);
-    } else {
-      WaterfoxBlockerService.removeSiteException(host);
+    WaterfoxBlockerService.setAdBlockEnabledForSite(host, enabled);
+    this._refreshWindow(win);
+    this._hidePanelForNode(sourceNode);
+    this._reloadCurrentTab(win);
+  },
+
+  _setJavascriptForCurrentSite(win, allowJavascript, sourceNode = null) {
+    const host = this._getCurrentHost(win);
+    if (!host) {
+      this._refreshWindow(win);
+      return;
     }
 
+    WaterfoxBlockerService.setJavascriptEnabledForSite(host, allowJavascript);
     this._refreshWindow(win);
     this._hidePanelForNode(sourceNode);
     this._reloadCurrentTab(win);
@@ -752,7 +1146,7 @@ export const WaterfoxBlockerPanel = {
     const state = this._windowState.get(win);
     if (state) {
       try {
-        doc.removeEventListener("command", state.onCommand, true);
+        doc.removeEventListener("click", state.onCommand, true);
         doc.removeEventListener("toggle", state.onToggle, true);
         win.gBrowser?.removeTabsProgressListener?.(state.progressListener);
         win.gBrowser?.tabContainer?.removeEventListener(
@@ -832,6 +1226,7 @@ export const WaterfoxBlockerPanel = {
       Services.obs.addObserver(this, topic);
     }
     Services.prefs.addObserver(PREF_BRANCH, this);
+    Services.prefs.addObserver(PREF_SHIELDS_BRANCH, this);
 
     this._primeBlockedCountCache();
 
@@ -843,13 +1238,11 @@ export const WaterfoxBlockerPanel = {
 
   observe(subject, topic, data) {
     if (topic === "nsPref:changed") {
-      if (String(data || "").startsWith(PREF_BRANCH)) {
-        if (
-          data === PREF_ENABLED &&
-          !Services.prefs.getBoolPref(PREF_ENABLED, true)
-        ) {
-          this._blockedCountByBrowserId.clear();
-        }
+      const pref = String(data || "");
+      if (
+        pref.startsWith(PREF_BRANCH) ||
+        pref.startsWith(PREF_SHIELDS_BRANCH)
+      ) {
         this._refreshAllWindows();
       }
       return;
@@ -872,6 +1265,18 @@ export const WaterfoxBlockerPanel = {
         this._blockedCountByBrowserId.clear();
         this._refreshAllWindows();
         break;
+
+      case TOPIC_ZAPPER_STATE_CHANGED:
+        this._onZapperStateChanged(subject);
+        break;
+
+      case TOPIC_PICKER_STATE_CHANGED:
+        this._onPickerStateChanged(subject);
+        break;
+
+      case TOPIC_PICKER_RULE_ADDED:
+        this._onPickerRuleAdded(subject);
+        break;
     }
   },
 
@@ -892,6 +1297,7 @@ export const WaterfoxBlockerPanel = {
 
     try {
       Services.prefs.removeObserver(PREF_BRANCH, this);
+      Services.prefs.removeObserver(PREF_SHIELDS_BRANCH, this);
     } catch (_) {
       // Pref observer may already be removed.
     }
@@ -902,5 +1308,7 @@ export const WaterfoxBlockerPanel = {
 
     this._destroyWidget();
     this._blockedCountByBrowserId.clear();
+    this._pickerActiveByBrowserId.clear();
+    this._zapperActiveByBrowserId.clear();
   },
 };

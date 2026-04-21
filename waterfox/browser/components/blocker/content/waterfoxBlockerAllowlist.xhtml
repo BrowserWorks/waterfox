@@ -7,15 +7,15 @@
 <?csp default-src chrome:; style-src chrome:; ?>
 
 <window
-  id="WaterfoxBlockerExceptionsDialog"
+  id="WaterfoxBlockerAllowlistDialog"
   xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
   xmlns:html="http://www.w3.org/1999/xhtml"
-  data-l10n-id="waterfox-blocker-exceptions-window"
+  data-l10n-id="waterfox-blocker-allowlist-window"
   data-l10n-attrs="title"
   persist="width height"
 >
   <dialog
-    id="exceptionDialog"
+    id="allowlistDialog"
     buttons="accept,cancel"
     data-l10n-id="permission-dialog"
     data-l10n-attrs="buttonlabelaccept, buttonaccesskeyaccept"
@@ -32,7 +32,7 @@
       />
       <html:link
         rel="stylesheet"
-        href="chrome://browser/content/blocker/waterfoxBlockerExceptions.css"
+        href="chrome://browser/content/blocker/waterfoxBlockerAllowlist.css"
       />
 
       <html:link rel="localization" href="branding/brand.ftl" />
@@ -44,7 +44,7 @@
       />
     </linkset>
 
-    <script src="chrome://browser/content/preferences/dialogs/waterfoxBlockerExceptions.js" />
+    <script src="chrome://browser/content/preferences/dialogs/waterfoxBlockerAllowlist.js" />
 
     <keyset>
       <key
@@ -56,24 +56,24 @@
 
     <vbox class="contentPane">
       <description
-        id="dohExceptionText"
+        id="allowlistText"
         control="url"
-        data-l10n-id="waterfox-blocker-exceptions-description"
+        data-l10n-id="waterfox-blocker-allowlist-description"
       />
       <separator class="thin" />
       <label
         id="urlLabel"
         control="url"
-        data-l10n-id="permissions-doh-entry-field"
+        data-l10n-id="waterfox-blocker-allowlist-entry-field"
       />
       <hbox align="start">
         <html:input id="url" type="text" />
       </hbox>
       <hbox pack="end">
         <button
-          id="btnAddException"
+          id="btnAddSite"
           disabled="true"
-          data-l10n-id="permissions-doh-add-exception"
+          data-l10n-id="waterfox-blocker-allowlist-add"
         />
       </hbox>
       <separator class="thin" />
@@ -89,14 +89,11 @@
 
     <hbox class="actionButtons">
       <button
-        id="removeException"
+        id="removeSite"
         disabled="true"
         data-l10n-id="permissions-doh-remove"
       />
-      <button
-        id="removeAllExceptions"
-        data-l10n-id="permissions-doh-remove-all"
-      />
+      <button id="removeAllSites" data-l10n-id="permissions-doh-remove-all" />
     </hbox>
   </dialog>
 </window>

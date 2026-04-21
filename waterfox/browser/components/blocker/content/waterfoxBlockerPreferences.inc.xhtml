@@ -24,10 +24,10 @@
     </description>
 
     <button
-      id="waterfoxBlockerExceptions"
+      id="waterfoxBlockerAllowlist"
       class="accessory-button"
       is="highlightable-button"
-      data-l10n-id="tracking-manage-exceptions"
+      data-l10n-id="waterfox-blocker-manage-allowlist"
     />
   </hbox>
 
@@ -90,6 +90,10 @@
                 id="waterfoxBlockerShowBadge"
                 data-l10n-id="waterfox-blocker-show-badge-pref"
               />
+              <checkbox
+                id="waterfoxBlockerCnameUncloaking"
+                data-l10n-id="waterfox-blocker-cname-uncloaking-pref"
+              />
             </vbox>
           </vbox>
         </vbox>
@@ -111,7 +115,13 @@
     </radiogroup>
   </vbox>
 
-  <hbox pack="end">
+  <hbox pack="end" class="waterfox-blocker-actions">
+    <button
+      id="waterfoxBlockerCustomRules"
+      class="accessory-button"
+      is="highlightable-button"
+      data-l10n-id="waterfox-blocker-manage-custom-rules"
+    />
     <button
       id="waterfoxBlockerFilterLists"
       class="accessory-button"

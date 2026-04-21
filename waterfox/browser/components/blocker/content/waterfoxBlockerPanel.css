@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-/* Preferences pane icon */
+/* Toolbar icon */
 #waterfoxBlockerGroup #waterfoxBlockerShield {
   list-style-image: url("chrome://browser/content/blocker/waterfoxShield.svg");
   width: 64px;
@@ -10,22 +10,213 @@
   margin-inline-end: 10px;
 }
 
-/* Toolbar button */
 #waterfox-blocker-toolbar-button {
   list-style-image: url("chrome://browser/content/blocker/waterfoxShield.svg");
 }
 
 #waterfox-blocker-toolbar-button[page-not-protectable] > .toolbarbutton-icon,
 #waterfox-blocker-toolbar-button[page-not-protectable] > .toolbarbutton-badge-stack > .toolbarbutton-icon {
-  opacity: 0.4;
+  opacity: 0.45;
 }
 
-/* Panel sizing — matches #protections-popup */
+/* Popup styling aligned with the original Waterfox blocker panel. */
 #waterfox-blocker-panel {
-  --popup-width: 30.81em;
+  --popup-width: 30em;
+  --wfb-page-color: var(--in-content-page-color, var(--panel-color, currentColor));
+  --wfb-box-background: var(--in-content-box-background, var(--panel-background, Canvas));
+  --wfb-border-color: var(--in-content-border-color, var(--panel-separator-color, color-mix(in srgb, currentColor 18%, transparent)));
+  --wfb-muted-color: var(--in-content-deemphasized-text, color-mix(in srgb, currentColor 65%, transparent));
+  --wfb-button-background: var(--in-content-button-background, color-mix(in srgb, currentColor 10%, transparent));
+  --wfb-button-background-hover: var(--in-content-button-background-hover, color-mix(in srgb, currentColor 16%, transparent));
+  --wfb-button-background-active: var(--in-content-button-background-active, color-mix(in srgb, currentColor 22%, transparent));
+  --wfb-button-text: var(--in-content-button-text-color, currentColor);
+  --wfb-button-radius: var(--in-content-button-border-radius, 6px);
+  --wfb-focus-color: var(--in-content-focus-outline-color, AccentColor);
   fill: currentColor;
-  --horizontal-padding: calc(var(--arrowpanel-menuitem-padding-inline) * 2);
-  --vertical-section-padding: 0.9em;
-  --height-offset: 0px;
   font: menu;
+}
+
+#waterfox-blocker-panel div.panel-subview-body {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+#waterfox-blocker-panel [hidden] {
+  display: none !important;
+}
+
+#waterfox-blocker-panel .wfb-header {
+  background: var(--wfb-box-background);
+  border-bottom: 1px solid var(--wfb-border-color);
+  color: var(--wfb-page-color);
+  display: grid;
+}
+
+#waterfox-blocker-panel .wfb-domain-bar {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 16px 1fr auto;
+  min-height: 2.2em;
+  padding: 10px 12px 8px;
+}
+
+#waterfox-blocker-panel .wfb-shield-icon {
+  background-image: url("chrome://browser/content/blocker/waterfoxShield.svg");
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  display: block;
+  height: 16px;
+  opacity: 0.9;
+  width: 16px;
+}
+
+#waterfox-blocker-panel .wfb-host-name {
+  font-size: 0.96em;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#waterfox-blocker-panel .wfb-settings-btn {
+  appearance: none;
+  background: var(--wfb-button-background);
+  border: 1px solid var(--wfb-border-color);
+  border-radius: var(--wfb-button-radius);
+  color: var(--wfb-button-text);
+  line-height: 1;
+  min-height: 1.9em;
+  min-width: 1.9em;
+  padding: 3px 6px;
+}
+
+#waterfox-blocker-panel .wfb-settings-btn::before {
+  content: "⚙";
+}
+
+#waterfox-blocker-panel .wfb-settings-btn:hover {
+  background: var(--wfb-button-background-hover);
+}
+
+#waterfox-blocker-panel .wfb-settings-btn:focus-visible {
+  outline: 2px solid var(--wfb-focus-color);
+  outline-offset: 1px;
+}
+
+#waterfox-blocker-panel .wfb-toggle-row {
+  padding: 0 12px 10px;
+}
+
+#waterfox-blocker-panel .wfb-toggle-row moz-toggle {
+  width: 100%;
+}
+
+#waterfox-blocker-panel .wfb-body {
+  display: grid;
+  gap: 0;
+  padding: 0;
+}
+
+#waterfox-blocker-panel hr.wfb-sep {
+  appearance: none;
+  background: var(--wfb-border-color);
+  border: 0;
+  height: 1px;
+  margin: 0;
+  width: 100%;
+}
+
+#waterfox-blocker-panel .wfb-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+#waterfox-blocker-panel .wfb-status-pill {
+  background: var(--wfb-button-background);
+  border: 1px solid var(--wfb-border-color);
+  border-radius: 999px;
+  color: var(--wfb-muted-color);
+  font-size: 0.78em;
+  padding: 2px 8px;
+}
+
+#waterfox-blocker-panel .wfb-status-pill--off {
+  opacity: 0.5;
+}
+
+#waterfox-blocker-panel .wfb-popup-shield-row {
+  align-items: center;
+  border-top: 1px solid var(--wfb-border-color);
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr auto;
+  padding: 10px 12px;
+}
+
+#waterfox-blocker-panel .wfb-popup-shield-text {
+  color: var(--wfb-page-color);
+  font-size: 0.9em;
+  min-width: 0;
+}
+
+#waterfox-blocker-panel .wfb-popup-open-btn {
+  appearance: none;
+  background: var(--wfb-button-background);
+  border: 1px solid var(--wfb-border-color);
+  border-radius: var(--wfb-button-radius);
+  color: var(--wfb-button-text);
+  font-size: 0.86em;
+  min-height: 2em;
+  padding: 5px 8px;
+}
+
+#waterfox-blocker-panel .wfb-popup-open-btn:hover {
+  background: var(--wfb-button-background-hover);
+}
+
+#waterfox-blocker-panel .wfb-popup-open-btn:active {
+  background: var(--wfb-button-background-active);
+}
+
+#waterfox-blocker-panel .wfb-tools-row {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+  padding: 10px 12px 12px;
+}
+
+#waterfox-blocker-panel .wfb-tool-btn {
+  appearance: none;
+  background: var(--wfb-button-background);
+  border: 1px solid var(--wfb-border-color);
+  border-radius: var(--wfb-button-radius);
+  color: var(--wfb-button-text);
+  font-size: 0.9em;
+  min-height: 2em;
+  padding: 6px 8px;
+  text-align: center;
+}
+
+#waterfox-blocker-panel .wfb-tool-btn:hover {
+  background: var(--wfb-button-background-hover);
+}
+
+#waterfox-blocker-panel .wfb-tool-btn:active {
+  background: var(--wfb-button-background-active);
+}
+
+#waterfox-blocker-panel .wfb-popup-open-btn:focus-visible,
+#waterfox-blocker-panel .wfb-tool-btn:focus-visible {
+  outline: 2px solid var(--wfb-focus-color);
+  outline-offset: 1px;
+}
+
+#waterfox-blocker-panel .wfb-tool-btn:disabled {
+  opacity: 0.45;
 }

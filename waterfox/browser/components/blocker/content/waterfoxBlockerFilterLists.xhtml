@@ -1,54 +1,123 @@
-<?xml version="1.0"?>
-
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this
    - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
-
-<?csp default-src chrome:; style-src chrome:; ?>
-
-<window
-  id="WaterfoxBlockerFilterListsWindow"
-  xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
-  xmlns:html="http://www.w3.org/1999/xhtml"
-  data-l10n-id="waterfox-blocker-filter-lists-window"
-  data-l10n-attrs="title"
-  persist="width height"
+<html
+  xmlns="http://www.w3.org/1999/xhtml"
+  id="waterfox-fl-page"
 >
-  <dialog
-    id="waterfoxBlockerFilterListsDialog"
-    buttons="accept,cancel"
-    data-l10n-id="waterfox-blocker-filter-lists-dialog"
-    data-l10n-attrs="buttonlabelaccept, buttonaccesskeyaccept"
-  >
-    <linkset>
-      <html:link rel="stylesheet" href="chrome://global/skin/global.css" />
-      <html:link
-        rel="stylesheet"
-        href="chrome://browser/skin/preferences/preferences.css"
-      />
-      <html:link
-        rel="stylesheet"
-        href="chrome://browser/content/blocker/waterfoxBlockerFilterLists.css"
-      />
+  <head>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src chrome:; img-src chrome: data:; object-src 'none'"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <title data-l10n-id="waterfox-blocker-filter-lists-window"></title>
+    <link rel="stylesheet" href="chrome://global/skin/global.css" />
+    <link rel="stylesheet" href="chrome://global/skin/in-content/common.css" />
+    <link
+      rel="stylesheet"
+      href="chrome://browser/skin/preferences/preferences.css"
+    />
+    <link
+      rel="stylesheet"
+      href="chrome://browser/content/blocker/aboutAdblocker.css"
+    />
+    <link
+      rel="stylesheet"
+      href="chrome://browser/content/blocker/waterfoxBlockerFilterLists.css"
+    />
+    <link rel="localization" href="browser/waterfox.ftl" />
+  </head>
+  <body id="waterfox-fl-body">
+    <div class="modal-inner" id="waterfox-fl-inner">
+      <div class="modal-header">
+        <h2
+          id="fl-dialog-title"
+          class="modal-title"
+          data-l10n-id="waterfox-blocker-filter-lists-window"
+        ></h2>
+      </div>
 
-      <html:link rel="localization" href="browser/waterfox.ftl" />
-    </linkset>
+      <div class="modal-body">
+        <p
+          class="modal-description"
+          data-l10n-id="waterfox-blocker-filter-lists-description"
+        ></p>
 
-    <script src="chrome://browser/content/preferences/dialogs/waterfoxBlockerFilterLists.js" />
+        <label
+          class="adblocker-subsection-title"
+          for="fl-custom-urls"
+          data-l10n-id="waterfox-blocker-filter-lists-custom-urls"
+        ></label>
+        <p
+          class="modal-hint"
+          data-l10n-id="waterfox-blocker-filter-lists-custom-urls-description"
+        ></p>
+        <textarea
+          id="fl-custom-urls"
+          class="adblocker-textarea"
+          rows="3"
+          data-l10n-id="waterfox-blocker-filter-lists-custom-urls-placeholder"
+          data-l10n-attrs="placeholder"
+        ></textarea>
+        <div id="fl-url-error" class="modal-error" hidden="hidden"></div>
 
-    <vbox class="contentPane" flex="1">
-      <label
-        id="waterfoxBlockerFilterListsDescription"
-        data-l10n-id="waterfox-blocker-filter-lists-description"
-      />
-      <separator class="thin" />
-      <vbox
-        id="waterfoxBlockerFilterListsScrollContainer"
-        class="info-box-container waterfox-blocker-scroll-container"
-        flex="1"
-      >
-        <vbox id="waterfoxBlockerFilterListsCategories" flex="1" />
-      </vbox>
-    </vbox>
-  </dialog>
-</window>
+        <label
+          class="adblocker-subsection-title"
+          for="fl-refresh-interval-hours"
+          data-l10n-id="waterfox-blocker-filter-lists-refresh"
+        ></label>
+        <p
+          class="modal-hint"
+          data-l10n-id="waterfox-blocker-filter-lists-refresh-description"
+        ></p>
+        <div class="modal-input-row fl-refresh-row">
+          <input
+            type="number"
+            id="fl-refresh-interval-hours"
+            class="adblocker-input fl-refresh-input"
+            min="1"
+            max="720"
+            step="1"
+          />
+          <span
+            class="modal-hint fl-refresh-unit"
+            data-l10n-id="waterfox-blocker-filter-lists-refresh-hours"
+          ></span>
+          <span class="modal-footer-spacer"></span>
+          <button
+            id="fl-refresh-now"
+            data-l10n-id="waterfox-blocker-filter-lists-refresh-now"
+          ></button>
+        </div>
+        <div
+          id="fl-refresh-status"
+          class="modal-refresh-status"
+          hidden="hidden"
+        ></div>
+
+        <span
+          class="adblocker-subsection-title"
+          data-l10n-id="waterfox-blocker-filter-lists-built-in"
+        ></span>
+        <div id="fl-categories" class="fl-categories"></div>
+      </div>
+
+      <div class="modal-footer">
+        <button
+          id="fl-cancel"
+          data-l10n-id="waterfox-blocker-filter-lists-cancel"
+        ></button>
+        <button
+          id="fl-save"
+          class="primary"
+          data-l10n-id="waterfox-adblocker-save-section"
+        ></button>
+      </div>
+    </div>
+
+    <script src="chrome://browser/content/preferences/dialogs/waterfoxBlockerFilterLists.js"></script>
+  </body>
+</html>
