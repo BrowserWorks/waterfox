@@ -1,0 +1,5 @@
+[DEFAULT]
+firefox-appdir = "browser"
+head = ""
+
+["test_native_alias_proxy.js"]
