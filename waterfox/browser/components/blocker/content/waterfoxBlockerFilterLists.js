@@ -7,35 +7,13 @@ const { WaterfoxBlockerService } = ChromeUtils.importESModule(
 );
 
 const PREF_ENABLED_LISTS = "waterfox.blocker.enabledLists";
-const PREF_UPDATE_INTERVAL_HOURS = "waterfox.blocker.updateIntervalHours";
+const PREF_LIST_REFRESH_INTERVAL_HOURS =
+  "waterfox.blocker.listRefreshIntervalHours";
+const DEFAULT_LIST_REFRESH_INTERVAL_HOURS = 168;
+const MIN_LIST_REFRESH_INTERVAL_HOURS = 1;
+const MAX_LIST_REFRESH_INTERVAL_HOURS = 720;
 
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
-function formatRelativeTime(ms) {
-  if (ms <= 0) {
-    return null;
-  }
-  const hours = Math.floor(ms / (60 * 60 * 1000));
-  if (hours < 1) {
-    return "< 1 hour";
-  }
-  if (hours < 24) {
-    return hours === 1 ? "1 hour" : `${hours} hours`;
-  }
-  const days = Math.floor(hours / 24);
-  return days === 1 ? "1 day" : `${days} days`;
-}
-
-const CATEGORY_ORDER = [
-  "core",
-  "privacy",
-  "annoyances",
-  "optional",
-  "regional",
-];
+const CATEGORY_ORDER = ["core", "privacy", "annoyances", "optional", "regional"];
 const EXPANDED_BY_DEFAULT = new Set(["core", "privacy", "annoyances"]);
 
 const CATEGORY_LABELS = Object.freeze({
@@ -54,96 +32,138 @@ const CATEGORY_L10N_IDS = Object.freeze({
   regional: "waterfox-blocker-filter-lists-category-regional",
 });
 
-function setLabelL10nAttributes(element, l10nId, args = null) {
-  if (!element || !l10nId) {
-    return;
-  }
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-  document.l10n.setAttributes(element, l10nId, args || undefined);
+function formatDateTime(timestamp) {
+  const value = Number(timestamp || 0);
+  if (!value) {
+    return "";
+  }
+  try {
+    return new Date(value).toLocaleString();
+  } catch (_) {
+    return "";
+  }
+}
+
+function formatDuration(ms) {
+  const value = Number(ms || 0);
+  if (!value) {
+    return "";
+  }
+  const hours = Math.max(1, Math.round(value / (60 * 60 * 1000)));
+  if (hours % 24 === 0) {
+    const days = hours / 24;
+    return `${days} ${days === 1 ? "day" : "days"}`;
+  }
+  return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+}
+
+function clampRefreshIntervalHours(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) {
+    return DEFAULT_LIST_REFRESH_INTERVAL_HOURS;
+  }
+  return Math.max(
+    MIN_LIST_REFRESH_INTERVAL_HOURS,
+    Math.min(MAX_LIST_REFRESH_INTERVAL_HOURS, Math.round(number))
+  );
 }
 
 function getCategoryKey(category) {
-  const key = String(category || "")
-    .trim()
-    .toLowerCase();
-  return key || "optional";
+  return String(category || "").trim().toLowerCase() || "optional";
 }
 
 function getCategoryLabelInfo(category) {
   const key = getCategoryKey(category);
   if (Object.hasOwn(CATEGORY_LABELS, key)) {
-    return {
-      fallback: CATEGORY_LABELS[key],
-      l10nId: CATEGORY_L10N_IDS[key],
-    };
+    return { fallback: CATEGORY_LABELS[key], l10nId: CATEGORY_L10N_IDS[key] };
   }
-
   return {
     fallback: key
       .split(/[-_ ]+/)
       .filter(Boolean)
-      .map(part => part[0].toUpperCase() + part.slice(1))
+      .map(p => p[0].toUpperCase() + p.slice(1))
       .join(" "),
     l10nId: "",
   };
 }
 
 function getCategorySortIndex(category) {
-  const key = getCategoryKey(category);
-  const index = CATEGORY_ORDER.indexOf(key);
+  const index = CATEGORY_ORDER.indexOf(getCategoryKey(category));
   return index === -1 ? 999 : index;
 }
 
-function createXULElement(tag, attrs = {}) {
-  const element = document.createXULElement(tag);
-  for (const [name, value] of Object.entries(attrs)) {
-    if (value !== undefined && value !== null) {
-      element.setAttribute(name, value);
-    }
+function getSourceHost(entry) {
+  const firstUrl = String(entry?.sources?.[0]?.url || "").trim();
+  if (!firstUrl) {
+    return "";
   }
-  return element;
+  try {
+    return new URL(firstUrl).hostname || firstUrl;
+  } catch (_) {}
+  try {
+    return Services.io.newURI(firstUrl).host || firstUrl;
+  } catch (_) {}
+  return (
+    firstUrl.match(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/([^/?#]+)/)?.[1] || firstUrl
+  );
 }
 
-/**
- * Manages the dialog for blocker filter lists.
- *
- * Loads list metadata from `WaterfoxBlockerService`, renders category sections
- * with toggles for each list, and saves enabled-state overrides when the
- * dialog is accepted.
- */
-var gWaterfoxBlockerFilterListsManager = {
-  _categorySections: new Map(),
+// ── Page manager ──────────────────────────────────────────────────────────────
+
+var gFilterListsPage = {
   _entries: [],
-  _prefLocked: false,
+  _enabledListsPrefLocked: false,
+  _refreshInProgress: false,
+  _refreshIntervalPrefLocked: false,
 
-  /**
-   * Called on `DOMContentLoaded` to set up the dialog UI.
-   */
-  onLoad() {
-    this._initialise().catch(err => {
-      console.error(
-        "[WaterfoxBlocker] Failed to initialise filter list dialog:",
-        err
-      );
-    });
-  },
-
-  async _initialise() {
-    this._categoriesContainer = document.getElementById(
-      "waterfoxBlockerFilterListsCategories"
+  init() {
+    this._enabledListsPrefLocked = Services.prefs.prefIsLocked(PREF_ENABLED_LISTS);
+    this._refreshIntervalPrefLocked = Services.prefs.prefIsLocked(
+      PREF_LIST_REFRESH_INTERVAL_HOURS
     );
 
-    this._prefLocked = Services.prefs.prefIsLocked(PREF_ENABLED_LISTS);
-    const acceptButton = document
-      .getElementById("waterfoxBlockerFilterListsDialog")
-      .getButton("accept");
-    acceptButton.disabled = this._prefLocked;
+    const refreshIntervalField = document.getElementById("fl-refresh-interval-hours");
+    refreshIntervalField.value = String(
+      clampRefreshIntervalHours(
+        Services.prefs.getIntPref(
+          PREF_LIST_REFRESH_INTERVAL_HOURS,
+          DEFAULT_LIST_REFRESH_INTERVAL_HOURS
+        )
+      )
+    );
+    refreshIntervalField.disabled = this._refreshIntervalPrefLocked;
 
-    this._entries = await this._loadEntries();
-    this._metadata = await this._loadMetadata();
-    this._buildSections();
-    this._initToolbar();
-    this._initSearch();
+    document.getElementById("fl-save").disabled =
+      this._enabledListsPrefLocked &&
+      this._refreshIntervalPrefLocked;
+
+    const categoriesContainer = document.getElementById("fl-categories");
+    categoriesContainer.replaceChildren();
+    const loading = document.createElement("p");
+    loading.className = "modal-loading";
+    loading.textContent = "\u2026";
+    categoriesContainer.appendChild(loading);
+
+    this._loadEntries().then(entries => {
+      this._entries = entries;
+      this._buildCategories();
+    });
+
+    this._wireEvents();
+  },
+
+  _wireEvents() {
+    document
+      .getElementById("fl-cancel")
+      ?.addEventListener("click", () => window.close());
+    document
+      .getElementById("fl-save")
+      ?.addEventListener("click", () => this.save());
+    document
+      .getElementById("fl-refresh-now")
+      ?.addEventListener("click", () => this._refreshListsNow());
   },
 
   async _loadEntries() {
@@ -153,47 +173,43 @@ var gWaterfoxBlockerFilterListsManager = {
     } catch (err) {
       console.error("[WaterfoxBlocker] Failed to load filter lists:", err);
     }
-
     if (!Array.isArray(catalog)) {
       return [];
     }
-
     return catalog
       .map(entry => ({
         category: getCategoryKey(entry.category),
         enabled: !!entry.enabled,
         id: String(entry.id || ""),
-        sourceUrl: String(entry.sources?.[0]?.url || ""),
-        sourceUrls: (entry.sources || []).map(s => s.url).filter(Boolean),
+        metadata: entry.metadata || null,
+        sourceHost: getSourceHost(entry),
         title: String(entry.title || entry.id || ""),
       }))
       .filter(entry => !!entry.id)
       .sort((a, b) => {
-        const aIndex = getCategorySortIndex(a.category);
-        const bIndex = getCategorySortIndex(b.category);
-        if (aIndex !== bIndex) {
-          return aIndex - bIndex;
+        const diff =
+          getCategorySortIndex(a.category) - getCategorySortIndex(b.category);
+        if (diff !== 0) {
+          return diff;
         }
-
         if (a.category !== b.category) {
           return a.category.localeCompare(b.category);
         }
-
         return a.title.localeCompare(b.title);
       });
   },
 
-  _buildSections() {
-    this._categoriesContainer.replaceChildren();
-    this._categorySections.clear();
+  _buildCategories() {
+    const container = document.getElementById("fl-categories");
+    container.replaceChildren();
 
     if (!this._entries.length) {
-      const emptyLabel = createXULElement("label");
-      setLabelL10nAttributes(
-        emptyLabel,
+      const empty = document.createElement("p");
+      document.l10n.setAttributes(
+        empty,
         "waterfox-blocker-filter-lists-empty-state"
       );
-      this._categoriesContainer.appendChild(emptyLabel);
+      container.appendChild(empty);
       return;
     }
 
@@ -206,327 +222,186 @@ var gWaterfoxBlockerFilterListsManager = {
     }
 
     const unknownCategories = [...grouped.keys()]
-      .filter(category => !CATEGORY_ORDER.includes(category))
+      .filter(cat => !CATEGORY_ORDER.includes(cat))
       .sort();
-    const orderedCategories = [...CATEGORY_ORDER, ...unknownCategories];
 
-    for (const category of orderedCategories) {
+    for (const category of [...CATEGORY_ORDER, ...unknownCategories]) {
       const entries = grouped.get(category);
       if (!entries?.length) {
         continue;
       }
-
-      const section = this._buildCategorySection(category, entries);
-      this._categorySections.set(category, section);
-      this._categoriesContainer.appendChild(section.container);
-      this._updateCategoryCounter(category);
+      container.appendChild(this._buildCategorySection(category, entries));
     }
   },
 
   _buildCategorySection(category, entries) {
-    const container = createXULElement("vbox", {
-      class: "waterfox-blocker-category",
-    });
+    const details = document.createElement("details");
+    details.className = "fl-category";
+    details.open = EXPANDED_BY_DEFAULT.has(category);
 
-    const header = createXULElement("hbox", {
-      align: "center",
-      "aria-expanded": "false",
-      class: "waterfox-blocker-category-header",
-      role: "button",
-      tabindex: "0",
-    });
+    const summary = document.createElement("summary");
+    summary.className = "fl-category-summary";
 
-    const twisty = createXULElement("image", {
-      class: "twisty",
-    });
-    header.appendChild(twisty);
+    const twisty = document.createElement("span");
+    twisty.className = "fl-category-twisty";
+    twisty.setAttribute("aria-hidden", "true");
+    summary.appendChild(twisty);
 
-    const categoryLabelInfo = getCategoryLabelInfo(category);
-    const categoryLabel = createXULElement("label", {
-      class: "waterfox-blocker-category-title",
-    });
-    if (categoryLabelInfo.l10nId) {
-      setLabelL10nAttributes(categoryLabel, categoryLabelInfo.l10nId);
+    const titleSpan = document.createElement("span");
+    titleSpan.className = "fl-category-title";
+    const labelInfo = getCategoryLabelInfo(category);
+    if (labelInfo.l10nId) {
+      document.l10n.setAttributes(titleSpan, labelInfo.l10nId);
     } else {
-      categoryLabel.setAttribute("value", categoryLabelInfo.fallback);
+      titleSpan.textContent = labelInfo.fallback;
     }
-    header.appendChild(categoryLabel);
+    summary.appendChild(titleSpan);
 
-    const counterLabel = createXULElement("label", {
-      class: "text-deemphasized waterfox-blocker-category-counter",
-      value: "0/0",
-    });
-    header.appendChild(counterLabel);
+    const counter = document.createElement("span");
+    counter.className = "fl-category-counter";
+    summary.appendChild(counter);
 
-    const headerSpacer = createXULElement("spacer", {
-      flex: "1",
-    });
-    header.appendChild(headerSpacer);
+    details.appendChild(summary);
 
-    container.appendChild(header);
-
-    const listContainer = createXULElement("vbox", {
-      class: "waterfox-blocker-category-lists",
-    });
-    container.appendChild(listContainer);
+    const listDiv = document.createElement("div");
+    listDiv.className = "fl-list";
 
     for (const entry of entries) {
-      const row = createXULElement("hbox", {
-        align: "center",
-        class: "waterfox-blocker-list-row",
-      });
+      const row = document.createElement("label");
+      row.className = "fl-list-row";
 
-      const textColumn = createXULElement("vbox", {
-        flex: "1",
-      });
+      const textDiv = document.createElement("div");
+      textDiv.className = "fl-list-text";
 
-      const titleRow = createXULElement("hbox", {
-        align: "center",
-      });
-      const titleLabel = createXULElement("label", {
-        value: entry.title,
-      });
-      titleRow.appendChild(titleLabel);
+      const titleEl = document.createElement("span");
+      titleEl.className = "fl-list-title";
+      titleEl.textContent = entry.title;
+      textDiv.appendChild(titleEl);
 
-      if (entry.sourceUrl) {
-        const linkIcon = createXULElement("image", {
-          class: "waterfox-blocker-list-link-icon",
-          tooltiptext: entry.sourceUrl,
-        });
-        linkIcon.addEventListener("click", () => {
-          const principal = Services.scriptSecurityManager.getSystemPrincipal();
-          const win = Services.wm.getMostRecentWindow("navigator:browser");
-          if (win) {
-            win.openWebLinkIn(entry.sourceUrl, "tab", {
-              triggeringPrincipal: principal,
-            });
-          }
-        });
-        titleRow.appendChild(linkIcon);
+      if (entry.sourceHost) {
+        const sourceEl = document.createElement("span");
+        sourceEl.className = "fl-list-source";
+        sourceEl.textContent = entry.sourceHost;
+        textDiv.appendChild(sourceEl);
       }
-      textColumn.appendChild(titleRow);
 
-      const lastUpdatedLabel = createXULElement("label", {
-        class: "text-deemphasized waterfox-blocker-list-updated",
+      const metadataText = this._formatEntryMetadata(entry);
+      if (metadataText) {
+        const metadataEl = document.createElement("span");
+        metadataEl.className = "fl-list-metadata";
+        metadataEl.textContent = metadataText;
+        textDiv.appendChild(metadataEl);
+      }
+
+      row.appendChild(textDiv);
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = entry.enabled;
+      checkbox.disabled = this._enabledListsPrefLocked;
+      checkbox.addEventListener("change", () => {
+        entry.enabled = checkbox.checked;
+        this._updateCounter(counter, entries);
       });
-      const metaEntry = this._getMetadataForEntry(entry);
-      this._setLastUpdatedText(lastUpdatedLabel, metaEntry);
-      textColumn.appendChild(lastUpdatedLabel);
-      entry._lastUpdatedLabel = lastUpdatedLabel;
+      row.appendChild(checkbox);
 
-      row.appendChild(textColumn);
-
-      const toggle = createXULElement("checkbox");
-      toggle.checked = !!entry.enabled;
-      toggle.disabled = this._prefLocked;
-      toggle.addEventListener("command", () => {
-        entry.enabled = !!toggle.checked;
-        this._updateCategoryCounter(category);
-      });
-      row.appendChild(toggle);
-      entry._row = row;
-
-      listContainer.appendChild(row);
+      listDiv.appendChild(row);
     }
 
-    const section = {
-      container,
-      counterLabel,
-      entries,
-      header,
-      listContainer,
-      twisty,
-    };
-
-    const expanded = EXPANDED_BY_DEFAULT.has(category);
-    this._setSectionExpanded(section, expanded);
-
-    const onToggle = () => {
-      const nextExpanded = listContainer.hasAttribute("hidden");
-      this._setSectionExpanded(section, nextExpanded);
-    };
-
-    header.addEventListener("click", onToggle);
-    header.addEventListener("keypress", event => {
-      if (event.key === " " || event.key === "Enter") {
-        onToggle();
-        event.preventDefault();
-      }
-    });
-
-    return section;
+    details.appendChild(listDiv);
+    this._updateCounter(counter, entries);
+    return details;
   },
 
-  _setSectionExpanded(section, expanded) {
-    section.listContainer.toggleAttribute("collapsed", !expanded);
-    section.listContainer.toggleAttribute("hidden", !expanded);
-    section.listContainer.style.display = expanded ? "" : "none";
-    section.header.setAttribute("aria-expanded", String(expanded));
-    section.twisty.classList.toggle("open", expanded);
+  _updateCounter(counterEl, entries) {
+    const enabled = entries.filter(e => e.enabled).length;
+    counterEl.textContent = `${enabled}\u200A/\u200A${entries.length}`;
   },
 
-  _updateCategoryCounter(category) {
-    const section = this._categorySections.get(category);
-    if (!section) {
+  _hideRefreshStatus() {
+    const el = document.getElementById("fl-refresh-status");
+    if (el) {
+      el.setAttribute("hidden", "hidden");
+      el.textContent = "";
+    }
+  },
+
+  _showRefreshStatus(l10nId) {
+    const el = document.getElementById("fl-refresh-status");
+    if (!el) {
       return;
     }
-
-    const totalCount = section.entries.length;
-    const enabledCount = section.entries.filter(
-      entry => !!entry.enabled
-    ).length;
-    section.counterLabel.setAttribute("value", `${enabledCount}/${totalCount}`);
+    el.removeAttribute("hidden");
+    document.l10n.setAttributes(el, l10nId);
   },
 
-  async _loadMetadata() {
+  _formatEntryMetadata(entry) {
+    const metadata = entry?.metadata;
+    if (!metadata) {
+      return "";
+    }
+    const parts = [];
+    const lastFetched = formatDateTime(metadata.lastFetched);
+    if (lastFetched) {
+      parts.push(`Last updated: ${lastFetched}`);
+    }
+    const expiresAt = formatDateTime(metadata.expiresAt);
+    if (expiresAt) {
+      parts.push(`Next refresh: ${expiresAt}`);
+    }
+    const refreshIntervals = (metadata.sourceMetadata || [])
+      .map(s => formatDuration(s.refreshAfterMs))
+      .filter(Boolean);
+    if (refreshIntervals.length) {
+      parts.push(`Cadence: ${refreshIntervals[0]}`);
+    }
+    return parts.join(" \u2022 ");
+  },
+
+  async _refreshListsNow() {
+    if (this._refreshInProgress) {
+      return;
+    }
+    const refreshButton = document.getElementById("fl-refresh-now");
+    this._refreshInProgress = true;
+    refreshButton.disabled = true;
+    this._showRefreshStatus("waterfox-blocker-filter-lists-refreshing");
     try {
-      const metaList = await WaterfoxBlockerService.getFilterListMetadata();
-      return new Map(metaList.map(m => [m.url, m]));
+      await WaterfoxBlockerService.refreshFilterLists();
+      this._entries = await this._loadEntries();
+      this._buildCategories();
+      this._showRefreshStatus("waterfox-blocker-filter-lists-refreshed");
     } catch (err) {
-      console.error("[WaterfoxBlocker] Failed to load metadata:", err);
-      return new Map();
-    }
-  },
-
-  _initToolbar() {
-    const menulist = document.getElementById("waterfoxBlockerRefreshInterval");
-    const currentHours = Services.prefs.getIntPref(
-      PREF_UPDATE_INTERVAL_HOURS,
-      0
-    );
-    menulist.value = String(currentHours);
-    menulist.addEventListener("command", () => {
-      Services.prefs.setIntPref(
-        PREF_UPDATE_INTERVAL_HOURS,
-        parseInt(menulist.value, 10)
-      );
-    });
-
-    const refreshButton = document.getElementById("waterfoxBlockerRefreshNow");
-    refreshButton.addEventListener("command", () => this._onRefreshNow());
-  },
-
-  _initSearch() {
-    const input = document.getElementById("waterfoxBlockerFilterListsSearch");
-    input.addEventListener("input", () => this._filterBySearch(input.value));
-  },
-
-  _filterBySearch(query) {
-    const terms = query.toLowerCase().trim();
-
-    for (const entry of this._entries) {
-      if (!entry._row) {
-        continue;
-      }
-      const match = !terms || entry.title.toLowerCase().includes(terms);
-      entry._row.style.display = match ? "" : "none";
-    }
-
-    for (const [, section] of this._categorySections) {
-      const visibleCount = section.entries.filter(
-        e => e._row && e._row.style.display !== "none"
-      ).length;
-      section.container.style.display = visibleCount ? "" : "none";
-
-      if (terms && visibleCount) {
-        this._setSectionExpanded(section, true);
-      }
-    }
-  },
-
-  async _onRefreshNow() {
-    const button = document.getElementById("waterfoxBlockerRefreshNow");
-    button.disabled = true;
-
-    try {
-      await WaterfoxBlockerService.refreshListsAndEngine();
-      this._metadata = await this._loadMetadata();
-      this._updateAllLastUpdatedLabels();
-    } catch (err) {
-      console.error("[WaterfoxBlocker] Manual refresh failed:", err);
+      console.error("[WaterfoxBlocker] Failed to refresh filter lists:", err);
+      this._showRefreshStatus("waterfox-blocker-filter-lists-refresh-failed");
     } finally {
-      button.disabled = false;
+      this._refreshInProgress = false;
+      refreshButton.disabled = false;
     }
   },
 
-  _getMetadataForEntry(entry) {
-    if (!this._metadata || !entry.sourceUrls) {
-      return null;
-    }
-    for (const url of entry.sourceUrls) {
-      const meta = this._metadata.get(url);
-      if (meta) {
-        return meta;
+  save() {
+    if (!this._enabledListsPrefLocked && this._entries.length) {
+      const nextState = {};
+      for (const entry of this._entries) {
+        nextState[entry.id] = !!entry.enabled;
       }
-    }
-    return null;
-  },
-
-  _setLastUpdatedText(label, metaEntry) {
-    if (!metaEntry?.lastFetched) {
-      setLabelL10nAttributes(
-        label,
-        "waterfox-blocker-filter-lists-never-updated"
-      );
-      return;
+      Services.prefs.setStringPref(PREF_ENABLED_LISTS, JSON.stringify(nextState));
     }
 
-    let text = `Updated ${DATE_FORMATTER.format(new Date(metaEntry.lastFetched))}`;
-    if (metaEntry.expiresAt) {
-      const relative = formatRelativeTime(metaEntry.expiresAt - Date.now());
-      text += relative ? ` · Next in ${relative}` : " · Refresh pending";
-    }
-    label.setAttribute("value", text);
-  },
-
-  _updateAllLastUpdatedLabels() {
-    for (const entry of this._entries) {
-      if (!entry._lastUpdatedLabel) {
-        continue;
-      }
-      this._setLastUpdatedText(
-        entry._lastUpdatedLabel,
-        this._getMetadataForEntry(entry)
+    if (!this._refreshIntervalPrefLocked) {
+      Services.prefs.setIntPref(
+        PREF_LIST_REFRESH_INTERVAL_HOURS,
+        clampRefreshIntervalHours(
+          document.getElementById("fl-refresh-interval-hours")?.value
+        )
       );
     }
-  },
 
-  /**
-   * Saves the current enabled state for each filter list.
-   *
-   * @returns {boolean} Always `true` to allow the dialog to close.
-   */
-  onDialogAccept() {
-    if (this._prefLocked) {
-      return true;
-    }
-
-    const nextState = {};
-    for (const entry of this._entries) {
-      nextState[entry.id] = !!entry.enabled;
-    }
-
-    Services.prefs.setStringPref(PREF_ENABLED_LISTS, JSON.stringify(nextState));
-    return true;
-  },
-
-  onDialogCancel() {
-    return true;
+    window.close();
   },
 };
 
 document.addEventListener("DOMContentLoaded", () => {
-  gWaterfoxBlockerFilterListsManager.onLoad();
-});
-
-document.addEventListener("dialogaccept", event => {
-  if (!gWaterfoxBlockerFilterListsManager.onDialogAccept()) {
-    event.preventDefault();
-  }
-});
-
-document.addEventListener("dialogcancel", event => {
-  if (!gWaterfoxBlockerFilterListsManager.onDialogCancel()) {
-    event.preventDefault();
-  }
+  gFilterListsPage.init();
 });

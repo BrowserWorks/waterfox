@@ -5,8 +5,11 @@
 const { AppConstants } = ChromeUtils.importESModule(
   "resource://gre/modules/AppConstants.sys.mjs"
 );
+const { WaterfoxShields } = ChromeUtils.importESModule(
+  "resource:///modules/WaterfoxShields.sys.mjs"
+);
 
-const PREF_BLOCKER_EXCEPTIONS = "waterfox.blocker.siteExceptions";
+const PREF_SHIELDS_SITE_SETTINGS = "waterfox.shields.siteSettings";
 
 /**
  * Normalises a domain string for preference storage and matching.
@@ -28,8 +31,9 @@ function normalizeDomain(input) {
  * Manages the blocker exceptions dialog.
  *
  * Keeps a set of normalised exception hostnames in memory, renders the list,
- * and saves changes to `waterfox.blocker.siteExceptions` when the dialog is
- * accepted.
+ * and saves changes through WaterfoxShields site settings when the dialog is
+ * accepted. This keeps the restored upstream dialog wired to the newer
+ * allowlist backend.
  */
 var gWaterfoxBlockerExceptionsManager = {
   _createExceptionListItem(exception) {
@@ -52,32 +56,17 @@ var gWaterfoxBlockerExceptionsManager = {
   },
   _exceptions: new Set(),
   _list: null,
+  _originalExceptions: new Set(),
 
   _loadExceptions() {
-    const exceptionsFromPref = Services.prefs.getStringPref(
-      PREF_BLOCKER_EXCEPTIONS,
-      "[]"
-    );
+    this._exceptions.clear();
+    this._originalExceptions.clear();
 
-    if (!exceptionsFromPref?.trim()) {
-      return;
-    }
-
-    let exceptions = [];
-    try {
-      const parsed = JSON.parse(exceptionsFromPref);
-      if (Array.isArray(parsed)) {
-        exceptions = parsed;
-      }
-    } catch (_) {
-      // Fallback for legacy/comma-separated values.
-      exceptions = exceptionsFromPref.trim().split(",");
-    }
-
-    for (const exception of exceptions) {
+    for (const exception of WaterfoxShields.getSiteAdBlockExceptions()) {
       const normalized = normalizeDomain(exception);
       if (normalized) {
         this._exceptions.add(normalized);
+        this._originalExceptions.add(normalized);
       }
     }
   },
@@ -298,7 +287,7 @@ var gWaterfoxBlockerExceptionsManager = {
 
     this._urlField.focus();
 
-    this._prefLocked = Services.prefs.prefIsLocked(PREF_BLOCKER_EXCEPTIONS);
+    this._prefLocked = Services.prefs.prefIsLocked(PREF_SHIELDS_SITE_SETTINGS);
 
     document.getElementById("exceptionDialog").getButton("accept").disabled =
       this._prefLocked;
@@ -317,19 +306,22 @@ var gWaterfoxBlockerExceptionsManager = {
   },
 
   /**
-   * Saves the in-memory exceptions set to preferences.
+   * Saves the in-memory exceptions set to WaterfoxShields site settings.
    */
   onApplyChanges() {
-    if (this._exceptions.size === 0) {
-      Services.prefs.setStringPref(PREF_BLOCKER_EXCEPTIONS, "[]");
+    if (this._prefLocked) {
       return;
     }
 
-    const exceptions = Array.from(this._exceptions.values());
-    Services.prefs.setStringPref(
-      PREF_BLOCKER_EXCEPTIONS,
-      JSON.stringify(exceptions)
-    );
+    for (const exception of this._originalExceptions.values()) {
+      if (!this._exceptions.has(exception)) {
+        WaterfoxShields.clearSiteAdBlockEnabled(exception);
+      }
+    }
+
+    for (const exception of this._exceptions.values()) {
+      WaterfoxShields.setSiteAdBlockEnabled(exception, false);
+    }
   },
 
   onExceptionDelete() {

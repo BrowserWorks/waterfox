@@ -8,3 +8,7 @@
   height: 64px;
   margin-inline-end: 10px;
 }
+
+#waterfoxBlockerGroup .waterfox-blocker-actions {
+  gap: 8px;
+}
