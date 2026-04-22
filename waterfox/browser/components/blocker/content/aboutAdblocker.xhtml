@@ -1,0 +1,526 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<html
+  xmlns="http://www.w3.org/1999/xhtml"
+  role="document"
+  id="preferences-root"
+>
+  <head>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src chrome:; img-src chrome: data:; object-src 'none'"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <title data-l10n-id="waterfox-adblocker-page-title"></title>
+    <link rel="stylesheet" href="chrome://global/skin/global.css" />
+    <link rel="stylesheet" href="chrome://global/skin/in-content/common.css" />
+    <link
+      rel="stylesheet"
+      href="chrome://browser/skin/preferences/preferences.css"
+    />
+    <link
+      rel="stylesheet"
+      href="chrome://browser/skin/preferences/privacy.css"
+    />
+    <link
+      rel="stylesheet"
+      href="chrome://browser/content/blocker/aboutAdblocker.css"
+    />
+    <link rel="localization" href="browser/waterfox.ftl" />
+    <link rel="localization" href="browser/preferences/preferences.ftl" />
+    <link rel="localization" href="browser/preferences/permissions.ftl" />
+    <link
+      rel="shortcut icon"
+      href="chrome://browser/content/blocker/waterfoxShield.svg"
+    />
+  </head>
+  <body id="preferences-body">
+
+    <div class="adblocker-layout">
+
+      <nav class="adblocker-nav" aria-label="Ad Blocking">
+        <div id="categories" class="adblocker-categories" role="listbox">
+          <a
+            id="category-general"
+            class="category selected"
+            href="#section-general"
+            role="option"
+            aria-selected="true"
+          >
+            <span class="category-icon"></span>
+            <span
+              class="category-name"
+              data-l10n-id="waterfox-adblocker-nav-general"
+            ></span>
+          </a>
+          <a
+            id="category-filter-lists"
+            class="category"
+            href="#section-filter-lists"
+            role="option"
+          >
+            <span class="category-icon"></span>
+            <span
+              class="category-name"
+              data-l10n-id="waterfox-adblocker-nav-filter-lists"
+            ></span>
+          </a>
+          <a
+            id="category-my-filters"
+            class="category"
+            href="#section-my-filters"
+            role="option"
+          >
+            <span class="category-icon"></span>
+            <span
+              class="category-name"
+              data-l10n-id="waterfox-adblocker-nav-custom-rules"
+            ></span>
+          </a>
+          <a
+            id="category-allowlist"
+            class="category"
+            href="#section-allowlist"
+            role="option"
+          >
+            <span class="category-icon"></span>
+            <span
+              class="category-name"
+              data-l10n-id="waterfox-adblocker-nav-allowlist"
+            ></span>
+          </a>
+          <a
+            id="category-privacy"
+            class="category"
+            href="#section-privacy"
+            role="option"
+          >
+            <span class="category-icon"></span>
+            <span
+              class="category-name"
+              data-l10n-id="waterfox-adblocker-nav-privacy"
+            ></span>
+          </a>
+        </div>
+
+        <div class="sidebar-footer-list">
+          <a class="sidebar-footer-link" href="about:preferences#privacy">
+            <span class="sidebar-footer-icon privacy-icon"></span>
+            <span
+              class="sidebar-footer-label"
+              data-l10n-id="pane-privacy-title"
+            ></span>
+          </a>
+          <a class="sidebar-footer-link" href="about:addons">
+            <span class="sidebar-footer-icon addons-icon"></span>
+            <span
+              class="sidebar-footer-label"
+              data-l10n-id="addons-button-label"
+            ></span>
+          </a>
+        </div>
+      </nav>
+
+      <main class="adblocker-main" role="main">
+        <div class="pane-container">
+          <div id="mainPrefPane">
+            <h1 data-l10n-id="waterfox-adblocker-page-heading"></h1>
+
+            <section
+              id="adblockerIntro"
+              class="adblocker-intro highlighting-group"
+            >
+              <img
+                class="adblocker-icon"
+                src="chrome://browser/content/blocker/waterfoxShield.svg"
+                alt=""
+              />
+              <p
+                class="description-with-side-element"
+                data-l10n-id="waterfox-adblocker-page-description"
+              ></p>
+            </section>
+
+            <section class="adblocker-section" id="section-general">
+              <h2 data-l10n-id="waterfox-adblocker-general-heading"></h2>
+              <p
+                class="description-deemphasized"
+                data-l10n-id="waterfox-adblocker-general-description"
+              ></p>
+
+              <div class="adblocker-setting info-box-container">
+                <label>
+                  <input type="checkbox" id="adblocker-enabled" />
+                  <span
+                    data-l10n-id="waterfox-adblocker-general-enabled"
+                  ></span>
+                </label>
+              </div>
+              <div class="adblocker-setting info-box-container">
+                <label>
+                  <input type="checkbox" id="adblocker-search-partner" />
+                  <span
+                    data-l10n-id="waterfox-adblocker-general-search-partner"
+                  ></span>
+                </label>
+              </div>
+              <div class="adblocker-setting info-box-container">
+                <label>
+                  <input type="checkbox" id="adblocker-show-badge" />
+                  <span
+                    data-l10n-id="waterfox-adblocker-general-show-badge"
+                  ></span>
+                </label>
+              </div>
+              <div class="adblocker-setting info-box-container">
+                <label>
+                  <input type="checkbox" id="adblocker-cname" />
+                  <span
+                    data-l10n-id="waterfox-adblocker-general-cname"
+                  ></span>
+                </label>
+              </div>
+
+              <div class="adblocker-save-row">
+                <button
+                  id="save-general"
+                  class="primary"
+                  data-l10n-id="waterfox-adblocker-save-section"
+                ></button>
+                <span
+                  id="status-general"
+                  class="adblocker-status-inline"
+                  hidden="hidden"
+                ></span>
+              </div>
+            </section>
+
+            <section class="adblocker-section" id="section-filter-lists">
+              <h2 data-l10n-id="waterfox-adblocker-filter-lists-heading"></h2>
+              <p
+                class="description-deemphasized"
+                data-l10n-id="waterfox-adblocker-filter-lists-description"
+              ></p>
+
+              <div class="adblocker-open-btn-row">
+                <button
+                  id="open-filter-lists"
+                  data-l10n-id="waterfox-adblocker-open-filter-lists"
+                ></button>
+              </div>
+
+              <label
+                class="adblocker-subsection-title"
+                for="filter-list-urls"
+                data-l10n-id="waterfox-adblocker-filter-list-urls-label"
+              ></label>
+              <textarea
+                class="adblocker-textarea"
+                id="filter-list-urls"
+                rows="5"
+              ></textarea>
+
+              <div class="adblocker-save-row">
+                <button
+                  id="save-filter-lists"
+                  class="primary"
+                  data-l10n-id="waterfox-adblocker-save-section"
+                ></button>
+                <span
+                  id="status-filter-lists"
+                  class="adblocker-status-inline"
+                  hidden="hidden"
+                ></span>
+              </div>
+            </section>
+
+            <section class="adblocker-section" id="section-my-filters">
+              <h2 data-l10n-id="waterfox-adblocker-my-filters-heading"></h2>
+              <p
+                class="description-deemphasized"
+                data-l10n-id="waterfox-adblocker-my-filters-description"
+              ></p>
+
+              <label
+                class="adblocker-subsection-title"
+                for="custom-rules"
+                data-l10n-id="waterfox-adblocker-custom-rules-label"
+              ></label>
+              <textarea
+                class="adblocker-textarea adblocker-rules-textarea"
+                id="custom-rules"
+                rows="10"
+              ></textarea>
+
+              <div class="adblocker-save-row">
+                <button
+                  id="save-my-filters"
+                  class="primary"
+                  data-l10n-id="waterfox-adblocker-save-section"
+                ></button>
+                <span
+                  id="status-my-filters"
+                  class="adblocker-status-inline"
+                  hidden="hidden"
+                ></span>
+              </div>
+            </section>
+
+            <section class="adblocker-section" id="section-allowlist">
+              <h2 data-l10n-id="waterfox-adblocker-allowlist-heading"></h2>
+              <p
+                class="description-deemphasized"
+                data-l10n-id="waterfox-adblocker-allowlist-description"
+              ></p>
+
+              <label
+                class="adblocker-subsection-title"
+                for="allowlist-input"
+                data-l10n-id="waterfox-adblocker-allowlist-label"
+              ></label>
+              <div
+                class="adblocker-allowlist-list"
+                id="allowlist-sites"
+                hidden="hidden"
+              ></div>
+
+              <div class="adblocker-allowlist-input-row">
+                <input
+                  type="text"
+                  class="adblocker-input"
+                  id="allowlist-input"
+                  data-l10n-id="waterfox-blocker-allowlist-placeholder"
+                  data-l10n-attrs="placeholder"
+                />
+                <button id="allowlist-add" class="primary">+</button>
+              </div>
+
+              <div class="adblocker-allowlist-status-row">
+                <span
+                  id="status-allowlist"
+                  class="adblocker-status-inline"
+                  hidden="hidden"
+                ></span>
+              </div>
+            </section>
+
+            <section class="adblocker-section" id="section-privacy">
+              <h2 data-l10n-id="waterfox-shields-fingerprinting-header"></h2>
+              <p
+                class="description-deemphasized"
+                data-l10n-id="waterfox-shields-fingerprinting-desc"
+              ></p>
+
+              <div
+                class="adblocker-setting info-box-container shields-radio-group"
+              >
+                <label class="shields-radio-label">
+                  <input
+                    type="radio"
+                    name="fingerprinting"
+                    id="shields-fp-off"
+                    value="0"
+                  />
+                  <span
+                    data-l10n-id="waterfox-shields-fingerprinting-off"
+                  ></span>
+                </label>
+                <label class="shields-radio-label">
+                  <input
+                    type="radio"
+                    name="fingerprinting"
+                    id="shields-fp-standard"
+                    value="1"
+                  />
+                  <span
+                    data-l10n-id="waterfox-shields-fingerprinting-standard"
+                  ></span>
+                </label>
+                <label class="shields-radio-label">
+                  <input
+                    type="radio"
+                    name="fingerprinting"
+                    id="shields-fp-strict"
+                    value="2"
+                  />
+                  <span
+                    data-l10n-id="waterfox-shields-fingerprinting-strict"
+                  ></span>
+                </label>
+              </div>
+
+              <h2 data-l10n-id="waterfox-shields-language-header"></h2>
+              <p
+                class="description-deemphasized"
+                data-l10n-id="waterfox-shields-language-desc"
+              ></p>
+
+              <div
+                class="adblocker-setting info-box-container shields-radio-group"
+              >
+                <label class="shields-radio-label">
+                  <input
+                    type="radio"
+                    name="languageReduction"
+                    id="shields-lang-off"
+                    value="0"
+                  />
+                  <span data-l10n-id="waterfox-shields-language-off"></span>
+                </label>
+                <label class="shields-radio-label">
+                  <input
+                    type="radio"
+                    name="languageReduction"
+                    id="shields-lang-standard"
+                    value="1"
+                  />
+                  <span
+                    data-l10n-id="waterfox-shields-language-standard"
+                  ></span>
+                </label>
+                <label class="shields-radio-label">
+                  <input
+                    type="radio"
+                    name="languageReduction"
+                    id="shields-lang-strict"
+                    value="2"
+                  />
+                  <span
+                    data-l10n-id="waterfox-shields-language-strict"
+                  ></span>
+                </label>
+              </div>
+
+              <h2 data-l10n-id="waterfox-shields-javascript-header"></h2>
+              <p
+                class="description-deemphasized"
+                data-l10n-id="waterfox-shields-javascript-desc"
+              ></p>
+
+              <div
+                class="adblocker-setting info-box-container shields-radio-group"
+              >
+                <label class="shields-radio-label">
+                  <input
+                    type="radio"
+                    name="javascript"
+                    id="shields-javascript-allow"
+                    value="1"
+                  />
+                  <span
+                    data-l10n-id="waterfox-shields-javascript-allow"
+                  ></span>
+                </label>
+                <label class="shields-radio-label">
+                  <input
+                    type="radio"
+                    name="javascript"
+                    id="shields-javascript-block"
+                    value="0"
+                  />
+                  <span
+                    data-l10n-id="waterfox-shields-javascript-block"
+                  ></span>
+                </label>
+              </div>
+
+              <div class="adblocker-save-row">
+                <button
+                  id="save-privacy"
+                  class="primary"
+                  data-l10n-id="waterfox-adblocker-save-section"
+                ></button>
+                <span
+                  id="status-privacy"
+                  class="adblocker-status-inline"
+                  hidden="hidden"
+                ></span>
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+
+    </div>
+
+    <dialog
+      id="fl-dialog"
+      class="adblocker-modal"
+      aria-labelledby="fl-dialog-title"
+    >
+      <div class="modal-inner">
+        <div class="modal-header">
+          <h2
+            id="fl-dialog-title"
+            class="modal-title"
+            data-l10n-id="waterfox-blocker-filter-lists-window"
+          ></h2>
+          <button class="modal-close" id="fl-close" aria-label="Close">
+            x
+          </button>
+        </div>
+
+        <div class="modal-body">
+          <p
+            class="modal-description"
+            data-l10n-id="waterfox-blocker-filter-lists-description"
+          ></p>
+
+          <label
+            class="adblocker-subsection-title"
+            for="fl-refresh-interval-hours"
+            data-l10n-id="waterfox-blocker-filter-lists-refresh"
+          ></label>
+          <p
+            class="modal-hint"
+            data-l10n-id="waterfox-blocker-filter-lists-refresh-description"
+          ></p>
+          <div class="modal-input-row fl-refresh-row">
+            <input
+              type="number"
+              id="fl-refresh-interval-hours"
+              class="adblocker-input fl-refresh-input"
+              min="1"
+              max="720"
+              step="1"
+            />
+            <span
+              class="modal-hint fl-refresh-unit"
+              data-l10n-id="waterfox-blocker-filter-lists-refresh-hours"
+            ></span>
+            <span class="modal-footer-spacer"></span>
+            <button
+              id="fl-refresh-now"
+              data-l10n-id="waterfox-blocker-filter-lists-refresh-now"
+            ></button>
+          </div>
+          <div
+            id="fl-refresh-status"
+            class="modal-refresh-status"
+            hidden="hidden"
+          ></div>
+
+          <span
+            class="adblocker-subsection-title"
+            data-l10n-id="waterfox-blocker-filter-lists-built-in"
+          ></span>
+          <div id="fl-categories" class="fl-categories"></div>
+        </div>
+
+        <div class="modal-footer">
+          <button id="fl-cancel">Cancel</button>
+          <button
+            id="fl-save"
+            class="primary"
+            data-l10n-id="waterfox-adblocker-save-section"
+          ></button>
+        </div>
+      </div>
+    </dialog>
+
+    <script src="chrome://browser/content/blocker/aboutAdblocker.mjs"></script>
+  </body>
+</html>
