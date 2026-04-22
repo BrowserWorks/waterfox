@@ -7,7 +7,6 @@ const { WaterfoxBlockerService } = ChromeUtils.importESModule(
 );
 
 const PREF_ENABLED_LISTS = "waterfox.blocker.enabledLists";
-const PREF_FILTER_LIST_URLS = "waterfox.blocker.filterListUrls";
 const PREF_LIST_REFRESH_INTERVAL_HOURS =
   "waterfox.blocker.listRefreshIntervalHours";
 const DEFAULT_LIST_REFRESH_INTERVAL_HOURS = 168;
@@ -34,52 +33,6 @@ const CATEGORY_L10N_IDS = Object.freeze({
 });
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-function getCustomFilterListUrls() {
-  const raw = Services.prefs.getStringPref(PREF_FILTER_LIST_URLS, "");
-  if (!raw) {
-    return [];
-  }
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) {
-      return parsed.filter(Boolean);
-    }
-  } catch (_) {}
-  return raw.split(/[,\n\r]+/).filter(Boolean);
-}
-
-function normalizeCustomFilterListUrls(values) {
-  const urls = [];
-  const invalid = [];
-  const seen = new Set();
-  for (const value of values) {
-    const candidate = String(value || "").trim();
-    if (!candidate) {
-      continue;
-    }
-    let parsed;
-    try {
-      parsed = new URL(candidate);
-    } catch (_) {
-      invalid.push(candidate);
-      continue;
-    }
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      invalid.push(candidate);
-      continue;
-    }
-    if (seen.has(parsed.href)) {
-      continue;
-    }
-    seen.add(parsed.href);
-    urls.push(parsed.href);
-    if (urls.length >= 100) {
-      break;
-    }
-  }
-  return { invalid, urls };
-}
 
 function formatDateTime(timestamp) {
   const value = Number(timestamp || 0);
@@ -161,21 +114,15 @@ function getSourceHost(entry) {
 
 var gFilterListsPage = {
   _entries: [],
-  _customUrlsPrefLocked: false,
   _enabledListsPrefLocked: false,
   _refreshInProgress: false,
   _refreshIntervalPrefLocked: false,
 
   init() {
-    this._customUrlsPrefLocked = Services.prefs.prefIsLocked(PREF_FILTER_LIST_URLS);
     this._enabledListsPrefLocked = Services.prefs.prefIsLocked(PREF_ENABLED_LISTS);
     this._refreshIntervalPrefLocked = Services.prefs.prefIsLocked(
       PREF_LIST_REFRESH_INTERVAL_HOURS
     );
-
-    const urlsField = document.getElementById("fl-custom-urls");
-    urlsField.value = getCustomFilterListUrls().join("\n");
-    urlsField.disabled = this._customUrlsPrefLocked;
 
     const refreshIntervalField = document.getElementById("fl-refresh-interval-hours");
     refreshIntervalField.value = String(
@@ -189,7 +136,6 @@ var gFilterListsPage = {
     refreshIntervalField.disabled = this._refreshIntervalPrefLocked;
 
     document.getElementById("fl-save").disabled =
-      this._customUrlsPrefLocked &&
       this._enabledListsPrefLocked &&
       this._refreshIntervalPrefLocked;
 
@@ -372,22 +318,6 @@ var gFilterListsPage = {
     counterEl.textContent = `${enabled}\u200A/\u200A${entries.length}`;
   },
 
-  _hideError() {
-    const el = document.getElementById("fl-url-error");
-    if (el) {
-      el.setAttribute("hidden", "hidden");
-      el.textContent = "";
-    }
-  },
-
-  _showError(message) {
-    const el = document.getElementById("fl-url-error");
-    if (el) {
-      el.removeAttribute("hidden");
-      el.textContent = message;
-    }
-  },
-
   _hideRefreshStatus() {
     const el = document.getElementById("fl-refresh-status");
     if (el) {
@@ -451,48 +381,12 @@ var gFilterListsPage = {
   },
 
   save() {
-    this._hideError();
-
-    let customUrls = null;
-    if (!this._customUrlsPrefLocked) {
-      const urlsField = document.getElementById("fl-custom-urls");
-      const { invalid, urls } = normalizeCustomFilterListUrls(
-        urlsField.value.split(/\r?\n/)
-      );
-      if (invalid.length) {
-        document.l10n
-          .formatValues([
-            { id: "waterfox-blocker-filter-lists-invalid-url-title" },
-            {
-              id: "waterfox-blocker-filter-lists-invalid-url-message",
-              args: { urls: invalid.slice(0, 5).join("\n") },
-            },
-          ])
-          .then(([_title, message]) => this._showError(message))
-          .catch(() =>
-            this._showError(
-              `Use only HTTP/HTTPS URLs. Could not save:\n${invalid.slice(0, 5).join("\n")}`
-            )
-          );
-        urlsField.focus();
-        return;
-      }
-      customUrls = urls;
-    }
-
     if (!this._enabledListsPrefLocked && this._entries.length) {
       const nextState = {};
       for (const entry of this._entries) {
         nextState[entry.id] = !!entry.enabled;
       }
       Services.prefs.setStringPref(PREF_ENABLED_LISTS, JSON.stringify(nextState));
-    }
-
-    if (customUrls !== null) {
-      Services.prefs.setStringPref(
-        PREF_FILTER_LIST_URLS,
-        JSON.stringify(customUrls)
-      );
     }
 
     if (!this._refreshIntervalPrefLocked) {

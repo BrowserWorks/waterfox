@@ -25,6 +25,7 @@ const PREF_SHOW_BADGE = "waterfox.blocker.showBadge";
 const PREF_CNAME_UNCLOAKING = "waterfox.blocker.cnameUncloaking";
 const PREF_FILTER_LIST_URLS = "waterfox.blocker.filterListUrls";
 const PREF_CUSTOM_RULES = "waterfox.blocker.customRules";
+const PREF_SITE_EXCEPTIONS = "waterfox.blocker.siteExceptions";
 
 const BOUND_ATTR = "data-waterfox-blocker-bound";
 const PREF_LISTENERS_ATTR = "data-waterfox-blocker-pref-listeners";
@@ -141,12 +142,12 @@ export const WaterfoxBlockerPreferences = {
 
   _collectControls(document, group) {
     return {
-      allowlistButton: document.getElementById("waterfoxBlockerAllowlist"),
       customFilterListsButton: document.getElementById(
         "waterfoxBlockerCustomFilterLists"
       ),
       filterListsButton: document.getElementById("waterfoxBlockerFilterLists"),
       customRulesButton: document.getElementById("waterfoxBlockerCustomRules"),
+      exceptionsButton: document.getElementById("waterfoxBlockerExceptions"),
       group,
       modeRadioGroup: document.getElementById("waterfoxBlockerModeRadioGroup"),
       offOptionBox: document.getElementById("waterfoxBlockerOptionOff"),
@@ -184,9 +185,10 @@ export const WaterfoxBlockerPreferences = {
       controls.searchPartnerMode &&
       controls.cnameUncloakingCheckbox &&
       controls.showBadgeCheckbox &&
-      controls.allowlistButton &&
+      controls.customFilterListsButton &&
       controls.filterListsButton &&
       controls.customRulesButton &&
+      controls.exceptionsButton &&
       controls.thirdPartyNotice &&
       controls.thirdPartyNoticeDescription
     );
@@ -212,26 +214,37 @@ export const WaterfoxBlockerPreferences = {
     head.appendChild(link);
   },
 
-  _openAllowlistDialog(win) {
+  _openExceptionsDialog(win) {
     const url =
-      "chrome://browser/content/preferences/dialogs/waterfoxBlockerAllowlist.xhtml";
+      "chrome://browser/content/preferences/dialogs/waterfoxBlockerExceptions.xhtml";
+    const dialogName = "WaterfoxBlockerExceptionsDialog";
+    const dialogFeatures = "resizable,chrome,modal,titlebar,centerscreen";
+    const params = {
+      origin: "waterfox-blocker-exceptions",
+      prefName: PREF_SITE_EXCEPTIONS,
+    };
 
     try {
       if (typeof win?.gSubDialog?.open === "function") {
-        win.gSubDialog.open(url, "resizable=yes");
+        win.gSubDialog.open(url, undefined, params);
         return;
       }
     } catch (_) {}
 
-    const browserWin =
-      Services.wm.getMostRecentWindow("navigator:browser") || win;
-    try {
-      browserWin.openDialog(
-        url,
-        "WaterfoxBlockerAllowlistDialog",
-        "chrome,centerscreen,titlebar,resizable"
-      );
-    } catch (_) {}
+    const candidateHosts = [
+      win,
+      Services.wm.getMostRecentWindow("navigator:browser"),
+      Services.appShell?.hiddenDOMWindow,
+    ];
+
+    for (const host of candidateHosts) {
+      try {
+        if (typeof host?.openDialog === "function") {
+          host.openDialog(url, dialogName, dialogFeatures, params);
+          return;
+        }
+      } catch (_) {}
+    }
   },
 
   _openFilterListsDialog(win) {
@@ -404,10 +417,10 @@ export const WaterfoxBlockerPreferences = {
       searchPartnerMode,
       cnameUncloakingCheckbox,
       showBadgeCheckbox,
-      allowlistButton,
       customFilterListsButton,
       filterListsButton,
       customRulesButton,
+      exceptionsButton,
       onDetails,
     } = controls;
 
@@ -543,13 +556,13 @@ export const WaterfoxBlockerPreferences = {
       cnameUncloakingCheckbox.setAttribute(BOUND_ATTR, "true");
     }
 
-    if (!allowlistButton.hasAttribute(BOUND_ATTR)) {
-      allowlistButton.addEventListener("command", event => {
+    if (!exceptionsButton.hasAttribute(BOUND_ATTR)) {
+      exceptionsButton.addEventListener("command", event => {
         event.preventDefault();
         event.stopPropagation();
-        this._openAllowlistDialog(win);
+        this._openExceptionsDialog(win);
       });
-      allowlistButton.setAttribute(BOUND_ATTR, "true");
+      exceptionsButton.setAttribute(BOUND_ATTR, "true");
     }
 
     if (!filterListsButton.hasAttribute(BOUND_ATTR)) {
@@ -561,10 +574,7 @@ export const WaterfoxBlockerPreferences = {
       filterListsButton.setAttribute(BOUND_ATTR, "true");
     }
 
-    if (
-      customFilterListsButton &&
-      !customFilterListsButton.hasAttribute(BOUND_ATTR)
-    ) {
+    if (!customFilterListsButton.hasAttribute(BOUND_ATTR)) {
       customFilterListsButton.addEventListener("command", event => {
         event.preventDefault();
         event.stopPropagation();

@@ -72,13 +72,53 @@ function getCustomFilterListUrls() {
   if (!raw) {
     return [];
   }
+
+  let values = [];
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      return parsed.filter(Boolean);
+      values = parsed;
     }
   } catch (_) {}
-  return raw.split(/[,\n\r]+/).filter(Boolean);
+
+  if (!values.length) {
+    values = raw.split(/[,\n\r]+/);
+  }
+
+  const urls = [];
+  const seen = new Set();
+  for (const value of values) {
+    const normalized = normalizeCustomFilterListUrl(value);
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    urls.push(normalized);
+    if (urls.length >= 100) {
+      break;
+    }
+  }
+  return urls;
+}
+
+function normalizeCustomFilterListUrl(input) {
+  let value = String(input || "").trim();
+  if (!value) {
+    return "";
+  }
+
+  if (!value.startsWith("http:") && !value.startsWith("https:")) {
+    value = `https://${value}`;
+  }
+
+  try {
+    const url = new URL(value);
+    if (url.protocol === "https:" || url.protocol === "http:") {
+      return url.href;
+    }
+  } catch (_) {}
+
+  return "";
 }
 
 function normalizeCustomFilterListUrls(values) {
@@ -91,22 +131,16 @@ function normalizeCustomFilterListUrls(values) {
     if (!candidate) {
       continue;
     }
-    let parsed;
-    try {
-      parsed = new URL(candidate);
-    } catch (_) {
+    const normalized = normalizeCustomFilterListUrl(candidate);
+    if (!normalized) {
       invalid.push(candidate);
       continue;
     }
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-      invalid.push(candidate);
+    if (seen.has(normalized)) {
       continue;
     }
-    if (seen.has(parsed.href)) {
-      continue;
-    }
-    seen.add(parsed.href);
-    urls.push(parsed.href);
+    seen.add(normalized);
+    urls.push(normalized);
     if (urls.length >= 100) {
       break;
     }
@@ -233,7 +267,6 @@ function showStatus(elementId, l10nId, args = null) {
 var gFilterListsDialog = {
   /** @type {Array} In-memory filter list entries with mutable `enabled` field. */
   _entries: [],
-  _customUrlsPrefLocked: false,
   _enabledListsPrefLocked: false,
   _refreshInProgress: false,
   _refreshIntervalPrefLocked: false,
@@ -244,19 +277,11 @@ var gFilterListsDialog = {
       return;
     }
 
-    this._customUrlsPrefLocked = Services.prefs.prefIsLocked(
-      PREF_FILTER_LIST_URLS
-    );
     this._enabledListsPrefLocked =
       Services.prefs.prefIsLocked(PREF_ENABLED_LISTS);
     this._refreshIntervalPrefLocked = Services.prefs.prefIsLocked(
       PREF_LIST_REFRESH_INTERVAL_HOURS
     );
-
-    // Populate fields from current pref values.
-    const urlsField = document.getElementById("fl-custom-urls");
-    urlsField.value = getCustomFilterListUrls().join("\n");
-    urlsField.disabled = this._customUrlsPrefLocked;
 
     const refreshIntervalField = document.getElementById(
       "fl-refresh-interval-hours"
@@ -272,11 +297,9 @@ var gFilterListsDialog = {
     refreshIntervalField.disabled = this._refreshIntervalPrefLocked;
 
     document.getElementById("fl-save").disabled =
-      this._customUrlsPrefLocked &&
       this._enabledListsPrefLocked &&
       this._refreshIntervalPrefLocked;
 
-    this._hideError();
     this._hideRefreshStatus();
 
     // Load catalog asynchronously and build the category list.
@@ -453,22 +476,6 @@ var gFilterListsDialog = {
     counterEl.textContent = `${enabled}\u200A/\u200A${entries.length}`;
   },
 
-  _hideError() {
-    const el = document.getElementById("fl-url-error");
-    if (el) {
-      el.setAttribute("hidden", "hidden");
-      el.textContent = "";
-    }
-  },
-
-  _showError(message) {
-    const el = document.getElementById("fl-url-error");
-    if (el) {
-      el.removeAttribute("hidden");
-      el.textContent = message;
-    }
-  },
-
   _hideRefreshStatus() {
     const el = document.getElementById("fl-refresh-status");
     if (el) {
@@ -538,37 +545,6 @@ var gFilterListsDialog = {
   },
 
   save() {
-    this._hideError();
-
-    // Validate and collect custom URL list.
-    let customUrls = null;
-    if (!this._customUrlsPrefLocked) {
-      const urlsField = document.getElementById("fl-custom-urls");
-      const { invalid, urls } = normalizeCustomFilterListUrls(
-        urlsField.value.split(/\r?\n/)
-      );
-      if (invalid.length) {
-        // Resolve the error message asynchronously and display inline.
-        document.l10n
-          .formatValues([
-            { id: "waterfox-blocker-filter-lists-invalid-url-title" },
-            {
-              id: "waterfox-blocker-filter-lists-invalid-url-message",
-              args: { urls: invalid.slice(0, 5).join("\n") },
-            },
-          ])
-          .then(([_title, message]) => this._showError(message))
-          .catch(() =>
-            this._showError(
-              `Use only HTTP/HTTPS URLs. Could not save:\n${invalid.slice(0, 5).join("\n")}`
-            )
-          );
-        urlsField.focus();
-        return;
-      }
-      customUrls = urls;
-    }
-
     // Persist enabled-lists state.
     if (!this._enabledListsPrefLocked && this._entries.length) {
       const nextState = {};
@@ -578,13 +554,6 @@ var gFilterListsDialog = {
       Services.prefs.setStringPref(
         PREF_ENABLED_LISTS,
         JSON.stringify(nextState)
-      );
-    }
-
-    if (customUrls !== null) {
-      Services.prefs.setStringPref(
-        PREF_FILTER_LIST_URLS,
-        JSON.stringify(customUrls)
       );
     }
 
@@ -598,9 +567,6 @@ var gFilterListsDialog = {
     }
 
     this.close();
-
-    // Sync main-page fields.
-    gAdblockerPage._loadFilterListUrls();
   },
 
   _wireEvents() {
@@ -683,6 +649,7 @@ var gAdblockerPage = {
       PREF_ALLOW_SEARCH_PARTNER_ADS,
       PREF_SHOW_BADGE,
       PREF_CNAME_UNCLOAKING,
+      PREF_FILTER_LIST_URLS,
       PREF_SHIELDS_FINGERPRINTING,
       PREF_SHIELDS_JAVASCRIPT,
       PREF_SHIELDS_LANGUAGE_REDUCTION,
@@ -703,6 +670,7 @@ var gAdblockerPage = {
       PREF_ALLOW_SEARCH_PARTNER_ADS,
       PREF_SHOW_BADGE,
       PREF_CNAME_UNCLOAKING,
+      PREF_FILTER_LIST_URLS,
       PREF_SHIELDS_FINGERPRINTING,
       PREF_SHIELDS_JAVASCRIPT,
       PREF_SHIELDS_LANGUAGE_REDUCTION,
@@ -726,6 +694,10 @@ var gAdblockerPage = {
       case PREF_SHOW_BADGE:
       case PREF_CNAME_UNCLOAKING:
         this._loadGeneralSettings();
+        break;
+
+      case PREF_FILTER_LIST_URLS:
+        this._loadFilterListUrls();
         break;
 
       case PREF_SHIELDS_FINGERPRINTING:

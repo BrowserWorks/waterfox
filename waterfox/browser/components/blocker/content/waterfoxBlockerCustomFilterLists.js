@@ -28,6 +28,40 @@ function normalizeUrl(input) {
   return "";
 }
 
+function getCustomFilterListUrls() {
+  const raw = Services.prefs.getStringPref(PREF_FILTER_LIST_URLS, "");
+  if (!raw) {
+    return [];
+  }
+
+  let values = [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      values = parsed;
+    }
+  } catch (_) {}
+
+  if (!values.length) {
+    values = raw.split(/[,\n\r]+/);
+  }
+
+  const urls = [];
+  const seen = new Set();
+  for (const value of values) {
+    const normalized = normalizeUrl(value);
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    urls.push(normalized);
+    if (urls.length >= 100) {
+      break;
+    }
+  }
+  return urls;
+}
+
 var gWaterfoxBlockerCustomFilterLists = {
   _createListItem(url) {
     const richlistitem = document.createXULElement("richlistitem");
@@ -53,16 +87,9 @@ var gWaterfoxBlockerCustomFilterLists = {
   _prefLocked: false,
 
   _loadUrls() {
-    const raw = Services.prefs.getStringPref(PREF_FILTER_LIST_URLS, "");
-    if (!raw.trim()) {
-      return;
-    }
-
-    for (const entry of raw.split(",")) {
-      const normalized = normalizeUrl(entry);
-      if (normalized) {
-        this._urls.add(normalized);
-      }
+    this._urls.clear();
+    for (const url of getCustomFilterListUrls()) {
+      this._urls.add(url);
     }
   },
 
@@ -239,14 +266,9 @@ var gWaterfoxBlockerCustomFilterLists = {
   },
 
   onApplyChanges() {
-    if (this._urls.size === 0) {
-      Services.prefs.setStringPref(PREF_FILTER_LIST_URLS, "");
-      return;
-    }
-
     Services.prefs.setStringPref(
       PREF_FILTER_LIST_URLS,
-      Array.from(this._urls.values()).join(",")
+      JSON.stringify(Array.from(this._urls.values()))
     );
   },
 
