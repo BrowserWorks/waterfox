@@ -5,6 +5,7 @@
 #include "nsISupports.idl"
 
 interface nsILoadInfo;
+interface nsIHttpChannel;
 interface nsIURI;
 
 [scriptable, builtinclass, uuid(b8be2878-f4cc-4b9d-b6c9-a3a269b4015f)]
@@ -23,6 +24,21 @@ interface nsIWaterfoxBlockerEngine : nsISupports
                                 in ACString hostname,
                                 in ACString requestType,
                                 in boolean isThirdParty);
+
+  // Re-checks a request using native alias cache data when one is available.
+  // Returns the same JSON shape as `checkRequestDetailed`.
+  ACString checkRequestDetailedWithNativeAliasCache(in ACString url,
+                                                    in ACString sourceHostname,
+                                                    in ACString hostname,
+                                                    in ACString requestType);
+
+  // Native async alias-uncloaking path for live network requests.
+  void maybeBlockRequestWithNativeAlias(in nsIHttpChannel channel,
+                                        in ACString url,
+                                        in ACString sourceHostname,
+                                        in ACString hostname,
+                                        in ACString requestType,
+                                        in unsigned long long browserId);
 
   // Get CSP directives for document/subdocument requests.
   // Returns an empty string when no directives apply.

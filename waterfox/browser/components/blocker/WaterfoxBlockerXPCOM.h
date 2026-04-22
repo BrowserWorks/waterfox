@@ -6,7 +6,9 @@
 #define waterfox_blocker_xpcom_h
 
 #include "mozilla/ContentClassifierEngine.h"
+#include "mozilla/RefPtr.h"
 #include "mozilla/UniquePtr.h"
+#include "WaterfoxBlockerNativeAlias.h"
 #include "nsCOMPtr.h"
 #include "nsIContentPolicy.h"
 #include "nsISupportsImpl.h"
@@ -55,6 +57,7 @@ class WaterfoxBlockerXPCOM final : public nsIWaterfoxBlockerEngine {
   ~WaterfoxBlockerXPCOM();
 
   mozilla::UniquePtr<mozilla::ContentClassifierEngine> mEngine;
+  RefPtr<WaterfoxBlockerNativeAlias> mNativeAlias;
 };
 
 #endif  // waterfox_blocker_xpcom_h

@@ -4,11 +4,16 @@
 
 #include "WaterfoxBlockerXPCOM.h"
 
+#include "WaterfoxPrincipalUtils.h"
+#include "mozilla/Components.h"
 #include "mozilla/JSONStringWriteFuncs.h"
 #include "mozilla/RefPtr.h"
 #include "mozilla/Span.h"
 #include "nsCharSeparatedTokenizer.h"
 #include "nsError.h"
+#include "nsIEffectiveTLDService.h"
+#include "nsILoadInfo.h"
+#include "nsIPrincipal.h"
 #include "nsImportModule.h"
 
 using mozilla::ContentClassifierEngine;
@@ -95,7 +100,9 @@ WaterfoxBlockerContentPolicy::ShouldProcess(nsIURI* /* aContentLocation */,
   return NS_OK;
 }
 
-WaterfoxBlockerXPCOM::WaterfoxBlockerXPCOM() = default;
+WaterfoxBlockerXPCOM::WaterfoxBlockerXPCOM() {
+  mNativeAlias = new WaterfoxBlockerNativeAlias();
+}
 
 WaterfoxBlockerXPCOM::~WaterfoxBlockerXPCOM() = default;
 
@@ -167,6 +174,54 @@ WaterfoxBlockerXPCOM::CheckRequestDetailed(const nsACString& aUrl,
   WriteCheckResultJSON(_retval, matched, important, redirect, rewrittenUrl,
                        !exception.IsEmpty());
   return NS_OK;
+}
+
+NS_IMETHODIMP
+WaterfoxBlockerXPCOM::CheckRequestDetailedWithNativeAliasCache(
+    const nsACString& aUrl, const nsACString& aSourceHostname,
+    const nsACString& aHostname, const nsACString& aRequestType,
+    nsACString& _retval) {
+  _retval.Truncate();
+
+  NS_ENSURE_TRUE(mEngine, NS_ERROR_NOT_INITIALIZED);
+  NS_ENSURE_TRUE(mNativeAlias, NS_ERROR_NOT_INITIALIZED);
+
+  mNativeAlias->CheckRequestDetailedWithNativeAliasCache(
+      mEngine.get(), aUrl, aSourceHostname, aHostname, aRequestType, _retval);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+WaterfoxBlockerXPCOM::MaybeBlockRequestWithNativeAlias(
+    nsIHttpChannel* aChannel, const nsACString& aUrl,
+    const nsACString& aSourceHostname, const nsACString& aHostname,
+    const nsACString& aRequestType, uint64_t aBrowserId) {
+  NS_ENSURE_TRUE(mEngine, NS_ERROR_NOT_INITIALIZED);
+  NS_ENSURE_TRUE(mNativeAlias, NS_ERROR_NOT_INITIALIZED);
+
+  // Compute a more accurate source schemeless site from the loading principal
+  // rather than relying on the hostname string passed from JS, which may be a
+  // subdomain rather than the eTLD+1.
+  nsCString principalSite;
+  nsCOMPtr<nsILoadInfo> loadInfo;
+  if (aChannel &&
+      NS_SUCCEEDED(aChannel->GetLoadInfo(getter_AddRefs(loadInfo))) &&
+      loadInfo) {
+    nsCOMPtr<nsIPrincipal> loadingPrincipal = loadInfo->GetLoadingPrincipal();
+    if (loadingPrincipal) {
+      nsCOMPtr<nsIEffectiveTLDService> eTLDService =
+          mozilla::components::EffectiveTLD::Service();
+      mozilla::waterfox::GetPrincipalSchemelessSite(loadingPrincipal,
+                                                    eTLDService, principalSite);
+    }
+  }
+
+  const nsACString& effectiveSource =
+      principalSite.IsEmpty() ? aSourceHostname : principalSite;
+
+  return mNativeAlias->MaybeBlockRequestWithNativeAlias(
+      mEngine.get(), aChannel, aUrl, effectiveSource, aHostname, aRequestType,
+      aBrowserId);
 }
 
 /**
