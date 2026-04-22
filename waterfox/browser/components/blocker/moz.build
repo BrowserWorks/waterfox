@@ -11,11 +11,14 @@ XPIDL_SOURCES += [
 XPIDL_MODULE = "waterfox_blocker"
 
 UNIFIED_SOURCES += [
+    "WaterfoxBlockerNativeAlias.cpp",
     "WaterfoxBlockerXPCOM.cpp",
+    "WaterfoxPrincipalUtils.cpp",
 ]
 
 EXPORTS += [
     "WaterfoxBlockerXPCOM.h",
+    "WaterfoxPrincipalUtils.h",
 ]
 
 XPCOM_MANIFESTS += [
@@ -34,10 +37,17 @@ EXTRA_JS_MODULES += [
     "WaterfoxBlockerPreferences.sys.mjs",
     "WaterfoxBlockerService.sys.mjs",
     "WaterfoxBlockerUtils.sys.mjs",
+    "WaterfoxShields.sys.mjs",
 ]
+
+XPCSHELL_TESTS_MANIFESTS += ["test/xpcshell/xpcshell.toml"]
 
 LOCAL_INCLUDES += [
     "/toolkit/components/content-classifier/content_classifier_engine",
 ]
 
 FINAL_LIBRARY = "xul"
+
+TEST_DIRS += [
+    "test",
+]
