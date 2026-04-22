@@ -21,20 +21,46 @@ pref("waterfox.blocker.ui.enabled", false);
 pref("waterfox.blocker.showBadge", true);
 // Allow ads on configured Waterfox search partner domains.
 pref("waterfox.blocker.allowSearchPartnerAds", true);
-// Site exceptions as a JSON array string.
-pref("waterfox.blocker.siteExceptions", "[]");
-// Additional custom filter list URLs as a comma-delimited string.
-pref("waterfox.blocker.filterListUrls", "");
+// Additional custom filter list URLs as a JSON array. Legacy comma-delimited
+// values are still accepted by the blocker service.
+pref("waterfox.blocker.filterListUrls", "[]");
+// User-authored adblock filter rules, one rule per line.
+pref("waterfox.blocker.customRules", "");
 // Per-list enabled overrides as a JSON object mapping list IDs to booleans.
 pref("waterfox.blocker.enabledLists", "{}");
+// Maximum filter list refresh interval, in hours. Individual lists may request
+// a shorter interval through their metadata.
+pref("waterfox.blocker.listRefreshIntervalHours", 168);
 // Whether to suppress startup detection notifications for adblocking extensions.
 pref("waterfox.blocker.extensionDetectionDismissed", false);
 // Extension IDs for which install warnings have already been dismissed.
 pref("waterfox.blocker.dismissedExtensionInstallWarnings", "[]");
 
+// --- Waterfox Privacy Shields ---
+// 0 = off, 1 = standard, 2 = strict.
+pref("waterfox.shields.fingerprinting", 1);
+pref("waterfox.shields.javascript", true);
+pref("waterfox.shields.languageReduction", 1);
+pref("waterfox.shields.siteSettings", "{}");
+pref("privacy.resistFingerprinting", true);
+
 // --- Tracking Protection & Fingerprinting Resistance ---
 // Lower the priority of network loads for resources on tracking protection lists.
 pref("privacy.trackingprotection.lower_network_priority", true);
+// Enable first-party tracking protection categories available in Gecko.
+pref("privacy.trackingprotection.enabled", true);
+pref("privacy.trackingprotection.pbmode.enabled", true);
+pref("privacy.trackingprotection.fingerprinting.enabled", true);
+pref("privacy.trackingprotection.cryptomining.enabled", true);
+pref("privacy.trackingprotection.socialtracking.enabled", true);
+pref("privacy.trackingprotection.emailtracking.enabled", true);
+pref("privacy.trackingprotection.emailtracking.pbmode.enabled", true);
+pref("privacy.trackingprotection.emailtracking.data_collection.enabled", false);
+// Strip known tracking query parameters and purge bounce-tracker state.
+pref("privacy.query_stripping.enabled", true);
+pref("privacy.query_stripping.enabled.pbmode", true);
+pref("privacy.query_stripping.strip_on_share.enabled", true);
+pref("privacy.bounceTrackingProtection.mode", 1);
 // Disable access to the Battery Status API to prevent fingerprinting.
 pref("dom.battery.enabled", false);
 // Disable UITour backend, which can be a fingerprinting vector or used for unwanted popups.
