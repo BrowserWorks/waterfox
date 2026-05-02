@@ -8,8 +8,7 @@ export WIN32_REDIST_DIR="$HOME"/.mozbuild/vs/VC/Redist/MSVC/14.38.33135/x64/Micr
 export WINEDEBUG=-all
 
 if test "$WFX_RELEASE" || test "$WFX_PRE_RELEASE"; then
-    ac_add_options --enable-lto
-ac_add_options --enable-profile-generate=cross=cross
+    ac_add_options --enable-lto=cross
     ac_add_options --enable-optimize="-clang:-march=native -O3 -w"
     ac_add_options --enable-release
     ac_add_options --enable-rust-simd

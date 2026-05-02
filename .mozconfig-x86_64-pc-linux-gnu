@@ -10,7 +10,6 @@ fi
 
 if test "$WFX_RELEASE" || test "$WFX_PRE_RELEASE"; then
     ac_add_options --enable-lto
-ac_add_options --enable-profile-generate
     ac_add_options --enable-optimize="-march=native -O3 -w"
     ac_add_options --enable-release
     ac_add_options --enable-rust-simd

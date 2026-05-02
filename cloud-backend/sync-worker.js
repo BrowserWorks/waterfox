@@ -18,12 +18,8 @@ async function handleRequest(request, env) {
     }
     const [client, server] = Object.values(new WebSocketPair());
 
-    // Accept connection
     server.accept();
     server.addEventListener('message', event => {
-      // In a real implementation with Durable Objects:
-      // We would broadcast the encrypted clipboard/message to other connected devices
-      // belonging to the same user profile.
       let data;
       try {
         data = JSON.parse(event.data);
@@ -32,8 +28,6 @@ async function handleRequest(request, env) {
       }
 
       if (data.type === 'clipboard_update' || data.type === 'handoff_update' || data.type === 'p2p_message') {
-        // Echo back for now as a stub.
-        // Needs Durable Objects logic to broadcast to peers.
         server.send(JSON.stringify({
           status: 'received',
           original_type: data.type

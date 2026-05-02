@@ -12,6 +12,9 @@ jobs:
     env:
       MOZCONFIG: .mozconfig-x86_64-pc-windows-msvc
       ARCH: x86_64-pc-windows-msvc
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: 📤 Checkout
         uses: actions/checkout@v4
@@ -24,7 +27,6 @@ jobs:
           rustup override set 1.90.0
           rustup target add x86_64-pc-windows-msvc
           rustup target add i686-pc-windows-msvc
-          # Set up Mozilla Build
 
       - name: 🏗 Build Stage 1 (Generate PGO)
         run: |
@@ -83,7 +85,6 @@ jobs:
 
       - name: 🏗 Build Universal APK
         run: |
-          # Setup mozconfig for universal architectures: arm64-v8a, armeabi-v7a, x86, x86_64
           export MOZ_ANDROID_FAT_AAR_ARCHITECTURES="aarch64,armeabi-v7a,x86,x86_64"
           ./mach --no-interactive bootstrap --application-choice=mobile_android
           ./mach build
