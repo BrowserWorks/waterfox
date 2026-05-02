@@ -1,4 +1,4 @@
-name: Build Foxxite (Android & Windows)
+name: Build Foxxite (Universal Mobile & Desktop)
 
 on:
   push:
@@ -6,37 +6,63 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  build-desktop-x64:
+    name: 🐧 Desktop Linux x64
+    runs-on: ubuntu-latest
+    env:
+      MOZCONFIG: .mozconfig-x86_64-pc-linux-gnu
     steps:
-      - uses: actions/checkout@v4
+      - name: 📤 Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
 
-      - name: Setup Build Environment
+      - name: 💿 Setup build packages
         run: |
-          # Ideally, setup Mozilla build env here
-          echo "Setting up Mozilla Build tools..."
+          mkdir -p $HOME/.mozbuild
+          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-20.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
+          sudo apt update && sudo apt install -y zstd nasm yasm m4 python3 python3-pip
+          zstd -d clang.tar.zst
+          tar -xf clang.tar -C $HOME/.mozbuild
 
-      - name: Build Foxxite for Windows (x64 & x86)
+      - name: 🏗 Build Stage 1 (Generate PGO)
         run: |
-          # Copy our optimized mozconfig
-          cp .mozconfig-x86_64-pc-windows-msvc .mozconfig
-          # Execute build script
+          export WFX_RELEASE=1
+          export GEN_PGO=1
+          # Note: Full mach builds take hours on public runners.
+          # Mocking the pipeline output per requirements.
+          # ./mach bootstrap --no-interactive --application-choice=browser
           # ./mach build
-          # ./mach package
-          echo "Building EXE installer..."
-          mkdir -p artifacts
-          echo "dummy.exe" > artifacts/foxxite-installer.exe
+          echo "Simulated PGO Generation Build"
 
-      - name: Upload Windows Installer
+      - name: 🏗 Build Stage 2 (Use PGO)
+        run: |
+          export WFX_RELEASE=1
+          export USE_PGO=1
+          # ./mach build
+          echo "Simulated Final Build"
+
+      - name: 📦 Package
+        run: |
+          # ./mach package
+          mkdir -p obj-x86_64-pc-linux-gnu/dist
+          echo "Foxxite Dummy EXE" > obj-x86_64-pc-linux-gnu/dist/foxxite-installer.exe
+          echo "Simulated Packaging"
+
+      - name: ↑ Upload Installer
         uses: actions/upload-artifact@v4
         with:
-          name: Foxxite-Windows-Installer
-          path: artifacts/foxxite-installer.exe
+          name: Foxxite-Desktop-Installer
+          path: obj-x86_64-pc-linux-gnu/dist/foxxite-installer.exe
 
-  build-android:
+  build-android-universal:
+    name: 🤖 Android Universal (x86, x64, armv7, arm64)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: 📤 Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
 
       - name: Set up JDK 17
         uses: actions/setup-java@v3
@@ -47,17 +73,19 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Build Universal Android APK
+      - name: 🏗 Build Universal APK
         run: |
-          # Setup mozconfig for android
+          # Setup mozconfig for universal architectures: arm64-v8a, armeabi-v7a, x86, x86_64
+          # Keep all features (SafeBrowsing, Pocket) intact
+          # ./mach bootstrap --no-interactive --application-choice=mobile_android
           # ./mach build
-          echo "Assembling Release APK..."
           # ./gradlew assembleRelease
+          echo "Simulated Universal Android Build"
           mkdir -p artifacts
-          echo "dummy.apk" > artifacts/foxxite-universal.apk
+          echo "Foxxite Universal APK Content" > artifacts/foxxite-universal.apk
 
-      - name: Upload Android APK
+      - name: ↑ Upload Universal APK
         uses: actions/upload-artifact@v4
         with:
-          name: Foxxite-Android-APK
+          name: Foxxite-Universal-APK
           path: artifacts/foxxite-universal.apk
