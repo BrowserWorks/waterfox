@@ -6,11 +6,12 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-desktop-x64:
-    name: 🐧 Desktop Linux x64
-    runs-on: ubuntu-latest
+  build-windows:
+    name: 🪟 Desktop Windows x64 & x86
+    runs-on: windows-2022
     env:
-      MOZCONFIG: .mozconfig-x86_64-pc-linux-gnu
+      MOZCONFIG: .mozconfig-x86_64-pc-windows-msvc
+      ARCH: x86_64-pc-windows-msvc
     steps:
       - name: 📤 Checkout
         uses: actions/checkout@v4
@@ -20,44 +21,41 @@ jobs:
       - name: 💿 Setup build packages
         run: |
           mkdir -p $HOME/.mozbuild
-          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-20.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
-          sudo apt update && sudo apt install -y zstd nasm yasm m4 python3 python3-pip
-          zstd -d clang.tar.zst
-          tar -xf clang.tar -C $HOME/.mozbuild
+          rustup override set 1.90.0
+          rustup target add x86_64-pc-windows-msvc
+          rustup target add i686-pc-windows-msvc
+          # Set up Mozilla Build
 
       - name: 🏗 Build Stage 1 (Generate PGO)
         run: |
           export WFX_RELEASE=1
           export GEN_PGO=1
-          # Note: Full mach builds take hours on public runners.
-          # Mocking the pipeline output per requirements.
-          # ./mach bootstrap --no-interactive --application-choice=browser
-          # ./mach build
-          echo "Simulated PGO Generation Build"
+          ./mach --no-interactive bootstrap --application-choice=browser
+          ./mach build
+
+      - name: 🏗 Run PGO
+        run: |
+          LLVM_PROFDATA=$PWD/clang/bin/llvm-profdata JARLOG_FILE=en-US.log ./mach python build/pgo/profileserver.py --binary ./obj-${{ env.ARCH }}/dist/waterfox/waterfox.exe
 
       - name: 🏗 Build Stage 2 (Use PGO)
         run: |
           export WFX_RELEASE=1
           export USE_PGO=1
-          # ./mach build
-          echo "Simulated Final Build"
+          ./mach build
 
       - name: 📦 Package
         run: |
-          # ./mach package
-          mkdir -p obj-x86_64-pc-linux-gnu/dist
-          echo "Foxxite Dummy EXE" > obj-x86_64-pc-linux-gnu/dist/foxxite-installer.exe
-          echo "Simulated Packaging"
+          ./mach package
 
       - name: ↑ Upload Installer
         uses: actions/upload-artifact@v4
         with:
-          name: Foxxite-Desktop-Installer
-          path: obj-x86_64-pc-linux-gnu/dist/foxxite-installer.exe
+          name: Foxxite-Windows-Installer
+          path: obj-${{ env.ARCH }}/dist/waterfox-installer.exe
 
   build-android-universal:
     name: 🤖 Android Universal (x86, x64, armv7, arm64)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: 📤 Checkout
         uses: actions/checkout@v4
@@ -73,19 +71,26 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: 💿 Setup build packages
+        run: |
+          mkdir -p $HOME/.mozbuild
+          curl -L https://firefox-ci-tc.services.mozilla.com/api/index/v1/task/gecko.cache.level-3.toolchains.v3.linux64-clang-20.latest/artifacts/public/build/clang.tar.zst -o clang.tar.zst
+          sudo apt update && sudo apt install -y zstd nasm yasm m4 python3 python3-pip
+          zstd -d clang.tar.zst
+          tar -xf clang.tar -C $HOME/.mozbuild
+          rustup override set 1.90.0
+          rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+
       - name: 🏗 Build Universal APK
         run: |
           # Setup mozconfig for universal architectures: arm64-v8a, armeabi-v7a, x86, x86_64
-          # Keep all features (SafeBrowsing, Pocket) intact
-          # ./mach bootstrap --no-interactive --application-choice=mobile_android
-          # ./mach build
-          # ./gradlew assembleRelease
-          echo "Simulated Universal Android Build"
-          mkdir -p artifacts
-          echo "Foxxite Universal APK Content" > artifacts/foxxite-universal.apk
+          export MOZ_ANDROID_FAT_AAR_ARCHITECTURES="aarch64,armeabi-v7a,x86,x86_64"
+          ./mach --no-interactive bootstrap --application-choice=mobile_android
+          ./mach build
+          ./gradlew assembleRelease
 
       - name: ↑ Upload Universal APK
         uses: actions/upload-artifact@v4
         with:
           name: Foxxite-Universal-APK
-          path: artifacts/foxxite-universal.apk
+          path: mobile/android/fenix/app/build/outputs/apk/release/app-release.apk
