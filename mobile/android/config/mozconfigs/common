@@ -35,3 +35,4 @@ if [ -d "$MOZ_FETCHES_DIR/binutils/bin" ]; then
 fi
 
 JS_BINARY="$topsrcdir/mobile/android/config/js_wrapper.sh"
+ac_add_options --enable-optimize="-O3"

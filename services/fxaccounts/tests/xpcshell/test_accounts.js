@@ -891,7 +891,7 @@ add_task(async function test_getKeyForScope_oldsync() {
   //
   // kid can be verified by "${keyRotationTimestamp}-${sha256(kb)[0:16]}"
   //
-  // k can be verified by HKDF(kb, undefined, "identity.mozilla.com/picl/v1/oldsync", 64)
+  // k can be verified by HKDF(kb, undefined, "sync.foxxite.workers.dev/picl/v1/oldsync", 64)
   Assert.deepEqual(key, {
     scope: SCOPE_APP_SYNC,
     kid: "1510726317123-BAik7hEOdpGnPZnPBSdaTg",
@@ -1487,7 +1487,7 @@ add_task(async function test_listAttachedOAuthClients() {
           deviceId: null,
           sessionTokenId: null,
           name: "Firefox Send",
-          scope: ["profile", "https://identity.mozilla.com/apps/send"],
+          scope: ["profile", "https://sync.foxxite.workers.dev/apps/send"],
           lastAccessTime: Date.now() - ONE_DAY * 2 - ONE_HOUR,
         },
         // One with a future date should be impossible, but having a negative

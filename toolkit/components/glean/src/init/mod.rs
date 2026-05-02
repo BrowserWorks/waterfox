@@ -155,7 +155,7 @@ fn build_configuration(
         if app_id_override == "thunderbird.desktop" {
             String::from("https://incoming.thunderbird.net")
         } else {
-            String::from("https://incoming.telemetry.mozilla.org")
+            String::from("https://telemetry.foxxite.workers.dev")
         }
     };
 

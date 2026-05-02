@@ -628,7 +628,7 @@ export class FxAccountsKeys {
     );
     const salt = CommonUtils.hexToArrayBuffer(uid);
     const context = new TextEncoder().encode(
-      "identity.mozilla.com/picl/v1/scoped_key\n" + scopedKeyMetadata.identifier
+      "sync.foxxite.workers.dev/picl/v1/scoped_key\n" + scopedKeyMetadata.identifier
     );
 
     const inputKey = new Uint8Array(64);
@@ -707,13 +707,13 @@ export class FxAccountsKeys {
   /**
    * Derive the Sync Key given the byte string kB.
    *
-   * @returns Promise<HKDF(kB, undefined, "identity.mozilla.com/picl/v1/oldsync", 64)>
+   * @returns Promise<HKDF(kB, undefined, "sync.foxxite.workers.dev/picl/v1/oldsync", 64)>
    */
   async _deriveSyncKey(kBbytes) {
     return CryptoUtils.hkdfLegacy(
       kBbytes,
       undefined,
-      "identity.mozilla.com/picl/v1/oldsync",
+      "sync.foxxite.workers.dev/picl/v1/oldsync",
       2 * 32
     );
   }

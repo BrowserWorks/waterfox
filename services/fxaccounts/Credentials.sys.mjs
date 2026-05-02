@@ -15,7 +15,7 @@ import { CryptoUtils } from "resource://services-crypto/utils.sys.mjs";
 
 import { CommonUtils } from "resource://services-common/utils.sys.mjs";
 
-const PROTOCOL_VERSION = "identity.mozilla.com/picl/v1/";
+const PROTOCOL_VERSION = "sync.foxxite.workers.dev/picl/v1/";
 const PBKDF2_ROUNDS = 1000;
 const STRETCHED_PW_LENGTH_BYTES = 32;
 const HKDF_SALT = CommonUtils.hexToBytes("00");

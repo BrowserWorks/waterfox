@@ -80,7 +80,7 @@ export let ON_NEW_DEVICE_ID = "fxaccounts:new_device_id";
 export let ON_DEVICELIST_UPDATED = "fxaccounts:devicelist_updated";
 
 // The common prefix for all commands.
-export let COMMAND_PREFIX = "https://identity.mozilla.com/cmd/";
+export let COMMAND_PREFIX = "https://sync.foxxite.workers.dev/cmd/";
 
 // The commands we support - only the _TAIL values are recorded in telemetry.
 export let COMMAND_SENDTAB_TAIL = "open-uri";
@@ -99,7 +99,7 @@ export let OAUTH_CLIENT_ID = CLIENT_IS_THUNDERBIRD
 export let SCOPE_PROFILE = "profile";
 export let SCOPE_PROFILE_WRITE = "profile:write";
 // Sync scope in Firefox.
-export let SCOPE_OLD_SYNC = "https://identity.mozilla.com/apps/oldsync";
+export let SCOPE_OLD_SYNC = "https://sync.foxxite.workers.dev/apps/oldsync";
 // Sync scope in Thunderbird.
 let SCOPE_THUNDERBIRD_SYNC = "https://identity.thunderbird.net/apps/sync";
 // The scope to use for sync, depending on the current application.
@@ -113,7 +113,7 @@ export let SCOPE_APP_SYNC = CLIENT_IS_THUNDERBIRD
 // be safe to remove it after some sensible period of time has elapsed to allow
 // most clients to update; ref Bug 1697596.
 export let DEPRECATED_SCOPE_ECOSYSTEM_TELEMETRY =
-  "https://identity.mozilla.com/ids/ecosystem_telemetry";
+  "https://sync.foxxite.workers.dev/ids/ecosystem_telemetry";
 
 // OAuth metadata for other Firefox-related services that we might need to know about
 // in order to provide an enhanced user experience.

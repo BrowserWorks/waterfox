@@ -35,7 +35,7 @@ import kotlin.coroutines.CoroutineContext
 open class MainActivity : AppCompatActivity(), LoginFragment.OnLoginCompleteListener, CoroutineScope {
     private lateinit var account: FirefoxAccount
     private var scopesWithoutKeys: Set<String> = setOf("profile")
-    private var scopesWithKeys: Set<String> = setOf("profile", "https://identity.mozilla.com/apps/oldsync")
+    private var scopesWithKeys: Set<String> = setOf("profile", "https://sync.foxxite.workers.dev/apps/oldsync")
     private var scopes: Set<String> = scopesWithoutKeys
 
     private lateinit var qrFeature: QrFeature

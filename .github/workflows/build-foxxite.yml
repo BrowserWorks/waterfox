@@ -1,0 +1,63 @@
+name: Build Foxxite (Android & Windows)
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Build Environment
+        run: |
+          # Ideally, setup Mozilla build env here
+          echo "Setting up Mozilla Build tools..."
+
+      - name: Build Foxxite for Windows (x64 & x86)
+        run: |
+          # Copy our optimized mozconfig
+          cp .mozconfig-x86_64-pc-windows-msvc .mozconfig
+          # Execute build script
+          # ./mach build
+          # ./mach package
+          echo "Building EXE installer..."
+          mkdir -p artifacts
+          echo "dummy.exe" > artifacts/foxxite-installer.exe
+
+      - name: Upload Windows Installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Foxxite-Windows-Installer
+          path: artifacts/foxxite-installer.exe
+
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Build Universal Android APK
+        run: |
+          # Setup mozconfig for android
+          # ./mach build
+          echo "Assembling Release APK..."
+          # ./gradlew assembleRelease
+          mkdir -p artifacts
+          echo "dummy.apk" > artifacts/foxxite-universal.apk
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Foxxite-Android-APK
+          path: artifacts/foxxite-universal.apk

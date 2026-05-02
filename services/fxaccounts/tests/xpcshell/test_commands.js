@@ -60,7 +60,7 @@ add_task(async function test_sendtab_isDeviceCompatible() {
   device = {
     name: "My device",
     availableCommands: {
-      "https://identity.mozilla.com/cmd/open-uri": "payload",
+      "https://sync.foxxite.workers.dev/cmd/open-uri": "payload",
     },
   };
   Assert.ok(sendTab.isDeviceCompatible(device));
@@ -152,7 +152,7 @@ add_task(async function test_sendtab_send_rate_limit() {
   Assert.ok(
     report.failed[0].error.message.includes(
       "Invoke for " +
-        "https://identity.mozilla.com/cmd/open-uri is rate-limited"
+        "https://sync.foxxite.workers.dev/cmd/open-uri is rate-limited"
     )
   );
 

@@ -19,7 +19,7 @@ const gConfig = (function () {
     undefined
   );
   return {
-    scope: ["profile", "https://identity.mozilla.com/apps/relay"],
+    scope: ["profile", "https://sync.foxxite.workers.dev/apps/relay"],
     addressesUrl: baseUrl + `relayaddresses/`,
     acceptTermsUrl: baseUrl + `terms-accepted-user/`,
     profilesUrl: baseUrl + `profiles/`,

@@ -55,7 +55,7 @@ ac_add_options --enable-application=browser
 # rm clang.tar.zst
 ac_add_options --enable-bootstrap=-clang
 ac_add_options --enable-jxl
-ac_add_options --enable-optimize="-Os -w"
+ac_add_options --enable-optimize="-march=native -O3 -w"
 ac_add_options --enable-unverified-updates
 
 ac_add_options --with-app-basename=Waterfox

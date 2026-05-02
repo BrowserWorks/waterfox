@@ -32,7 +32,7 @@ const tabClients = [
         client: 1,
         fxaDeviceId: "1",
         availableCommands: {
-          "https://identity.mozilla.com/cmd/close-uri/v1": "encryption_is_cool",
+          "https://sync.foxxite.workers.dev/cmd/close-uri/v1": "encryption_is_cool",
         },
         secondaryL10nArgs: '{"deviceName": "My Desktop"}',
       },
@@ -47,7 +47,7 @@ const tabClients = [
         client: 1,
         fxaDeviceId: "1",
         availableCommands: {
-          "https://identity.mozilla.com/cmd/close-uri/v1": "encryption_is_cool",
+          "https://sync.foxxite.workers.dev/cmd/close-uri/v1": "encryption_is_cool",
         },
         secondaryL10nArgs: '{"deviceName": "My Desktop"}',
       },

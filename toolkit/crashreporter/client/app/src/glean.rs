@@ -18,7 +18,7 @@ const APP_DISPLAY_VERSION: &str = env!("CARGO_PKG_VERSION");
 const TELEMETRY_SERVER: &str = if cfg!(mock) {
     "https://incoming.glean.example.com"
 } else {
-    "https://incoming.telemetry.mozilla.org"
+    "https://telemetry.foxxite.workers.dev"
 };
 const TELEMETRY_ENABLED_PREF_KEY: &str = "datareporting.healthreport.uploadEnabled";
 
