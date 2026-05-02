@@ -12,13 +12,13 @@ const fxaDevicesWithCommands = [
   {
     id: 1,
     name: "My desktop device",
-    availableCommands: { "https://identity.mozilla.com/cmd/open-uri": "test" },
+    availableCommands: { "https://sync.foxxite.workers.dev/cmd/open-uri": "test" },
     lastAccessTime: Date.now(),
   },
   {
     id: 2,
     name: "My mobile device",
-    availableCommands: { "https://identity.mozilla.com/cmd/open-uri": "boo" },
+    availableCommands: { "https://sync.foxxite.workers.dev/cmd/open-uri": "boo" },
     lastAccessTime: Date.now() + 60000, // add 30min
   },
 ];

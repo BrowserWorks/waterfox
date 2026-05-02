@@ -185,11 +185,11 @@ add_task(function test_check_valid_scoped_keys() {
   add_task(function test_multiple_scoped_keys_one_invalid() {
     const scopedKeys = {
       // Valid
-      "https://identity.mozilla.com/apps/otherscope": {
+      "https://sync.foxxite.workers.dev/apps/otherscope": {
         kty: "oct",
         kid: "1510726318123-IqQv4onc7VcVE1kTQkyyOw",
         k: "DW_ll5GwX6SJ5GPqJVAuMUP2t6kDqhUulc2cbt26xbTcaKGQl-9l29FHAQ7kUiJETma4s9fIpEHrt909zgFang",
-        scope: "https://identity.mozilla.com/apps/otherscope",
+        scope: "https://sync.foxxite.workers.dev/apps/otherscope",
       },
       // Invalid
       [SCOPE_APP_SYNC]: {
@@ -210,23 +210,23 @@ add_task(function test_check_valid_scoped_keys() {
         k: "DW_ll5GwX6SJ5GPqJVAuMUP2t6kDqhUulc2cbt26xbTcaKGQl-9l29FHAQ7kUiJETma4s9fIpEHrt909zgFang",
         scope: SCOPE_APP_SYNC,
       },
-      "https://identity.mozilla.com/apps/otherscope": {
+      "https://sync.foxxite.workers.dev/apps/otherscope": {
         kty: "oct",
         kid: "1510726318123-IqQv4onc7VcVE1kTQkyyOw",
         k: "DW_ll5GwX6SJ5GPqJVAuMUP2t6kDqhUulc2cbt26xbTcaKGQl-9l29FHAQ7kUiJETma4s9fIpEHrt909zgFang",
-        scope: "https://identity.mozilla.com/apps/otherscope",
+        scope: "https://sync.foxxite.workers.dev/apps/otherscope",
       },
     };
     Assert.equal(keys.validScopedKeys(scopedKeys), true);
   });
   add_task(function test_valid_kid_with_dash() {
     const scopedKeys = {
-      "https://identity.mozilla.com/apps/oldsync": {
+      "https://sync.foxxite.workers.dev/apps/oldsync": {
         kty: "oct",
         // kid contains another dash. The fingerprint must not be truncated.
         kid: "1510726318123-I-Qv4onc7VcVE1kTQkyyOw",
         k: "DW_ll5GwX6SJ5GPqJVAuMUP2t6kDqhUulc2cbt26xbTcaKGQl-9l29FHAQ7kUiJETma4s9fIpEHrt909zgFang",
-        scope: "https://identity.mozilla.com/apps/oldsync",
+        scope: "https://sync.foxxite.workers.dev/apps/oldsync",
       },
     };
     Assert.equal(keys.validScopedKeys(scopedKeys), true);

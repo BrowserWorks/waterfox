@@ -7,13 +7,13 @@ const fxaDevices = [
   {
     id: 1,
     name: "Foo",
-    availableCommands: { "https://identity.mozilla.com/cmd/open-uri": "baz" },
+    availableCommands: { "https://sync.foxxite.workers.dev/cmd/open-uri": "baz" },
     lastAccessTime: Date.now(),
   },
   {
     id: 2,
     name: "Bar",
-    availableCommands: { "https://identity.mozilla.com/cmd/open-uri": "boo" },
+    availableCommands: { "https://sync.foxxite.workers.dev/cmd/open-uri": "boo" },
     lastAccessTime: Date.now() + 60000, // add 30min
   },
   {
@@ -199,7 +199,7 @@ add_task(async function test_page_contextmenu_one_remote_client() {
         id: 1,
         name: "Foo",
         availableCommands: {
-          "https://identity.mozilla.com/cmd/open-uri": "baz",
+          "https://sync.foxxite.workers.dev/cmd/open-uri": "baz",
         },
       },
     ],

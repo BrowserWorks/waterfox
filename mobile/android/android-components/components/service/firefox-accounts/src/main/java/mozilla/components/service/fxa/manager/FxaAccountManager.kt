@@ -69,10 +69,10 @@ import kotlin.coroutines.CoroutineContext
 const val SCOPE_PROFILE = "profile"
 
 // Necessary to obtain sync keys.
-const val SCOPE_SYNC = "https://identity.mozilla.com/apps/oldsync"
+const val SCOPE_SYNC = "https://sync.foxxite.workers.dev/apps/oldsync"
 
 // Necessary to obtain a sessionToken, which gives full access to the account.
-const val SCOPE_SESSION = "https://identity.mozilla.com/tokens/session"
+const val SCOPE_SESSION = "https://sync.foxxite.workers.dev/tokens/session"
 
 // If we see more than AUTH_CHECK_CIRCUIT_BREAKER_COUNT checks, and each is less than
 // AUTH_CHECK_CIRCUIT_BREAKER_RESET_MS since the last check, then we'll trigger a "circuit breaker".

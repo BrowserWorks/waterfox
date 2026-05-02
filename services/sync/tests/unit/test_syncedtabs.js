@@ -24,14 +24,14 @@ function MockTabsEngine() {
           id: 1,
           name: "updated desktop name",
           availableCommands: {
-            "https://identity.mozilla.com/cmd/open-uri": "baz",
+            "https://sync.foxxite.workers.dev/cmd/open-uri": "baz",
           },
         },
         {
           id: 2,
           name: "updated mobile name",
           availableCommands: {
-            "https://identity.mozilla.com/cmd/open-uri": "boo",
+            "https://sync.foxxite.workers.dev/cmd/open-uri": "boo",
           },
         },
       ],

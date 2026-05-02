@@ -59,7 +59,7 @@ add_task(async function test_closetab_isDeviceCompatible() {
   device = {
     name: "My device",
     availableCommands: {
-      "https://identity.mozilla.com/cmd/close-uri/v1": "payload",
+      "https://sync.foxxite.workers.dev/cmd/close-uri/v1": "payload",
     },
   };
   // The feature should be on by default

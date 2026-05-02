@@ -49,10 +49,10 @@ const SECURE_PROXY_ADDON_ID = "secure-proxy@mozilla.com";
 
 const SCOPE_MONITOR = [
   "profile:uid",
-  "https://identity.mozilla.com/apps/monitor",
+  "https://sync.foxxite.workers.dev/apps/monitor",
 ];
 
-const SCOPE_VPN = "profile https://identity.mozilla.com/account/subscriptions";
+const SCOPE_VPN = "profile https://sync.foxxite.workers.dev/account/subscriptions";
 const VPN_ENDPOINT = `${Services.prefs.getStringPref(
   "identity.fxaccounts.auth.uri"
 )}oauth/subscriptions/active`;

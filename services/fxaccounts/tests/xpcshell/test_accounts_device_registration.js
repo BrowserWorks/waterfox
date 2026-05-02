@@ -1158,14 +1158,14 @@ add_task(async function test_checking_remote_availableCommands_mismatch() {
     FxAccountsDevice.prototype._checkRemoteCommandsUpdateNeeded;
   fxa.commands.availableCommands = async () => {
     return {
-      "https://identity.mozilla.com/cmd/open-uri": "local-keys",
+      "https://sync.foxxite.workers.dev/cmd/open-uri": "local-keys",
     };
   };
 
   const ourDevice = {
     isCurrentDevice: true,
     availableCommands: {
-      "https://identity.mozilla.com/cmd/open-uri": "remote-keys",
+      "https://sync.foxxite.workers.dev/cmd/open-uri": "remote-keys",
     },
   };
   Assert.ok(
@@ -1183,14 +1183,14 @@ add_task(async function test_checking_remote_availableCommands_match() {
     FxAccountsDevice.prototype._checkRemoteCommandsUpdateNeeded;
   fxa.commands.availableCommands = async () => {
     return {
-      "https://identity.mozilla.com/cmd/open-uri": "local-keys",
+      "https://sync.foxxite.workers.dev/cmd/open-uri": "local-keys",
     };
   };
 
   const ourDevice = {
     isCurrentDevice: true,
     availableCommands: {
-      "https://identity.mozilla.com/cmd/open-uri": "local-keys",
+      "https://sync.foxxite.workers.dev/cmd/open-uri": "local-keys",
     },
   };
   Assert.ok(

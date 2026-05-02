@@ -21,7 +21,7 @@ export async function runBackgroundTask(commandLine) {
 // unrelated malware running on the same system. It's unclear whether a gecko-
 // based pingsender would be similarly desirable for that use-case, but it's
 // easy enough to implement an allowlist here as well.
-const ALLOWED_ENDPOINTS = ["localhost", "incoming.telemetry.mozilla.org"];
+const ALLOWED_ENDPOINTS = ["localhost", "telemetry.foxxite.workers.dev"];
 
 async function sendPing(endpoint, path) {
   console.log(`pingsender: sending ${path} to ${endpoint}`);
