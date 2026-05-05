@@ -1,0 +1,89 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#WaterfoxBlockerFilterListsWindow {
+  width: 52em;
+  min-height: 40em;
+}
+
+#WaterfoxBlockerFilterListsWindow .waterfox-blocker-scroll-container {
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+#WaterfoxBlockerFilterListsWindow .waterfox-blocker-category {
+  margin-bottom: 8px;
+}
+
+#WaterfoxBlockerFilterListsWindow .waterfox-blocker-category-header {
+  border-radius: 4px;
+  padding: 6px;
+}
+
+#WaterfoxBlockerFilterListsWindow .waterfox-blocker-category-header:hover {
+  background-color: var(--in-content-button-background);
+  cursor: pointer;
+}
+
+#WaterfoxBlockerFilterListsWindow .waterfox-blocker-category-title {
+  font-weight: 600;
+}
+
+#WaterfoxBlockerFilterListsWindow .waterfox-blocker-category-counter {
+  margin-inline-start: 8px;
+}
+
+#WaterfoxBlockerFilterListsWindow .waterfox-blocker-category-lists {
+  padding-inline-start: 20px;
+}
+
+#WaterfoxBlockerFilterListsWindow .waterfox-blocker-list-row {
+  margin-block: 2px;
+  padding-inline-end: 6px;
+}
+
+#WaterfoxBlockerFilterListsWindow .text-deemphasized {
+  opacity: 0.72;
+}
+
+#WaterfoxBlockerFilterListsWindow .twisty {
+  width: 12px;
+  height: 12px;
+  margin-inline-end: 8px;
+  -moz-context-properties: fill;
+  fill: currentColor;
+  list-style-image: url("chrome://global/skin/icons/arrow-right-12.svg");
+}
+
+#WaterfoxBlockerFilterListsWindow .twisty.open {
+  list-style-image: url("chrome://global/skin/icons/arrow-down-12.svg");
+}
+
+#WaterfoxBlockerFilterListsWindow #waterfoxBlockerFilterListsSearch {
+  width: 100%;
+}
+
+#WaterfoxBlockerFilterListsWindow #waterfoxBlockerFilterListsToolbar {
+  padding: 4px 6px;
+  gap: 8px;
+}
+
+#WaterfoxBlockerFilterListsWindow .waterfox-blocker-list-link-icon {
+  width: 12px;
+  height: 12px;
+  margin-inline-start: 4px;
+  -moz-context-properties: fill;
+  fill: currentColor;
+  opacity: 0.6;
+  cursor: pointer;
+  list-style-image: url("chrome://global/skin/icons/open-in-new.svg");
+}
+
+#WaterfoxBlockerFilterListsWindow .waterfox-blocker-list-link-icon:hover {
+  opacity: 1;
+}
+
+#WaterfoxBlockerFilterListsWindow .waterfox-blocker-list-updated {
+  font-size: 0.9em;
+}

@@ -4,7 +4,6 @@
 
 #include "mozilla/ContentClassifierEngine.h"
 #include "ContentClassifierService.h"
-#include "nsIEffectiveTLDService.h"
 #include "mozilla/Components.h"
 #include "mozIThirdPartyUtil.h"
 
@@ -34,7 +33,7 @@ ContentClassifierResult ContentClassifierEngine::CheckNetworkRequest(
       mEngine, &aRequest.mUrl, &aRequest.mSchemelessSite,
       &aRequest.mSourceSchemelessSite, &aRequest.mRequestType,
       aRequest.mThirdParty, &matched, &important, &exception);
-  return ContentClassifierResult(matched, important, !exception.IsEmpty(), rv);
+  return ContentClassifierResult(matched, !exception.IsEmpty(), important, rv);
 }
 
 nsresult ContentClassifierEngine::CheckNetworkRequestPreparsed(
@@ -256,15 +255,7 @@ ContentClassifierRequest::ContentClassifierRequest(nsIChannel* aChannel)
   rv = uri->GetSpec(mUrl);
   if (NS_FAILED(rv)) return;
 
-  nsCString host;
-  rv = uri->GetHost(host);
-  if (NS_FAILED(rv)) return;
-
-  nsCOMPtr<nsIEffectiveTLDService> eTLDService =
-      components::EffectiveTLD::Service();
-  if (!eTLDService) return;
-
-  rv = eTLDService->GetSchemelessSiteFromHost(host, mSchemelessSite);
+  rv = uri->GetAsciiHost(mSchemelessSite);
   if (NS_FAILED(rv)) return;
 
   nsCOMPtr<nsILoadInfo> loadInfo;
@@ -273,8 +264,10 @@ ContentClassifierRequest::ContentClassifierRequest(nsIChannel* aChannel)
 
   nsCOMPtr<nsIPrincipal> loadingPrincipal = loadInfo->GetLoadingPrincipal();
   if (loadingPrincipal) {
-    rv = loadingPrincipal->GetBaseDomain(mSourceSchemelessSite);
-    if (NS_FAILED(rv)) return;
+    rv = loadingPrincipal->GetAsciiHost(mSourceSchemelessSite);
+    if (NS_FAILED(rv)) {
+      mSourceSchemelessSite.Truncate();
+    }
   }
 
   ExtContentPolicyType contentPolicyType =

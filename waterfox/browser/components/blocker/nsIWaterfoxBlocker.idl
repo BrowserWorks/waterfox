@@ -1,0 +1,63 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#include "nsISupports.idl"
+
+interface nsILoadInfo;
+interface nsIURI;
+
+[scriptable, builtinclass, uuid(b8be2878-f4cc-4b9d-b6c9-a3a269b4015f)]
+interface nsIWaterfoxBlockerEngine : nsISupports
+{
+  // Initialise from filter list text. Each element is a full list.
+  void initFromLists(in Array<ACString> filterLists);
+
+  // Initialise from serialised cache (fast path).
+  void initFromCache(in Array<octet> cacheData);
+
+  // Check a network request. Returns JSON:
+  // { matched, important, redirect, rewrittenUrl, exception }
+  ACString checkRequestDetailed(in ACString url,
+                                in ACString sourceHostname,
+                                in ACString hostname,
+                                in ACString requestType,
+                                in boolean isThirdParty);
+
+  // Get CSP directives for document/subdocument requests.
+  // Returns an empty string when no directives apply.
+  ACString getCspDirectives(in ACString url,
+                            in ACString sourceHostname,
+                            in ACString hostname,
+                            in ACString requestType,
+                            in boolean isThirdParty);
+
+  // Serialise engine for caching.
+  Array<octet> serialize();
+
+  // Tag management.
+  void enableTags(in Array<ACString> tags);
+  void disableTags(in Array<ACString> tags);
+  boolean tagExists(in ACString tag);
+
+  // Cosmetic filtering.
+  ACString getCosmeticResources(in ACString url);
+  ACString getHiddenClassIdSelectors(in ACString classesJson,
+                                     in ACString idsJson,
+                                     in ACString exceptionsJson);
+
+  // Load redirect resources and scriptlets.
+  void useResources(in ACString resourcesJson);
+};
+
+[scriptable, uuid(0e7f88a3-70f8-4c65-ae7d-18885522f78d)]
+interface nsIWaterfoxBlockerContentPolicyBridge : nsISupports
+{
+  /**
+   * Called by the native `nsIContentPolicy` to decide whether a load should
+   * proceed. Must honour the same bypass and exception rules as the JS
+   * blocker service and return an `nsIContentPolicy` decision constant.
+   */
+  short shouldLoad(in nsIURI contentLocation,
+                   in nsILoadInfo loadInfo);
+};

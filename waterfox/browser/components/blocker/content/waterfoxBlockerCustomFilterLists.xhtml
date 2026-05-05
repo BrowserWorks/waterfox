@@ -1,0 +1,91 @@
+<?xml version="1.0"?>
+
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<?csp default-src chrome:; style-src chrome:; ?>
+
+<window
+  id="WaterfoxBlockerCustomFilterListsDialog"
+  xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+  xmlns:html="http://www.w3.org/1999/xhtml"
+  data-l10n-id="waterfox-blocker-custom-filter-lists-window"
+  data-l10n-attrs="title"
+  persist="width height"
+>
+  <dialog
+    id="customFilterListsDialog"
+    buttons="accept,cancel"
+    data-l10n-id="waterfox-blocker-custom-filter-lists-dialog"
+    data-l10n-attrs="buttonlabelaccept, buttonaccesskeyaccept"
+  >
+    <linkset>
+      <html:link rel="stylesheet" href="chrome://global/skin/global.css" />
+      <html:link
+        rel="stylesheet"
+        href="chrome://browser/content/preferences/dialogs/sitePermissions.css"
+      />
+      <html:link
+        rel="stylesheet"
+        href="chrome://browser/skin/preferences/preferences.css"
+      />
+      <html:link
+        rel="stylesheet"
+        href="chrome://browser/content/blocker/waterfoxBlockerCustomFilterLists.css"
+      />
+
+      <html:link rel="localization" href="browser/waterfox.ftl" />
+      <html:link
+        rel="localization"
+        href="browser/preferences/permissions.ftl"
+      />
+    </linkset>
+
+    <script src="chrome://browser/content/preferences/dialogs/waterfoxBlockerCustomFilterLists.js" />
+
+    <vbox class="contentPane">
+      <description
+        control="url"
+        data-l10n-id="waterfox-blocker-custom-filter-lists-description"
+      />
+      <separator class="thin" />
+      <label
+        id="urlLabel"
+        control="url"
+        data-l10n-id="waterfox-blocker-filter-lists-custom-url-label"
+      />
+      <hbox align="start">
+        <html:input id="url" type="text" />
+      </hbox>
+      <hbox pack="end">
+        <button
+          id="btnAddUrl"
+          disabled="true"
+          data-l10n-id="waterfox-blocker-filter-lists-custom-add"
+        />
+      </hbox>
+      <separator class="thin" />
+      <listheader>
+        <treecol
+          id="urlCol"
+          data-l10n-id="waterfox-blocker-filter-lists-custom-col"
+          data-isCurrentSortCol="true"
+        />
+      </listheader>
+      <richlistbox id="urlListBox" selected="false" />
+    </vbox>
+
+    <hbox class="actionButtons">
+      <button
+        id="removeUrl"
+        disabled="true"
+        data-l10n-id="waterfox-blocker-filter-lists-custom-remove"
+      />
+      <button
+        id="removeAllUrls"
+        data-l10n-id="waterfox-blocker-filter-lists-custom-remove-all"
+      />
+    </hbox>
+  </dialog>
+</window>

@@ -1,0 +1,171 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<groupbox
+  id="waterfoxBlockerGroup"
+  class="highlighting-group"
+  data-category="panePrivacy"
+  data-subcategory="waterfoxBlocker"
+  hidden="true"
+>
+  <label>
+    <html:h2 data-l10n-id="waterfox-blocker-header" />
+  </label>
+
+  <hbox id="waterfoxBlockerIntroRow" align="start">
+    <image id="waterfoxBlockerShield" class="content-blocking-icon" />
+
+    <description class="description-with-side-element" flex="1">
+      <html:span
+        id="waterfoxBlockerDescription"
+        data-l10n-id="waterfox-blocker-intro-description"
+      />
+    </description>
+
+    <button
+      id="waterfoxBlockerExceptions"
+      class="accessory-button"
+      is="highlightable-button"
+      data-l10n-id="tracking-manage-exceptions"
+    />
+  </hbox>
+
+  <hbox
+    id="waterfoxBlockerThirdPartyNotice"
+    align="center"
+    class="extension-controlled info-box-container"
+    collapsed="true"
+  >
+    <image class="content-blocking-warning-image" />
+    <description
+      id="waterfoxBlockerThirdPartyNoticeDescription"
+      class="description-with-side-element"
+      flex="1"
+    />
+  </hbox>
+
+  <vbox id="waterfoxBlockerOptions">
+    <checkbox
+      id="waterfoxBlockerShowBadge"
+      data-l10n-id="waterfox-blocker-show-badge-pref"
+    />
+    <radiogroup id="waterfoxBlockerModeRadioGroup" orient="vertical">
+      <vbox
+        id="waterfoxBlockerOptionOn"
+        class="privacy-detailedoption info-box-container selected"
+      >
+        <hbox>
+          <radio
+            id="waterfoxBlockerOnRadio"
+            flex="1"
+            value="on"
+            data-l10n-id="waterfox-blocker-setting-on"
+          />
+          <button
+            id="waterfoxBlockerOnExpand"
+            class="arrowhead doh-expand-section"
+            is="highlightable-button"
+            aria-expanded="false"
+            data-l10n-id="preferences-doh-expand-section"
+          />
+        </hbox>
+
+        <vbox id="waterfoxBlockerOnDetails" class="indent" collapsed="true">
+          <description data-l10n-id="waterfox-blocker-setting-on-summary" />
+          <vbox class="privacy-extra-information">
+            <label
+              class="content-blocking-extra-blocking-desc"
+              data-l10n-id="waterfox-blocker-setting-on-description"
+            />
+            <vbox class="indent">
+              <hbox class="extra-information-label">
+                <label
+                  class="content-blocking-label"
+                  data-l10n-id="waterfox-blocker-blocks-ads"
+                />
+              </hbox>
+              <hbox class="extra-information-label">
+                <label
+                  class="content-blocking-label"
+                  data-l10n-id="waterfox-blocker-blocks-tracking"
+                />
+              </hbox>
+              <hbox class="extra-information-label">
+                <label
+                  class="content-blocking-label"
+                  data-l10n-id="waterfox-blocker-blocks-annoyances"
+                />
+              </hbox>
+            </vbox>
+            <vbox class="content-blocking-warning info-box-container">
+              <label
+                class="content-blocking-warning-title"
+                data-l10n-id="waterfox-blocker-partner-funding-title"
+              />
+              <description
+                data-l10n-id="waterfox-blocker-partner-funding-description"
+              />
+            </vbox>
+            <vbox class="extra-information-label">
+              <label data-l10n-id="waterfox-blocker-dropdown-label" />
+              <menulist id="waterfoxBlockerSearchPartnerMode" sizetopopup="none">
+                <menupopup class="in-menulist">
+                  <menuitem
+                    id="waterfoxBlockerSearchPartnerExceptionOption"
+                    value="partner-exception"
+                    data-l10n-id="waterfox-blocker-dropdown-option-partner-exception"
+                  />
+                  <menuitem
+                    id="waterfoxBlockerSearchPartnerBlockEverythingOption"
+                    value="block-everything"
+                    data-l10n-id="waterfox-blocker-dropdown-option-block-everything"
+                  />
+                </menupopup>
+              </menulist>
+            </vbox>
+          </vbox>
+        </vbox>
+      </vbox>
+
+      <vbox id="waterfoxBlockerOptionOff" class="privacy-detailedoption info-box-container">
+        <hbox>
+          <radio
+            id="waterfoxBlockerOffRadio"
+            flex="1"
+            value="off"
+            data-l10n-id="waterfox-blocker-setting-off"
+          />
+        </hbox>
+        <vbox class="indent">
+          <label data-l10n-id="waterfox-blocker-setting-off-description" />
+        </vbox>
+      </vbox>
+    </radiogroup>
+  </vbox>
+
+  <hbox pack="end">
+    <button
+      id="waterfoxBlockerFilterLists"
+      class="accessory-button"
+      is="highlightable-button"
+      data-l10n-id="waterfox-blocker-manage-filter-lists"
+    />
+  </hbox>
+  <hbox pack="end">
+    <button
+      id="waterfoxBlockerCustomFilterLists"
+      class="accessory-button"
+      is="highlightable-button"
+      data-l10n-id="waterfox-blocker-custom-filter-lists"
+    />
+  </hbox>
+  <hbox pack="end">
+    <button
+      id="waterfoxBlockerCustomFilters"
+      class="accessory-button"
+      is="highlightable-button"
+      data-l10n-id="waterfox-blocker-custom-filters"
+    />
+  </hbox>
+</groupbox>
