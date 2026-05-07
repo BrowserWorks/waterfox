@@ -1978,6 +1978,12 @@ pub extern "C" fn wr_window_new(
         }
     };
 
+    let enable_dithering = if !software && static_prefs::pref!("gfx.webrender.dithering") {
+        true
+    } else {
+        false
+    };
+
     let opts = WebRenderOptions {
         enable_aa: true,
         enable_subpixel_aa,
@@ -2032,6 +2038,7 @@ pub extern "C" fn wr_window_new(
         reject_software_rasterizer,
         low_quality_pinch_zoom,
         max_shared_surface_size,
+        enable_dithering,
         ..Default::default()
     };
 
@@ -4434,8 +4441,11 @@ pub extern "C" fn wr_shaders_new(
 
     device.begin_frame();
 
+    let mut options = WebRenderOptions::default();
+    options.enable_dithering = static_prefs::pref!("gfx.webrender.dithering");
+
     let gl_type = device.gl().get_type();
-    let mut shaders = match Shaders::new(&mut device, gl_type, &WebRenderOptions::default()) {
+    let mut shaders = match Shaders::new(&mut device, gl_type, &options) {
         Ok(shaders) => shaders,
         Err(e) => {
             warn!(" Failed to create a Shaders: {:?}", e);
