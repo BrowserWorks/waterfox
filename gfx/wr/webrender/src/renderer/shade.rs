@@ -695,6 +695,12 @@ impl Shaders {
         shader_flags.set(ShaderFeatureFlags::DITHERING, options.enable_dithering);
         let shader_list = get_shader_features(shader_flags);
 
+        let dither_feature: &[&str] = if options.enable_dithering {
+            &[DITHERING_FEATURE]
+        } else {
+            &[]
+        };
+
         let mut loader = ShaderLoader::new();
 
         let brush_solid = BrushShader::new(
@@ -726,11 +732,7 @@ impl Shaders {
 
         let brush_linear_gradient = BrushShader::new(
             "brush_linear_gradient",
-            if options.enable_dithering {
-               &[DITHERING_FEATURE]
-            } else {
-               &[]
-            },
+            dither_feature,
             &shader_list,
             false /* advanced blend */,
             false /* dual source */,
@@ -874,14 +876,14 @@ impl Shaders {
         let ps_quad_radial_gradient = loader.create_shader(
             ShaderKind::Primitive,
             "ps_quad_radial_gradient",
-            &[],
+            dither_feature,
             &shader_list,
         )?;
 
         let ps_quad_conic_gradient = loader.create_shader(
             ShaderKind::Primitive,
             "ps_quad_conic_gradient",
-            &[],
+            dither_feature,
             &shader_list,
         )?;
 
@@ -1022,21 +1024,21 @@ impl Shaders {
         let cs_linear_gradient = loader.create_shader(
             ShaderKind::Cache(VertexArrayKind::LinearGradient),
             "cs_linear_gradient",
-            &[],
+            dither_feature,
             &shader_list,
         )?;
 
         let cs_radial_gradient = loader.create_shader(
             ShaderKind::Cache(VertexArrayKind::RadialGradient),
             "cs_radial_gradient",
-            &[],
+            dither_feature,
             &shader_list,
         )?;
 
         let cs_conic_gradient = loader.create_shader(
             ShaderKind::Cache(VertexArrayKind::ConicGradient),
             "cs_conic_gradient",
-            &[],
+            dither_feature,
             &shader_list,
         )?;
 
