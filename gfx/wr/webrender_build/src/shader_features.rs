@@ -88,6 +88,8 @@ pub fn get_shader_features(flags: ShaderFeatureFlags) -> ShaderFeatures {
         "cs_linear_gradient",
         "cs_radial_gradient",
         "cs_conic_gradient",
+        "ps_quad_radial_gradient",
+        "ps_quad_conic_gradient",
     ] {
         let mut features = Vec::new();
         features.push(String::new());
@@ -241,10 +243,6 @@ pub fn get_shader_features(flags: ShaderFeatureFlags) -> ShaderFeatures {
     shaders.insert("ps_split_composite", vec![base_prim_features.finish()]);
 
     shaders.insert("ps_quad_textured", vec![base_prim_features.finish()]);
-
-    shaders.insert("ps_quad_radial_gradient", vec![base_prim_features.finish()]);
-
-    shaders.insert("ps_quad_conic_gradient", vec![base_prim_features.finish()]);
 
     shaders.insert("ps_clear", vec![base_prim_features.finish()]);
 

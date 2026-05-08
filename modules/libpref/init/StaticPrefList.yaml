@@ -7313,6 +7313,13 @@
   value: false
   mirror: once
 
+# Enable dithering in hardware WebRender
+- name: gfx.webrender.dithering
+  type: bool
+  rust: true
+  value: true
+  mirror: once
+
 #ifdef XP_WIN
 - name: gfx.webrender.force-angle
   type: bool
