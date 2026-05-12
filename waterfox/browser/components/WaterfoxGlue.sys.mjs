@@ -20,6 +20,8 @@ ChromeUtils.defineESModuleGetters(lazy, {
   SidebarPreferencesHandler: "resource:///modules/SidebarPreferencesHandler.sys.mjs",
   WaterfoxBlockerPreferences:
     "resource:///modules/WaterfoxBlockerPreferences.sys.mjs",
+  WaterfoxBlockerExtensionDetector:
+    "resource:///modules/WaterfoxBlockerExtensionDetector.sys.mjs",
   WaterfoxBlockerPanel: "resource:///modules/WaterfoxBlockerPanel.sys.mjs",
   WaterfoxBlockerService: "resource:///modules/WaterfoxBlockerService.sys.mjs",
 });
@@ -130,6 +132,7 @@ export const WaterfoxGlue = {
     lazy.WaterfoxBlockerPreferences.init();
     lazy.WaterfoxBlockerPanel.init();
     lazy.WaterfoxBlockerService.init();
+    lazy.WaterfoxBlockerExtensionDetector.init();
 
     // Observe chrome-document-loaded topic to detect window open
     Services.obs.addObserver(this, "chrome-document-loaded");
@@ -640,6 +643,7 @@ export const WaterfoxGlue = {
     lazy.WaterfoxBlockerPreferences.uninit();
     lazy.WaterfoxBlockerPanel.uninit();
     lazy.WaterfoxBlockerService.uninit();
+    lazy.WaterfoxBlockerExtensionDetector.uninit();
 
     // Shutdown TabGrouping
     lazy.TabGrouping.shutdown();
