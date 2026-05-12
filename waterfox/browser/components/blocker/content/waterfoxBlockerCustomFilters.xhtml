@@ -1,0 +1,78 @@
+<?xml version="1.0"?>
+
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<?csp default-src chrome:; style-src chrome:; ?>
+
+<window
+  id="WaterfoxBlockerCustomFiltersDialog"
+  xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+  xmlns:html="http://www.w3.org/1999/xhtml"
+  data-l10n-id="waterfox-blocker-custom-filters-window"
+  data-l10n-attrs="title"
+  persist="width height"
+>
+  <dialog
+    id="customFiltersDialog"
+    buttons="accept,cancel"
+    data-l10n-id="waterfox-blocker-custom-filters-dialog"
+    data-l10n-attrs="buttonlabelaccept, buttonaccesskeyaccept"
+  >
+    <linkset>
+      <html:link rel="stylesheet" href="chrome://global/skin/global.css" />
+      <html:link
+        rel="stylesheet"
+        href="chrome://browser/skin/preferences/preferences.css"
+      />
+      <html:link
+        rel="stylesheet"
+        href="chrome://browser/content/blocker/waterfoxBlockerCustomFilters.css"
+      />
+
+      <html:link rel="localization" href="browser/waterfox.ftl" />
+    </linkset>
+
+    <script src="chrome://browser/content/preferences/dialogs/waterfoxBlockerCustomFilters.js" />
+
+    <vbox class="contentPane" flex="1">
+      <description
+        id="waterfoxBlockerCustomFiltersDescription"
+        data-l10n-id="waterfox-blocker-custom-filters-description"
+      />
+
+      <separator class="thin" />
+
+      <html:textarea
+        id="waterfoxBlockerCustomFiltersText"
+        aria-labelledby="waterfoxBlockerCustomFiltersDescription"
+        autocomplete="off"
+        autocorrect="off"
+        autocapitalize="off"
+        spellcheck="false"
+        wrap="off"
+      />
+
+      <hbox id="waterfoxBlockerCustomFiltersStatusRow" align="center">
+        <label
+          id="waterfoxBlockerCustomFiltersStatus"
+          class="text-deemphasized"
+          flex="1"
+          data-l10n-id="waterfox-blocker-custom-filters-empty"
+        />
+      </hbox>
+    </vbox>
+
+    <hbox class="actionButtons" pack="end">
+      <button
+        id="waterfoxBlockerCustomFiltersImport"
+        data-l10n-id="waterfox-blocker-custom-filters-import"
+      />
+      <button
+        id="waterfoxBlockerCustomFiltersExport"
+        data-l10n-id="waterfox-blocker-custom-filters-export"
+      />
+    </hbox>
+  </dialog>
+</window>

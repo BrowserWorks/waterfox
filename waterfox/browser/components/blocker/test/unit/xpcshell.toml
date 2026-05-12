@@ -1,0 +1,14 @@
+[DEFAULT]
+firefox-appdir = "browser"
+waterfox-appdir = "browser"
+
+["test_list_preprocessor.js"]
+
+["test_replace_response_filter.js"]
+prefs = [
+  "network.trr.mode=5",
+  "network.trr.ohttp.config_uri=''",
+  "network.trr.ohttp.relay_uri=''",
+  "network.trr.ohttp.uri=''",
+  "network.trr.use_ohttp=false",
+]
