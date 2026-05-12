@@ -131,6 +131,28 @@ nsresult ContentClassifierEngine::GetCspDirectivesPreparsed(
   return NS_OK;
 }
 
+nsresult ContentClassifierEngine::GetReplaceDirectivesPreparsed(
+    const nsACString& aUrl, const nsACString& aHostname,
+    const nsACString& aSourceHostname, const nsACString& aRequestType,
+    bool aThirdParty, nsACString& aOutDirectivesJson) {
+  aOutDirectivesJson.Truncate();
+
+  if (!mEngine) {
+    return NS_ERROR_NOT_INITIALIZED;
+  }
+
+  nsCString directivesJson;
+  nsresult rv = content_classifier_engine_get_replace_directives_preparsed(
+      mEngine, &aUrl, &aHostname, &aSourceHostname, &aRequestType, aThirdParty,
+      &directivesJson);
+  if (NS_FAILED(rv)) {
+    return rv;
+  }
+
+  aOutDirectivesJson.Assign(directivesJson);
+  return NS_OK;
+}
+
 nsresult ContentClassifierEngine::EnableTags(const nsTArray<nsCString>& aTags) {
   if (!mEngine) {
     return NS_ERROR_NOT_INITIALIZED;
