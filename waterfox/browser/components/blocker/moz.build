@@ -27,6 +27,9 @@ JAR_MANIFESTS += [
 ]
 
 EXTRA_JS_MODULES += [
+    "WaterfoxBlockedPage.sys.mjs",
+    "WaterfoxBlockedPageChild.sys.mjs",
+    "WaterfoxBlockedPageParent.sys.mjs",
     "WaterfoxBlockerChild.sys.mjs",
     "WaterfoxBlockerPanel.sys.mjs",
     "WaterfoxBlockerParent.sys.mjs",
