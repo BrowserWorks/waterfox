@@ -18,6 +18,10 @@ ChromeUtils.defineESModuleGetters(lazy, {
   setTimeout: "resource://gre/modules/Timer.sys.mjs",
   UICustomizations: "resource:///modules/UICustomizations.sys.mjs",
   SidebarPreferencesHandler: "resource:///modules/SidebarPreferencesHandler.sys.mjs",
+  WaterfoxBlockerPreferences:
+    "resource:///modules/WaterfoxBlockerPreferences.sys.mjs",
+  WaterfoxBlockerPanel: "resource:///modules/WaterfoxBlockerPanel.sys.mjs",
+  WaterfoxBlockerService: "resource:///modules/WaterfoxBlockerService.sys.mjs",
   WaterfoxSearchExtensionPolicy:
     "resource:///modules/WaterfoxSearchExtensionPolicy.sys.mjs",
 });
@@ -69,6 +73,30 @@ export const WaterfoxGlue = {
     // Initialize sidebar prefs handler early so it can observe pane loads
     lazy.SidebarPreferencesHandler.init();
     lazy.WaterfoxSearchExtensionPolicy.init();
+
+    // Register blocker window actors early so cosmetic/scriptlet hooks run for pages.
+    ChromeUtils.registerWindowActor("WaterfoxBlocker", {
+      parent: {
+        esModuleURI: "resource:///modules/WaterfoxBlockerParent.sys.mjs",
+      },
+      child: {
+        esModuleURI: "resource:///modules/WaterfoxBlockerChild.sys.mjs",
+        events: {
+          DOMWindowCreated: {},
+          DOMDocElementInserted: {},
+        },
+      },
+      allFrames: true,
+      messageManagerGroups: ["browsers"],
+      // DOMWindowCreated can happen before URL match patterns settle.
+      // Keep protocol matching broad and gate to http/https inside the child.
+      remoteTypes: ["web"],
+    });
+
+    // Initialise blocker preferences hook, blocker panel and blocker service.
+    lazy.WaterfoxBlockerPreferences.init();
+    lazy.WaterfoxBlockerPanel.init();
+    lazy.WaterfoxBlockerService.init();
 
     // Observe chrome-document-loaded topic to detect window open
     Services.obs.addObserver(this, "chrome-document-loaded");
@@ -421,6 +449,9 @@ export const WaterfoxGlue = {
   },
 
   shutdown() {
+    lazy.WaterfoxBlockerPreferences.uninit();
+    lazy.WaterfoxBlockerPanel.uninit();
+    lazy.WaterfoxBlockerService.uninit();
     lazy.WaterfoxSearchExtensionPolicy.uninit();
 
     // Shutdown TabGrouping

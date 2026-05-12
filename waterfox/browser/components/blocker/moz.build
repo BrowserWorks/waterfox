@@ -1,0 +1,52 @@
+# -*- Mode: python; indent-tabs-mode: nil; tab-width: 40 -*-
+# vim: set filetype=python:
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+XPIDL_SOURCES += [
+    "nsIWaterfoxBlocker.idl",
+]
+
+XPIDL_MODULE = "waterfox_blocker"
+
+UNIFIED_SOURCES += [
+    "WaterfoxBlockerXPCOM.cpp",
+]
+
+EXPORTS += [
+    "WaterfoxBlockerXPCOM.h",
+]
+
+XPCOM_MANIFESTS += [
+    "components.conf",
+]
+
+JAR_MANIFESTS += [
+    "jar.mn",
+]
+
+EXTRA_JS_MODULES += [
+    "WaterfoxBlockerChild.sys.mjs",
+    "WaterfoxBlockerPanel.sys.mjs",
+    "WaterfoxBlockerParent.sys.mjs",
+    "WaterfoxBlockerPreferences.sys.mjs",
+    "WaterfoxBlockerService.sys.mjs",
+    "WaterfoxBlockerUtils.sys.mjs",
+]
+
+EXTRA_JS_MODULES.internal += [
+    "internal/EngineCache.sys.mjs",
+    "internal/ListCatalog.sys.mjs",
+    "internal/ListStore.sys.mjs",
+    "internal/ListUpdates.sys.mjs",
+    "internal/RemoteResources.sys.mjs",
+    "internal/Resources.sys.mjs",
+    "internal/SiteExceptions.sys.mjs",
+]
+
+LOCAL_INCLUDES += [
+    "/toolkit/components/content-classifier/content_classifier_engine",
+]
+
+FINAL_LIBRARY = "xul"

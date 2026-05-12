@@ -1,0 +1,15 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#waterfoxBlockerGroup #waterfoxBlockerShield {
+  list-style-image: url("chrome://browser/content/blocker/waterfoxShield.svg");
+  width: 64px;
+  height: 64px;
+  margin-inline-end: 10px;
+}
+
+#waterfoxBlockerGroup description.indent,
+#waterfoxBlockerGroup .indent > description {
+  color: inherit;
+}
