@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE html>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<html xmlns="http://www.w3.org/1999/xhtml" data-l10n-sync="true">
+  <head>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src chrome:; object-src 'none'"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title data-l10n-id="waterfox-blocked-page-title"></title>
+    <link
+      rel="stylesheet"
+      href="chrome://global/skin/aboutNetError.css"
+      type="text/css"
+      media="all"
+    />
+    <link
+      rel="icon"
+      id="favicon"
+      href="chrome://global/skin/icons/blocked.svg"
+    />
+    <link rel="localization" href="branding/brand.ftl" />
+    <link rel="localization" href="browser/waterfox.ftl" />
+  </head>
+  <body class="blocked">
+    <div id="errorPageContainer" class="container">
+      <div id="errorTitle" class="title">
+        <h1
+          class="title-text"
+          data-l10n-id="waterfox-blocked-page-heading"
+        ></h1>
+      </div>
+
+      <div id="errorLongContent">
+        <p
+          id="errorShortDesc"
+          data-l10n-id="waterfox-blocked-page-description"
+        ></p>
+
+        <div
+          id="blockedDetails"
+          data-l10n-id="waterfox-blocked-page-details"
+          data-l10n-attrs="aria-label"
+        >
+          <p>
+            <strong
+              data-l10n-id="waterfox-blocked-page-blocked-url-label"
+            ></strong>
+            <code
+              id="blocked-url"
+              data-l10n-id="waterfox-blocked-page-unavailable"
+            ></code>
+          </p>
+          <p>
+            <strong
+              data-l10n-id="waterfox-blocked-page-matched-rule-label"
+            ></strong>
+            <code
+              id="matched-rule"
+              data-l10n-id="waterfox-blocked-page-unavailable"
+            ></code>
+          </p>
+        </div>
+
+        <p id="blockedHint" data-l10n-id="waterfox-blocked-page-hint"></p>
+
+        <div id="buttons" class="button-container">
+          <button
+            id="go-back"
+            class="primary"
+            data-l10n-id="waterfox-blocked-page-go-back"
+          ></button>
+          <button
+            id="load-anyway"
+            data-l10n-id="waterfox-blocked-page-load-anyway"
+          ></button>
+        </div>
+      </div>
+    </div>
+
+    <script src="chrome://browser/content/blocker/blockedPage.js"></script>
+  </body>
+</html>
