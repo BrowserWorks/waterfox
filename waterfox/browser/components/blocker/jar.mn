@@ -1,5 +1,7 @@
 browser.jar:
 %  content browser %content/browser/ contentaccessible=yes
+    content/browser/blocker/blockedPage.xhtml                            (content/blockedPage.xhtml)
+    content/browser/blocker/blockedPage.js                               (content/blockedPage.js)
     content/browser/blocker/waterfoxBlockerFilterLists.xhtml             (content/waterfoxBlockerFilterLists.xhtml)
     content/browser/blocker/waterfoxBlockerFilterLists.js                (content/waterfoxBlockerFilterLists.js)
     content/browser/blocker/waterfoxBlockerFilterLists.css               (content/waterfoxBlockerFilterLists.css)
