@@ -49,7 +49,7 @@ static bool IsSafeToLinkForUntrustedContent(nsIURI* aURI) {
   // The about modules for these URL types have the
   // URI_SAFE_FOR_UNTRUSTED_CONTENT and MAKE_LINKABLE flags set.
   return path.EqualsLiteral("blank") || path.EqualsLiteral("logo") ||
-         path.EqualsLiteral("srcdoc");
+         path.EqualsLiteral("srcdoc") || path.EqualsLiteral("contentblocked");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
