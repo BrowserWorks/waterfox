@@ -211,6 +211,27 @@ pub unsafe extern "C" fn content_classifier_engine_get_csp_directives_preparsed(
     NS_OK
 }
 
+/// `$replace=` requires adblock-rs support that is not part of the vendored crate.
+/// Keep the FFI surface stable for the Waterfox blocker service, but report no
+/// native directives unless/until the vendored engine exposes them upstream.
+#[no_mangle]
+pub unsafe extern "C" fn content_classifier_engine_get_replace_directives_preparsed(
+    engine: *const ContentClassifierFFIEngine,
+    _url: &nsACString,
+    _hostname: &nsACString,
+    _source_hostname: &nsACString,
+    _request_type: &nsACString,
+    _third_party: bool,
+    out_directives_json: *mut nsCString,
+) -> nsresult {
+    if engine.is_null() || out_directives_json.is_null() {
+        return NS_ERROR_INVALID_ARG;
+    }
+
+    (*out_directives_json).assign("[]");
+    NS_OK
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn content_classifier_engine_enable_tags(
     engine: *mut ContentClassifierFFIEngine,

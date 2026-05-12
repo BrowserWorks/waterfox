@@ -109,6 +109,13 @@ class ContentClassifierEngine final {
                                      bool aThirdParty,
                                      nsACString& aOutDirectives);
 
+  nsresult GetReplaceDirectivesPreparsed(const nsACString& aUrl,
+                                         const nsACString& aHostname,
+                                         const nsACString& aSourceHostname,
+                                         const nsACString& aRequestType,
+                                         bool aThirdParty,
+                                         nsACString& aOutDirectivesJson);
+
   nsresult EnableTags(const nsTArray<nsCString>& aTags);
   nsresult DisableTags(const nsTArray<nsCString>& aTags);
   bool TagExists(const nsACString& aTag);
