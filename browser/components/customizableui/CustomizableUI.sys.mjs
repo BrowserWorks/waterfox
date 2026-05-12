@@ -66,7 +66,7 @@ const kSubviewEvents = ["ViewShowing", "ViewHiding"];
  * The current version. We can use this to auto-add new default widgets as necessary.
  * (would be const but isn't because of testing purposes)
  */
-var kVersion = 22;
+var kVersion = 23;
 
 /**
  * Buttons removed from built-ins by version they were removed. kVersion must be
@@ -337,6 +337,7 @@ var CustomizableUIInternal = {
       "spring",
       "vertical-spacer",
       "urlbar-container",
+      "waterfox-blocker-toolbar-button",
       "spring",
       "save-to-pocket-button",
       "downloads-button",
@@ -849,6 +850,20 @@ var CustomizableUIInternal = {
         if (navbarPlacements[0] === "sidebar-button") {
           navbarPlacements.shift();
           navbarPlacements.push("sidebar-button");
+        }
+      }
+    }
+
+    if (currentVersion < 23) {
+      // The Waterfox blocker button was previously registered as an external
+      // widget which queued it via gFuturePlacements; that path appended to
+      // the navbar end. Remove any existing placement so it can be re-inserted
+      // at its default position via placeNewDefaultWidgetsInArea.
+      for (let area of Object.keys(gSavedState.placements)) {
+        let placements = gSavedState.placements[area];
+        let idx = placements.indexOf("waterfox-blocker-toolbar-button");
+        if (idx !== -1) {
+          placements.splice(idx, 1);
         }
       }
     }
