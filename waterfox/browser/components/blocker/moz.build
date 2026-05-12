@@ -31,6 +31,7 @@ EXTRA_JS_MODULES += [
     "WaterfoxBlockedPageChild.sys.mjs",
     "WaterfoxBlockedPageParent.sys.mjs",
     "WaterfoxBlockerChild.sys.mjs",
+    "WaterfoxBlockerExtensionDetector.sys.mjs",
     "WaterfoxBlockerPanel.sys.mjs",
     "WaterfoxBlockerParent.sys.mjs",
     "WaterfoxBlockerPreferences.sys.mjs",
