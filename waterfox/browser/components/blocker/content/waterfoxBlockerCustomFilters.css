@@ -1,0 +1,42 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#WaterfoxBlockerCustomFiltersDialog {
+  width: 54em;
+  min-height: 40em;
+}
+
+#WaterfoxBlockerCustomFiltersDialog .contentPane {
+  min-height: 30em;
+}
+
+#waterfoxBlockerCustomFiltersDescription {
+  margin-bottom: 0.5em;
+}
+
+#waterfoxBlockerCustomFiltersText {
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 24em;
+  margin: 0;
+  padding: 0.6em;
+  font: message-box;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+    monospace;
+  line-height: 1.45;
+  resize: none;
+}
+
+#waterfoxBlockerCustomFiltersStatusRow {
+  margin-top: 0.5em;
+}
+
+#waterfoxBlockerCustomFiltersStatus {
+  margin: 0;
+}
+
+#WaterfoxBlockerCustomFiltersDialog .actionButtons {
+  margin-top: 0.75em;
+}
