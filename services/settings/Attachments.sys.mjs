@@ -51,6 +51,40 @@ class NotFoundError extends Error {
   }
 }
 
+const MOZILLA_ATTACHMENT_CDN_URL =
+  "https://firefox-settings-attachments.cdn.mozilla.net/";
+
+function isTranslationAttachment(record) {
+  return !!(
+    record &&
+    (record.fileType === "model" ||
+      record.fileType === "lex" ||
+      record.fileType === "wasm" ||
+      record.fileType === "vocab" ||
+      (record.fromLang && record.toLang) ||
+      (record.name &&
+        (record.name.includes("model.") ||
+          record.name.includes("lex.") ||
+          record.name.includes("vocab.") ||
+          record.name.includes("bergamot"))) ||
+      (record.attachment?.filename &&
+        (record.attachment.filename.endsWith(".wasm") ||
+          record.attachment.filename.includes("bergamot"))))
+  );
+}
+
+function canDownloadFromMozillaAttachmentCDN(
+  bucketName,
+  collectionName,
+  record
+) {
+  return (
+    isTranslationAttachment(record) ||
+    bucketName === "security-state" ||
+    collectionName === "tracking-protection-lists"
+  );
+}
+
 // Helper for the `download` method for commonly used methods, to help with
 // lazily accessing the record and attachment content.
 class LazyRecordAndBuffer {
@@ -338,6 +372,18 @@ export class Downloader {
       fallbackToDump = false,
       avoidDownload = false,
     } = options || {};
+
+    // Force avoidDownload unless this is a collection where local records
+    // intentionally fall back to RS server attachment data.
+    if (
+      !canDownloadFromMozillaAttachmentCDN(
+        this.bucketName,
+        this.collectionName,
+        record
+      )
+    ) {
+      avoidDownload = true;
+    }
     if (!attachmentId) {
       // Check for pre-condition. This should not happen, but it is explicitly
       // checked to avoid mixing up attachments, which could be dangerous.
@@ -515,18 +561,36 @@ export class Downloader {
       attachment: { location, hash, size },
     } = record;
 
+    const canFallbackToCDN = canDownloadFromMozillaAttachmentCDN(
+      this.bucketName,
+      this.collectionName,
+      record
+    );
+
     let baseURL;
-    try {
-      baseURL = await lazy.Utils.baseAttachmentsURL();
-    } catch (error) {
-      throw new Downloader.ServerInfoError(error);
+    if (lazy.Utils.SERVER_URL) {
+      try {
+        baseURL = await lazy.Utils.baseAttachmentsURL();
+      } catch (error) {
+        if (!canFallbackToCDN) {
+          throw new Downloader.ServerInfoError(error);
+        }
+      }
+    }
+
+    if (!baseURL || baseURL === "/") {
+      if (!canFallbackToCDN) {
+        throw new Downloader.ServerInfoError("No server URL configured");
+      }
+      baseURL = MOZILLA_ATTACHMENT_CDN_URL;
     }
 
     const remoteFileUrl = baseURL + location;
 
     const { retries = 3, checkHash = true } = options;
     let retried = 0;
-    while (true) {
+    let lastError;
+    do {
       try {
         const buffer = await this._fetchAttachment(remoteFileUrl);
         if (!checkHash) {
@@ -540,12 +604,12 @@ export class Downloader {
         // Content is corrupted.
         throw new Downloader.BadContentError(location);
       } catch (e) {
-        if (retried >= retries) {
-          throw e;
-        }
+        lastError = e;
+        retried++;
       }
-      retried++;
-    }
+    } while (retried <= retries);
+
+    throw lastError;
   }
 
   async _fetchAttachment(url) {
