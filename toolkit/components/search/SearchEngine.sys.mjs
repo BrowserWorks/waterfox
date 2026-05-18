@@ -106,6 +106,16 @@ export class QueryParameter {
   }
 
   /**
+   * Whether this parameter is Waterfox partner attribution that can be
+   * conditionally omitted by Waterfox search policy.
+   *
+   * @returns {boolean}
+   */
+  get waterfoxPartnerAttribution() {
+    return false;
+  }
+
+  /**
    * Creates a JavaScript object that represents this parameter.
    *
    * @returns {object}
@@ -314,6 +324,15 @@ export class EngineURL {
    */
   get searchTermParamName() {
     return this.#searchTermParam;
+  }
+
+  /**
+   * Whether this URL has any Waterfox partner attribution parameters.
+   *
+   * @returns {boolean}
+   */
+  get waterfoxHasPartnerAttribution() {
+    return this.params.some(param => param.waterfoxPartnerAttribution);
   }
 
   /**
@@ -1026,6 +1045,25 @@ export class SearchEngine {
    */
   get partnerCode() {
     return "";
+  }
+
+  /**
+   * Whether this engine has any Waterfox partner attribution parameters.
+   *
+   * @returns {boolean}
+   */
+  get waterfoxHasPartnerAttribution() {
+    return this._urls.some(url => url.waterfoxHasPartnerAttribution);
+  }
+
+  /**
+   * Whether this engine should be unavailable while Waterfox ad-clicking
+   * extension policy is active.
+   *
+   * @returns {boolean}
+   */
+  get waterfoxUnavailableForAdClickExtensions() {
+    return false;
   }
 
   /**

@@ -28,6 +28,8 @@ ChromeUtils.defineESModuleGetters(lazy, {
   SearchEngineClassification:
     "moz-src:///toolkit/components/uniffi-bindgen-gecko-js/components/generated/RustSearch.sys.mjs",
   SearchUtils: "moz-src:///toolkit/components/search/SearchUtils.sys.mjs",
+  WaterfoxSearchExtensionPolicy:
+    "resource:///modules/WaterfoxSearchExtensionPolicy.sys.mjs",
 });
 
 XPCOMUtils.defineLazyServiceGetter(
@@ -395,6 +397,36 @@ class QueryPreferenceParameter extends QueryParameter {
 }
 
 /**
+ * Represents a Waterfox partner attribution parameter that can be omitted
+ * while local ad-clicking extension policy is active.
+ */
+class WaterfoxPartnerAttributionParameter extends QueryParameter {
+  get value() {
+    return lazy.WaterfoxSearchExtensionPolicy.disablePartnerAttribution
+      ? null
+      : super.value;
+  }
+
+  get waterfoxPartnerAttribution() {
+    return true;
+  }
+
+  /**
+   * Creates a JavaScript object that represents this parameter.
+   *
+   * @returns {object}
+   *   An object suitable for serialization as JSON.
+   */
+  toJSON() {
+    return {
+      name: this.name,
+      value: this._value,
+      waterfoxPartnerAttribution: true,
+    };
+  }
+}
+
+/**
  * AppProvidedSearchEngine represents a search engine defined by the
  * search configuration.
  */
@@ -432,6 +464,8 @@ export class AppProvidedSearchEngine extends SearchEngine {
   #prevEngineInfo = null;
 
   #partnerCode = "";
+
+  #waterfoxUnavailableForAdClickExtensions = false;
 
   /**
    * @param {object} options
@@ -549,6 +583,10 @@ export class AppProvidedSearchEngine extends SearchEngine {
     return this.#partnerCode;
   }
 
+  get waterfoxUnavailableForAdClickExtensions() {
+    return this.#waterfoxUnavailableForAdClickExtensions;
+  }
+
   /**
    * Returns the icon URL for the search engine closest to the preferred width.
    *
@@ -651,6 +689,8 @@ export class AppProvidedSearchEngine extends SearchEngine {
     this._definedAliases =
       engineConfig.aliases?.map(alias => `@${alias}`) ?? [];
     this.#partnerCode = engineConfig.partnerCode ?? "";
+    this.#waterfoxUnavailableForAdClickExtensions =
+      !!engineConfig.waterfoxUnavailableForAdClickExtensions;
 
     for (const [type, urlData] of Object.entries(engineConfig.urls)) {
       if (urlData) {
@@ -688,15 +728,23 @@ export class AppProvidedSearchEngine extends SearchEngine {
       let enterpriseParams = urlData.params
         .filter(p => p.enterpriseValue != undefined)
         .map(p => p.name);
+      const addUrlParam = (param, value) => {
+        value = value == "{partnerCode}" ? partnerCode : value;
+        if (param.waterfoxPartnerAttribution) {
+          engineURL.addQueryParameter(
+            new WaterfoxPartnerAttributionParameter(param.name, value)
+          );
+          return;
+        }
+
+        engineURL.addParam(param.name, value);
+      };
 
       for (const param of urlData.params) {
         switch (true) {
           case param.value != undefined:
             if (!isEnterprise || !enterpriseParams.includes(param.name)) {
-              engineURL.addParam(
-                param.name,
-                param.value == "{partnerCode}" ? partnerCode : param.value
-              );
+              addUrlParam(param, param.value);
             }
             break;
           case param.experimentConfig != undefined:
@@ -708,12 +756,7 @@ export class AppProvidedSearchEngine extends SearchEngine {
             break;
           case param.enterpriseValue != undefined:
             if (isEnterprise) {
-              engineURL.addParam(
-                param.name,
-                param.enterpriseValue == "{partnerCode}"
-                  ? partnerCode
-                  : param.enterpriseValue
-              );
+              addUrlParam(param, param.enterpriseValue);
             }
             break;
         }
