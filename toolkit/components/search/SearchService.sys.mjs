@@ -35,6 +35,8 @@ ChromeUtils.defineESModuleGetters(lazy, {
     "moz-src:///toolkit/components/search/AppProvidedSearchEngine.sys.mjs",
   UserSearchEngine:
     "moz-src:///toolkit/components/search/UserSearchEngine.sys.mjs",
+  WaterfoxSearchExtensionPolicy:
+    "resource:///modules/WaterfoxSearchExtensionPolicy.sys.mjs",
 });
 
 ChromeUtils.defineLazyGetter(lazy, "logConsole", () => {
@@ -2634,11 +2636,40 @@ export class SearchService {
     const engines = await (
       await fetch("chrome://browser/content/search/BrowserSearchEngines.json")
     ).json();
-    return {
-      engines,
-      appDefaultEngineId: "1org",
-      appPrivateDefaultEngineId: "1org",
-    };
+    let appDefaultEngineId = "1org";
+    let appPrivateDefaultEngineId = "1org";
+
+    if (await lazy.WaterfoxSearchExtensionPolicy.updateActiveState()) {
+      const fallbackEngine = engines.find(e => e.identifier == "google");
+      if (fallbackEngine) {
+        const appDefaultEngine = engines.find(
+          e => e.identifier == appDefaultEngineId
+        );
+        if (appDefaultEngine?.waterfoxUnavailableForAdClickExtensions) {
+          if (!this._settings.getMetaDataAttribute("defaultEngineId")) {
+            lazy.WaterfoxSearchExtensionPolicy.noteDefaultFallback(
+              appDefaultEngine.identifier
+            );
+          }
+          appDefaultEngineId = fallbackEngine.identifier;
+        }
+
+        const appPrivateDefaultEngine = engines.find(
+          e => e.identifier == appPrivateDefaultEngineId
+        );
+        if (appPrivateDefaultEngine?.waterfoxUnavailableForAdClickExtensions) {
+          if (!this._settings.getMetaDataAttribute("privateDefaultEngineId")) {
+            lazy.WaterfoxSearchExtensionPolicy.noteDefaultFallback(
+              appPrivateDefaultEngine.identifier,
+              true
+            );
+          }
+          appPrivateDefaultEngineId = fallbackEngine.identifier;
+        }
+      }
+    }
+
+    return { engines, appDefaultEngineId, appPrivateDefaultEngineId };
   }
 
   #setDefaultFromSelector(refinedConfig) {
