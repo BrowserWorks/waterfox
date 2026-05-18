@@ -30,6 +30,7 @@ ChromeUtils.defineLazyGetter(lazy, "logConsole", () => {
 const OS_PARAM_INPUT_ENCODING = "inputEncoding";
 const OS_PARAM_LANGUAGE = "language";
 const OS_PARAM_OUTPUT_ENCODING = "outputEncoding";
+const OS_PARAM_REGION_COUNTRY = "region_country";
 
 // Default values
 const OS_PARAM_LANGUAGE_DEF = "*";
@@ -106,6 +107,16 @@ export class QueryParameter {
   }
 
   /**
+   * Whether this parameter is Waterfox partner attribution that can be
+   * conditionally omitted by Waterfox search policy.
+   *
+   * @returns {boolean}
+   */
+  get waterfoxPartnerAttribution() {
+    return false;
+  }
+
+  /**
    * Creates a JavaScript object that represents this parameter.
    *
    * @returns {object}
@@ -117,6 +128,18 @@ export class QueryParameter {
       value: this.value,
     };
   }
+}
+
+function getRegionCountryParam() {
+  let region = Services.prefs.getCharPref("browser.search.region", "");
+  if (!region) {
+    return "";
+  }
+
+  let locale =
+    Services.locale.requestedLocale || Services.locale.appLocaleAsBCP47;
+  let language = locale?.split("-")[0] || OS_PARAM_LANGUAGE_DEF;
+  return `${language}_${region.toUpperCase()}`;
 }
 
 /**
@@ -155,6 +178,9 @@ function paramSubstitution(paramValue, searchTerms, queryCharset) {
     }
     if (name == OS_PARAM_OUTPUT_ENCODING) {
       return OS_PARAM_OUTPUT_ENCODING_DEF;
+    }
+    if (name == OS_PARAM_REGION_COUNTRY) {
+      return getRegionCountryParam();
     }
 
     // At this point, if a parameter is optional, just omit it.
@@ -314,6 +340,15 @@ export class EngineURL {
    */
   get searchTermParamName() {
     return this.#searchTermParam;
+  }
+
+  /**
+   * Whether this URL has any Waterfox partner attribution parameters.
+   *
+   * @returns {boolean}
+   */
+  get waterfoxHasPartnerAttribution() {
+    return this.params.some(param => param.waterfoxPartnerAttribution);
   }
 
   /**
@@ -1026,6 +1061,25 @@ export class SearchEngine {
    */
   get partnerCode() {
     return "";
+  }
+
+  /**
+   * Whether this engine has any Waterfox partner attribution parameters.
+   *
+   * @returns {boolean}
+   */
+  get waterfoxHasPartnerAttribution() {
+    return this._urls.some(url => url.waterfoxHasPartnerAttribution);
+  }
+
+  /**
+   * Whether this engine should be unavailable while Waterfox ad-clicking
+   * extension policy is active.
+   *
+   * @returns {boolean}
+   */
+  get waterfoxUnavailableForAdClickExtensions() {
+    return false;
   }
 
   /**

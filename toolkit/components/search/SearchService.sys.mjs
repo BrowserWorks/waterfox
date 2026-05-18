@@ -35,6 +35,8 @@ ChromeUtils.defineESModuleGetters(lazy, {
     "moz-src:///toolkit/components/search/AppProvidedSearchEngine.sys.mjs",
   UserSearchEngine:
     "moz-src:///toolkit/components/search/UserSearchEngine.sys.mjs",
+  WaterfoxSearchExtensionPolicy:
+    "resource:///modules/WaterfoxSearchExtensionPolicy.sys.mjs",
 });
 
 ChromeUtils.defineLazyGetter(lazy, "logConsole", () => {
@@ -2631,14 +2633,55 @@ export class SearchService {
   // This is prefixed with _ rather than # because it is
   // called in test_remove_engine_notification_box.js
   async _fetchEngineSelectorEngines() {
-    const engines = await (
-      await fetch("chrome://browser/content/search/BrowserSearchEngines.json")
-    ).json();
-    return {
-      engines,
-      appDefaultEngineId: "1org",
-      appPrivateDefaultEngineId: "1org",
+    let searchEngineSelectorProperties = {
+      locale: Services.locale.appLocaleAsBCP47,
+      region: lazy.Region.home || "unknown",
+      channel: lazy.SearchUtils.MODIFIED_APP_CHANNEL,
+      experiment: this._experimentPrefValue,
+      distroID: lazy.SearchUtils.distroID ?? "",
     };
+
+    for (let [key, value] of Object.entries(searchEngineSelectorProperties)) {
+      this._settings.setMetaDataAttribute(key, value);
+    }
+
+    let refinedConfig = await this.#engineSelector.fetchEngineConfiguration(
+      searchEngineSelectorProperties
+    );
+
+    if (await lazy.WaterfoxSearchExtensionPolicy.updateActiveState()) {
+      const fallbackEngine = refinedConfig.engines.find(
+        e => e.identifier == "google"
+      );
+      if (fallbackEngine) {
+        const appDefaultEngine = refinedConfig.engines.find(
+          e => e.identifier == refinedConfig.appDefaultEngineId
+        );
+        if (appDefaultEngine?.waterfoxUnavailableForAdClickExtensions) {
+          if (!this._settings.getMetaDataAttribute("defaultEngineId")) {
+            lazy.WaterfoxSearchExtensionPolicy.noteDefaultFallback(
+              appDefaultEngine.identifier
+            );
+          }
+          refinedConfig.appDefaultEngineId = fallbackEngine.identifier;
+        }
+
+        const appPrivateDefaultEngine = refinedConfig.engines.find(
+          e => e.identifier == refinedConfig.appPrivateDefaultEngineId
+        );
+        if (appPrivateDefaultEngine?.waterfoxUnavailableForAdClickExtensions) {
+          if (!this._settings.getMetaDataAttribute("privateDefaultEngineId")) {
+            lazy.WaterfoxSearchExtensionPolicy.noteDefaultFallback(
+              appPrivateDefaultEngine.identifier,
+              true
+            );
+          }
+          refinedConfig.appPrivateDefaultEngineId = fallbackEngine.identifier;
+        }
+      }
+    }
+
+    return refinedConfig;
   }
 
   #setDefaultFromSelector(refinedConfig) {
