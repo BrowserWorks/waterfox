@@ -12,6 +12,8 @@ ChromeUtils.defineESModuleGetters(lazy, {
   PrefUtils: "resource:///modules/PrefUtils.sys.mjs",
   setTimeout: "resource://gre/modules/Timer.sys.mjs",
   UICustomizations: "resource:///modules/UICustomizations.sys.mjs",
+  WaterfoxSearchExtensionPolicy:
+    "resource:///modules/WaterfoxSearchExtensionPolicy.sys.mjs",
 });
 
 const WATERFOX_CUSTOMIZATIONS_PREF =
@@ -57,6 +59,9 @@ export const WaterfoxGlue = {
     // Parse chrome.manifest
     this.startupManifest = await this.getChromeManifest("startup");
     this.privateManifest = await this.getChromeManifest("private");
+
+    lazy.WaterfoxSearchExtensionPolicy.init();
+
     // Observe chrome-document-loaded topic to detect window open
     Services.obs.addObserver(this, "chrome-document-loaded");
     // Observe main-pane-loaded topic to detect about:preferences open
@@ -397,6 +402,7 @@ export const WaterfoxGlue = {
   },
 
   shutdown() {
+    lazy.WaterfoxSearchExtensionPolicy.uninit();
   },
 
   updateCustomStylesheets(addon) {
