@@ -103,6 +103,7 @@ export async function jexlFilterFunc(entry, environment, collectionName) {
 function remoteSettingsFunction() {
   const _clients = new Map();
   let _invalidatePolling = false;
+  let _initialized = false;
 
   // If not explicitly specified, use the default signer.
   const defaultOptions = {
@@ -304,6 +305,50 @@ function remoteSettingsFunction() {
     trigger = "manual",
     full = false,
   } = {}) => {
+    if (AppConstants.MOZ_APP_VERSION) {
+      // Offline mode: never talk to the network. The dump/import
+      // loop runs once per session.
+      // We still fire `remote-settings:changes-poll-end` on every
+      // call so daily timer consumers (e.g. the Waterfox content blocker)
+      // get a regular tick, even if one dump import fails.
+      try {
+        if (!_initialized) {
+          _initialized = true;
+          for (const client of _clients.values()) {
+            try {
+              const hasLocalDump = await lazy.Utils.hasLocalDump(
+                client.bucketName,
+                client.collectionName
+              );
+              if (hasLocalDump) {
+                const lastModified = await client.getLastModified();
+                const lastModifiedDump =
+                  await lazy.Utils.getLocalDumpLastModified(
+                    client.bucketName,
+                    client.collectionName
+                  );
+                if (lastModified < lastModifiedDump) {
+                  await client.maybeSync(lastModifiedDump, {
+                    loadDump: true,
+                    trigger,
+                  });
+                }
+              }
+            } catch (err) {
+              lazy.console.warn(
+                `${client.identifier}: Failed to import local Remote ` +
+                  "Settings dump",
+                err
+              );
+            }
+          }
+        }
+      } finally {
+        Services.obs.notifyObservers(null, "remote-settings:changes-poll-end");
+      }
+      return;
+    }
+
     if (lazy.Utils.shouldSkipRemoteActivityDueToTests) {
       return;
     }
@@ -620,7 +665,7 @@ function remoteSettingsFunction() {
     }
     const collections = await Promise.all(
       changes.map(async change => {
-        const { bucket, collection, last_modified: serverTimestamp } = change;
+        const { bucket, collection, last_modified: remoteTimestamp } = change;
         const client = await _client(bucket, collection);
         if (!client) {
           return null;
@@ -634,7 +679,7 @@ function remoteSettingsFunction() {
           bucket,
           collection,
           localTimestamp,
-          serverTimestamp,
+          serverTimestamp: remoteTimestamp,
           lastCheck,
           signerName: client.signerName,
         };
