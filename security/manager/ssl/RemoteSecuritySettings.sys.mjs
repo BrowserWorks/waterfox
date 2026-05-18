@@ -241,6 +241,16 @@ export var RemoteSecuritySettings = {
 
 class IntermediatePreloads {
   constructor() {
+    this.maybeInit();
+  }
+
+  maybeInit() {
+    if (
+      this.client ||
+      !Services.prefs.getBoolPref(INTERMEDIATES_ENABLED_PREF, true)
+    ) {
+      return;
+    }
     this.client = RemoteSettings("intermediates", {
       bucketName: SECURITY_STATE_BUCKET,
       signerName: SECURITY_STATE_SIGNER,
@@ -266,6 +276,7 @@ class IntermediatePreloads {
       );
       return;
     }
+    this.maybeInit();
 
     // Download attachments that are awaiting download, up to a max.
     const maxDownloadsPerRun = Services.prefs.getIntPref(
@@ -335,7 +346,7 @@ class IntermediatePreloads {
     lazy.log.debug(
       `There are ${waiting.length} intermediates awaiting download.`
     );
-    if (!waiting.length) {
+    if (!waiting.length || !Services.prefs.getBoolPref(INTERMEDIATES_ENABLED_PREF, true) || !this.client) {
       // Nothing to do.
       Services.obs.notifyObservers(
         null,
@@ -430,6 +441,11 @@ class IntermediatePreloads {
   async maybeDownloadAttachment(record) {
     let result = { record, cert: null, subject: null };
 
+    // Early return if intermediates are disabled or client doesn't exist
+    if (!Services.prefs.getBoolPref(INTERMEDIATES_ENABLED_PREF, true) || !this.client) {
+      return result;
+    }
+
     let dataAsString = null;
     try {
       let { buffer } = await this.client.attachments.download(record, {
@@ -495,6 +511,16 @@ function compareFilters(filterA, filterB) {
 
 class CRLiteFilters {
   constructor() {
+    this.maybeInit();
+  }
+
+  maybeInit() {
+    if (
+      this.client ||
+      !Services.prefs.getBoolPref(CRLITE_FILTERS_ENABLED_PREF, true)
+    ) {
+      return;
+    }
     this.client = RemoteSettings("cert-revocations", {
       bucketName: SECURITY_STATE_BUCKET,
       signerName: SECURITY_STATE_SIGNER,
@@ -544,6 +570,8 @@ class CRLiteFilters {
       );
       return;
     }
+
+    this.maybeInit();
 
     let hasPriorFilter = await hasPriorData(
       Ci.nsICertStorage.DATA_TYPE_CRLITE_FILTER_FULL
@@ -619,6 +647,10 @@ class CRLiteFilters {
     lazy.log.debug("filtersToDownload:", filtersToDownload);
     let filtersDownloaded = [];
     for (let filter of filtersToDownload) {
+      // Skip download if CRLite filters are disabled or client doesn't exist
+      if (!Services.prefs.getBoolPref(CRLITE_FILTERS_ENABLED_PREF, true) || !this.client) {
+        continue;
+      }
       try {
         let attachment = await this.client.attachments.downloadAsBytes(filter);
         let bytes = new Uint8Array(attachment);
