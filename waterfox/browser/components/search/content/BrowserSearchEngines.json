@@ -47,7 +47,8 @@
 				"searchTermParamName": "q"
 			}
 		},
-		"variants": []
+		"variants": [],
+		"waterfoxUnavailableForAdClickExtensions": true
 	},
 	{
 		"aliases": ["bi"],
@@ -104,7 +105,8 @@
 				"params": [
 					{
 						"name": "t",
-						"value": "waterfox"
+						"value": "waterfox",
+						"waterfoxPartnerAttribution": true
 					}
 				],
 				"searchTermParamName": "q"
@@ -153,7 +155,8 @@
 				"params": [
 					{
 						"name": "tt",
-						"value": "57226k1p"
+						"value": "57226k1p",
+						"waterfoxPartnerAttribution": true
 					}
 				],
 				"searchTermParamName": "q"
@@ -295,6 +298,10 @@
 						"name": "t",
 						"value": "web",
 						"waterfoxPartnerAttribution": true
+					},
+					{
+						"name": "llm",
+						"value": "0"
 					}
 				],
 				"searchTermParamName": "q"
