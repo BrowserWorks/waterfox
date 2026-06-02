@@ -461,6 +461,7 @@ identity-permissions-storage-access-learn-more = Learn more
 identity-permissions-reload-hint = You may need to reload the page for changes to apply.
 identity-clear-site-data =
     .label = Clear cookies and site data…
+identity-allow-site-data = Always store cookies/data for this site
 identity-connection-not-secure-security-view = You are not securely connected to this site.
 identity-connection-verified = You are securely connected to this site.
 identity-ev-owner-label = Certificate issued to:
