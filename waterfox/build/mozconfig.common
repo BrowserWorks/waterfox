@@ -101,6 +101,7 @@ if [ -n "$wfx_target" ]; then
     if [ "$wfx_os" = "windows" ]; then
         ac_add_options --disable-bits-download
     fi
+    ac_add_options --disable-crashreporter
     ac_add_options --disable-debug
     ac_add_options --disable-dmd
     ac_add_options --disable-geckodriver
@@ -160,6 +161,7 @@ if [ -n "$wfx_target" ]; then
 
     ac_add_options --target=$wfx_target
 else
+    ac_add_options --disable-crashreporter
     ac_add_options --disable-debug
     ac_add_options --disable-dmd
     ac_add_options --disable-geckodriver
@@ -205,3 +207,4 @@ else
 fi
 
 export MOZ_REQUIRE_SIGNING=
+export MOZ_TELEMETRY_REPORTING=
