@@ -208,7 +208,9 @@ export var UpdateListener = {
             break;
         }
         url = Services.urlFormatter.formatURL(
-          url.replace("%VERSION%", versionString)
+          url
+            .replaceAll("%VERSION%", versionString)
+            .replaceAll("%DISPLAY_VERSION%", update.displayVersion)
         );
       }
       return url || null;
