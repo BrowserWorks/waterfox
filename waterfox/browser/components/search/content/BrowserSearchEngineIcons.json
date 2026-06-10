@@ -1,0 +1,9 @@
+[
+  ["bing", "chrome://browser/content/search/icons/bing.svg"],
+  ["ddg", "chrome://browser/content/search/icons/ddg.svg"],
+  ["ecosia", "chrome://browser/content/search/icons/ecosia.svg"],
+  ["google", "chrome://browser/content/search/icons/google.svg"],
+  ["mojeek", "chrome://browser/content/search/icons/mojeek.svg"],
+  ["qwant", "chrome://browser/content/search/icons/qwant.svg"],
+  ["wps", "chrome://browser/content/search/icons/wps.svg"]
+]
