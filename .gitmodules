@@ -1,0 +1,3 @@
+[submodule "waterfox/browser/locales"]
+	path = waterfox/browser/locales
+	url = git@github.com:BrowserWorks/l10n.git

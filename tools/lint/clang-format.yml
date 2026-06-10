@@ -4,6 +4,8 @@ clang-format:
     include:
         - '.'
     extensions: ['cpp', 'c', 'cc', 'h', 'm', 'mm']
+    exclude:
+        - 'waterfox/browser/locales'
     support-files:
         - 'tools/lint/clang-format/**'
     type: global
