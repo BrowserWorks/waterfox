@@ -267,7 +267,7 @@ appUpdater.prototype = {
    * Check for updates
    */
   checkForUpdates() {
-    this._appUpdater.check();
+    this._appUpdater.check({ checkOnly: true });
   },
 
   /**
