@@ -781,7 +781,7 @@ class WindowsGPOPoliciesProvider {
         }
       }
       wrk.open(root, regLocation, wrk.ACCESS_READ);
-      if (wrk.hasChild("Mozilla\\" + Services.appinfo.name)) {
+      if (wrk.hasChild("BrowserWorks\\" + Services.appinfo.name)) {
         lazy.log.debug(
           `root = ${
             root == wrk.ROOT_KEY_CURRENT_USER
