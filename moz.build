@@ -179,6 +179,7 @@ DIRS += [
     "python",
     "testing",
     "third_party/python",
+    "waterfox",
 ]
 
 if CONFIG["MOZ_APPSERVICES_IN_TREE"]:
