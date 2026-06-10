@@ -2,4 +2,6 @@
 firefox-appdir = "browser"
 support-files = ["file_early_scriptlet_injection.html"]
 
+["browser_blocked_page_bypass.js"]
+
 ["browser_early_scriptlet_injection.js"]
