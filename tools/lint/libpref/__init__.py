@@ -22,6 +22,7 @@ IGNORE_PREFS = {
     "dom.postMessage.sharedArrayBuffer.bypassCOOP_COEP.insecure.enabled",  # NOQA: E501; Uses the 'locked' attribute.
     "extensions.backgroundServiceWorker.enabled",  # NOQA: E501; Uses the 'locked' attribute.
     "general.smoothScroll",  # Uses the 'sticky` attribute.
+    "layout.word_select.eat_space_to_next_word",  # Waterfox overrides the Windows default.
     "security.storage.encryption.sqlite.enabled",  # NOQA: E501; Uses the 'locked' attribute.
 }
 
