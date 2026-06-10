@@ -40,6 +40,22 @@ export const WaterfoxGlue = {
       remoteTypes: ["web"],
     });
 
+    // The blocked page actor handles the "Load anyway" click so the parent
+    // can record a session permission before the navigation happens.
+    ChromeUtils.registerWindowActor("WaterfoxBlockedPage", {
+      parent: {
+        esModuleURI: "resource:///modules/WaterfoxBlockedPageParent.sys.mjs",
+      },
+      child: {
+        esModuleURI: "resource:///modules/WaterfoxBlockedPageChild.sys.mjs",
+        events: {
+          click: {},
+        },
+      },
+      matches: ["about:contentblocked?*"],
+      allFrames: true,
+    });
+
     lazy.WaterfoxBlockerService.init().catch(error =>
       console.error("WaterfoxBlockerService startup init failed", error)
     );
