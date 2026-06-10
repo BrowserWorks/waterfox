@@ -1,0 +1,4 @@
+[DEFAULT]
+firefox-appdir = "browser"
+
+["test_search_config.js"]
