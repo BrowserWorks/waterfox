@@ -57,8 +57,6 @@
 # User files that may appear at the root
 ^\.clang-tidy
 ^\.clangd
-^\.mozconfig
-^mozconfig*
 ^\.moz-fast-forward
 ^\.moz-vendoring
 ^old-configure$
