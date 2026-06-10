@@ -17,7 +17,6 @@
 /crashhelper
 #endif
 /nmhproxy
-/pingsender
 /pk12util
 /ssltunnel
 /xpcshell
