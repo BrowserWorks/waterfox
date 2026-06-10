@@ -707,7 +707,8 @@ export class ConfigSearchEngine extends SearchEngine {
     this.#orderHint = engineConfig.orderHint;
     this.#telemetryId = engineConfig.identifier;
     this.#isGeneralPurposeSearchEngine =
-      engineConfig.classification == lazy.SearchEngineClassification.GENERAL;
+      engineConfig.classification == lazy.SearchEngineClassification.GENERAL ||
+      engineConfig.classification == "general";
 
     if (engineConfig.charset) {
       this._queryCharset = engineConfig.charset;
