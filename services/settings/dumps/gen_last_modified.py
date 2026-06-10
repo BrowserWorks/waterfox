@@ -64,6 +64,9 @@ def main(output):
     if buildconfig.substs["MOZ_BUILD_APP"] == "browser":
         dumps_locations += ["services/settings/dumps/"]
         dumps_locations += ["services/settings/static-dumps/"]
+        # Waterfox dumps replace the Mozilla dump for the same collection,
+        # so this location must stay last.
+        dumps_locations += ["waterfox/browser/components/search/dumps/"]
     elif buildconfig.substs["MOZ_BUILD_APP"] == "mobile/android":
         dumps_locations += ["services/settings/dumps/"]
     elif buildconfig.substs["MOZ_BUILD_APP"] == "mobile/ios":

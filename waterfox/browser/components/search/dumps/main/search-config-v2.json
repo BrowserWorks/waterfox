@@ -1,0 +1,347 @@
+{
+  "data": [
+    {
+      "base": {
+        "aliases": ["1o"],
+        "classification": "general",
+        "name": "1.org Charitable Search",
+        "urls": {
+          "search": {
+            "base": "https://1.org/search",
+            "params": [
+              {
+                "name": "segment",
+                "experimentConfig": "waterfox_attribution_1org"
+              }
+            ],
+            "searchTermParamName": "q"
+          },
+          "suggestions": {
+            "base": "https://search.waterfox.com/autocomplete",
+            "searchTermParamName": "q"
+          }
+        }
+      },
+      "variants": [
+        {
+          "environment": {
+            "allRegionsAndLocales": true
+          }
+        }
+      ],
+      "identifier": "1org",
+      "recordType": "engine",
+      "id": "f03b2c84-6f99-4ed0-a6f0-a247d3ae0eee",
+      "last_modified": 1781049600000
+    },
+    {
+      "base": {
+        "aliases": ["bi"],
+        "classification": "general",
+        "name": "Bing",
+        "urls": {
+          "search": {
+            "base": "https://www.bing.com/search",
+            "searchTermParamName": "q"
+          },
+          "suggestions": {
+            "base": "https://search.waterfox.com/autocomplete",
+            "searchTermParamName": "q"
+          }
+        }
+      },
+      "variants": [
+        {
+          "environment": {
+            "allRegionsAndLocales": true
+          }
+        }
+      ],
+      "identifier": "bing",
+      "recordType": "engine",
+      "id": "2b86db12-a65d-4cdc-84f8-cdcf705ad5ca",
+      "last_modified": 1781049600000
+    },
+    {
+      "base": {
+        "aliases": ["ddg"],
+        "classification": "general",
+        "name": "DuckDuckGo",
+        "urls": {
+          "search": {
+            "base": "https://duckduckgo.com/",
+            "params": [
+              {
+                "name": "t",
+                "experimentConfig": "waterfox_attribution_ddg"
+              }
+            ],
+            "searchTermParamName": "q"
+          },
+          "suggestions": {
+            "base": "https://search.waterfox.com/autocomplete",
+            "searchTermParamName": "q"
+          }
+        }
+      },
+      "variants": [
+        {
+          "environment": {
+            "allRegionsAndLocales": true
+          }
+        }
+      ],
+      "identifier": "ddg",
+      "recordType": "engine",
+      "id": "c8ef2865-c592-4eea-8e13-abdefc4e586d",
+      "last_modified": 1781049600000
+    },
+    {
+      "base": {
+        "aliases": ["ec"],
+        "classification": "general",
+        "name": "Ecosia",
+        "urls": {
+          "search": {
+            "base": "https://www.ecosia.org/search",
+            "params": [
+              {
+                "name": "tt",
+                "experimentConfig": "waterfox_attribution_ecosia"
+              }
+            ],
+            "searchTermParamName": "q"
+          },
+          "suggestions": {
+            "base": "https://search.waterfox.com/autocomplete",
+            "searchTermParamName": "q"
+          }
+        }
+      },
+      "variants": [
+        {
+          "environment": {
+            "allRegionsAndLocales": true
+          }
+        }
+      ],
+      "identifier": "ecosia",
+      "recordType": "engine",
+      "id": "6e24cbe0-e421-4462-ad7d-197db4cde98f",
+      "last_modified": 1781049600000
+    },
+    {
+      "base": {
+        "aliases": ["go"],
+        "classification": "general",
+        "name": "Google",
+        "urls": {
+          "search": {
+            "base": "https://www.google.com/search",
+            "searchTermParamName": "q"
+          },
+          "suggestions": {
+            "base": "https://search.waterfox.com/autocomplete",
+            "searchTermParamName": "q"
+          }
+        }
+      },
+      "variants": [
+        {
+          "environment": {
+            "allRegionsAndLocales": true
+          }
+        }
+      ],
+      "identifier": "google",
+      "recordType": "engine",
+      "id": "cc42ee69-382f-44b9-9222-980755a6849f",
+      "last_modified": 1781049600000
+    },
+    {
+      "base": {
+        "aliases": ["mo"],
+        "classification": "general",
+        "name": "Mojeek",
+        "urls": {
+          "search": {
+            "base": "https://www.mojeek.com/search",
+            "searchTermParamName": "q"
+          },
+          "suggestions": {
+            "base": "https://search.waterfox.com/autocomplete",
+            "searchTermParamName": "q"
+          }
+        }
+      },
+      "variants": [
+        {
+          "environment": {
+            "allRegionsAndLocales": true
+          }
+        }
+      ],
+      "identifier": "mojeek",
+      "recordType": "engine",
+      "id": "db59d254-ecf4-42a1-b15c-63563debb60a",
+      "last_modified": 1781049600000
+    },
+    {
+      "base": {
+        "aliases": ["qw"],
+        "classification": "general",
+        "name": "Qwant",
+        "urls": {
+          "search": {
+            "base": "https://www.qwant.com/",
+            "params": [
+              {
+                "name": "client",
+                "experimentConfig": "waterfox_attribution_qwant"
+              },
+              {
+                "name": "t",
+                "value": "web"
+              },
+              {
+                "name": "llm",
+                "value": "0"
+              }
+            ],
+            "searchTermParamName": "q"
+          },
+          "suggestions": {
+            "base": "https://search.waterfox.com/autocomplete",
+            "searchTermParamName": "q"
+          }
+        }
+      },
+      "variants": [
+        {
+          "environment": {
+            "regions": [
+              "ar",
+              "au",
+              "at",
+              "be",
+              "bg",
+              "ca",
+              "cl",
+              "cn",
+              "cz",
+              "dk",
+              "ee",
+              "fi",
+              "fr",
+              "de",
+              "gr",
+              "hu",
+              "ie",
+              "il",
+              "it",
+              "my",
+              "mx",
+              "nl",
+              "nz",
+              "no",
+              "pl",
+              "pt",
+              "ro",
+              "kr",
+              "es",
+              "se",
+              "ch",
+              "th",
+              "gb",
+              "us"
+            ]
+          }
+        }
+      ],
+      "identifier": "qwant",
+      "recordType": "engine",
+      "id": "d7e41317-0461-4801-9ebc-fa4de57dcd57",
+      "last_modified": 1784505600000
+    },
+    {
+      "base": {
+        "aliases": ["wps"],
+        "classification": "general",
+        "name": "Waterfox Private Search",
+        "urls": {
+          "search": {
+            "base": "https://search.waterfox.com/search",
+            "searchTermParamName": "q"
+          },
+          "suggestions": {
+            "base": "https://search.waterfox.com/autocomplete",
+            "searchTermParamName": "q"
+          }
+        }
+      },
+      "variants": [
+        {
+          "environment": {
+            "allRegionsAndLocales": true
+          }
+        }
+      ],
+      "identifier": "wps",
+      "recordType": "engine",
+      "id": "9b2df7d1-77d2-43e8-b20c-6b6ae4b6844b",
+      "last_modified": 1781049600000
+    },
+    {
+      "globalDefault": "ddg",
+      "globalDefaultPrivate": "ddg",
+      "specificDefaults": [
+        {
+          "default": "qwant",
+          "defaultPrivate": "qwant",
+          "environment": {
+            "regions": [
+              "ar",
+              "au",
+              "at",
+              "be",
+              "bg",
+              "ca",
+              "cl",
+              "cn",
+              "cz",
+              "dk",
+              "ee",
+              "fi",
+              "fr",
+              "de",
+              "gr",
+              "hu",
+              "ie",
+              "il",
+              "it",
+              "my",
+              "mx",
+              "nl",
+              "nz",
+              "no",
+              "pl",
+              "pt",
+              "ro",
+              "kr",
+              "es",
+              "se",
+              "ch",
+              "th",
+              "gb",
+              "us"
+            ]
+          }
+        }
+      ],
+      "recordType": "defaultEngines",
+      "id": "373a8b15-f744-5648-a93c-c076ddc14f71",
+      "last_modified": 1784505600000
+    }
+  ],
+  "timestamp": 1784505600000
+}
