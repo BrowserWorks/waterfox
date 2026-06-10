@@ -2,6 +2,10 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+EXTRA_JS_MODULES += [
+    "WaterfoxSearchExtensionPolicy.sys.mjs",
+]
+
 # These dumps replace the Mozilla search configuration. The collections stay
 # offline under the Waterfox Remote Settings policy, so whatever ships here is
 # the entire search configuration. Bump the dump timestamp and changed records'
