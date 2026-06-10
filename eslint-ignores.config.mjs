@@ -68,6 +68,8 @@ export default [
 
   // The only file in browser/locales/ is pre-processed.
   "browser/locales/",
+  // The nested localization repository contains legacy .js property files.
+  "waterfox/browser/locales/",
   // Generated data files
   "browser/extensions/formautofill/phonenumberutils/PhoneNumberMetaData.sys.mjs",
 
