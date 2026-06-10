@@ -8,6 +8,8 @@ const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
   ExperimentAPI: "resource://nimbus/ExperimentAPI.sys.mjs",
+  WaterfoxSearchExtensionPolicy:
+    "resource:///modules/WaterfoxSearchExtensionPolicy.sys.mjs",
   WaterfoxSearchLocale: "resource:///modules/WaterfoxSearchLocale.sys.mjs",
 });
 
@@ -28,6 +30,7 @@ export const WaterfoxGlue = {
       );
     }
 
+    lazy.WaterfoxSearchExtensionPolicy.init();
     lazy.WaterfoxSearchLocale.init();
   },
 
