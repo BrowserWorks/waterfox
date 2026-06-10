@@ -2038,7 +2038,7 @@ function copyTestUpdaterToBinDir() {
     stripQuarantineBitFromPath(updater.path);
     updater.append("Contents");
     updater.append("MacOS");
-    updater.append("org.mozilla.updater");
+    updater.append("net.waterfox.updater");
   }
   return updater;
 }
