@@ -17510,7 +17510,7 @@
 # Enable content classifier service protection (blocking).
 - name: privacy.trackingprotection.content.protection.enabled
   type: bool
-  value: false
+  value: true
   mirror: always
 
 # Specify `|` delimited urls to use to fetch lists that will
@@ -17540,7 +17540,7 @@
 # Enable content classifier service annotation.
 - name: privacy.trackingprotection.content.annotation.enabled
   type: bool
-  value: false
+  value: true
   mirror: always
 
 # Specify `|` delimited urls to use to fetch lists that will
