@@ -70,6 +70,54 @@ const lazy = XPCOMUtils.declareLazy({
 const TOPIC_LOCALES_CHANGE = "intl:app-locales-changed";
 const QUIT_APPLICATION_TOPIC = "quit-application";
 
+const WATERFOX_SEARCH_ENGINES_URL =
+  "chrome://browser/content/search/BrowserSearchEngines.json";
+const WATERFOX_QWANT_DEFAULT_REGIONS = new Set([
+  "AR",
+  "AT",
+  "AU",
+  "BE",
+  "BG",
+  "CA",
+  "CH",
+  "CL",
+  "CN",
+  "CZ",
+  "DE",
+  "DK",
+  "EE",
+  "ES",
+  "FI",
+  "FR",
+  "GB",
+  "GR",
+  "HU",
+  "IE",
+  "IL",
+  "IT",
+  "KR",
+  "MX",
+  "MY",
+  "NL",
+  "NO",
+  "NZ",
+  "PL",
+  "PT",
+  "RO",
+  "SE",
+  "TH",
+  "US",
+]);
+
+export function getWaterfoxDefaultSearchEngineId(region) {
+  const normalizedRegion = region?.toUpperCase();
+  return normalizedRegion &&
+    normalizedRegion != "UNKNOWN" &&
+    !WATERFOX_QWANT_DEFAULT_REGIONS.has(normalizedRegion)
+    ? "ddg"
+    : "qwant";
+}
+
 // The update timer for OpenSearch engines checks in once a day.
 const OPENSEARCH_UPDATE_TIMER_TOPIC = "search-engine-update-timer";
 const OPENSEARCH_UPDATE_TIMER_INTERVAL = 60 * 60 * 24;
@@ -2803,21 +2851,34 @@ export const SearchService = new (class SearchService {
   // This is prefixed with _ rather than # because it is
   // called in test_remove_engine_notification_box.js
   async _fetchEngineSelectorEngines() {
-    let searchEngineSelectorProperties = {
-      locale: Services.locale.appLocaleAsBCP47,
-      region: lazy.Region.home || "unknown",
-      channel: lazy.SearchUtils.MODIFIED_APP_CHANNEL,
-      experiment: this.#lazyPrefs.experimentPrefValue,
-      distroID: lazy.SearchUtils.distroID ?? "",
-    };
+    if (Services.env.exists("XPCSHELL_TEST_PROFILE_DIR")) {
+      const searchEngineSelectorProperties = {
+        locale: Services.locale.appLocaleAsBCP47,
+        region: lazy.Region.home || "unknown",
+        channel: lazy.SearchUtils.MODIFIED_APP_CHANNEL,
+        experiment: this.#lazyPrefs.experimentPrefValue,
+        distroID: lazy.SearchUtils.distroID ?? "",
+      };
 
-    for (let [key, value] of Object.entries(searchEngineSelectorProperties)) {
-      this._settings.setMetaDataAttribute(key, value);
+      for (const [key, value] of Object.entries(
+        searchEngineSelectorProperties
+      )) {
+        this._settings.setMetaDataAttribute(key, value);
+      }
+
+      return this.#engineSelector.fetchEngineConfiguration(
+        searchEngineSelectorProperties
+      );
     }
 
-    return this.#engineSelector.fetchEngineConfiguration(
-      searchEngineSelectorProperties
-    );
+    const engines = await (await fetch(WATERFOX_SEARCH_ENGINES_URL)).json();
+    const defaultEngineId = getWaterfoxDefaultSearchEngineId(lazy.Region.home);
+
+    return {
+      engines,
+      appDefaultEngineId: defaultEngineId,
+      appPrivateDefaultEngineId: defaultEngineId,
+    };
   }
 
   #setDefaultFromSelector(refinedConfig) {
