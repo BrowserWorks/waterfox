@@ -91,7 +91,8 @@ nsresult nsAboutProtocolHandler::CreateNewURI(const nsACString& aSpec,
 
   // The about modules for these URL types have the
   // URI_SAFE_FOR_UNTRUSTED_CONTENT and MAKE_LINKABLE flags set.
-  if (name.EqualsLiteral("blank") || name.EqualsLiteral("srcdoc")) {
+  if (name.EqualsLiteral("blank") || name.EqualsLiteral("srcdoc") ||
+      name.EqualsLiteral("contentblocked")) {
     // We need to indicate that this baby is safe.  Use an inner URI that
     // no one but the security manager will see.  Make sure to preserve our
     // path, in case someone decides to hardcode checks for particular

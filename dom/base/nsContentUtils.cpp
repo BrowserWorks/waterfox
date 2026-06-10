@@ -2201,7 +2201,7 @@ bool nsContentUtils::IsErrorPage(nsIURI* aURI) {
   NS_ENSURE_SUCCESS(rv, false);
 
   return name.EqualsLiteral("certerror") || name.EqualsLiteral("neterror") ||
-         name.EqualsLiteral("blocked");
+         name.EqualsLiteral("blocked") || name.EqualsLiteral("contentblocked");
 }
 
 // static

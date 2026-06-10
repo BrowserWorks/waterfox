@@ -27,6 +27,9 @@ JAR_MANIFESTS += [
 ]
 
 EXTRA_JS_MODULES += [
+    "WaterfoxBlockedPage.sys.mjs",
+    "WaterfoxBlockedPageChild.sys.mjs",
+    "WaterfoxBlockedPageParent.sys.mjs",
     "WaterfoxBlockerChild.sys.mjs",
     "WaterfoxBlockerParent.sys.mjs",
     "WaterfoxBlockerService.sys.mjs",
@@ -43,6 +46,8 @@ EXTRA_JS_MODULES.internal += [
     "internal/Resources.sys.mjs",
     "internal/SiteExceptions.sys.mjs",
 ]
+
+BROWSER_CHROME_MANIFESTS += ["test/browser/browser.toml"]
 
 XPCSHELL_TESTS_MANIFESTS += ["test/unit/xpcshell.toml"]
 
