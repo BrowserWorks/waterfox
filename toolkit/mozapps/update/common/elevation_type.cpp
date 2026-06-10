@@ -58,7 +58,7 @@ BoolResult isProcessElevated(const NS_tchar* cmd) {
   if (!cmd) {
     return BoolResult::False;
   }
-  return strstr(cmd, "/Library/PrivilegedHelperTools/org.mozilla.updater") !=
+  return strstr(cmd, "/Library/PrivilegedHelperTools/net.waterfox.updater") !=
                  nullptr
              ? BoolResult::True
              : BoolResult::False;
