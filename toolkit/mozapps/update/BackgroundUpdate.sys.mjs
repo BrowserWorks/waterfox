@@ -158,6 +158,11 @@ export var BackgroundUpdate = {
       reasons.push(this.REASON.NO_APP_UPDATE_AUTO);
     }
 
+    lazy.log.debug(`${SLUG}: checking app.update.enabled`);
+    if (!lazy.UpdateUtils.appUpdateCheckEnabled) {
+      reasons.push(this.REASON.NO_APP_UPDATE_ENABLED);
+    }
+
     lazy.log.debug(`${SLUG}: checking app.update.background.enabled`);
     let updateBackground = await lazy.UpdateUtils.readUpdateConfigSetting(
       "app.update.background.enabled"
@@ -1172,6 +1177,7 @@ BackgroundUpdate.REASON = {
   NOT_DEFAULT_PROFILE: "not default profile",
   NO_APP_UPDATE_AUTO: "app.update.auto=false",
   NO_APP_UPDATE_BACKGROUND_ENABLED: "app.update.background.enabled=false",
+  NO_APP_UPDATE_ENABLED: "app.update.enabled=false",
   NO_MOZ_BACKGROUNDTASKS: "MOZ_BACKGROUNDTASKS=0",
   NO_OMNIJAR: "no omnijar",
   SERVICE_REGISTRY_KEY_MISSING:

@@ -172,6 +172,16 @@ export var UpdateUtils = {
     return this.getConfigFilePath();
   },
 
+  get appUpdateCheckEnabled() {
+    if (
+      Services.policies &&
+      !Services.policies.isAllowed("app-auto-updates-off")
+    ) {
+      return true;
+    }
+    return Services.prefs.getBoolPref("app.update.enabled", true);
+  },
+
   /**
    * Determines whether or not the Application Update Service automatically
    * downloads and installs updates. This corresponds to whether or not the user
@@ -859,8 +869,8 @@ async function readUpdateConfig() {
           await writeUpdateConfig(migrationConfig);
           onMigrationSuccessful();
           return migrationConfig;
-        } catch (e) {
-          console.error("readUpdateConfig: Migration failed: ", e);
+        } catch (migrationError) {
+          console.error("readUpdateConfig: Migration failed: ", migrationError);
         }
       }
     } else {

@@ -72,6 +72,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   TelemetryReportingPolicy:
     "resource://gre/modules/TelemetryReportingPolicy.sys.mjs",
   TRRRacer: "resource:///modules/TRRPerformance.sys.mjs",
+  UpdateUtils: "resource://gre/modules/UpdateUtils.sys.mjs",
   WebChannel: "resource://gre/modules/WebChannel.sys.mjs",
   WebProtocolHandlerRegistrar:
     "resource:///modules/WebProtocolHandlerRegistrar.sys.mjs",
@@ -424,6 +425,7 @@ BrowserGlue.prototype = {
     // check for update if our build is old
     if (
       AppConstants.MOZ_UPDATER &&
+      lazy.UpdateUtils.appUpdateCheckEnabled &&
       Services.prefs.getBoolPref("app.update.checkInstallTime")
     ) {
       let buildID = Services.appinfo.appBuildID;
