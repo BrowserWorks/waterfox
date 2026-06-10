@@ -7,15 +7,27 @@
 
 #include "content_classifier_ffi.h"
 
+#include "mozilla/Atomics.h"
+#include "mozilla/Mutex.h"
+#include "mozilla/ThreadSafety.h"
 #include "nsError.h"
 #include "nsString.h"
 #include "nsTArray.h"
 #include "nsIChannel.h"
+#include "nsISupportsImpl.h"
 
 namespace mozilla {
 
 class ContentClassifierService;
 struct ContentClassifierFeature;
+
+struct ContentClassifierDetailedResult {
+  bool mMatched = false;
+  bool mImportant = false;
+  nsCString mException;
+  nsCString mRedirect;
+  nsCString mRewrittenUrl;
+};
 
 // Per-engine outcome from ContentClassifierEngine::CheckNetworkRequest.
 // Carries a reference back to the feature definition whose engine produced
@@ -63,6 +75,7 @@ class ContentClassifierRequest {
   bool Valid() const { return mValid; }
   const nsCString& Url() const { return mUrl; }
   bool PrivateBrowsing() const { return mPrivateBrowsing; }
+  bool ThirdParty() const { return mThirdParty; }
 
   explicit ContentClassifierRequest(nsIChannel* aChannel);
 };
@@ -71,37 +84,62 @@ class ContentClassifierEngine final {
  public:
   NS_INLINE_DECL_THREADSAFE_REFCOUNTING(ContentClassifierEngine)
 
+  ContentClassifierEngine() = default;
   explicit ContentClassifierEngine(const ContentClassifierFeature& aFeature)
-      : mFeature(aFeature), mEngine(nullptr) {
-    if (!sInitializedETLDService) {
-      nsresult rv = content_classifier_initialize_domain_resolver();
-      if (NS_SUCCEEDED(rv)) {
-        sInitializedETLDService = true;
-      }
-    }
-  }
+      : mFeature(&aFeature) {}
 
-  nsresult InitFromRules(const nsTArray<nsCString>& aRules) {
-    return content_classifier_engine_from_rules(&aRules, &mEngine);
-  }
+  static nsresult InitializeDomainResolver();
 
-  const ContentClassifierFeature& Feature() const { return mFeature; }
+  nsresult InitFromRules(const nsTArray<nsCString>& aRules);
+  nsresult InitFromCache(const nsTArray<uint8_t>& aCacheData);
+  nsresult Serialize(nsTArray<uint8_t>& aCacheData);
+  nsresult UseResources(const nsACString& aResourcesJson);
+  nsresult PrepareForPublication();
+
+  const ContentClassifierFeature& Feature() const {
+    MOZ_RELEASE_ASSERT(mFeature);
+    return *mFeature;
+  }
 
   ContentClassifierEngineResult CheckNetworkRequest(
       const ContentClassifierRequest& aRequest, bool aPreviouslyMatched);
 
+  nsresult CheckNetworkRequestDetailed(
+      const nsACString& aUrl, const nsACString& aSourceHostname,
+      const nsACString& aHostname, const nsACString& aRequestType,
+      const nsACString& aRequestMethod, bool aIsThirdParty,
+      ContentClassifierDetailedResult& aResult);
+  nsresult GetCspDirectives(const nsACString& aUrl,
+                            const nsACString& aSourceHostname,
+                            const nsACString& aHostname,
+                            const nsACString& aRequestType,
+                            const nsACString& aRequestMethod,
+                            bool aIsThirdParty, nsACString& aDirectives);
+  nsresult GetReplaceDirectives(const nsACString& aUrl,
+                                const nsACString& aSourceHostname,
+                                const nsACString& aHostname,
+                                const nsACString& aRequestType,
+                                const nsACString& aRequestMethod,
+                                bool aIsThirdParty,
+                                nsACString& aDirectivesJson);
+  nsresult GetCosmeticResources(const nsACString& aUrl,
+                                nsACString& aResourcesJson);
+  nsresult GetHiddenClassIdSelectors(const nsACString& aClassesJson,
+                                     const nsACString& aIdsJson,
+                                     const nsACString& aExceptionsJson,
+                                     nsACString& aSelectorsJson);
+
  private:
-  ~ContentClassifierEngine() {
-    if (mEngine) {
-      content_classifier_engine_destroy(mEngine);
-      mEngine = nullptr;
-    }
-  }
+  ~ContentClassifierEngine();
+  void ReplaceEngine(ContentClassifierFFIEngine* aEngine) MOZ_REQUIRES(mLock);
 
-  static inline bool sInitializedETLDService = false;
+  static Atomic<bool> sInitializedETLDService;
 
-  const ContentClassifierFeature& mFeature;
-  ContentClassifierFFIEngine* mEngine;
+  const ContentClassifierFeature* const mFeature = nullptr;
+  Mutex mLock{"ContentClassifierEngine::mLock"};
+  ContentClassifierFFIEngine* mEngine MOZ_GUARDED_BY(mLock) = nullptr;
+  bool mResourcesLoaded MOZ_GUARDED_BY(mLock) = false;
+  bool mPublished MOZ_GUARDED_BY(mLock) = false;
 
   ContentClassifierEngine(const ContentClassifierEngine&) = delete;
   ContentClassifierEngine& operator=(const ContentClassifierEngine&) = delete;

@@ -67,6 +67,13 @@ interface nsIChannelEventSink : nsISupports
     const unsigned long REDIRECT_TRANSPARENT = 1 << 5;
 
     /**
+     * A native pre-request query rewrite, combined with REDIRECT_INTERNAL.
+     * Redirect sinks still run; CORS checks the delivered target response,
+     * not a nonexistent response from the original URL.
+     */
+    const unsigned long REDIRECT_QUERY_STRIPPING = 1 << 6;
+
+    /**
      * Called when a redirect occurs. This may happen due to an HTTP 3xx status
      * code. The purpose of this method is to notify the sink that a redirect
      * is about to happen, but also to give the sink the right to veto the

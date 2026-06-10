@@ -891,8 +891,24 @@ nsresult AsyncUrlChannelClassifier::CheckChannel(
     nsIChannel* aChannel, std::function<void()>&& aCallback) {
   MOZ_ASSERT(XRE_IsParentProcess());
   MOZ_ASSERT(aChannel);
-  return AntiTrackingChannelClassifierUtils::CheckChannelBeforeBeginConnect(
-      aChannel, std::move(aCallback));
+  NS_ENSURE_TRUE(aCallback, NS_ERROR_INVALID_ARG);
+  auto classifyAds = [channel = nsCOMPtr<nsIChannel>(aChannel),
+                      callback = std::move(aCallback)]() mutable {
+    RefPtr<ContentClassifierService> classifier =
+        ContentClassifierService::GetForAdBlocking();
+    if (!classifier ||
+        NS_FAILED(classifier->CheckAdBlockingChannel(channel, callback))) {
+      callback();
+    }
+  };
+  if (NS_ShouldClassifyChannel(aChannel, ClassifyType::ETP) &&
+      NS_SUCCEEDED(
+          AntiTrackingChannelClassifierUtils::CheckChannelBeforeBeginConnect(
+              aChannel, std::function<void()>(classifyAds)))) {
+    return NS_OK;
+  }
+  classifyAds();
+  return NS_OK;
 }
 
 /* static */

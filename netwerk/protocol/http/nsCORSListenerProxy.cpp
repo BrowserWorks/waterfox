@@ -920,7 +920,19 @@ nsCORSListenerProxy::AsyncOnChannelRedirect(
     nsIChannel* aOldChannel, nsIChannel* aNewChannel, uint32_t aFlags,
     nsIAsyncVerifyRedirectCallback* aCb) {
   nsresult rv;
-  if (NS_IsInternalSameURIRedirect(aOldChannel, aNewChannel, aFlags) ||
+  bool queryRewrite = false;
+  if ((aFlags & nsIChannelEventSink::REDIRECT_INTERNAL) &&
+      (aFlags & nsIChannelEventSink::REDIRECT_QUERY_STRIPPING)) {
+    nsCOMPtr<nsIURI> oldURI;
+    nsCOMPtr<nsIURI> newURI;
+    (void)aOldChannel->GetURI(getter_AddRefs(oldURI));
+    (void)aNewChannel->GetURI(getter_AddRefs(newURI));
+    queryRewrite =
+        oldURI && newURI && NS_SecurityCompareURIs(oldURI, newURI, false);
+    NS_ENSURE_TRUE(queryRewrite, NS_ERROR_DOM_BAD_URI);
+  }
+  if (queryRewrite ||
+      NS_IsInternalSameURIRedirect(aOldChannel, aNewChannel, aFlags) ||
       NS_IsHSTSUpgradeRedirect(aOldChannel, aNewChannel, aFlags)) {
     // Internal redirects still need to be updated in order to maintain
     // the correct headers.  We use DataURIHandling::Allow, since unallowed
