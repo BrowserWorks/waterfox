@@ -12,6 +12,8 @@ pref("waterfox.blocker.enabled", true);
 pref("waterfox.blocker.ui.enabled", true);
 // Show the blocked count badge on the blocker toolbar button.
 pref("waterfox.blocker.showBadge", true);
+// Allow ads on configured Waterfox search partner domains.
+pref("waterfox.blocker.allowSearchPartnerAds", true);
 // Additional custom filter list URLs as a JSON array string.
 pref("waterfox.blocker.filterListUrls", "[]");
 // Per list enabled overrides as a JSON object mapping list IDs to booleans.
