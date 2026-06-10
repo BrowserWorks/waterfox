@@ -16,6 +16,15 @@ pref("dom.battery.enabled", false);
 pref("browser.privatebrowsing.forceMediaMemoryCache", true);
 pref("network.cookie.sameSite.schemeful", true);
 
+// Certificates and TLS.
+pref("security.OCSP.enabled", 0);
+pref("security.certerrors.mitm.priming.enabled", false);
+pref("security.mixed_content.block_display_content", true);
+pref("security.ssl.treat_unsafe_negotiation_as_broken", true);
+pref("security.tls.enable_0rtt_data", false);
+pref("browser.xul.error_pages.expert_bad_cert", true);
+pref("dom.security.https_only_mode_error_page_user_suggestions", true);
+
 // History, referrers and the URL bar.
 pref("network.http.referer.XOriginTrimmingPolicy", 2);
 pref("network.http.referer.defaultPolicy.trackers", 1);
