@@ -8,6 +8,8 @@ const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
   ExperimentAPI: "resource://nimbus/ExperimentAPI.sys.mjs",
+  WaterfoxSearchExtensionPolicy:
+    "resource:///modules/WaterfoxSearchExtensionPolicy.sys.mjs",
 });
 
 const MIGRATION_PREF = "browser.migration.waterfox_version";
@@ -26,6 +28,8 @@ export const WaterfoxGlue = {
         console.error("ExperimentAPI startup init failed", error)
       );
     }
+
+    lazy.WaterfoxSearchExtensionPolicy.init();
   },
 
   // Runs once per profile upgrade. Migrations for profiles coming from
