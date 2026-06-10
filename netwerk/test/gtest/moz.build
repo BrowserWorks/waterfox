@@ -83,6 +83,7 @@ LOCAL_INCLUDES += [
     "/netwerk/cache2",
     "/netwerk/cookie",
     "/netwerk/dns",
+    "/netwerk/protocol/about",
     "/netwerk/protocol/http",
     "/toolkit/components/jsoncpp/include",
     "/xpcom/tests/gtest",
