@@ -5,6 +5,8 @@
 #include "nsIURL.h"
 #include "nsThreadPool.h"
 #include "nsNetUtil.h"
+#include "mozilla/ipc/URIUtils.h"
+#include "nsAboutProtocolHandler.h"
 
 TEST(TestURIMutator, Mutator)
 {
@@ -125,6 +127,38 @@ TEST(TestURIMutator, Mutator)
   rv = uri->GetPort(&port);
   ASSERT_EQ(rv, NS_OK);
   ASSERT_EQ(port, 123);
+}
+
+TEST(TestURIMutator, NestedAboutURIRejectsForgedInnerURI)
+{
+  using namespace mozilla::ipc;
+
+  nsCOMPtr<nsIURI> forgedInner;
+  ASSERT_EQ(
+      NS_NewURI(getter_AddRefs(forgedInner), "https://forged.example/"_ns),
+      NS_OK);
+  URIParams forgedInnerParams;
+  SerializeURI(forgedInner, forgedInnerParams);
+
+  for (const char* spec :
+       {"about:blank", "about:srcdoc",
+        "about:contentblocked?url=https%3A%2F%2Fexample.com%2F#fragment"}) {
+    SCOPED_TRACE(spec);
+    nsCOMPtr<nsIURI> uri;
+    ASSERT_EQ(NS_NewURI(getter_AddRefs(uri), spec), NS_OK);
+    URIParams params;
+    SerializeURI(uri, params);
+    ASSERT_EQ(params.type(), URIParams::TNestedAboutURIParams);
+
+    RefPtr<nsIURIMutator> mutator =
+        new mozilla::net::nsNestedAboutURI::Mutator();
+    EXPECT_EQ(mutator->Deserialize(params), NS_OK);
+
+    params.get_NestedAboutURIParams().nestedParams().innerURI() =
+        forgedInnerParams;
+    mutator = new mozilla::net::nsNestedAboutURI::Mutator();
+    EXPECT_TRUE(NS_FAILED(mutator->Deserialize(params)));
+  }
 }
 
 extern MOZ_THREAD_LOCAL(uint32_t) gTlsURLRecursionCount;
