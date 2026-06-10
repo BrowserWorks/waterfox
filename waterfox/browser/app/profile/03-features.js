@@ -58,6 +58,14 @@ pref("browser.urlbar.trending.featureGate", false);
 
 pref("browser.search.separatePrivateDefault.ui.enabled", true);
 
+// Partner attribution codes referenced by the search configuration. The
+// Waterfox search extension policy blanks these while an ad clicking
+// extension is active.
+pref("browser.search.param.waterfox_attribution_1org", "1org.waterfox");
+pref("browser.search.param.waterfox_attribution_ddg", "waterfox");
+pref("browser.search.param.waterfox_attribution_ecosia", "57226k1p");
+pref("browser.search.param.waterfox_attribution_qwant", "brz-waterfox");
+
 pref("browser.download.always_ask_before_handling_new_types", true);
 pref("browser.download.manager.addToRecentDocs", false);
 pref("browser.download.open_pdf_attachments_inline", true);
