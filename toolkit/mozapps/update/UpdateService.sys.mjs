@@ -4048,6 +4048,14 @@ export class UpdateService {
    * See nsIUpdateService.idl
    */
   get canUsuallyCheckForUpdates() {
+    if (!Services.prefs.getBoolPref("app.update.enabled", true)) {
+      LOG(
+        "UpdateService.canUsuallyCheckForUpdates - unable to automatically check " +
+          "for updates, the preference is disabled."
+      );
+      return false;
+    }
+
     if (this.disabled) {
       LOG(
         "UpdateService.canUsuallyCheckForUpdates - unable to automatically check " +
