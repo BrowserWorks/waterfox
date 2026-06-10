@@ -56,7 +56,7 @@ FunctionEnd
 
 !macro GetExistingInstallPathFromShellVarContext ShellVarContext Result
   SetShellVarContext ${ShellVarContext}
-  ${GetFirstInstallPath} "Software\Mozilla\${BrandFullNameInternal}" ${Result}
+  ${GetFirstInstallPath} "Software\BrowserWorks\${BrandFullNameInternal}" ${Result}
   ${If} ${Result} == "false"
     StrCpy ${Result} ""
   ${EndIf}

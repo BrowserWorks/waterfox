@@ -2,7 +2,7 @@ ChromeUtils.defineESModuleGetters(this, {
   WindowsRegistry: "resource://gre/modules/WindowsRegistry.sys.mjs",
 });
 
-const kRegPath = `Software\\Mozilla\\${AppConstants.MOZ_APP_BASENAME}\\PreXULSkeletonUISettings`;
+const kRegPath = `Software\\BrowserWorks\\${AppConstants.MOZ_APP_BASENAME}\\PreXULSkeletonUISettings`;
 
 function getFirefoxExecutableFile() {
   let file = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);

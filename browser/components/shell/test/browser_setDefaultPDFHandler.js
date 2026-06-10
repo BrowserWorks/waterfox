@@ -91,7 +91,7 @@ add_task(async function remoteEnableWithPDF() {
   Assert.ok(setDefaultBrowserUserChoiceStub.called);
   Assert.deepEqual(setDefaultBrowserUserChoiceStub.firstCall.args, [
     aumi,
-    [".pdf", "FirefoxPDF"],
+    [".pdf", "WaterfoxPDF"],
   ]);
 
   await doCleanup();
@@ -138,7 +138,7 @@ add_task(async function remoteEnableWithPDF_testOnlyReplaceBrowsers() {
     Assert.ok(setDefaultBrowserUserChoiceStub.called);
     Assert.deepEqual(
       setDefaultBrowserUserChoiceStub.firstCall.args,
-      [aumi, [".pdf", "FirefoxPDF"]],
+      [aumi, [".pdf", "WaterfoxPDF"]],
       `Will take default from missing association or known browser with ProgID '${progId}'`
     );
   }

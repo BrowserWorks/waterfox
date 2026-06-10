@@ -366,21 +366,21 @@ nsWindowsShellService::CheckAllProgIDsExist(bool* aResult) {
     nsresult rv;
     bool result = true;
 
-    // "FirefoxURL".
+    // "WaterfoxURL".
     rv = GetMsixProgId(L"https", extraProgID);
     if (NS_WARN_IF(NS_FAILED(rv))) {
       return rv;
     }
     result = result && CheckProgIDExists(extraProgID.get());
 
-    // "FirefoxHTML".
+    // "WaterfoxHTML".
     rv = GetMsixProgId(L".htm", extraProgID);
     if (NS_WARN_IF(NS_FAILED(rv))) {
       return rv;
     }
     result = result && CheckProgIDExists(extraProgID.get());
 
-    // "FirefoxPDF".
+    // "WaterfoxPDF".
     rv = GetMsixProgId(L".pdf", extraProgID);
     if (NS_WARN_IF(NS_FAILED(rv))) {
       return rv;
@@ -390,9 +390,9 @@ nsWindowsShellService::CheckAllProgIDsExist(bool* aResult) {
     *aResult = result;
   } else {
     *aResult =
-        CheckProgIDExists(FormatProgID(L"FirefoxURL", aumid.get()).get()) &&
-        CheckProgIDExists(FormatProgID(L"FirefoxHTML", aumid.get()).get()) &&
-        CheckProgIDExists(FormatProgID(L"FirefoxPDF", aumid.get()).get());
+        CheckProgIDExists(FormatProgID(L"WaterfoxURL", aumid.get()).get()) &&
+        CheckProgIDExists(FormatProgID(L"WaterfoxHTML", aumid.get()).get()) &&
+        CheckProgIDExists(FormatProgID(L"WaterfoxPDF", aumid.get()).get());
   }
 
   return NS_OK;
