@@ -1,0 +1,3005 @@
+{
+  "data": [
+    {
+      "schema": 1774353780782,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.zw",
+      "id": "73911186-2cbf-4b47-a49f-8512e85f14f1",
+      "last_modified": 1774357017383
+    },
+    {
+      "schema": 1774353778915,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.vu",
+      "id": "576b1ca2-123c-4b0b-b4d2-6557ad024977",
+      "last_modified": 1774357017379
+    },
+    {
+      "schema": 1774353777413,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.vc",
+      "id": "88fa92a8-0a4b-435f-8df0-6f44fedcc930",
+      "last_modified": 1774357017376
+    },
+    {
+      "schema": 1774353771889,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.tw",
+      "id": "991831fb-e9b8-47c4-a8bc-e75da709a970",
+      "last_modified": 1774357017372
+    },
+    {
+      "schema": 1774353770754,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.to",
+      "id": "02f56f34-5019-4897-b684-4adc803f957f",
+      "last_modified": 1774357017368
+    },
+    {
+      "schema": 1774353770032,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.tm",
+      "id": "546f9423-14d4-4ec5-89f9-f52e4b38e677",
+      "last_modified": 1774357017365
+    },
+    {
+      "schema": 1774353781162,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.cat",
+      "id": "e947cad0-3d2f-469b-b719-6be206a27a72",
+      "last_modified": 1774357017361
+    },
+    {
+      "schema": 1774353779680,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.rs",
+      "id": "b9dae2b5-4670-4a1b-9e4f-ed530fc80650",
+      "last_modified": 1774357017357
+    },
+    {
+      "schema": 1774353779302,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.ws",
+      "id": "942d192e-6443-402b-9962-faec5ee256c5",
+      "last_modified": 1774357017354
+    },
+    {
+      "schema": 1774353767424,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.st",
+      "id": "4f130be5-ff74-418d-9331-dc13f7b34ab3",
+      "last_modified": 1774357017350
+    },
+    {
+      "schema": 1774353780422,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.zm",
+      "id": "9e70f7e4-81c8-46b4-bd60-3d10141d080a",
+      "last_modified": 1774357017346
+    },
+    {
+      "schema": 1774353767056,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.sr",
+      "id": "fd118f86-8020-4957-8416-c34db65148fa",
+      "last_modified": 1774357017342
+    },
+    {
+      "schema": 1774353777044,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.uz",
+      "id": "6f6e5fd3-8389-48d3-b1fe-7396fc7ce1ac",
+      "last_modified": 1774357017339
+    },
+    {
+      "schema": 1774353776314,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.uk",
+      "id": "a1ca111a-e7ce-426f-a5c3-3a5d0c5bdbb4",
+      "last_modified": 1774357017335
+    },
+    {
+      "schema": 1774353778549,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.vn",
+      "id": "ee4308e0-d8af-4bf2-80b7-d9f1622de3ef",
+      "last_modified": 1774357017331
+    },
+    {
+      "schema": 1774353765591,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.sl",
+      "id": "55ba4470-5dc3-4c97-9d90-5e6046948f06",
+      "last_modified": 1774357017327
+    },
+    {
+      "schema": 1774353775241,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.tz",
+      "id": "5827d341-5e78-4fbd-91f8-104103c49836",
+      "last_modified": 1774357017324
+    },
+    {
+      "schema": 1774353777788,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.ve",
+      "id": "313051db-4c6c-49dc-af28-ae13eb471fd1",
+      "last_modified": 1774357017320
+    },
+    {
+      "schema": 1774353776687,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.uy",
+      "id": "0bed29a1-ac4a-4d25-bbb1-e5d369e0dcf1",
+      "last_modified": 1774357017316
+    },
+    {
+      "schema": 1774353775967,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.ug",
+      "id": "f45b979a-520c-4617-b74e-f479d6a23df0",
+      "last_modified": 1774357017312
+    },
+    {
+      "schema": 1774353771499,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.tt",
+      "id": "07f69c30-cf03-4893-b7a0-b5c9b3585192",
+      "last_modified": 1774357017308
+    },
+    {
+      "schema": 1774353780060,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.za",
+      "id": "b76986eb-b21b-4d34-9aef-546617f660fc",
+      "last_modified": 1774357017304
+    },
+    {
+      "schema": 1774353761083,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.qa",
+      "id": "590c0535-59c9-420f-9337-1f9c5b121266",
+      "last_modified": 1774357017301
+    },
+    {
+      "schema": 1774353775614,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.ua",
+      "id": "5e18b273-22e8-4461-8073-8ba7415594ed",
+      "last_modified": 1774357017298
+    },
+    {
+      "schema": 1774353769660,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.tl",
+      "id": "77ee8f38-65c4-49b9-842e-2866d5d61d28",
+      "last_modified": 1774357017294
+    },
+    {
+      "schema": 1774353778140,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.vi",
+      "id": "5728302f-7123-41b2-8702-7f7d62bbb5ed",
+      "last_modified": 1774357017291
+    },
+    {
+      "schema": 1774353768171,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.td",
+      "id": "40ba2d43-fb2b-4c3c-b3f3-784545587890",
+      "last_modified": 1774357017288
+    },
+    {
+      "schema": 1774353770405,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.tn",
+      "id": "f675887d-377d-4941-b618-fc43aac2d49d",
+      "last_modified": 1774357017285
+    },
+    {
+      "schema": 1774353767790,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.sv",
+      "id": "37e96ba0-d947-49bf-956f-f1bf0ad429ed",
+      "last_modified": 1774357017282
+    },
+    {
+      "schema": 1774353766684,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.sm",
+      "id": "6546218d-7cda-494c-ae29-822e93dd6e5c",
+      "last_modified": 1774357017279
+    },
+    {
+      "schema": 1774353765955,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.sn",
+      "id": "6da951bd-245a-4eea-a9a0-226965875c41",
+      "last_modified": 1774357017275
+    },
+    {
+      "schema": 1774353765209,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.sk",
+      "id": "886e2f61-2149-48e9-bc0a-c48bd1bf2b72",
+      "last_modified": 1774357017272
+    },
+    {
+      "schema": 1774353771125,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.tr",
+      "id": "79ff6d23-de60-4c3c-8579-ebb6d9159548",
+      "last_modified": 1774357017269
+    },
+    {
+      "schema": 1774353762971,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.sb",
+      "id": "0b7a56a2-ac2b-4b4d-a9cd-fabeb25511eb",
+      "last_modified": 1774357017265
+    },
+    {
+      "schema": 1774353755142,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.np",
+      "id": "d862ba79-67a0-4744-8a8c-edcdf5a0f342",
+      "last_modified": 1774357017262
+    },
+    {
+      "schema": 1774353766315,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.so",
+      "id": "a2b47afc-10e5-4b4b-b428-75b4d1ac6d52",
+      "last_modified": 1774357017259
+    },
+    {
+      "schema": 1774353769288,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.tj",
+      "id": "aa04a0b0-7eb4-48a7-afbd-c0747778723d",
+      "last_modified": 1774357017256
+    },
+    {
+      "schema": 1774353754030,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.ne",
+      "id": "33fe4802-bc3e-4678-89a8-aaf75c78b14b",
+      "last_modified": 1774357017253
+    },
+    {
+      "schema": 1774353764848,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.si",
+      "id": "1e2379e3-f727-4974-9116-6a39d5c7c96a",
+      "last_modified": 1774357017250
+    },
+    {
+      "schema": 1774353762602,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.sa",
+      "id": "4604d0e9-6a64-4336-a6bc-16b968758639",
+      "last_modified": 1774357017246
+    },
+    {
+      "schema": 1774353762226,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.rw",
+      "id": "04e98f1b-5c5c-42e1-b668-5c14d89f89e1",
+      "last_modified": 1774357017243
+    },
+    {
+      "schema": 1774353760345,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.pt",
+      "id": "904517f5-5806-438b-a41c-c5b0c4b483aa",
+      "last_modified": 1774357017240
+    },
+    {
+      "schema": 1774353764470,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.sh",
+      "id": "6290bdb5-ab8f-454c-9ded-d331bc388854",
+      "last_modified": 1774357017236
+    },
+    {
+      "schema": 1774353759213,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.pn",
+      "id": "c23c9def-134c-4665-893a-48fe02aeaacf",
+      "last_modified": 1774357017233
+    },
+    {
+      "schema": 1774353768555,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.tg",
+      "id": "1749f83b-3518-4e9b-b20b-6fe5b460dad9",
+      "last_modified": 1774357017230
+    },
+    {
+      "schema": 1774353763718,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.se",
+      "id": "2e7de3aa-a66f-4288-b323-845776a79322",
+      "last_modified": 1774357017227
+    },
+    {
+      "schema": 1774353751052,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.mv",
+      "id": "1f5ff59d-2e56-4bd3-9a17-963d74ddb5ef",
+      "last_modified": 1774357017224
+    },
+    {
+      "schema": 1774353758143,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.ph",
+      "id": "16ee351a-6698-42c7-99d5-cfe7014d706d",
+      "last_modified": 1774357017221
+    },
+    {
+      "schema": 1774353757023,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.pa",
+      "id": "e7005d8f-3075-4d30-9d9e-ebe4bfae95e6",
+      "last_modified": 1774357017217
+    },
+    {
+      "schema": 1774353760721,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.py",
+      "id": "143f9cd1-3993-41ca-aff7-c4db1f610877",
+      "last_modified": 1774357017214
+    },
+    {
+      "schema": 1774353749923,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.mn",
+      "id": "0b5c3111-3606-4282-83f5-b93b0d80ae2e",
+      "last_modified": 1774357017211
+    },
+    {
+      "schema": 1774353764098,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.sg",
+      "id": "d4859eaa-c9db-4170-a61e-d6d1f81750c5",
+      "last_modified": 1774357017208
+    },
+    {
+      "schema": 1774353749557,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.mm",
+      "id": "2fc30a1a-3bb5-4ddc-b530-c81346f55a0f",
+      "last_modified": 1774357017204
+    },
+    {
+      "schema": 1774353763341,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.sc",
+      "id": "a23fdde4-454f-4487-b651-5247d81e96d7",
+      "last_modified": 1774357017201
+    },
+    {
+      "schema": 1774353758858,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.pl",
+      "id": "255066e0-d215-488f-beaf-94a488edfce9",
+      "last_modified": 1774357017198
+    },
+    {
+      "schema": 1774353758507,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.pk",
+      "id": "36cf0668-5bf2-4695-bc1e-90fc2c19b5cf",
+      "last_modified": 1774357017195
+    },
+    {
+      "schema": 1774353756653,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.om",
+      "id": "315cecab-98ea-4bdf-98e9-289d3e8b4b6b",
+      "last_modified": 1774357017192
+    },
+    {
+      "schema": 1774353748047,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.me",
+      "id": "9cbe38aa-166d-4941-abca-466b9983273a",
+      "last_modified": 1774357017189
+    },
+    {
+      "schema": 1774353768929,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.th",
+      "id": "58670d10-baff-4ead-8fe9-87ab328f112d",
+      "last_modified": 1774357017186
+    },
+    {
+      "schema": 1774353757780,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.pg",
+      "id": "5783e796-4733-4ed3-a973-2752d32de77d",
+      "last_modified": 1774357017183
+    },
+    {
+      "schema": 1774353761832,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.ru",
+      "id": "125d8c98-ff7c-4089-96bf-afd42f1c4f17",
+      "last_modified": 1774357017180
+    },
+    {
+      "schema": 1774353761458,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.ro",
+      "id": "1faf098a-39fe-41ba-9282-93f8fc8ddda8",
+      "last_modified": 1774357017177
+    },
+    {
+      "schema": 1774353759968,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.ps",
+      "id": "a8b7eb75-8776-4d78-8849-5bdfe5f6ca09",
+      "last_modified": 1774357017174
+    },
+    {
+      "schema": 1774353759593,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.pr",
+      "id": "b5d99a7c-177e-4104-b165-298993862fcb",
+      "last_modified": 1774357017170
+    },
+    {
+      "schema": 1774353756274,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.nz",
+      "id": "c90b0e8a-898d-4337-88f8-d4709d4e068d",
+      "last_modified": 1774357017167
+    },
+    {
+      "schema": 1774353757410,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.pe",
+      "id": "c2a1dadb-6803-4c92-9317-a58be3ef5ead",
+      "last_modified": 1774357017164
+    },
+    {
+      "schema": 1774353755897,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.nu",
+      "id": "02655c0a-5a52-45d6-8a5e-b82c715f39c7",
+      "last_modified": 1774357017161
+    },
+    {
+      "schema": 1774353754776,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.no",
+      "id": "f465af47-3084-4d96-9d89-47c06f41fe2a",
+      "last_modified": 1774357017157
+    },
+    {
+      "schema": 1774353755520,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.nr",
+      "id": "2b256ffc-02e2-446f-a4c7-980152f7da68",
+      "last_modified": 1774357017154
+    },
+    {
+      "schema": 1774353754415,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.nl",
+      "id": "9d7f6a18-4d0f-4a20-b74e-820cf21c24c0",
+      "last_modified": 1774357017151
+    },
+    {
+      "schema": 1774353753674,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.ni",
+      "id": "138c7079-f98f-429b-adaf-08ab55bba0dd",
+      "last_modified": 1774357017147
+    },
+    {
+      "schema": 1774353742544,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.kr",
+      "id": "84bd3925-e627-4958-9773-92f6949e32e3",
+      "last_modified": 1774357017144
+    },
+    {
+      "schema": 1774353752177,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.my",
+      "id": "d32b64b2-7c1a-44be-b3c4-c41f291672e5",
+      "last_modified": 1774357017141
+    },
+    {
+      "schema": 1774353751421,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.mw",
+      "id": "450ca0f5-f1e4-4618-97cd-1a9d36aff754",
+      "last_modified": 1774357017138
+    },
+    {
+      "schema": 1774353753293,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.ng",
+      "id": "193dcc54-6d83-49a4-bfef-4fabe2647577",
+      "last_modified": 1774357017135
+    },
+    {
+      "schema": 1774353749156,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.ml",
+      "id": "e1221504-00ad-4651-b5ad-b99789a1a108",
+      "last_modified": 1774357017132
+    },
+    {
+      "schema": 1774353748790,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.mk",
+      "id": "20f53977-c687-4717-8157-747dde1c8d99",
+      "last_modified": 1774357017129
+    },
+    {
+      "schema": 1774353752921,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.na",
+      "id": "447f42d4-5b4d-41a2-b82f-51f0654587c4",
+      "last_modified": 1774357017126
+    },
+    {
+      "schema": 1774353738850,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.is",
+      "id": "9c05ab3f-a62a-488a-a5c8-15bc7088600a",
+      "last_modified": 1774357017123
+    },
+    {
+      "schema": 1774353747304,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.ma",
+      "id": "229ee93f-ae05-4690-9daf-aecbc899a3ec",
+      "last_modified": 1774357017119
+    },
+    {
+      "schema": 1774353748425,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.mg",
+      "id": "85c377fa-2942-469b-b4b0-93a472a8f46b",
+      "last_modified": 1774357017116
+    },
+    {
+      "schema": 1774353752538,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.mz",
+      "id": "5e01c93b-90bc-4898-8d53-1ed6c73c781b",
+      "last_modified": 1774357017113
+    },
+    {
+      "schema": 1774353746934,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.ly",
+      "id": "043d1e52-c0b3-4359-bd71-9be5f2fab239",
+      "last_modified": 1774357017110
+    },
+    {
+      "schema": 1774353737345,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.il",
+      "id": "7375c886-2702-45de-8af7-12f1cfba78d9",
+      "last_modified": 1774357017107
+    },
+    {
+      "schema": 1774353747681,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.md",
+      "id": "036ede08-00c7-470e-8fd7-e6193449b6d8",
+      "last_modified": 1774357017104
+    },
+    {
+      "schema": 1774353736984,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.ie",
+      "id": "a8f7cae6-f550-42b4-acdd-b7c982a65bc9",
+      "last_modified": 1774357017101
+    },
+    {
+      "schema": 1774353751803,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.mx",
+      "id": "274fef5d-c2cd-4f98-ba1a-d6c19ea00706",
+      "last_modified": 1774357017097
+    },
+    {
+      "schema": 1774353746250,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.lv",
+      "id": "eccbfd74-9eb7-4bdd-93ba-e4535837b660",
+      "last_modified": 1774357017094
+    },
+    {
+      "schema": 1774353745878,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.lu",
+      "id": "fd11e95e-9bc2-4192-b7a8-f6bc66f25d33",
+      "last_modified": 1774357017091
+    },
+    {
+      "schema": 1774353735856,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.ht",
+      "id": "7db89b1e-f351-4d1c-b145-e94554e7c517",
+      "last_modified": 1774357017088
+    },
+    {
+      "schema": 1774353750664,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.mu",
+      "id": "e8740332-5e46-4adf-a802-2c5fc106d316",
+      "last_modified": 1774357017084
+    },
+    {
+      "schema": 1774353735482,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.hr",
+      "id": "a17f2400-6bde-43a0-a924-49f0467cbd7b",
+      "last_modified": 1774357017081
+    },
+    {
+      "schema": 1774353745485,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.lt",
+      "id": "14974d41-c78b-413e-9e16-ae0f2fac6933",
+      "last_modified": 1774357017078
+    },
+    {
+      "schema": 1774353750294,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.mt",
+      "id": "b2a46666-dd89-4215-b6f6-a37f25df5b4d",
+      "last_modified": 1774357017074
+    },
+    {
+      "schema": 1774353734734,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.hk",
+      "id": "3a5b18e3-3274-447f-a480-1662176706f2",
+      "last_modified": 1774357017071
+    },
+    {
+      "schema": 1774353745117,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.ls",
+      "id": "30d6ea2e-b55f-4728-9644-0dd98acdba3f",
+      "last_modified": 1774357017068
+    },
+    {
+      "schema": 1774353744359,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.li",
+      "id": "f3ca84b7-0a33-4e6e-96f9-68eee4a103b2",
+      "last_modified": 1774357017064
+    },
+    {
+      "schema": 1774353741440,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.kh",
+      "id": "a5483e73-76aa-4e87-a72a-ed9bea06d514",
+      "last_modified": 1774357017061
+    },
+    {
+      "schema": 1774353743637,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.la",
+      "id": "9bc514cc-c565-4bae-8d2f-84335be77017",
+      "last_modified": 1774357017058
+    },
+    {
+      "schema": 1774353743266,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.kz",
+      "id": "c9543942-20a5-49aa-820d-925f518d0123",
+      "last_modified": 1774357017054
+    },
+    {
+      "schema": 1774353744731,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.lk",
+      "id": "3060c28b-27e3-4b8d-b3b8-d8456e300fb8",
+      "last_modified": 1774357017051
+    },
+    {
+      "schema": 1774353732107,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.gh",
+      "id": "778c91c1-9128-4f9b-9632-aff4e12843df",
+      "last_modified": 1774357017048
+    },
+    {
+      "schema": 1774353743998,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.lb",
+      "id": "05e5c2c9-b24c-4c1b-b201-70096e603a8a",
+      "last_modified": 1774357017045
+    },
+    {
+      "schema": 1774353742904,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.kw",
+      "id": "f843ea6a-4f44-496e-a256-858eeea7f263",
+      "last_modified": 1774357017042
+    },
+    {
+      "schema": 1774353731386,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.ge",
+      "id": "12a89f8c-65c7-4b54-a802-62814baa3989",
+      "last_modified": 1774357017038
+    },
+    {
+      "schema": 1774353739940,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.jm",
+      "id": "117c62d2-a283-4a4c-8b39-59df9b9b14df",
+      "last_modified": 1774357017035
+    },
+    {
+      "schema": 1774353742183,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.kg",
+      "id": "8c0bc365-2e6a-4b81-9703-440fb2257a95",
+      "last_modified": 1774357017032
+    },
+    {
+      "schema": 1774353741063,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.ke",
+      "id": "8b788fbd-d7c4-43cd-9987-bb6d15c790c3",
+      "last_modified": 1774357017028
+    },
+    {
+      "schema": 1774353741829,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.ki",
+      "id": "1bff8071-ed80-4dc1-b016-ffc673d23d77",
+      "last_modified": 1774357017025
+    },
+    {
+      "schema": 1774353740678,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.jp",
+      "id": "8aa6cafa-6ef6-4af7-87f5-d731f6597d05",
+      "last_modified": 1774357017022
+    },
+    {
+      "schema": 1774353740316,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.jo",
+      "id": "e6d6a061-6984-47ad-8d71-e868b61b9010",
+      "last_modified": 1774357017018
+    },
+    {
+      "schema": 1774353739219,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.it",
+      "id": "714381c5-6753-41fa-b5d6-5caeb6310a93",
+      "last_modified": 1774357017015
+    },
+    {
+      "schema": 1774353737717,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.im",
+      "id": "baf14025-753d-45a0-8565-78095d62e614",
+      "last_modified": 1774357017012
+    },
+    {
+      "schema": 1774353739580,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.je",
+      "id": "6d0dd198-3412-418d-97b8-f77b04438902",
+      "last_modified": 1774357017009
+    },
+    {
+      "schema": 1774353738478,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.iq",
+      "id": "cc3569ef-946c-44c4-8d8c-7983a96184e9",
+      "last_modified": 1774357017006
+    },
+    {
+      "schema": 1774353736608,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.id",
+      "id": "4ed522c0-254e-44a4-8ec2-c0fb8197ec4c",
+      "last_modified": 1774357017003
+    },
+    {
+      "schema": 1774353726409,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.dm",
+      "id": "f846da9d-8eb1-4756-a815-bf959f835fa3",
+      "last_modified": 1774357017000
+    },
+    {
+      "schema": 1774353738118,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.in",
+      "id": "cc954185-af1e-4a66-b12b-2cf62f5ace85",
+      "last_modified": 1774357016997
+    },
+    {
+      "schema": 1774353736224,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.hu",
+      "id": "3fae4030-e120-4471-8868-7771297f5c61",
+      "last_modified": 1774357016994
+    },
+    {
+      "schema": 1774353731746,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.gg",
+      "id": "c8b00fc1-1a43-4c53-8742-df3e6cc449fa",
+      "last_modified": 1774357016991
+    },
+    {
+      "schema": 1774353734313,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.gy",
+      "id": "9adc3de1-e6c3-413e-aa1d-708cd96b80bf",
+      "last_modified": 1774357016988
+    },
+    {
+      "schema": 1774353735106,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.hn",
+      "id": "9d27092b-a8b3-4b19-9446-49f3074497d6",
+      "last_modified": 1774357016985
+    },
+    {
+      "schema": 1774353730660,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.fr",
+      "id": "b4848ed3-2a2f-4e36-b451-96090af38f58",
+      "last_modified": 1774357016982
+    },
+    {
+      "schema": 1774353732457,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.gi",
+      "id": "82699981-26c1-4cfc-83c8-e1c296058b37",
+      "last_modified": 1774357016979
+    },
+    {
+      "schema": 1774353720640,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.ch",
+      "id": "330abd1b-3790-4817-a0dd-26d9ba333a2d",
+      "last_modified": 1774357016975
+    },
+    {
+      "schema": 1774353730297,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.fm",
+      "id": "a720ccf5-8840-4824-8b0b-6bc3bae19841",
+      "last_modified": 1774357016972
+    },
+    {
+      "schema": 1774353729588,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.fi",
+      "id": "32a73c30-28a4-4b47-8a4e-043df81c565e",
+      "last_modified": 1774357016969
+    },
+    {
+      "schema": 1774353733951,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.gt",
+      "id": "eb4cfd7d-e2c2-4bbf-9e27-080c284f0ad0",
+      "last_modified": 1774357016966
+    },
+    {
+      "schema": 1774353728821,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.es",
+      "id": "3d05da7d-757a-4d26-af7d-224e8a36e60f",
+      "last_modified": 1774357016962
+    },
+    {
+      "schema": 1774353729930,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.fj",
+      "id": "76acc22a-ef61-472e-b0be-0c41fcfc5d15",
+      "last_modified": 1774357016959
+    },
+    {
+      "schema": 1774353728452,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.eg",
+      "id": "c50ac60c-f7f6-4c5a-94d4-cb1c03d64317",
+      "last_modified": 1774357016953
+    },
+    {
+      "schema": 1774353733584,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.gr",
+      "id": "424a96cf-fc3e-4427-b337-6c8d5d98482d",
+      "last_modified": 1774357016950
+    },
+    {
+      "schema": 1774353725662,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.dj",
+      "id": "ad61ed73-5e6d-4665-bee9-bf850af0ce7d",
+      "last_modified": 1774357016947
+    },
+    {
+      "schema": 1774353729191,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.et",
+      "id": "7d98f1f5-efe5-47de-a39d-3234cd581265",
+      "last_modified": 1774357016944
+    },
+    {
+      "schema": 1774353725294,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.de",
+      "id": "8a1c0cdb-410f-480e-bf3e-63bbbf701e8d",
+      "last_modified": 1774357016941
+    },
+    {
+      "schema": 1774353733206,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.gm",
+      "id": "39098ea8-2151-428a-9e94-aaed0dd5a3b2",
+      "last_modified": 1774357016938
+    },
+    {
+      "schema": 1774353724547,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.cy",
+      "id": "70b49157-7518-4d3b-bd60-8ed0f2bb4fb4",
+      "last_modified": 1774357016935
+    },
+    {
+      "schema": 1774353716183,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.bn",
+      "id": "f0b0d13f-edcf-4fe5-bcad-669a6e6da88c",
+      "last_modified": 1774357016932
+    },
+    {
+      "schema": 1774353731016,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.ga",
+      "id": "888b2635-d1d0-4536-9230-1fcd22f670b3",
+      "last_modified": 1774357016929
+    },
+    {
+      "schema": 1774353728079,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.ee",
+      "id": "bf5737f1-f5c4-4009-8038-bded57e9bc77",
+      "last_modified": 1774357016926
+    },
+    {
+      "schema": 1774353727696,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.ec",
+      "id": "e7c4fe27-8a47-4f96-a482-5e1ce440187a",
+      "last_modified": 1774357016923
+    },
+    {
+      "schema": 1774353723749,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.cu",
+      "id": "24c183a1-ec9c-4873-8906-c6b2c6be871e",
+      "last_modified": 1774357016920
+    },
+    {
+      "schema": 1774353723362,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.cr",
+      "id": "43eb997a-3163-4b08-948e-def693e77d97",
+      "last_modified": 1774357016916
+    },
+    {
+      "schema": 1774353727211,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.dz",
+      "id": "cf1b729f-a534-4d4f-9e74-a49316ede3bf",
+      "last_modified": 1774357016913
+    },
+    {
+      "schema": 1774353713573,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.bd",
+      "id": "f5697c05-8ed2-422e-8315-e8f82c68cbd9",
+      "last_modified": 1774357016910
+    },
+    {
+      "schema": 1774353722980,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.co",
+      "id": "b2ac1dea-ee55-4df3-9cfb-1fe38d3b2ab2",
+      "last_modified": 1774357016907
+    },
+    {
+      "schema": 1774353726823,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.do",
+      "id": "1aafce9b-291a-4cfd-aacb-3abc33243461",
+      "last_modified": 1774357016904
+    },
+    {
+      "schema": 1774353712802,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.az",
+      "id": "534e0e04-f52c-48c2-8e27-6d5062460464",
+      "last_modified": 1774357016901
+    },
+    {
+      "schema": 1774353722607,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.cn",
+      "id": "e75786bb-10b0-4fdd-9995-08b339160b36",
+      "last_modified": 1774357016898
+    },
+    {
+      "schema": 1774353721430,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.ck",
+      "id": "4f6097ab-0b86-4f1d-a334-5d04da7d23e7",
+      "last_modified": 1774357016895
+    },
+    {
+      "schema": 1774353721059,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.ci",
+      "id": "065d05f0-e262-418e-8983-0673c1004ab5",
+      "last_modified": 1774357016892
+    },
+    {
+      "schema": 1774353711686,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.as",
+      "id": "aeaff128-6ea6-4a06-b23c-02c2c9251a10",
+      "last_modified": 1774357016889
+    },
+    {
+      "schema": 1774353726022,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.dk",
+      "id": "3be405f2-c1ce-4fc6-bfaa-74f455366c23",
+      "last_modified": 1774357016885
+    },
+    {
+      "schema": 1774353719524,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.cd",
+      "id": "b5a90e2e-eaaf-443c-bb33-7e707fe14222",
+      "last_modified": 1774357016882
+    },
+    {
+      "schema": 1774353710942,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.ao",
+      "id": "273615c8-f713-4366-9906-3eaae3e298f3",
+      "last_modified": 1774357016879
+    },
+    {
+      "schema": 1774353720268,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.cg",
+      "id": "1d7512f6-ba68-4047-9bce-6940a347216a",
+      "last_modified": 1774357016876
+    },
+    {
+      "schema": 1774353724924,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.cz",
+      "id": "1ab98f36-b783-4c07-8181-e600b48aefff",
+      "last_modified": 1774357016873
+    },
+    {
+      "schema": 1774353710185,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.al",
+      "id": "6787a653-dd43-46c7-9570-1cc3ca87df5b",
+      "last_modified": 1774357016870
+    },
+    {
+      "schema": 1774353718012,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.co.bw",
+      "id": "9326554c-78c1-4898-a6dd-e1b86441e138",
+      "last_modified": 1774357016867
+    },
+    {
+      "schema": 1774353724119,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.cv",
+      "id": "fb71109b-d3af-45c5-8f61-935fe003e605",
+      "last_modified": 1774357016864
+    },
+    {
+      "schema": 1774353716537,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.bo",
+      "id": "571de86d-d5ab-46dd-955a-a7c461638c10",
+      "last_modified": 1774357016861
+    },
+    {
+      "schema": 1774353722161,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.cm",
+      "id": "d1bc839b-5cdb-4376-8c97-0990d3beb5c6",
+      "last_modified": 1774357016858
+    },
+    {
+      "schema": 1774353708651,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.ad",
+      "id": "e8553419-1fb7-4eaa-ae0c-7284e91f5693",
+      "last_modified": 1774357016855
+    },
+    {
+      "schema": 1774353715807,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.bj",
+      "id": "e7091f40-5470-48a4-afc2-19a30d6c13e5",
+      "last_modified": 1774357016852
+    },
+    {
+      "schema": 1774353548808,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com",
+      "id": "dac20b1b-31ce-4ccd-8fab-f84e5fa07829",
+      "last_modified": 1774357016849
+    },
+    {
+      "schema": 1774353715064,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.bh",
+      "id": "1f335ec1-0220-4eed-b6f6-656b7321dfe1",
+      "last_modified": 1774357016845
+    },
+    {
+      "schema": 1774353718382,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.by",
+      "id": "7bf33b2c-3090-47ab-8081-83c67adae376",
+      "last_modified": 1774357016842
+    },
+    {
+      "schema": 1774353716907,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.br",
+      "id": "0e1303f5-0e7c-468f-945d-40c6b6aeca48",
+      "last_modified": 1774357016839
+    },
+    {
+      "schema": 1774353711309,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.ar",
+      "id": "efe0b2bd-2f3d-4ab7-bd5f-ebe637da7da2",
+      "last_modified": 1774357016836
+    },
+    {
+      "schema": 1774353718776,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.bz",
+      "id": "a1399bdc-f063-40d1-bcbc-b840da3ce7a1",
+      "last_modified": 1774357016833
+    },
+    {
+      "schema": 1774353712415,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.au",
+      "id": "301972d3-d6a8-4a9d-a01f-d9c14d2df594",
+      "last_modified": 1774357016830
+    },
+    {
+      "schema": 1774353709815,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.ag",
+      "id": "7c6e345b-5b10-4bf7-8eb0-256f96b0ae14",
+      "last_modified": 1774357016827
+    },
+    {
+      "schema": 1774353712055,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.at",
+      "id": "18072bfa-c13a-4bf4-8570-5a4b054a7c4b",
+      "last_modified": 1774357016824
+    },
+    {
+      "schema": 1774353715437,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.bi",
+      "id": "aeb7956c-f2f6-4230-b052-05498b992246",
+      "last_modified": 1774357016821
+    },
+    {
+      "schema": 1774353709047,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.ae",
+      "id": "31fc7caf-a8fe-470e-81ab-65e75077d370",
+      "last_modified": 1774357016818
+    },
+    {
+      "schema": 1774353717652,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.bt",
+      "id": "7097f421-ef33-4261-bfa2-20a5677627a6",
+      "last_modified": 1774357016815
+    },
+    {
+      "schema": 1774353719143,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.ca",
+      "id": "86eac369-b873-4511-aec5-04fc1378a6eb",
+      "last_modified": 1774357016812
+    },
+    {
+      "schema": 1774353714330,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.bf",
+      "id": "1d605d84-2fc9-4089-acc5-2f0e402eb29d",
+      "last_modified": 1774357016809
+    },
+    {
+      "schema": 1774353709427,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.com.af",
+      "id": "ac808ed3-bab7-431f-b9d4-39bf1d7839ed",
+      "last_modified": 1774357016806
+    },
+    {
+      "schema": 1774353713182,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.ba",
+      "id": "b72e9a94-e061-4dcc-babf-f8db2e9f826c",
+      "last_modified": 1774357016803
+    },
+    {
+      "schema": 1774353732830,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.gl",
+      "id": "511e22ad-1461-4186-ad13-1d4ddd1f8cd1",
+      "last_modified": 1774357016800
+    },
+    {
+      "schema": 1774353721787,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.cl",
+      "id": "6c219ea2-d566-46fc-aeec-e186b0551c8a",
+      "last_modified": 1774357016797
+    },
+    {
+      "schema": 1774353717273,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.bs",
+      "id": "124c8c56-81cf-4826-ba8d-2c5d4a06201a",
+      "last_modified": 1774357016794
+    },
+    {
+      "schema": 1774353713949,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.be",
+      "id": "816d30ee-77d7-4aba-8ee2-7c2ad2f55f9f",
+      "last_modified": 1774357016791
+    },
+    {
+      "schema": 1774353719900,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.cf",
+      "id": "ec685112-5e25-4809-9e27-fb5d31013698",
+      "last_modified": 1774357016788
+    },
+    {
+      "schema": 1774353714687,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.bg",
+      "id": "dfc372ea-dd60-4da5-9579-8ebafedec369",
+      "last_modified": 1774357016785
+    },
+    {
+      "schema": 1774353710565,
+      "overrides": "-CanvasRandomization,-EfficientCanvasRandomization",
+      "isBaseline": true,
+      "firstPartyDomain": "google.am",
+      "id": "614fd0a4-f9d0-4169-a538-49e2bd100317",
+      "last_modified": 1774357016782
+    },
+    {
+      "schema": 1774353548345,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com",
+      "id": "dc782490-16ed-415a-80dd-382d2284a00f",
+      "last_modified": 1774357016779
+    },
+    {
+      "schema": 1774353547982,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.ad",
+      "id": "7ef0ad4c-1dda-4563-9927-3db809f149c8",
+      "last_modified": 1774357016777
+    },
+    {
+      "schema": 1774353547621,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.ae",
+      "id": "240b79f9-4d18-4097-bdac-e2831e4a1393",
+      "last_modified": 1774357016774
+    },
+    {
+      "schema": 1774353547266,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.af",
+      "id": "926dc8c8-bef6-46af-9ba7-3dfc60ab91a2",
+      "last_modified": 1774357016772
+    },
+    {
+      "schema": 1774353546911,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.ag",
+      "id": "a06bd9d7-7b10-4398-a72c-8a4a8fd2f093",
+      "last_modified": 1774357016770
+    },
+    {
+      "schema": 1774353546554,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.al",
+      "id": "f1df3668-01fa-4e24-a788-8d1de49c4c5b",
+      "last_modified": 1774357016767
+    },
+    {
+      "schema": 1774353546181,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.am",
+      "id": "9665d1bc-7fa7-4a8e-a7cf-dd7dbfdcc6c3",
+      "last_modified": 1774357016765
+    },
+    {
+      "schema": 1774353545821,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.ao",
+      "id": "ede4651f-90cf-46c7-a5dd-85570bd0180a",
+      "last_modified": 1774357016763
+    },
+    {
+      "schema": 1774353545451,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.ar",
+      "id": "8e5a414e-588e-44aa-a4d3-8403a30fc5f1",
+      "last_modified": 1774357016760
+    },
+    {
+      "schema": 1774353545084,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.as",
+      "id": "04694e6b-8168-4cf8-b8fc-4aa410634333",
+      "last_modified": 1774357016758
+    },
+    {
+      "schema": 1774353544351,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.au",
+      "id": "485e413c-f476-4933-97d0-b3fd48bcd3d3",
+      "last_modified": 1774357016755
+    },
+    {
+      "schema": 1774353543989,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.az",
+      "id": "40d045cd-fdc4-49f8-a1f9-d83ce73cd656",
+      "last_modified": 1774357016753
+    },
+    {
+      "schema": 1774353543604,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.ba",
+      "id": "8605dbb5-1176-4fd0-b268-b86e7e4979db",
+      "last_modified": 1774357016751
+    },
+    {
+      "schema": 1774353543180,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.bd",
+      "id": "2ea70a53-0cbc-4479-a053-6ebd6285aa43",
+      "last_modified": 1774357016748
+    },
+    {
+      "schema": 1774353542773,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.be",
+      "id": "67df354b-1c80-4733-b27f-a6b4e577edd9",
+      "last_modified": 1774357016746
+    },
+    {
+      "schema": 1774353542373,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.bf",
+      "id": "458f5d07-7a5c-4da4-b06a-ac0302dd210b",
+      "last_modified": 1774357016744
+    },
+    {
+      "schema": 1774353542011,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.bg",
+      "id": "367ac795-1448-474a-99f4-d4fcb78315db",
+      "last_modified": 1774357016741
+    },
+    {
+      "schema": 1774353541645,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.bh",
+      "id": "5981565d-b99d-487f-9a82-9fd48376770a",
+      "last_modified": 1774357016739
+    },
+    {
+      "schema": 1774353541290,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.bi",
+      "id": "dc45f6b3-c5f3-46fb-91fc-d47b32cf94ea",
+      "last_modified": 1774357016737
+    },
+    {
+      "schema": 1774353540931,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.bj",
+      "id": "472e13b9-48f5-49b3-8111-7c97a47849d7",
+      "last_modified": 1774357016734
+    },
+    {
+      "schema": 1774353540531,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.bn",
+      "id": "b29094ad-6c60-42b1-be8a-ba499fceb5f2",
+      "last_modified": 1774357016732
+    },
+    {
+      "schema": 1774353540096,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.bo",
+      "id": "81517ed2-33f8-4c39-80ab-cd0c84fd7cca",
+      "last_modified": 1774357016730
+    },
+    {
+      "schema": 1774353539721,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.br",
+      "id": "23dc44cb-f4e1-4404-8701-d57555e4ff52",
+      "last_modified": 1774357016727
+    },
+    {
+      "schema": 1774353538560,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.bw",
+      "id": "74d3cb11-1cd0-41f3-b9f3-ea6dfb45ee57",
+      "last_modified": 1774357016725
+    },
+    {
+      "schema": 1774353538200,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.by",
+      "id": "5e72a517-ed27-47ab-acec-94b588cdd324",
+      "last_modified": 1774357016722
+    },
+    {
+      "schema": 1774353537843,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.bz",
+      "id": "3ff98ea0-6a81-4624-a656-a8a9b877de75",
+      "last_modified": 1774357016720
+    },
+    {
+      "schema": 1774353537479,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.ca",
+      "id": "5d6ee25d-e1e0-4625-b543-49e3b92e8a70",
+      "last_modified": 1774357016717
+    },
+    {
+      "schema": 1774353537109,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.cd",
+      "id": "67d45c62-5e28-44d7-a213-8d70c2f7a7fa",
+      "last_modified": 1774357016715
+    },
+    {
+      "schema": 1774353536752,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.cf",
+      "id": "df6c168a-5829-4d2b-b3b9-a8e27a853750",
+      "last_modified": 1774357016712
+    },
+    {
+      "schema": 1774353536209,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.cg",
+      "id": "d607addf-538c-44ce-99f5-592978112f5b",
+      "last_modified": 1774357016710
+    },
+    {
+      "schema": 1774353535768,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.ch",
+      "id": "3e3ed6bb-75c7-4739-92b6-8e35202b8acc",
+      "last_modified": 1774357016707
+    },
+    {
+      "schema": 1774353535265,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.ci",
+      "id": "b9df015d-8f00-4842-96c2-b5e8c086d1e7",
+      "last_modified": 1774357016705
+    },
+    {
+      "schema": 1774353534893,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.ck",
+      "id": "a9655021-5c8f-4ade-9680-e298a7f14b54",
+      "last_modified": 1774357016702
+    },
+    {
+      "schema": 1774353534514,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.cl",
+      "id": "46ceabda-67d9-4cf1-9604-f5ac7d583029",
+      "last_modified": 1774357016700
+    },
+    {
+      "schema": 1774353534145,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.cm",
+      "id": "99ceab6e-02df-42ab-a605-6bccf372355d",
+      "last_modified": 1774357016698
+    },
+    {
+      "schema": 1774353533774,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.cn",
+      "id": "edaed304-003c-44e2-ac68-bc35177259ec",
+      "last_modified": 1774357016695
+    },
+    {
+      "schema": 1774353533409,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.co",
+      "id": "01287ff0-e9f7-47c8-a132-50581f7bd0e4",
+      "last_modified": 1774357016693
+    },
+    {
+      "schema": 1774353533053,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.cr",
+      "id": "08176725-93d8-490b-801c-07e6275ee8c0",
+      "last_modified": 1774357016690
+    },
+    {
+      "schema": 1774353532688,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.cu",
+      "id": "5ce147c1-ff2c-43b5-88e6-edabecd68a6c",
+      "last_modified": 1774357016687
+    },
+    {
+      "schema": 1774353532331,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.cv",
+      "id": "90fb35b8-4059-495f-83fe-7c385c60f7fb",
+      "last_modified": 1774357016685
+    },
+    {
+      "schema": 1774353531969,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.cy",
+      "id": "9c01a956-3054-4ec9-b155-aa1d83693fd1",
+      "last_modified": 1774357016682
+    },
+    {
+      "schema": 1774353531620,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.cz",
+      "id": "f0b0672d-61d1-476b-9337-ec5f34f5bf7a",
+      "last_modified": 1774357016680
+    },
+    {
+      "schema": 1774353531196,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.de",
+      "id": "7e7dc0a6-26ee-449d-8188-eb20e4238aea",
+      "last_modified": 1774357016677
+    },
+    {
+      "schema": 1774353530828,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.dj",
+      "id": "f8581ee7-5d10-450d-95f0-31d5ee788aa7",
+      "last_modified": 1774357016675
+    },
+    {
+      "schema": 1774353530473,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.dk",
+      "id": "c35bd4e0-0d71-4482-9e82-56fac8885773",
+      "last_modified": 1774357016673
+    },
+    {
+      "schema": 1774353530120,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.dm",
+      "id": "0546cb47-bed8-4e0e-98b5-30697449c97b",
+      "last_modified": 1774357016670
+    },
+    {
+      "schema": 1774353529756,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.do",
+      "id": "d45fa539-0826-4cec-ba13-d9bacc2b6e82",
+      "last_modified": 1774357016668
+    },
+    {
+      "schema": 1774353529360,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.dz",
+      "id": "ad26e950-66bb-49f6-a795-3b43be659407",
+      "last_modified": 1774357016665
+    },
+    {
+      "schema": 1774353528912,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.ec",
+      "id": "1f08fdb4-c31e-4cae-873b-6edd679a3442",
+      "last_modified": 1774357016663
+    },
+    {
+      "schema": 1774353528478,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.ee",
+      "id": "870a1d64-dbde-4c55-b16d-2dcf0a6ed64e",
+      "last_modified": 1774357016661
+    },
+    {
+      "schema": 1774353528098,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.eg",
+      "id": "3e42ae53-d731-4089-b44f-f01146d06932",
+      "last_modified": 1774357016658
+    },
+    {
+      "schema": 1774353527574,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.es",
+      "id": "bf3557ed-9cd0-46aa-b545-0b68bec9b4af",
+      "last_modified": 1774357016656
+    },
+    {
+      "schema": 1774353527204,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.et",
+      "id": "f6e53b58-e9f5-42c9-b96e-55fe10a7370d",
+      "last_modified": 1774357016654
+    },
+    {
+      "schema": 1774353526792,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.fi",
+      "id": "95125b4e-166d-4a58-ba75-aa46164d0e71",
+      "last_modified": 1774357016651
+    },
+    {
+      "schema": 1774353526442,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.fj",
+      "id": "875d4e98-e2e9-4edb-89ca-2c43f1eb276c",
+      "last_modified": 1774357016649
+    },
+    {
+      "schema": 1774353526060,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.fm",
+      "id": "e8d0e647-2700-4de6-b7df-2ec57fa51b14",
+      "last_modified": 1774357016647
+    },
+    {
+      "schema": 1774353525690,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.fr",
+      "id": "a4c008fe-8b6a-4ece-951f-785098427a87",
+      "last_modified": 1774357016644
+    },
+    {
+      "schema": 1774353525321,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.ga",
+      "id": "c77074cf-a379-4226-b514-3d19ed85775c",
+      "last_modified": 1774357016642
+    },
+    {
+      "schema": 1774353524950,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.ge",
+      "id": "fe7494d2-21ea-4bd7-ac24-e0f7a9da521f",
+      "last_modified": 1774357016640
+    },
+    {
+      "schema": 1774353524587,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.gg",
+      "id": "256b8151-1405-4cbf-b15e-241b00b46e61",
+      "last_modified": 1774357016638
+    },
+    {
+      "schema": 1774353524238,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.gh",
+      "id": "9f88a290-0c2b-4213-8227-bd7247d48d51",
+      "last_modified": 1774357016635
+    },
+    {
+      "schema": 1774353523836,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.gi",
+      "id": "76d046a4-fe7f-45b8-acfa-569e50bfaa23",
+      "last_modified": 1774357016633
+    },
+    {
+      "schema": 1774353523422,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.gl",
+      "id": "d48244af-8627-4bb0-9b27-9505ebafc6fc",
+      "last_modified": 1774357016631
+    },
+    {
+      "schema": 1774353523006,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.gm",
+      "id": "fd5ad3d3-448a-40ba-9379-51575b6e38e9",
+      "last_modified": 1774357016628
+    },
+    {
+      "schema": 1774353522605,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.gr",
+      "id": "3da51dcb-a062-412f-a382-37912c546c30",
+      "last_modified": 1774357016626
+    },
+    {
+      "schema": 1774353522208,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.gt",
+      "id": "308e973c-57b7-433c-8186-4fb3665557b9",
+      "last_modified": 1774357016624
+    },
+    {
+      "schema": 1774353521837,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.gy",
+      "id": "6841f42d-962c-4a8e-98ac-31a7f8f4d656",
+      "last_modified": 1774357016621
+    },
+    {
+      "schema": 1774353521461,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.hk",
+      "id": "f2dcd016-1e99-44d2-b8b1-81cfa4d38a29",
+      "last_modified": 1774357016619
+    },
+    {
+      "schema": 1774353521071,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.hn",
+      "id": "16d80c1c-fc7a-4a35-a151-2b08cb9b8d90",
+      "last_modified": 1774357016617
+    },
+    {
+      "schema": 1774353520655,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.hr",
+      "id": "6840e220-3d77-433f-99aa-e8bdaeb4a08c",
+      "last_modified": 1774357016614
+    },
+    {
+      "schema": 1774353519825,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.hu",
+      "id": "40bbacab-72f2-4a80-9e02-0e39f98d22ef",
+      "last_modified": 1774357016612
+    },
+    {
+      "schema": 1774353519422,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.id",
+      "id": "9cd255f9-0798-446d-8751-76a35ae9da73",
+      "last_modified": 1774357016609
+    },
+    {
+      "schema": 1774353518968,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.ie",
+      "id": "c258016d-007e-4d99-b277-d718d6dd2760",
+      "last_modified": 1774357016607
+    },
+    {
+      "schema": 1774353518594,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.il",
+      "id": "9572f219-851f-4ee0-a0d8-f23f4f274b99",
+      "last_modified": 1774357016605
+    },
+    {
+      "schema": 1774353518222,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.im",
+      "id": "d18d052c-aa97-4632-a342-a3426b623feb",
+      "last_modified": 1774357016603
+    },
+    {
+      "schema": 1774353517855,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.in",
+      "id": "a23fb2c8-3d8d-415d-bfff-8bbea9d90b9e",
+      "last_modified": 1774357016600
+    },
+    {
+      "schema": 1774353517484,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.iq",
+      "id": "ba42628d-bd19-4eb8-8396-4f5eb153e13f",
+      "last_modified": 1774357016598
+    },
+    {
+      "schema": 1774353517041,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.is",
+      "id": "397223b1-36b5-42c9-89c7-818d3bfdcd5a",
+      "last_modified": 1774357016596
+    },
+    {
+      "schema": 1774353516665,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.it",
+      "id": "f9e067b4-4c09-40da-b0f5-b1b17a66434c",
+      "last_modified": 1774357016593
+    },
+    {
+      "schema": 1774353516315,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.je",
+      "id": "0f638123-f78e-40b8-a8b8-805d42966388",
+      "last_modified": 1774357016591
+    },
+    {
+      "schema": 1774353515959,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.jm",
+      "id": "da0ddf11-586e-4f90-aa67-ab96cd4a5a19",
+      "last_modified": 1774357016588
+    },
+    {
+      "schema": 1774353515592,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.jo",
+      "id": "12657b48-55ea-47a9-a1ac-4a8abe692ef7",
+      "last_modified": 1774357016584
+    },
+    {
+      "schema": 1774353515224,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.jp",
+      "id": "96d63301-98a7-4041-a894-cf990b50750d",
+      "last_modified": 1774357016580
+    },
+    {
+      "schema": 1774353514869,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.ke",
+      "id": "a573b687-f864-441e-aea6-42e4fdd61ca9",
+      "last_modified": 1774357016576
+    },
+    {
+      "schema": 1774353514509,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.kh",
+      "id": "97250606-ba45-4dfe-83b9-142cc8d17a43",
+      "last_modified": 1774357016574
+    },
+    {
+      "schema": 1774353514046,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.ki",
+      "id": "0c91b59e-0a3e-4dad-b52b-007b5ba5f3d2",
+      "last_modified": 1774357016571
+    },
+    {
+      "schema": 1774353512916,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.kw",
+      "id": "c499f6e2-fe5c-4793-be31-00d905cc416e",
+      "last_modified": 1774357016568
+    },
+    {
+      "schema": 1774353512555,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.kz",
+      "id": "99ba9aa3-7341-4e62-9e9f-018709b08c39",
+      "last_modified": 1774357016565
+    },
+    {
+      "schema": 1774353512178,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.la",
+      "id": "7cdf9964-8a6e-41dd-9e38-f4906b56f849",
+      "last_modified": 1774357016561
+    },
+    {
+      "schema": 1774353511808,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.lb",
+      "id": "52d41bc1-fca5-4560-a4ec-dc92ab890252",
+      "last_modified": 1774357016558
+    },
+    {
+      "schema": 1774353511458,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.li",
+      "id": "b164e1f8-7197-4d71-b8a3-6501cc960de0",
+      "last_modified": 1774357016555
+    },
+    {
+      "schema": 1774353511089,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.lk",
+      "id": "131d274d-2405-4c87-828d-a13b8d85ee9f",
+      "last_modified": 1774357016553
+    },
+    {
+      "schema": 1774353510723,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.ls",
+      "id": "b531ef03-5f9f-4878-a124-b00329836324",
+      "last_modified": 1774357016550
+    },
+    {
+      "schema": 1774353510284,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.lt",
+      "id": "eb1a5f73-8233-4ba3-beb4-35d3363a58b3",
+      "last_modified": 1774357016548
+    },
+    {
+      "schema": 1774353509910,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.lu",
+      "id": "d94515b6-dc8c-4585-b5ef-3802530d5626",
+      "last_modified": 1774357016546
+    },
+    {
+      "schema": 1774353509559,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.lv",
+      "id": "ee5307cd-37b4-414b-b629-193118c0489d",
+      "last_modified": 1774357016543
+    },
+    {
+      "schema": 1774353509189,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.ly",
+      "id": "0b02aca5-ed6e-4d07-9ffd-d2ad5d19d2b1",
+      "last_modified": 1774357016541
+    },
+    {
+      "schema": 1774353508766,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.ma",
+      "id": "eab71be7-f9ea-4204-b553-5ee5f98088ed",
+      "last_modified": 1774357016539
+    },
+    {
+      "schema": 1774353508367,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.md",
+      "id": "cdc02a77-0346-4955-9c29-99a0aadc16c2",
+      "last_modified": 1774357016537
+    },
+    {
+      "schema": 1774353507930,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.me",
+      "id": "d270df32-e72e-455a-97cd-cbbc3b3f4c17",
+      "last_modified": 1774357016534
+    },
+    {
+      "schema": 1774353507553,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.mg",
+      "id": "7abb57ff-9291-4165-9bb0-32824c2a0ee4",
+      "last_modified": 1774357016532
+    },
+    {
+      "schema": 1774353507143,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.mk",
+      "id": "242202dd-6324-41c2-904d-642fd465f65e",
+      "last_modified": 1774357016530
+    },
+    {
+      "schema": 1774353506751,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.ml",
+      "id": "5b9e562b-4ccb-4047-a488-87eacf8c2134",
+      "last_modified": 1774357016528
+    },
+    {
+      "schema": 1774353506339,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.mm",
+      "id": "4585e40d-bbbd-46ce-b4b2-8b4f055a41e3",
+      "last_modified": 1774357016526
+    },
+    {
+      "schema": 1774353505965,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.mn",
+      "id": "c732cfe3-4107-4319-a971-80e0e78fb5c2",
+      "last_modified": 1774357016523
+    },
+    {
+      "schema": 1774353505598,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.mt",
+      "id": "a96ef169-e29b-45e7-918f-81e785c4bf6f",
+      "last_modified": 1774357016521
+    },
+    {
+      "schema": 1774353505233,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.mu",
+      "id": "f5521f89-c8f0-4165-8e26-78ac9d492e09",
+      "last_modified": 1774357016519
+    },
+    {
+      "schema": 1774353504800,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.mv",
+      "id": "d85e91de-7ecb-43da-8373-22ae6980f919",
+      "last_modified": 1774357016516
+    },
+    {
+      "schema": 1774353504359,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.mw",
+      "id": "0e920dd4-36ab-4a9b-9be3-60c257f5f533",
+      "last_modified": 1774357016514
+    },
+    {
+      "schema": 1774353503999,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.mx",
+      "id": "f42595d5-57f2-40fc-9955-94582a0a3094",
+      "last_modified": 1774357016512
+    },
+    {
+      "schema": 1774353503625,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.my",
+      "id": "dc837137-abb1-4ac6-be51-aa4943ee4f83",
+      "last_modified": 1774357016510
+    },
+    {
+      "schema": 1774353503250,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.mz",
+      "id": "83322124-4b12-48e7-af82-6decf2ba48eb",
+      "last_modified": 1774357016508
+    },
+    {
+      "schema": 1774353502841,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.na",
+      "id": "1266e0f9-33d2-4a69-8c8e-f98025070ba7",
+      "last_modified": 1774357016505
+    },
+    {
+      "schema": 1774353502440,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.ng",
+      "id": "8e3f1d5d-1074-4e03-a5e0-3999b4c1a889",
+      "last_modified": 1774357016503
+    },
+    {
+      "schema": 1774353501984,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.ni",
+      "id": "3c85cd5e-4d66-4711-80af-379582d1352f",
+      "last_modified": 1774357016501
+    },
+    {
+      "schema": 1774353501616,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.ne",
+      "id": "311921f2-ca38-4d26-92f6-d1ffae36c099",
+      "last_modified": 1774357016498
+    },
+    {
+      "schema": 1774353501202,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.nl",
+      "id": "65e3d2fc-cb70-4eab-8751-67a97f161f63",
+      "last_modified": 1774357016496
+    },
+    {
+      "schema": 1774353500818,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.no",
+      "id": "b90ee434-e075-4604-992a-8138a910f6e3",
+      "last_modified": 1774357016494
+    },
+    {
+      "schema": 1774353500441,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.np",
+      "id": "ac6530ca-e447-4226-be10-0bc8079acb5d",
+      "last_modified": 1774357016491
+    },
+    {
+      "schema": 1774353500078,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.nr",
+      "id": "501462b6-9910-4b0b-9ad6-1daaaab52ebf",
+      "last_modified": 1774357016489
+    },
+    {
+      "schema": 1774353499704,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.nu",
+      "id": "9a1fe972-9589-4462-ad30-7beaaeb30a3d",
+      "last_modified": 1774357016487
+    },
+    {
+      "schema": 1774353499349,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.nz",
+      "id": "53d91747-24df-4ad6-9ea2-c006ef8887e2",
+      "last_modified": 1774357016485
+    },
+    {
+      "schema": 1774353498135,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.pe",
+      "id": "d3541748-7279-4ba5-ba24-1630e85b79a7",
+      "last_modified": 1774357016482
+    },
+    {
+      "schema": 1774353497564,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.pg",
+      "id": "286696fd-1b40-4a4c-875b-895b393b0986",
+      "last_modified": 1774357016480
+    },
+    {
+      "schema": 1774353497206,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.ph",
+      "id": "d7550b79-da18-4901-a734-b18b1a35be1e",
+      "last_modified": 1774357016478
+    },
+    {
+      "schema": 1774353494950,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.pt",
+      "id": "4bfa28b7-d73e-40dd-be94-d0796aa8c369",
+      "last_modified": 1774357016475
+    },
+    {
+      "schema": 1774353494583,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.py",
+      "id": "6c89c45b-d679-4d9c-9313-4d1b2ceaeadc",
+      "last_modified": 1774357016473
+    },
+    {
+      "schema": 1774353494217,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.qa",
+      "id": "d1b5bf2a-1f42-41f5-8023-33045f40fcde",
+      "last_modified": 1774357016471
+    },
+    {
+      "schema": 1774353493873,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.ro",
+      "id": "018fdf41-ab86-4d5f-9e91-b681094d9b5d",
+      "last_modified": 1774357016468
+    },
+    {
+      "schema": 1774353493514,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.ru",
+      "id": "bb8efcd9-ca11-4a89-816e-af7a925df69e",
+      "last_modified": 1774357016466
+    },
+    {
+      "schema": 1774353493152,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.rw",
+      "id": "5f93ef06-00a3-4c1d-af69-943cfe6c693f",
+      "last_modified": 1774357016463
+    },
+    {
+      "schema": 1774353492777,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.sa",
+      "id": "22481a2d-1a54-4b36-965d-20c77602a606",
+      "last_modified": 1774357016461
+    },
+    {
+      "schema": 1774353492358,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.sb",
+      "id": "44c6eb09-2d7d-4bd9-ac9c-25e1850aa892",
+      "last_modified": 1774357016459
+    },
+    {
+      "schema": 1774353491994,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.sc",
+      "id": "7fa3f2d4-7e1d-4c8a-8b2b-d0cabcedf1fa",
+      "last_modified": 1774357016457
+    },
+    {
+      "schema": 1774353491640,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.se",
+      "id": "9f432345-18c0-4ebe-a977-4f697fba4339",
+      "last_modified": 1774357016454
+    },
+    {
+      "schema": 1774353491282,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.sg",
+      "id": "cca792bd-78f5-4634-b067-903bb80d9907",
+      "last_modified": 1774357016452
+    },
+    {
+      "schema": 1774353490905,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.sh",
+      "id": "3ebead69-ae6f-486c-b89d-c60d879f4070",
+      "last_modified": 1774357016450
+    },
+    {
+      "schema": 1774353490560,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.si",
+      "id": "0cd5c797-e6c2-4a08-b060-de6117fa079b",
+      "last_modified": 1774357016447
+    },
+    {
+      "schema": 1774353490132,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.sk",
+      "id": "374f4583-d942-4da3-ab8f-282bce744b20",
+      "last_modified": 1774357016445
+    },
+    {
+      "schema": 1774353486657,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.tg",
+      "id": "1704a914-cda9-4a5c-a295-baba535632c7",
+      "last_modified": 1774357016443
+    },
+    {
+      "schema": 1774353486295,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.th",
+      "id": "be1e8715-44d7-4592-8fa5-585fa4b0270f",
+      "last_modified": 1774357016441
+    },
+    {
+      "schema": 1774353485939,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.tj",
+      "id": "f49af6b0-143a-4cc5-a69b-6ad261f6b166",
+      "last_modified": 1774357016438
+    },
+    {
+      "schema": 1774353485569,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.tl",
+      "id": "65469716-1c1c-4076-8953-ad990da983e6",
+      "last_modified": 1774357016436
+    },
+    {
+      "schema": 1774353485079,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.tm",
+      "id": "b9ad0138-b04c-4b09-bbea-fb48d1a3db2b",
+      "last_modified": 1774357016434
+    },
+    {
+      "schema": 1774353484700,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.tn",
+      "id": "2a97dcac-5f4a-4843-90d2-20eaece0f87c",
+      "last_modified": 1774357016431
+    },
+    {
+      "schema": 1774353484326,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.to",
+      "id": "437917a1-7f05-4ab0-936c-c532e07737e9",
+      "last_modified": 1774357016429
+    },
+    {
+      "schema": 1774353483967,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.tr",
+      "id": "6deda85c-3dd0-4e2f-a17a-cf079953e95c",
+      "last_modified": 1774357016426
+    },
+    {
+      "schema": 1774353483598,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.tt",
+      "id": "e95a1cc2-5bcd-4f23-99d1-334db70b8c38",
+      "last_modified": 1774357016424
+    },
+    {
+      "schema": 1774353489008,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.so",
+      "id": "50dc4ee9-5300-4040-aed5-e345ea99b5bf",
+      "last_modified": 1774357016422
+    },
+    {
+      "schema": 1774353488609,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.sm",
+      "id": "6d87a3f5-f420-46b5-8f8b-db7b0820242b",
+      "last_modified": 1774357016419
+    },
+    {
+      "schema": 1774353488169,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.sr",
+      "id": "68def478-5b8d-49ce-851e-157e6ddde5d8",
+      "last_modified": 1774357016417
+    },
+    {
+      "schema": 1774353487766,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.st",
+      "id": "7f300e10-3497-4af7-a448-af0205f3507e",
+      "last_modified": 1774357016415
+    },
+    {
+      "schema": 1774353487411,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.sv",
+      "id": "9435afec-6a74-47f8-81db-3f78ae852f7b",
+      "last_modified": 1774357016413
+    },
+    {
+      "schema": 1774353483228,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.tw",
+      "id": "65a045b4-2307-4bfb-9e25-241836b987dc",
+      "last_modified": 1774357016410
+    },
+    {
+      "schema": 1774353482458,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.ua",
+      "id": "c2005dd8-e8d8-4021-b74b-7ef6f860ea26",
+      "last_modified": 1774357016408
+    },
+    {
+      "schema": 1774353482009,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.ug",
+      "id": "a325c879-d5ca-48f8-b1dc-d27208651b41",
+      "last_modified": 1774357016406
+    },
+    {
+      "schema": 1774353481621,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.uk",
+      "id": "2e13f31f-c721-4d49-aaf9-dc4602019f4b",
+      "last_modified": 1774357016404
+    },
+    {
+      "schema": 1774353481243,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.uy",
+      "id": "1c05edff-751d-4c03-be12-342646e1b045",
+      "last_modified": 1774357016402
+    },
+    {
+      "schema": 1774353480860,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.uz",
+      "id": "66047434-91d7-4188-8501-688351cd33b0",
+      "last_modified": 1774357016400
+    },
+    {
+      "schema": 1774353480485,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.vc",
+      "id": "f0704d86-2ca7-4219-8e72-bf57d01a603d",
+      "last_modified": 1774357016397
+    },
+    {
+      "schema": 1774353480108,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.ve",
+      "id": "ef6076c2-da96-4239-b1d6-e2511a2759d2",
+      "last_modified": 1774357016395
+    },
+    {
+      "schema": 1774353478868,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.vu",
+      "id": "662bac64-2068-4d2f-88c4-4cf13aa8c114",
+      "last_modified": 1774357016393
+    },
+    {
+      "schema": 1774353478468,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.ws",
+      "id": "12ca8ba3-bbb7-4bcb-a3da-be8fc35a96b9",
+      "last_modified": 1774357016390
+    },
+    {
+      "schema": 1774353478066,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.rs",
+      "id": "0ccbb29e-2a37-450c-bc2b-e599d60739f5",
+      "last_modified": 1774357016388
+    },
+    {
+      "schema": 1774353477628,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.za",
+      "id": "c077ef86-7abe-4e23-86bd-ea435f37ed9b",
+      "last_modified": 1774357016386
+    },
+    {
+      "schema": 1774353477254,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.zm",
+      "id": "b24f2d00-35b6-40f9-8b5e-1d63c9e38022",
+      "last_modified": 1774357016383
+    },
+    {
+      "schema": 1774353476860,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.zw",
+      "id": "40db1e8b-cf58-4a2b-a8f5-d6062274acbd",
+      "last_modified": 1774357016381
+    },
+    {
+      "schema": 1774353476430,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.cat",
+      "id": "db28efb7-a106-49ab-9d1a-52bea2c4b4ca",
+      "last_modified": 1774357016378
+    },
+    {
+      "schema": 1774353487043,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.td",
+      "id": "a10b4bc4-4c08-4720-bfb4-b50c01513d39",
+      "last_modified": 1774357016376
+    },
+    {
+      "schema": 1774353482866,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.tz",
+      "id": "1c223393-69bc-4213-9b0c-40f684e7a7d7",
+      "last_modified": 1774357016373
+    },
+    {
+      "schema": 1774353479656,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.vi",
+      "id": "f12b9483-6a82-4302-9382-c3759686d06d",
+      "last_modified": 1774357016371
+    },
+    {
+      "schema": 1774353479287,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.vn",
+      "id": "a2020fa4-9968-4004-a966-d8db6780eba7",
+      "last_modified": 1774357016369
+    },
+    {
+      "schema": 1774353544715,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.at",
+      "id": "ce0ce139-40e3-4a47-9987-b7ee4e7f2667",
+      "last_modified": 1774357016366
+    },
+    {
+      "schema": 1774353539339,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.bs",
+      "id": "f7b70608-c6fc-4af7-9f9b-186816605e67",
+      "last_modified": 1774357016364
+    },
+    {
+      "schema": 1774353538973,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.bt",
+      "id": "27021180-3efa-4e63-8312-f04a8aa23594",
+      "last_modified": 1774357016361
+    },
+    {
+      "schema": 1774353520194,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.ht",
+      "id": "510ad4db-6aee-47a0-a3e6-fbce28005565",
+      "last_modified": 1774357016358
+    },
+    {
+      "schema": 1774353513680,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.kg",
+      "id": "e3759cfb-ec2e-4a5d-bdec-76263c7e2f66",
+      "last_modified": 1774357016355
+    },
+    {
+      "schema": 1774353513283,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.co.kr",
+      "id": "7879affd-5184-4e13-92d0-5153f64b4723",
+      "last_modified": 1774357016353
+    },
+    {
+      "schema": 1774353498951,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.om",
+      "id": "40edd8ab-12f8-4c42-a77b-bbeddffbc449",
+      "last_modified": 1774357016351
+    },
+    {
+      "schema": 1774353498538,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.pa",
+      "id": "523fc154-69aa-4506-a3c9-3fa323d6d982",
+      "last_modified": 1774357016348
+    },
+    {
+      "schema": 1774353496851,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.pk",
+      "id": "257fa34a-dec5-4771-b3a2-3e8c984ef9ef",
+      "last_modified": 1774357016345
+    },
+    {
+      "schema": 1774353496486,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.pl",
+      "id": "5011e90d-f412-47e1-9e29-f57b3675e43c",
+      "last_modified": 1774357016343
+    },
+    {
+      "schema": 1774353496055,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.pn",
+      "id": "c1053378-6567-4608-aed7-950a2ecd0864",
+      "last_modified": 1774357016340
+    },
+    {
+      "schema": 1774353495678,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.pr",
+      "id": "358edbae-858d-4dca-937f-8d46297164ba",
+      "last_modified": 1774357016337
+    },
+    {
+      "schema": 1774353495319,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.ps",
+      "id": "d985af32-dd5a-4185-835b-62bce8b6c2ea",
+      "last_modified": 1774357016334
+    },
+    {
+      "schema": 1774353489725,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.com.sl",
+      "id": "8b6007d3-c94d-4eba-8599-5c32f9194372",
+      "last_modified": 1774357016332
+    },
+    {
+      "schema": 1774353489367,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "google.sn",
+      "id": "d2c15035-9733-4de7-9944-c12dc7a136fe",
+      "last_modified": 1774357016329
+    },
+    {
+      "schema": 1774353404758,
+      "overrides": "-CanvasRandomization",
+      "isBaseline": false,
+      "firstPartyDomain": "wpt.fyi",
+      "id": "a0811b36-201c-4844-bf41-4e1d2cc4ab1a",
+      "last_modified": 1774357016326
+    }
+  ],
+  "timestamp": 1774357017383
+}
