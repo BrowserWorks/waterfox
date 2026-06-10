@@ -23,10 +23,8 @@
 #define AGENT_POLICY_NAME "DisableDefaultBrowserAgent"
 #define TELEMETRY_POLICY_NAME "DisableTelemetry"
 
-// The Firefox policy engine hardcodes the string "Mozilla" in its registry
-// key accesses rather than using the configured vendor name, so we should do
-// the same here to be sure we're compatible with it.
-#define POLICY_REGKEY_NAME L"SOFTWARE\\Policies\\Mozilla\\" MOZ_APP_BASENAME
+#define POLICY_REGKEY_NAME \
+  L"SOFTWARE\\Policies\\BrowserWorks\\" MOZ_APP_BASENAME
 
 namespace mozilla::default_agent {
 

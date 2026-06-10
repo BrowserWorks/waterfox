@@ -6,7 +6,10 @@
 add_task(async function setup_preferences() {
   await SpecialPowers.pushPrefEnv({
     set: [
-      ["browser.policies.alternateGPO", "SOFTWARE\\Mozilla\\PolicyTesting"],
+      [
+        "browser.policies.alternateGPO",
+        "SOFTWARE\\BrowserWorks\\PolicyTesting",
+      ],
     ],
   });
 });
@@ -17,10 +20,11 @@ add_task(async function test_gpo_policies() {
   );
 
   let gpoPolicyRan = false;
+  let expectedValue = true;
 
   Policies.gpo_policy = {
     onProfileAfterChange(manager, param) {
-      is(param, true, "Param matches what was in the registry");
+      is(param, expectedValue, "Param matches what was in the registry");
       gpoPolicyRan = true;
     },
   };
@@ -29,9 +33,16 @@ add_task(async function test_gpo_policies() {
     Ci.nsIWindowsRegKey
   );
   let regLocation =
-    "SOFTWARE\\Mozilla\\PolicyTesting\\Mozilla\\" + Services.appinfo.name;
+    "SOFTWARE\\BrowserWorks\\PolicyTesting\\BrowserWorks\\" +
+    Services.appinfo.name;
   wrk.create(wrk.ROOT_KEY_CURRENT_USER, regLocation, wrk.ACCESS_WRITE);
   wrk.writeIntValue("gpo_policy", 1);
+  wrk.close();
+
+  const legacyLocation =
+    "SOFTWARE\\BrowserWorks\\PolicyTesting\\Mozilla\\" + Services.appinfo.name;
+  wrk.create(wrk.ROOT_KEY_CURRENT_USER, legacyLocation, wrk.ACCESS_WRITE);
+  wrk.writeIntValue("gpo_policy", 0);
   wrk.close();
 
   await setupPolicyEngineWithJson(
@@ -58,9 +69,29 @@ add_task(async function test_gpo_policies() {
 
   ok(gpoPolicyRan, "GPO Policy ran correctly though onProfileAfterChange");
 
+  wrk.open(
+    wrk.ROOT_KEY_CURRENT_USER,
+    "SOFTWARE\\BrowserWorks",
+    wrk.ACCESS_WRITE
+  );
+  wrk.removeChild("PolicyTesting\\BrowserWorks\\" + Services.appinfo.name);
+  wrk.removeChild("PolicyTesting\\BrowserWorks");
+  wrk.close();
+  expectedValue = false;
+  gpoPolicyRan = false;
+  await setupPolicyEngineWithJson(
+    { policies: {} },
+    { properties: { gpo_policy: { type: "boolean" } } }
+  );
+  ok(gpoPolicyRan, "The legacy Mozilla namespace is still read");
+
   delete Policies.gpo_policy;
 
-  wrk.open(wrk.ROOT_KEY_CURRENT_USER, "SOFTWARE\\Mozilla", wrk.ACCESS_WRITE);
+  wrk.open(
+    wrk.ROOT_KEY_CURRENT_USER,
+    "SOFTWARE\\BrowserWorks",
+    wrk.ACCESS_WRITE
+  );
   wrk.removeChild("PolicyTesting\\Mozilla\\" + Services.appinfo.name);
   wrk.removeChild("PolicyTesting\\Mozilla");
   wrk.removeChild("PolicyTesting");
@@ -99,7 +130,8 @@ add_task(async function test_gpo_json_policies() {
     Ci.nsIWindowsRegKey
   );
   let regLocation =
-    "SOFTWARE\\Mozilla\\PolicyTesting\\Mozilla\\" + Services.appinfo.name;
+    "SOFTWARE\\BrowserWorks\\PolicyTesting\\BrowserWorks\\" +
+    Services.appinfo.name;
   wrk.create(wrk.ROOT_KEY_CURRENT_USER, regLocation, wrk.ACCESS_WRITE);
   wrk.writeIntValue("gpo_policy", 1);
   wrk.writeIntValue("coexist_policy", 0);
@@ -146,9 +178,13 @@ add_task(async function test_gpo_json_policies() {
   delete Policies.json_policy;
   delete Policies.coexist_policy;
 
-  wrk.open(wrk.ROOT_KEY_CURRENT_USER, "SOFTWARE\\Mozilla", wrk.ACCESS_WRITE);
-  wrk.removeChild("PolicyTesting\\Mozilla\\" + Services.appinfo.name);
-  wrk.removeChild("PolicyTesting\\Mozilla");
+  wrk.open(
+    wrk.ROOT_KEY_CURRENT_USER,
+    "SOFTWARE\\BrowserWorks",
+    wrk.ACCESS_WRITE
+  );
+  wrk.removeChild("PolicyTesting\\BrowserWorks\\" + Services.appinfo.name);
+  wrk.removeChild("PolicyTesting\\BrowserWorks");
   wrk.removeChild("PolicyTesting");
   wrk.close();
 });
@@ -250,7 +286,8 @@ add_task(async function test_gpo_blank_json_policies() {
     Ci.nsIWindowsRegKey
   );
   let regLocation =
-    "SOFTWARE\\Mozilla\\PolicyTesting\\Mozilla\\" + Services.appinfo.name;
+    "SOFTWARE\\BrowserWorks\\PolicyTesting\\BrowserWorks\\" +
+    Services.appinfo.name;
   wrk.create(wrk.ROOT_KEY_CURRENT_USER, regLocation, wrk.ACCESS_WRITE);
   wrk.writeIntValue("gpo_policy", 1);
   wrk.close();
@@ -279,9 +316,13 @@ add_task(async function test_gpo_blank_json_policies() {
 
   delete Policies.gpo_policy;
 
-  wrk.open(wrk.ROOT_KEY_CURRENT_USER, "SOFTWARE\\Mozilla", wrk.ACCESS_WRITE);
-  wrk.removeChild("PolicyTesting\\Mozilla\\" + Services.appinfo.name);
-  wrk.removeChild("PolicyTesting\\Mozilla");
+  wrk.open(
+    wrk.ROOT_KEY_CURRENT_USER,
+    "SOFTWARE\\BrowserWorks",
+    wrk.ACCESS_WRITE
+  );
+  wrk.removeChild("PolicyTesting\\BrowserWorks\\" + Services.appinfo.name);
+  wrk.removeChild("PolicyTesting\\BrowserWorks");
   wrk.removeChild("PolicyTesting");
   wrk.close();
 });
@@ -304,7 +345,8 @@ add_task(async function test_gpo_broken_json_policies() {
     Ci.nsIWindowsRegKey
   );
   let regLocation =
-    "SOFTWARE\\Mozilla\\PolicyTesting\\Mozilla\\" + Services.appinfo.name;
+    "SOFTWARE\\BrowserWorks\\PolicyTesting\\BrowserWorks\\" +
+    Services.appinfo.name;
   wrk.create(wrk.ROOT_KEY_CURRENT_USER, regLocation, wrk.ACCESS_WRITE);
   wrk.writeIntValue("gpo_policy", 1);
   wrk.close();
@@ -331,9 +373,13 @@ add_task(async function test_gpo_broken_json_policies() {
 
   delete Policies.gpo_policy;
 
-  wrk.open(wrk.ROOT_KEY_CURRENT_USER, "SOFTWARE\\Mozilla", wrk.ACCESS_WRITE);
-  wrk.removeChild("PolicyTesting\\Mozilla\\" + Services.appinfo.name);
-  wrk.removeChild("PolicyTesting\\Mozilla");
+  wrk.open(
+    wrk.ROOT_KEY_CURRENT_USER,
+    "SOFTWARE\\BrowserWorks",
+    wrk.ACCESS_WRITE
+  );
+  wrk.removeChild("PolicyTesting\\BrowserWorks\\" + Services.appinfo.name);
+  wrk.removeChild("PolicyTesting\\BrowserWorks");
   wrk.removeChild("PolicyTesting");
   wrk.close();
 });

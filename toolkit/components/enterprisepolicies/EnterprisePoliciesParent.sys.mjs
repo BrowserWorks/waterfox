@@ -825,7 +825,11 @@ class WindowsGPOPoliciesProvider extends PoliciesProvider {
         }
       }
       wrk.open(root, regLocation, wrk.ACCESS_READ);
-      if (wrk.hasChild("Mozilla\\" + Services.appinfo.name)) {
+      for (const vendor of ["Mozilla", "BrowserWorks"]) {
+        const key = vendor + "\\" + Services.appinfo.name;
+        if (!wrk.hasChild(key)) {
+          continue;
+        }
         lazy.log.debug(
           `root = ${
             root == wrk.ROOT_KEY_CURRENT_USER
@@ -835,7 +839,8 @@ class WindowsGPOPoliciesProvider extends PoliciesProvider {
         );
         this._policies = lazy.WindowsGPOParser.readPolicies(
           wrk,
-          this._policies
+          this._policies,
+          key
         );
       }
       wrk.close();

@@ -2511,8 +2511,9 @@ static void SetupLauncherProcessPref() {
 
 #  if defined(MOZ_DEFAULT_BROWSER_AGENT)
 
-#    define DEFAULT_BROWSER_AGENT_KEY_NAME \
-      "SOFTWARE\\" MOZ_APP_VENDOR "\\" MOZ_APP_NAME "\\Default Browser Agent"
+#    define DEFAULT_BROWSER_AGENT_KEY_NAME              \
+      "SOFTWARE\\" MOZ_APP_VENDOR "\\" MOZ_APP_BASENAME \
+      "\\Default Browser Agent"
 
 static nsresult PrependRegistryValueName(nsAutoString& aValueName) {
   nsresult rv;

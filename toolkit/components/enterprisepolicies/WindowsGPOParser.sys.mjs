@@ -20,11 +20,8 @@ ChromeUtils.defineLazyGetter(lazy, "log", () => {
 });
 
 export var WindowsGPOParser = {
-  readPolicies(wrk, policies) {
-    let childWrk = wrk.openChild(
-      "Mozilla\\" + Services.appinfo.name,
-      wrk.ACCESS_READ
-    );
+  readPolicies(wrk, policies, key = "BrowserWorks\\" + Services.appinfo.name) {
+    let childWrk = wrk.openChild(key, wrk.ACCESS_READ);
     if (!policies) {
       policies = {};
     }
