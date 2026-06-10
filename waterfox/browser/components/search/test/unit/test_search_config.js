@@ -3,9 +3,7 @@
 
 "use strict";
 
-const {
-  getWaterfoxDefaultSearchEngineId,
-} = ChromeUtils.importESModule(
+const { getWaterfoxDefaultSearchEngineId } = ChromeUtils.importESModule(
   "moz-src:///toolkit/components/search/SearchService.sys.mjs"
 );
 
@@ -19,16 +17,23 @@ const ENGINE_IDS = [
   "qwant",
   "wps",
 ];
-const ENGINES_URL =
-  "chrome://browser/content/search/BrowserSearchEngines.json";
+const ENGINES_URL = "chrome://browser/content/search/BrowserSearchEngines.json";
+const ICONS_URL =
+  "chrome://browser/content/search/BrowserSearchEngineIcons.json";
 
 add_task(async function test_static_search_data() {
   const engines = await (await fetch(ENGINES_URL)).json();
+  const icons = new Map(await (await fetch(ICONS_URL)).json());
 
   Assert.deepEqual(
     engines.map(engine => engine.identifier),
     ENGINE_IDS,
     "The static engine list should contain the Waterfox engines"
+  );
+  Assert.deepEqual(
+    [...icons.keys()],
+    ENGINE_IDS,
+    "Every Waterfox engine should have a static icon"
   );
   Assert.ok(
     !Object.hasOwn(
