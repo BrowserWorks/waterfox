@@ -3571,6 +3571,14 @@ export class UpdateService {
       return false;
     }
 
+    if (!lazy.UpdateUtils.appUpdateCheckEnabled) {
+      LOG(
+        "UpdateService:_checkForBackgroundUpdates - automatic update checks " +
+          "are disabled by preference"
+      );
+      return false;
+    }
+
     this._isNotify = isNotify;
 
     // Glean metric names:
@@ -3948,6 +3956,14 @@ export class UpdateService {
       return;
     }
 
+    if (!lazy.UpdateUtils.appUpdateCheckEnabled) {
+      LOG(
+        "UpdateService:_selectAndInstallUpdate - automatic update checks " +
+          "were disabled while checking"
+      );
+      return;
+    }
+
     var update = this.#selectUpdate(updates);
     if (!update || update.elevationFailure) {
       return;
@@ -3991,6 +4007,13 @@ export class UpdateService {
      * Minor         Auto Install
      */
     let updateAuto = await lazy.UpdateUtils.getAppUpdateAutoEnabled();
+    if (!lazy.UpdateUtils.appUpdateCheckEnabled) {
+      LOG(
+        "UpdateService:_selectAndInstallUpdate - automatic update checks " +
+          "were disabled before downloading"
+      );
+      return;
+    }
     if (!updateAuto) {
       LOG(
         "UpdateService:_selectAndInstallUpdate - prompting because silent " +
