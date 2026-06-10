@@ -1,0 +1,5 @@
+[DEFAULT]
+firefox-appdir = "browser"
+support-files = ["file_early_scriptlet_injection.html", "file_native_blocker.sjs"]
+
+["browser_early_scriptlet_injection.js"]
