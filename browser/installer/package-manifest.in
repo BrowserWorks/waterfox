@@ -274,6 +274,7 @@
 @RESPATH@/browser/@PREF_DIR@/firefox.js
 @RESPATH@/browser/@PREF_DIR@/firefox-branding.js
 @RESPATH@/browser/@PREF_DIR@/00-general.js
+@RESPATH@/browser/@PREF_DIR@/01-services.js
 @RESPATH@/greprefs.js
 @RESPATH@/defaults/autoconfig/prefcalls.js
 @RESPATH@/browser/defaults/permissions
