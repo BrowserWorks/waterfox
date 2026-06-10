@@ -1792,6 +1792,7 @@ node_modules/
 python/mozperftest/mozperftest/tests/data/
 security/manager/tools/PreloadedHPKPins.json
 services/settings/dumps/
+waterfox/browser/components/search/dumps/
 toolkit/components/nimbus/schemas/ExperimentFeature.schema.json
 toolkit/components/nimbus/schemas/ExperimentFeatureManifest.schema.json
 toolkit/components/nimbus/schemas/NimbusExperiment.schema.json
