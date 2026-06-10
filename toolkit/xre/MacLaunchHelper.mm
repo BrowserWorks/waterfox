@@ -199,7 +199,7 @@ bool InstallPrivilegedHelperWithId(const char* helperId, os_log_t logger) {
 }
 
 bool InstallElevatedUpdater() {
-  return InstallPrivilegedHelperWithId("org.mozilla.updater");
+  return InstallPrivilegedHelperWithId("net.waterfox.updater");
 }
 
 void AbortElevatedUpdate() {
@@ -212,7 +212,8 @@ void AbortElevatedUpdate() {
   while (currTry < numRetries) {
     @try {
       updateServer = (id)[NSConnection
-          rootProxyForConnectionWithRegisteredName:@"org.mozilla.updater.server"
+          rootProxyForConnectionWithRegisteredName:
+              @"net.waterfox.updater.server"
                                               host:nil
                                    usingNameServer:[NSSocketPortNameServer
                                                        sharedInstance]];
