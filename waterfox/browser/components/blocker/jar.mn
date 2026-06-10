@@ -1,0 +1,5 @@
+browser.jar:
+%   resource waterfox %waterfox/
+    waterfox/blocker/assets/list_catalog.json                         (assets/list_catalog.json)
+    waterfox/blocker/assets/resources/resources.json                  (assets/resources/resources.json)
+    waterfox/blocker/assets/resources/ubo-scriptlets.json             (assets/resources/ubo-scriptlets.json)

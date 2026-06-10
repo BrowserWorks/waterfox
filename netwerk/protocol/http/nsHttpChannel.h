@@ -125,6 +125,12 @@ class nsHttpChannel final : public HttpBaseChannel,
                                       nsIURI* aProxyURI, uint64_t aChannelId,
                                       nsILoadInfo* aLoadInfo) override;
 
+  nsresult RedirectForContentClassifier(nsIURI* aTarget);
+  nsresult SetContentClassifierCsp(const nsACString& aDirectives);
+  bool WillMergeContentClassifierResponse() const {
+    return LoadCachedContentIsPartial();
+  }
+
   static bool IsRedirectStatus(uint32_t status);
   static bool WillRedirect(const nsHttpResponseHead& response);
 
@@ -151,6 +157,10 @@ class nsHttpChannel final : public HttpBaseChannel,
   NS_IMETHOD GetNavigationStartTimeStamp(TimeStamp* aTimeStamp) override;
   NS_IMETHOD SetNavigationStartTimeStamp(TimeStamp aTimeStamp) override;
   NS_IMETHOD CancelByURLClassifier(nsresult aErrorCode) override;
+  bool IsURLClassifierCancellationInProgress() const {
+    return mNotifyingClassifierCancellation ||
+           LoadChannelClassifierCancellationPending();
+  }
   NS_IMETHOD GetLastTransportStatus(nsresult* aLastTransportStatus) override;
   // nsISupportsPriority
   NS_IMETHOD SetPriority(int32_t value) override;
@@ -401,6 +411,8 @@ class nsHttpChannel final : public HttpBaseChannel,
   // redirection specific methods
   void HandleAsyncRedirect();
   void HandleAsyncAPIRedirect();
+  void HandleAsyncContentClassifierRedirect();
+  void RestoreContentClassifierCacheCsp(nsHttpResponseHead& aHead) const;
   [[nodiscard]] nsresult ContinueHandleAsyncRedirect(nsresult);
   void HandleAsyncNotModified();
   [[nodiscard]] nsresult PromptTempRedirect();
@@ -572,6 +584,8 @@ class nsHttpChannel final : public HttpBaseChannel,
   nsCOMPtr<nsIHttpChannelAuthProvider> mAuthProvider;
   nsCOMPtr<nsIURI> mRedirectURI;
   nsCOMPtr<nsIURI> mUnstrippedRedirectURI;
+  nsCOMPtr<nsIURI> mContentClassifierRedirectURI;
+  Maybe<nsCString> mContentClassifierOriginalCsp;
   nsCOMPtr<nsIChannel> mRedirectChannel;
   nsCOMPtr<nsIChannel> mPreflightChannel;
 
@@ -581,6 +595,7 @@ class nsHttpChannel final : public HttpBaseChannel,
   // BeginConnect(), so save the nsChannelClassifier here to keep the
   // state of whether tracking protection is enabled or not.
   RefPtr<nsChannelClassifier> mChannelClassifier;
+  bool mNotifyingClassifierCancellation = false;
 
   // Dictionary entry for the entry being used to decompress this stream
   // (i.e. we added Dictionary-Available to the request).

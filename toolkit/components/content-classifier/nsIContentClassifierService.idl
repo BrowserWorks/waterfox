@@ -4,6 +4,19 @@
 
 #include "nsISupports.idl"
 
+interface nsIChannel;
+
+[scriptable, uuid(37bbbe9a-9605-4b21-8c2c-65b9c056d380)]
+interface nsIContentClassifierAdBlockingBridge : nsISupports {
+    void onAdBlockingAction(in unsigned long long browserId,
+                            in AUTF8String hostname, in ACString requestType,
+                            in boolean isPrivate, in boolean isTopLevel);
+    void filterAdBlockingResponse(in nsIChannel channel, in ACString url,
+                                  in ACString requestType,
+                                  in ACString resourcesJson,
+                                  in ACString replaceJson);
+};
+
 /**
  * Interface for the content classifier service. Used by the JS
  * RemoteSettings client to notify the C++ service of filter list
