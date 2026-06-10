@@ -12,4 +12,5 @@ export("DIST_SUBDIR")
 JS_PREFERENCE_PP_FILES += [
     "app/profile/00-general.js",
     "app/profile/01-services.js",
+    "app/profile/02-privacy.js",
 ]
