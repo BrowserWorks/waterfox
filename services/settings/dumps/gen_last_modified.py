@@ -63,6 +63,7 @@ def main(output):
     dumps_locations = []
     if buildconfig.substs["MOZ_BUILD_APP"] == "browser":
         dumps_locations += ["services/settings/dumps/"]
+        dumps_locations += ["services/settings/static-dumps/"]
     elif buildconfig.substs["MOZ_BUILD_APP"] == "mobile/android":
         dumps_locations += ["services/settings/dumps/"]
     elif buildconfig.substs["MOZ_BUILD_APP"] == "mobile/ios":
