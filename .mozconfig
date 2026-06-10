@@ -4,6 +4,7 @@ case $(uname -s) in
     Darwin)
         ;;
     MINGW*|MSYS*|CYGWIN*)
+        ac_add_options --disable-parental-controls
         ;;
     Linux)
         export MOZ_NO_PIE_COMPAT=1
