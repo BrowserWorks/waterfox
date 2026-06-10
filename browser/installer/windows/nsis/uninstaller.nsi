@@ -199,7 +199,8 @@ UninstPage custom un.preConfirm
 !insertmacro MUI_UNPAGE_INSTFILES
 
 ; Finish Page
-!define MUI_FINISHPAGE_SHOWREADME
+; The post uninstall survey checkbox is disabled for Waterfox; without
+; MUI_FINISHPAGE_SHOWREADME the other SHOWREADME defines are inert.
 !define MUI_FINISHPAGE_SHOWREADME_NOTCHECKED
 !define MUI_FINISHPAGE_SHOWREADME_TEXT $(UN_SURVEY_CHECKBOX_LABEL)
 !define MUI_FINISHPAGE_SHOWREADME_FUNCTION un.Survey
@@ -363,6 +364,7 @@ Function un.SendUninstallPing
   StrCpy $6 "$2\$1"
 
   ${IfNot} ${Errors}
+!if "${TELEMETRY_BASE_URL}" != ""
     ; Copy the ping ID, starting after $AppUserModelID_, ending 5 from the end to remove .json
     StrCpy $5 $1 -5 $4
 
@@ -376,6 +378,7 @@ Function un.SendUninstallPing
     ; Pop the result. This could indicate an error if it's something other than
     ; "success", but we don't have any recovery path here anyway.
     Pop $5
+!endif
 
     ${Do}
       Delete $6
