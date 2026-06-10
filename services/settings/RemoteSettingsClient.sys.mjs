@@ -22,6 +22,8 @@ ChromeUtils.defineESModuleGetters(lazy, {
   SharedUtils: "resource://services-settings/SharedUtils.sys.mjs",
   UptakeTelemetry: "resource://services-settings/UptakeTelemetry.sys.mjs",
   Utils: "resource://services-settings/Utils.sys.mjs",
+  WaterfoxSettingsPolicy:
+    "resource://services-settings/WaterfoxSettingsPolicy.sys.mjs",
 });
 
 ChromeUtils.defineLazyGetter(lazy, "console", () => lazy.Utils.log);
@@ -483,6 +485,29 @@ export class RemoteSettingsClient extends EventEmitter {
               ? await this._importJSONDump()
               : -1;
             if (importedFromDump < 0) {
+              if (
+                !lazy.WaterfoxSettingsPolicy.canSync(
+                  this.bucketName,
+                  this.collectionName
+                )
+              ) {
+                // This collection cannot use the network, so without a
+                // bundled dump there is nothing to read. Profiles that skip
+                // dump loading, like automation against a dummy server, are
+                // not missing a dump, so stay quiet for them.
+                if (
+                  !(await lazy.Utils.hasLocalDump(
+                    this.bucketName,
+                    this.collectionName
+                  ))
+                ) {
+                  lazy.console.warn(
+                    `${this.identifier} has no bundled dump and may not ` +
+                      "sync; records are unavailable offline"
+                  );
+                }
+                return true;
+              }
               // There is no JSON dump to load, force a synchronization from the server.
               // We don't want the "sync" event to be sent, since some consumers use `.get()`
               // in "sync" callbacks. See Bug 1761953
@@ -653,6 +678,15 @@ export class RemoteSettingsClient extends EventEmitter {
   async sync(options) {
     if (lazy.Utils.shouldSkipRemoteActivity) {
       lazy.console.debug(`${this.identifier} Skip remote sync.`);
+      return;
+    }
+
+    if (
+      !lazy.WaterfoxSettingsPolicy.canSync(this.bucketName, this.collectionName)
+    ) {
+      lazy.console.debug(
+        `${this.identifier} Network sync is not allowed for this collection.`
+      );
       return;
     }
 

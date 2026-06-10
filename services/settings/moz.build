@@ -27,6 +27,7 @@ EXTRA_JS_MODULES["services-settings"] += [
     "SyncHistory.sys.mjs",
     "UptakeTelemetry.sys.mjs",
     "Utils.sys.mjs",
+    "WaterfoxSettingsPolicy.sys.mjs",
 ]
 
 XPCOM_MANIFESTS += [
