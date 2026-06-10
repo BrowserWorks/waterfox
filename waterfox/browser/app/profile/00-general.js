@@ -15,6 +15,9 @@ pref("browser.compactmode.show", true);
 pref("toolkit.legacyUserProfileCustomizations.stylesheets", true, locked);
 pref("general.smoothScroll.msdPhysics.enabled", true);
 
+// Settings redesign is on by default; hide its one-time promo banner.
+pref("browser.settings-redesign.promo.dismissed", true);
+
 #ifdef XP_LINUX
 pref("spellchecker.dictionary_path", "/usr/share/hunspell");
 #endif
