@@ -1,0 +1,162 @@
+[
+  {
+    "aliases": ["1o"],
+    "classification": "general",
+    "identifier": "1org",
+    "name": "1.org Charitable Search",
+    "urls": {
+      "search": {
+        "base": "https://1.org/search",
+        "params": [
+          {
+            "name": "segment",
+            "experimentConfig": "waterfox_attribution_1org"
+          }
+        ],
+        "searchTermParamName": "q"
+      },
+      "suggestions": {
+        "base": "https://search.waterfox.com/autocomplete",
+        "searchTermParamName": "q"
+      }
+    }
+  },
+  {
+    "aliases": ["bi"],
+    "classification": "general",
+    "identifier": "bing",
+    "name": "Bing",
+    "urls": {
+      "search": {
+        "base": "https://www.bing.com/search",
+        "searchTermParamName": "q"
+      },
+      "suggestions": {
+        "base": "https://search.waterfox.com/autocomplete",
+        "searchTermParamName": "q"
+      }
+    }
+  },
+  {
+    "aliases": ["ddg"],
+    "classification": "general",
+    "identifier": "ddg",
+    "name": "DuckDuckGo",
+    "urls": {
+      "search": {
+        "base": "https://duckduckgo.com/",
+        "params": [
+          {
+            "name": "t",
+            "experimentConfig": "waterfox_attribution_ddg"
+          }
+        ],
+        "searchTermParamName": "q"
+      },
+      "suggestions": {
+        "base": "https://search.waterfox.com/autocomplete",
+        "searchTermParamName": "q"
+      }
+    }
+  },
+  {
+    "aliases": ["ec"],
+    "classification": "general",
+    "identifier": "ecosia",
+    "name": "Ecosia",
+    "urls": {
+      "search": {
+        "base": "https://www.ecosia.org/search",
+        "params": [
+          {
+            "name": "tt",
+            "experimentConfig": "waterfox_attribution_ecosia"
+          }
+        ],
+        "searchTermParamName": "q"
+      },
+      "suggestions": {
+        "base": "https://search.waterfox.com/autocomplete",
+        "searchTermParamName": "q"
+      }
+    }
+  },
+  {
+    "aliases": ["go"],
+    "classification": "general",
+    "identifier": "google",
+    "name": "Google",
+    "urls": {
+      "search": {
+        "base": "https://www.google.com/search",
+        "searchTermParamName": "q"
+      },
+      "suggestions": {
+        "base": "https://search.waterfox.com/autocomplete",
+        "searchTermParamName": "q"
+      }
+    }
+  },
+  {
+    "aliases": ["mo"],
+    "classification": "general",
+    "identifier": "mojeek",
+    "name": "Mojeek",
+    "urls": {
+      "search": {
+        "base": "https://www.mojeek.com/search",
+        "searchTermParamName": "q"
+      },
+      "suggestions": {
+        "base": "https://search.waterfox.com/autocomplete",
+        "searchTermParamName": "q"
+      }
+    }
+  },
+  {
+    "aliases": ["qw"],
+    "classification": "general",
+    "identifier": "qwant",
+    "name": "Qwant",
+    "urls": {
+      "search": {
+        "base": "https://www.qwant.com/",
+        "params": [
+          {
+            "name": "client",
+            "experimentConfig": "waterfox_attribution_qwant"
+          },
+          {
+            "name": "t",
+            "value": "web"
+          },
+          {
+            "name": "llm",
+            "value": "0"
+          }
+        ],
+        "searchTermParamName": "q"
+      },
+      "suggestions": {
+        "base": "https://search.waterfox.com/autocomplete",
+        "searchTermParamName": "q"
+      }
+    }
+  },
+  {
+    "aliases": ["wps"],
+    "classification": "general",
+    "identifier": "wps",
+    "name": "Waterfox Private Search",
+    "urls": {
+      "search": {
+        "base": "https://search.waterfox.com/search",
+        "searchTermParamName": "q"
+      },
+      "suggestions": {
+        "base": "https://search.waterfox.com/autocomplete",
+        "searchTermParamName": "q"
+      }
+    }
+  }
+]
