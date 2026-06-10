@@ -1,0 +1,78 @@
+#filter dumbComments emptyLines
+
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+pref("browser.search.serpEventTelemetryCategorization.enabled", false, locked);
+
+// Tracking protection and fingerprinting.
+pref("privacy.trackingprotection.lower_network_priority", true);
+pref("privacy.globalprivacycontrol.enabled", true);
+pref("privacy.resistFingerprinting.block_mozAddonManager", true);
+pref("dom.battery.enabled", false);
+
+// Cookies and storage.
+pref("browser.privatebrowsing.forceMediaMemoryCache", true);
+pref("network.cookie.sameSite.schemeful", true);
+
+// History, referrers and the URL bar.
+pref("network.http.referer.XOriginTrimmingPolicy", 2);
+pref("network.http.referer.defaultPolicy.trackers", 1);
+pref("network.http.referer.defaultPolicy.trackers.pbmode", 1);
+pref("browser.urlbar.trimURLs", false);
+
+// Forms and documents.
+pref("editor.truncate_user_pastes", false);
+pref("pdfjs.enableScripting", false);
+
+// WebRTC.
+pref("privacy.webrtc.globalMuteToggles", true);
+pref("media.peerconnection.ice.proxy_only_if_behind_proxy", true);
+pref("media.peerconnection.ice.default_address_only", true);
+
+// DRM downloads a proprietary binary, so it stays off until the user opts in,
+// either in Settings or from the prompt the first EME site triggers.
+pref("media.eme.enabled", false);
+
+// No Mozilla or Google location service.
+pref("geo.provider.network.url", "");
+
+// Telemetry and data reporting stay off.
+pref("toolkit.telemetry.unified", false, locked);
+pref("toolkit.telemetry.enabled", false, locked);
+pref("toolkit.telemetry.server", "data:,", locked);
+pref("toolkit.telemetry.archive.enabled", false, locked);
+pref("toolkit.telemetry.newProfilePing.enabled", false, locked);
+pref("toolkit.telemetry.shutdownPingSender.enabled", false, locked);
+pref("toolkit.telemetry.updatePing.enabled", false, locked);
+pref("toolkit.telemetry.bhrPing.enabled", false, locked);
+pref("toolkit.telemetry.firstShutdownPing.enabled", false, locked);
+pref("toolkit.coverage.endpoint.base", "", locked);
+pref("datareporting.healthreport.uploadEnabled", false, locked);
+pref("datareporting.policy.dataSubmissionEnabled", false, locked);
+pref("browser.newtabpage.activity-stream.telemetry", false, locked);
+pref("dom.security.unexpected_system_load_telemetry_enabled", false);
+
+// No Terms of Use acceptance flow; data collection is off and locked, so
+// there is nothing to agree to on first run or upgrade.
+pref("browser.preonboarding.enabled", false, locked);
+pref("termsofuse.bypassNotification", true, locked);
+
+// Normandy and Shield.
+pref("app.normandy.enabled", false, locked);
+pref("app.normandy.api_url", "", locked);
+pref("app.shield.optoutstudies.enabled", false, locked);
+
+// Crash reporting.
+pref("breakpad.reportURL", "", locked);
+pref("browser.tabs.crashReporting.sendReport", false, locked);
+
+// Network beacons and prefetching.
+pref("network.captive-portal-service.enabled", false);
+pref("network.connectivity-service.enabled", false);
+pref("network.dns.disablePrefetch", true);
+pref("network.dns.disablePrefetchFromHTTPS", true);
+
+// No special casing for Mozilla domains.
+pref("browser.tabs.remote.separatedMozillaDomains", "", locked);
