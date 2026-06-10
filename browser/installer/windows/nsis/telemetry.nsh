@@ -48,9 +48,11 @@ FunctionEnd
 Function SendTelemetryPing
   Call PrepareTelemetryPing
 
+!if "${TELEMETRY_BASE_URL}" != ""
   ; Send the ping request. This call will block until a response is received,
   ; but we shouldn't have any windows still open, so we won't jank anything.
   nsJSON::Set /http ping
+!endif
 FunctionEnd
 
 ; Fills in the telemetry ping with baseline values common to the full and stub
