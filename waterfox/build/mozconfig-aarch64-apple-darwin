@@ -1,0 +1,10 @@
+#!/bin/sh
+wfx_target=aarch64-apple-darwin
+wfx_cross_build=
+wfx_lto_mode=thin
+wfx_optimize="-mcpu=apple-m1 -O3 -w"
+wfx_rustflags="-Ctarget-cpu=apple-m1"
+wfx_rustc_bootstrap=
+wfx_pgo=native
+
+. "$topsrcdir/waterfox/build/mozconfig.common"
