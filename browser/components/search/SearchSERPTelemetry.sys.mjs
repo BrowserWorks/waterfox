@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+import { AppConstants } from "resource://gre/modules/AppConstants.sys.mjs";
 import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 
 const lazy = XPCOMUtils.declareLazy({
@@ -369,6 +370,10 @@ class TelemetryHandler {
    * can be tracked.
    */
   async init() {
+    if (!AppConstants.MOZ_TELEMETRY_REPORTING) {
+      // Builds without telemetry reporting do not measure search pages.
+      return;
+    }
     if (this._initialized) {
       return;
     }
@@ -1206,7 +1211,10 @@ class TelemetryHandler {
    *   Returns a provider or undefined if no provider was found for the url.
    */
   _getProviderInfoForURL(url) {
-    return this._searchProviderInfo.find(info =>
+    // Waterfox: init returns early in builds without telemetry reporting,
+    // leaving the provider info null, but the usage telemetry location
+    // listener still calls through here.
+    return this._searchProviderInfo?.find(info =>
       info.searchPageRegexp.test(url)
     );
   }
