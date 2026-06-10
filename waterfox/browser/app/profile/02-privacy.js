@@ -6,6 +6,28 @@
 
 pref("browser.search.serpEventTelemetryCategorization.enabled", false, locked);
 
+// The blocker built into the browser.
+pref("waterfox.blocker.enabled", true);
+// Show ad blocking controls in Settings.
+pref("waterfox.blocker.ui.enabled", true);
+// Show the blocked count badge on the blocker toolbar button.
+pref("waterfox.blocker.showBadge", true);
+// Allow ads on configured Waterfox search partner domains.
+pref("waterfox.blocker.allowSearchPartnerAds", true);
+// Additional custom filter list URLs as a JSON array string.
+pref("waterfox.blocker.filterListUrls", "[]");
+// Per list enabled overrides as a JSON object mapping list IDs to booleans.
+pref("waterfox.blocker.enabledLists", "{}");
+// Suppress startup detection notifications for ad blocker extensions.
+pref("waterfox.blocker.extensionDetectionDismissed", false);
+// Extension IDs for which install warnings have already been dismissed.
+pref("waterfox.blocker.dismissedExtensionInstallWarnings", "[]");
+// Let the blocker run alongside ad blocking extensions.
+pref("waterfox.blocker.coexist", false);
+// Fetch uBO scriptlets and supplementary resources from Waterfox AUS at
+// runtime. When false, the engine uses only the copies bundled in the build.
+pref("waterfox.blocker.remoteResourcesEnabled", true);
+
 // Tracking protection and fingerprinting.
 pref("privacy.trackingprotection.lower_network_priority", true);
 pref("privacy.globalprivacycontrol.enabled", true);
