@@ -1013,6 +1013,19 @@ void ContentClassifierService::ProcessListChanges(
       if (!activeNames.Contains(nsCString(feature.mName))) {
         continue;
       }
+      bool removed = false;
+      for (const auto& listId : feature.mListIds) {
+        if (aRemoved.Contains(listId)) {
+          mEngines.Remove(nsCString(feature.mName));
+          ++mFeatureVersions.LookupOrInsert(feature.mName);
+          removed = true;
+          break;
+        }
+      }
+      if (removed) {
+        PopulateAllActiveEnginesFromPreferenceSnapshot(snapshot);
+        continue;
+      }
       bool affected = !mEngines.Contains(nsCString(feature.mName));
       if (!affected) {
         for (const auto& listId : feature.mListIds) {
@@ -1120,7 +1133,7 @@ void ContentClassifierService::UpdateFeatures(
 
             // Collect per-feature rule arrays out of the settled promises;
             // defer the expensive parsing / InitFromRules to mBuildThread.
-            nsTArray<nsTArray<nsCString>> perFeatureRules;
+            nsTArray<Maybe<nsTArray<nsCString>>> perFeatureRules;
             perFeatureRules.SetLength(features.Length());
             if (aValue.IsResolve()) {
               auto& settled = aValue.ResolveValue();
@@ -1133,7 +1146,8 @@ void ContentClassifierService::UpdateFeatures(
                       features[i]->mName);
                   continue;
                 }
-                perFeatureRules[i] = std::move(settled[i].ResolveValue());
+                perFeatureRules[i].emplace(
+                    std::move(settled[i].ResolveValue()));
               }
             }
 
@@ -1146,21 +1160,24 @@ void ContentClassifierService::UpdateFeatures(
                   MOZ_ASSERT(!NS_IsMainThread());
 
                   // Build engines outside the lock; InitFromRules can be
-                  // expensive. A null engine — from a fetch reject, build
-                  // failure, or empty rules — clobbers any existing entry
-                  // for that feature via InstallEngine.
+                  // expensive. Failed fetches/builds preserve installed
+                  // engines; successful empty rules remove them.
                   nsTArray<RefPtr<ContentClassifierEngine>> builtEngines;
                   builtEngines.SetLength(features.Length());
+                  nsTArray<bool> installEngines;
+                  installEngines.SetLength(features.Length());
                   for (size_t i = 0; i < features.Length(); ++i) {
-                    if (perFeatureRules[i].IsEmpty()) {
+                    installEngines[i] = false;
+                    if (perFeatureRules[i].isNothing()) {
                       continue;
                     }
                     RefPtr<ContentClassifierEngine> engine;
                     if (NS_FAILED(BuildEngineFromRules(
-                            *features[i], perFeatureRules[i], engine))) {
+                            *features[i], *perFeatureRules[i], engine))) {
                       continue;
                     }
                     builtEngines[i] = std::move(engine);
+                    installEngines[i] = true;
                   }
 
                   bool didFullWork = false;
@@ -1172,6 +1189,9 @@ void ContentClassifierService::UpdateFeatures(
                     }
                     // Install non-stale engines (per-feature versioning).
                     for (size_t i = 0; i < builtEngines.Length(); ++i) {
+                      if (!installEngines[i]) {
+                        continue;
+                      }
                       uint64_t current =
                           self->mFeatureVersions.Get(features[i]->mName);
                       if (current != featureVersions[i]) {
@@ -1337,7 +1357,8 @@ ContentClassifierService::FetchEngineDataForFeature(
                                "FetchEngineDataForFeature - list \"{}\" for "
                                "feature \"{}\" rejected",
                                listIdsInOrder[i], feature->mName);
-                   continue;
+                   result->Reject(fetchPromises[i].RejectValue(), __func__);
+                   return;
                  }
                  const auto& fetchResult = fetchPromises[i].ResolveValue();
                  if (fetchResult.IsEmpty()) {
