@@ -3727,11 +3727,11 @@ option(
 )
 
 
-@depends("MOZ_PKG_VERSION", milestone.app_version)
-def moz_pkg_version(override, app_version):
+@depends("MOZ_PKG_VERSION", milestone.app_version_display)
+def moz_pkg_version(override, app_version_display):
     if override:
         return override[0]
-    return app_version
+    return app_version_display
 
 
 set_config("MOZ_PKG_VERSION", moz_pkg_version)
