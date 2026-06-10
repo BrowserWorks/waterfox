@@ -21,6 +21,7 @@ category browser-before-ui-startup moz-src:///browser/components/privatebrowsing
 category browser-before-ui-startup resource:///modules/AboutHomeStartupCache.sys.mjs AboutHomeStartupCache.init
 category browser-before-ui-startup resource:///modules/AccountsGlue.sys.mjs AccountsGlue.init
 category browser-before-ui-startup moz-src:///browser/modules/ObserverForwarder.sys.mjs ObserverForwarder.init
+category browser-before-ui-startup resource:///modules/WaterfoxGlue.sys.mjs WaterfoxGlue.init
 
 # Browser window lifecycle consumers
 category browser-window-before-initial-xul-layout-document-preparation chrome://browser/content/browser-customization.js AutoHideMenubar.init
