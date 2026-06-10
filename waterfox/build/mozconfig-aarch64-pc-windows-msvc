@@ -1,0 +1,10 @@
+#!/bin/sh
+wfx_target=aarch64-pc-windows-msvc
+wfx_cross_build=1
+wfx_lto_mode=cross
+wfx_optimize="-clang:-O3 -w"
+wfx_rustflags=
+wfx_rustc_bootstrap=
+wfx_pgo=
+
+. "$topsrcdir/waterfox/build/mozconfig.common"

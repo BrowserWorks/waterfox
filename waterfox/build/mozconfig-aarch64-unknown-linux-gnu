@@ -1,0 +1,10 @@
+#!/bin/sh
+wfx_target=aarch64-unknown-linux-gnu
+wfx_cross_build=1
+wfx_lto_mode=cross
+wfx_optimize="-O3 -w"
+wfx_rustflags=
+wfx_rustc_bootstrap=
+wfx_pgo=cross-or-native
+
+. "$topsrcdir/waterfox/build/mozconfig.common"
