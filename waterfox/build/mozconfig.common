@@ -199,3 +199,4 @@ else
     mk_add_options MOZ_OBJDIR=./obj-"$(uname -s)"-"$(uname -m)"
 fi
 
+export MOZ_REQUIRE_SIGNING=
