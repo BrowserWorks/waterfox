@@ -77,17 +77,26 @@ export var UpdateUtils = {
     return url.replace(/%(\w+)%/g, (match, name) => {
       let replacement = match;
       switch (name) {
+        case "ARCH":
+          replacement = this.ABI.substring(0, this.ABI.indexOf("-"));
+          break;
         case "PRODUCT":
           replacement = Services.appinfo.name;
           break;
         case "VERSION":
           replacement = Services.appinfo.version;
           break;
+        case "DISPLAY_VERSION":
+          replacement = AppConstants.MOZ_APP_VERSION_DISPLAY;
+          break;
         case "BUILD_ID":
           replacement = Services.appinfo.appBuildID;
           break;
         case "BUILD_TARGET":
           replacement = Services.appinfo.OS + "_" + this.ABI;
+          break;
+        case "OS":
+          replacement = Services.appinfo.OS;
           break;
         case "OS_VERSION":
           replacement = this.OSVersion;
@@ -960,6 +969,8 @@ function getMemoryMB() {
  */
 ChromeUtils.defineLazyGetter(lazy, "gInstructionSet", function aus_gIS() {
   const CPU_EXTENSIONS = [
+    "hasAVX2",
+    "hasAVX",
     "hasSSE4_2",
     "hasSSE4_1",
     "hasSSE4A",
