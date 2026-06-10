@@ -52,3 +52,4 @@ def requires_stub_installer(
 imply_option("MOZ_STUB_INSTALLER", True, when=requires_stub_installer)
 
 include("../toolkit/moz.configure")
+include("../waterfox/moz.configure")
