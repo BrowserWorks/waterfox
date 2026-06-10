@@ -30,6 +30,12 @@ pref("network.auth.subresource-http-auth-allow", 1);
 pref("network.http.http3.retry_different_ip_family", true);
 pref("network.http.retry_with_another_half_open", true);
 
+pref("extensions.experiments.enabled", true);
+pref("extensions.install_origins.enabled", true);
+// The Firefox list without addons.mozilla.org, so extensions can act on the
+// add-ons site.
+pref("extensions.webextensions.restrictedDomains", "accounts-static.cdn.mozilla.net,accounts.firefox.com,addons.cdn.mozilla.net,api.accounts.firefox.com,content.cdn.mozilla.net,discovery.addons.mozilla.org,oauth.accounts.firefox.com,profile.accounts.firefox.com,support.mozilla.org,sync.services.mozilla.com");
+
 pref("media.navigator.mediadatadecoder_vpx_enabled", true);
 pref("media.allowed-to-play.enabled", true);
 pref("svg.context-properties.content.enabled", true);
