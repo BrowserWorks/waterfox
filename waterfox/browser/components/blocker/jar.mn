@@ -1,4 +1,8 @@
 browser.jar:
+%   content browser %content/browser/ contentaccessible=yes
+    content/browser/blocker/blockedPage.xhtml                         (content/blockedPage.xhtml)
+    content/browser/blocker/blockedPage.js                            (content/blockedPage.js)
+
 %   resource waterfox %waterfox/
     waterfox/blocker/assets/list_catalog.json                         (assets/list_catalog.json)
     waterfox/blocker/assets/resources/resources.json                  (assets/resources/resources.json)
