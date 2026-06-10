@@ -131,12 +131,12 @@ Function PrepareTelemetryPing
   ${EndIf}
 
   ClearErrors
-  WriteRegStr HKLM "Software\Mozilla" "${BrandShortName}InstallerTest" \
+  WriteRegStr HKLM "Software\BrowserWorks" "${BrandShortName}InstallerTest" \
                    "Write Test"
   ${If} ${Errors}
     nsJSON::Set /tree ping "Data" "admin_user" /value false
   ${Else}
-    DeleteRegValue HKLM "Software\Mozilla" "${BrandShortName}InstallerTest"
+    DeleteRegValue HKLM "Software\BrowserWorks" "${BrandShortName}InstallerTest"
     nsJSON::Set /tree ping "Data" "admin_user" /value true
   ${EndIf}
 
@@ -514,7 +514,7 @@ FunctionEnd
 !endif
 
 Function WasDesktopLauncherPreviouslyInstalled
-  ReadRegDWORD $0 HKCU "Software\Mozilla\${BrandFullNameInternal}" \
+  ReadRegDWORD $0 HKCU "Software\BrowserWorks\${BrandFullNameInternal}" \
     "DesktopLauncherAppInstalled"
   ${If} $0 == 1
     Push 1
