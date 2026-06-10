@@ -36,6 +36,14 @@ pref("browser.urlbar.trimURLs", false);
 pref("editor.truncate_user_pastes", false);
 pref("pdfjs.enableScripting", false);
 
+// Extension installs are not limited to signed or Mozilla approved ones.
+pref("xpinstall.signatures.required", false, locked);
+pref("extensions.quarantinedDomains.enabled", false, locked);
+pref("extensions.postDownloadThirdPartyPrompt", false);
+pref("extensions.abuseReport.enabled", false);
+pref("extensions.blocklist.softblock.enabled", false);
+pref("browser.disable_pickers_in_hidden_extension_pages", true);
+
 // WebRTC.
 pref("privacy.webrtc.globalMuteToggles", true);
 pref("media.peerconnection.ice.proxy_only_if_behind_proxy", true);
