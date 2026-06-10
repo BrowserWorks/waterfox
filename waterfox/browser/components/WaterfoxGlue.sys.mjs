@@ -8,6 +8,7 @@ const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
   ExperimentAPI: "resource://nimbus/ExperimentAPI.sys.mjs",
+  WaterfoxBlockerService: "resource:///modules/WaterfoxBlockerService.sys.mjs",
   WaterfoxSearchExtensionPolicy:
     "resource:///modules/WaterfoxSearchExtensionPolicy.sys.mjs",
   WaterfoxSearchLocale: "resource:///modules/WaterfoxSearchLocale.sys.mjs",
@@ -32,6 +33,9 @@ export const WaterfoxGlue = {
 
     lazy.WaterfoxSearchExtensionPolicy.init();
     lazy.WaterfoxSearchLocale.init();
+    lazy.WaterfoxBlockerService.init().catch(error =>
+      console.error("WaterfoxBlockerService startup init failed", error)
+    );
   },
 
   // Runs once per profile upgrade. Migrations for profiles coming from
