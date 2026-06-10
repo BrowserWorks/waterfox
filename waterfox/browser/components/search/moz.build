@@ -7,6 +7,26 @@
 # the entire search configuration. Bump the dump timestamp and changed records'
 # last_modified values whenever the configuration changes.
 FINAL_TARGET_FILES.defaults.settings.main += [
+    "dumps/main/search-config-icons.json",
     "dumps/main/search-config-overrides-v2.json",
     "dumps/main/search-config-v2.json",
+]
+
+FINAL_TARGET_FILES.defaults.settings.main["search-config-icons"] += [
+    "dumps/main/search-config-icons/0350a4a4-3f3b-5161-b0d5-53032c0297dc",
+    "dumps/main/search-config-icons/0350a4a4-3f3b-5161-b0d5-53032c0297dc.meta.json",
+    "dumps/main/search-config-icons/677ae126-18bb-579d-be34-d5d686f5220f",
+    "dumps/main/search-config-icons/677ae126-18bb-579d-be34-d5d686f5220f.meta.json",
+    "dumps/main/search-config-icons/7bc992ce-cdc9-58eb-94d4-bf109588c4b0",
+    "dumps/main/search-config-icons/7bc992ce-cdc9-58eb-94d4-bf109588c4b0.meta.json",
+    "dumps/main/search-config-icons/980d49a4-33c2-5142-9622-ff10ea43aa79",
+    "dumps/main/search-config-icons/980d49a4-33c2-5142-9622-ff10ea43aa79.meta.json",
+    "dumps/main/search-config-icons/9feb83f1-1bf3-5737-a7ee-14d0f6b042ee",
+    "dumps/main/search-config-icons/9feb83f1-1bf3-5737-a7ee-14d0f6b042ee.meta.json",
+    "dumps/main/search-config-icons/a4475a18-af3b-5c5a-bd21-8a557a24afab",
+    "dumps/main/search-config-icons/a4475a18-af3b-5c5a-bd21-8a557a24afab.meta.json",
+    "dumps/main/search-config-icons/c4399d6b-04d8-5cd6-b9e6-b43d0f14d41d",
+    "dumps/main/search-config-icons/c4399d6b-04d8-5cd6-b9e6-b43d0f14d41d.meta.json",
+    "dumps/main/search-config-icons/da876ae9-b924-525b-9a96-fc5e20b2fb18",
+    "dumps/main/search-config-icons/da876ae9-b924-525b-9a96-fc5e20b2fb18.meta.json",
 ]
