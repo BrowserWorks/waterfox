@@ -173,6 +173,7 @@ else
     ac_add_options --enable-unverified-updates
 fi
 
+ac_add_options --without-onnx-runtime
 if [ "$wfx_os" = "windows" ]; then
     ac_add_options --with-redist
 fi
