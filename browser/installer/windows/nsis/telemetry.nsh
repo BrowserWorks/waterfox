@@ -48,9 +48,11 @@ FunctionEnd
 Function SendTelemetryPing
   Call PrepareTelemetryPing
 
+!if "${TELEMETRY_BASE_URL}" != ""
   ; Send the ping request. This call will block until a response is received,
   ; but we shouldn't have any windows still open, so we won't jank anything.
   nsJSON::Set /http ping
+!endif
 FunctionEnd
 
 ; Fills in the telemetry ping with baseline values common to the full and stub
@@ -131,12 +133,12 @@ Function PrepareTelemetryPing
   ${EndIf}
 
   ClearErrors
-  WriteRegStr HKLM "Software\Mozilla" "${BrandShortName}InstallerTest" \
+  WriteRegStr HKLM "Software\BrowserWorks" "${BrandShortName}InstallerTest" \
                    "Write Test"
   ${If} ${Errors}
     nsJSON::Set /tree ping "Data" "admin_user" /value false
   ${Else}
-    DeleteRegValue HKLM "Software\Mozilla" "${BrandShortName}InstallerTest"
+    DeleteRegValue HKLM "Software\BrowserWorks" "${BrandShortName}InstallerTest"
     nsJSON::Set /tree ping "Data" "admin_user" /value true
   ${EndIf}
 
@@ -514,7 +516,7 @@ FunctionEnd
 !endif
 
 Function WasDesktopLauncherPreviouslyInstalled
-  ReadRegDWORD $0 HKCU "Software\Mozilla\${BrandFullNameInternal}" \
+  ReadRegDWORD $0 HKCU "Software\BrowserWorks\${BrandFullNameInternal}" \
     "DesktopLauncherAppInstalled"
   ${If} $0 == 1
     Push 1

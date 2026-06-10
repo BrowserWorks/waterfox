@@ -1263,7 +1263,7 @@ function isServiceInstalled() {
     );
     wrk.open(
       wrk.ROOT_KEY_LOCAL_MACHINE,
-      "SOFTWARE\\Mozilla\\MaintenanceService",
+      "SOFTWARE\\BrowserWorks\\MaintenanceService",
       wrk.ACCESS_READ | wrk.WOW64_64
     );
     installed = wrk.readIntValue("Installed");
@@ -4521,7 +4521,7 @@ export class UpdateService {
       // Ignore the exception due to a directory that already exists.
     }
 
-    let jobName = "MozillaUpdate " + updateRootDir.leafName;
+    let jobName = "WaterfoxUpdate " + updateRootDir.leafName;
     let updatePath = getDownloadingUpdateDir().path;
     if (!Bits.initialized) {
       Bits.init(jobName, updatePath, monitorTimeout);
@@ -5410,7 +5410,7 @@ export class CheckerService {
     );
 
     let regPath =
-      "SOFTWARE\\Mozilla\\" + Services.appinfo.name + "\\32to64DidMigrate";
+      "SOFTWARE\\BrowserWorks\\" + Services.appinfo.name + "\\32to64DidMigrate";
     let regValHKCU = lazy.WindowsRegistry.readRegKey(
       wrk.ROOT_KEY_CURRENT_USER,
       regPath,
