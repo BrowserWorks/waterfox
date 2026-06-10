@@ -92,9 +92,7 @@ make_add_instruction() {
 check_for_add_if_not_update() {
   add_if_not_file_chk="$1"
 
-  if [[ "$(basename "$add_if_not_file_chk")" = "channel-prefs.js" || \
-        "$add_if_not_file_chk" =~ (^|/)ChannelPrefs\.framework/ || \
-        "$(basename "$add_if_not_file_chk")" = "update-settings.ini" || \
+  if [[ "$(basename "$add_if_not_file_chk")" = "update-settings.ini" || \
         "$add_if_not_file_chk" =~ (^|/)UpdateSettings\.framework/ || \
         "$(basename "$add_if_not_file_chk")" = "distribution.ini" ]]; then
     ## "true"
