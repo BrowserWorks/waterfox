@@ -3,4 +3,13 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 browser.jar:
+        content/browser/search/BrowserSearchEngineIcons.json        (content/BrowserSearchEngineIcons.json)
         content/browser/search/BrowserSearchEngines.json            (content/BrowserSearchEngines.json)
+        content/browser/search/icons/1org.svg                        (content/icons/1org.svg)
+        content/browser/search/icons/bing.svg                        (content/icons/bing.svg)
+        content/browser/search/icons/ddg.svg                         (content/icons/ddg.svg)
+        content/browser/search/icons/ecosia.ico                      (content/icons/ecosia.ico)
+        content/browser/search/icons/google.svg                      (content/icons/google.svg)
+        content/browser/search/icons/mojeek.svg                      (content/icons/mojeek.svg)
+        content/browser/search/icons/qwant.svg                       (content/icons/qwant.svg)
+        content/browser/search/icons/wps.svg                         (content/icons/wps.svg)
