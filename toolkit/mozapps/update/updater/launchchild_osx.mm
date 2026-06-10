@@ -192,7 +192,8 @@ id ConnectToUpdateServer() {
   while (!isConnected && currTry < numRetries) {
     @try {
       updateServer = (id)[NSConnection
-          rootProxyForConnectionWithRegisteredName:@"org.mozilla.updater.server"
+          rootProxyForConnectionWithRegisteredName:
+              @"net.waterfox.updater.server"
                                               host:nil
                                    usingNameServer:[NSSocketPortNameServer
                                                        sharedInstance]];
@@ -236,14 +237,14 @@ void CleanupElevatedMacUpdate(bool aFailureOccurred) {
 
   NSFileManager* manager = [NSFileManager defaultManager];
   [manager
-      removeItemAtPath:@"/Library/PrivilegedHelperTools/org.mozilla.updater"
+      removeItemAtPath:@"/Library/PrivilegedHelperTools/net.waterfox.updater"
                  error:nil];
-  [manager removeItemAtPath:@"/Library/LaunchDaemons/org.mozilla.updater.plist"
+  [manager removeItemAtPath:@"/Library/LaunchDaemons/net.waterfox.updater.plist"
                       error:nil];
 
   // The following call will terminate the current process due to the "remove"
   // argument.
-  LaunchTask(@"/bin/launchctl", @[ @"remove", @"org.mozilla.updater" ]);
+  LaunchTask(@"/bin/launchctl", @[ @"remove", @"net.waterfox.updater" ]);
 }
 
 // Note: Caller is responsible for freeing aArgv.
@@ -326,7 +327,7 @@ bool ObtainUpdaterArguments(int* aArgc, char*** aArgv,
   NSConnection* server = [NSConnection connectionWithReceivePort:serverPort
                                                         sendPort:serverPort];
   [server setRootObject:self];
-  if ([server registerName:@"org.mozilla.updater.server"
+  if ([server registerName:@"net.waterfox.updater.server"
             withNameServer:[NSSocketPortNameServer sharedInstance]] == NO) {
     NSLog(@"Unable to register as DirectoryServer.");
     NSLog(@"Is another copy running?");
@@ -346,7 +347,7 @@ bool ObtainUpdaterArguments(int* aArgc, char*** aArgv,
 /**
  * The MAR channel ID(s) are stored in the UpdateSettings.framework that ships
  * with the updater.app bundle. When an elevated update is occurring, the
- * org.mozilla.updater binary is extracted and installed individually as a
+ * net.waterfox.updater binary is extracted and installed individually as a
  * Privileged Helper Tool. This Privileged Helper Tool does not have access to
  * the UpdateSettings.framework and we therefore rely on the unelevated updater
  * process to pass this information to the elevated updater process in the same
