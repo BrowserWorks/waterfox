@@ -23,7 +23,8 @@ static fs::path GetDistributionPoliciesFilePath(const fs::path& aDir) noexcept {
 }
 
 static bool EnterprisePoliciesInRegistry(HKEY aHive, std::wstring_view aBrand) {
-  std::wstring keyPath{std::format(LR"(SOFTWARE\Policies\Mozilla\{})", aBrand)};
+  std::wstring keyPath{
+      std::format(LR"(SOFTWARE\Policies\BrowserWorks\{})", aBrand)};
 
   HKEY key{};
   if (RegOpenKeyExW(aHive, keyPath.c_str(), 0, KEY_READ, &key) !=
