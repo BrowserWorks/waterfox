@@ -56,6 +56,28 @@ def get_hg_changeset(path):
     return get_program_output("hg", "-R", path, "parent", "--template={node}")
 
 
+def get_git_info(workdir):
+    repo = get_program_output("git", "-C", workdir, "remote", "get-url", "origin")
+    if repo:
+        repo = repo.strip()
+        if repo.startswith("ssh://"):
+            repo = "https://" + repo[6:]
+        elif repo.startswith("git@") and ":" in repo:
+            host, _, path = repo[4:].partition(":")
+            repo = f"https://{host}/{path}"
+        repo = repo.rstrip("/")
+        if repo.endswith(".git"):
+            repo = repo[: -len(".git")]
+
+    changeset = get_git_changeset(workdir)
+
+    return repo, changeset
+
+
+def get_git_changeset(path):
+    return get_program_output("git", "-C", path, "rev-parse", "HEAD").strip()
+
+
 def get_info_from_sourcestamp(sourcestamp_path):
     """Read the repository and changelog information from the sourcestamp
     file. This assumes that the file exists and returns the results as a list
@@ -94,10 +116,14 @@ def source_repo_header(output):
         sourcestamp_path = os.path.join(buildconfig.topsrcdir, SOURCESTAMP_FILENAME)
         if os.path.exists(os.path.join(buildconfig.topsrcdir, ".hg")):
             repo, changeset = get_hg_info(buildconfig.topsrcdir)
+        elif os.path.exists(os.path.join(buildconfig.topsrcdir, ".git")):
+            repo, changeset = get_git_info(buildconfig.topsrcdir)
         elif os.path.exists(sourcestamp_path):
             repo, changeset = get_info_from_sourcestamp(sourcestamp_path)
     elif not changeset:
-        changeset = get_hg_changeset(buildconfig.topsrcdir)
+        changeset = get_hg_changeset(buildconfig.topsrcdir) or get_git_changeset(
+            buildconfig.topsrcdir
+        )
         if not changeset:
             raise Exception(
                 "could not resolve changeset; try setting MOZ_SOURCE_CHANGESET"
