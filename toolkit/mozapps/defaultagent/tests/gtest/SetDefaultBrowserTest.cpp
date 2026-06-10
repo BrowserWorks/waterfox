@@ -17,14 +17,14 @@ TEST(SetDefaultBrowserUserChoice, Hash)
 
   // length mod 8 = 0
   EXPECT_STREQ(
-      GenerateUserChoiceHash(L"https", sid, L"FirefoxURL-308046B0AF4A39CB",
+      GenerateUserChoiceHash(L"https", sid, L"WaterfoxURL-308046B0AF4A39CB",
                              (SYSTEMTIME){2021, 4, 1, 19, 23, 7, 56, 506})
           .get(),
       L"uzpIsMVyZ1g=");
 
   // length mod 8 = 2 (confirm that the incomplete last block is dropped)
   EXPECT_STREQ(
-      GenerateUserChoiceHash(L".html", sid, L"FirefoxHTML-308046B0AF4A39CB",
+      GenerateUserChoiceHash(L".html", sid, L"WaterfoxHTML-308046B0AF4A39CB",
                              (SYSTEMTIME){2021, 4, 1, 19, 23, 7, 56, 519})
           .get(),
       L"7fjRtUPASlc=");
@@ -45,7 +45,7 @@ TEST(SetDefaultBrowserUserChoice, Hash)
 
   // non-ASCII
   EXPECT_STREQ(
-      GenerateUserChoiceHash(L".html", sid, L"FirefoxHTML-ÀBÇDË😀†",
+      GenerateUserChoiceHash(L".html", sid, L"WaterfoxHTML-ÀBÇDË😀†",
                              (SYSTEMTIME){2021, 4, 2, 20, 0, 38, 55, 101})
           .get(),
       L"F3NsK3uNv5E=");

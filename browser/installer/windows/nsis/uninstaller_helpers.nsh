@@ -48,7 +48,7 @@
 !ifmacrodef InitHashAppModelId
       ; setup the application model id registration value
       !ifdef AppName
-      ${InitHashAppModelId} "$INSTDIR" "Software\Mozilla\${AppName}\TaskBarIDs"
+      ${InitHashAppModelId} "$INSTDIR" "Software\BrowserWorks\${AppName}\TaskBarIDs"
       !endif
 !endif
 
@@ -271,12 +271,12 @@
         ; And verify that if we need to, we're going to clean up the registry
         ; correctly.
         ${If} "$R4" == "mms"
-          WriteRegStr HKLM "Software\Mozilla" "${BrandShortName}InstallerTest" "Write Test"
+          WriteRegStr HKLM "Software\BrowserWorks" "${BrandShortName}InstallerTest" "Write Test"
           ${If} ${Errors}
             ; Nothing initialized so no need to call OnEndCommon
             Quit
           ${Endif}
-          DeleteRegValue HKLM "Software\Mozilla" "${BrandShortName}InstallerTest"
+          DeleteRegValue HKLM "Software\BrowserWorks" "${BrandShortName}InstallerTest"
         ${EndIf}
       !endif
 
@@ -307,25 +307,25 @@
   ${CreateShortcutsLog}
 
   ; Remove registry entries for non-existent apps and for apps that point to our
-  ; install location in the Software\Mozilla key and uninstall registry entries
+  ; install location in the Software\BrowserWorks key and uninstall registry entries
   ; that point to our install location for both HKCU and HKLM.
   SetShellVarContext current  ; Set SHCTX to the current user (e.g. HKCU)
-  ${RegCleanMain} "Software\Mozilla"
+  ${RegCleanMain} "Software\BrowserWorks"
   ${RegCleanUninstall}
   ${UpdateProtocolHandlers}
 
   ; setup the application model id registration value
-  ${InitHashAppModelId} "$INSTDIR" "Software\Mozilla\${AppName}\TaskBarIDs"
+  ${InitHashAppModelId} "$INSTDIR" "Software\BrowserWorks\${AppName}\TaskBarIDs"
 
   ClearErrors
-  WriteRegStr HKLM "Software\Mozilla" "${BrandShortName}InstallerTest" "Write Test"
+  WriteRegStr HKLM "Software\BrowserWorks" "${BrandShortName}InstallerTest" "Write Test"
   ${If} ${Errors}
     StrCpy $RegHive "HKCU"
   ${Else}
     SetShellVarContext all    ; Set SHCTX to all users (e.g. HKLM)
-    DeleteRegValue HKLM "Software\Mozilla" "${BrandShortName}InstallerTest"
+    DeleteRegValue HKLM "Software\BrowserWorks" "${BrandShortName}InstallerTest"
     StrCpy $RegHive "HKLM"
-    ${RegCleanMain} "Software\Mozilla"
+    ${RegCleanMain} "Software\BrowserWorks"
     ${RegCleanUninstall}
     ${UpdateProtocolHandlers}
     ${FixShellIconHandler} "HKLM"
@@ -334,9 +334,9 @@
     ; Add the Firewall entries after an update
     Call AddFirewallEntries
 
-    ReadRegStr $0 HKLM "Software\mozilla.org\Mozilla" "CurrentVersion"
+    ReadRegStr $0 HKLM "Software\waterfox.net\Waterfox" "CurrentVersion"
     ${If} "$0" != "${GREVersion}"
-      WriteRegStr HKLM "Software\mozilla.org\Mozilla" "CurrentVersion" "${GREVersion}"
+      WriteRegStr HKLM "Software\waterfox.net\Waterfox" "CurrentVersion" "${GREVersion}"
     ${EndIf}
   ${EndIf}
 
@@ -390,10 +390,10 @@
     ; If it already exists, just delete the appdata one.
     ; It's possible this was for a different install, but it's impossible to
     ; know for sure, so we may as well just get rid of it.
-    Delete /REBOOTOK "$0\Mozilla\Firefox\postSigningData"
+    Delete /REBOOTOK "$0\BrowserWorks\Waterfox\postSigningData"
   ${Else}
-    ${If} ${FileExists} "$0\Mozilla\Firefox\postSigningData"
-      Rename "$0\Mozilla\Firefox\postSigningData" "$INSTDIR\postSigningData"
+    ${If} ${FileExists} "$0\BrowserWorks\Waterfox\postSigningData"
+      Rename "$0\BrowserWorks\Waterfox\postSigningData" "$INSTDIR\postSigningData"
     ${EndIf}
   ${EndIf}
 
@@ -427,7 +427,7 @@
     ${OrIf} ${IsNativeARM64}
       SetRegView 64
     ${EndIf}
-    ReadRegDWORD $5 HKLM "Software\Mozilla\MaintenanceService" "Attempted"
+    ReadRegDWORD $5 HKLM "Software\BrowserWorks\MaintenanceService" "Attempted"
     ClearErrors
     ${If} ${RunningX64}
     ${OrIf} ${IsNativeARM64}
@@ -475,7 +475,7 @@
 !ifdef MOZ_DEFAULT_BROWSER_AGENT
 ${If} $RegHive == "HKCU"
   ClearErrors
-  ReadRegDWORD $0 HKCU "Software\Mozilla\${AppName}\Installer\$AppUserModelID" \
+  ReadRegDWORD $0 HKCU "Software\BrowserWorks\${AppName}\Installer\$AppUserModelID" \
                     "DidRegisterDefaultBrowserAgent"
   ${If} $0 != 0
   ${OrIf} ${Errors}
@@ -545,14 +545,14 @@ Function OnUpdateDesktopLauncher_HKLM
   Push $1
   ; Have we deleted the shared shortcut before?
   StrCpy $0 "0"
-  ReadRegDWORD $0 HKLM "Software\Mozilla\${BrandFullNameInternal}" "UpdaterDeletedShortcut"
+  ReadRegDWORD $0 HKLM "Software\BrowserWorks\${BrandFullNameInternal}" "UpdaterDeletedShortcut"
   Call IsDesktopShortcutPresent
   Pop $1
   ${If} $0 != "1"
   ${AndIf} $1 != "0"
     ; shared shortcut exists, and we haven't deleted it before. So let's delete it now.
     Delete "$DESKTOP\${BrandShortName}.lnk"
-    WriteRegDWORD HKLM "Software\Mozilla\${BrandFullNameInternal}" "UpdaterDeletedShortcut" "1"
+    WriteRegDWORD HKLM "Software\BrowserWorks\${BrandFullNameInternal}" "UpdaterDeletedShortcut" "1"
   ${EndIf}
   Pop $1
   Pop $0
@@ -590,8 +590,8 @@ Function OnUpdateDesktopLauncher_HKCU
   Pop $3
   SetShellVarContext current
 
-  ReadRegDWORD $1 HKLM "Software\Mozilla\${BrandFullNameInternal}" "UpdaterDeletedShortcut"
-  ReadRegDWORD $2 HKCU "Software\Mozilla\${BrandFullNameInternal}" "DesktopLauncherAppInstalled"
+  ReadRegDWORD $1 HKLM "Software\BrowserWorks\${BrandFullNameInternal}" "UpdaterDeletedShortcut"
+  ReadRegDWORD $2 HKCU "Software\BrowserWorks\${BrandFullNameInternal}" "DesktopLauncherAppInstalled"
 
   ${If} $2 == "1"
     ; We previously installed desktop launcher. Don't reinstall
