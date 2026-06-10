@@ -1,0 +1,5 @@
+[DEFAULT]
+firefox-appdir = "browser"
+support-files = ["file_early_scriptlet_injection.html"]
+
+["browser_early_scriptlet_injection.js"]

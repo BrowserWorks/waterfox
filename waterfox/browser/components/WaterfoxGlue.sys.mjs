@@ -18,6 +18,28 @@ export const WaterfoxGlue = {
     this.migrateUI();
 
     lazy.WaterfoxSearchExtensionPolicy.init();
+
+    // Register the blocker window actors early so cosmetic filtering and
+    // scriptlet hooks run for the first pages.
+    ChromeUtils.registerWindowActor("WaterfoxBlocker", {
+      parent: {
+        esModuleURI: "resource:///modules/WaterfoxBlockerParent.sys.mjs",
+      },
+      child: {
+        esModuleURI: "resource:///modules/WaterfoxBlockerChild.sys.mjs",
+        events: {
+          DOMWindowCreated: {},
+          DOMDocElementInserted: {},
+        },
+      },
+      allFrames: true,
+      messageManagerGroups: ["browsers"],
+      // DOMWindowCreated can happen before URL match patterns settle.
+      // Keep protocol matching broad and gate to http and https inside
+      // the child.
+      remoteTypes: ["web"],
+    });
+
     lazy.WaterfoxBlockerService.init().catch(error =>
       console.error("WaterfoxBlockerService startup init failed", error)
     );
