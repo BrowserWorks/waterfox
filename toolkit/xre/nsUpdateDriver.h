@@ -30,7 +30,7 @@ typedef PRProcess* ProcessType;
 #  define MAYBE_WAIT_TIMEOUT_MS (60U * 1000U)
 #elif XP_MACOSX
 #  define UPDATER_APP "updater.app"
-#  define UPDATER_BIN "org.mozilla.updater"
+#  define UPDATER_BIN "net.waterfox.updater"
 #else
 #  define UPDATER_BIN "updater"
 #endif
