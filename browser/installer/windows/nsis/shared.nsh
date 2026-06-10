@@ -119,7 +119,7 @@ Function InstallDesktopLauncher
   ; Copy the launcher into the user's Desktop with an appropriate name
   CopyFiles /SILENT /FILESONLY "$INSTDIR\desktop-launcher\desktop-launcher.exe" "$DESKTOP\${BrandShortName}.exe"
   ${If} ${FileExists} "$DESKTOP\${BrandShortName}.exe"
-    WriteRegDWORD HKCU "Software\Mozilla\${BrandFullNameInternal}" DesktopLauncherAppInstalled 1
+    WriteRegDWORD HKCU "Software\BrowserWorks\${BrandFullNameInternal}" DesktopLauncherAppInstalled 1
   ${EndIf}
 FunctionEnd
 
@@ -280,35 +280,35 @@ FunctionEnd
   StrCpy $0 "SOFTWARE\Classes"
   StrCpy $2 "$\"$8$\" -osint -url $\"%1$\""
 
-  ; Associate the file handlers with FirefoxHTML, if they aren't already.
+  ; Associate the file handlers with WaterfoxHTML, if they aren't already.
   ReadRegStr $6 SHCTX "$0\.htm" ""
   ${WordFind} "$6" "-" "+1{" $6
-  ${If} "$6" != "FirefoxHTML"
-    WriteRegStr SHCTX "$0\.htm"   "" "FirefoxHTML$5"
+  ${If} "$6" != "WaterfoxHTML"
+    WriteRegStr SHCTX "$0\.htm"   "" "WaterfoxHTML$5"
   ${EndIf}
 
   ReadRegStr $6 SHCTX "$0\.html" ""
   ${WordFind} "$6" "-" "+1{" $6
-  ${If} "$6" != "FirefoxHTML"
-    WriteRegStr SHCTX "$0\.html"  "" "FirefoxHTML$5"
+  ${If} "$6" != "WaterfoxHTML"
+    WriteRegStr SHCTX "$0\.html"  "" "WaterfoxHTML$5"
   ${EndIf}
 
   ReadRegStr $6 SHCTX "$0\.shtml" ""
   ${WordFind} "$6" "-" "+1{" $6
-  ${If} "$6" != "FirefoxHTML"
-    WriteRegStr SHCTX "$0\.shtml" "" "FirefoxHTML$5"
+  ${If} "$6" != "WaterfoxHTML"
+    WriteRegStr SHCTX "$0\.shtml" "" "WaterfoxHTML$5"
   ${EndIf}
 
   ReadRegStr $6 SHCTX "$0\.xht" ""
   ${WordFind} "$6" "-" "+1{" $6
-  ${If} "$6" != "FirefoxHTML"
-    WriteRegStr SHCTX "$0\.xht"   "" "FirefoxHTML$5"
+  ${If} "$6" != "WaterfoxHTML"
+    WriteRegStr SHCTX "$0\.xht"   "" "WaterfoxHTML$5"
   ${EndIf}
 
   ReadRegStr $6 SHCTX "$0\.xhtml" ""
   ${WordFind} "$6" "-" "+1{" $6
-  ${If} "$6" != "FirefoxHTML"
-    WriteRegStr SHCTX "$0\.xhtml" "" "FirefoxHTML$5"
+  ${If} "$6" != "WaterfoxHTML"
+    WriteRegStr SHCTX "$0\.xhtml" "" "WaterfoxHTML$5"
   ${EndIf}
 
 
@@ -316,25 +316,26 @@ FunctionEnd
   ; https://searchfox.org/firefox-main/source/browser/installer/windows/msix/AppxManifest.xml.in.
   ; and `os.environment.launched_to_handle` and `os.environment.invoked_to_handle` telemetry in
   ; https://searchfox.org/firefox-main/source/browser/components/BrowserContentHandler.sys.mjs.
-  ${AddAssociationIfNoneExist} ".oga" "FirefoxHTML$5"
-  ${AddAssociationIfNoneExist} ".ogg" "FirefoxHTML$5"
-  ${AddAssociationIfNoneExist} ".ogv" "FirefoxHTML$5"
-  ${AddAssociationIfNoneExist} ".webm" "FirefoxHTML$5"
-  ${AddAssociationIfNoneExist} ".svg" "FirefoxHTML$5"
-  ${AddAssociationIfNoneExist} ".webp"  "FirefoxHTML$5"
-  ${AddAssociationIfNoneExist} ".avif" "FirefoxHTML$5"
+  ${AddAssociationIfNoneExist} ".oga" "WaterfoxHTML$5"
+  ${AddAssociationIfNoneExist} ".ogg" "WaterfoxHTML$5"
+  ${AddAssociationIfNoneExist} ".ogv" "WaterfoxHTML$5"
+  ${AddAssociationIfNoneExist} ".webm" "WaterfoxHTML$5"
+  ${AddAssociationIfNoneExist} ".svg" "WaterfoxHTML$5"
+  ${AddAssociationIfNoneExist} ".webp"  "WaterfoxHTML$5"
+  ${AddAssociationIfNoneExist} ".avif" "WaterfoxHTML$5"
+  ${AddAssociationIfNoneExist} ".jxl" "WaterfoxHTML$5"
 
-  ${AddAssociationIfNoneExist} ".pdf" "FirefoxPDF$5"
+  ${AddAssociationIfNoneExist} ".pdf" "WaterfoxPDF$5"
 
-  ; An empty string is used for the 5th param because FirefoxHTML- is not a
-  ; protocol handler.  Ditto for FirefoxPDF-.
-  ${AddDisabledDDEHandlerValues} "FirefoxHTML$5" "$2" "$8,${IDI_DOCUMENT_ZERO_BASED}" \
+  ; An empty string is used for the 5th param because WaterfoxHTML- is not a
+  ; protocol handler.  Ditto for WaterfoxPDF-.
+  ${AddDisabledDDEHandlerValues} "WaterfoxHTML$5" "$2" "$8,${IDI_DOCUMENT_ZERO_BASED}" \
                                  "${AppRegName} HTML Document" ""
 
-  ${AddDisabledDDEHandlerValues} "FirefoxPDF$5" "$2" "$8,${IDI_DOCUMENT_PDF_ZERO_BASED}" \
+  ${AddDisabledDDEHandlerValues} "WaterfoxPDF$5" "$2" "$8,${IDI_DOCUMENT_PDF_ZERO_BASED}" \
                                  "${AppRegName} PDF Document" ""
 
-  ${AddDisabledDDEHandlerValues} "FirefoxURL$5" "$2" "$8,${IDI_DOCUMENT_ZERO_BASED}" "${AppRegName} URL" \
+  ${AddDisabledDDEHandlerValues} "WaterfoxURL$5" "$2" "$8,${IDI_DOCUMENT_ZERO_BASED}" "${AppRegName} URL" \
                                  "true"
   ; An empty string is used for the 4th & 5th params because the following
   ; protocol handlers already have a display name and the additional keys
@@ -411,16 +412,17 @@ FunctionEnd
   WriteRegStr ${RegKey} "$0\Capabilities" "ApplicationIcon" "$8,${IDI_APPICON_ZERO_BASED}"
   WriteRegStr ${RegKey} "$0\Capabilities" "ApplicationName" "${BrandShortName}"
 
-  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".htm"   "FirefoxHTML$2"
-  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".html"  "FirefoxHTML$2"
-  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".shtml" "FirefoxHTML$2"
-  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".xht"   "FirefoxHTML$2"
-  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".xhtml" "FirefoxHTML$2"
-  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".svg"   "FirefoxHTML$2"
-  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".webp"  "FirefoxHTML$2"
-  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".avif"  "FirefoxHTML$2"
+  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".htm"   "WaterfoxHTML$2"
+  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".html"  "WaterfoxHTML$2"
+  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".shtml" "WaterfoxHTML$2"
+  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".xht"   "WaterfoxHTML$2"
+  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".xhtml" "WaterfoxHTML$2"
+  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".svg"   "WaterfoxHTML$2"
+  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".webp"  "WaterfoxHTML$2"
+  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".avif"  "WaterfoxHTML$2"
+  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".jxl"   "WaterfoxHTML$2"
 
-  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".pdf"   "FirefoxPDF$2"
+  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".pdf"   "WaterfoxPDF$2"
 
   WriteRegStr ${RegKey} "$0\Capabilities\StartMenu" "StartMenuInternet" "$1"
 
@@ -428,9 +430,9 @@ FunctionEnd
   ; entire key, we need to remove any existing registration.
   DeleteRegValue ${RegKey} "$0\Capabilities\URLAssociations" "ftp"
 
-  WriteRegStr ${RegKey} "$0\Capabilities\URLAssociations" "http"   "FirefoxURL$2"
-  WriteRegStr ${RegKey} "$0\Capabilities\URLAssociations" "https"  "FirefoxURL$2"
-  WriteRegStr ${RegKey} "$0\Capabilities\URLAssociations" "mailto" "FirefoxURL$2"
+  WriteRegStr ${RegKey} "$0\Capabilities\URLAssociations" "http"   "WaterfoxURL$2"
+  WriteRegStr ${RegKey} "$0\Capabilities\URLAssociations" "https"  "WaterfoxURL$2"
+  WriteRegStr ${RegKey} "$0\Capabilities\URLAssociations" "mailto" "WaterfoxURL$2"
 
   WriteRegStr ${RegKey} "Software\RegisteredApplications" "$1" "$0\Capabilities"
 
@@ -475,6 +477,7 @@ FunctionEnd
     ${WriteApplicationsSupportedType} ${RegKey} ".jpeg"
     ${WriteApplicationsSupportedType} ${RegKey} ".jpg"
     ${WriteApplicationsSupportedType} ${RegKey} ".json"
+    ${WriteApplicationsSupportedType} ${RegKey} ".jxl"
     ${WriteApplicationsSupportedType} ${RegKey} ".m4a"
     ${WriteApplicationsSupportedType} ${RegKey} ".mp3"
     ${WriteApplicationsSupportedType} ${RegKey} ".oga"
@@ -513,31 +516,31 @@ FunctionEnd
 
   ; Running Firefox 64 bit on Windows 64 bit
   ClearErrors
-  ReadRegDWORD $2 HKLM "Software\Mozilla\${AppName}\32to64DidMigrate" "$1"
+  ReadRegDWORD $2 HKLM "Software\BrowserWorks\${AppName}\32to64DidMigrate" "$1"
   ; If there were no errors then the system was updated from Firefox 32 bit to
   ; Firefox 64 bit and if the value is already 1 then the registry value has
   ; already been updated in the HKLM registry.
   ${IfNot} ${Errors}
   ${AndIf} $2 != 1
     ClearErrors
-    WriteRegDWORD HKLM "Software\Mozilla\${AppName}\32to64DidMigrate" "$1" 1
+    WriteRegDWORD HKLM "Software\BrowserWorks\${AppName}\32to64DidMigrate" "$1" 1
     ${If} ${Errors}
       ; There was an error writing to HKLM so just write it to HKCU
-      WriteRegDWORD HKCU "Software\Mozilla\${AppName}\32to64DidMigrate" "$1" 1
+      WriteRegDWORD HKCU "Software\BrowserWorks\${AppName}\32to64DidMigrate" "$1" 1
     ${Else}
       ; This will delete the value from HKCU if it exists
-      DeleteRegValue HKCU "Software\Mozilla\${AppName}\32to64DidMigrate" "$1"
+      DeleteRegValue HKCU "Software\BrowserWorks\${AppName}\32to64DidMigrate" "$1"
     ${EndIf}
   ${EndIf}
 
   ClearErrors
-  ReadRegDWORD $2 HKCU "Software\Mozilla\${AppName}\32to64DidMigrate" "$1"
+  ReadRegDWORD $2 HKCU "Software\BrowserWorks\${AppName}\32to64DidMigrate" "$1"
   ; If there were no errors then the system was updated from Firefox 32 bit to
   ; Firefox 64 bit and if the value is already 1 then the registry value has
   ; already been updated in the HKCU registry.
   ${IfNot} ${Errors}
   ${AndIf} $2 != 1
-    WriteRegDWORD HKCU "Software\Mozilla\${AppName}\32to64DidMigrate" "$1" 1
+    WriteRegDWORD HKCU "Software\BrowserWorks\${AppName}\32to64DidMigrate" "$1" 1
   ${EndIf}
 
 !else
@@ -547,14 +550,14 @@ FunctionEnd
   ${OrIf} ${IsNativeARM64}
     ; Running Firefox 32 bit on a Windows 64 bit system
     ClearErrors
-    ReadRegDWORD $2 HKLM "Software\Mozilla\${AppName}\32to64DidMigrate" "$1"
+    ReadRegDWORD $2 HKLM "Software\BrowserWorks\${AppName}\32to64DidMigrate" "$1"
     ; If there were errors the value doesn't exist yet.
     ${If} ${Errors}
       ClearErrors
-      WriteRegDWORD HKLM "Software\Mozilla\${AppName}\32to64DidMigrate" "$1" 0
+      WriteRegDWORD HKLM "Software\BrowserWorks\${AppName}\32to64DidMigrate" "$1" 0
       ; If there were errors write the value in HKCU.
       ${If} ${Errors}
-        WriteRegDWORD HKCU "Software\Mozilla\${AppName}\32to64DidMigrate" "$1" 0
+        WriteRegDWORD HKCU "Software\BrowserWorks\${AppName}\32to64DidMigrate" "$1" 0
       ${EndIf}
     ${EndIf}
   ${EndIf}
@@ -566,17 +569,17 @@ FunctionEnd
 !macroend
 !define Set32to64DidMigrateReg "!insertmacro Set32to64DidMigrateReg"
 
-; The IconHandler reference for FirefoxHTML can end up in an inconsistent state
+; The IconHandler reference for WaterfoxHTML can end up in an inconsistent state
 ; due to changes not being detected by the IconHandler for side by side
 ; installs (see bug 268512). The symptoms can be either an incorrect icon or no
 ; icon being displayed for files associated with Firefox (does not use SHCTX).
 !macro FixShellIconHandler RegKey
-  ; Find the correct key to update, either FirefoxHTML or FirefoxHTML-[PathHash]
-  StrCpy $3 "FirefoxHTML-$AppUserModelID"
+  ; Find the correct key to update, either WaterfoxHTML or WaterfoxHTML-[PathHash]
+  StrCpy $3 "WaterfoxHTML-$AppUserModelID"
   ClearErrors
   ReadRegStr $0 ${RegKey} "Software\Classes\$3\DefaultIcon" ""
   ${If} ${Errors}
-    StrCpy $3 "FirefoxHTML"
+    StrCpy $3 "WaterfoxHTML"
   ${EndIf}
 
   ClearErrors
@@ -591,7 +594,7 @@ FunctionEnd
 !macroend
 !define FixShellIconHandler "!insertmacro FixShellIconHandler"
 
-; Add Software\Mozilla\ registry entries (uses SHCTX).
+; Add Software\BrowserWorks\ registry entries (uses SHCTX).
 ; This expects $RegHive to already have been set correctly.
 !macro SetAppKeys
   ; Check if this is an ESR release and if so add registry values so it is
@@ -605,14 +608,14 @@ FunctionEnd
   ${EndIf}
 
   ${GetLongPath} "$INSTDIR" $8
-  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal}\${AppVersion}$3 (${ARCH} ${AB_CD})\Main"
+  StrCpy $0 "Software\BrowserWorks\${BrandFullNameInternal}\${AppVersion}$3 (${ARCH} ${AB_CD})\Main"
   ${WriteRegStr2} $RegHive "$0" "Install Directory" "$8" 0
   ${WriteRegStr2} $RegHive "$0" "PathToExe" "$8\${FileMainEXE}" 0
 
-  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal}\${AppVersion}$3 (${ARCH} ${AB_CD})\Uninstall"
+  StrCpy $0 "Software\BrowserWorks\${BrandFullNameInternal}\${AppVersion}$3 (${ARCH} ${AB_CD})\Uninstall"
   ${WriteRegStr2} $RegHive "$0" "Description" "${BrandFullNameInternal} ${AppVersion}$3 (${ARCH} ${AB_CD})" 0
 
-  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal}\${AppVersion}$3 (${ARCH} ${AB_CD})"
+  StrCpy $0 "Software\BrowserWorks\${BrandFullNameInternal}\${AppVersion}$3 (${ARCH} ${AB_CD})"
   ${WriteRegStr2} $RegHive  "$0" "" "${AppVersion}$3 (${ARCH} ${AB_CD})" 0
   ${If} "$3" == ""
     DeleteRegValue SHCTX "$0" "ESR"
@@ -620,14 +623,14 @@ FunctionEnd
     ${WriteRegDWORD2} $RegHive "$0" "ESR" 1 0
   ${EndIf}
 
-  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal} ${AppVersion}$3\bin"
+  StrCpy $0 "Software\BrowserWorks\${BrandFullNameInternal} ${AppVersion}$3\bin"
   ${WriteRegStr2} $RegHive "$0" "PathToExe" "$8\${FileMainEXE}" 0
 
-  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal} ${AppVersion}$3\extensions"
+  StrCpy $0 "Software\BrowserWorks\${BrandFullNameInternal} ${AppVersion}$3\extensions"
   ${WriteRegStr2} $RegHive "$0" "Components" "$8\components" 0
   ${WriteRegStr2} $RegHive "$0" "Plugins" "$8\plugins" 0
 
-  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal} ${AppVersion}$3"
+  StrCpy $0 "Software\BrowserWorks\${BrandFullNameInternal} ${AppVersion}$3"
   ${WriteRegStr2} $RegHive "$0" "GeckoVer" "${GREVersion}" 0
   ${If} "$3" == ""
     DeleteRegValue SHCTX "$0" "ESR"
@@ -635,7 +638,7 @@ FunctionEnd
     ${WriteRegDWORD2} $RegHive "$0" "ESR" 1 0
   ${EndIf}
 
-  StrCpy $0 "Software\Mozilla\${BrandFullNameInternal}$3"
+  StrCpy $0 "Software\BrowserWorks\${BrandFullNameInternal}$3"
   ${WriteRegStr2} $RegHive "$0" "" "${GREVersion}" 0
   ${WriteRegStr2} $RegHive "$0" "CurrentVersion" "${AppVersion}$3 (${ARCH} ${AB_CD})" 0
 !macroend
@@ -653,7 +656,7 @@ FunctionEnd
   IntOp $R2 $R2 & 0x0000FFFF ; $R2 now contains major version
   IntOp $R3 $R0 & 0x0000FFFF ; $R3 now contains minor version
 
-  ${WriteRegStr2} $RegHive "$0" "DisplayVersion" "${AppVersion}" 0
+  ${WriteRegStr2} $RegHive "$0" "DisplayVersion" "${AppVersionDisplay}" 0
   ${WriteRegStr2} $RegHive "$0" "VersionMajor" "$R2" 0
   ${WriteRegStr2} $RegHive "$0" "VersionMinor" "$R3" 0
 
@@ -701,7 +704,7 @@ FunctionEnd
     ${WriteRegStr2} $RegHive "$0" "DisplayName" "${BrandFullNameInternal}$3 (${ARCH} ${AB_CD})" 0
     ${WriteRegStr2} $RegHive "$0" "HelpLink" "${HelpLink}" 0
     ${WriteRegStr2} $RegHive "$0" "InstallLocation" "$8" 0
-    ${WriteRegStr2} $RegHive "$0" "Publisher" "Mozilla" 0
+    ${WriteRegStr2} $RegHive "$0" "Publisher" "BrowserWorks" 0
     ${WriteRegStr2} $RegHive "$0" "UninstallString" "$\"$8\uninstall\helper.exe$\"" 0
     DeleteRegValue SHCTX "$0" "URLInfoAbout"
 ; Don't add URLUpdateInfo which is the release notes url except for the release
@@ -732,7 +735,7 @@ FunctionEnd
 ; HKCU Software\Classes keys when associating handlers. The fix uses the merged
 ; view in HKCR to check for existance of an existing association. This macro
 ; cleans affected installations by removing the HKLM and HKCU value if it is set
-; to FirefoxHTML when there is a value for PersistentHandler or by removing the
+; to WaterfoxHTML when there is a value for PersistentHandler or by removing the
 ; HKCU value when the HKLM value has a value other than an empty string.
 !macro FixBadFileAssociation FILE_TYPE
   ; Only delete the default value in case the key has values for OpenWithList,
@@ -743,16 +746,16 @@ FunctionEnd
   ${WordFind} "$1" "-" "+1{" $1
   ReadRegStr $2 HKCR "${FILE_TYPE}\PersistentHandler" ""
   ${If} "$2" != ""
-    ; Since there is a persistent handler remove FirefoxHTML as the default
-    ; value from both HKCU and HKLM if it set to FirefoxHTML.
-    ${If} "$0" == "FirefoxHTML"
+    ; Since there is a persistent handler remove WaterfoxHTML as the default
+    ; value from both HKCU and HKLM if it set to WaterfoxHTML.
+    ${If} "$0" == "WaterfoxHTML"
       DeleteRegValue HKCU "Software\Classes\${FILE_TYPE}" ""
     ${EndIf}
-    ${If} "$1" == "FirefoxHTML"
+    ${If} "$1" == "WaterfoxHTML"
       DeleteRegValue HKLM "Software\Classes\${FILE_TYPE}" ""
     ${EndIf}
-  ${ElseIf} "$0" == "FirefoxHTML"
-    ; Since HKCU is set to FirefoxHTML remove FirefoxHTML as the default value
+  ${ElseIf} "$0" == "WaterfoxHTML"
+    ; Since HKCU is set to WaterfoxHTML remove WaterfoxHTML as the default value
     ; from HKCU if HKLM is set to a value other than an empty string.
     ${If} "$1" != ""
       DeleteRegValue HKCU "Software\Classes\${FILE_TYPE}" ""
@@ -809,36 +812,36 @@ FunctionEnd
   ; Only set the file and protocol handlers if the existing one under HKCR is
   ; for this install location.
 
-  ${IsHandlerForInstallDir} "FirefoxHTML-$AppUserModelID" $R9
+  ${IsHandlerForInstallDir} "WaterfoxHTML-$AppUserModelID" $R9
   ${If} "$R9" == "true"
-    ; An empty string is used for the 5th param because FirefoxHTML is not a
+    ; An empty string is used for the 5th param because WaterfoxHTML is not a
     ; protocol handler.
-    ${AddDisabledDDEHandlerValues} "FirefoxHTML-$AppUserModelID" "$2" "$8,${IDI_DOCUMENT_ZERO_BASED}" \
+    ${AddDisabledDDEHandlerValues} "WaterfoxHTML-$AppUserModelID" "$2" "$8,${IDI_DOCUMENT_ZERO_BASED}" \
                                    "${AppRegName} HTML Document" ""
   ${Else}
-    ${IsHandlerForInstallDir} "FirefoxHTML" $R9
+    ${IsHandlerForInstallDir} "WaterfoxHTML" $R9
     ${If} "$R9" == "true"
-      ${AddDisabledDDEHandlerValues} "FirefoxHTML" "$2" "$8,${IDI_DOCUMENT_ZERO_BASED}" \
+      ${AddDisabledDDEHandlerValues} "WaterfoxHTML" "$2" "$8,${IDI_DOCUMENT_ZERO_BASED}" \
                                      "${AppRegName} HTML Document" ""
     ${EndIf}
   ${EndIf}
 
-  ; FirefoxPDF-* was added after FirefoxHTML and FirefoxURL, so we've never
-  ; supported bare "FirefoxPDF".  But we won't have it from the installer, so we
+  ; WaterfoxPDF-* was added after WaterfoxHTML and WaterfoxURL, so we've never
+  ; supported bare "WaterfoxPDF".  But we won't have it from the installer, so we
   ; add/update it unconditionally.  `PostUpdate` is gated on `uninstall.log`
   ; being present, so the invocation here will only happen for installed
   ; directories, not unpackaged directories.
-  ${AddDisabledDDEHandlerValues} "FirefoxPDF-$AppUserModelID" "$2" "$8,${IDI_DOCUMENT_PDF_ZERO_BASED}" \
+  ${AddDisabledDDEHandlerValues} "WaterfoxPDF-$AppUserModelID" "$2" "$8,${IDI_DOCUMENT_PDF_ZERO_BASED}" \
                                  "${AppRegName} PDF Document" ""
 
-  ${IsHandlerForInstallDir} "FirefoxURL-$AppUserModelID" $R9
+  ${IsHandlerForInstallDir} "WaterfoxURL-$AppUserModelID" $R9
   ${If} "$R9" == "true"
-    ${AddDisabledDDEHandlerValues} "FirefoxURL-$AppUserModelID" "$2" "$8,${IDI_DOCUMENT_ZERO_BASED}" \
+    ${AddDisabledDDEHandlerValues} "WaterfoxURL-$AppUserModelID" "$2" "$8,${IDI_DOCUMENT_ZERO_BASED}" \
                                    "${AppRegName} URL" "true"
   ${Else}
-    ${IsHandlerForInstallDir} "FirefoxURL" $R9
+    ${IsHandlerForInstallDir} "WaterfoxURL" $R9
     ${If} "$R9" == "true"
-      ${AddDisabledDDEHandlerValues} "FirefoxURL" "$2" "$8,${IDI_DOCUMENT_ZERO_BASED}" \
+      ${AddDisabledDDEHandlerValues} "WaterfoxURL" "$2" "$8,${IDI_DOCUMENT_ZERO_BASED}" \
                                      "${AppRegName} URL" "true"
     ${EndIf}
   ${EndIf}
@@ -897,7 +900,7 @@ FunctionEnd
     ; Setting the Attempted value will ensure that a new Maintenance Service
     ; install will never be attempted again after this from updates.  The value
     ; is used only to see if updates should attempt new service installs.
-    WriteRegDWORD HKLM "Software\Mozilla\MaintenanceService" "Attempted" 1
+    WriteRegDWORD HKLM "Software\BrowserWorks\MaintenanceService" "Attempted" 1
 
     ; These values associate the allowed certificates for the current
     ; installation.
@@ -1084,7 +1087,7 @@ FunctionEnd
       ClearErrors
       WriteIniStr "$0" "TASKBAR" "Migrated" "true"
       WriteRegDWORD HKCU \
-        "Software\Mozilla\${AppName}\Installer\$AppUserModelID" \
+        "Software\BrowserWorks\${AppName}\Installer\$AppUserModelID" \
         "WasPinnedToTaskbar" 1
       ${If} "${SHOULD_PIN}" == "1"
         ${PinToTaskBar}
@@ -1491,7 +1494,7 @@ Function SetAsDefaultAppUserHKCU
   StrCpy $0 $0 -2
   ${If} $0 != $8
     ${If} $AppUserModelID == ""
-      ${InitHashAppModelId} "$INSTDIR" "Software\Mozilla\${AppName}\TaskBarIDs"
+      ${InitHashAppModelId} "$INSTDIR" "Software\BrowserWorks\${AppName}\TaskBarIDs"
     ${EndIf}
     StrCpy $R9 "${AppRegName}-$AppUserModelID"
   ${EndIf}
@@ -1549,6 +1552,8 @@ Function SetAsDefaultAppUserHKCU
     AppAssocReg::SetAppAsDefault "$R9" ".webp" "file"
     Pop $0
     AppAssocReg::SetAppAsDefault "$R9" ".avif" "file"
+    Pop $0
+    AppAssocReg::SetAppAsDefault "$R9" ".jxl" "file"
     Pop $0
     AppAssocReg::SetAppAsDefault "$R9" ".xht" "file"
     Pop $0
