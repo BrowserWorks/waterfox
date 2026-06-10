@@ -1,0 +1,25 @@
+[DEFAULT]
+firefox-appdir = "browser"
+
+["test_list_atomic_writes.js"]
+
+["test_list_fetch_limits.js"]
+
+["test_list_preprocessor.js"]
+
+["test_list_resolution.js"]
+
+["test_list_write_serialization.js"]
+
+["test_redirect_resources.js"]
+
+["test_request_methods.js"]
+
+["test_replace_response_filter.js"]
+prefs = [
+  "network.trr.mode=5",
+  "network.trr.ohttp.config_uri=''",
+  "network.trr.ohttp.relay_uri=''",
+  "network.trr.ohttp.uri=''",
+  "network.trr.use_ohttp=false",
+]
