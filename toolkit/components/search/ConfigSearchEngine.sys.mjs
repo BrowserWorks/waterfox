@@ -48,6 +48,8 @@ const ICON_UPDATE_ON_IDLE_DELAY = 30;
  * Handles loading config search engine icons from remote settings.
  */
 class IconHandler {
+  #staticIconMap = null;
+
   /**
    * The remote settings client for the search engine icons.
    *
@@ -98,6 +100,17 @@ class IconHandler {
    */
   getKey(engineID) {
     return engineID.substring(0, 2);
+  }
+
+  async getStaticIconURL(engineIdentifier) {
+    this.#staticIconMap ??= new Map(
+      await (
+        await fetch(
+          "chrome://browser/content/search/BrowserSearchEngineIcons.json"
+        )
+      ).json()
+    );
+    return this.#staticIconMap.get(engineIdentifier) ?? null;
   }
 
   /**
@@ -614,6 +627,13 @@ export class ConfigSearchEngine extends SearchEngine {
   async getIconURL(preferredWidth) {
     // XPCOM interfaces pass optional number parameters as 0.
     preferredWidth ||= 16;
+
+    const staticIconURL = await ConfigSearchEngine.iconHandler.getStaticIconURL(
+      this.id
+    );
+    if (staticIconURL) {
+      return staticIconURL;
+    }
 
     let availableRecords =
       await ConfigSearchEngine.iconHandler.getAvailableRecords(this.id);
