@@ -1,0 +1,34 @@
+#!/bin/sh
+
+case $(uname -s) in
+    Darwin)
+        ;;
+    MINGW*|MSYS*|CYGWIN*)
+        ac_add_options --disable-bits-download
+        ac_add_options --disable-maintenance-service
+        ac_add_options --disable-parental-controls
+        ;;
+    Linux)
+        export MOZ_NO_PIE_COMPAT=1
+        export MOZ_STDCXX_COMPAT=1
+        case $(uname -m) in
+            x86_64)
+                if test -f "$HOME/.mozbuild/nasm/nasm"; then
+                    export NASM="$HOME"/.mozbuild/nasm/nasm
+                fi
+                ac_add_options --target=x86_64-pc-linux-gnu
+                ;;
+            ppc64le)
+                export CC=gcc
+                export CXX=g++
+                ac_add_options --enable-optimize="-w"
+                ac_add_options --target=powerpc64le-unknown-linux-gnu
+                ;;
+        esac
+        ;;
+esac
+
+wfx_dev=1
+wfx_target=
+
+. "$topsrcdir/waterfox/build/mozconfig.common"
