@@ -3,16 +3,12 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { toSafeDomain } from "resource:///modules/WaterfoxBlockerUtils.sys.mjs";
-import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 
-const lazy = {};
-
-XPCOMUtils.defineLazyServiceGetter(
-  lazy,
-  "contentBlockingAllowList",
-  "@mozilla.org/content-blocking-allow-list;1",
-  "nsIContentBlockingAllowList"
-);
+function contentBlockingAllowList() {
+  return Cc["@mozilla.org/content-blocking-allow-list;1"].getService(
+    Ci.nsIContentBlockingAllowList
+  );
+}
 
 export const PERMISSION_TYPE = "waterfox-blocker";
 export const PERMISSION_TYPE_PB = "waterfox-blocker-pb";
@@ -53,7 +49,7 @@ function principalForDomain(domain) {
       uri,
       {}
     );
-    return lazy.contentBlockingAllowList.computeContentBlockingAllowListPrincipal(
+    return contentBlockingAllowList().computeContentBlockingAllowListPrincipal(
       principal
     );
   } catch (_) {
