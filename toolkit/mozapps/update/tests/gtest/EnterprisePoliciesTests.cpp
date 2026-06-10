@@ -109,7 +109,7 @@ class EnterprisePoliciesInRegistryTest : public ::testing::Test {
   static inline std::wstring mKeyPath;
 
   static void SetUpTestSuite() {
-    mKeyPath = std::format(LR"(SOFTWARE\Policies\Mozilla\{})", kBrand);
+    mKeyPath = std::format(LR"(SOFTWARE\Policies\BrowserWorks\{})", kBrand);
   }
 
   HKEY CreateSubkey(std::wstring_view aSubpath = {}) {
