@@ -102,6 +102,7 @@ const PREF_APP_UPDATE_SOCKET_MAXERRORS = "app.update.socket.maxErrors";
 const PREF_APP_UPDATE_SOCKET_RETRYTIMEOUT = "app.update.socket.retryTimeout";
 const PREF_APP_UPDATE_STAGING_ENABLED = "app.update.staging.enabled";
 const PREF_APP_UPDATE_URL_DETAILS = "app.update.url.details";
+const PREF_APP_UPDATE_URL_OVERRIDE = "app.update.url.override";
 const PREF_NETWORK_PROXY_TYPE = "network.proxy.type";
 
 const URI_BRAND_PROPERTIES = "chrome://branding/locale/brand.properties";
@@ -5457,7 +5458,14 @@ export class CheckerService {
       throw Components.Exception("", Cr.NS_ERROR_INVALID_ARG);
     }
 
-    let url = Services.appinfo.updateURL;
+    // Only the default branch is honored so user prefs cannot redirect
+    // update checks.
+    let url = Services.prefs
+      .getDefaultBranch(null)
+      .getCharPref(PREF_APP_UPDATE_URL_OVERRIDE, "");
+    if (!url) {
+      url = Services.appinfo.updateURL;
+    }
     let updatePin;
 
     if (Services.policies) {
