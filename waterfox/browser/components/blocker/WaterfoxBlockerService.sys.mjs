@@ -1689,6 +1689,7 @@ export const WaterfoxBlockerService = {
 
   _blockedCountByBrowserId: new Map(),
   _topLevelHostByBrowserId: new Map(),
+  _blockedTopLevelDocumentByBrowserId: new Map(),
   _topLevelNavigationBypassByBrowserId: new Map(),
   _listUpdatesState: null,
   _listUpdatePromise: null,
@@ -1733,6 +1734,7 @@ export const WaterfoxBlockerService = {
 
   _clearTopLevelNavigationState() {
     this._topLevelHostByBrowserId.clear();
+    this._blockedTopLevelDocumentByBrowserId.clear();
     this._topLevelNavigationBypassByBrowserId.clear();
   },
 
@@ -2180,9 +2182,15 @@ export const WaterfoxBlockerService = {
     return candidateHosts.some(host => this.shouldBypassBlocking(host));
   },
 
+  _normalizeHostname(hostname) {
+    return String(hostname || "")
+      .replace(/\.$/, "")
+      .toLowerCase();
+  },
+
   _rememberTopLevelHost(browserId, hostname) {
     const id = Number(browserId || 0);
-    const host = String(hostname || "").replace(/\.$/, "");
+    const host = this._normalizeHostname(hostname);
     if (!id || !host) {
       return;
     }
@@ -2191,8 +2199,56 @@ export const WaterfoxBlockerService = {
     if (this._topLevelHostByBrowserId.size > BLOCKED_COUNT_MAP_MAX_ENTRIES) {
       const firstId = this._topLevelHostByBrowserId.keys().next().value;
       this._topLevelHostByBrowserId.delete(firstId);
+      this._blockedTopLevelDocumentByBrowserId.delete(firstId);
       this._topLevelNavigationBypassByBrowserId.delete(firstId);
     }
+  },
+
+  _rememberBlockedTopLevelDocument(browserId, hostname, url) {
+    const id = Number(browserId || 0);
+    const host = this._normalizeHostname(hostname);
+    const spec = String(url || "");
+    if (!id || !host || !spec) {
+      return;
+    }
+
+    this._blockedTopLevelDocumentByBrowserId.set(id, { host, url: spec });
+    if (
+      this._blockedTopLevelDocumentByBrowserId.size >
+      BLOCKED_COUNT_MAP_MAX_ENTRIES
+    ) {
+      const firstId = this._blockedTopLevelDocumentByBrowserId
+        .keys()
+        .next().value;
+      this._blockedTopLevelDocumentByBrowserId.delete(firstId);
+      this._topLevelHostByBrowserId.delete(firstId);
+      this._topLevelNavigationBypassByBrowserId.delete(firstId);
+    }
+  },
+
+  _forgetBlockedTopLevelDocument(browserId) {
+    this._blockedTopLevelDocumentByBrowserId.delete(Number(browserId || 0));
+  },
+
+  /**
+   * Consumes the recorded blocked top-level document for this browser, including
+   * on host or URL mismatch. Callers must not treat this as idempotent.
+   */
+  wasHostBlockedFor(browserId, hostname, url = "") {
+    const id = Number(browserId || 0);
+    const host = this._normalizeHostname(hostname);
+    if (!id || !host) {
+      return false;
+    }
+
+    const blockedDocument = this._blockedTopLevelDocumentByBrowserId.get(id);
+    this._blockedTopLevelDocumentByBrowserId.delete(id);
+    if (!blockedDocument || blockedDocument.host !== host) {
+      return false;
+    }
+
+    const requestedUrl = String(url || "");
+    return !requestedUrl || requestedUrl === blockedDocument.url;
   },
 
   _getTopLevelNavigationBypassSourceHost(browserId, channel, loadInfo) {
@@ -2256,6 +2312,7 @@ export const WaterfoxBlockerService = {
 
     const browserId = this._getTopBrowserId(loadInfo);
     this._rememberTopLevelHost(browserId, hostname);
+    this._forgetBlockedTopLevelDocument(browserId);
     this._topLevelNavigationBypassByBrowserId.delete(browserId);
   },
 
@@ -2371,6 +2428,7 @@ export const WaterfoxBlockerService = {
       if (this.shouldBypassBlocking(hostname)) {
         this._rememberTopLevelHost(browserId, hostname);
       }
+      this._forgetBlockedTopLevelDocument(browserId);
       return;
     }
 
@@ -2384,12 +2442,14 @@ export const WaterfoxBlockerService = {
     );
     if (!result.matched || result.exception) {
       this._rememberTopLevelHost(browserId, hostname);
+      this._forgetBlockedTopLevelDocument(browserId);
       return;
     }
 
     try {
       const blockedPageUrl = this._buildBlockedPageUrl(url, result);
       channel.redirectTo(Services.io.newURI(blockedPageUrl));
+      this._rememberBlockedTopLevelDocument(browserId, hostname, url);
     } catch (err) {
       console.error(
         "[WaterfoxBlocker] Failed to redirect to blocked page:",
