@@ -3335,6 +3335,7 @@ int NS_main(int argc, NS_tchar** argv) {
   mozilla::UniquePtr<UmaskContext> umaskContext(new UmaskContext(0));
 #endif
 
+
 #ifdef XP_MACOSX
   if (isElevationTypeElevated(sElevationType)) {
     LogToOS(NS_T("Updater is elevated"));

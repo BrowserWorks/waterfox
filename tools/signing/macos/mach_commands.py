@@ -37,7 +37,7 @@ from mozbuild.base import MachCommandConditions as conditions
     "Release channel entitlements, but the configuration used will be the "
     "Release configuration as defined in the repo working directory, not the "
     "configuration from the revision of the earlier 120 build.",
-    conditions=[conditions.is_firefox],
+    #    conditions=[conditions.is_firefox],
 )
 @CommandArgument(
     "-v",
@@ -408,14 +408,14 @@ def auto_detect_channel(ctx, app):
     # The bundle IDs for different channels. We use these strings to
     # auto-detect the channel being signed. Different channels use
     # different entitlement files. Release and Beta builds both use
-    # org.mozilla.firefox.
-    NIGHTLY_BUNDLEID = "org.mozilla.nightly"
-    NIGHTLY_DEBUG_BUNDLEID = "org.mozilla.nightlydebug"
-    NIGHTLY_UNOFFICIAL_BUNDLEID = "org.mozilla.nightlyunofficial"
-    NIGHTLY_UNOFFICIAL_DEBUG_BUNDLEID = "org.mozilla.nightlyunofficialdebug"
+    # net.waterfox.waterfox.
+    NIGHTLY_BUNDLEID = "net.waterfox.nightly"
+    NIGHTLY_DEBUG_BUNDLEID = "net.waterfox.nightlydebug"
+    NIGHTLY_UNOFFICIAL_BUNDLEID = "net.waterfox.nightlyunofficial"
+    NIGHTLY_UNOFFICIAL_DEBUG_BUNDLEID = "net.waterfox.nightlyunofficialdebug"
     DEVEDITION_BUNDLEID = "org.mozilla.firefoxdeveloperedition"
     # BETA uses the same bundle ID as Release
-    RELEASE_BUNDLEID = "org.mozilla.firefox"
+    RELEASE_BUNDLEID = "net.waterfox.waterfox"
 
     info_plist = os.path.join(app, "Contents/Info.plist")
 
