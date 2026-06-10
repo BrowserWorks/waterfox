@@ -56,6 +56,43 @@ pref("media.eme.enabled", false);
 // No Mozilla or Google location service.
 pref("geo.provider.network.url", "");
 
+// Safe Browsing and remote download reputation are disabled.
+pref("browser.safebrowsing.phishing.enabled", false);
+pref("browser.safebrowsing.malware.enabled", false);
+pref("browser.safebrowsing.blockedURIs.enabled", false);
+pref("browser.safebrowsing.globalCache.enabled", false);
+pref("browser.safebrowsing.downloads.enabled", false);
+pref("browser.safebrowsing.downloads.remote.enabled", false);
+pref("browser.safebrowsing.downloads.remote.url", "");
+pref("browser.safebrowsing.downloads.remote.block_dangerous", false);
+pref("browser.safebrowsing.downloads.remote.block_dangerous_host", false);
+pref("browser.safebrowsing.downloads.remote.block_potentially_unwanted", false);
+pref("browser.safebrowsing.downloads.remote.block_uncommon", false);
+pref("browser.safebrowsing.reportPhishURL", "");
+pref("browser.safebrowsing.provider.google.gethashURL", "");
+pref("browser.safebrowsing.provider.google.updateURL", "");
+pref("browser.safebrowsing.provider.google.reportURL", "");
+pref("browser.safebrowsing.provider.google.reportPhishMistakeURL", "");
+pref("browser.safebrowsing.provider.google.reportMalwareMistakeURL", "");
+pref("browser.safebrowsing.provider.google.advisoryURL", "");
+pref("browser.safebrowsing.provider.google4.gethashURL", "");
+pref("browser.safebrowsing.provider.google4.updateURL", "");
+pref("browser.safebrowsing.provider.google4.reportURL", "");
+pref("browser.safebrowsing.provider.google4.reportPhishMistakeURL", "");
+pref("browser.safebrowsing.provider.google4.reportMalwareMistakeURL", "");
+pref("browser.safebrowsing.provider.google4.advisoryURL", "");
+pref("browser.safebrowsing.provider.google4.dataSharingURL", "");
+pref("browser.safebrowsing.provider.google4.dataSharing.enabled", false);
+pref("browser.safebrowsing.provider.google5.enabled", false);
+pref("browser.safebrowsing.provider.google5.lists", "");
+pref("browser.safebrowsing.provider.google5.gethashURL", "");
+pref("browser.safebrowsing.provider.google5.updateURL", "");
+pref("browser.safebrowsing.provider.google5.reportURL", "");
+pref("browser.safebrowsing.provider.google5.reportPhishMistakeURL", "");
+pref("browser.safebrowsing.provider.google5.reportMalwareMistakeURL", "");
+pref("browser.safebrowsing.provider.google5.advisoryURL", "");
+pref("browser.safebrowsing.provider.google5.advisoryName", "");
+
 // Telemetry and data reporting stay off.
 pref("toolkit.telemetry.unified", false, locked);
 pref("toolkit.telemetry.enabled", false, locked);
