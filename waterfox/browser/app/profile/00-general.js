@@ -4,6 +4,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+pref("app.support.baseURL", "https://www.waterfox.com/support/");
+
 // Resume the previous session on startup.
 pref("browser.startup.page", 3);
 pref("browser.tabs.warnOnClose", true);
