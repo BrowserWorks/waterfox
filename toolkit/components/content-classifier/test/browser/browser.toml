@@ -1,4 +1,8 @@
 [DEFAULT]
+prefs = [
+  "privacy.trackingprotection.content.protection.enabled=false",
+  "privacy.trackingprotection.content.annotation.enabled=false",
+]
 support-files = [
   "head.js",
   "page.html",
