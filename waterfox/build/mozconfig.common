@@ -1,0 +1,209 @@
+# Waterfox shared mozconfig fragment, sourced by every root .mozconfig* file.
+# It must never write to stdout or stderr: mach's mozconfig loader treats any
+# stray output while sourcing as a parse error.
+#
+# Entry files select a profile through lowercase wfx_* shell variables set
+# before sourcing (lowercase is required: init.configure forwards uppercase
+# shell variables to configure):
+#
+#   wfx_target           target triple; selects the release/CI profile.
+#                        Empty selects the local development profile.
+#   wfx_dev=1            set by .mozconfig to acknowledge the development
+#                        profile; sourcing with neither this nor wfx_target
+#                        set is an error.
+#   wfx_cross_build=1    export CROSS_BUILD=1
+#   wfx_lto_mode         cross | thin; empty emits plain --enable-lto
+#   wfx_optimize         --enable-optimize value for (pre-)release builds
+#   wfx_rustflags        appended to RUSTFLAGS in (pre-)release builds
+#   wfx_rustc_bootstrap=1  adds mk_add_options "export RUSTC_BOOTSTRAP=1"
+#                        (needed when wfx_rustflags uses -Z flags)
+#   wfx_pgo              native: unconditional MOZ_PGO=1
+#                        cross: profile-generate/use when GEN_PGO/USE_PGO set
+#                        cross-or-native: cross, falling back to MOZ_PGO=1
+#                        empty: no PGO options
+
+clang22="$HOME/.mozbuild/clang-22"
+wasi_sysroot="$HOME/.mozbuild/sysroot-wasm32-wasi"
+
+if [ -n "$wfx_target" ]; then
+    case "$wfx_target" in
+        *-linux-gnu) wfx_os=linux ;;
+        *-apple-darwin) wfx_os=macos ;;
+        *-windows-msvc) wfx_os=windows ;;
+        *) wfx_os= ;;
+    esac
+
+    clang22_bin="$clang22/bin"
+    clang22_cc="$clang22_bin/clang"
+    clang22_cxx="$clang22_bin/clang++"
+
+    export PATH="$clang22_bin:$PATH"
+    if [ "$wfx_os" = "windows" ]; then
+        clang22_cl="$clang22_bin/clang-cl"
+        export CC="$clang22_cl"
+        export CXX="$clang22_cl"
+        export HOST_CC="$clang22_cc"
+        export HOST_CXX="$clang22_cxx"
+    else
+        export CC="$clang22_cc"
+        export CXX="$clang22_cxx"
+        export HOST_CC="$CC"
+        export HOST_CXX="$CXX"
+    fi
+else
+    # Local development and the release sign pipeline: the bootstrapped
+    # toolchain may be absent, so fall back to the system clang.
+    test "$wfx_dev" = "1" || exit 1
+    wfx_os=
+
+    case "$(uname -s)" in
+        MINGW*|MSYS*|CYGWIN*)
+            clang22_cc="$clang22/bin/clang.exe"
+            clang22_cxx="$clang22/bin/clang++.exe"
+            ;;
+        *)
+            clang22_cc="$clang22/bin/clang"
+            clang22_cxx="$clang22/bin/clang++"
+            ;;
+    esac
+
+    if [ "$(uname -m)" != "ppc64le" ]; then
+        if [ -x "$clang22_cc" ] && [ -x "$clang22_cxx" ]; then
+            export CC="$clang22_cc"
+            export CXX="$clang22_cxx"
+        else
+            export CC=clang
+            export CXX=clang++
+        fi
+        export HOST_CC="$CC"
+        export HOST_CXX="$CXX"
+    fi
+fi
+
+ac_add_options --with-wasi-sysroot="$wasi_sysroot"
+
+if [ -n "$wfx_target" ]; then
+    if test "$WFX_RELEASE" || test "$WFX_PRE_RELEASE"; then
+        ac_add_options --enable-lto${wfx_lto_mode:+=$wfx_lto_mode}
+        ac_add_options --enable-optimize="$wfx_optimize"
+        ac_add_options --enable-release
+        ac_add_options --enable-rust-simd
+        ac_add_options RUSTC_OPT_LEVEL=3
+        export MOZILLA_OFFICIAL=1
+        if [ "$wfx_rustc_bootstrap" = "1" ]; then
+            mk_add_options "export RUSTC_BOOTSTRAP=1"
+        fi
+        if [ -n "$wfx_rustflags" ]; then
+            export RUSTFLAGS="$RUSTFLAGS $wfx_rustflags"
+        fi
+    fi
+
+    if [ "$wfx_os" = "windows" ]; then
+        ac_add_options --disable-bits-download
+    fi
+    ac_add_options --disable-crashreporter
+    ac_add_options --disable-debug
+    ac_add_options --disable-dmd
+    ac_add_options --disable-geckodriver
+    if [ "$wfx_os" = "windows" ]; then
+        ac_add_options --disable-maintenance-service
+        ac_add_options --disable-parental-controls
+    fi
+    ac_add_options --disable-profiling
+    ac_add_options --disable-tests
+
+    if [ "$wfx_os" = "linux" ]; then
+        ac_add_options --enable-alsa
+    fi
+    if [ "$wfx_os" != "windows" ]; then
+        ac_add_options --enable-application=browser
+    fi
+    ac_add_options --enable-bootstrap=-clang,-sysroot-wasm32-wasi,-sccache
+    if test -x "$(command -v sccache)"; then
+        ac_add_options --with-ccache=sccache
+    elif test -f "$HOME/.mozbuild/sccache/sccache"; then
+        ac_add_options --with-ccache="$HOME"/.mozbuild/sccache/sccache
+    fi
+    if [ "$wfx_os" = "windows" ]; then
+        ac_add_options --enable-default-browser-agent
+    fi
+    ac_add_options --enable-install-strip
+    if [ "$wfx_pgo" = "native" ]; then
+        ac_add_options MOZ_PGO=1
+    elif [ "$wfx_pgo" = "cross" ] || [ "$wfx_pgo" = "cross-or-native" ]; then
+        if test "$GEN_PGO"; then
+            ac_add_options --enable-profile-generate=cross
+        elif test "$USE_PGO"; then
+            ac_add_options --enable-profile-use=cross
+            ac_add_options --with-pgo-jarlog="$GITHUB_WORKSPACE"/en-US.log
+            ac_add_options --with-pgo-profile-path="$GITHUB_WORKSPACE"/merged.profdata
+        elif [ "$wfx_pgo" = "cross-or-native" ]; then
+            ac_add_options MOZ_PGO=1
+        fi
+    fi
+    if [ "$wfx_os" = "linux" ]; then
+        ac_add_options --enable-linker=lld
+        ac_add_options --enable-pulseaudio
+    fi
+    ac_add_options --enable-strip
+    if test "$WFX_RELEASE"; then
+        ac_add_options --enable-update-channel=release
+    elif test "$WFX_PRE_RELEASE"; then
+        ac_add_options --enable-update-channel=beta
+    fi
+    ac_add_options --enable-unverified-updates
+    ac_add_options --enable-updater
+
+    ac_add_options --target=$wfx_target
+else
+    ac_add_options --disable-crashreporter
+    ac_add_options --disable-debug
+    ac_add_options --disable-dmd
+    ac_add_options --disable-geckodriver
+    ac_add_options --disable-profiling
+    ac_add_options --disable-release
+    ac_add_options --disable-updater
+
+    ac_add_options --enable-application=browser
+    ac_add_options --enable-bootstrap=-clang,-sysroot-wasm32-wasi
+    ac_add_options --enable-optimize="-Os -w"
+    ac_add_options --enable-tests
+    ac_add_options --enable-unverified-updates
+fi
+
+ac_add_options --with-app-basename=Waterfox
+ac_add_options --with-app-name=waterfox
+ac_add_options --with-branding=waterfox/browser/branding
+ac_add_options --with-distribution-id=net.waterfox
+if [ "$wfx_os" = "windows" ]; then
+    ac_add_options --with-redist
+fi
+if [ -d "$PWD"/waterfox/browser/locales/en-GB ]; then
+    ac_add_options --with-l10n-base="$PWD"/waterfox/browser/locales
+fi
+
+if [ -n "$wfx_target" ]; then
+    export MOZ_INCLUDE_SOURCE_INFO=1
+    if [ "$wfx_cross_build" = "1" ]; then
+        export CROSS_BUILD=1
+    fi
+    if [ "$wfx_os" = "linux" ]; then
+        export MOZ_NO_PIE_COMPAT=1
+        export MOZ_STDCXX_COMPAT=1
+    fi
+    if [ "$wfx_os" = "windows" ]; then
+        export WINEDEBUG=-all
+    fi
+else
+    if test -x "$(command -v sccache)"; then
+        ac_add_options --with-ccache=sccache
+    elif test -f "$HOME/.mozbuild/sccache/sccache"; then
+        ac_add_options --with-ccache="$HOME"/.mozbuild/sccache/sccache
+    fi
+
+    mk_add_options AUTOCLOBBER=1
+    mk_add_options MOZ_OBJDIR=./obj-"$(uname -s)"-"$(uname -m)"
+fi
+
+export MOZ_REQUIRE_SIGNING=
+export MOZ_TELEMETRY_REPORTING=
