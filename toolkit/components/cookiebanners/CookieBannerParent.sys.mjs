@@ -188,12 +188,17 @@ export class CookieBannerParent extends JSWindowActorParent {
           mode = perDomainMode;
         }
       } catch (e) {
-        // getPerSitePref could throw with NS_ERROR_NOT_AVAILABLE if the service
-        // is disabled. We will fallback to global pref setting if any errors
-        // occur.
-        if (e.result == Cr.NS_ERROR_NOT_AVAILABLE) {
-          console.error("The cookie banner handling service is not available");
-        } else {
+        // getDomainPref can throw in a few expected cases where we should
+        // silently fall back to the global pref:
+        // - NS_ERROR_NOT_AVAILABLE: service disabled.
+        // - NS_ERROR_INSUFFICIENT_DOMAIN_LEVELS: hosts like localhost, IPs,
+        //   or eTLDs without enough labels for a base domain.
+        // - NS_ERROR_HOST_IS_IP_ADDRESS: IP literal hosts.
+        if (
+          e.result != Cr.NS_ERROR_NOT_AVAILABLE &&
+          e.result != Cr.NS_ERROR_INSUFFICIENT_DOMAIN_LEVELS &&
+          e.result != Cr.NS_ERROR_HOST_IS_IP_ADDRESS
+        ) {
           console.error("Fail on getting domain pref:", e);
         }
       }
