@@ -264,7 +264,7 @@
   <string>GeckoNSApplication</string>
 	<key>SMPrivilegedExecutables</key>
 	<dict>
-		<key>org.mozilla.updater</key>
+		<key>net.waterfox.updater</key>
 		<string>@MOZ_SMPRIVILEGEDEXECUTABLES_REQUIREMENTS@</string>
 	</dict>
   <key>MozillaDeveloperRepoPath</key>
