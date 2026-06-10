@@ -98,9 +98,16 @@ if [ -n "$wfx_target" ]; then
         fi
     fi
 
+    if [ "$wfx_os" = "windows" ]; then
+        ac_add_options --disable-bits-download
+    fi
     ac_add_options --disable-debug
     ac_add_options --disable-dmd
     ac_add_options --disable-geckodriver
+    if [ "$wfx_os" = "windows" ]; then
+        ac_add_options --disable-maintenance-service
+        ac_add_options --disable-parental-controls
+    fi
     ac_add_options --disable-profiling
     ac_add_options --disable-tests
 
@@ -115,6 +122,9 @@ if [ -n "$wfx_target" ]; then
         ac_add_options --with-ccache=sccache
     elif test -f "$HOME/.mozbuild/sccache/sccache"; then
         ac_add_options --with-ccache="$HOME"/.mozbuild/sccache/sccache
+    fi
+    if [ "$wfx_os" = "windows" ]; then
+        ac_add_options --enable-default-browser-agent
     fi
     ac_add_options --enable-install-strip
     if [ "$wfx_pgo" = "native" ]; then
@@ -135,6 +145,14 @@ if [ -n "$wfx_target" ]; then
         ac_add_options --enable-pulseaudio
     fi
     ac_add_options --enable-strip
+    if test "$WFX_RELEASE"; then
+        ac_add_options --enable-update-channel=release
+    elif test "$WFX_PRE_RELEASE"; then
+        ac_add_options --enable-update-channel=beta
+    fi
+    ac_add_options --enable-unverified-updates
+    ac_add_options --enable-updater
+
     ac_add_options --target=$wfx_target
 else
     ac_add_options --disable-debug
@@ -142,11 +160,13 @@ else
     ac_add_options --disable-geckodriver
     ac_add_options --disable-profiling
     ac_add_options --disable-release
+    ac_add_options --disable-updater
 
     ac_add_options --enable-application=browser
     ac_add_options --enable-bootstrap=-clang,-sysroot-wasm32-wasi
     ac_add_options --enable-optimize="-Os -w"
     ac_add_options --enable-tests
+    ac_add_options --enable-unverified-updates
 fi
 
 if [ "$wfx_os" = "windows" ]; then
