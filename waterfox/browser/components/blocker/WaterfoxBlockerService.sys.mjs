@@ -37,6 +37,7 @@ const CONTRACT_ID = "@waterfox.com/waterfox-blocker-engine;1";
 
 // Prefs
 const PREF_ENABLED = "waterfox.blocker.enabled";
+const PREF_ALLOW_SEARCH_PARTNER_ADS = "waterfox.blocker.allowSearchPartnerAds";
 const PREF_FILTER_LIST_URLS = "waterfox.blocker.filterListUrls";
 const PREF_ENABLED_LISTS = "waterfox.blocker.enabledLists";
 const PREF_LEGACY_SITE_EXCEPTIONS = "waterfox.blocker.siteExceptions";
@@ -44,6 +45,11 @@ const PREF_SITE_EXCEPTIONS_MIGRATED =
   "waterfox.blocker.siteExceptions.migrated";
 const PREF_REMOTE_RESOURCES_ENABLED = "waterfox.blocker.remoteResourcesEnabled";
 const PREF_BRANCH = "waterfox.blocker.";
+
+const SEARCH_PARTNER_DOMAINS = Object.freeze([
+  "qwant.com",
+  "search.waterfox.com",
+]);
 
 const BLOCKED_COUNT_MAP_MAX_ENTRIES = 500;
 const BLOCKED_COUNT_MAP_TRIM_TO_ENTRIES = 250;
@@ -3571,8 +3577,9 @@ export const WaterfoxBlockerService = {
   /**
    * Bypass sources:
    * - Site exceptions stored in PermissionManager (persistent or session).
+   * - Search partner exemptions when enabled.
    *
-   * @param {string} candidateDomain Domain to test as a site exception.
+   * @param {string} candidateDomain Domain to test as a site exception or partner bypass.
    * @returns {boolean}
    */
   shouldBypassBlocking(candidateDomain) {
@@ -3585,7 +3592,13 @@ export const WaterfoxBlockerService = {
       return true;
     }
 
-    return false;
+    if (!Services.prefs.getBoolPref(PREF_ALLOW_SEARCH_PARTNER_ADS, true)) {
+      return false;
+    }
+
+    return SEARCH_PARTNER_DOMAINS.some(
+      p => domain === p || domain.endsWith(`.${p}`)
+    );
   },
 
   /**
