@@ -51,6 +51,8 @@ export default [
   "browser/app/",
   "browser/branding/**/firefox-branding.js",
   "waterfox/browser/branding/**/firefox-branding.js",
+  // Pre-processed default pref files
+  "waterfox/browser/app/profile/",
   // Gzipped test file.
   "browser/base/content/test/general/gZipOfflineChild.html",
   "browser/base/content/test/urlbar/file_blank_but_not_blank.html",
