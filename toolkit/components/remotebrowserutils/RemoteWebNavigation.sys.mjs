@@ -7,19 +7,6 @@ ChromeUtils.defineESModuleGetters(lazy, {
   PrivateBrowsingUtils: "resource://gre/modules/PrivateBrowsingUtils.sys.mjs",
 });
 
-function NotificationCallbacks(browser) {
-  this._browser = browser;
-}
-NotificationCallbacks.prototype = {
-  QueryInterface: ChromeUtils.generateQI(["nsIInterfaceRequestor"]),
-  getInterface(iid) {
-    if (iid.equals(Ci.nsILoadContext)) {
-      return this._browser.browsingContext;
-    }
-    throw Components.Exception("", Cr.NS_ERROR_NO_INTERFACE);
-  },
-};
-
 // This object implements the JS parts of nsIWebNavigation.
 export class RemoteWebNavigation {
   constructor(aBrowser) {
@@ -88,45 +75,7 @@ export class RemoteWebNavigation {
     this._browser.browsingContext.goToIndex(aIndex, cancelContentJSEpoch, true);
   }
 
-  _speculativeConnect(uri, loadURIOptions) {
-    try {
-      // Let's start a network connection before the content process asks.
-      // Note that we might have already set up the speculative connection in
-      // some cases, especially when the url is from location bar or its popup
-      // menu.
-      if (uri.schemeIs("http") || uri.schemeIs("https")) {
-        let isBrowserPrivate = lazy.PrivateBrowsingUtils.isBrowserPrivate(
-          this._browser
-        );
-        let principal = loadURIOptions.triggeringPrincipal;
-        // We usually have a triggeringPrincipal assigned, but in case we
-        // don't have one or if it's a SystemPrincipal, let's create it with OA
-        // inferred from the current context.
-        if (!principal || principal.isSystemPrincipal) {
-          let attrs = {
-            userContextId: this._browser.getAttribute("usercontextid") || 0,
-            privateBrowsingId: isBrowserPrivate ? 1 : 0,
-          };
-          principal = Services.scriptSecurityManager.createContentPrincipal(
-            uri,
-            attrs
-          );
-        }
-        Services.io.speculativeConnect(
-          uri,
-          principal,
-          new NotificationCallbacks(this._browser),
-          false
-        );
-      }
-    } catch (ex) {
-      // Can't setup speculative connection for this uri for some
-      // reason, just ignore it.
-    }
-  }
-
   loadURI(uri, loadURIOptions) {
-    this._speculativeConnect(uri, loadURIOptions);
     let cancelContentJSEpoch = this.maybeCancelContentJSExecution(
       Ci.nsIRemoteTab.NAVIGATE_URL,
       { uri }
@@ -159,9 +108,6 @@ export class RemoteWebNavigation {
       // In rare cases `uriFixup` can throw. We ignore this here, but it's
       // likely that the fixupAndLoadURIString call below will still throw,
       // hopefully with more details.
-    }
-    if (uri) {
-      this._speculativeConnect(uri, loadURIOptions);
     }
 
     let cancelContentJSEpoch = this.maybeCancelContentJSExecution(
