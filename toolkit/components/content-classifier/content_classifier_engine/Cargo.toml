@@ -10,5 +10,6 @@ adblock = { version = "0.13.2", features = ["full-regex-handling", "single-threa
 cstr = "0.2"
 nsstring = { path = "../../../../xpcom/rust/nsstring" }
 nserror = { path = "../../../../xpcom/rust/nserror" }
+serde_json = "1"
 thin-vec = { version = "0.2.1", features = ["gecko-ffi"] }
 xpcom = { path = "../../../../xpcom/rust/xpcom" }
