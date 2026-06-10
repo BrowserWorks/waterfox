@@ -50,6 +50,7 @@ export default [
   // browser/ exclusions
   "browser/app/",
   "browser/branding/**/firefox-branding.js",
+  "waterfox/browser/branding/**/firefox-branding.js",
   // Gzipped test file.
   "browser/base/content/test/general/gZipOfflineChild.html",
   "browser/base/content/test/urlbar/file_blank_but_not_blank.html",

@@ -8,6 +8,7 @@ license:
         - build/pgo/js-input
         # License not super clear
         - browser/branding/
+        - waterfox/browser/branding/
         # Trademarks
         - browser/components/topsites/content/tippytop/images/
         - toolkit/components/pdfjs/content/web/images/

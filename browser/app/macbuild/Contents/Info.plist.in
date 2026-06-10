@@ -191,7 +191,7 @@
 	<key>CFBundleIconFile</key>
 	<string>firefox.icns</string>
 	<key>CFBundleIconName</key>
-	<string>AppIcon</string>
+	<string>Waterfox</string>
 	<key>CFBundleIdentifier</key>
 	<string>@MOZ_MACBUNDLE_ID@</string>
 	<key>CFBundleInfoDictionaryVersion</key>

@@ -410,6 +410,7 @@ module.exports = {
       files: [
         // CSS files under browser/branding do not use design tokens
         "browser/branding/**",
+        "waterfox/browser/branding/**",
         // CSS files under browser/components/extensions are not using design tokens
         "browser/components/extensions/**",
         // Webcompat interventions are not expected to use design tokens
