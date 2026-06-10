@@ -37,6 +37,9 @@ build/build-clang/**
 # Ignore testing pref files which aren't parsed normally.
 testing/profiles/**/user.js
 
+# The nested localization repository contains legacy .js property files.
+waterfox/browser/locales/**
+
 # Ignore CORS fixtures which require specific resource hashes.
 dom/security/test/sri/script*
 
