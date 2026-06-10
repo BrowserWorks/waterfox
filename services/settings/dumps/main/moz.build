@@ -27,8 +27,6 @@ if not CONFIG["MOZ_BUILD_APP"].startswith("mobile/"):
         "moz-essential-domain-fallbacks.json",
         "password-rules.json",
         "search-config-icons.json",
-        "search-config-overrides-v2.json",
-        "search-config-v2.json",
         "remote-permissions.json",
         "search-default-override-allowlist.json",
         "translations-models.json",
