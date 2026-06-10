@@ -10,7 +10,8 @@
 #  include <windows.h>
 #  include "mozilla/Maybe.h"
 
-#  define POLICY_REGKEY_NAME L"SOFTWARE\\Policies\\Mozilla\\" MOZ_APP_BASENAME
+#  define POLICY_REGKEY_NAME \
+    L"SOFTWARE\\Policies\\BrowserWorks\\" MOZ_APP_BASENAME
 
 // NB: This code must be able to run apart from XPCOM
 

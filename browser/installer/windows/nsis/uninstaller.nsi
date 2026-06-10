@@ -41,7 +41,7 @@ ManifestDPIAware true
 !define NO_LOG
 
 !define MaintUninstallKey \
- "Software\Microsoft\Windows\CurrentVersion\Uninstall\MozillaMaintenanceService"
+ "Software\Microsoft\Windows\CurrentVersion\Uninstall\WaterfoxMaintenanceService"
 
 Var TmpVal
 Var MaintCertKey
@@ -153,7 +153,7 @@ ShowUnInstDetails nevershow
 !define URLUninstallSurvey "https://qsurvey.mozilla.com/s3/FF-Desktop-Post-Uninstall?channel=${UpdateChannel}&version=${AppVersion}&osversion="
 
 ; Support for the profile refresh feature
-!define URLProfileRefreshHelp "https://support.mozilla.org/kb/refresh-firefox-reset-add-ons-and-settings"
+!define URLProfileRefreshHelp "https://www.waterfox.com/support/refresh-waterfox-reset-add-ons-and-settings/"
 
 ; Arguments to add to the command line when launching FileMainEXE for profile refresh
 !define ArgsProfileRefresh "-reset-profile -migration -uninstaller-profile-refresh"
@@ -199,7 +199,8 @@ UninstPage custom un.preConfirm
 !insertmacro MUI_UNPAGE_INSTFILES
 
 ; Finish Page
-!define MUI_FINISHPAGE_SHOWREADME
+; The post uninstall survey checkbox is disabled for Waterfox; without
+; MUI_FINISHPAGE_SHOWREADME the other SHOWREADME defines are inert.
 !define MUI_FINISHPAGE_SHOWREADME_NOTCHECKED
 !define MUI_FINISHPAGE_SHOWREADME_TEXT $(UN_SURVEY_CHECKBOX_LABEL)
 !define MUI_FINISHPAGE_SHOWREADME_FUNCTION un.Survey
@@ -241,7 +242,7 @@ Function un.UninstallServiceIfNotUsed
   ; Figure out the number of subkeys
   StrCpy $0 0
   ${Do}
-    EnumRegKey $1 HKLM "Software\Mozilla\MaintenanceService" $0
+    EnumRegKey $1 HKLM "Software\BrowserWorks\MaintenanceService" $0
     ${If} "$1" == ""
       ${ExitDo}
     ${EndIf}
@@ -363,6 +364,7 @@ Function un.SendUninstallPing
   StrCpy $6 "$2\$1"
 
   ${IfNot} ${Errors}
+!if "${TELEMETRY_BASE_URL}" != ""
     ; Copy the ping ID, starting after $AppUserModelID_, ending 5 from the end to remove .json
     StrCpy $5 $1 -5 $4
 
@@ -376,6 +378,7 @@ Function un.SendUninstallPing
     ; Pop the result. This could indicate an error if it's something other than
     ; "success", but we don't have any recovery path here anyway.
     Pop $5
+!endif
 
     ${Do}
       Delete $6
@@ -445,21 +448,21 @@ Section "Uninstall"
     ClearErrors
   ${EndIf}
 
-  ReadRegDWORD $R4 HKCU "Software\Mozilla\${BrandFullNameInternal}" DesktopLauncherAppInstalled
+  ReadRegDWORD $R4 HKCU "Software\BrowserWorks\${BrandFullNameInternal}" DesktopLauncherAppInstalled
   ${IfNot} ${Errors}
   ${AndIf} $R4 == "1"
     ; The current user had a desktop launcher at some point, so remove it.
     SetShellVarContext current
     Delete "$DESKTOP\${BrandShortName}.exe"
     ${IfNot} ${Errors}
-      DeleteRegValue HKCU "Software\Mozilla\${BrandFullNameInternal}" DesktopLauncherAppInstalled
+      DeleteRegValue HKCU "Software\BrowserWorks\${BrandFullNameInternal}" DesktopLauncherAppInstalled
     ${EndIf}
   ${EndIf}
   ClearErrors
 
   SetShellVarContext current  ; Set SHCTX to HKCU
-  ${un.RegCleanMain} "Software\Mozilla"
-  ${un.RegCleanPrefs} "Software\Mozilla\${AppName}"
+  ${un.RegCleanMain} "Software\BrowserWorks"
+  ${un.RegCleanPrefs} "Software\BrowserWorks\${AppName}"
   ${un.RegCleanUninstall}
   ${un.DeleteShortcuts}
 
@@ -477,53 +480,54 @@ Section "Uninstall"
   ${EndIf}
 
   ; Clean up old maintenance service logs
-  ${un.CleanMaintenanceServiceLogs} "Mozilla\Firefox"
+  ${un.CleanMaintenanceServiceLogs} "BrowserWorks\Waterfox"
 
   ; Remove any app model id's stored in the registry for this install path
-  DeleteRegValue HKCU "Software\Mozilla\${AppName}\TaskBarIDs" "$INSTDIR"
-  DeleteRegValue HKLM "Software\Mozilla\${AppName}\TaskBarIDs" "$INSTDIR"
+  DeleteRegValue HKCU "Software\BrowserWorks\${AppName}\TaskBarIDs" "$INSTDIR"
+  DeleteRegValue HKLM "Software\BrowserWorks\${AppName}\TaskBarIDs" "$INSTDIR"
 
   ClearErrors
-  WriteRegStr HKLM "Software\Mozilla" "${BrandShortName}InstallerTest" "Write Test"
+  WriteRegStr HKLM "Software\BrowserWorks" "${BrandShortName}InstallerTest" "Write Test"
   ${If} ${Errors}
     StrCpy $RegHive "HKCU"
   ${Else}
     SetShellVarContext all  ; Set SHCTX to HKLM
-    DeleteRegValue HKLM "Software\Mozilla" "${BrandShortName}InstallerTest"
+    DeleteRegValue HKLM "Software\BrowserWorks" "${BrandShortName}InstallerTest"
     StrCpy $RegHive "HKLM"
-    DeleteRegValue HKLM "Software\Mozilla\${BrandFullNameInternal}" "UpdaterDeletedShortcut"
-    ${un.RegCleanMain} "Software\Mozilla"
+    DeleteRegValue HKLM "Software\BrowserWorks\${BrandFullNameInternal}" "UpdaterDeletedShortcut"
+    ${un.RegCleanMain} "Software\BrowserWorks"
     ${un.RegCleanUninstall}
     ${un.DeleteShortcuts}
     ${un.SetAppLSPCategories}
   ${EndIf}
 
-  ${un.RegCleanAppHandler} "FirefoxHTML-$AppUserModelID"
-  ${un.RegCleanAppHandler} "FirefoxPDF-$AppUserModelID"
-  ${un.RegCleanAppHandler} "FirefoxURL-$AppUserModelID"
+  ${un.RegCleanAppHandler} "WaterfoxHTML-$AppUserModelID"
+  ${un.RegCleanAppHandler} "WaterfoxPDF-$AppUserModelID"
+  ${un.RegCleanAppHandler} "WaterfoxURL-$AppUserModelID"
   ${un.RegCleanProtocolHandler} "http"
   ${un.RegCleanProtocolHandler} "https"
   ${un.RegCleanProtocolHandler} "mailto"
-  ${un.RegCleanFileHandler}  ".htm"   "FirefoxHTML-$AppUserModelID"
-  ${un.RegCleanFileHandler}  ".html"  "FirefoxHTML-$AppUserModelID"
-  ${un.RegCleanFileHandler}  ".shtml" "FirefoxHTML-$AppUserModelID"
-  ${un.RegCleanFileHandler}  ".xht"   "FirefoxHTML-$AppUserModelID"
-  ${un.RegCleanFileHandler}  ".xhtml" "FirefoxHTML-$AppUserModelID"
-  ${un.RegCleanFileHandler}  ".oga"   "FirefoxHTML-$AppUserModelID"
-  ${un.RegCleanFileHandler}  ".ogg"   "FirefoxHTML-$AppUserModelID"
-  ${un.RegCleanFileHandler}  ".ogv"   "FirefoxHTML-$AppUserModelID"
-  ${un.RegCleanFileHandler}  ".webm"  "FirefoxHTML-$AppUserModelID"
-  ${un.RegCleanFileHandler}  ".svg"   "FirefoxHTML-$AppUserModelID"
-  ${un.RegCleanFileHandler}  ".webp"  "FirefoxHTML-$AppUserModelID"
-  ${un.RegCleanFileHandler}  ".avif"  "FirefoxHTML-$AppUserModelID"
+  ${un.RegCleanFileHandler}  ".htm"   "WaterfoxHTML-$AppUserModelID"
+  ${un.RegCleanFileHandler}  ".html"  "WaterfoxHTML-$AppUserModelID"
+  ${un.RegCleanFileHandler}  ".shtml" "WaterfoxHTML-$AppUserModelID"
+  ${un.RegCleanFileHandler}  ".xht"   "WaterfoxHTML-$AppUserModelID"
+  ${un.RegCleanFileHandler}  ".xhtml" "WaterfoxHTML-$AppUserModelID"
+  ${un.RegCleanFileHandler}  ".oga"   "WaterfoxHTML-$AppUserModelID"
+  ${un.RegCleanFileHandler}  ".ogg"   "WaterfoxHTML-$AppUserModelID"
+  ${un.RegCleanFileHandler}  ".ogv"   "WaterfoxHTML-$AppUserModelID"
+  ${un.RegCleanFileHandler}  ".webm"  "WaterfoxHTML-$AppUserModelID"
+  ${un.RegCleanFileHandler}  ".svg"   "WaterfoxHTML-$AppUserModelID"
+  ${un.RegCleanFileHandler}  ".webp"  "WaterfoxHTML-$AppUserModelID"
+  ${un.RegCleanFileHandler}  ".avif"  "WaterfoxHTML-$AppUserModelID"
+  ${un.RegCleanFileHandler}  ".jxl"   "WaterfoxHTML-$AppUserModelID"
 
-  ${un.RegCleanFileHandler}  ".pdf"   "FirefoxPDF-$AppUserModelID"
+  ${un.RegCleanFileHandler}  ".pdf"   "WaterfoxPDF-$AppUserModelID"
 
   SetShellVarContext all  ; Set SHCTX to HKLM
-  ${un.GetSecondInstallPath} "Software\Mozilla" $R9
+  ${un.GetSecondInstallPath} "Software\BrowserWorks" $R9
   ${If} $R9 == "false"
     SetShellVarContext current  ; Set SHCTX to HKCU
-    ${un.GetSecondInstallPath} "Software\Mozilla" $R9
+    ${un.GetSecondInstallPath} "Software\BrowserWorks" $R9
   ${EndIf}
 
   DeleteRegKey HKLM "Software\Clients\StartMenuInternet\${AppRegName}-$AppUserModelID"
@@ -533,7 +537,7 @@ Section "Uninstall"
   DeleteRegValue HKCU "Software\RegisteredApplications" "${AppRegName}-$AppUserModelID"
 
   ; Clean up "launch on login" registry key for this installation.
-  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "Mozilla-${AppName}-$AppUserModelID"
+  DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "BrowserWorks-${AppName}-$AppUserModelID"
 
   ; Remove FirefoxBridge extension protocol handlers
   Push $1
@@ -544,22 +548,22 @@ Section "Uninstall"
 
   ; Remove old protocol handler and StartMenuInternet keys without install path
   ; hashes, but only if they're for this installation.  We've never supported
-  ; bare FirefoxPDF.
-  ReadRegStr $0 HKLM "Software\Classes\FirefoxHTML\DefaultIcon" ""
+  ; bare WaterfoxPDF.
+  ReadRegStr $0 HKLM "Software\Classes\WaterfoxHTML\DefaultIcon" ""
   StrCpy $0 $0 -2
   ${If} $0 == "$INSTDIR\${FileMainEXE}"
-    DeleteRegKey HKLM "Software\Classes\FirefoxHTML"
-    DeleteRegKey HKLM "Software\Classes\FirefoxURL"
+    DeleteRegKey HKLM "Software\Classes\WaterfoxHTML"
+    DeleteRegKey HKLM "Software\Classes\WaterfoxURL"
     ${StrFilter} "${FileMainEXE}" "+" "" "" $R9
     DeleteRegKey HKLM "Software\Clients\StartMenuInternet\$R9"
     DeleteRegValue HKLM "Software\RegisteredApplications" "$R9"
     DeleteRegValue HKLM "Software\RegisteredApplications" "${AppRegName}"
   ${EndIf}
-  ReadRegStr $0 HKCU "Software\Classes\FirefoxHTML\DefaultIcon" ""
+  ReadRegStr $0 HKCU "Software\Classes\WaterfoxHTML\DefaultIcon" ""
   StrCpy $0 $0 -2
   ${If} $0 == "$INSTDIR\${FileMainEXE}"
-    DeleteRegKey HKCU "Software\Classes\FirefoxHTML"
-    DeleteRegKey HKCU "Software\Classes\FirefoxURL"
+    DeleteRegKey HKCU "Software\Classes\WaterfoxHTML"
+    DeleteRegKey HKCU "Software\Classes\WaterfoxURL"
     ${StrFilter} "${FileMainEXE}" "+" "" "" $R9
     DeleteRegKey HKCU "Software\Clients\StartMenuInternet\$R9"
     DeleteRegValue HKCU "Software\RegisteredApplications" "$R9"
@@ -735,7 +739,7 @@ Section "Uninstall"
   ; subsequently deleted after checking. If the value is found during startup
   ; the browser will offer to Reset Firefox. We use the UpdateChannel to match
   ; uninstalls of Firefox-release with reinstalls of Firefox-release, for example.
-  WriteRegStr HKCU "Software\Mozilla\Firefox" "Uninstalled-${UpdateChannel}" "True"
+  WriteRegStr HKCU "Software\BrowserWorks\Waterfox" "Uninstalled-${UpdateChannel}" "True"
 
 !ifdef MOZ_MAINTENANCE_SERVICE
   ; Get the path the allowed cert is at and remove it
@@ -758,7 +762,7 @@ Section "Uninstall"
 !endif
 
 !ifdef MOZ_BITS_DOWNLOAD
-  BitsUtils::CancelBitsJobsByName "MozillaUpdate $AppUserModelID"
+  BitsUtils::CancelBitsJobsByName "WaterfoxUpdate $AppUserModelID"
   Pop $0
 !endif
 
@@ -1065,7 +1069,7 @@ Function un.onInit
   ${un.UninstallUnOnInitCommon}
 
   ; setup the application model id registration value
-  ${un.InitHashAppModelId} "$INSTDIR" "Software\Mozilla\${AppName}\TaskBarIDs"
+  ${un.InitHashAppModelId} "$INSTDIR" "Software\BrowserWorks\${AppName}\TaskBarIDs"
 
   ; Find a default profile for this install.
   SetShellVarContext current
