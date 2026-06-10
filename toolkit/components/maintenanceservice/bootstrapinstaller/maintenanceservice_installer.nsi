@@ -50,7 +50,7 @@ Var BrandFullName
 !include defines.nsi
 ; We keep defines.nsi defined so that we get other things like
 ; the version number, but we redefine BrandFullName
-!define MaintFullName "Mozilla Maintenance Service"
+!define MaintFullName "Waterfox Maintenance Service"
 !ifdef BrandFullName
 !undef BrandFullName
 !endif
