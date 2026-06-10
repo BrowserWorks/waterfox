@@ -298,6 +298,12 @@ export class AppUpdater {
         return;
       }
 
+      if (!checkOnly && this.#updateDisabledByPref) {
+        LOG("AppUpdater:check - update checks disabled by pref");
+        this.#setStatus(AppUpdater.STATUS.NEVER_CHECKED);
+        return;
+      }
+
       // Clear prefs that could prevent a user from discovering available updates.
       if (Services.prefs.prefHasUserValue(PREF_APP_UPDATE_CANCELATIONS_OSX)) {
         Services.prefs.clearUserPref(PREF_APP_UPDATE_CANCELATIONS_OSX);
@@ -356,7 +362,13 @@ export class AppUpdater {
       let updateAuto = await makeAbortable(
         lazy.UpdateUtils.getAppUpdateAutoEnabled()
       );
-      if (!updateAuto || this.aus.manualUpdateOnly || checkOnly) {
+      let updateCheckDisabled = this.#updateDisabledByPref;
+      if (
+        !updateAuto ||
+        this.aus.manualUpdateOnly ||
+        checkOnly ||
+        updateCheckDisabled
+      ) {
         if (checkOnly) {
           LOG(`AppUpdater:check - Done. checkOnly = ${checkOnly}`);
         } else {
@@ -422,6 +434,10 @@ export class AppUpdater {
   // so we err to the side of less confusion for unmanaged users.
   get #updateDisabledByPackage() {
     return Services.sysinfo.getProperty("isPackagedApp");
+  }
+
+  get #updateDisabledByPref() {
+    return !lazy.UpdateUtils.appUpdateCheckEnabled;
   }
 
   /**
