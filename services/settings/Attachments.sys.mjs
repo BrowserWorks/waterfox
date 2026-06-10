@@ -8,6 +8,8 @@ ChromeUtils.defineESModuleGetters(lazy, {
   RemoteSettingsWorker:
     "resource://services-settings/RemoteSettingsWorker.sys.mjs",
   Utils: "resource://services-settings/Utils.sys.mjs",
+  WaterfoxSettingsPolicy:
+    "resource://services-settings/WaterfoxSettingsPolicy.sys.mjs",
 });
 
 ChromeUtils.defineLazyGetter(lazy, "console", () => lazy.Utils.log);
@@ -357,6 +359,18 @@ export class Downloader {
         );
       }
       fallbackToDump = false;
+    }
+
+    if (
+      !avoidDownload &&
+      !lazy.WaterfoxSettingsPolicy.canDownloadAttachments(
+        this.bucketName,
+        this.collectionName
+      )
+    ) {
+      // Attachments for this collection only ever come from bundled
+      // dumps or the existing cache.
+      avoidDownload = true;
     }
 
     const dumpInfo = new LazyRecordAndBuffer(() =>
