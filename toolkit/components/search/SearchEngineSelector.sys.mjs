@@ -128,6 +128,13 @@ export class SearchEngineSelector {
     return this.#configuration;
   }
 
+  async #getStaticEngines() {
+    this.#staticEngines ??= await (
+      await fetch("chrome://browser/content/search/BrowserSearchEngines.json")
+    ).json();
+    return this.#staticEngines;
+  }
+
   /**
    * Finds an engine configuration that has a matching host.
    *
@@ -138,7 +145,21 @@ export class SearchEngineSelector {
    *   The configuration data for an engine.
    */
   async findContextualSearchEngineByHost(host) {
-    for (let config of this.#configuration) {
+    for (const config of await this.#getStaticEngines()) {
+      const searchBase = config.urls?.search?.base;
+      if (!searchBase) {
+        continue;
+      }
+      let searchHost = new URL(searchBase).hostname;
+      if (searchHost.startsWith("www.")) {
+        searchHost = searchHost.slice(4);
+      }
+      if (searchHost.startsWith(host)) {
+        return structuredClone(config);
+      }
+    }
+
+    for (const config of this.#configuration ?? []) {
       if (config.recordType !== "engine") {
         continue;
       }
@@ -147,7 +168,7 @@ export class SearchEngineSelector {
         searchHost = searchHost.slice(4);
       }
       if (searchHost.startsWith(host)) {
-        let engine = structuredClone(config.base);
+        const engine = structuredClone(config.base);
         engine.identifier = config.identifier;
         return engine;
       }
@@ -165,12 +186,19 @@ export class SearchEngineSelector {
    *   The configuration data for an engine.
    */
   async findContextualSearchEngineById(id) {
-    for (let config of this.#configuration) {
+    const staticEngine = (await this.#getStaticEngines()).find(
+      config => config.identifier == id
+    );
+    if (staticEngine) {
+      return structuredClone(staticEngine);
+    }
+
+    for (const config of this.#configuration ?? []) {
       if (config.recordType !== "engine") {
         continue;
       }
       if (config.identifier == id) {
-        let engine = structuredClone(config.base);
+        const engine = structuredClone(config.base);
         engine.identifier = config.identifier;
         return engine;
       }
@@ -281,6 +309,8 @@ export class SearchEngineSelector {
    * @type {object[]}
    */
   #configuration;
+
+  #staticEngines = null;
 
   /**
    * The bound version of the configuration updated listener.
