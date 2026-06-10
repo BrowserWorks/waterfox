@@ -1664,7 +1664,7 @@ function getMaintSvcDir() {
   // This will return an empty string on our Win XP build systems.
   let maintSvcDir = getSpecialFolderDir(CSIDL_PROGRAM_FILESX86);
   if (maintSvcDir) {
-    maintSvcDir.append("Mozilla Maintenance Service");
+    maintSvcDir.append("Waterfox Maintenance Service");
     debugDump(
       "using CSIDL_PROGRAM_FILESX86 - maintenance service install " +
         "directory path: " +
@@ -1674,7 +1674,7 @@ function getMaintSvcDir() {
   if (!maintSvcDir || !maintSvcDir.exists()) {
     maintSvcDir = getSpecialFolderDir(CSIDL_PROGRAM_FILES);
     if (maintSvcDir) {
-      maintSvcDir.append("Mozilla Maintenance Service");
+      maintSvcDir.append("Waterfox Maintenance Service");
       debugDump(
         "using CSIDL_PROGRAM_FILES - maintenance service install " +
           "directory path: " +
@@ -1890,9 +1890,9 @@ function getMockUpdRootDWin(aGetOldLocation) {
   let relPathUpdates = "";
   let dataDirectory = gCommonAppDataDir.clone();
   if (aGetOldLocation) {
-    relPathUpdates += "Mozilla";
+    relPathUpdates += "Waterfox";
   } else {
-    relPathUpdates += "Mozilla-1de4eec8-1241-4177-a864-e594e8d1fb38";
+    relPathUpdates += "Waterfox-1de4eec8-1241-4177-a864-e594e8d1fb38";
   }
 
   relPathUpdates += "\\" + DIR_UPDATES + "\\" + gInstallDirPathHash;
@@ -2568,7 +2568,7 @@ function shouldRunServiceTest() {
   let isBinSigned = isBinarySigned(updaterBinPath);
 
   const REG_PATH =
-    "SOFTWARE\\Mozilla\\MaintenanceService\\" +
+    "SOFTWARE\\BrowserWorks\\MaintenanceService\\" +
     "3932ecacee736d366d6436db0f55bce4";
   let key = Cc["@mozilla.org/windows-registry-key;1"].createInstance(
     Ci.nsIWindowsRegKey
@@ -2599,7 +2599,7 @@ function shouldRunServiceTest() {
   }
 
   // Check to make sure the service is installed
-  let args = ["wait-for-service-stop", "MozillaMaintenance", "10"];
+  let args = ["wait-for-service-stop", "WaterfoxMaintenance", "10"];
   let exitValue = runTestHelperSync(args);
   Assert.notEqual(
     exitValue,
@@ -2971,7 +2971,7 @@ function waitForServiceStop(aFailTest) {
   debugDump("waiting for the maintenance service to stop if necessary");
   // Use the helper bin to ensure the service is stopped. If not stopped, then
   // wait for the service to stop (at most 120 seconds).
-  let args = ["wait-for-service-stop", "MozillaMaintenance", "120"];
+  let args = ["wait-for-service-stop", "WaterfoxMaintenance", "120"];
   let exitValue = runTestHelperSync(args);
   Assert.notEqual(exitValue, 0xee, "the maintenance service should exist");
   if (exitValue != 0) {
