@@ -6,11 +6,14 @@
 
 #include "ErrorList.h"
 #include "mozilla/Logging.h"
+#include "mozilla/ScopeExit.h"
 #include "mozilla/net/HttpBaseChannel.h"
 #include "mozilla/net/ChannelClassifierUtils.h"
 #include "MainThreadUtils.h"
 #include "nsDebug.h"
 #include "mozilla/ContentClassifierEngine.h"
+#include "mozilla/BasePrincipal.h"
+#include "mozilla/ContentBlockingAllowList.h"
 #include "mozilla/ClearOnShutdown.h"
 #include "mozilla/dom/Promise.h"
 #include "mozilla/dom/Promise-inl.h"
@@ -19,20 +22,37 @@
 #include "mozilla/Preferences.h"
 #include "mozilla/Services.h"
 #include "mozilla/StaticPrefs_privacy.h"
+
 #include "mozilla/Components.h"
 #include "mozilla/MozPromise.h"
 #include "mozilla/StaticPtr.h"
 #include "nsIAsyncShutdown.h"
 #include "nsIChannel.h"
 #include "nsIClassifiedChannel.h"
+#include "nsIClassOfService.h"
+#include "nsIHttpChannel.h"
+#include "nsHttpChannel.h"
+#include "nsQueryObject.h"
+#include "nsIWritablePropertyBag2.h"
+#include "nsIContentPolicy.h"
+#include "nsILoadInfo.h"
+#include "nsIPrincipal.h"
+#include "nsIPermissionManager.h"
+#include "nsIEffectiveTLDService.h"
+#include "mozIThirdPartyUtil.h"
 #include "nsIStreamLoader.h"
 #include "nsIURI.h"
+#include "nsISupportsPriority.h"
 #include "nsNetUtil.h"
 #include "nsContentUtils.h"
+#include "nsProxyRelease.h"
+#include "nsHashPropertyBag.h"
+#include "nsEscape.h"
 #include "nsIWebProgressListener.h"
 #include "nsStringFwd.h"
 #include "nsTArray.h"
 #include "nsThreadUtils.h"
+#include "prtime.h"
 
 namespace mozilla {
 
@@ -134,6 +154,17 @@ constexpr const char* kFeatureEnginesPrefs[] = {
     "privacy.trackingprotection.content.annotation.engines.pbmode",
 };
 
+constexpr nsLiteralCString kObservedPrefs[] = {
+    "privacy.trackingprotection.content.protection.enabled"_ns,
+    "privacy.trackingprotection.content.annotation.enabled"_ns,
+    "privacy.trackingprotection.content.protection.test_list_urls"_ns,
+    "privacy.trackingprotection.content.annotation.test_list_urls"_ns,
+    "privacy.trackingprotection.content.protection.engines"_ns,
+    "privacy.trackingprotection.content.annotation.engines"_ns,
+    "privacy.trackingprotection.content.protection.engines.pbmode"_ns,
+    "privacy.trackingprotection.content.annotation.engines.pbmode"_ns,
+};
+
 bool HasAnyActiveRemoteSettingsFeatures() {
   nsTArray<nsCString> names;
   for (const char* pref : kFeatureEnginesPrefs) {
@@ -162,7 +193,7 @@ void NotifyListsLoadedForTesting() {
 }  // namespace
 
 NS_IMPL_ISUPPORTS(ContentClassifierService, nsIAsyncShutdownBlocker,
-                  nsIContentClassifierService)
+                  nsIContentClassifierService, nsIObserver)
 
 ContentClassifierService::ContentClassifierService()
     : mLock("ContentClassifierService::mLock"),
@@ -319,6 +350,11 @@ void ContentClassifierService::Init() {
       return;
     }
 
+    if (NS_FAILED(ContentClassifierEngine::InitializeDomainResolver())) {
+      mInitPhase = InitPhase::InitFailed;
+      return;
+    }
+
     MOZ_LOG(gContentClassifierLog, LogLevel::Info,
             ("ContentClassifierService::Init - initializing"));
 
@@ -343,71 +379,24 @@ void ContentClassifierService::Init() {
       return;
     }
 
-    rv = Preferences::RegisterCallback(
-        &ContentClassifierService::OnPrefChange,
-        "privacy.trackingprotection.content.protection.enabled"_ns);
-    if (NS_FAILED(rv)) {
-      mInitPhase = InitPhase::InitFailed;
-      return;
-    }
-
-    rv = Preferences::RegisterCallback(
-        &ContentClassifierService::OnPrefChange,
-        "privacy.trackingprotection.content.annotation.enabled"_ns);
-    if (NS_FAILED(rv)) {
-      mInitPhase = InitPhase::InitFailed;
-      return;
-    }
-    rv = Preferences::RegisterCallback(
-        &ContentClassifierService::OnPrefChange,
-        "privacy.trackingprotection.content.protection.test_list_urls"_ns);
-    if (NS_FAILED(rv)) {
-      mInitPhase = InitPhase::InitFailed;
-      return;
-    }
-
-    rv = Preferences::RegisterCallback(
-        &ContentClassifierService::OnPrefChange,
-        "privacy.trackingprotection.content.annotation.test_list_urls"_ns);
-    if (NS_FAILED(rv)) {
-      mInitPhase = InitPhase::InitFailed;
-      return;
-    }
-
-    rv = Preferences::RegisterCallback(
-        &ContentClassifierService::OnPrefChange,
-        "privacy.trackingprotection.content.protection.engines"_ns);
-    if (NS_FAILED(rv)) {
-      mInitPhase = InitPhase::InitFailed;
-      return;
-    }
-
-    rv = Preferences::RegisterCallback(
-        &ContentClassifierService::OnPrefChange,
-        "privacy.trackingprotection.content.annotation.engines"_ns);
-    if (NS_FAILED(rv)) {
-      mInitPhase = InitPhase::InitFailed;
-      return;
-    }
-
-    rv = Preferences::RegisterCallback(
-        &ContentClassifierService::OnPrefChange,
-        "privacy.trackingprotection.content.protection.engines.pbmode"_ns);
-    if (NS_FAILED(rv)) {
-      mInitPhase = InitPhase::InitFailed;
-      return;
-    }
-
-    rv = Preferences::RegisterCallback(
-        &ContentClassifierService::OnPrefChange,
-        "privacy.trackingprotection.content.annotation.engines.pbmode"_ns);
-    if (NS_FAILED(rv)) {
-      mInitPhase = InitPhase::InitFailed;
-      return;
+    for (const auto& pref : kObservedPrefs) {
+      rv = Preferences::RegisterCallback(
+          &ContentClassifierService::OnPrefChange, pref);
+      if (NS_FAILED(rv)) {
+        mInitPhase = InitPhase::InitFailed;
+        return;
+      }
     }
 
     rv = NS_CreateBackgroundTaskQueue("ContentClassifier",
                                       getter_AddRefs(mBuildThread));
+    if (NS_FAILED(rv)) {
+      mInitPhase = InitPhase::InitFailed;
+      return;
+    }
+
+    rv = NS_CreateBackgroundTaskQueue("AdClassification",
+                                      getter_AddRefs(mAdClassificationThread));
     if (NS_FAILED(rv)) {
       mInitPhase = InitPhase::InitFailed;
       return;
@@ -483,17 +472,885 @@ void ContentClassifierService::ShutdownRSClient() {
 // static
 already_AddRefed<ContentClassifierService>
 ContentClassifierService::GetInstance() {
+  RefPtr<ContentClassifierService> service = GetForAdBlocking();
+  if (!service || !IsEnabled()) {
+    return nullptr;
+  }
+  return service.forget();
+}
+
+already_AddRefed<ContentClassifierService>
+ContentClassifierService::GetForAdBlocking() {
+  MOZ_ASSERT(NS_IsMainThread());
+  NS_ENSURE_TRUE(XRE_IsParentProcess(), nullptr);
   if (!sInstance) {
     sInstance = new ContentClassifierService();
     ClearOnShutdown(&sInstance);
     sInstance->Init();
   }
 
-  if (!IsInitialized() || !IsEnabled()) {
+  if (!IsInitialized()) {
     return nullptr;
   }
 
   return do_AddRef(sInstance);
+}
+
+nsresult ContentClassifierService::PublishAdBlockingEngine(
+    RefPtr<ContentClassifierEngine> aEngine, uint64_t* aGeneration) {
+  MOZ_ASSERT(NS_IsMainThread());
+  NS_ENSURE_ARG_POINTER(aGeneration);
+  NS_ENSURE_TRUE(aEngine, NS_ERROR_INVALID_ARG);
+  MutexAutoLock lock(mLock);
+  NS_ENSURE_TRUE(mInitPhase == InitPhase::InitSucceeded,
+                 NS_ERROR_NOT_AVAILABLE);
+  nsresult rv = aEngine->PrepareForPublication();
+  NS_ENSURE_SUCCESS(rv, rv);
+  if (mAdBlockingEngine.mEngine != aEngine) {
+    mAdBlockingEngine.mEngine = std::move(aEngine);
+    ++mAdBlockingEngine.mGeneration;
+  }
+  *aGeneration = mAdBlockingEngine.mGeneration;
+  return NS_OK;
+}
+
+void ContentClassifierService::UnpublishAdBlockingEngine(
+    ContentClassifierEngine* aEngine, uint64_t aGeneration) {
+  MOZ_ASSERT(NS_IsMainThread());
+  MutexAutoLock lock(mLock);
+  if (aEngine && mAdBlockingEngine.mEngine == aEngine &&
+      mAdBlockingEngine.mGeneration == aGeneration) {
+    mAdBlockingEngine.mEngine = nullptr;
+    ++mAdBlockingEngine.mGeneration;
+  }
+}
+
+AdBlockingEngineSnapshot
+ContentClassifierService::GetAdBlockingEngineSnapshot() {
+  MutexAutoLock lock(mLock);
+  return mAdBlockingEngine;
+}
+
+nsresult AdBlockingRequestSnapshot::InitFromLoad(nsIURI* aUri,
+                                                 nsILoadInfo* aLoadInfo,
+                                                 nsIChannel* aChannel) {
+  MOZ_ASSERT(NS_IsMainThread());
+  NS_ENSURE_ARG(aUri);
+  NS_ENSURE_ARG(aLoadInfo);
+  nsresult rv = aUri->GetSpec(mUrl);
+  NS_ENSURE_SUCCESS(rv, rv);
+  if (NS_FAILED(aUri->GetHost(mHostname))) {
+    mHostname.Truncate();
+  }
+  mSourceHostname.Truncate();
+  nsCOMPtr<nsIPrincipal> principal = aLoadInfo->GetLoadingPrincipal();
+  if (principal) {
+    nsCOMPtr<nsIURI> sourceUri;
+    if (NS_SUCCEEDED(principal->GetURI(getter_AddRefs(sourceUri))) &&
+        sourceUri) {
+      if (NS_FAILED(sourceUri->GetHost(mSourceHostname))) {
+        mSourceHostname.Truncate();
+      }
+    }
+  }
+  mRequestMethod.Truncate();
+  nsCOMPtr<nsIHttpChannel> httpChannel = do_QueryInterface(aChannel);
+  if (httpChannel && NS_FAILED(httpChannel->GetRequestMethod(mRequestMethod))) {
+    mRequestMethod.Truncate();
+  }
+  switch (aLoadInfo->GetExternalContentPolicyType()) {
+    case ExtContentPolicy::TYPE_DOCUMENT:
+      mRequestType.AssignLiteral("document");
+      break;
+    case ExtContentPolicy::TYPE_SUBDOCUMENT:
+      mRequestType.AssignLiteral("subdocument");
+      break;
+    case ExtContentPolicy::TYPE_STYLESHEET:
+      mRequestType.AssignLiteral("stylesheet");
+      break;
+    case ExtContentPolicy::TYPE_SCRIPT:
+      mRequestType.AssignLiteral("script");
+      break;
+    case ExtContentPolicy::TYPE_IMAGE:
+    case ExtContentPolicy::TYPE_IMAGESET:
+      mRequestType.AssignLiteral("image");
+      break;
+    case ExtContentPolicy::TYPE_MEDIA:
+      mRequestType.AssignLiteral("media");
+      break;
+    case ExtContentPolicy::TYPE_FONT:
+      mRequestType.AssignLiteral("font");
+      break;
+    case ExtContentPolicy::TYPE_FETCH:
+    case ExtContentPolicy::TYPE_XMLHTTPREQUEST:
+      mRequestType.AssignLiteral("xmlhttprequest");
+      break;
+    case ExtContentPolicy::TYPE_WEBSOCKET:
+      mRequestType.AssignLiteral("websocket");
+      break;
+    case ExtContentPolicy::TYPE_PING:
+    case ExtContentPolicy::TYPE_BEACON:
+      mRequestType.AssignLiteral("ping");
+      break;
+    case ExtContentPolicy::TYPE_CSP_REPORT:
+      mRequestType.AssignLiteral("csp_report");
+      break;
+    case ExtContentPolicy::TYPE_OBJECT:
+      mRequestType.AssignLiteral("object");
+      break;
+    default:
+      mRequestType.AssignLiteral("other");
+      break;
+  }
+  mThirdParty = true;
+  if (aChannel) {
+    nsCOMPtr<mozIThirdPartyUtil> thirdPartyUtil =
+        components::ThirdPartyUtil::Service();
+    if (thirdPartyUtil && NS_FAILED(thirdPartyUtil->IsThirdPartyChannel(
+                              aChannel, nullptr, &mThirdParty))) {
+      mThirdParty = true;
+    }
+  } else {
+    bool thirdPartyToTop = true;
+    bool thirdPartyContext = true;
+    if (NS_SUCCEEDED(
+            aLoadInfo->GetIsThirdPartyContextToTopWindow(&thirdPartyToTop)) &&
+        (thirdPartyToTop || NS_SUCCEEDED(aLoadInfo->GetIsInThirdPartyContext(
+                                &thirdPartyContext)))) {
+      mThirdParty = thirdPartyToTop || thirdPartyContext;
+    }
+  }
+  return NS_OK;
+}
+
+nsresult ContentClassifierService::CaptureAdBlockingRequest(
+    AdBlockingRequestSnapshot& aRequest) {
+  MOZ_ASSERT(NS_IsMainThread());
+  MutexAutoLock lock(mLock);
+  NS_ENSURE_TRUE(
+      mInitPhase == InitPhase::InitSucceeded && mAdBlockingEngine.mEngine,
+      NS_ERROR_NOT_AVAILABLE);
+  aRequest.mEngine = mAdBlockingEngine;
+  aRequest.mPolicyGeneration = mAdPolicyGeneration;
+  return NS_OK;
+}
+
+bool AdBlockingRequestSnapshot::ShouldBypassHost(const nsACString& aHost,
+                                                 bool aIsPrivate) {
+  MOZ_ASSERT(NS_IsMainThread());
+  nsAutoCString host(aHost);
+  if (StringEndsWith(host, "."_ns)) {
+    host.Truncate(host.Length() - 1);
+  }
+  if (host.IsEmpty()) {
+    return false;
+  }
+  nsAutoString permissionHost16 = NS_ConvertUTF8toUTF16(host);
+  auto isTrimWhitespace = [](char16_t aChar) {
+    return (aChar >= 0x09 && aChar <= 0x0D) || aChar == 0x20 || aChar == 0xA0 ||
+           aChar == 0x1680 || (aChar >= 0x2000 && aChar <= 0x200A) ||
+           aChar == 0x2028 || aChar == 0x2029 || aChar == 0x202F ||
+           aChar == 0x205F || aChar == 0x3000 || aChar == 0xFEFF;
+  };
+  uint32_t start = 0;
+  uint32_t end = permissionHost16.Length();
+  while (start < end && isTrimWhitespace(permissionHost16[start])) {
+    ++start;
+  }
+  while (start < end && isTrimWhitespace(permissionHost16[end - 1])) {
+    --end;
+  }
+  nsAutoCString permissionHost =
+      NS_ConvertUTF16toUTF8(Substring(permissionHost16, start, end - start));
+  ToLowerCase(permissionHost);
+  if (StringEndsWith(permissionHost, "."_ns)) {
+    permissionHost.Truncate(permissionHost.Length() - 1);
+  }
+  nsCOMPtr<nsIURI> uri;
+  nsresult rv = NS_NewURI(getter_AddRefs(uri), "https://"_ns + permissionHost);
+  if (NS_SUCCEEDED(rv)) {
+    nsCOMPtr<nsIPrincipal> documentPrincipal =
+        BasePrincipal::CreateContentPrincipal(uri, OriginAttributes());
+    nsCOMPtr<nsIPrincipal> principal;
+    if (documentPrincipal) {
+      ContentBlockingAllowList::ComputePrincipal(documentPrincipal,
+                                                 getter_AddRefs(principal));
+    }
+    nsCOMPtr<nsIPermissionManager> permissions =
+        services::GetPermissionManager();
+    uint32_t permission = nsIPermissionManager::UNKNOWN_ACTION;
+    if (principal && permissions &&
+        NS_SUCCEEDED(permissions->TestPermissionFromPrincipal(
+            principal,
+            aIsPrivate ? "waterfox-blocker-pb"_ns : "waterfox-blocker"_ns,
+            &permission)) &&
+        permission == nsIPermissionManager::ALLOW_ACTION) {
+      return true;
+    }
+  }
+  return Preferences::GetBool("waterfox.blocker.allowSearchPartnerAds", true) &&
+         (host.EqualsLiteral("qwant.com") ||
+          StringEndsWith(host, ".qwant.com"_ns) ||
+          host.EqualsLiteral("search.waterfox.com") ||
+          StringEndsWith(host, ".search.waterfox.com"_ns));
+}
+
+nsresult AdBlockingRequestSnapshot::ResolvePolicy(
+    const nsTArray<nsCString>& aBypassHosts,
+    const nsTArray<nsCString>& aAllowedDomains) {
+  MOZ_ASSERT(NS_IsMainThread());
+  constexpr uint32_t contextFlags =
+      AdPolicyPrivate | AdPolicyTopLevel | AdPolicyBypass;
+  NS_ENSURE_TRUE(!(mPolicyFlags & ~contextFlags), NS_ERROR_INVALID_ARG);
+  if (Preferences::GetBool("waterfox.blocker.enabled", true)) {
+    mPolicyFlags |= AdPolicyEnabled;
+  }
+  for (const auto& host : aBypassHosts) {
+    if (ShouldBypassHost(host, mPolicyFlags & AdPolicyPrivate)) {
+      mPolicyFlags |= AdPolicyBypass;
+      break;
+    }
+  }
+  if (!(mPolicyFlags & AdPolicyTopLevel) && !aAllowedDomains.IsEmpty()) {
+    nsAutoCString host(mHostname);
+    if (StringEndsWith(host, "."_ns)) {
+      host.Truncate(host.Length() - 1);
+    }
+    ToLowerCase(host);
+    if (!host.IsEmpty()) {
+      nsAutoCString baseDomain;
+      nsCOMPtr<nsIEffectiveTLDService> tld =
+          components::EffectiveTLD::Service();
+      if (!tld || NS_FAILED(tld->GetBaseDomainFromHost(host, 0, baseDomain))) {
+        baseDomain = host;
+      }
+      if (aAllowedDomains.Contains(baseDomain)) {
+        mPolicyFlags |= AdPolicyDomainAllowed;
+      }
+    }
+  }
+  return NS_OK;
+}
+
+void ContentClassifierService::InvalidateAdBlockingPolicy() {
+  MOZ_ASSERT(NS_IsMainThread());
+  MutexAutoLock lock(mLock);
+  ++mAdPolicyGeneration;
+}
+
+bool ContentClassifierService::IsCurrentAdBlockingRequest(
+    const AdBlockingRequestSnapshot& aRequest) {
+  MOZ_ASSERT(NS_IsMainThread());
+  MutexAutoLock lock(mLock);
+  return mInitPhase == InitPhase::InitSucceeded && aRequest.mEngine.mEngine &&
+         mAdBlockingEngine.mEngine == aRequest.mEngine.mEngine &&
+         mAdBlockingEngine.mGeneration == aRequest.mEngine.mGeneration &&
+         mAdPolicyGeneration == aRequest.mPolicyGeneration &&
+         (!aRequest.mContextGeneration ||
+          mAdPolicy.Generation() == aRequest.mContextGeneration) &&
+         (!aRequest.mValidUntil ||
+          aRequest.mValidUntil > uint64_t(PR_Now() / PR_USEC_PER_MSEC));
+}
+
+nsresult ContentClassifierService::ClassifyAdBlockingRequest(
+    const AdBlockingRequestSnapshot& aRequest,
+    ContentClassifierDetailedResult& aResult) {
+  aResult = ContentClassifierDetailedResult{};
+  if (!aRequest.CanMatch()) {
+    return NS_OK;
+  }
+  NS_ENSURE_TRUE(aRequest.mEngine.mEngine, NS_ERROR_NOT_INITIALIZED);
+  return aRequest.mEngine.mEngine->CheckNetworkRequestDetailed(
+      aRequest.mUrl, aRequest.mSourceHostname, aRequest.mHostname,
+      aRequest.mRequestType, aRequest.mRequestMethod, aRequest.mThirdParty,
+      aResult);
+}
+
+RefPtr<ContentClassifierService::AdClassificationPromise>
+ContentClassifierService::ClassifyAdBlockingRequestAsync(
+    AdBlockingRequestSnapshot aRequest, uint32_t aTaskPriority) {
+  MOZ_ASSERT(NS_IsMainThread());
+  RefPtr<AdClassificationPromise::Private> promise =
+      new AdClassificationPromise::Private(__func__);
+  promise->SetTaskPriority(aTaskPriority, __func__);
+  nsCOMPtr<nsISerialEventTarget> queue;
+  {
+    MutexAutoLock lock(mLock);
+    if (mInitPhase != InitPhase::InitSucceeded || !mAdClassificationThread) {
+      promise->Reject(NS_ERROR_NOT_AVAILABLE, __func__);
+      return promise;
+    }
+    queue = mAdClassificationThread;
+  }
+  const TimeStamp queued = TimeStamp::Now();
+  nsresult rv = queue->Dispatch(NS_NewRunnableFunction(
+      "ContentClassifierService::ClassifyAdBlockingRequestAsync",
+      [request = std::move(aRequest), promise, queued] {
+        MOZ_ASSERT(!NS_IsMainThread());
+        const TimeStamp started = TimeStamp::Now();
+        ContentClassifierDetailedResult result;
+        nsresult rv = ClassifyAdBlockingRequest(request, result);
+        MOZ_LOG(gContentClassifierLog, LogLevel::Debug,
+                ("Ad classification url=%s queue_ms=%.3f match_ms=%.3f",
+                 request.mUrl.get(), (started - queued).ToMilliseconds(),
+                 (TimeStamp::Now() - started).ToMilliseconds()));
+        if (NS_FAILED(rv)) {
+          promise->Reject(rv, __func__);
+        } else {
+          promise->Resolve(std::move(result), __func__);
+        }
+      }));
+  if (NS_FAILED(rv)) {
+    promise->Reject(rv, __func__);
+  }
+  return promise;
+}
+
+namespace {
+
+uint64_t AdChannelId(nsIChannel* aChannel) {
+  nsCOMPtr<nsIIdentChannel> identified = do_QueryInterface(aChannel);
+  uint64_t id = 0;
+  if (identified) {
+    (void)identified->GetChannelId(&id);
+  }
+  return id;
+}
+
+bool ReadAdNumber(nsIPropertyBag2* aProperties, const nsAString& aName,
+                  uint64_t* aValue) {
+  uint32_t high;
+  uint32_t low;
+  if (!aProperties ||
+      NS_FAILED(aProperties->GetPropertyAsUint32(aName + u".hi"_ns, &high)) ||
+      NS_FAILED(aProperties->GetPropertyAsUint32(aName + u".lo"_ns, &low))) {
+    return false;
+  }
+  *aValue = (uint64_t(high) << 32) | low;
+  return true;
+}
+
+void WriteAdNumber(nsIWritablePropertyBag2* aProperties, const nsAString& aName,
+                   uint64_t aValue) {
+  (void)aProperties->SetPropertyAsUint32(aName + u".hi"_ns,
+                                         uint32_t(aValue >> 32));
+  (void)aProperties->SetPropertyAsUint32(aName + u".lo"_ns, uint32_t(aValue));
+}
+
+bool AdChannelHasMark(nsIChannel* aChannel, const nsAString& aProperty) {
+  nsCOMPtr<nsIPropertyBag2> properties = do_QueryInterface(aChannel);
+  uint64_t markedId = 0;
+  nsCString markedUrl;
+  nsCString markedMethod;
+  nsCOMPtr<nsIURI> uri;
+  nsCOMPtr<nsIHttpChannel> http = do_QueryInterface(aChannel);
+  nsAutoCString method;
+  (void)aChannel->GetURI(getter_AddRefs(uri));
+  return properties && uri && http &&
+         NS_SUCCEEDED(http->GetRequestMethod(method)) &&
+         ReadAdNumber(properties, aProperty, &markedId) && markedId &&
+         markedId == AdChannelId(aChannel) &&
+         NS_SUCCEEDED(properties->GetPropertyAsACString(aProperty + u".url"_ns,
+                                                        markedUrl)) &&
+         NS_SUCCEEDED(properties->GetPropertyAsACString(
+             aProperty + u".method"_ns, markedMethod)) &&
+         markedUrl == uri->GetSpecOrDefault() && markedMethod == method;
+}
+
+void ClearPendingAdAction(nsIChannel* aChannel) {
+  nsCOMPtr<nsIWritablePropertyBag> properties = do_QueryInterface(aChannel);
+  if (properties) {
+    for (const auto& name : {u"waterfox.adblocking.pendingBlock"_ns,
+                             u"waterfox.adblocking.pendingRedirect"_ns,
+                             u"waterfox.adblocking.pendingRewrite"_ns}) {
+      (void)properties->DeleteProperty(name);
+    }
+  }
+}
+
+void MarkAdChannel(nsIChannel* aChannel, const nsAString& aProperty,
+                   const AdBlockingRequestSnapshot* aRequest = nullptr) {
+  nsCOMPtr<nsIWritablePropertyBag2> properties = do_QueryInterface(aChannel);
+  nsCOMPtr<nsIURI> uri;
+  nsCOMPtr<nsIHttpChannel> http = do_QueryInterface(aChannel);
+  nsAutoCString method;
+  (void)aChannel->GetURI(getter_AddRefs(uri));
+  if (!properties || !uri || !http ||
+      NS_FAILED(http->GetRequestMethod(method))) {
+    return;
+  }
+  WriteAdNumber(properties, aProperty, AdChannelId(aChannel));
+  (void)properties->SetPropertyAsACString(aProperty + u".url"_ns,
+                                          uri->GetSpecOrDefault());
+  (void)properties->SetPropertyAsACString(aProperty + u".method"_ns, method);
+  if (aRequest) {
+    for (const auto& field :
+         {std::pair{u".engine"_ns, aRequest->mEngine.mGeneration},
+          std::pair{u".policy"_ns, aRequest->mPolicyGeneration},
+          std::pair{u".context"_ns, aRequest->mContextGeneration},
+          std::pair{u".browser"_ns, aRequest->mBrowserId},
+          std::pair{u".navigation"_ns, aRequest->mNavigationId},
+          std::pair{u".until"_ns, aRequest->mValidUntil},
+          std::pair{u".flags"_ns, uint64_t(aRequest->mPolicyFlags)}}) {
+      WriteAdNumber(properties, aProperty + field.first, field.second);
+    }
+  }
+}
+
+}  // namespace
+
+uint32_t ContentClassifierService::GetAdBlockingChannelTaskPriority(
+    nsIChannel* aChannel) {
+  MOZ_ASSERT(NS_IsMainThread());
+  if (nsCOMPtr<net::HttpBaseChannel> baseChannel =
+          do_QueryInterface(aChannel)) {
+    uint32_t classOfServiceFlags = 0;
+    baseChannel->GetClassFlags(&classOfServiceFlags);
+    if (classOfServiceFlags &
+        (nsIClassOfService::Leader | nsIClassOfService::UrgentStart |
+         nsIClassOfService::Unblocked)) {
+      return nsIRunnablePriority::PRIORITY_MEDIUMHIGH;
+    }
+  }
+  if (nsCOMPtr<nsISupportsPriority> supportsPriority =
+          do_QueryInterface(aChannel)) {
+    int32_t priority = nsISupportsPriority::PRIORITY_NORMAL;
+    supportsPriority->GetPriority(&priority);
+    if (priority <= nsISupportsPriority::PRIORITY_HIGH) {
+      return nsIRunnablePriority::PRIORITY_MEDIUMHIGH;
+    }
+  }
+  return nsIRunnablePriority::PRIORITY_NORMAL;
+}
+
+bool ContentClassifierService::ShouldClassifyAdBlockingChannel(
+    nsIChannel* aChannel) {
+  MOZ_ASSERT(NS_IsMainThread());
+  if (!sInstance || !sInstance->mAdBridge ||
+      !Preferences::GetBool("waterfox.blocker.enabled", true)) {
+    return false;
+  }
+  nsCOMPtr<nsIURI> uri;
+  if (!aChannel || NS_FAILED(aChannel->GetURI(getter_AddRefs(uri))) || !uri ||
+      (!uri->SchemeIs("http") && !uri->SchemeIs("https"))) {
+    return false;
+  }
+  MutexAutoLock lock(sInstance->mLock);
+  return sInstance->mInitPhase == InitPhase::InitSucceeded &&
+         sInstance->mAdBlockingEngine.mEngine;
+}
+
+bool ContentClassifierService::ShouldSkipAdBlockingChannel(
+    nsIChannel* aChannel) {
+  MOZ_ASSERT(NS_IsMainThread());
+  nsresult status;
+  if (!aChannel || NS_FAILED(aChannel->GetStatus(&status)) ||
+      NS_FAILED(status)) {
+    return true;
+  }
+  RefPtr<net::nsHttpChannel> channel = do_QueryObject(aChannel);
+  return channel && channel->IsURLClassifierCancellationInProgress();
+}
+
+void ContentClassifierService::SetAdBlockingBridge(
+    nsIContentClassifierAdBlockingBridge* aBridge) {
+  MOZ_ASSERT(NS_IsMainThread());
+  nsCOMPtr<nsIObserverService> observers = services::GetObserverService();
+  if (observers && bool(mAdBridge) != bool(aBridge)) {
+    for (const char* topic :
+         {"http-on-modify-request", "http-on-examine-response",
+          "http-on-examine-cached-response",
+          "http-on-examine-merged-response"}) {
+      if (aBridge) {
+        observers->AddObserver(this, topic, false);
+      } else {
+        observers->RemoveObserver(this, topic);
+      }
+    }
+  }
+  mAdBridge = aBridge;
+  InvalidateAdBlockingPolicy();
+}
+
+nsresult ContentClassifierService::CaptureAdBlockingLoad(
+    AdBlockingRequestSnapshot& aRequest, nsIURI* aUri, nsILoadInfo* aLoadInfo,
+    nsIChannel* aChannel, AdBlockingPhase aPhase, bool aDiscoverNavigation) {
+  MOZ_ASSERT(NS_IsMainThread());
+  nsresult rv = mAdPolicy.Capture(aRequest, aUri, aLoadInfo, aChannel, aPhase,
+                                  aDiscoverNavigation);
+  NS_ENSURE_SUCCESS(rv, rv);
+  return CaptureAdBlockingRequest(aRequest);
+}
+
+void ContentClassifierService::NotifyAdBlockingAction(
+    const AdBlockingRequestSnapshot& aRequest) {
+  MOZ_ASSERT(NS_IsMainThread());
+  if (mAdBridge && aRequest.mBrowserId) {
+    (void)mAdBridge->OnAdBlockingAction(
+        aRequest.mBrowserId, aRequest.mHostname, aRequest.mRequestType,
+        aRequest.mPolicyFlags & AdPolicyPrivate,
+        aRequest.mPolicyFlags & AdPolicyTopLevel);
+  }
+}
+
+void ContentClassifierService::ApplyAdBlockingChannel(
+    nsIChannel* aChannel, const AdBlockingRequestSnapshot& aRequest,
+    const ContentClassifierDetailedResult& aResult, bool aAtModify) {
+  MOZ_ASSERT(NS_IsMainThread());
+  nsCOMPtr<nsILoadInfo> loadInfo = aChannel->LoadInfo();
+  if (!ShouldClassifyAdBlockingChannel(aChannel) ||
+      ShouldSkipAdBlockingChannel(aChannel) ||
+      !IsCurrentAdBlockingRequest(aRequest) ||
+      !AdBlockingPolicy::IsCurrentContext(aRequest, loadInfo, aChannel) ||
+      AdChannelHasMark(aChannel, u"waterfox.adblocking.appliedChannelId"_ns)) {
+    return;
+  }
+  nsCOMPtr<nsIHttpChannel> http = do_QueryInterface(aChannel);
+  if (!http) {
+    return;
+  }
+  auto mark = MakeScopeExit([&] {
+    auto marked = aRequest;
+    marked.mContextGeneration = mAdPolicy.Generation();
+    MarkAdChannel(aChannel, u"waterfox.adblocking.classifiedChannelId"_ns,
+                  &marked);
+  });
+  ClearPendingAdAction(aChannel);
+  const bool topLevel = aRequest.mPolicyFlags & AdPolicyTopLevel;
+  if (!aRequest.CanMatch()) {
+    if (topLevel) {
+      if (AdBlockingRequestSnapshot::ShouldBypassHost(
+              aRequest.mHostname, aRequest.mPolicyFlags & AdPolicyPrivate)) {
+        mAdPolicy.RememberTopHost(aRequest.mBrowserId, aRequest.mHostname);
+      }
+      mAdPolicy.ForgetBlockedDocument(aRequest.mBrowserId);
+    }
+    return;
+  }
+  const bool blocking = aResult.mMatched && aResult.mException.IsEmpty();
+  if (!aAtModify && ((blocking && aRequest.CanBlock() &&
+                      (topLevel || !aResult.mRedirect.IsEmpty())) ||
+                     (!topLevel && !blocking && aResult.mException.IsEmpty() &&
+                      !aResult.mRewrittenUrl.IsEmpty() &&
+                      aResult.mRewrittenUrl != aRequest.mUrl))) {
+    nsCOMPtr<nsIWritablePropertyBag2> properties = do_QueryInterface(aChannel);
+    if (properties) {
+      (void)properties->SetPropertyAsBool(
+          u"waterfox.adblocking.pendingBlock"_ns, blocking);
+      (void)properties->SetPropertyAsACString(
+          u"waterfox.adblocking.pendingRedirect"_ns, aResult.mRedirect);
+      (void)properties->SetPropertyAsACString(
+          u"waterfox.adblocking.pendingRewrite"_ns, aResult.mRewrittenUrl);
+    }
+    return;
+  }
+  if (topLevel && !blocking) {
+    mAdPolicy.RememberTopHost(aRequest.mBrowserId, aRequest.mHostname);
+    mAdPolicy.ForgetBlockedDocument(aRequest.mBrowserId);
+    return;
+  }
+  nsresult rv = NS_ERROR_FAILURE;
+  if (blocking && aRequest.CanBlock()) {
+    nsCString target;
+    if (topLevel) {
+      size_t escapedLength;
+      char* escaped = nsEscape(aRequest.mUrl.get(), aRequest.mUrl.Length(),
+                               &escapedLength, url_XPAlphas);
+      if (escaped) {
+        target = "about:contentblocked?url="_ns;
+        target.Append(escaped, escapedLength);
+        free(escaped);
+      }
+    } else {
+      target = aResult.mRedirect;
+    }
+    nsCOMPtr<nsIURI> uri;
+    if (!target.IsEmpty() &&
+        NS_SUCCEEDED(NS_NewURI(getter_AddRefs(uri), target))) {
+      rv = http->RedirectTo(uri);
+      if (NS_SUCCEEDED(rv) && !topLevel && uri->SchemeIs("data")) {
+        loadInfo->SetAllowInsecureRedirectToDataURI(true);
+      }
+      if (NS_SUCCEEDED(rv) && topLevel) {
+        mAdPolicy.RememberBlockedDocument(aRequest.mBrowserId,
+                                          aRequest.mHostname, aRequest.mUrl);
+      }
+    }
+    if (NS_FAILED(rv)) {
+      rv = aChannel->Cancel(NS_ERROR_ABORT);
+    }
+    if (NS_SUCCEEDED(rv)) {
+      MarkAdChannel(aChannel, u"waterfox.adblocking.appliedChannelId"_ns);
+      NotifyAdBlockingAction(aRequest);
+    }
+  } else if (!topLevel && !blocking && aResult.mException.IsEmpty() &&
+             !aResult.mRewrittenUrl.IsEmpty() &&
+             aResult.mRewrittenUrl != aRequest.mUrl) {
+    nsCOMPtr<nsIURI> uri;
+    if (NS_SUCCEEDED(NS_NewURI(getter_AddRefs(uri), aResult.mRewrittenUrl))) {
+      RefPtr<net::nsHttpChannel> native = do_QueryObject(http);
+      if (native && NS_SUCCEEDED(native->RedirectForContentClassifier(uri))) {
+        MarkAdChannel(aChannel, u"waterfox.adblocking.appliedChannelId"_ns);
+      }
+    }
+  }
+}
+
+nsresult ContentClassifierService::CheckAdBlockingChannel(
+    nsIChannel* aChannel, std::function<void()> aCallback) {
+  MOZ_ASSERT(NS_IsMainThread());
+  NS_ENSURE_TRUE(aCallback, NS_ERROR_INVALID_ARG);
+  NS_ENSURE_TRUE(ShouldClassifyAdBlockingChannel(aChannel),
+                 NS_ERROR_NOT_AVAILABLE);
+  if (ShouldSkipAdBlockingChannel(aChannel)) {
+    aCallback();
+    return NS_OK;
+  }
+  nsCOMPtr<nsIURI> uri;
+  nsresult rv = aChannel->GetURI(getter_AddRefs(uri));
+  NS_ENSURE_SUCCESS(rv, rv);
+  AdBlockingRequestSnapshot request;
+  nsCOMPtr<nsILoadInfo> loadInfo = aChannel->LoadInfo();
+  rv = CaptureAdBlockingLoad(request, uri, loadInfo, aChannel,
+                             AdBlockingPhase::Request);
+  NS_ENSURE_SUCCESS(rv, rv);
+  CheckAdBlockingChannelWithSnapshot(aChannel, std::move(request),
+                                     std::move(aCallback), 0);
+  return NS_OK;
+}
+
+void ContentClassifierService::CheckAdBlockingChannelWithSnapshot(
+    nsIChannel* aChannel, AdBlockingRequestSnapshot aRequest,
+    std::function<void()> aCallback, uint32_t aRetries) {
+  MOZ_ASSERT(NS_IsMainThread());
+  ClassifyAdBlockingRequestAsync(aRequest,
+                                 GetAdBlockingChannelTaskPriority(aChannel))
+      ->Then(
+          GetMainThreadSerialEventTarget(), __func__,
+          [self = RefPtr{this},
+           channel = nsMainThreadPtrHandle<nsIChannel>(
+               new nsMainThreadPtrHolder<nsIChannel>("AdBlockingChannel",
+                                                     aChannel)),
+           request = std::move(aRequest), callback = std::move(aCallback),
+           aRetries](
+              AdClassificationPromise::ResolveOrRejectValue&& aValue) mutable {
+            MOZ_ASSERT(NS_IsMainThread());
+            MOZ_LOG(gContentClassifierLog, LogLevel::Debug,
+                    ("Ad continuation url=%s retries=%u resolved=%d",
+                     request.mUrl.get(), aRetries, aValue.IsResolve()));
+            nsCOMPtr<nsILoadInfo> loadInfo = channel->LoadInfo();
+            if (ShouldSkipAdBlockingChannel(channel)) {
+              callback();
+              return;
+            }
+            // Refresh inputs, never the owning top-level navigation.
+            if (!AdBlockingPolicy::IsCurrentContext(request, loadInfo,
+                                                    nullptr)) {
+              (void)channel->Cancel(NS_BINDING_ABORTED);
+              callback();
+              return;
+            }
+            if (aValue.IsResolve() &&
+                self->IsCurrentAdBlockingRequest(request) &&
+                AdBlockingPolicy::IsCurrentContext(request, loadInfo,
+                                                   channel)) {
+              self->ApplyAdBlockingChannel(channel, request,
+                                           aValue.ResolveValue());
+            } else if (ShouldClassifyAdBlockingChannel(channel)) {
+              nsCOMPtr<nsIURI> uri;
+              (void)channel->GetURI(getter_AddRefs(uri));
+              AdBlockingRequestSnapshot fresh;
+              if (NS_SUCCEEDED(self->CaptureAdBlockingLoad(
+                      fresh, uri, loadInfo, channel, AdBlockingPhase::Request,
+                      false))) {
+                if (aRetries < 3 && aValue.IsResolve()) {
+                  self->CheckAdBlockingChannelWithSnapshot(
+                      channel, std::move(fresh), std::move(callback),
+                      aRetries + 1);
+                  return;
+                }
+                MOZ_LOG(gContentClassifierLog, LogLevel::Debug,
+                        ("Ad synchronous fallback url=%s retries=%u",
+                         fresh.mUrl.get(), aRetries));
+                ContentClassifierDetailedResult result;
+                if (NS_SUCCEEDED(ClassifyAdBlockingRequest(fresh, result))) {
+                  self->ApplyAdBlockingChannel(channel, fresh, result);
+                }
+              }
+            }
+            callback();
+          });
+}
+
+nsresult ContentClassifierService::CheckAdBlockingLoad(nsIURI* aUri,
+                                                       nsILoadInfo* aLoadInfo,
+                                                       int16_t* aDecision) {
+  MOZ_ASSERT(NS_IsMainThread());
+  NS_ENSURE_ARG_POINTER(aDecision);
+  *aDecision = nsIContentPolicy::ACCEPT;
+  NS_ENSURE_TRUE(mAdBridge, NS_ERROR_NOT_AVAILABLE);
+  AdBlockingRequestSnapshot request;
+  nsresult rv = CaptureAdBlockingLoad(request, aUri, aLoadInfo, nullptr,
+                                      AdBlockingPhase::CachedLoad);
+  NS_ENSURE_SUCCESS(rv, rv);
+  ContentClassifierDetailedResult result;
+  rv = ClassifyAdBlockingRequest(request, result);
+  NS_ENSURE_SUCCESS(rv, rv);
+  if (request.CanBlock() && result.mMatched && result.mException.IsEmpty() &&
+      IsCurrentAdBlockingRequest(request) &&
+      AdBlockingPolicy::IsCurrentContext(request, aLoadInfo, nullptr)) {
+    *aDecision = nsIContentPolicy::REJECT_TYPE;
+    if (aLoadInfo->GetRequestBlockingReason() !=
+        nsILoadInfo::BLOCKING_REASON_CONTENT_POLICY_CONTENT_BLOCKED) {
+      aLoadInfo->SetRequestBlockingReason(
+          nsILoadInfo::BLOCKING_REASON_CONTENT_POLICY_CONTENT_BLOCKED);
+      NotifyAdBlockingAction(request);
+    }
+  }
+  return NS_OK;
+}
+
+NS_IMETHODIMP ContentClassifierService::Observe(nsISupports* aSubject,
+                                                const char* aTopic,
+                                                const char16_t*) {
+  MOZ_ASSERT(NS_IsMainThread());
+  nsCOMPtr<nsIChannel> channel = do_QueryInterface(aSubject);
+  if (!channel || !ShouldClassifyAdBlockingChannel(channel)) {
+    return NS_OK;
+  }
+  if (!strcmp(aTopic, "http-on-modify-request")) {
+    if (ShouldSkipAdBlockingChannel(channel) ||
+        AdChannelHasMark(channel, u"waterfox.adblocking.appliedChannelId"_ns)) {
+      return NS_OK;
+    }
+    bool classified = AdChannelHasMark(
+        channel, u"waterfox.adblocking.classifiedChannelId"_ns);
+    if (classified) {
+      AdBlockingRequestSnapshot marked;
+      marked.mEngine = GetAdBlockingEngineSnapshot();
+      nsCOMPtr<nsIPropertyBag2> properties = do_QueryInterface(channel);
+      uint64_t engineGeneration = 0;
+      uint64_t flags = 0;
+      bool valid =
+          properties &&
+          ReadAdNumber(properties,
+                       u"waterfox.adblocking.classifiedChannelId.engine"_ns,
+                       &engineGeneration);
+      for (const auto& field :
+           {std::pair{u".policy"_ns, &marked.mPolicyGeneration},
+            std::pair{u".context"_ns, &marked.mContextGeneration},
+            std::pair{u".browser"_ns, &marked.mBrowserId},
+            std::pair{u".navigation"_ns, &marked.mNavigationId},
+            std::pair{u".until"_ns, &marked.mValidUntil},
+            std::pair{u".flags"_ns, &flags}}) {
+        valid = valid &&
+                ReadAdNumber(
+                    properties,
+                    u"waterfox.adblocking.classifiedChannelId"_ns + field.first,
+                    field.second);
+      }
+      marked.mPolicyFlags = uint32_t(flags);
+      nsCOMPtr<nsIURI> markedUri;
+      (void)channel->GetURI(getter_AddRefs(markedUri));
+      marked.mUrl = markedUri->GetSpecOrDefault();
+      nsCOMPtr<nsIHttpChannel> http = do_QueryInterface(channel);
+      (void)http->GetRequestMethod(marked.mRequestMethod);
+      nsCOMPtr<nsILoadInfo> loadInfo = channel->LoadInfo();
+      if (valid && engineGeneration == marked.mEngine.mGeneration &&
+          IsCurrentAdBlockingRequest(marked) &&
+          AdBlockingPolicy::IsCurrentContext(marked, loadInfo, channel)) {
+        bool pendingBlock = false;
+        ContentClassifierDetailedResult pending;
+        bool hasPending = NS_SUCCEEDED(properties->GetPropertyAsBool(
+            u"waterfox.adblocking.pendingBlock"_ns, &pendingBlock));
+        if (hasPending) {
+          pending.mMatched = pendingBlock;
+          (void)properties->GetPropertyAsACString(
+              u"waterfox.adblocking.pendingRedirect"_ns, pending.mRedirect);
+          (void)properties->GetPropertyAsACString(
+              u"waterfox.adblocking.pendingRewrite"_ns, pending.mRewrittenUrl);
+          AdBlockingRequestSnapshot fresh;
+          if (NS_SUCCEEDED(
+                  CaptureAdBlockingLoad(fresh, markedUri, loadInfo, channel,
+                                        AdBlockingPhase::Request, false)) &&
+              fresh.mEngine.mGeneration == marked.mEngine.mGeneration &&
+              fresh.mPolicyGeneration == marked.mPolicyGeneration &&
+              fresh.mContextGeneration == marked.mContextGeneration) {
+            ApplyAdBlockingChannel(channel, fresh, pending, true);
+            return NS_OK;
+          }
+        } else {
+          return NS_OK;
+        }
+      }
+    }
+    ClearPendingAdAction(channel);
+    nsCOMPtr<nsIURI> uri;
+    (void)channel->GetURI(getter_AddRefs(uri));
+    nsCOMPtr<nsILoadInfo> loadInfo = channel->LoadInfo();
+    AdBlockingRequestSnapshot fresh;
+    ContentClassifierDetailedResult result;
+    if (NS_SUCCEEDED(CaptureAdBlockingLoad(fresh, uri, loadInfo, channel,
+                                           AdBlockingPhase::Request,
+                                           !classified)) &&
+        NS_SUCCEEDED(ClassifyAdBlockingRequest(fresh, result))) {
+      ApplyAdBlockingChannel(channel, fresh, result, true);
+    }
+    return NS_OK;
+  }
+  nsCOMPtr<nsIHttpChannel> http = do_QueryInterface(channel);
+  RefPtr<net::nsHttpChannel> native = do_QueryObject(channel);
+  uint32_t responseStatus = 0;
+  if (!http || NS_FAILED(http->GetResponseStatus(&responseStatus)) ||
+      (!strcmp(aTopic, "http-on-examine-response") &&
+       (responseStatus == 304 ||
+        (responseStatus == 206 && native &&
+         native->WillMergeContentClassifierResponse()))) ||
+      AdChannelHasMark(channel, u"waterfox.adblocking.responseChannelId"_ns)) {
+    return NS_OK;
+  }
+  nsCOMPtr<nsIURI> uri;
+  (void)channel->GetURI(getter_AddRefs(uri));
+  AdBlockingRequestSnapshot request;
+  nsCOMPtr<nsILoadInfo> loadInfo = channel->LoadInfo();
+  if (NS_FAILED(CaptureAdBlockingLoad(request, uri, loadInfo, channel,
+                                      AdBlockingPhase::Response))) {
+    return NS_OK;
+  }
+  MarkAdChannel(channel, u"waterfox.adblocking.responseChannelId"_ns);
+  if (request.CanMatch()) {
+    nsAutoCString directives;
+    if ((request.mRequestType.EqualsLiteral("document") ||
+         request.mRequestType.EqualsLiteral("subdocument")) &&
+        NS_FAILED(request.mEngine.mEngine->GetCspDirectives(
+            request.mUrl, request.mSourceHostname, request.mHostname,
+            request.mRequestType, request.mRequestMethod, request.mThirdParty,
+            directives))) {
+      directives.Truncate();
+    }
+    nsAutoCString resources("{}"_ns);
+    nsAutoCString replace("[]"_ns);
+    if (request.mRequestType.EqualsLiteral("document") ||
+        request.mRequestType.EqualsLiteral("subdocument")) {
+      (void)request.mEngine.mEngine->GetCosmeticResources(request.mUrl,
+                                                          resources);
+    }
+    (void)request.mEngine.mEngine->GetReplaceDirectives(
+        request.mUrl, request.mSourceHostname, request.mHostname,
+        request.mRequestType, request.mRequestMethod, request.mThirdParty,
+        replace);
+    if (mAdBridge && IsCurrentAdBlockingRequest(request)) {
+      (void)mAdBridge->FilterAdBlockingResponse(
+          channel, request.mUrl, request.mRequestType, resources, replace);
+    }
+    if (!directives.IsEmpty() && IsCurrentAdBlockingRequest(request)) {
+      if (native) {
+        (void)native->SetContentClassifierCsp(directives);
+      }
+    }
+  }
+  mAdPolicy.FinishResponse(channel, request);
+  return NS_OK;
 }
 
 already_AddRefed<nsIAsyncShutdownClient>
@@ -512,6 +1369,14 @@ ContentClassifierService::GetAsyncShutdownBarrier() const {
 NS_IMETHODIMP ContentClassifierService::BlockShutdown(
     nsIAsyncShutdownClient* aClient) {
   MOZ_ASSERT(NS_IsMainThread());
+  {
+    MutexAutoLock lock(mLock);
+    if (mInitPhase == InitPhase::ShutdownStarted ||
+        mInitPhase == InitPhase::ShutdownEnded) {
+      return NS_OK;
+    }
+    mInitPhase = InitPhase::ShutdownStarted;
+  }
 
   MOZ_LOG(gContentClassifierLog, LogLevel::Info,
           ("ContentClassifierService::BlockShutdown - shutting down"));
@@ -520,63 +1385,53 @@ NS_IMETHODIMP ContentClassifierService::BlockShutdown(
   // tears down the RS client if one was created (the HTTP-only test
   // path leaves mRSClient null).
   ShutdownRSClient();
+  SetAdBlockingBridge(nullptr);
+  mAdPolicy.Clear();
 
   nsCOMPtr<nsISerialEventTarget> buildThread;
+  nsCOMPtr<nsISerialEventTarget> classificationThread;
   {
     MutexAutoLock lock(mLock);
 
     mInitPhase = InitPhase::ShutdownStarted;
+    mAdBlockingEngine.mEngine = nullptr;
+    ++mAdBlockingEngine.mGeneration;
     // Clearing mBuildThread closes the dispatch window for any
     // subsequent UpdateFeatures call. In-flight closures on the queue
     // are gated by the mInitPhase check above before they touch state.
     buildThread = std::move(mBuildThread);
+    classificationThread = std::move(mAdClassificationThread);
 
-    Preferences::UnregisterCallback(
-        &ContentClassifierService::OnPrefChange,
-        "privacy.trackingprotection.content.protection.enabled"_ns);
-    Preferences::UnregisterCallback(
-        &ContentClassifierService::OnPrefChange,
-        "privacy.trackingprotection.content.annotation.enabled"_ns);
-    Preferences::UnregisterCallback(
-        &ContentClassifierService::OnPrefChange,
-        "privacy.trackingprotection.content.protection.test_list_urls"_ns);
-    Preferences::UnregisterCallback(
-        &ContentClassifierService::OnPrefChange,
-        "privacy.trackingprotection.content.annotation.test_list_urls"_ns);
-    Preferences::UnregisterCallback(
-        &ContentClassifierService::OnPrefChange,
-        "privacy.trackingprotection.content.protection.engines"_ns);
-    Preferences::UnregisterCallback(
-        &ContentClassifierService::OnPrefChange,
-        "privacy.trackingprotection.content.annotation.engines"_ns);
-    Preferences::UnregisterCallback(
-        &ContentClassifierService::OnPrefChange,
-        "privacy.trackingprotection.content.protection.engines.pbmode"_ns);
-    Preferences::UnregisterCallback(
-        &ContentClassifierService::OnPrefChange,
-        "privacy.trackingprotection.content.annotation.engines.pbmode"_ns);
+    for (const auto& pref : kObservedPrefs) {
+      Preferences::UnregisterCallback(&ContentClassifierService::OnPrefChange,
+                                      pref);
+    }
 
-    content_classifier_teardown_domain_resolver();
-
-    if (!buildThread) {
+    mPendingShutdownQueues =
+        uint32_t(bool(buildThread)) + uint32_t(bool(classificationThread));
+    if (!mPendingShutdownQueues) {
       RemoveBlocker();
       return NS_OK;
     }
   }
 
-  // Drain mBuildThread, then post back to the main thread to remove
-  // the shutdown blocker. Because mBuildThread is serial, the fence
-  // runs strictly after every already-dispatched build closure, so by
-  // the time FinishShutdown lands no off-thread work is in flight.
   RefPtr<ContentClassifierService> self = this;
-  buildThread->Dispatch(NS_NewRunnableFunction(
-      "ContentClassifierService::ShutdownFence", [self]() {
-        NS_DispatchToMainThread(NS_NewRunnableFunction(
-            "ContentClassifierService::FinishShutdown", [self]() {
-              MutexAutoLock lock(self->mLock);
-              self->RemoveBlocker();
-            }));
-      }));
+  for (const auto& queue : {buildThread, classificationThread}) {
+    if (!queue) {
+      continue;
+    }
+    nsresult rv = queue->Dispatch(NS_NewRunnableFunction(
+        "ContentClassifierService::ShutdownFence", [self] {
+          NS_DispatchToMainThread(NS_NewRunnableFunction(
+              "ContentClassifierService::FinishShutdown", [self] {
+                MutexAutoLock lock(self->mLock);
+                if (!--self->mPendingShutdownQueues) {
+                  self->RemoveBlocker();
+                }
+              }));
+        }));
+    MOZ_RELEASE_ASSERT(NS_SUCCEEDED(rv));
+  }
 
   return NS_OK;
 }
@@ -629,6 +1484,10 @@ ContentClassifierResult ContentClassifierService::ClassifyWithEngines(
             ("ClassifyWithEngines - invalid request; returning Miss"));
     return result;
   }
+  // ETP excludes first-party requests; the shared engine also serves ad rules.
+  if (!aRequest.ThirdParty()) {
+    return result;
+  }
   bool matchedSoFar = false;
   for (const auto& engine : aEngines) {
     ContentClassifierEngineResult er = engine->CheckNetworkRequest(
@@ -653,7 +1512,16 @@ NS_IMETHODIMP ContentClassifierService::GetName(nsAString& aName) {
 }
 
 NS_IMETHODIMP ContentClassifierService::GetState(nsIPropertyBag** aState) {
-  *aState = nullptr;
+  NS_ENSURE_ARG_POINTER(aState);
+  RefPtr<nsHashPropertyBag> state = new nsHashPropertyBag();
+  {
+    MutexAutoLock lock(mLock);
+    state->SetPropertyAsUint32(u"phase"_ns, uint32_t(mInitPhase));
+    state->SetPropertyAsUint32(u"pendingQueues"_ns, mPendingShutdownQueues);
+  }
+  nsCOMPtr<nsIPropertyBag> bag =
+      static_cast<nsIWritablePropertyBag*>(state.get());
+  bag.forget(aState);
   return NS_OK;
 }
 
@@ -984,6 +1852,19 @@ void ContentClassifierService::ProcessListChanges(
       if (!activeNames.Contains(nsCString(feature.mName))) {
         continue;
       }
+      bool removed = false;
+      for (const auto& listId : feature.mListIds) {
+        if (aRemoved.Contains(listId)) {
+          mEngines.Remove(nsCString(feature.mName));
+          ++mFeatureVersions.LookupOrInsert(feature.mName);
+          removed = true;
+          break;
+        }
+      }
+      if (removed) {
+        PopulateAllActiveEnginesFromPreferenceSnapshot(snapshot);
+        continue;
+      }
       bool affected = !mEngines.Contains(nsCString(feature.mName));
       if (!affected) {
         for (const auto& listId : feature.mListIds) {
@@ -1091,7 +1972,7 @@ void ContentClassifierService::UpdateFeatures(
 
             // Collect per-feature rule arrays out of the settled promises;
             // defer the expensive parsing / InitFromRules to mBuildThread.
-            nsTArray<nsTArray<nsCString>> perFeatureRules;
+            nsTArray<Maybe<nsTArray<nsCString>>> perFeatureRules;
             perFeatureRules.SetLength(features.Length());
             if (aValue.IsResolve()) {
               auto& settled = aValue.ResolveValue();
@@ -1104,7 +1985,8 @@ void ContentClassifierService::UpdateFeatures(
                       features[i]->mName);
                   continue;
                 }
-                perFeatureRules[i] = std::move(settled[i].ResolveValue());
+                perFeatureRules[i].emplace(
+                    std::move(settled[i].ResolveValue()));
               }
             }
 
@@ -1117,21 +1999,24 @@ void ContentClassifierService::UpdateFeatures(
                   MOZ_ASSERT(!NS_IsMainThread());
 
                   // Build engines outside the lock; InitFromRules can be
-                  // expensive. A null engine — from a fetch reject, build
-                  // failure, or empty rules — clobbers any existing entry
-                  // for that feature via InstallEngine.
+                  // expensive. Failed fetches/builds preserve installed
+                  // engines; successful empty rules remove them.
                   nsTArray<RefPtr<ContentClassifierEngine>> builtEngines;
                   builtEngines.SetLength(features.Length());
+                  nsTArray<bool> installEngines;
+                  installEngines.SetLength(features.Length());
                   for (size_t i = 0; i < features.Length(); ++i) {
-                    if (perFeatureRules[i].IsEmpty()) {
+                    installEngines[i] = false;
+                    if (perFeatureRules[i].isNothing()) {
                       continue;
                     }
                     RefPtr<ContentClassifierEngine> engine;
                     if (NS_FAILED(BuildEngineFromRules(
-                            *features[i], perFeatureRules[i], engine))) {
+                            *features[i], *perFeatureRules[i], engine))) {
                       continue;
                     }
                     builtEngines[i] = std::move(engine);
+                    installEngines[i] = true;
                   }
 
                   bool didFullWork = false;
@@ -1143,6 +2028,9 @@ void ContentClassifierService::UpdateFeatures(
                     }
                     // Install non-stale engines (per-feature versioning).
                     for (size_t i = 0; i < builtEngines.Length(); ++i) {
+                      if (!installEngines[i]) {
+                        continue;
+                      }
                       uint64_t current =
                           self->mFeatureVersions.Get(features[i]->mName);
                       if (current != featureVersions[i]) {
@@ -1308,7 +2196,8 @@ ContentClassifierService::FetchEngineDataForFeature(
                                "FetchEngineDataForFeature - list \"{}\" for "
                                "feature \"{}\" rejected",
                                listIdsInOrder[i], feature->mName);
-                   continue;
+                   result->Reject(fetchPromises[i].RejectValue(), __func__);
+                   return;
                  }
                  const auto& fetchResult = fetchPromises[i].ResolveValue();
                  if (fetchResult.IsEmpty()) {

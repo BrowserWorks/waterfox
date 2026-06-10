@@ -1,0 +1,141 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#include "nsISupports.idl"
+
+interface nsILoadInfo;
+interface nsIChannel;
+interface nsIURI;
+interface nsIWaterfoxBlockerRequest;
+interface nsIWaterfoxBlockerClassificationCallback;
+interface nsIContentClassifierAdBlockingBridge;
+interface nsIContentClassifierService;
+
+[scriptable, builtinclass, uuid(f17ae4b0-d65a-4f41-9ee6-3ae39d148477)]
+interface nsIWaterfoxBlockerEngine : nsISupports
+{
+  // Initialise from filter list text. Each element is a full list.
+  void initFromLists(in Array<ACString> filterLists);
+
+  // Initialise from serialised cache (fast path).
+  void initFromCache(in Array<octet> cacheData);
+
+  // Check a network request. Returns JSON:
+  // { matched, important, redirect, rewrittenUrl, exception }
+  ACString checkRequestDetailed(in ACString url,
+                                in ACString sourceHostname,
+                                in ACString hostname,
+                                in ACString requestType,
+                                in ACString requestMethod,
+                                in boolean isThirdParty);
+
+  // Get CSP directives for document/subdocument requests.
+  // Returns an empty string when no directives apply.
+  ACString getCspDirectives(in ACString url,
+                            in ACString sourceHostname,
+                            in ACString hostname,
+                            in ACString requestType,
+                            in ACString requestMethod,
+                            in boolean isThirdParty);
+
+  // Get matched response-body replacement directives as a JSON string array.
+  ACString getReplaceDirectives(in ACString url,
+                                in ACString sourceHostname,
+                                in ACString hostname,
+                                in ACString requestType,
+                                in ACString requestMethod,
+                                in boolean isThirdParty);
+
+  // Serialise engine for caching.
+  Array<octet> serialize();
+
+  // Cosmetic filtering.
+  ACString getCosmeticResources(in ACString url);
+  ACString getHiddenClassIdSelectors(in ACString classesJson,
+                                     in ACString idsJson,
+                                     in ACString exceptionsJson);
+
+  // Load redirect resources and scriptlets.
+  void useResources(in ACString resourcesJson);
+
+  // Publish an immutable, resource-complete ad engine independently of ETP.
+  unsigned long long publish();
+  void unpublish();
+  readonly attribute unsigned long long publishedGeneration;
+
+  nsIWaterfoxBlockerRequest captureRequest(
+    in ACString url, in ACString sourceHostname, in ACString hostname,
+    in ACString requestType, in ACString requestMethod, in boolean isThirdParty,
+    in unsigned long policyFlags, in unsigned long long browserId,
+    in unsigned long long navigationId, in unsigned long long validUntil);
+  nsIWaterfoxBlockerRequest captureLoad(
+    in nsIURI uri, in nsILoadInfo loadInfo, in nsIChannel channel,
+    in unsigned long policyFlags, in unsigned long long browserId,
+    in unsigned long long navigationId, in unsigned long long validUntil);
+  nsIWaterfoxBlockerRequest capturePolicyLoad(
+    in nsIURI uri, in nsILoadInfo loadInfo, in nsIChannel channel,
+    in unsigned long contextFlags, in Array<AUTF8String> bypassHosts,
+    in Array<ACString> allowedDomains, in unsigned long long browserId,
+    in unsigned long long navigationId, in unsigned long long validUntil);
+  boolean shouldBypassHost(in AUTF8String host, in boolean isPrivate);
+  readonly attribute nsIContentClassifierService classifierService;
+  void setNetworkBridge(in nsIContentClassifierAdBlockingBridge bridge);
+  boolean ownsNetworkChannel(in nsIChannel channel);
+  boolean shouldSkipNetworkChannel(in nsIChannel channel);
+  void setDomainAllowances(in Array<AUTF8String> sites,
+                          in Array<AUTF8String> domains);
+  void rememberTopHost(in unsigned long long browserId, in AUTF8String host);
+  AUTF8String getTopHost(in unsigned long long browserId);
+  void rememberBlockedDocument(in unsigned long long browserId,
+                               in AUTF8String host, in ACString url);
+  void forgetBlockedDocument(in unsigned long long browserId);
+  boolean consumeBlockedDocument(in unsigned long long browserId,
+                                 in AUTF8String host, in ACString url);
+  boolean hasNavigationBypass(in unsigned long long browserId,
+                              in boolean isPrivate);
+  void clearNavigationState();
+  const unsigned short REQUEST = 0;
+  const unsigned short CACHED_LOAD = 1;
+  const unsigned short RESPONSE = 2;
+  nsIWaterfoxBlockerRequest captureNativeLoad(
+    in nsIURI uri, in nsILoadInfo loadInfo, in nsIChannel channel,
+    in unsigned short phase);
+  void checkChannel(in nsIChannel channel,
+                    in nsIWaterfoxBlockerClassificationCallback callback);
+  void invalidatePolicy();
+};
+
+[scriptable, builtinclass, uuid(08d8b557-fdd4-48e8-9a0f-8a409f10a3c7)]
+interface nsIWaterfoxBlockerRequest : nsISupports
+{
+  const unsigned long ENABLED = 1;
+  const unsigned long BYPASS = 2;
+  const unsigned long DOMAIN_ALLOWED = 4;
+  const unsigned long PRIVATE = 8;
+  const unsigned long TOP_LEVEL = 16;
+
+  readonly attribute boolean canMatch;
+  readonly attribute boolean canBlock;
+  readonly attribute boolean isPrivate;
+  readonly attribute unsigned long long browserId;
+  readonly attribute unsigned long long navigationId;
+  readonly attribute unsigned long long engineGeneration;
+  readonly attribute unsigned long long policyGeneration;
+  readonly attribute boolean isCurrent;
+  readonly attribute ACString url;
+  readonly attribute ACString sourceHostname;
+  readonly attribute ACString hostname;
+  readonly attribute ACString requestType;
+  readonly attribute ACString requestMethod;
+  readonly attribute boolean isThirdParty;
+  ACString checkRequestDetailed();
+  void checkRequestDetailedAsync(in nsIWaterfoxBlockerClassificationCallback callback);
+  boolean isCurrentForLoad(in nsILoadInfo loadInfo, in nsIChannel channel);
+};
+
+[scriptable, function, uuid(39c4d339-f03e-4471-a9f2-a59b59769f94)]
+interface nsIWaterfoxBlockerClassificationCallback : nsISupports
+{
+  void onClassified(in nsresult status, in ACString resultJson);
+};

@@ -13,10 +13,12 @@ XPIDL_SOURCES += [
 XPIDL_MODULE = "content-classifier"
 
 UNIFIED_SOURCES += [
+    "AdBlockingPolicy.cpp",
     "ContentClassifierService.cpp",
 ]
 
 EXPORTS.mozilla += [
+    "AdBlockingPolicy.h",
     "ContentClassifierService.h",
 ]
 
@@ -39,5 +41,8 @@ BROWSER_CHROME_MANIFESTS += [
 ]
 
 FINAL_LIBRARY = "xul"
+
+if CONFIG["ENABLE_TESTS"]:
+    DIRS += ["test/gtest"]
 
 include("/ipc/chromium/chromium-config.mozbuild")

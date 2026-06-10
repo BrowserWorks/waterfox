@@ -404,6 +404,142 @@ add_task(async function test_rs_sync_update() {
   );
 });
 
+add_task(async function test_rs_failed_update_preserves_blocking() {
+  let client = getRSClient();
+  let record = await populateRS(
+    client.db,
+    "trackers",
+    "disconnect-tracker-base",
+    ["||example.org^"]
+  );
+  await pushEnginePrefs({ protection: "trackers" });
+  let { linkedBrowser: browser } = await openTestTab();
+  await syncAndWaitForLists(client, [record]);
+  await assertImageBlocked(
+    browser,
+    TEST_BLOCKED_3RD_PARTY_DOMAIN,
+    "Initial rules block example.org"
+  );
+
+  let updated = await populateRS(
+    client.db,
+    "trackers",
+    "disconnect-tracker-base",
+    ["||example.com^"]
+  );
+  let originalDownload = client.attachments.download;
+  client.attachments.download = async () => {
+    throw new Error("Attachment unavailable");
+  };
+  try {
+    await syncAndWaitForLists(client, [updated]);
+    await assertImageBlocked(
+      browser,
+      TEST_BLOCKED_3RD_PARTY_DOMAIN,
+      "Failed update preserves the installed blocking engine"
+    );
+    await assertImageLoaded(
+      browser,
+      TEST_ANNOTATED_3RD_PARTY_DOMAIN,
+      "Failed update does not install the new rules"
+    );
+  } finally {
+    client.attachments.download = originalDownload;
+  }
+
+  await syncAndWaitForLists(client, [updated]);
+  await assertImageLoaded(
+    browser,
+    TEST_BLOCKED_3RD_PARTY_DOMAIN,
+    "Successful retry replaces old rules"
+  );
+  await assertImageBlocked(
+    browser,
+    TEST_ANNOTATED_3RD_PARTY_DOMAIN,
+    "Successful retry installs the new rules"
+  );
+});
+
+add_task(async function test_rs_failed_update_preserves_exceptions() {
+  let client = getRSClient();
+  let records = await populateMultipleRS(client.db, [
+    {
+      id: "trackers",
+      name: "disconnect-tracker-base",
+      rules: ["||example.org^", "||example.com^"],
+    },
+    {
+      id: "exceptions",
+      name: "mozilla-major-exceptions",
+      rules: ["@@||example.org^"],
+    },
+  ]);
+  await pushEnginePrefs({ protection: "trackers,major-exceptions" });
+  let { linkedBrowser: browser } = await openTestTab();
+  await syncAndWaitForLists(client, records);
+  await assertImageLoaded(
+    browser,
+    TEST_BLOCKED_3RD_PARTY_DOMAIN,
+    "Initial exception allows example.org"
+  );
+  await assertImageBlocked(
+    browser,
+    TEST_ANNOTATED_3RD_PARTY_DOMAIN,
+    "Other tracking requests remain blocked"
+  );
+
+  let originalDownload = client.attachments.download;
+  client.attachments.download = async (record, ...args) => {
+    if (record.Name === "mozilla-major-exceptions") {
+      throw new Error("Exception attachment unavailable");
+    }
+    return originalDownload.call(client.attachments, record, ...args);
+  };
+  try {
+    await syncAndWaitForLists(client, records);
+    await assertImageLoaded(
+      browser,
+      TEST_BLOCKED_3RD_PARTY_DOMAIN,
+      "Failed refresh retains the exception engine"
+    );
+    await assertImageBlocked(
+      browser,
+      TEST_ANNOTATED_3RD_PARTY_DOMAIN,
+      "Failed exception refresh leaves blocking active"
+    );
+  } finally {
+    client.attachments.download = originalDownload;
+  }
+});
+
+add_task(async function test_rs_empty_update_removes_blocking() {
+  let client = getRSClient();
+  let record = await populateRS(
+    client.db,
+    "trackers",
+    "disconnect-tracker-base",
+    ["||example.org^"]
+  );
+  await pushEnginePrefs({ protection: "trackers" });
+  let { linkedBrowser: browser } = await openTestTab();
+  await syncAndWaitForLists(client, [record]);
+  await assertImageBlocked(
+    browser,
+    TEST_BLOCKED_3RD_PARTY_DOMAIN,
+    "Initial rules block example.org"
+  );
+
+  let [emptyRecord] = await populateMultipleRS(client.db, [
+    { id: "trackers", name: "disconnect-tracker-base", content: "\n" },
+  ]);
+  await syncAndWaitForLists(client, [emptyRecord]);
+  await assertImageLoaded(
+    browser,
+    TEST_BLOCKED_3RD_PARTY_DOMAIN,
+    "Successful empty update removes the blocking engine"
+  );
+});
+
 // CRLF line endings: an attachment that uses Windows-style line endings
 // should still produce a working filter list. The blank line in the middle
 // must not fuse the surrounding rules together, so both example.org and

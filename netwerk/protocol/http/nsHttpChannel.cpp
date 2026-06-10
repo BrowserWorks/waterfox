@@ -7,6 +7,7 @@
 
 #include <inttypes.h>
 
+#include "mozilla/AutoRestore.h"
 #include "mozilla/ScopeExit.h"
 #include "mozilla/Sprintf.h"
 #include "mozilla/ToString.h"
@@ -133,6 +134,7 @@
 #include "mozilla/dom/nsHTTPSOnlyStreamListener.h"
 #include "mozilla/dom/nsHTTPSOnlyUtils.h"
 #include "mozilla/net/AsyncUrlChannelClassifier.h"
+#include "mozilla/ContentClassifierService.h"
 #include "mozilla/net/CookieJarSettings.h"
 #include "mozilla/net/NeckoChannelParams.h"
 #include "mozilla/net/OpaqueResponseUtils.h"
@@ -886,6 +888,9 @@ nsresult nsHttpChannel::OnBeforeConnect() {
   // nsIHttpChannel.redirectTo API request
   if (mAPIRedirectTo) {
     return AsyncCall(&nsHttpChannel::HandleAsyncAPIRedirect);
+  }
+  if (mContentClassifierRedirectURI) {
+    return AsyncCall(&nsHttpChannel::HandleAsyncContentClassifierRedirect);
   }
 
   // Note that we are only setting the "Upgrade-Insecure-Requests" request
@@ -4035,6 +4040,54 @@ nsresult nsHttpChannel::StartRedirectChannelToHttps() {
                        nsIChannelEventSink::REDIRECT_STS_UPGRADE);
 }
 
+nsresult nsHttpChannel::SetContentClassifierCsp(const nsACString& aDirectives) {
+  NS_ENSURE_TRUE(mResponseHead, NS_ERROR_NOT_AVAILABLE);
+  if (!mContentClassifierOriginalCsp) {
+    nsAutoCString original;
+    (void)GetResponseHeader("Content-Security-Policy"_ns, original);
+    mContentClassifierOriginalCsp = Some(nsCString(original));
+  }
+  return mResponseHead->SetHeader(nsHttp::Content_Security_Policy, aDirectives,
+                                  true);
+}
+
+nsresult nsHttpChannel::RedirectForContentClassifier(nsIURI* aTarget) {
+  NS_ENSURE_ARG(aTarget);
+  NS_ENSURE_FALSE(LoadOnStartRequestCalled(), NS_ERROR_NOT_AVAILABLE);
+  nsAutoCString query;
+  nsresult rv = mURI->GetQuery(query);
+  NS_ENSURE_SUCCESS(rv, rv);
+  nsCOMPtr<nsIURI> restored;
+  rv = NS_MutateURI(aTarget).SetQuery(query).Finalize(restored);
+  NS_ENSURE_SUCCESS(rv, rv);
+  bool equal = false;
+  rv = mURI->Equals(restored, &equal);
+  NS_ENSURE_SUCCESS(rv, rv);
+  NS_ENSURE_TRUE(equal, NS_ERROR_DOM_BAD_URI);
+  mContentClassifierRedirectURI = aTarget;
+  return NS_OK;
+}
+
+void nsHttpChannel::HandleAsyncContentClassifierRedirect() {
+  MOZ_ASSERT(!mCallOnResume);
+  if (mSuspendCount) {
+    mCallOnResume = [](nsHttpChannel* self) {
+      self->HandleAsyncContentClassifierRedirect();
+      return NS_OK;
+    };
+    return;
+  }
+  nsCOMPtr<nsIURI> target = mContentClassifierRedirectURI.forget();
+  // Internal redirects still notify the sinks that transfer IPC/listener
+  // ownership.
+  nsresult rv = StartRedirectChannelToURI(
+      target, nsIChannelEventSink::REDIRECT_INTERNAL |
+                  nsIChannelEventSink::REDIRECT_QUERY_STRIPPING);
+  if (NS_FAILED(rv)) {
+    (void)ContinueAsyncRedirectChannelToURI(rv);
+  }
+}
+
 void nsHttpChannel::HandleAsyncAPIRedirect() {
   MOZ_ASSERT(!mCallOnResume, "How did that happen?");
   MOZ_ASSERT(mAPIRedirectTo, "How did that happen?");
@@ -6140,8 +6193,26 @@ nsresult DoAddCacheEntryHeaders(nsHttpChannel* self, nsICacheEntry* entry,
   return rv;
 }
 
+void nsHttpChannel::RestoreContentClassifierCacheCsp(
+    nsHttpResponseHead& aHead) const {
+  MOZ_ASSERT(mContentClassifierOriginalCsp);
+  if (mContentClassifierOriginalCsp->IsEmpty()) {
+    aHead.ClearHeader(nsHttp::Content_Security_Policy);
+  } else {
+    (void)aHead.SetHeader(nsHttp::Content_Security_Policy,
+                          *mContentClassifierOriginalCsp, false);
+  }
+}
+
 nsresult nsHttpChannel::AddCacheEntryHeaders(nsICacheEntry* entry,
                                              bool aModified) {
+  if (mContentClassifierOriginalCsp && mResponseHead) {
+    // Blocker CSP belongs to this load, not to the cached origin response.
+    nsHttpResponseHead cachedHead(*mResponseHead);
+    RestoreContentClassifierCacheCsp(cachedHead);
+    return DoAddCacheEntryHeaders(this, entry, &mRequestHead, &cachedHead,
+                                  mSecurityInfo, aModified);
+  }
   return DoAddCacheEntryHeaders(this, entry, &mRequestHead, mResponseHead.get(),
                                 mSecurityInfo, aModified);
 }
@@ -6218,7 +6289,13 @@ nsresult nsHttpChannel::UpdateCacheEntryHeaders(nsICacheEntry* entry,
   // Store the received HTTP head with the cache entry as an element of
   // the meta data.
   nsAutoCString head;
-  mResponseHead->Flatten(head, true);
+  if (mContentClassifierOriginalCsp) {
+    nsHttpResponseHead cachedHead(*mResponseHead);
+    RestoreContentClassifierCacheCsp(cachedHead);
+    cachedHead.Flatten(head, true);
+  } else {
+    mResponseHead->Flatten(head, true);
+  }
   rv = entry->SetMetaDataElement("response-head", head.get());
   if (NS_FAILED(rv)) return rv;
   head.Truncate();
@@ -7177,7 +7254,11 @@ nsHttpChannel::CancelByURLClassifier(nsresult aErrorCode) {
   // would have occurred past this point!
 
   // notify "http-on-modify-request" observers
-  CallOnModifyRequestObservers();
+  {
+    AutoRestore<bool> notifying(mNotifyingClassifierCancellation);
+    mNotifyingClassifierCancellation = true;
+    CallOnModifyRequestObservers();
+  }
 
   // Check if request was cancelled during on-modify-request
   if (mCanceled) {
@@ -7728,17 +7809,21 @@ void nsHttpChannel::AsyncOpenFinal(TimeStamp aTimeStamp) {
   // lookup is not needed so CheckIsTrackerWithLocalTable() will return an
   // error and then we can MaybeResolveProxyAndBeginConnect() right away.
   // We skip the check in case this is an internal redirected channel
-  if (NS_ShouldClassifyChannel(this, ClassifyType::ETP)) {
+  const bool classifyETP = NS_ShouldClassifyChannel(this, ClassifyType::ETP);
+  if (classifyETP ||
+      ContentClassifierService::ShouldClassifyAdBlockingChannel(this)) {
     RefPtr<nsHttpChannel> self = this;
-    willCallback = NS_SUCCEEDED(
-        AsyncUrlChannelClassifier::CheckChannel(this, [self]() -> void {
+    willCallback = NS_SUCCEEDED(AsyncUrlChannelClassifier::CheckChannel(
+        this, [self, classifyETP]() -> void {
           nsCOMPtr<nsIURI> uri;
           self->GetURI(getter_AddRefs(uri));
           MOZ_ASSERT(uri);
 
           // Finish the AntiTracking Heuristic before
           // MaybeResolveProxyAndBeginConnect().
-          FinishAntiTrackingRedirectHeuristic(self, uri);
+          if (classifyETP) {
+            FinishAntiTrackingRedirectHeuristic(self, uri);
+          }
 
           self->MaybeResolveProxyAndBeginConnect();
         }));
@@ -11276,6 +11361,10 @@ nsresult nsHttpChannel::ContinueDoAuthRetry(
 
   // get rid of the old response headers
   mResponseHead = nullptr;
+  mContentClassifierOriginalCsp.reset();
+  for (const auto& suffix : {u".hi"_ns, u".lo"_ns, u".url"_ns, u".method"_ns}) {
+    (void)DeleteProperty(u"waterfox.adblocking.responseChannelId"_ns + suffix);
+  }
 
   // rewind the upload stream
   if (mUploadStream) {

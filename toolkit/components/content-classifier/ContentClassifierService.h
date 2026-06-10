@@ -6,6 +6,8 @@
 #define mozilla_ContentClassifierService_h
 
 #include <cstdint>
+#include <functional>
+#include "mozilla/AdBlockingPolicy.h"
 #include "mozilla/Maybe.h"
 #include "mozilla/Mutex.h"
 #include "mozilla/MozPromise.h"
@@ -19,6 +21,8 @@
 #include "nsIClassifiedChannel.h"
 #include "nsIContentClassifierService.h"
 #include "nsIContentClassifierRemoteSettingsClient.h"
+#include "nsIObserver.h"
+#include "nsIRunnable.h"
 #include "nsISupportsImpl.h"
 #include "nsLiteralString.h"
 #include "nsTArray.h"
@@ -177,14 +181,89 @@ struct EnginesPrefsSnapshot {
   nsTArray<nsCString> mAnnotatePBM;
 };
 
+struct AdBlockingEngineSnapshot {
+  RefPtr<ContentClassifierEngine> mEngine;
+  uint64_t mGeneration = 0;
+};
+
+enum AdBlockingPolicyFlags : uint32_t {
+  AdPolicyEnabled = 1 << 0,
+  AdPolicyBypass = 1 << 1,
+  AdPolicyDomainAllowed = 1 << 2,
+  AdPolicyPrivate = 1 << 3,
+  AdPolicyTopLevel = 1 << 4,
+};
+
+struct AdBlockingRequestSnapshot {
+  AdBlockingEngineSnapshot mEngine;
+  uint64_t mPolicyGeneration = 0;
+  uint64_t mContextGeneration = 0;
+  uint64_t mBrowserId = 0;
+  uint64_t mNavigationId = 0;
+  uint64_t mValidUntil = 0;
+  uint32_t mPolicyFlags = 0;
+  nsCString mUrl;
+  nsCString mSourceHostname;
+  nsCString mHostname;
+  nsCString mRequestType;
+  nsCString mRequestMethod;
+  bool mThirdParty = false;
+
+  nsresult InitFromLoad(nsIURI* aUri, nsILoadInfo* aLoadInfo,
+                        nsIChannel* aChannel);
+  nsresult ResolvePolicy(const nsTArray<nsCString>& aBypassHosts,
+                         const nsTArray<nsCString>& aAllowedDomains);
+  static bool ShouldBypassHost(const nsACString& aHost, bool aIsPrivate);
+
+  bool CanMatch() const {
+    return (mPolicyFlags & AdPolicyEnabled) && !(mPolicyFlags & AdPolicyBypass);
+  }
+  bool CanBlock() const {
+    return CanMatch() && !(mPolicyFlags & AdPolicyDomainAllowed);
+  }
+};
+
 class ContentClassifierService final : public nsIAsyncShutdownBlocker,
-                                       public nsIContentClassifierService {
+                                       public nsIContentClassifierService,
+                                       public nsIObserver {
  public:
   NS_DECL_THREADSAFE_ISUPPORTS
   NS_DECL_NSIASYNCSHUTDOWNBLOCKER
   NS_DECL_NSICONTENTCLASSIFIERSERVICE
+  NS_DECL_NSIOBSERVER
 
   static already_AddRefed<ContentClassifierService> GetInstance();
+  static already_AddRefed<ContentClassifierService> GetForAdBlocking();
+
+  nsresult PublishAdBlockingEngine(RefPtr<ContentClassifierEngine> aEngine,
+                                   uint64_t* aGeneration);
+  void UnpublishAdBlockingEngine(ContentClassifierEngine* aEngine,
+                                 uint64_t aGeneration);
+  AdBlockingEngineSnapshot GetAdBlockingEngineSnapshot();
+  nsresult CaptureAdBlockingRequest(AdBlockingRequestSnapshot& aRequest);
+  void InvalidateAdBlockingPolicy();
+  bool IsCurrentAdBlockingRequest(const AdBlockingRequestSnapshot& aRequest);
+  static nsresult ClassifyAdBlockingRequest(
+      const AdBlockingRequestSnapshot& aRequest,
+      ContentClassifierDetailedResult& aResult);
+  using AdClassificationPromise =
+      MozPromise<ContentClassifierDetailedResult, nsresult, true>;
+  RefPtr<AdClassificationPromise> ClassifyAdBlockingRequestAsync(
+      AdBlockingRequestSnapshot aRequest,
+      uint32_t aTaskPriority = nsIRunnablePriority::PRIORITY_NORMAL);
+  static uint32_t GetAdBlockingChannelTaskPriority(nsIChannel* aChannel);
+  static bool ShouldClassifyAdBlockingChannel(nsIChannel* aChannel);
+  static bool ShouldSkipAdBlockingChannel(nsIChannel* aChannel);
+  nsresult CheckAdBlockingChannel(nsIChannel* aChannel,
+                                  std::function<void()> aCallback);
+  nsresult CaptureAdBlockingLoad(AdBlockingRequestSnapshot& aRequest,
+                                 nsIURI* aUri, nsILoadInfo* aLoadInfo,
+                                 nsIChannel* aChannel, AdBlockingPhase aPhase,
+                                 bool aDiscoverNavigation = true);
+  nsresult CheckAdBlockingLoad(nsIURI* aUri, nsILoadInfo* aLoadInfo,
+                               int16_t* aDecision);
+  void SetAdBlockingBridge(nsIContentClassifierAdBlockingBridge* aBridge);
+  AdBlockingPolicy& AdPolicy() { return mAdPolicy; }
 
   static bool IsEnabled();
   static bool IsInitialized();
@@ -218,6 +297,15 @@ class ContentClassifierService final : public nsIAsyncShutdownBlocker,
   void InitRSClient();
   void ShutdownRSClient();
   void RemoveBlocker();
+  void NotifyAdBlockingAction(const AdBlockingRequestSnapshot& aRequest);
+  void ApplyAdBlockingChannel(nsIChannel* aChannel,
+                              const AdBlockingRequestSnapshot& aRequest,
+                              const ContentClassifierDetailedResult& aResult,
+                              bool aAtModify = false);
+  void CheckAdBlockingChannelWithSnapshot(nsIChannel* aChannel,
+                                          AdBlockingRequestSnapshot aRequest,
+                                          std::function<void()> aCallback,
+                                          uint32_t aRetries);
   already_AddRefed<nsIAsyncShutdownClient> GetAsyncShutdownBarrier() const;
 
   // aIndependentEngines makes every engine evaluate its own rules in
@@ -289,6 +377,14 @@ class ContentClassifierService final : public nsIAsyncShutdownBlocker,
 
   mozilla::Mutex mLock MOZ_UNANNOTATED;
   InitPhase mInitPhase MOZ_GUARDED_BY(mLock);
+  AdBlockingEngineSnapshot mAdBlockingEngine MOZ_GUARDED_BY(mLock);
+  uint64_t mAdPolicyGeneration MOZ_GUARDED_BY(mLock) = 0;
+  // Main-thread policy state and UI/response callbacks never enter worker
+  // tasks.
+  AdBlockingPolicy mAdPolicy;
+  nsCOMPtr<nsIContentClassifierAdBlockingBridge> mAdBridge;
+  nsCOMPtr<nsISerialEventTarget> mAdClassificationThread MOZ_GUARDED_BY(mLock);
+  uint32_t mPendingShutdownQueues = 0;
 
   // Feature-keyed engines built from the new engines/engines.pbmode prefs.
   // Each feature's engine is constructed once from the union of rules in
@@ -330,10 +426,9 @@ class ContentClassifierService final : public nsIAsyncShutdownBlocker,
   // writes must happen on the main thread; each call site asserts.
   nsCOMPtr<nsIContentClassifierRemoteSettingsClient> mRSClient;
 
-  // Serial background task queue used for the CPU-heavy half of engine
-  // rebuilds (BuildEngineFromRules) plus the lock-holding install /
-  // populate / prune phase. Created in Init(); drained and cleared in
-  // BlockShutdown before RemoveBlocker runs.
+  // Serial background task queue for engine rebuilds, installation and
+  // detached ad request classification. Created in Init(); drained and
+  // cleared in BlockShutdown before RemoveBlocker runs.
   nsCOMPtr<nsISerialEventTarget> mBuildThread;
 };
 
