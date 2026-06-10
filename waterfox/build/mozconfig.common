@@ -101,6 +101,9 @@ if [ -n "$wfx_target" ]; then
     ac_add_options --disable-debug
     ac_add_options --disable-dmd
     ac_add_options --disable-geckodriver
+    if [ "$wfx_os" = "windows" ]; then
+        ac_add_options --disable-parental-controls
+    fi
     ac_add_options --disable-profiling
     ac_add_options --disable-tests
 
