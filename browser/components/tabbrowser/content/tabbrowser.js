@@ -221,6 +221,7 @@
             "browser/tabbrowser.ftl",
             "browser/taskbartabs.ftl",
             "branding/brand.ftl",
+            "browser/waterfox/tabs.ftl",
           ],
           true
         );
@@ -4771,20 +4772,25 @@
       // solve the problem of windows "obscuring" the prompt.
       // see bug #350299 for more details
       window.focus();
-      const [title, button, checkbox] = this.tabLocalization.formatValuesSync([
-        {
-          id: "tabbrowser-confirm-close-tabs-title",
-          args: { tabCount: tabsToClose },
-        },
-        { id: "tabbrowser-confirm-close-tabs-button" },
-        { id: "tabbrowser-ask-close-tabs-checkbox" },
-      ]);
+      const [title, button, checkbox, restoreCheckbox] =
+        this.tabLocalization.formatValuesSync([
+          {
+            id: "tabbrowser-confirm-close-tabs-title",
+            args: { tabCount: tabsToClose },
+          },
+          { id: "tabbrowser-confirm-close-tabs-button" },
+          { id: "tabbrowser-ask-close-tabs-checkbox" },
+          { id: "tabbrowser-confirm-session-restore-checkbox" },
+        ]);
       let flags =
         ps.BUTTON_TITLE_IS_STRING * ps.BUTTON_POS_0 +
         ps.BUTTON_TITLE_CANCEL * ps.BUTTON_POS_1;
-      let checkboxLabel =
-        aCloseTabs == this.closingTabsEnum.ALL ? checkbox : null;
-      var buttonPressed = ps.confirmEx(
+      let closingWindow = aCloseTabs == this.closingTabsEnum.ALL;
+      let checkboxLabel = closingWindow ? checkbox : null;
+      // Waterfox: closing the window offers the session restore choice.
+      let startupPref = Services.prefs.getIntPref("browser.startup.page");
+      let restoreSession = { value: startupPref == 3 };
+      var buttonPressed = ps.confirmEx2(
         window,
         title,
         null,
@@ -4793,18 +4799,27 @@
         null,
         null,
         checkboxLabel,
-        warnOnClose
+        warnOnClose,
+        closingWindow ? restoreCheckbox : null,
+        restoreSession
       );
 
       var reallyClose = buttonPressed == 0;
 
       // don't set the pref unless they press OK and it's false
-      if (
-        aCloseTabs == this.closingTabsEnum.ALL &&
-        reallyClose &&
-        !warnOnClose.value
-      ) {
+      if (closingWindow && reallyClose && !warnOnClose.value) {
         Services.prefs.setBoolPref(pref, false);
+      }
+
+      if (
+        closingWindow &&
+        reallyClose &&
+        restoreSession.value != (startupPref == 3)
+      ) {
+        Services.prefs.setIntPref(
+          "browser.startup.page",
+          restoreSession.value ? 3 : 1
+        );
       }
 
       return reallyClose;
