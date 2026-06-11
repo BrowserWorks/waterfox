@@ -486,6 +486,49 @@ add_task(async function test_site_private_partner_and_etp_isolation() {
   });
 });
 
+add_task(
+  async function test_domain_allowance_preserves_removeparam_without_blocking() {
+    await withEngine(
+      [
+        "||ads.example/block$important",
+        "||ads.example^$script,removeparam=tracking",
+      ],
+      async engine => {
+        service.addDomainExceptionForSite("publisher.example", "ads.example");
+        const uri = Services.io.newURI(
+          "https://ads.example/path?tracking=1&keep=2"
+        );
+        const channel = makeChannel({ url: uri.spec });
+        const request = captureLoad(engine, channel);
+        Assert.equal(request.canMatch, true);
+        Assert.equal(request.canBlock, false);
+        const result = JSON.parse(request.checkRequestDetailed());
+        const baseline = JSON.parse(
+          engine.checkRequestDetailed(
+            uri.spec,
+            "publisher.example",
+            "ads.example",
+            "script",
+            "GET",
+            true
+          )
+        );
+        Assert.deepEqual(
+          result,
+          baseline,
+          "Snapshots preserve legacy engine rewrite results"
+        );
+        Assert.equal(result.matched, false);
+        Assert.equal(
+          result.rewrittenUrl,
+          "https://ads.example/path?keep=2",
+          "Domain allowances retain non-blocking rewrites"
+        );
+      }
+    );
+  }
+);
+
 add_task(async function test_navigation_identity_and_single_bypass_discovery() {
   await withEngine(["||ads.example^"], async engine => {
     service.allowSiteForSession("publisher.example");
@@ -567,6 +610,65 @@ add_task(async function test_stale_network_decisions_never_cancel_or_count() {
       service.incrementBlockedCount = originalCount;
     }
   });
+});
+
+add_task(async function test_native_channel_and_cached_load_actions() {
+  await withEngine(
+    [
+      "||ads.example/method.js$script,method=POST,important",
+      "||ads.example/general.js$script,important",
+    ],
+    async engine => {
+      const originalCount = service.incrementBlockedCount;
+      const applied = [];
+      service.incrementBlockedCount = (browserId, details) => {
+        applied.push({ browserId, ...details });
+      };
+      try {
+        const channel = makeChannel({
+          url: "https://ads.example/method.js",
+          method: "POST",
+          isPrivate: true,
+        });
+        Assert.equal(
+          contentPolicyDecision(channel),
+          Ci.nsIContentPolicy.ACCEPT,
+          "A method-specific rule cannot reject a methodless cached load"
+        );
+        Assert.equal(applied.length, 0);
+        await nativeChannelCheck(engine, channel);
+        Assert.equal(channel.status, Cr.NS_ERROR_ABORT);
+        Assert.deepEqual(applied, [
+          {
+            browserId: BROWSER_ID,
+            hostname: "ads.example",
+            requestType: "script",
+            isPrivate: true,
+            topLevel: false,
+          },
+        ]);
+        const cached = makeChannel({ url: "https://ads.example/general.js" });
+        Assert.equal(
+          contentPolicyDecision(cached),
+          Ci.nsIContentPolicy.REJECT_TYPE
+        );
+        Assert.equal(applied.length, 2);
+        service.addDomainExceptionForSite("publisher.example", "ads.example");
+        Assert.equal(
+          contentPolicyDecision(cached),
+          Ci.nsIContentPolicy.ACCEPT,
+          "Domain allowances override important cache-path matches"
+        );
+        Assert.equal(
+          applied.length,
+          2,
+          "Allowed requests do not add statistics"
+        );
+      } finally {
+        service.incrementBlockedCount = originalCount;
+      }
+    }
+  );
 });
 
 add_task(async function test_native_host_policy_matches_permission_api() {
@@ -670,6 +772,45 @@ add_task(async function test_native_host_policy_matches_permission_api() {
   });
 });
 
+add_task(async function test_native_domain_policy_base_domain_and_site_scope() {
+  await withEngine(["||ads.example^$important"], async engine => {
+    const channel = makeChannel({ url: "https://cdn.ads.example/ad.js" });
+    service.addDomainExceptionForSite("publisher.example", "ads.example");
+    const request = captureLoad(engine, channel);
+    Assert.equal(request.canMatch, true);
+    Assert.equal(request.canBlock, false);
+    Assert.equal(JSON.parse(request.checkRequestDetailed()).important, true);
+    service._rememberTopLevelHost(BROWSER_ID, "different.example");
+    Assert.equal(request.isCurrent, false);
+    Assert.equal(captureLoad(engine, channel).canBlock, true);
+    for (const host of [
+      "127.0.0.1",
+      "localhost",
+      "[::1]",
+      "cdn.ads.example.",
+    ]) {
+      const load = makeChannel({ url: `https://${host}/ad.js` });
+      const allowed = service._baseDomain(load.URI.host);
+      const captured = engine.capturePolicyLoad(
+        load.URI,
+        load.loadInfo,
+        load,
+        0,
+        [],
+        [allowed],
+        0,
+        0,
+        0
+      );
+      Assert.equal(
+        captured.canBlock,
+        false,
+        `Native domain fallback parity for ${host}`
+      );
+    }
+  });
+});
+
 function asyncResult(request) {
   let returned = false;
   let calls = 0;
@@ -700,6 +841,8 @@ add_task(async function test_shared_async_classification_and_stale_delivery() {
         () => engine.invalidatePolicy(),
         () => Services.prefs.setBoolPref(PARTNERS_PREF, false),
         () => service.allowSiteForSession("publisher.example"),
+        () =>
+          service.addDomainExceptionForSite("publisher.example", "ads.example"),
         () => service._publishEngine(makeEngine(["||ads.example^"]), "[]"),
         () => Services.prefs.setBoolPref(ENABLED_PREF, false),
       ]) {
@@ -854,10 +997,12 @@ add_task(async function test_async_redirect_and_rewrite_actions() {
           1,
           "Applied redirects cannot count twice after invalidation"
         );
+        service.addDomainExceptionForSite("publisher.example", "ads.example");
         const rewriteChannel = makeChannel({
           url: "https://ads.example/rewrite?tracking=1&keep=2",
         });
         const rewriteRequest = captureLoad(engine, rewriteChannel);
+        Assert.equal(rewriteRequest.canBlock, false);
         const rewrite = await asyncResult(rewriteRequest);
         Assert.equal(rewrite.status, Cr.NS_OK);
         Assert.equal(
