@@ -5,3 +5,15 @@ support-files = ["file_early_scriptlet_injection.html", "file_native_blocker.sjs
 ["browser_blocked_page_bypass.js"]
 
 ["browser_early_scriptlet_injection.js"]
+
+["browser_native_network.js"]
+
+["browser_native_response_worker.js"]
+support-files = [
+  "file_native_response_worker.sjs",
+  "file_native_response_worker.js",
+  "file_native_response_service_worker.js",
+]
+
+["browser_native_scheduling.js"]
+support-files = ["file_native_scheduling.sjs"]

@@ -9,6 +9,7 @@ import {
   LISTS_META_FILE_NAME,
 } from "resource:///modules/WaterfoxBlockerUtils.sys.mjs";
 import { ListCatalog } from "resource:///modules/internal/ListCatalog.sys.mjs";
+import { NetUtil } from "resource://gre/modules/NetUtil.sys.mjs";
 
 export const MAX_CUSTOM_FILTERS_BYTES = 2 * 1024 * 1024;
 export const MAX_CUSTOM_FILTER_LINE_LENGTH = 16 * 1024;
@@ -96,6 +97,51 @@ async function readText(path) {
   return new TextDecoder().decode(bytes);
 }
 
+function readLocalTextSync(uri, { maxBytes = Infinity, fatal = false } = {}) {
+  const localUri = typeof uri === "string" ? Services.io.newURI(uri) : uri;
+  if (!localUri.schemeIs("file") && !localUri.schemeIs("resource")) {
+    throw new Error("Synchronous baseline reads must be local");
+  }
+  const stream = NetUtil.newChannel({
+    uri: localUri,
+    loadUsingSystemPrincipal: true,
+  }).open();
+  try {
+    const length = stream.available();
+    if (length > maxBytes) {
+      throw new Error("Local baseline file is too large");
+    }
+    const binaryStream = Cc["@mozilla.org/binaryinputstream;1"].createInstance(
+      Ci.nsIBinaryInputStream
+    );
+    binaryStream.setInputStream(stream);
+    const bytes = new Uint8Array(length);
+    if (binaryStream.readArrayBuffer(length, bytes.buffer) !== length) {
+      throw new Error("Local baseline file could not be read completely");
+    }
+    return new TextDecoder("utf-8", { fatal }).decode(bytes);
+  } finally {
+    stream.close();
+  }
+}
+
+function readTextSync(path, options) {
+  const file = Cc["@mozilla.org/file/local;1"].createInstance(Ci.nsIFile);
+  file.initWithPath(path);
+  return readLocalTextSync(Services.io.newFileURI(file), options);
+}
+
+function readJSONSync(path, fallbackValue) {
+  try {
+    return JSON.parse(readTextSync(path));
+  } catch (err) {
+    if (!isFileNotFoundError(err)) {
+      console.warn(`[WaterfoxBlocker] Failed reading JSON ${path}:`, err);
+    }
+    return fallbackValue;
+  }
+}
+
 async function writeText(path, text) {
   const bytes = new TextEncoder().encode(String(text));
   await IOUtils.write(path, bytes, atomicWriteOptions(path));
@@ -162,6 +208,49 @@ async function readCustomFiltersRecord(customDescriptor) {
   }
 }
 
+function readCustomFiltersRecordSync(customDescriptor) {
+  if (!customDescriptor?.customFilters) {
+    return null;
+  }
+  try {
+    const text = normalizeCustomFiltersText(
+      readTextSync(customFiltersPath(), {
+        maxBytes: MAX_CUSTOM_FILTERS_BYTES,
+        fatal: true,
+      })
+    );
+    if (!text.trim()) {
+      return null;
+    }
+    return {
+      customFilters: true,
+      filename: customDescriptor.filename,
+      text,
+      url: customDescriptor.url,
+    };
+  } catch (err) {
+    if (!isFileNotFoundError(err)) {
+      console.warn("[WaterfoxBlocker] Failed reading custom filters:", err);
+    }
+    return null;
+  }
+}
+
+function readWaterfoxUnbreakRecordSync() {
+  if (!gWaterfoxUnbreakRecord) {
+    const text = readLocalTextSync(WATERFOX_UNBREAK_FILTERS_URL);
+    if (!text.trim()) {
+      throw new Error("Waterfox unbreak filters were empty");
+    }
+    gWaterfoxUnbreakRecord = {
+      filename: WATERFOX_UNBREAK_FILTERS_FILE_NAME,
+      text,
+      url: WATERFOX_UNBREAK_FILTERS_URL,
+    };
+  }
+  return gWaterfoxUnbreakRecord;
+}
+
 async function readWaterfoxUnbreakRecord() {
   if (gWaterfoxUnbreakRecord) {
     return gWaterfoxUnbreakRecord;
@@ -220,6 +309,8 @@ export const ListStore = {
   },
 
   readText,
+  readTextSync,
+  readLocalTextSync,
   writeText,
   readJSON,
   writeJSON,
@@ -228,6 +319,111 @@ export const ListStore = {
   readCustomFiltersText,
   readCustomFiltersRecord,
   withWaterfoxUnbreakRecord,
+
+  withWaterfoxUnbreakRecordSync(listRecords) {
+    return [...listRecords, readWaterfoxUnbreakRecordSync()];
+  },
+
+  readStoredListsSync(descriptors) {
+    const metadata = readJSONSync(this.listsMetadataPath(), { lists: [] });
+    const metadataByUrl = new Map(
+      (metadata?.lists || []).map(entry => [String(entry.url), entry])
+    );
+    const records = [];
+    for (const descriptor of descriptors) {
+      if (descriptor?.customFilters) {
+        const record = readCustomFiltersRecordSync(descriptor);
+        if (record) {
+          records.push(record);
+        }
+        continue;
+      }
+      const filenames = [descriptor.filename];
+      const previousFilename = String(
+        metadataByUrl.get(String(descriptor.url))?.filename || ""
+      );
+      const hasLegacyCustomFilename =
+        ListCatalog.isCustomListUrlDescriptor(descriptor) &&
+        previousFilename !== descriptor.filename &&
+        ListCatalog.isLegacyCustomListFilename(previousFilename);
+      if (hasLegacyCustomFilename) {
+        filenames.push(previousFilename);
+      }
+      for (const filename of filenames) {
+        try {
+          const text = this.readTextSync(this.listPath(filename));
+          if (text.trim()) {
+            const record = {
+              filename: descriptor.filename,
+              text,
+              url: descriptor.url,
+            };
+            if (filename !== descriptor.filename) {
+              record.previousFilename = filename;
+            }
+            if (hasLegacyCustomFilename) {
+              record.unverified = true;
+            }
+            records.push(record);
+            break;
+          }
+        } catch (err) {
+          if (!isFileNotFoundError(err)) {
+            console.warn(
+              `[WaterfoxBlocker] Failed reading stored list ${filename}:`,
+              err
+            );
+          }
+        }
+      }
+    }
+    return records;
+  },
+
+  readBundledListsSync(descriptors) {
+    const records = [];
+    for (const descriptor of descriptors) {
+      if (!descriptor.bundledUrl) {
+        continue;
+      }
+      try {
+        const text = this.readLocalTextSync(descriptor.bundledUrl);
+        if (text) {
+          records.push({
+            filename: descriptor.filename,
+            text,
+            url: descriptor.url,
+          });
+        }
+      } catch (err) {
+        console.warn(
+          `[WaterfoxBlocker] Failed to read bundled list: ${descriptor.bundledUrl}`,
+          err
+        );
+      }
+    }
+    return records;
+  },
+
+  resolveLocalListRecordsSync(descriptors) {
+    const storedLists = this.readStoredListsSync(descriptors);
+    const missing = ListCatalog.getMissingBundledListDescriptors(
+      descriptors,
+      storedLists
+    );
+    const bundledLists = missing.length
+      ? this.readBundledListsSync(missing)
+      : [];
+    const listRecords = ListCatalog.mergeListRecords(
+      descriptors,
+      storedLists.filter(record => !record.unverified),
+      bundledLists
+    );
+    return {
+      complete: ListCatalog.hasAllBundledListRecords(descriptors, listRecords),
+      listRecords,
+    };
+  },
 
   async readStoredLists(descriptors) {
     const metadata = await this.readJSON(this.listsMetadataPath(), {
