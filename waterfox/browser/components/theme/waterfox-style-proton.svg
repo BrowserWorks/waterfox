@@ -1,0 +1,38 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 72" width="340" height="72">
+  <style>
+    .wf-d { display: none; }
+    @media (prefers-color-scheme: dark) {
+      .wf-l { display: none; }
+      .wf-d { display: inline; }
+    }
+  </style>
+  <defs>
+    <filter id="proton-sh-l" x="-50%" y="-50%" width="200%" height="220%"><feDropShadow dx="0" dy="0" stdDeviation="2" flood-color="#000000" flood-opacity="0.2"/></filter>
+    <filter id="proton-sh-d" x="-50%" y="-50%" width="200%" height="220%"><feDropShadow dx="0" dy="0" stdDeviation="2.6" flood-color="#000000" flood-opacity="0.5"/></filter>
+  </defs>
+  <g class="wf-l">
+    <rect x="1" y="1" width="338" height="70" rx="10" fill="#f0f0f4" stroke="#dcdce3" stroke-width="1"/>
+    <rect x="9" y="30" width="96" height="34" rx="8" fill="#ffffff" filter="url(#proton-sh-l)"/>
+    <rect x="20" y="40.5" width="13" height="13" rx="4" fill="#6f6e7a"/>
+    <rect x="40" y="44.5" width="43.5" height="5" rx="2.5" fill="#7c7c87"/>
+    <rect x="122" y="40.5" width="13" height="13" rx="4" fill="#b7b7c2"/>
+    <rect x="142" y="44.5" width="31.8" height="5" rx="2.5" fill="#b7b7c2"/>
+    <rect x="224" y="40.5" width="13" height="13" rx="4" fill="#b7b7c2"/>
+    <rect x="244" y="44.5" width="24.4" height="5" rx="2.5" fill="#b7b7c2"/>
+    <path d="M318 49 h10 M323 44 v10" stroke="#8a8a93" stroke-width="2" stroke-linecap="round" fill="none"/>
+  </g>
+  <g class="wf-d">
+    <rect x="1" y="1" width="338" height="70" rx="10" fill="#1c1b22" stroke="#35343f" stroke-width="1"/>
+    <rect x="9" y="30" width="96" height="34" rx="8" fill="#2b2a33" filter="url(#proton-sh-d)"/>
+    <rect x="20" y="40.5" width="13" height="13" rx="4" fill="#b9b8c2"/>
+    <rect x="40" y="44.5" width="43.5" height="5" rx="2.5" fill="#cfced8"/>
+    <rect x="122" y="40.5" width="13" height="13" rx="4" fill="#6c6b77"/>
+    <rect x="142" y="44.5" width="31.8" height="5" rx="2.5" fill="#6c6b77"/>
+    <rect x="224" y="40.5" width="13" height="13" rx="4" fill="#6c6b77"/>
+    <rect x="244" y="44.5" width="24.4" height="5" rx="2.5" fill="#6c6b77"/>
+    <path d="M318 49 h10 M323 44 v10" stroke="#8d8b99" stroke-width="2" stroke-linecap="round" fill="none"/>
+  </g>
+</svg>
