@@ -1545,12 +1545,17 @@ BrowserGlue.prototype = {
       checkboxLabelId = "tabbrowser-ask-close-tabs-checkbox";
     }
 
-    const [title, quitButtonLabel, checkboxLabel] =
+    const [title, quitButtonLabel, checkboxLabel, restoreCheckboxLabel] =
       win.gBrowser.tabLocalization.formatMessagesSync([
         titleId,
         quitButtonLabelId,
         checkboxLabelId,
+        "tabbrowser-confirm-session-restore-checkbox",
       ]);
+
+    // Waterfox: the quit prompt can flip session restore on the way out.
+    const startupPref = Services.prefs.getIntPref("browser.startup.page");
+    let restoreSession = { value: startupPref == 3 };
 
     // Only format the "close current tab" message if needed
     let closeTabButtonLabel;
@@ -1581,7 +1586,7 @@ BrowserGlue.prototype = {
     }
 
     // buttonPressed will be 0 for close all, 1 for cancel (don't close/quit), 2 for close current tab
-    let buttonPressed = Services.prompt.confirmEx(
+    let buttonPressed = Services.prompt.confirmEx2(
       win,
       title.value,
       null,
@@ -1590,7 +1595,9 @@ BrowserGlue.prototype = {
       null,
       showCloseCurrentTabOption ? closeTabButtonLabel.value : null,
       checkboxLabel.value,
-      warnOnClose
+      warnOnClose,
+      restoreCheckboxLabel.value,
+      restoreSession
     );
 
     // If the user has unticked the box, and has confirmed closing, stop showing
@@ -1606,6 +1613,15 @@ BrowserGlue.prototype = {
     // Close the current tab if user selected BUTTON_POS_2
     if (buttonPressed === 2) {
       win.gBrowser.removeTab(win.gBrowser.selectedTab);
+    }
+
+    // Waterfox: persist the session restore choice only when actually
+    // quitting, and only when it changed.
+    if (buttonPressed == 0 && restoreSession.value != (startupPref == 3)) {
+      Services.prefs.setIntPref(
+        "browser.startup.page",
+        restoreSession.value ? 3 : 1
+      );
     }
 
     this._quitSource = "unknown";
