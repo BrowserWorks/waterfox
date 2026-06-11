@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { WaterfoxBlockerService } from "resource:///modules/WaterfoxBlockerService.sys.mjs";
+import { isPrivateBrowsingContext } from "resource:///modules/WaterfoxBlockerUtils.sys.mjs";
 
 const BLOCKED_PAGE_URL = "about:contentblocked";
 
@@ -59,8 +60,14 @@ export class WaterfoxBlockedPageParent extends JSWindowActorParent {
       return false;
     }
 
-    WaterfoxBlockerService.allowSiteForSession(hostname);
+    WaterfoxBlockerService.allowSiteForSession(hostname, {
+      isPrivate: this._isPrivateContext(),
+    });
     return true;
+  }
+
+  _isPrivateContext() {
+    return isPrivateBrowsingContext(this.browsingContext);
   }
 
   _getTopBrowserId() {
