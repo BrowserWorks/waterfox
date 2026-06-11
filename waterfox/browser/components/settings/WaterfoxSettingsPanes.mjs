@@ -4,6 +4,27 @@
 
 import { SettingPaneManager } from "chrome://browser/content/preferences/config/SettingPaneManager.mjs";
 
+/**
+ * Waterfox setting panes. Top level panes also need a moz-page-nav-button
+ * element in preferences.xhtml.
+ */
+const WATERFOX_CONFIG_PANES = Object.freeze({
+  adBlocking: {
+    l10nId: "waterfox-blocker-pane-header",
+    iconSrc: "chrome://browser/content/blocker/waterfoxShield.svg",
+    groupIds: [
+      "waterfoxBlocker",
+      "waterfoxBlockerLists",
+      "waterfoxBlockerExceptions",
+    ],
+    module: "chrome://browser/content/waterfox/settings/waterfoxAdBlocking.mjs",
+    visible: () =>
+      Services.prefs.getBoolPref("waterfox.blocker.ui.enabled", false),
+  },
+});
+
+SettingPaneManager.registerPanes(WATERFOX_CONFIG_PANES);
+
 if (Services.prefs.getBoolPref("browser.settings-redesign.enabled", false)) {
   const aboutPane = SettingPaneManager.get("about");
   aboutPane.module =
