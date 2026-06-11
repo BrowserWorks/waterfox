@@ -41,6 +41,7 @@
 
   <link rel="localization" href="branding/brand.ftl"/>
   <link rel="localization" href="browser/browser.ftl"/>
+  <link rel="localization" href="browser/waterfox/blocker.ftl"/>
   <link rel="localization" href="browser/waterfox/dns.ftl"/>
   <link rel="localization" href="browser/waterfox/settings.ftl"/>
     <!-- Used by fontbuilder.js -->
@@ -140,6 +141,11 @@
         view="panePrivacy"
         iconsrc="chrome://browser/skin/preferences/category-privacy-security.svg"
         data-l10n-id="pane-privacy-title3">
+      </html:moz-page-nav-button>
+      <html:moz-page-nav-button id="category-ad-blocking"
+        view="paneAdBlocking"
+        iconsrc="chrome://browser/content/blocker/waterfoxShield.svg"
+        data-l10n-id="pane-waterfox-blocker-title">
       </html:moz-page-nav-button>
       <html:moz-page-nav-button id="category-passwords-autofill"
         view="panePasswordsAutofill"
