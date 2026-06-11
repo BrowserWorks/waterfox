@@ -1,0 +1,112 @@
+@namespace xul url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+@namespace html url("http://www.w3.org/1999/xhtml");
+
+@-moz-document url-prefix("about:neterror"), url-prefix("about:restartrequired"), url("chrome://browser/content/aboutRestartRequired.xhtml"), url("about:sessionrestore"), url("chrome://browser/content/aboutSessionRestore.xhtml")
+{
+  #errorPageContainer,
+  .neterror > .container,
+  .description-wrapper {
+    min-height: 300px;
+    background-position: left center;
+    background-repeat: no-repeat;
+    background-size: 38%;
+    background-image: var(--uc-error-illustration);
+  }
+  #errorPageContainer {
+    display: flex;
+    flex-direction: column;
+  }
+  .description-wrapper {
+    padding-inline-start: 38%;
+  }
+
+  .container {
+    min-width: var(--in-content-container-min-width);
+    max-width: var(--in-content-container-max-width);
+  }
+
+  #text-container {
+    margin: auto;
+    padding-inline-start: 38%;
+  }
+  .img-container > img {
+    content: var(--uc-error-illustration);
+    width: min(18.5em, 38vw);
+    max-width: none;
+    object-fit: contain;
+  }
+}
+@-moz-document url-prefix("about:neterror?e=connectionFailure"), url-prefix("about:neterror?e=netInterrupt"), url-prefix("about:neterror?e=netReset"), url-prefix("about:neterror?e=netTimeout"), url-prefix("about:neterror?e=netOffline"), url-prefix("about:restartrequired"), url("chrome://browser/content/aboutRestartRequired.xhtml")
+{
+  :root {
+    --uc-error-illustration: url(chrome://browser/skin/lepton/error-connection-failure.svg);
+  }
+}
+@-moz-document url-prefix("about:neterror?e=dnsNotFound") {
+  :root {
+    --uc-error-illustration: url(chrome://browser/skin/lepton/error-server-not-found.svg);
+  }
+}
+@-moz-document url-prefix("about:neterror?e=blockedByPolicy"), url-prefix("about:neterror?e=deniedPortAccess"), url-prefix("about:neterror?e=malformedURI") {
+  :root {
+    --uc-error-illustration: url(chrome://browser/skin/illustrations/error-malformed-url.svg);
+  }
+}
+@-moz-document url-prefix("about:neterror?e=clockSkewError"), url-prefix("about:neterror?e=nssFailure") {
+  :root {
+    --uc-error-illustration: url(chrome://browser/skin/lepton/blue-berror.svg);
+  }
+  #errorPageContainer,
+  .neterror > .container {
+    background-size: 18.5em;
+  }
+}
+@-moz-document url("about:sessionrestore"), url("chrome://browser/content/aboutSessionRestore.xhtml")
+{
+  :root {
+    --uc-error-illustration: url(chrome://browser/skin/lepton/error-session-restore.svg);
+  }
+}
+@-moz-document url-prefix("about:neterror?e=fileNotFound") {
+  @media (min-width: 970px) {
+    .title {
+      background-image: url("chrome://global/skin/icons/info.svg") !important;
+    }
+  }
+  #text-container {
+    padding-inline-start: 0;
+  }
+}
+@-moz-document url-prefix("about:tabcrashed") {
+  @media (min-width: 970px) {
+    .title {
+      background-image: url("chrome://browser/skin/tab-crashed.svg") !important;
+    }
+  }
+}
+@-moz-document url("about:robots"), url("chrome://browser/content/aboutRobots.xhtml")
+{
+  @media (min-width: 970px) {
+    .title {
+      background-image: url("chrome://browser/content/aboutRobots-icon.png") !important;
+    }
+  }
+}
+@-moz-document url("about:welcomeBack"), url("chrome://browser/content/aboutWelcomeBack.xhtml")
+{
+  @media (min-width: 970px) {
+    .title {
+      background-image: url("chrome://browser/skin/lepton/welcome-back.svg") !important;
+    }
+  }
+}
+@-moz-document url-prefix("about:preferences") {
+  #no-results-message::after {
+    display: block;
+    content: url("chrome://browser/skin/lepton/no-search-results.svg");
+    width: min(380px, 100%);
+    height: auto;
+    margin-top: 64px;
+    margin-inline: auto;
+  }
+}

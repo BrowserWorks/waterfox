@@ -1,0 +1,197 @@
+@namespace xul url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+@namespace html url("http://www.w3.org/1999/xhtml");
+
+@media -moz-pref("userContent.player.size") {
+  .videocontrols #controlsContainer {
+    --button-size: 36px !important;
+    --track-size: 6px !important;
+    --thumb-size: 15px !important;
+    --controlBar-height: 48px;
+  }
+  .videocontrols #controlsContainer.touch {
+    --button-size: 48px !important;
+    --controlBar-height: 56px;
+  }
+  .videocontrols #controlsContainer .controlBar {
+    height: var(--controlBar-height) !important;
+  }
+  .videocontrols[inDOMFullscreen] #controlsContainer {
+    --button-size: 48px !important;
+    --track-size: 7px !important;
+    --thumb-size: 16px !important;
+    --controlBar-height: 60px;
+  }
+  .videocontrols[inDOMFullscreen] #controlsContainer.touch {
+    --button-size: 52px !important;
+    --controlBar-height: 64px;
+  }
+  .videocontrols[inDOMFullscreen] #controlsContainer .controlBar {
+    padding-bottom: 8px !important;
+  }
+}
+
+@media -moz-pref("userContent.player.ui") {
+  :is(html|audio, html|video) {
+    --duration-color: #eee;
+    --media-background: rgba(26, 26, 26, 0.8);
+    --media-border-radius: 0;
+  }
+  html|audio {
+    --media-border-radius: 8px;
+  }
+  html|video {
+    --media-background: linear-gradient(transparent, rgba(26, 26, 26, 0.85));
+  }
+  @media (prefers-contrast) {
+    html|video {
+      --duration-color: #929292;
+      --media-background: rgba(26, 26, 26, 0.8);
+    }
+  }
+  .videocontrols #controlsContainer .controlBar {
+    background: var(--media-background, rgba(26, 26, 26, 0.8)) !important;
+    border-radius: var(--media-border-radius, 0);
+  }
+  .videocontrols #controlsContainer .duration {
+    color: var(--duration-color, #929292) !important;
+  }
+  @media -moz-pref("userContent.player.ui.twoline") {
+    .videocontrols #controlsContainer {
+      --controlBar-default-height: 40px;
+    }
+    .videocontrols #controlsContainer.touch {
+      --controlBar-default-height: 52px;
+    }
+    html|audio {
+      --controlBar-flex-wrap: unset;
+      --controlBar-justify-content: center;
+      --controlBar-align-content: unset;
+      --controlBar-twoline-more-height: 0px;
+      --controlBar-padding-inline: 9px;
+      --scrubberStack-order: unset;
+      --scrubberStack-height: 100%;
+      --scrubberStack-transform: none;
+      --scrubberStack-margin-inline: 9px;
+      --positionDurationBox-flex-grow: unset;
+      --positionDurationBox-margin-left: unset;
+      --positionDurationBox-text-align: center;
+      --button-outside-margin: 0;
+    }
+    html|video {
+      --scrubber-thumb-scale: 0;
+      --scrubber-thumb-color: #48a0f7; /* Match the hover colour to avoid flashing. */
+      --progressBar-scale: 0.65;
+      --controlBar-flex-wrap: wrap;
+      --controlBar-justify-content: space-between;
+      --controlBar-align-content: space-around;
+      --controlBar-padding-inline: 0 !important;
+      --scrubberStack-order: -1;
+      --scrubberStack-flex-basis: auto;
+      --scrubberStack-twoline-width: 100%;
+      --scrubberStack-margin-inline: 0;
+      --positionDurationBox-flex-grow: 2;
+      --positionDurationBox-margin-left: 15px;
+      --positionDurationBox-text-align: left;
+      --duration-color: #dadada;
+      --button-outside-margin: 9px;
+    }
+    .videocontrols .scrubber:not(:hover)::-moz-range-thumb {
+      transform: scale(var(--scrubber-thumb-scale, 1));
+      background-color: var(--scrubber-thumb-color, currentColor) !important;
+    }
+    .videocontrols .progressStack {
+      transform-origin: bottom;
+      transform: scaleY(var(--progressBar-scale, 1));
+    }
+    .videocontrols .scrubber:hover::-moz-range-thumb,
+    .videocontrols .progressContainer:hover .progressStack {
+      transform: scale(1);
+    }
+    .videocontrols #controlsContainer .controlBar {
+      flex-wrap: var(--controlBar-flex-wrap);
+      justify-content: var(--controlBar-justify-content);
+      align-content: var(--controlBar-align-content);
+      height: calc(var(--controlBar-height, var(--controlBar-default-height)) + var(--controlBar-twoline-more-height, var(--thumb-size))) !important;
+      padding-inline: var(--controlBar-padding-inline) !important;
+    }
+    .videocontrols #controlsContainer .scrubberStack {
+      order: var(--scrubberStack-order);
+      height: var(--scrubberStack-height, var(--thumb-size)) !important;
+      transform: var(--scrubberStack-transform, translateY(calc(var(--thumb-size) / 2)));
+      flex-basis: var(--scrubberStack-flex-basis, calc(var(--scrubberStack-width) - 18px)) !important;
+      width: var(--scrubberStack-twoline-width, var(--scrubberStack-width));
+      margin-inline: var(--scrubberStack-margin-inline) !important;
+    }
+    .videocontrols #controlsContainer .positionDurationBox {
+      flex-grow: var(--positionDurationBox-flex-grow);
+      margin-left: var(--positionDurationBox-margin-left);
+      text-align: var(--positionDurationBox-text-align) !important;
+    }
+    .videocontrols #playButton {
+      margin-left: var(--button-outside-margin) !important;
+    }
+    .videocontrols #fullscreenButton {
+      margin-right: var(--button-outside-margin) !important;
+    }
+  }
+}
+@media -moz-pref("userContent.player.icon") {
+  .videocontrols #controlsContainer .fullscreenButton {
+    background-image: url("chrome://browser/skin/lepton/enter-fullscreen.svg") !important;
+  }
+  .videocontrols #controlsContainer .fullscreenButton[fullscreened] {
+    background-image: url("chrome://browser/skin/lepton/exit-fullscreen.svg") !important;
+  }
+}
+@media -moz-pref("userContent.player.noaudio") {
+  .videocontrols #controlsContainer .muteButton[noAudio] {
+    display: none !important;
+  }
+}
+
+@media -moz-pref("userContent.player.click_to_play") {
+  .videocontrols #controlsContainer .clickToPlay {
+    cursor: pointer;
+    opacity: 0.65 !important;
+  }
+  .videocontrols #controlsContainer .controlsSpacerStack:hover > .clickToPlay {
+    opacity: 0.85 !important;
+  }
+  .videocontrols #controlsContainer .controlsSpacerStack:hover > .clickToPlay:hover {
+    opacity: 1 !important;
+    fill: #48a0f7 !important;
+  }
+}
+
+@media -moz-pref("userContent.player.animate") {
+  @media (prefers-reduced-motion: no-preference) {
+    .videocontrols #controlsContainer .controlBar {
+      transition: transform 350ms ease;
+      opacity: 1 !important;
+    }
+    .videocontrols #controlsContainer .controlBar[hidden] {
+      transform: translateY(100%);
+      transition:
+        transform 350ms ease-in-out,
+        opacity 1s ease 100ms !important;
+      opacity: 0 !important;
+    }
+    .videocontrols #controlsContainer .controlBar[hidden] .progressBar,
+    .videocontrols #controlsContainer .controlBar[hidden] .bufferBar {
+      display: unset !important;
+      opacity: 0.55;
+      transition: opacity 150ms ease 50ms;
+    }
+
+    .videocontrols .scrubber::-moz-range-thumb,
+    .videocontrols .progressStack {
+      transition: transform 0.1s cubic-bezier(0, 0, 0.2, 1);
+    }
+
+    .videocontrols #controlsContainer .clickToPlay {
+      transition:
+        opacity 150ms ease-in-out,
+        fill 150ms ease-in-out;
+    }
+  }
+}

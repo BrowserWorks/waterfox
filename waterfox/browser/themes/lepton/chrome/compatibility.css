@@ -1,0 +1,273 @@
+@namespace xul url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+@namespace html url("http://www.w3.org/1999/xhtml");
+/** Compatibility Fixes *******************************************************/
+/*= Theme - Compatibility ====================================================*/
+@media -moz-pref("userChrome.compatibility.theme") {
+  /*= Hotfix #98 ===============================================================*/
+  /* Hidden Tab Panel Padding */
+  #allTabsMenu-hiddenTabsView .all-tabs-item {
+    margin-inline: 8px;
+    border-radius: 4px;
+  }
+  /*= Remote Tabs Panel's Bottom Padding =======================================*/
+  #PanelUI-remotetabs #PanelUI-remotetabs-main {
+    margin-bottom: 6px;
+  }
+  /*= Identity Popup Icon Crop =================================================*/
+
+  /*= Zoom in button's plus icon horizontal rate ===============================*/
+  #customization-palette-container #zoom-in-button > .toolbarbutton-icon,
+  #customization-panel-container #zoom-in-button > .toolbarbutton-icon,
+  #widget-overflow-mainView #zoom-in-button > .toolbarbutton-icon {
+    padding-inline-start: 0px !important;
+  }
+  /*= Subview button, Menu's right padding #597 ================================*/
+  .subviewbutton.toolbaritem-combined-buttons:not([shortcut]),
+  .subviewbutton.subviewbutton-nav:not([shortcut]),
+  menu.subviewbutton {
+    padding-inline-end: 0 !important;
+  }
+  #allTabsMenu-allTabsView .subviewbutton.subviewbutton-nav:not([shortcut]) {
+    padding-inline-end: var(--arrowpanel-menuitem-padding-inline) !important;
+  }
+  /*= First visible tab margin at maximized #332 ===============================*/
+  :root:is([tabsintitlebar="true"], [customtitlebar="true"])[sizemode="maximized"] #TabsToolbar {
+    margin-left: -1px;
+  }
+  /*= Disabled menu background color ===========================================*/
+  menuitem[disabled="true"],
+  menu[disabled="true"] {
+    background-color: transparent !important;
+  }
+  /*= Remove Tab Border ========================================================*/
+  @media -moz-pref("browser.theme.waterfox.browserStyle", "photon") and (-moz-pref("userChrome.tab.connect_to_window")) {
+    /* TARGET: original, photon */
+    #TabsToolbar:not([brighttext])
+      #tabbrowser-tabs:not([noshadowfortests])
+      .tabbrowser-tab:is([visuallyselected], [multiselected])
+      > .tab-stack
+      > .tab-background {
+      /* Nightly 96:  1px solid var(--tab-line-color, rgba(128,128,142,0.9)); */
+      border: unset !important;
+    }
+    :root:is(:-moz-lwtheme, [lwtheme])
+      #TabsToolbar[brighttext]
+      #tabbrowser-tabs:not([noshadowfortests])
+      .tabbrowser-tab:is([visuallyselected], [multiselected])
+      > .tab-stack
+      > .tab-background {
+      /* Nightly 96:  1px solid var(--tab-line-color, rgba(128,128,142,0.9)); */
+      border: unset !important;
+    }
+    :root:is(:-moz-lwtheme, [lwtheme]) #TabsToolbar #firefox-view-button[open] > .toolbarbutton-icon,
+    :root:is(:-moz-lwtheme, [lwtheme]) .tab-background[selected] {
+      outline-color: transparent !important;
+    }
+    .keyboard-focused-tab > .tab-stack > .tab-background,
+    .tabbrowser-tab:focus:not([aria-activedescendant]) > .tab-stack > .tab-background {
+      outline: var(--focus-outline) !important;
+    }
+  }
+  /*= Tab Separator Color ======================================================*/
+  #TabsToolbar,
+  #nav-bar {
+    --toolbarseparator-color: color-mix(in srgb, currentColor 20%, transparent); /* 60% at v105 */
+  }
+  /*= Light Weight Theme =======================================================*/
+  /* Header Image */
+  :root[lwtheme-image] > body {
+    background-image: var(--lwt-header-image) !important; /* Original: var(--lwt-header-image) */
+    background-repeat: no-repeat !important;
+    background-position: right top !important;
+    background-color: var(--lwt-accent-color, Window) !important;
+  }
+  :root[lwtheme-image] > body:-moz-window-inactive {
+    background-color: var(--lwt-accent-color-inactive, var(--lwt-accent-color)) !important;
+  }
+  @media (min-width: 2500px) {
+    :root[lwtheme-image] > body {
+      background-size: contain;
+    }
+    @media -moz-pref("userChrome.compatibility.covered_header_image") {
+      :root[lwtheme-image] > body {
+        background-size: cover;
+      }
+    }
+  }
+  :root[lwtheme-image] > body :root:is(:-moz-lwtheme, [lwtheme]) #navigator-toolbox {
+    background-image: var(--lwt-header-image), var(--lwt-additional-images) !important;
+    background-repeat: var(--lwt-background-tiling) !important;
+    background-position: var(--lwt-background-alignment) !important;
+    background-color: unset !important; /* Original:  var(--lwt-accent-color) */
+  }
+  /* Navbar Border */
+  :root:is(:-moz-lwtheme, [lwtheme]) #navigator-toolbox {
+    --tabs-border-color: rgba(0, 0, 0, 0.4); /* Legacy: v96, (0, 0, 0, 0.3) -> (0, 0, 0, 0.4)  */
+    --lwt-tabs-border-color: rgba(0, 0, 0, 0.4);
+  }
+  #main-window {
+    background-color: WindowFrame !important;
+  }
+  :root[lwtheme][lwtheme-image] #customization-container {
+    background-image: none !important;
+  }
+  #customization-container {
+    background-color: transparent !important; /* Original: color-mix(in srgb, -moz-dialog 85%, white) */
+  }
+  :root:not([lwtheme]) #customization-container {
+    background-color: var(--toolbar-non-lwt-bgcolor) !important;
+  }
+  /*= Findbar Border Color =====================================================*/
+  html|input.findbar-textbox {
+    border: 1px solid var(--input-border-color, var(--toolbar-field-border-color, ThreeDShadow)) !important; /* Original: 1px solid var(--input-border-color, var(--toolbar-field-border-color)) */
+  }
+  /*= Drop Indicator Color #473 ================================================*/
+  treechildren::-moz-tree-cell-text(primary, dropOn),
+  treechildren::-moz-tree-drop-feedback,
+  vbox[part="drop-indicator-bar"] > image[part="drop-indicator"] {
+    background-color: var(--button-primary-bgcolor, var(--focus-outline-color)) !important;
+  }
+  #bookmarksPanel[lwt-sidebar="true"] {
+    --focus-outline-color: var(--in-content-focus-outline-color, AccentColor) !important;
+  }
+  /*= Firefox View Border #498 =================================================*/
+
+  @media -moz-pref("browser.theme.waterfox.browserStyle", "photon") and (-moz-pref("userChrome.tab.static_separator")) {
+    #tabbrowser-tabs {
+      border-inline-start: none !important;
+      padding-inline-start: var(--tab-overflow-pinned-tabs-width) !important;
+      margin-inline-start: 0 !important;
+    }
+  }
+  /*= Menubar rounding #814 ====================================================*/
+  #main-menubar {
+    --panel-border-radius: var(--arrowpanel-border-radius);
+  }
+  /*= Infobar Align #858 =======================================================*/
+  .container.infobar {
+    align-items: center !important;
+  }
+  /*= Inactive transparent #882 ================================================*/
+  :root:is([tabsintitlebar], [customtitlebar]) #titlebar:-moz-window-inactive,
+  :root:is([tabsintitlebar], [customtitlebar]) #toolbar-menubar:-moz-window-inactive,
+  :root:is([tabsintitlebar], [customtitlebar]) #TabsToolbar:-moz-window-inactive {
+    opacity: 1 !important;
+    color: color-mix(in srgb, currentColor calc(var(--inactive-titlebar-opacity, 0.75) * 100%), transparent) !important;
+    --inactive-toolbarbutton-icon-fill-opacity: calc(var(--toolbarbutton-icon-fill-opacity, 1) * var(--inactive-titlebar-opacity, 0.75));
+  }
+  :root:is([tabsintitlebar], [customtitlebar]) #titlebar:-moz-window-inactive .toolbarbutton-icon,
+  :root:is([tabsintitlebar], [customtitlebar]) #toolbar-menubar:-moz-window-inactive .toolbarbutton-icon,
+  :root:is([tabsintitlebar], [customtitlebar]) #TabsToolbar:-moz-window-inactive .toolbarbutton-icon {
+    fill-opacity: var(--inactive-toolbarbutton-icon-fill-opacity, 1);
+  }
+  /*= Tabpreviw transparent #890 ===============================================*/
+  #tab-preview-panel {
+    --panel-background: var(
+      --arrowpanel-background
+    ) !important; /* Original: var(--tab-selected-bgcolor, var(--toolbar-bgcolor, var(--toolbar-background-color))) */
+    --panel-color: var(--arrowpanel-color) !important;
+  }
+  /*= Design token =============================================================*/
+  :root,
+  :host {
+    --button-color: var(--button-text-color);
+    --button-bgcolor: var(--button-background-color);
+    --button-hover-bgcolor: var(--button-background-color-hover);
+    --button-active-bgcolor: var(--button-background-color-active);
+    --button-primary-color: var(--button-text-color-primary);
+    --button-primary-bgcolor: var(--button-background-color-primary);
+    --button-primary-hover-bgcolor: var(--button-background-color-primary-hover);
+    --button-primary-active-bgcolor: var(--button-background-color-primary-active);
+  }
+}
+/*= OS - Compatibility =======================================================*/
+@media -moz-pref("userChrome.compatibility.os") {
+  /*= Windows 10 - Top border of accent color at ESR #358 ======================*/
+  @media (-moz-platform: windows) {
+    :root[sizemode="normal"]:is([tabsintitlebar], [customtitlebar]) #navigator-toolbox {
+      border-top: 0.5px solid rgb(47, 47, 47) !important;
+    }
+    :root[sizemode="normal"]:is([tabsintitlebar], [customtitlebar]):-moz-window-inactive #navigator-toolbox {
+      border-top-color: rgb(57, 57, 57) !important;
+    }
+  }
+  @media (-moz-platform: windows) and (-moz-windows-accent-color-in-titlebar) {
+    :root[sizemode="normal"]:is([tabsintitlebar], [customtitlebar]) #navigator-toolbox {
+      border-top-color: ActiveBorder !important;
+    }
+    @media -moz-pref("userChrome.compatibility.accent_color") {
+      :root[sizemode="normal"]:is([tabsintitlebar], [customtitlebar]) #navigator-toolbox {
+        border-top-color: -moz-accent-color !important;
+      }
+    }
+  }
+  /*= Windows 7, 8 - Tab Bar Background *****************************************/
+  /*= Windows 7, 8 - Menu Bar ==================================================*/
+  /*= Windows - Native Menu ====================================================*/
+  @media (-moz-gtk-csd-available) {
+    /*= Linux - Global Menubar Active Color ====================================*/
+    #main-menubar > menu[open="true"],
+    #main-menubar > menu[_moz-menuactive="true"] {
+      color: inherit !important; /* Original: -moz-menubarhovertext */
+      background-color: color-mix(in srgb, currentColor 20%, transparent) !important; /* Original: -moz-menuhover */
+    }
+  }
+  /*= Linux - Light System Default Theme's Selected Tab ========================*/
+  @media (-moz-gtk-csd-available) and (prefers-color-scheme: light) {
+    /* Because of
+      #TabsToolbar:not([brighttext]) #tabbrowser-tabs:not([noshadowfortests]) .tabbrowser-tab:is([visuallyselected], [multiselected]) > .tab-stack > .tab-background {
+        border: 1px solid var(--tab-line-color, rgba(128,128,142,0.9));
+        box-shadow: 0 0 4px rgba(128,128,142,0.5);
+      }
+     */
+    :root:is(:not([lwtheme]), :not(:-moz-lwtheme))
+      #tabbrowser-tabs:not([noshadowfortests])
+      .tabbrowser-tab:is([visuallyselected], [multiselected])
+      > .tab-stack
+      > .tab-background {
+      box-shadow: 0 0 4px rgba(128, 128, 142, 0.5) !important;
+    }
+    #TabsToolbar:not([brighttext])
+      :root:is(:not([lwtheme]), :not(:-moz-lwtheme))
+      #tabbrowser-tabs:not([noshadowfortests])
+      .tabbrowser-tab:is([visuallyselected], [multiselected])
+      > .tab-stack
+      > .tab-background {
+      box-shadow:
+        0 0 1px var(--tab-line-color, rgba(128, 128, 142, 0.9)),
+        0 0 4px rgba(128, 128, 142, 0.5) !important;
+    }
+  }
+  /*= Titlebar Container Size at maximized #384 ================================*/
+  @media (-moz-platform: windows) {
+    @media not -moz-pref("userChrome.compatibility.os.windows_maximized") {
+      :root:is([tabsintitlebar], [customtitlebar]) #titlebar {
+        /* -moz-default-appearance: -moz-window-titlebar */
+        appearance: none !important;
+      }
+    }
+    @media -moz-pref("userChrome.compatibility.os.windows_maximized") {
+      :root:is([tabsintitlebar], [customtitlebar])[sizemode="maximized"] #titlebar {
+        appearance: none !important;
+        padding-top: 8px;
+      }
+    }
+  }
+  /*= Windows - Classic Theme #734 =============================================*/
+  /*= MacOS Fullscreen clipping #1045 ==========================================*/
+  :root[sizemode="fullscreen"][macOSNativeFullscreen]:not([inDOMFullscreen="true"]) #TabsToolbar {
+    min-height: var(--tab-min-height, fit-content) !important;
+  }
+}
+/*= Others - Compatibility ===================================================*/
+@media -moz-pref("userChrome.compatibility.panel_cutoff") {
+  #appMenu-popup panelview {
+    width: 24.5em !important; /* can modify panel width, Original: 22.5em */
+  }
+}
+@media -moz-pref("userChrome.compatibility.navbar_top_border") {
+  #nav-bar {
+    /* Firefox uses border-top for this separator. */
+    border-top-style: none !important;
+  }
+}
