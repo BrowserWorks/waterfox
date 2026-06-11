@@ -1790,6 +1790,7 @@
       if (!this.#previewMode) {
         newTab.recordTimeFromUnloadToReload();
         newTab.updateLastAccessed();
+        newTab.removeAttribute("unread");
         oldTab.updateLastAccessed();
         // if this is the foreground window, update the last-seen timestamps.
         if (this.documentGlobal == BrowserWindowTracker.getTopWindow()) {
@@ -10598,9 +10599,14 @@ var TabContextMenu = {
       this.contextTab.hasAttribute("customizemode");
 
     // Only one of "Duplicate Tab"/"Duplicate Tabs" should be visible.
-    document.getElementById("context_duplicateTab").hidden = this.multiselected;
+    let duplicateTabEnabled = Services.prefs.getBoolPref(
+      "browser.tabs.duplicateTab",
+      true
+    );
+    document.getElementById("context_duplicateTab").hidden =
+      this.multiselected || !duplicateTabEnabled;
     document.getElementById("context_duplicateTabs").hidden =
-      !this.multiselected;
+      !this.multiselected || !duplicateTabEnabled;
 
     let closeTabsToTheStartItem = document.getElementById(
       "context_closeTabsToTheStart"

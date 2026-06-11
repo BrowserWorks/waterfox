@@ -1,0 +1,4 @@
+[DEFAULT]
+tags = "waterfox_tabfeatures"
+
+["browser_tabfeatures.js"]
