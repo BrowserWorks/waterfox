@@ -43,7 +43,7 @@ webidl WindowGlobalParent;
  * tell the user to "Press OK to proceed."  Instead, such a prompt might be
  * rewritten to ask the user: "Would you like to proceed?"
  */
-[scriptable, uuid(404ebfa2-d8f4-4c94-8416-e65a55f9df5a)]
+[scriptable, uuid(646e9cf1-e397-4b15-b0f2-3e308c7de2ce)]
 interface nsIPromptService : nsISupports
 {
   /**
@@ -362,6 +362,29 @@ interface nsIPromptService : nsISupports
                     in wstring aButton2Title,
                     in wstring aCheckMsg,
                     inout boolean aCheckState);
+
+  /**
+   * Waterfox: like confirmEx, but with a second optional, labeled checkbox.
+   *
+   * @param aCheckMsg2
+   *        Text to appear with the second checkbox. Null if no checkbox.
+   * @param aCheckState2
+   *        Contains the initial checked state of the second checkbox when
+   *        this method is called and the final checked state after this
+   *        method returns.
+   */
+  int32_t confirmEx2(in mozIDOMWindowProxy aParent,
+                     in wstring aDialogTitle,
+                     in wstring aText,
+                     in unsigned long aButtonFlags,
+                     in wstring aButton0Title,
+                     in wstring aButton1Title,
+                     in wstring aButton2Title,
+                     in wstring aCheckMsg,
+                     inout boolean aCheckState,
+                     in wstring aCheckMsg2,
+                     inout boolean aCheckState2);
+
   /**
    * Like confirmEx, but with a BrowsingContext as parent.
    *
