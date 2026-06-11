@@ -67,7 +67,7 @@ const kSubviewEvents = ["ViewShowing", "ViewHiding"];
  * The current version. We can use this to auto-add new default widgets as necessary.
  * (would be const but isn't because of testing purposes)
  */
-var kVersion = 24;
+var kVersion = 25;
 
 /**
  * Buttons removed from built-ins by version they were removed. kVersion must be
@@ -363,6 +363,7 @@ var CustomizableUIInternal = {
       "spring",
       "vertical-spacer",
       "urlbar-container",
+      "waterfox-blocker-toolbar-button",
       "spring",
       "downloads-button",
       AppConstants.MOZ_DEV_EDITION ? "developer-button" : null,
@@ -379,6 +380,7 @@ var CustomizableUIInternal = {
         defaultPlacements: navbarPlacements,
         verticalTabsDefaultPlacements: [
           "firefox-view-button",
+          "waterfox-blocker-toolbar-button",
           "alltabs-button",
         ],
         defaultCollapsed: false,
@@ -850,6 +852,21 @@ var CustomizableUIInternal = {
         !navbarPlacements.includes("reset-pbm-toolbar-button")
       ) {
         navbarPlacements.push("reset-pbm-toolbar-button");
+      }
+    }
+
+    if (currentVersion < 23) {
+      // Waterfox 140 betas registered the blocker button as an external
+      // widget which queued it via gFuturePlacements; that path appended to
+      // the navbar end. Remove any existing placement so it can be inserted
+      // at its default position via placeNewDefaultWidgetsInArea. Waterfox
+      // 140 release profiles are version 23 or later and keep their layout.
+      for (let area of Object.keys(gSavedState.placements)) {
+        let placements = gSavedState.placements[area];
+        let idx = placements.indexOf("waterfox-blocker-toolbar-button");
+        if (idx !== -1) {
+          placements.splice(idx, 1);
+        }
       }
     }
   },
