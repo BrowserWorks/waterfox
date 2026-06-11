@@ -12,18 +12,28 @@ ChromeUtils.defineESModuleGetters(lazy, {
   WaterfoxBlockerService: "resource:///modules/WaterfoxBlockerService.sys.mjs",
   WaterfoxSearchExtensionPolicy:
     "resource:///modules/WaterfoxSearchExtensionPolicy.sys.mjs",
+  WaterfoxBrowserStyle: "resource:///modules/WaterfoxBrowserStyle.sys.mjs",
+  WaterfoxTheme: "resource:///modules/WaterfoxTheme.sys.mjs",
 });
 
 const MIGRATION_PREF = "browser.migration.waterfox_version";
-const MIGRATION_VERSION = 2;
+const LEGACY_STYLE_PREF = "browser.theme.enableWaterfoxCustomizations";
+const LEGACY_STOCK_STYLE = 2;
+const GECKO_MIGRATION_PREF = "browser.migration.version";
+// Last Gecko profile data version written by the ESR140-based 6.6 line.
+const LAST_66_GECKO_VERSION = 155;
+const NOVA_PREF = "browser.nova.enabled";
+const MIGRATION_VERSION = 6;
 
 export const WaterfoxGlue = {
   init() {
     this.migrateUI();
+    lazy.WaterfoxBrowserStyle.ensureCurrentStyle();
 
     lazy.StyleSheetUtils.registerStylesheet(
       "chrome://browser/skin/waterfox/general.css"
     );
+    lazy.WaterfoxTheme.init();
 
     lazy.WaterfoxSearchExtensionPolicy.init();
 
@@ -73,11 +83,38 @@ export const WaterfoxGlue = {
 
   // Runs once per profile upgrade. Migrations for profiles coming from
   // earlier Waterfox versions go here, keyed on the version they left
-  // off at. Version 2 is where Waterfox 140 profiles ended up.
+  // off at. Versions 1 through 3 are pre-6.7 releases (6.6.17 wrote 3),
+  // version 4 is Waterfox 6.7.0.
   migrateUI() {
     const version = Services.prefs.getIntPref(MIGRATION_PREF, 0);
     if (version >= MIGRATION_VERSION) {
       return;
+    }
+
+    if (version > 0 && version < 5) {
+      // The legacy pref defaulted to 1 (customizations on) through 6.6.17 and
+      // to 2 (off) from the 6.7 betas onwards, so an unset pref means Photon
+      // on the former and Nova or Proton on the latter. Version 3 was written
+      // by both 6.6.17 and the ESR153-based betas; the Gecko profile data
+      // version tells them apart.
+      const from66 =
+        version < 3 ||
+        (version == 3 &&
+          Services.prefs.getIntPref(GECKO_MIGRATION_PREF, 0) <=
+            LAST_66_GECKO_VERSION);
+      const legacy = Services.prefs.getIntPref(
+        LEGACY_STYLE_PREF,
+        from66 ? 1 : LEGACY_STOCK_STYLE
+      );
+      let style = "photon";
+      if (legacy == LEGACY_STOCK_STYLE) {
+        style = Services.prefs.getBoolPref(NOVA_PREF, true) ? "nova" : "proton";
+      }
+
+      if (version == 4) {
+        lazy.WaterfoxBrowserStyle.clearGeneratedPrefs(style);
+      }
+      lazy.WaterfoxBrowserStyle.setStyle(style);
     }
 
     Services.prefs.setIntPref(MIGRATION_PREF, MIGRATION_VERSION);
