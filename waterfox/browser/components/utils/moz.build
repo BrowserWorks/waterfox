@@ -4,6 +4,7 @@
 
 EXTRA_JS_MODULES += [
     "PrefUtils.sys.mjs",
+    "StyleSheetUtils.sys.mjs",
 ]
 
 BROWSER_CHROME_MANIFESTS += [

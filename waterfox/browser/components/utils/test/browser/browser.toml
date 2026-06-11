@@ -3,3 +3,5 @@ tags = "waterfox_utils"
 support-files = ["head.js"]
 
 ["browser_prefutils.js"]
+
+["browser_stylesheetutils.js"]
