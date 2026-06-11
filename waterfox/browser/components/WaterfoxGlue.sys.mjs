@@ -8,6 +8,7 @@ const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
   ExperimentAPI: "resource://nimbus/ExperimentAPI.sys.mjs",
+  PrivateTab: "resource:///modules/PrivateTab.sys.mjs",
   StatusBar: "resource:///modules/StatusBar.sys.mjs",
   StyleSheetUtils: "resource:///modules/StyleSheetUtils.sys.mjs",
   TabFeatures: "resource:///modules/TabFeatures.sys.mjs",
@@ -125,6 +126,7 @@ export const WaterfoxGlue = {
       console.error("WaterfoxBlockerService startup init failed", error)
     );
 
+    lazy.PrivateTab.init();
     lazy.StatusBar.init();
     lazy.TabFeatures.init();
     lazy.TabGrouping.init();
@@ -135,6 +137,7 @@ export const WaterfoxGlue = {
   observe(subject, topic) {
     switch (topic) {
       case "browser-delayed-startup-finished":
+        lazy.PrivateTab.onWindowOpened(subject);
         lazy.StatusBar.onWindowOpened(subject);
         lazy.TabFeatures.onWindowOpened(subject);
         lazy.TabGrouping.onWindowOpened(subject);
