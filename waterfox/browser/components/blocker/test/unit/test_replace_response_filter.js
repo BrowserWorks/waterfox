@@ -63,38 +63,24 @@ const ORIGINAL_XHTML =
 let server;
 let baseUrl;
 let documentBaseUrl;
+let adapterDirectives;
+let adapterDispatches = 0;
 
 function htmlFilter(selector) {
   return JSON.stringify({ selector });
 }
 
-function makeEngine({
+function setAdapterDirectives({
   replaceDirectives = [REPLACE_DIRECTIVE],
   htmlFilters = [],
   responseHeaderFilters = [],
 } = {}) {
-  WaterfoxBlockerService._engine = {
-    checkRequestDetailed() {
-      return JSON.stringify({
-        exception: false,
-        important: false,
-        matched: false,
-        redirect: "",
-        rewrittenUrl: "",
-      });
-    },
-    getCspDirectives() {
-      return "";
-    },
-    getReplaceDirectives() {
-      return JSON.stringify(replaceDirectives);
-    },
-    getCosmeticResources() {
-      return JSON.stringify({
-        html_filters: htmlFilters,
-        response_header_filters: responseHeaderFilters,
-      });
-    },
+  adapterDirectives = {
+    resourcesJson: JSON.stringify({
+      html_filters: htmlFilters,
+      response_header_filters: responseHeaderFilters,
+    }),
+    replaceJson: JSON.stringify(replaceDirectives),
   };
 }
 
@@ -187,18 +173,54 @@ add_setup(async function setup() {
   registerHeaderPath("/header", ORIGINAL_HTML);
   registerAttachmentPath("/attachment", ORIGINAL_JSON);
 
-  WaterfoxBlockerService._registerNetworkObservers();
+  const engine = Cc["@waterfox.com/waterfox-blocker-engine;1"].createInstance(
+    Ci.nsIWaterfoxBlockerEngine
+  );
+  engine.initFromLists(["||unrelated.example^"]);
+  engine.useResources("[]");
+  WaterfoxBlockerService._publishEngine(engine, "[]");
+  setAdapterDirectives();
+  engine.setNetworkBridge({
+    QueryInterface: ChromeUtils.generateQI([
+      "nsIContentClassifierAdBlockingBridge",
+    ]),
+    onAdBlockingAction() {
+      Assert.ok(false, "Adapter capability fixtures contain no blocking rule");
+    },
+    filterAdBlockingResponse(channel, url, type, resourcesJson, replaceJson) {
+      if (
+        !url.startsWith(`${baseUrl}/`) &&
+        !url.startsWith(`${documentBaseUrl}/`)
+      ) {
+        return;
+      }
+      Assert.deepEqual(JSON.parse(replaceJson), []);
+      const resources = JSON.parse(resourcesJson);
+      Assert.ok(!resources.html_filters?.length);
+      Assert.ok(!resources.response_header_filters?.length);
+      adapterDispatches++;
+      // These test-owned directives exercise the adapter, not crate producers.
+      WaterfoxBlockerService.filterAdBlockingResponse(
+        channel,
+        url,
+        type,
+        adapterDirectives.resourcesJson,
+        adapterDirectives.replaceJson
+      );
+    },
+  });
 
   registerCleanupFunction(async () => {
-    WaterfoxBlockerService._unregisterNetworkObservers();
-    WaterfoxBlockerService._engine = null;
+    engine.setNetworkBridge(null);
+    WaterfoxBlockerService._clearEngine();
+    WaterfoxBlockerService.removeSiteException("127.0.0.1");
     Services.prefs.clearUserPref(PREF_ENABLED);
     await new Promise(resolve => server.stop(resolve));
   });
 });
 
 add_task(async function test_replace_response_filter_rewrites_matching_body() {
-  makeEngine();
+  setAdapterDirectives();
 
   const response = await fetchResponse("/json");
   Assert.equal(
@@ -209,7 +231,7 @@ add_task(async function test_replace_response_filter_rewrites_matching_body() {
 });
 
 add_task(async function test_replace_response_filter_removes_length_on_noop() {
-  makeEngine({ replaceDirectives: ["/not-present/no_ads/"] });
+  setAdapterDirectives({ replaceDirectives: ["/not-present/no_ads/"] });
 
   const response = await fetchResponse("/json");
   Assert.equal(
@@ -220,7 +242,9 @@ add_task(async function test_replace_response_filter_removes_length_on_noop() {
 });
 
 add_task(async function test_replace_response_filter_skips_bad_directive() {
-  makeEngine({ replaceDirectives: ["bad-directive", REPLACE_DIRECTIVE] });
+  setAdapterDirectives({
+    replaceDirectives: ["bad-directive", REPLACE_DIRECTIVE],
+  });
 
   Assert.equal(
     await fetchText("/json"),
@@ -231,7 +255,7 @@ add_task(async function test_replace_response_filter_skips_bad_directive() {
 
 add_task(
   async function test_replace_response_filter_round_trips_windows_1252() {
-    makeEngine();
+    setAdapterDirectives();
 
     const response = await fetchResponse("/windows-1252");
     const bytes = new Uint8Array(await response.arrayBuffer());
@@ -248,7 +272,7 @@ add_task(
 
 add_task(
   async function test_replace_response_filter_passes_non_matching_rule() {
-    makeEngine({ replaceDirectives: [] });
+    setAdapterDirectives({ replaceDirectives: [] });
 
     Assert.equal(
       await fetchText("/plain"),
@@ -259,8 +283,9 @@ add_task(
 );
 
 add_task(async function test_replace_response_filter_respects_disabled_pref() {
-  makeEngine();
+  setAdapterDirectives();
   Services.prefs.setBoolPref(PREF_ENABLED, false);
+  const before = adapterDispatches;
 
   try {
     Assert.equal(
@@ -268,17 +293,20 @@ add_task(async function test_replace_response_filter_respects_disabled_pref() {
       ORIGINAL_JSON,
       "Disabled blocker should not rewrite responses"
     );
+    Assert.equal(
+      adapterDispatches,
+      before,
+      "Disabled native policy does not dispatch"
+    );
   } finally {
     Services.prefs.setBoolPref(PREF_ENABLED, true);
   }
 });
 
 add_task(async function test_replace_response_filter_respects_site_bypass() {
-  makeEngine();
-  const originalBypass = WaterfoxBlockerService.shouldBypassBlocking;
-  WaterfoxBlockerService.shouldBypassBlocking = (candidateDomain, options) =>
-    candidateDomain === "127.0.0.1" ||
-    originalBypass.call(WaterfoxBlockerService, candidateDomain, options);
+  setAdapterDirectives();
+  const before = adapterDispatches;
+  WaterfoxBlockerService.allowSiteForSession("127.0.0.1");
 
   try {
     Assert.equal(
@@ -286,13 +314,18 @@ add_task(async function test_replace_response_filter_respects_site_bypass() {
       ORIGINAL_JSON,
       "Site bypass should not rewrite responses"
     );
+    Assert.equal(
+      adapterDispatches,
+      before,
+      "Native policy suppresses adapter dispatch"
+    );
   } finally {
-    WaterfoxBlockerService.shouldBypassBlocking = originalBypass;
+    WaterfoxBlockerService.removeSiteException("127.0.0.1");
   }
 });
 
 add_task(async function test_replace_response_filter_passes_large_body() {
-  makeEngine();
+  setAdapterDirectives();
   const body = await fetchText("/large");
 
   Assert.equal(
@@ -308,7 +341,7 @@ add_task(async function test_replace_response_filter_passes_large_body() {
 });
 
 add_task(async function test_replace_response_filter_passes_replace_cap_body() {
-  makeEngine();
+  setAdapterDirectives();
 
   Assert.equal(
     await fetchText("/replace-cap"),
@@ -321,7 +354,7 @@ add_task(async function test_replace_response_filter_limits_directive_count() {
   const replaceDirectives = DIRECTIVE_COUNT_TOKENS.map(
     (token, i) => `/${token}/__wf_replaced_${i}__/g`
   );
-  makeEngine({ replaceDirectives });
+  setAdapterDirectives({ replaceDirectives });
 
   const body = await fetchText("/directive-count");
 
@@ -347,7 +380,7 @@ add_task(async function test_replace_response_filter_limits_directive_count() {
 });
 
 add_task(async function test_replace_response_filter_skips_binary_body() {
-  makeEngine();
+  setAdapterDirectives();
 
   Assert.equal(
     await fetchText("/binary"),
@@ -357,7 +390,7 @@ add_task(async function test_replace_response_filter_skips_binary_body() {
 });
 
 add_task(async function test_replace_response_filter_skips_attachments() {
-  makeEngine();
+  setAdapterDirectives();
 
   Assert.equal(
     await fetchText("/attachment"),
@@ -367,7 +400,7 @@ add_task(async function test_replace_response_filter_skips_attachments() {
 });
 
 add_task(async function test_html_filter_removes_matching_element() {
-  makeEngine({ replaceDirectives: [], htmlFilters: [HTML_FILTER] });
+  setAdapterDirectives({ replaceDirectives: [], htmlFilters: [HTML_FILTER] });
 
   const { text } = await fetchDocument("/html");
 
@@ -382,7 +415,7 @@ add_task(async function test_html_filter_removes_matching_element() {
 });
 
 add_task(async function test_html_filter_respects_exception() {
-  makeEngine({ replaceDirectives: [], htmlFilters: [] });
+  setAdapterDirectives({ replaceDirectives: [], htmlFilters: [] });
   const { text } = await fetchDocument("/html");
 
   Assert.ok(
@@ -392,7 +425,10 @@ add_task(async function test_html_filter_respects_exception() {
 });
 
 add_task(async function test_html_filter_matches_css_operator() {
-  makeEngine({ replaceDirectives: [], htmlFilters: [HTML_CSS_FILTER] });
+  setAdapterDirectives({
+    replaceDirectives: [],
+    htmlFilters: [HTML_CSS_FILTER],
+  });
   const { text } = await fetchDocument("/styled");
 
   Assert.ok(
@@ -403,7 +439,10 @@ add_task(async function test_html_filter_matches_css_operator() {
 });
 
 add_task(async function test_html_filter_matches_css_before_operator() {
-  makeEngine({ replaceDirectives: [], htmlFilters: [HTML_CSS_BEFORE_FILTER] });
+  setAdapterDirectives({
+    replaceDirectives: [],
+    htmlFilters: [HTML_CSS_BEFORE_FILTER],
+  });
   const { text } = await fetchDocument("/pseudo");
 
   Assert.ok(
@@ -414,7 +453,7 @@ add_task(async function test_html_filter_matches_css_before_operator() {
 });
 
 add_task(async function test_html_filter_relative_selector_after_upward() {
-  makeEngine({
+  setAdapterDirectives({
     replaceDirectives: [],
     htmlFilters: [HTML_RELATIVE_SELECTOR_FILTER],
   });
@@ -431,7 +470,7 @@ add_task(async function test_html_filter_relative_selector_after_upward() {
 });
 
 add_task(async function test_html_filter_skips_when_replace_expands_over_cap() {
-  makeEngine({
+  setAdapterDirectives({
     replaceDirectives: ["/x/xx/g"],
     htmlFilters: [HTML_FILTER],
   });
@@ -450,7 +489,7 @@ add_task(async function test_html_filter_skips_when_replace_expands_over_cap() {
 });
 
 add_task(async function test_html_filter_supports_xhtml_serialization() {
-  makeEngine({ replaceDirectives: [], htmlFilters: [HTML_FILTER] });
+  setAdapterDirectives({ replaceDirectives: [], htmlFilters: [HTML_FILTER] });
   const { text } = await fetchDocument("/xhtml");
 
   Assert.ok(
@@ -468,7 +507,10 @@ add_task(async function test_html_filter_supports_xhtml_serialization() {
 });
 
 add_task(async function test_generic_html_filter_removes_matching_elements() {
-  makeEngine({ replaceDirectives: [], htmlFilters: [HTML_SCRIPT_FILTER] });
+  setAdapterDirectives({
+    replaceDirectives: [],
+    htmlFilters: [HTML_SCRIPT_FILTER],
+  });
 
   const { text } = await fetchDocument("/html");
 
@@ -483,7 +525,7 @@ add_task(async function test_generic_html_filter_removes_matching_elements() {
 });
 
 add_task(async function test_responseheader_filter_removes_header() {
-  makeEngine({
+  setAdapterDirectives({
     replaceDirectives: [],
     responseHeaderFilters: ["x-adblock-test"],
   });

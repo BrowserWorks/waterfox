@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { CUSTOM_FILTERS_FILE_NAME } from "resource:///modules/WaterfoxBlockerUtils.sys.mjs";
+import { NetUtil } from "resource://gre/modules/NetUtil.sys.mjs";
 
 export const CUSTOM_FILTERS_DESCRIPTOR_URL = "waterfox://custom-filters";
 export const LIST_DESCRIPTOR_ORIGIN_CATALOG = "catalog";
@@ -232,8 +233,35 @@ export const ListCatalog = {
     return gCatalog;
   },
 
+  loadCatalogSync() {
+    if (gCatalog) {
+      return gCatalog;
+    }
+    const stream = NetUtil.newChannel({
+      uri: LIST_CATALOG_URL,
+      loadUsingSystemPrincipal: true,
+    }).open();
+    try {
+      gCatalog = JSON.parse(
+        NetUtil.readInputStreamToString(stream, stream.available(), {
+          charset: "UTF-8",
+        })
+      );
+      return gCatalog;
+    } finally {
+      stream.close();
+    }
+  },
+
+  getListDescriptorsSync() {
+    return this._getListDescriptors(this.loadCatalogSync());
+  },
+
   async getListDescriptors() {
-    const catalog = await this.loadCatalog();
+    return this._getListDescriptors(await this.loadCatalog());
+  },
+
+  _getListDescriptors(catalog) {
     const descriptors = [];
     const userLocale = (
       Services.locale.appLocaleAsBCP47?.split("-")[0] || ""
