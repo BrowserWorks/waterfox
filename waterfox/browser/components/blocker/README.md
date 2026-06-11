@@ -1,60 +1,85 @@
 # Waterfox blocker component
 
-Reference notes for reading or changing blocker code. The engine is Brave's `adblock-rs` v0.13.3 (MPL-2.0). The Waterfox integration around it is also MPL-2.0.
+The blocker uses Brave's `adblock-rs` v0.13.5. The `waterfox.blocker.enabled` preference controls ad blocking independently of ETP settings and exceptions.
 
-## Request and response flow
+## Request matching
 
-### Network requests
+`AdBlockingPolicy` captures private mode, permissions, domain allowances and navigation state on the main thread. `ContentClassifierService` owns the published engine and checks detached native request snapshots on a background queue separate from engine construction.
 
-`ContentClassifierService` owns the published ad engine and classifies detached native request snapshots on a background queue separate from engine construction. `AdBlockingPolicy` captures request context, private mode, permissions, domain allowances and navigation state on the main thread. Before connecting, the HTTP classifier runs ETP and ad policies independently; already-cancelled channels and channels undergoing ETP cancellation skip ad work. Native modify-request handling revalidates pending redirects and query rewrites before applying them. A synchronous native content policy protects loads served from internal caches.
+The HTTP classifier applies ETP and ad policies independently before connecting. It skips ad checks on channels already cancelled or undergoing ETP cancellation. Native `modify-request` handling rechecks pending redirects and query rewrites before applying them. A synchronous native content policy checks internal cache loads.
 
-The JS service retains list providers, resource loading, preferences, UI statistics, cosmetic resources and content actors, but no parallel request-matching or cancellation backend. `waterfox.blocker.enabled` controls ad protection; no JS/native backend selection is needed. This migration uses the existing native ad-blocking path and does not require an ETP production-list backend. ETP settings and exceptions do not enable, disable or exempt ads.
+Ad matching and cancellation run only in the native blocker, without an ETP `production-list` backend. The JS service handles list providers, resource loading, preferences, UI statistics, cosmetic resources and content actors.
 
-If the request matches and there is no exception, resources that are not documents are cancelled and documents loaded at the top level are redirected to `blockedPage.xhtml`. Clicking "Load anyway" goes through the `WaterfoxBlockedPage` actor, records a permission for the session in `nsIPermissionManager`, and navigates to the original URL.
+### Blocking and exceptions
 
-Normal windows use `waterfox-blocker`, private windows use `waterfox-blocker-pb`, and the private permission type is cleared when the last private context exits. Permanent user exceptions remain normal `waterfox-blocker` permissions: a site permanently allowed in normal browsing is still blocked in private windows, where it can be allowed again from the panel in the private window for that session.
+When no exception applies, the blocker cancels matching requests for resources other than documents and redirects matching documents in the top frame to `blockedPage.xhtml`. "Load anyway" uses the `WaterfoxBlockedPage` actor to set a session permission in `nsIPermissionManager` and reopen the original URL.
 
-### CSP rules
+Normal windows use `waterfox-blocker` permissions, including permanent exceptions. Private windows use separate `waterfox-blocker-pb` permissions that clear when the last private context exits. Use the panel in a private window to allow a site for that session.
 
-Native response observers cover network, cached and merged responses. They apply engine-provided CSP to documents and subdocuments while preserving origin policy and keeping blocker-only policy out of cached metadata. Same-channel authentication retries discard response-specific CSP state and markers before processing the authenticated response. The vendored engine rejects type-qualified CSP rules such as `$subdocument,csp=...`; unqualified CSP remains supported.
+## Response filtering
 
-The dedicated JS `filterAdBlockingResponse` adapter retains HTML, header and body transformations, using pinned inputs supplied by native response processing rather than recapturing policy or matching rules. The current engine does not produce HTML/header directives, and the replacement FFI returns `[]`; adapter tests inject directives explicitly and do not imply unsupported engine capabilities.
+Native response observers apply engine CSP to documents and subdocuments in network, cached and merged responses. They preserve the origin's policy and keep blocker CSP out of cached metadata. For authentication retries on the same channel, they clear the previous response's CSP state and markers before processing the authenticated response. The engine accepts unqualified CSP rules and rejects rules such as `$subdocument,csp=...` that specify a resource type.
 
-### Cosmetic filters and scriptlets
+The JS `filterAdBlockingResponse` adapter uses pinned native inputs for HTML, header and body transformations without recapturing policy or rematching rules. The engine supplies no HTML or header directives, and the replacement FFI returns `[]`. Tests pass directives directly to the adapter.
 
-The child actor asks the parent for cosmetic resources for the current URL, the parent queries the service, and the child applies hide selectors, procedural cosmetic filters, and generic hide updates. Scriptlets are injected into the page's main world when present.
+### Cosmetic filters
 
-## Filter sources and My Filters
+The child actor asks the parent for cosmetic resources for the current URL, and the parent queries the service. The child applies hide selectors, procedural filters and generic hide updates, and injects any scriptlets into the page's main world.
 
-The engine is built from three sources.
+## Toolbar panel and statistics
 
-Catalog lists are resolved from `assets/list_catalog.json`. Stored profile copies take precedence, and each missing bundled catalog list is filled from `assets/filters/` before the initial engine is created. Remote updates run after that local baseline is active and replace the engine atomically.
+`WaterfoxBlockerPanel` manages the shield button and its doorhanger. The main view shows the tab's blocked count and categories, a site toggle and lifetime totals. The domain view lists each blocked domain with an "Allow" action. The network blocker and the content policy both use these choices from `waterfox.blocker.domainExceptions`, a JSON map keyed by the base domain of the top frame.
 
-Custom filter list URLs come from the Custom Filter Lists dialog and live in `waterfox.blocker.filterListUrls`, which must use HTTPS. They are fetched into the profile list cache after local initialization and refresh through the same path as catalog lists.
+`WaterfoxBlockerService.getBlockedStats(browserId)` returns counts for the tab. They reset when its top frame navigates. The engine doesn't report the matching list, so the service assigns categories separately:
 
-My Filters reads from profile text at `ProfD/waterfox-blocker/custom-filters.txt`, using standard uBlock Origin static filter syntax. It supports the same engine features as list filters: network rules, exceptions, cosmetic filters, procedural cosmetics, scriptlets, and CSP rules where `adblock-rs` supports them. My Filters is part of the engine cache hash, so editing it invalidates and rebuilds the serialised engine cache. Import/export uses plain `.txt` files; the downloaded list cache and generated bundled assets are not included.
+- Documents in the top frame count as popups.
+- Ping/report types and domains in the URL classifier tracking tables (ETP tracking annotations) count as trackers.
+- Other requests count as ads.
 
-My Filters is deliberately separate from uBlock Origin's dynamic "My rules". Dynamic allow/block/noop rules are not parsed by `adblock-rs` and are out of scope here.
+Category counts can lag behind the total because classification runs asynchronously and caches results per base domain. On a fresh profile without tracking tables, classification by domain falls back to ads.
 
-`adblock-rs` v0.13.3 parses `$to=` destination-domain options but excludes those rules from matching. They are not supported for blocking or exceptions; `$from=` and `$domain=` restrict the source domain, not the destination.
+The service stores lifetime totals as JSON in `waterfox.blocker.globalStats`, debounces writes and flushes them at shutdown. It estimates "data saved" from the total.
 
-## Engine cache compatibility
+## Filter lists
 
-`adblock-rs` v0.13.3 uses DAT v6, which is incompatible with the DAT v5 caches written by v0.13.2. Engine caches are namespaced by the application build ID. If an incompatible cache is encountered, both the synchronous and asynchronous initialization paths reject it and fall back to rebuilding from local filter-list text. The rebuilt cache replaces the old data, and supplementary redirect and scriptlet resources are loaded separately.
+The engine combines catalog lists, custom lists and My Filters. For entries in `assets/list_catalog.json`, profile copies take precedence. Before building the first engine, the service fills gaps with bundled lists from `assets/filters/`. Remote updates start once the local engine is active and replace it atomically.
+
+Add HTTPS URLs in the Custom Filter Lists dialog. The service saves them in `waterfox.blocker.filterListUrls`, fetches lists into the profile list cache after local initialization and refreshes them through the catalog update path.
+
+### My Filters
+
+My Filters reads standard uBlock Origin static filters from `ProfD/waterfox-blocker/custom-filters.txt`. It supports the same features as list filters: network rules and exceptions, cosmetic filters (including procedural filters), scriptlets and CSP where `adblock-rs` supports them. The engine does not parse dynamic allow/block/noop rules from uBlock Origin's "My rules".
+
+Editing My Filters changes the engine cache hash and triggers a rebuild. Import and export use plain `.txt` files and exclude downloaded list caches and generated bundled assets.
+
+### Domain options
+
+`adblock-rs` v0.13.5 parses the `$to=` option for destination domains but never matches rules that use it, including exceptions. `$from=` and `$domain=` restrict the source domain only.
+
+## Engine caches
+
+`adblock-rs` v0.13.5 uses DAT v8. Cache filenames include the application build ID. DAT v6 (v0.13.3) and DAT v5 (v0.13.2) are incompatible. If a cache fails to load, synchronous and asynchronous initialization both replace it with one rebuilt from local filter text. Redirect and scriptlet resources load separately.
+
+DAT v8 stores the crate version. When the version matches, the loader checks SeaHash and skips FlatBuffer verification. It still verifies the FlatBuffer for compatible caches from other versions.
+
+Load only caches Waterfox serialized, from memory or the local profile. SeaHash detects accidental corruption but does not authenticate the file. Never load downloaded or otherwise untrusted binary engines.
 
 ## Scriptlet bundling
 
-uBO scriptlets now ship as ESM. The older `adblock-rs` resource assembler route is deprecated and does not handle that format well, so Waterfox follows Brave's Node.js packaging flow instead. The dependency resolution and `fn.toString()` bundling algorithm come from `https://github.com/brave/brave-core-crx-packager/pull/599`.
+The deprecated `adblock-rs` resource assembler handles uBO's ESM scriptlets poorly. Waterfox uses Brave's Node.js packaging flow for dependency resolution and `fn.toString()` bundling (`https://github.com/brave/brave-core-crx-packager/pull/599`).
 
-`scripts/update-bundled-assets.js` also reads uBO's redirect resource mapping and resources that can be reached from the web, then merges those redirect resources, encoded as base64, into `assets/resources/resources.json` alongside Brave's supplementary resources. The matching AUS `resources.json` bundle must be regenerated from the same output in the server update pipeline.
+`scripts/update-bundled-assets.js` runs offline and writes two bundles:
 
-`scripts/update-bundled-assets.js` loads the uBO scriptlets, expands their dependencies recursively, serialises both dependency and main functions through `fn.toString()`, wraps the placeholder argument handling (`{{1}}` .. `{{9}}`), and writes `assets/resources/ubo-scriptlets.json` with base64 data. The script runs offline and the resulting JSON is consumed at runtime as data. The matching AUS `ubo-scriptlets.json` bundle must be regenerated from the same output in the server update pipeline.
+- `assets/resources/resources.json`: the script uses uBO's redirect map to find resources accessible from the web, encodes them in base64 and merges them with Brave's supplementary resources.
+- `assets/resources/ubo-scriptlets.json`: the script recursively expands dependencies, serialises the dependency and main functions with `fn.toString()` and wraps placeholder argument handling (`{{1}}` .. `{{9}}`) before base64 encoding.
+
+Waterfox reads both bundles as data at runtime. In the server update pipeline, regenerate the matching AUS `resources.json` and `ubo-scriptlets.json` bundles from the same output.
 
 ## Licensing
 
 | Item | Source | Licence or notice | Notes |
 | --- | --- | --- | --- |
-| `adblock-rs` (v0.13.3) | Brave | MPL-2.0 | Core blocking engine |
+| `adblock-rs` (v0.13.5) | Brave | MPL-2.0 | Core blocking engine |
 | Brave entries in `resources/resources.json` | Brave (`adblock-resources`) | MPL-2.0 | Redirect and script resources |
 | uBO redirect entries in `resources/resources.json` | `gorhill/uBlock` | GPL-3.0 | Generated offline from resources that can be reached from the web and bundled as data, never compiled into the Waterfox binary |
 | Generated `resources/ubo-scriptlets.json` | `gorhill/uBlock` | GPL-3.0 | Generated offline from source and bundled as data, never compiled into the Waterfox binary |
