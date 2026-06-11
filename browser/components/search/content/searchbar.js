@@ -19,6 +19,7 @@
     SearchService: "moz-src:///toolkit/components/search/SearchService.sys.mjs",
     SearchSuggestionController:
       "moz-src:///toolkit/components/search/SearchSuggestionController.sys.mjs",
+    UrlbarPrefs: "moz-src:///browser/components/urlbar/UrlbarPrefs.sys.mjs",
   });
 
   /**
@@ -559,12 +560,18 @@
     }
 
     /**
-     * Determines if we should select all the text in the searchbar based on the
-     * searchbar state, and whether the selection is empty.
+     * Determines if we should select all the text in the searchbar based on
+     * the clickSelectsAll pref, the searchbar state, and whether the
+     * selection is empty.
+     *
+     * @param {boolean} [ignoreClickSelectsAllPref]
+     *        If true, the browser.urlbar.clickSelectsAll pref is ignored.
      */
-    _maybeSelectAll() {
+    _maybeSelectAll(ignoreClickSelectsAllPref = false) {
       if (
         !this._preventClickSelectsAll &&
+        (ignoreClickSelectsAllPref ||
+          lazy.UrlbarPrefs.get("clickSelectsAll")) &&
         document.activeElement == this._textbox &&
         this._textbox.selectionStart == this._textbox.selectionEnd
       ) {
@@ -573,8 +580,16 @@
     }
 
     _setupEventListeners() {
-      this.addEventListener("click", () => {
+      this.addEventListener("click", event => {
         this._maybeSelectAll();
+        // Waterfox: a double click selects everything when enabled.
+        if (
+          event.detail == 2 &&
+          lazy.UrlbarPrefs.get("doubleClickSelectsAll")
+        ) {
+          this._textbox.editor.selectAll();
+          event.preventDefault();
+        }
       });
 
       this.addEventListener(
@@ -716,7 +731,7 @@
         // Make sure the context menu isn't opened via keyboard shortcut. Check for text selection
         // before updating the state of any menu items.
         if (event.button) {
-          this._maybeSelectAll();
+          this._maybeSelectAll(true);
         }
 
         // Update disabled state of menu items

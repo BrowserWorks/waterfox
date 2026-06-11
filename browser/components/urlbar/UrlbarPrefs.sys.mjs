@@ -107,6 +107,10 @@ const PREF_URLBAR_DEFAULTS = /** @type {PreferenceDefinition[]} */ ([
   // active view if the the view utilizes OpenSearch.
   ["contextualSearch.enabled", true],
 
+  // Waterfox: whether a single click in the urlbar or searchbar selects its
+  // whole value.
+  ["clickSelectsAll", false],
+
   // Whether using `ctrl` when hitting return/enter in the URL bar
   // (or clicking 'go') should prefix 'www.' and suffix
   // browser.fixup.alternate.suffix to the URL bar value prior to
@@ -121,6 +125,10 @@ const PREF_URLBAR_DEFAULTS = /** @type {PreferenceDefinition[]} */ ([
   // fetching results.  However, we ignore this for the very first result (the
   // "heuristic" result).  We fetch it as fast as possible.
   ["delay", 50],
+
+  // Waterfox: whether a double click in the urlbar or searchbar selects its
+  // whole value.
+  ["doubleClickSelectsAll", false],
 
   // Ensure we use trailing dots for DNS lookups for single words that could
   // be hosts.
