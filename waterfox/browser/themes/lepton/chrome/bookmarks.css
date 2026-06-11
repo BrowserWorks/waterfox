@@ -1,0 +1,31 @@
+@namespace xul url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+@namespace html url("http://www.w3.org/1999/xhtml");
+/** Bookmark Bar UI ***********************************************************/
+@media -moz-pref("userChrome.bookmarkbar.multi_row") {
+  #PersonalToolbar {
+    --uc-multirow-bookmark-rows: 3;
+    --uc-multirow-bookmark-row-margin: 2px;
+    max-height: none !important;
+    height: unset !important;
+  }
+  #PlacesToolbar > hbox {
+    display: block;
+    width: 100vw;
+  }
+  #PlacesToolbarItems {
+    display: flex;
+    flex-wrap: wrap;
+    overflow-y: auto;
+    scroll-snap-type: y mandatory;
+    max-height: calc(
+      var(--uc-multirow-bookmark-rows) * (var(--uc-bm-height, calc(20px + var(--bookmark-block-padding, 4px))) + 2 * var(--uc-multirow-bookmark-row-margin))
+    ) !important;
+  }
+  #PlacesChevron {
+    display: none;
+  }
+  #PlacesToolbarItems > .bookmark-item {
+    scroll-snap-align: start;
+    margin-block: var(--uc-multirow-bookmark-row-margin) !important;
+  }
+}
