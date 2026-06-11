@@ -1,0 +1,4 @@
+[DEFAULT]
+tags = "waterfox_urlbar"
+
+["browser_doubleClickSelectsAll.js"]
