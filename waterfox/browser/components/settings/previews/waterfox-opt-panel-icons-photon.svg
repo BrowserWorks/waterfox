@@ -1,0 +1,42 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 64" width="160" height="64">
+  <style>
+    .wf-d { display: none; }
+    @media (prefers-color-scheme: dark) {
+      .wf-l { display: none; }
+      .wf-d { display: inline; }
+    }
+  </style>
+  <g class="wf-l">
+      <rect x="0" y="0" width="160" height="64" rx="8" fill="#f0f0f4"/>
+      <rect x="25.5" y="6.5" width="109" height="51" rx="7.5" fill="#ffffff" stroke="#c9c9d2" stroke-width="1"/>
+      <rect x="33" y="10" width="6" height="6" rx="1.5" fill="#6f6e7a"/>
+      <rect x="47" y="11" width="60" height="4" rx="2" fill="#7c7c87"/>
+      <rect x="33" y="18" width="6" height="6" rx="1.5" fill="#6f6e7a"/>
+      <rect x="47" y="19" width="72" height="4" rx="2" fill="#7c7c87"/>
+      <rect x="47" y="27" width="60" height="4" rx="2" fill="#b7b7c2"/>
+      <rect x="47" y="35" width="72" height="4" rx="2" fill="#b7b7c2"/>
+      <rect x="33" y="42" width="6" height="6" rx="1.5" fill="#b7b7c2"/>
+      <rect x="47" y="43" width="60" height="4" rx="2" fill="#b7b7c2"/>
+      <rect x="33" y="50" width="6" height="6" rx="1.5" fill="#b7b7c2"/>
+      <rect x="47" y="51" width="72" height="4" rx="2" fill="#b7b7c2"/>
+      <rect x="0.5" y="0.5" width="159" height="63" rx="7.5" fill="none" stroke="#dcdce3" stroke-width="1"/>
+  </g>
+  <g class="wf-d">
+      <rect x="0" y="0" width="160" height="64" rx="8" fill="#1c1b22"/>
+      <rect x="25.5" y="6.5" width="109" height="51" rx="7.5" fill="#2b2a33" stroke="#3a3944" stroke-width="1"/>
+      <rect x="33" y="10" width="6" height="6" rx="1.5" fill="#b9b8c2"/>
+      <rect x="47" y="11" width="60" height="4" rx="2" fill="#cfced8"/>
+      <rect x="33" y="18" width="6" height="6" rx="1.5" fill="#b9b8c2"/>
+      <rect x="47" y="19" width="72" height="4" rx="2" fill="#cfced8"/>
+      <rect x="47" y="27" width="60" height="4" rx="2" fill="#6c6b77"/>
+      <rect x="47" y="35" width="72" height="4" rx="2" fill="#6c6b77"/>
+      <rect x="33" y="42" width="6" height="6" rx="1.5" fill="#6c6b77"/>
+      <rect x="47" y="43" width="60" height="4" rx="2" fill="#6c6b77"/>
+      <rect x="33" y="50" width="6" height="6" rx="1.5" fill="#6c6b77"/>
+      <rect x="47" y="51" width="72" height="4" rx="2" fill="#6c6b77"/>
+      <rect x="0.5" y="0.5" width="159" height="63" rx="7.5" fill="none" stroke="#35343f" stroke-width="1"/>
+  </g>
+</svg>

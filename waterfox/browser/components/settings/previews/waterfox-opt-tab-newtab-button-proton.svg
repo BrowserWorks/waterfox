@@ -1,0 +1,40 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 64" width="160" height="64">
+  <style>
+    .wf-d { display: none; }
+    @media (prefers-color-scheme: dark) {
+      .wf-l { display: none; }
+      .wf-d { display: inline; }
+    }
+  </style>
+  <g class="wf-l">
+      <rect x="0" y="0" width="160" height="64" rx="8" fill="#f0f0f4"/>
+      <path d="M0 34 H160 V56 Q160 64 152 64 H8 Q0 64 0 56 Z" fill="#ffffff"/>
+      <rect x="12.5" y="41.5" width="135" height="13" rx="6.5" fill="#f0f0f4" stroke="#c9c9d2" stroke-width="1"/>
+      <path d="M8 34 V14 Q8 10 12 10 H44 Q48 10 48 14 V34 Z" fill="#ffffff"/>
+      <rect x="16" y="18" width="8" height="8" rx="2" fill="#6f6e7a"/>
+      <rect x="28" y="20" width="12" height="4" rx="2" fill="#7c7c87"/>
+      <rect x="58" y="18" width="8" height="8" rx="2" fill="#b7b7c2"/>
+      <rect x="70" y="20" width="12" height="4" rx="2" fill="#b7b7c2"/>
+      <rect x="100" y="18" width="8" height="8" rx="2" fill="#b7b7c2"/>
+      <rect x="112" y="20" width="12" height="4" rx="2" fill="#b7b7c2"/>
+      <g><rect x="139" y="15" width="14" height="14" rx="4" fill="#e3e3e9"/><path d="M142 22 h8 M146 18 v8" stroke="#7c7c87" stroke-width="1.6" stroke-linecap="round" fill="none"/></g>
+      <rect x="0.5" y="0.5" width="159" height="63" rx="7.5" fill="none" stroke="#dcdce3" stroke-width="1"/>
+  </g>
+  <g class="wf-d">
+      <rect x="0" y="0" width="160" height="64" rx="8" fill="#1c1b22"/>
+      <path d="M0 34 H160 V56 Q160 64 152 64 H8 Q0 64 0 56 Z" fill="#2b2a33"/>
+      <rect x="12.5" y="41.5" width="135" height="13" rx="6.5" fill="#1c1b22" stroke="#3a3944" stroke-width="1"/>
+      <path d="M8 34 V14 Q8 10 12 10 H44 Q48 10 48 14 V34 Z" fill="#2b2a33"/>
+      <rect x="16" y="18" width="8" height="8" rx="2" fill="#b9b8c2"/>
+      <rect x="28" y="20" width="12" height="4" rx="2" fill="#cfced8"/>
+      <rect x="58" y="18" width="8" height="8" rx="2" fill="#6c6b77"/>
+      <rect x="70" y="20" width="12" height="4" rx="2" fill="#6c6b77"/>
+      <rect x="100" y="18" width="8" height="8" rx="2" fill="#6c6b77"/>
+      <rect x="112" y="20" width="12" height="4" rx="2" fill="#6c6b77"/>
+      <g><rect x="139" y="15" width="14" height="14" rx="4" fill="#35343f"/><path d="M142 22 h8 M146 18 v8" stroke="#cfced8" stroke-width="1.6" stroke-linecap="round" fill="none"/></g>
+      <rect x="0.5" y="0.5" width="159" height="63" rx="7.5" fill="none" stroke="#35343f" stroke-width="1"/>
+  </g>
+</svg>

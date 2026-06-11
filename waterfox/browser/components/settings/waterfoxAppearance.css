@@ -1,0 +1,210 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+/* Loaded as an author sheet into about:preferences by waterfoxAppearance.mjs so
+   the ::part() selectors below match. A globally registered user sheet cannot
+   style shadow parts. */
+
+waterfox-mode-segmented.waterfox-mode-segmented {
+  display: block;
+  color: var(--text-color);
+}
+
+waterfox-mode-segmented .waterfox-mode-segmented-label {
+  display: block;
+  margin-block-end: var(--space-small);
+  font-weight: var(--font-weight-semibold);
+}
+
+waterfox-mode-segmented .waterfox-mode-segmented-options {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  box-sizing: border-box;
+  gap: var(--space-xxsmall);
+  padding: var(--space-xxsmall);
+  border: 1px solid var(--button-border-color);
+  border-radius: var(--border-radius-circle);
+  background: var(--button-background-color);
+}
+
+waterfox-mode-segmented .waterfox-mode-segmented-option {
+  appearance: none;
+  display: flex;
+  flex: 1 0 var(--size-layout-xsmall);
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  gap: var(--space-small);
+  min-width: var(--size-layout-xsmall);
+  min-height: var(--size-item-large);
+  margin: 0;
+  padding: 0 var(--space-medium);
+  border: 1px solid var(--button-border-color);
+  border-radius: var(--border-radius-circle);
+  background: var(--button-background-color);
+  color: var(--button-text-color);
+  font: inherit;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-bold);
+  line-height: 16px;
+  cursor: pointer;
+}
+
+waterfox-mode-segmented .waterfox-mode-segmented-option[aria-checked="true"] {
+  border-color: var(--button-border-color-primary);
+  background: var(--button-background-color-primary);
+  color: var(--button-text-color-primary);
+  box-shadow: var(--box-shadow-level-1);
+}
+
+waterfox-mode-segmented .waterfox-mode-segmented-option:not([aria-checked="true"]):hover {
+  border-color: var(--button-border-color-hover);
+  background-color: var(--button-background-color-hover);
+  color: var(--button-text-color-hover);
+}
+
+waterfox-mode-segmented .waterfox-mode-segmented-option[aria-checked="true"]:hover {
+  border-color: var(--button-border-color-primary-hover);
+  background-color: var(--button-background-color-primary-hover);
+  color: var(--button-text-color-primary-hover);
+}
+
+waterfox-mode-segmented .waterfox-mode-segmented-option:focus-visible {
+  outline: var(--focus-outline);
+  outline-offset: 1px;
+}
+
+waterfox-mode-segmented .waterfox-mode-segmented-option:disabled {
+  opacity: var(--button-opacity-disabled);
+  cursor: default;
+}
+
+waterfox-mode-segmented .waterfox-mode-segmented-icon {
+  width: var(--icon-size-small);
+  height: var(--icon-size-small);
+  -moz-context-properties: fill, stroke;
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+waterfox-mode-segmented .waterfox-mode-segmented-text {
+  margin: 0;
+}
+
+/* Theme color: uniform gradient swatches in a grid, matching onboarding. */
+moz-visual-picker.waterfox-color-grid {
+  --waterfox-swatch-size: calc(var(--size-item-large) * 2);
+}
+
+moz-visual-picker.waterfox-color-grid::part(inputs) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(var(--waterfox-swatch-size) + var(--space-medium)), 1fr));
+  justify-items: center;
+  gap: var(--space-large) var(--space-medium);
+}
+
+moz-visual-picker-item.waterfox-color-option {
+  /* Flatten the card: no box, border, hover/active fill, and no rounded
+     overflow clip, so the swatch shows as a bare blob like onboarding. */
+  --visual-picker-item-border-color: transparent;
+  --visual-picker-item-border-width: 0;
+  --visual-picker-item-border-width-checked: 0;
+  --visual-picker-item-border-radius: 0;
+  --background-color-box: transparent;
+  --button-background-color-hover: transparent;
+  --button-background-color-active: transparent;
+
+  color: var(--text-color-deemphasized);
+  font-size: var(--font-size-small);
+  cursor: pointer;
+}
+
+/* The selection ring is the swatch's own border (inside its box, so the card's
+   overflow:hidden cannot clip it); the width stays constant to avoid reflow. */
+moz-visual-picker-item.waterfox-color-option::part(image) {
+  box-sizing: border-box;
+  width: var(--waterfox-swatch-size);
+  height: var(--waterfox-swatch-size);
+  border: var(--focus-outline-width) solid color-mix(in srgb, var(--border-color) 45%, transparent);
+  border-radius: var(--border-radius-circle) var(--border-radius-circle) var(--border-radius-circle) var(--border-radius-medium);
+}
+
+moz-visual-picker-item.waterfox-color-option[checked]::part(image) {
+  border-color: var(--focus-outline-color);
+}
+
+moz-visual-picker.waterfox-browser-style-picker .setting-chooser-item::part(image) {
+  width: 100%;
+  margin-block: 0;
+  border: none;
+  border-radius: var(--border-radius-medium);
+  box-shadow: none;
+}
+
+:is(
+  #setting-control-waterfox-statusbar-show-links,
+  #setting-control-waterfox-opt-autohide-tab-opacity,
+  #setting-control-waterfox-opt-autohide-tab-blur,
+  #setting-control-waterfox-opt-padding-first-tab-always,
+  #setting-control-waterfox-opt-padding-drag-space-maximized,
+  #setting-control-waterfox-opt-centered-tab-label,
+  #setting-control-waterfox-opt-tab-blue-accent,
+  #setting-control-waterfox-opt-tab-contextline-blue-accent,
+  #setting-control-waterfox-opt-tab-bottom-rounded-corner-all,
+  #setting-control-waterfox-opt-hidden-tab-icon-always,
+  #setting-control-waterfox-opt-tab-close-button-at-hover-always,
+  #setting-control-waterfox-opt-tab-close-button-at-hover-with-selected,
+  #setting-control-waterfox-opt-tab-close-button-at-pinned-always,
+  #setting-control-waterfox-opt-tab-close-button-at-pinned-background,
+  #setting-control-waterfox-opt-tab-container-on-top,
+  #setting-control-waterfox-opt-tab-container-always-long,
+  #setting-control-waterfox-opt-tab-sound-with-favicons-on-center,
+  #setting-control-waterfox-opt-tab-corner-style,
+  #setting-control-waterfox-opt-tab-static-separator-selected-accent,
+  #setting-control-waterfox-opt-combined-nav-button-home-button,
+  #setting-control-waterfox-opt-padding-toolbar-button-compact,
+  #setting-control-waterfox-opt-hidden-urlbar-iconbox-label-only,
+  #setting-control-waterfox-opt-padding-bookmark-menu-compact,
+  #setting-control-waterfox-opt-decoration-disable-sidebar-animate,
+  #setting-control-waterfox-opt-icon-menu-full,
+  #setting-control-waterfox-opt-icon-context-menu,
+  #setting-control-waterfox-opt-icon-global-menu,
+  #setting-control-waterfox-opt-icon-global-menu-mac,
+  #setting-control-waterfox-opt-icon-global-menubar,
+  #setting-control-waterfox-opt-icon-account-image-to-right,
+  #setting-control-waterfox-opt-icon-account-label-to-right,
+  #setting-control-waterfox-opt-panel-icons,
+  #setting-control-waterfox-opt-theme-proton-color-dark-blue-accent,
+  #setting-control-waterfox-opt-theme-proton-chrome,
+  #setting-control-waterfox-opt-theme-fully-color,
+  #setting-control-waterfox-opt-theme-fully-dark,
+  #setting-control-waterfox-opt-player-ui-twoline,
+  #setting-control-waterfox-opt-compatibility-os-win11,
+  #setting-control-waterfox-opt-compatibility-os-windows-maximized,
+  #setting-control-waterfox-opt-compatibility-covered-header-image
+) {
+  margin-inline-start: var(--space-large);
+}
+
+moz-visual-picker.waterfox-preview-picker::part(inputs) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5em, 1fr));
+  gap: var(--space-medium);
+}
+
+moz-visual-picker-item.waterfox-preview-option::part(image) {
+  width: 100%;
+  aspect-ratio: 160 / 64;
+  margin-block: 0;
+  border: none;
+  border-radius: var(--border-radius-medium) var(--border-radius-medium) 0 0;
+  box-shadow: none;
+}
+
+/* moz-visual-picker-item does not style disabled items. */
+moz-visual-picker[disabled] moz-visual-picker-item.waterfox-preview-option {
+  pointer-events: none;
+  opacity: var(--button-opacity-disabled);
+}
