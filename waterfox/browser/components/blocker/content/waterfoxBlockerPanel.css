@@ -1,0 +1,387 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+/* stylelint-disable stylelint-plugin-mozilla/use-design-tokens */
+
+#waterfox-blocker-toolbar-button {
+  list-style-image: url("chrome://browser/content/blocker/waterfoxShield.svg");
+}
+
+#waterfox-blocker-toolbar-button[page-not-protectable] > .toolbarbutton-icon,
+#waterfox-blocker-toolbar-button[page-not-protectable] > .toolbarbutton-badge-stack > .toolbarbutton-icon {
+  opacity: var(--opacity-deemphasized-strong);
+}
+
+#waterfox-blocker-toolbar-button[wfx-paused] > .toolbarbutton-badge-stack > .toolbarbutton-icon {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+#waterfox-blocker-toolbar-button > .toolbarbutton-badge-stack > .toolbarbutton-badge {
+  background-color: var(--color-accent-primary);
+  color: var(--button-text-color-primary);
+  border-radius: var(--border-radius-circle);
+  box-shadow: none;
+  font-weight: var(--font-weight-semibold);
+}
+
+#waterfox-blocker-toolbar-button[wfx-paused] > .toolbarbutton-badge-stack > .toolbarbutton-badge {
+  background-color: var(--button-background-color);
+  color: var(--text-color);
+}
+
+#waterfox-blocker-panel {
+  --arrowpanel-background: var(--background-color-box);
+  --arrowpanel-border-color: var(--card-border-color);
+  --arrowpanel-border-radius: var(--border-radius-large);
+  --arrowpanel-padding: 0;
+  --wfx-blocker-hairline: 1px solid var(--border-color-deemphasized);
+  --wfx-blocker-gutter: 1.2em;
+  --wfx-blocker-accent-tint: light-dark(
+    color-mix(in srgb, var(--color-accent-primary) 12%, transparent),
+    color-mix(in srgb, var(--color-accent-primary) 20%, transparent)
+  );
+  --wfx-blocker-hover-wash: light-dark(
+    color-mix(in srgb, var(--color-violet-desaturated-50) 8%, transparent),
+    color-mix(in srgb, var(--color-violet-desaturated-30) 20%, transparent)
+  );
+  fill: currentColor;
+  font: menu;
+}
+
+.wfx-blocker-view {
+  min-width: 27.5em;
+  max-width: 27.5em;
+}
+
+.wfx-blocker-view > .panel-subview-body {
+  padding: 0;
+}
+
+.wfx-blocker-hero {
+  display: flex;
+  align-items: center;
+  gap: 1.05em;
+  padding: 1.5em var(--wfx-blocker-gutter) var(--wfx-blocker-gutter);
+  /* Only Nova defines the gradient; other themes keep the flat colour. */
+  background-color: var(--background-color-box-info);
+  background-image: var(--toolbox-background-gradient);
+}
+
+.wfx-blocker-hero:not([state="active"]) {
+  background-image: none;
+}
+
+.wfx-blocker-hero-shield {
+  width: 3.5em;
+  height: 3.5em;
+  flex: none;
+}
+
+.wfx-blocker-hero[state="paused"] .wfx-blocker-hero-shield,
+.wfx-blocker-hero[state="partner"] .wfx-blocker-hero-shield,
+.wfx-blocker-hero[state="disabled"] .wfx-blocker-hero-shield {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.wfx-blocker-hero-title {
+  margin: 0;
+  font-size: 2.3em;
+  font-weight: var(--font-weight-bold);
+  line-height: 1.1;
+}
+
+.wfx-blocker-hero[state="disabled"] .wfx-blocker-hero-title,
+.wfx-blocker-hero[state="unavailable"] .wfx-blocker-hero-title {
+  font-size: 1.3em;
+  line-height: 1.2;
+}
+
+.wfx-blocker-hero-subtitle {
+  font-size: 1em;
+  color: var(--text-color-deemphasized);
+  margin-block-start: 0.3em;
+}
+
+.wfx-blocker-categories {
+  padding: 1.05em var(--wfx-blocker-gutter) 0.45em;
+  display: grid;
+  gap: 0.75em;
+}
+
+.wfx-blocker-categories[hidden],
+.wfx-blocker-category-row[hidden] {
+  display: none;
+}
+
+.wfx-blocker-category-row {
+  display: grid;
+  grid-template-columns: 5.8em 1fr 1.85em;
+  align-items: center;
+  gap: 0.75em;
+  font-size: 1em;
+}
+
+.wfx-blocker-category-track {
+  display: block;
+  height: 0.45em;
+  border-radius: var(--border-radius-circle);
+  background: var(--wfx-blocker-accent-tint);
+  overflow: hidden;
+}
+
+.wfx-blocker-category-fill {
+  display: block;
+  height: 100%;
+  width: var(--wfx-blocker-bar-fill, 0%);
+  border-radius: var(--border-radius-circle);
+  background: var(--color-accent-primary);
+}
+
+.wfx-blocker-category-count {
+  font-weight: var(--font-weight-semibold);
+  text-align: end;
+}
+
+.wfx-blocker-categories-footer {
+  font-size: 0.96em;
+  color: var(--text-color-deemphasized);
+}
+
+.wfx-blocker-paused-card {
+  margin: 1.05em var(--wfx-blocker-gutter) 0;
+  padding: 0.9em 1.05em;
+  background: var(--background-color-warning);
+  border-radius: 0.9em;
+  font-size: 1em;
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+.wfx-blocker-paused-card[partner] {
+  background: var(--background-color-information);
+}
+
+.wfx-blocker-toggle-row {
+  padding: 0.9em var(--wfx-blocker-gutter);
+  border-block-start: var(--wfx-blocker-hairline);
+}
+
+.wfx-blocker-paused-card:not([hidden]) ~ .wfx-blocker-toggle-row {
+  border-block-start: none;
+  padding-block-start: 1.05em;
+}
+
+#waterfox-blocker-panel-site-toggle {
+  font-size: 1.15em;
+  font-weight: var(--font-weight-bold);
+}
+
+.wfx-blocker-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  width: 100%;
+  padding: 1em var(--wfx-blocker-gutter);
+  margin: 0;
+  border: none;
+  border-block-start: var(--wfx-blocker-hairline);
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: 1.15em;
+  text-align: start;
+  cursor: pointer;
+}
+
+.wfx-blocker-row:hover {
+  background: var(--wfx-blocker-hover-wash);
+}
+
+.wfx-blocker-row-label {
+  flex: 1;
+}
+
+.wfx-blocker-row-detail {
+  font-size: 0.87em;
+  color: var(--text-color-deemphasized);
+}
+
+.wfx-blocker-chevron {
+  width: 12px;
+  height: 12px;
+  flex: none;
+  background-image: url("chrome://global/skin/icons/arrow-right-12.svg");
+  background-size: 12px;
+  background-repeat: no-repeat;
+  -moz-context-properties: fill;
+  fill: var(--text-color-deemphasized);
+}
+
+.wfx-blocker-chevron:dir(rtl) {
+  transform: scaleX(-1);
+}
+
+.wfx-blocker-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75em;
+  padding: 0.9em var(--wfx-blocker-gutter);
+  background: var(--background-color-box-info);
+  font-size: 0.96em;
+  color: var(--text-color-deemphasized);
+}
+
+.wfx-blocker-footer-stats > b {
+  color: var(--text-color);
+}
+
+.wfx-blocker-link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.96em;
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-accent-primary);
+  cursor: pointer;
+}
+
+.wfx-blocker-footer > .wfx-blocker-link-button,
+.wfx-blocker-categories-footer > .wfx-blocker-link-button {
+  font-size: 1em;
+}
+
+.wfx-blocker-link-button:hover {
+  color: var(--color-accent-primary-hover);
+  text-decoration: underline;
+}
+
+#waterfox-blocker-detail-back {
+  list-style-image: url("chrome://global/skin/icons/arrow-left.svg");
+  -moz-context-properties: fill;
+  fill: currentColor;
+}
+
+#waterfox-blocker-detail-back:dir(rtl) {
+  list-style-image: url("chrome://global/skin/icons/arrow-right.svg");
+}
+
+.wfx-blocker-detail-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  padding: 0.9em var(--wfx-blocker-gutter);
+  border-block-end: var(--wfx-blocker-hairline);
+}
+
+.wfx-blocker-detail-title-block {
+  flex: 1;
+  min-width: 0;
+}
+
+.wfx-blocker-detail-title {
+  margin: 0;
+  font-size: 1.15em;
+  font-weight: var(--font-weight-bold);
+}
+
+.wfx-blocker-detail-subtitle {
+  font-size: 0.96em;
+  color: var(--text-color-deemphasized);
+}
+
+.wfx-blocker-count-pill {
+  padding: 0.15em 0.6em;
+  border-radius: var(--border-radius-circle);
+  background: var(--wfx-blocker-accent-tint);
+  color: var(--color-accent-primary);
+  font-size: 0.92em;
+  font-weight: var(--font-weight-semibold);
+}
+
+.wfx-blocker-detail-section {
+  padding-block-end: 0.25em;
+}
+
+.wfx-blocker-detail-section:not(:last-child) {
+  border-block-end: var(--wfx-blocker-hairline);
+}
+
+.wfx-blocker-detail-section-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  margin: 0;
+  padding: 0.9em var(--wfx-blocker-gutter) 0.3em;
+  font-size: 0.88em;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-color-deemphasized);
+}
+
+.wfx-blocker-detail-section-heading > .wfx-blocker-count-pill {
+  letter-spacing: normal;
+}
+
+.wfx-blocker-domain-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  padding: 0.7em var(--wfx-blocker-gutter);
+  font-size: 1em;
+}
+
+.wfx-blocker-domain-row:hover {
+  background: var(--wfx-blocker-hover-wash);
+}
+
+.wfx-blocker-domain-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: monospace;
+  font-size: 0.96em;
+}
+
+.wfx-blocker-domain-count {
+  padding: 0.15em 0.6em;
+  border-radius: var(--border-radius-circle);
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  font-size: 0.85em;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-color-deemphasized);
+}
+
+.wfx-blocker-allow-button {
+  padding: 0.3em 0.9em;
+  border: 1px solid var(--border-color-interactive);
+  border-radius: var(--border-radius-circle);
+  background: transparent;
+  color: var(--text-color);
+  font: inherit;
+  font-size: 0.92em;
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.wfx-blocker-domain-row:hover .wfx-blocker-allow-button,
+.wfx-blocker-allow-button:focus-visible {
+  opacity: 1;
+}
+
+.wfx-blocker-allow-button:hover {
+  background: var(--wfx-blocker-hover-wash);
+}
+
+.wfx-blocker-detail-note {
+  padding: 0 var(--wfx-blocker-gutter) 1.05em;
+  font-size: 1em;
+  color: var(--text-color-deemphasized);
+}
