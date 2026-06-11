@@ -276,9 +276,9 @@ add_task(async function test_replace_response_filter_respects_disabled_pref() {
 add_task(async function test_replace_response_filter_respects_site_bypass() {
   makeEngine();
   const originalBypass = WaterfoxBlockerService.shouldBypassBlocking;
-  WaterfoxBlockerService.shouldBypassBlocking = candidateDomain =>
+  WaterfoxBlockerService.shouldBypassBlocking = (candidateDomain, options) =>
     candidateDomain === "127.0.0.1" ||
-    originalBypass.call(WaterfoxBlockerService, candidateDomain);
+    originalBypass.call(WaterfoxBlockerService, candidateDomain, options);
 
   try {
     Assert.equal(

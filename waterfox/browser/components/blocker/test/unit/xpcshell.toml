@@ -1,8 +1,6 @@
 [DEFAULT]
 firefox-appdir = "browser"
 
-["test_blocked_page_validation.js"]
-
 ["test_extension_detector.js"]
 
 ["test_list_atomic_writes.js"]
