@@ -2,11 +2,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-EXTRA_JS_MODULES += [
-    "PrefUtils.sys.mjs",
-    "StyleSheetUtils.sys.mjs",
-]
-
-BROWSER_CHROME_MANIFESTS += [
-    "test/browser/browser.toml",
-]
+browser.jar:
+%   skin browser classic/1.0 %skin/classic/browser/
+    skin/classic/browser/waterfox/general.css                 (waterfox/general.css)

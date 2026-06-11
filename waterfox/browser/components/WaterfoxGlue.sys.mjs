@@ -8,6 +8,7 @@ const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
   ExperimentAPI: "resource://nimbus/ExperimentAPI.sys.mjs",
+  StyleSheetUtils: "resource:///modules/StyleSheetUtils.sys.mjs",
   WaterfoxBlockerExtensionDetector:
     "resource:///modules/WaterfoxBlockerExtensionDetector.sys.mjs",
   WaterfoxBlockerPanel: "resource:///modules/WaterfoxBlockerPanel.sys.mjs",
@@ -32,6 +33,10 @@ export const WaterfoxGlue = {
         console.error("ExperimentAPI startup init failed", error)
       );
     }
+
+    lazy.StyleSheetUtils.registerStylesheet(
+      "chrome://browser/skin/waterfox/general.css"
+    );
 
     lazy.WaterfoxSearchExtensionPolicy.init();
 
