@@ -3,7 +3,10 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { WaterfoxBlockerService } from "resource:///modules/WaterfoxBlockerService.sys.mjs";
-import { toSafeDomain } from "resource:///modules/WaterfoxBlockerUtils.sys.mjs";
+import {
+  isPrivateBrowsingContext,
+  toSafeDomain,
+} from "resource:///modules/WaterfoxBlockerUtils.sys.mjs";
 import { XPCOMUtils } from "resource://gre/modules/XPCOMUtils.sys.mjs";
 
 const lazy = {};
@@ -257,6 +260,12 @@ export const WaterfoxBlockerPanel = {
     return this._getCurrentBrowser(win)?.browsingContext?.top?.browserId || 0;
   },
 
+  _isPrivateWindow(win) {
+    return isPrivateBrowsingContext(
+      this._getCurrentBrowser(win)?.browsingContext
+    );
+  },
+
   _getCurrentHost(win) {
     const uri = this._getCurrentBrowser(win)?.currentURI;
     try {
@@ -311,7 +320,8 @@ export const WaterfoxBlockerPanel = {
 
     WaterfoxBlockerService.recordNewTabSourceHost(
       newBrowserId,
-      openerURI.asciiHost || openerURI.host
+      openerURI.asciiHost || openerURI.host,
+      { isPrivate: this._isPrivateWindow(win) }
     );
   },
 
@@ -562,12 +572,15 @@ export const WaterfoxBlockerPanel = {
     const protectable = this._isCurrentPageProtectable(win);
     const activeEnabled = enabled ?? lazy.enabled;
     const browserId = this._getCurrentBrowserId(win);
-    const excepted = host ? WaterfoxBlockerService.isSiteExcepted(host) : false;
+    const options = { isPrivate: this._isPrivateWindow(win) };
+    const excepted = host
+      ? WaterfoxBlockerService.isSiteExcepted(host, options)
+      : false;
     const partnerBypass =
       activeEnabled &&
       protectable &&
       !excepted &&
-      WaterfoxBlockerService.shouldBypassBlocking(host, browserId);
+      WaterfoxBlockerService.shouldBypassBlocking(host, options);
     const siteBlockingEnabled =
       activeEnabled && protectable && !excepted && !partnerBypass;
 
@@ -633,7 +646,13 @@ export const WaterfoxBlockerPanel = {
       return;
     }
 
-    if (disableForSite) {
+    if (this._isPrivateWindow(win)) {
+      if (disableForSite) {
+        WaterfoxBlockerService.allowSiteForSession(host, { isPrivate: true });
+      } else {
+        WaterfoxBlockerService.removeSiteException(host, { isPrivate: true });
+      }
+    } else if (disableForSite) {
       WaterfoxBlockerService.addSiteException(host);
     } else {
       WaterfoxBlockerService.removeSiteException(host);
