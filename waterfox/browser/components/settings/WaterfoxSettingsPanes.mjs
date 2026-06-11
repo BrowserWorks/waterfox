@@ -40,6 +40,42 @@ if (Services.prefs.getBoolPref("browser.settings-redesign.enabled", false)) {
     { global: "current" }
   );
 
+  // The appearance pane already has a Mozilla module in its slot, so the
+  // Waterfox group module loads here instead.
+  const appearancePane = SettingPaneManager.get("appearance");
+  // Keep browser and palette choices before Mozilla's website appearance group.
+  const WATERFOX_APPEARANCE_LEAD = [
+    "waterfoxBrowserStyle",
+    "waterfoxThemeColors",
+  ];
+  const WATERFOX_APPEARANCE_REST = [
+    "waterfoxStatusBar",
+    "waterfoxInterfaceCustomizations",
+    "waterfoxOptTabbar",
+    "waterfoxOptTabs",
+    "waterfoxOptToolbars",
+    "waterfoxOptBookmarks",
+    "waterfoxOptIcons",
+    "waterfoxOptRounding",
+    "waterfoxOptTheme",
+    "waterfoxOptContent",
+    "waterfoxOptNewtab",
+    "waterfoxOptPlayer",
+  ];
+  appearancePane.groupIds = appearancePane.groupIds.flatMap(groupId =>
+    groupId == "appearance"
+      ? [...WATERFOX_APPEARANCE_LEAD, groupId, ...WATERFOX_APPEARANCE_REST]
+      : [groupId]
+  );
+  ChromeUtils.importESModule(
+    "chrome://browser/content/waterfox/settings/waterfoxAppearance.mjs",
+    { global: "current" }
+  );
+  ChromeUtils.importESModule(
+    "chrome://browser/content/waterfox/settings/waterfoxAppearanceOptions.mjs",
+    { global: "current" }
+  );
+
   // The search pane keeps its Mozilla module; waterfoxSearch amends its
   // defaultEngine and searchSuggestions groups at runtime, so it only needs
   // to load before that pane.
