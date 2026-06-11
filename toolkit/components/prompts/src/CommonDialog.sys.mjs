@@ -55,6 +55,8 @@ export class CommonDialog {
         this.iconClass = ["question-icon"];
         this.soundID = Ci.nsISound.EVENT_CONFIRM_DIALOG_OPEN;
         break;
+      // Waterfox: confirmEx2 only adds a second checkbox.
+      case "confirmEx2":
       case "confirmEx":
         var numButtons = 0;
         if (this.args.button0Label) {
@@ -179,6 +181,19 @@ export class CommonDialog {
       this.ui.checkboxContainer.clientTop; // style flush to assure binding is attached
       this.setLabelForNode(this.ui.checkbox, label);
       this.ui.checkbox.checked = this.args.checked;
+    }
+
+    // Waterfox: the second checkbox of confirmEx2.
+    let label2 = this.args.checkLabel2;
+    if (label2 && this.ui.checkbox2) {
+      this.ui.checkboxContainer.hidden = false;
+      this.ui.checkboxContainer.clientTop;
+      if (!label) {
+        this.ui.checkbox.hidden = true;
+      }
+      this.setLabelForNode(this.ui.checkbox2, label2);
+      this.ui.checkbox2.hidden = false;
+      this.ui.checkbox2.checked = this.args.checked2;
     }
 
     // set the icon
@@ -309,6 +324,10 @@ export class CommonDialog {
 
   onCheckbox() {
     this.args.checked = this.ui.checkbox.checked;
+  }
+
+  onCheckbox2() {
+    this.args.checked2 = this.ui.checkbox2.checked;
   }
 
   onButton0() {
