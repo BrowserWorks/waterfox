@@ -28,6 +28,14 @@ pref("general.smoothScroll.msdPhysics.enabled", true);
 // Settings redesign is on by default; hide its one-time promo banner.
 pref("browser.settings-redesign.promo.dismissed", true);
 
+#ifdef XP_LINUX
+pref("browser.urlbar.clickSelectsAll", false);
+pref("browser.urlbar.doubleClickSelectsAll", true);
+#else
+pref("browser.urlbar.clickSelectsAll", true);
+pref("browser.urlbar.doubleClickSelectsAll", false);
+#endif
+
 #ifdef XP_MACOSX
 pref("dom.event.treat_ctrl_click_as_right_click.disabled", true);
 pref("widget.macos.titlebar-blend-mode.behind-window", true);

@@ -8,5 +8,6 @@ browser.jar:
     content/browser/waterfox/settings/previews/                          (previews/*.svg)
     content/browser/waterfox/settings/waterfoxDns.mjs                    (waterfoxDns.mjs)
     content/browser/waterfox/settings/waterfoxHome.mjs                   (waterfoxHome.mjs)
+    content/browser/waterfox/settings/waterfoxSearch.mjs                 (waterfoxSearch.mjs)
     content/browser/waterfox/settings/waterfoxTabs.mjs                   (waterfoxTabs.mjs)
     content/browser/waterfox/settings/waterfoxUpdates.mjs                (waterfoxUpdates.mjs)
