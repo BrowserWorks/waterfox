@@ -4,6 +4,7 @@
 
 DIRS += [
     "blocker",
+    "privatetab",
     "remotesettings",
     "search",
     "settings",
