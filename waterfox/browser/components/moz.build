@@ -10,6 +10,7 @@ DIRS += [
     "settings",
     "statusbar",
     "tabfeatures",
+    "tabgrouping",
     "theme",
     "uicustomizations",
     "utils",
