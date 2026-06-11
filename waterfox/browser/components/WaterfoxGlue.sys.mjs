@@ -11,6 +11,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   StatusBar: "resource:///modules/StatusBar.sys.mjs",
   StyleSheetUtils: "resource:///modules/StyleSheetUtils.sys.mjs",
   TabFeatures: "resource:///modules/TabFeatures.sys.mjs",
+  TabGrouping: "resource:///modules/TabGrouping.sys.mjs",
   UICustomizations: "resource:///modules/UICustomizations.sys.mjs",
   WaterfoxBlockerExtensionDetector:
     "resource:///modules/WaterfoxBlockerExtensionDetector.sys.mjs",
@@ -124,6 +125,7 @@ export const WaterfoxGlue = {
 
     lazy.StatusBar.init();
     lazy.TabFeatures.init();
+    lazy.TabGrouping.init();
     lazy.UICustomizations.init();
     Services.obs.addObserver(this, "browser-delayed-startup-finished");
   },
@@ -133,6 +135,7 @@ export const WaterfoxGlue = {
       case "browser-delayed-startup-finished":
         lazy.StatusBar.onWindowOpened(subject);
         lazy.TabFeatures.onWindowOpened(subject);
+        lazy.TabGrouping.onWindowOpened(subject);
         lazy.UICustomizations.onWindowOpened(subject);
         break;
     }
