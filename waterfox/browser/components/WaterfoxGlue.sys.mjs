@@ -8,6 +8,7 @@ const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
   ExperimentAPI: "resource://nimbus/ExperimentAPI.sys.mjs",
+  WaterfoxBlockerPanel: "resource:///modules/WaterfoxBlockerPanel.sys.mjs",
   WaterfoxBlockerService: "resource:///modules/WaterfoxBlockerService.sys.mjs",
   WaterfoxSearchExtensionPolicy:
     "resource:///modules/WaterfoxSearchExtensionPolicy.sys.mjs",
@@ -69,6 +70,7 @@ export const WaterfoxGlue = {
       allFrames: true,
     });
 
+    lazy.WaterfoxBlockerPanel.init();
     lazy.WaterfoxBlockerService.init().catch(error =>
       console.error("WaterfoxBlockerService startup init failed", error)
     );

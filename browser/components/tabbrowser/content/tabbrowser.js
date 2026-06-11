@@ -9458,6 +9458,10 @@
 
             this._tab.setAttribute("bursting", "true");
           }
+
+          if (!this._tab.selected) {
+            this._tab.setAttribute("unread", "true");
+          }
         }
 
         if (this._tab.hasAttribute("progress")) {
