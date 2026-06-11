@@ -12,6 +12,10 @@ pref("browser.tabs.warnOnClose", true);
 
 pref("browser.uidensity", 1);
 pref("browser.compactmode.show", true);
+
+// Sheet loading mode: 0 on, 2 off.
+pref("browser.theme.waterfox.chromeSheet", 0);
+pref("browser.nova.enabled", true);
 pref("toolkit.legacyUserProfileCustomizations.stylesheets", true, locked);
 pref("general.smoothScroll.msdPhysics.enabled", true);
 
