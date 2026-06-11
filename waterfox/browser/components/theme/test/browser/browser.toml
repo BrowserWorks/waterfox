@@ -1,0 +1,28 @@
+[DEFAULT]
+tags = "waterfox_theme"
+
+["browser_waterfox_capture.js"]
+
+["browser_waterfox_content_capture.js"]
+support-files = [
+  "file_usercontent_media.html",
+  "../../../../../../dom/media/test/gizmo.mp4",
+  "../../../../../../dom/media/test/gizmo-noaudio.webm",
+  "../../../../../../toolkit/components/pdfjs/test/file_pdfjs_test.pdf",
+]
+
+["browser_waterfox_hidden_tabbar.js"]
+
+["browser_waterfox_option_effect.js"]
+
+["browser_waterfox_option_geometry.js"]
+
+["browser_waterfox_option_reach.js"]
+
+["browser_waterfox_sheet_inert.js"]
+
+["browser_waterfox_style_migration.js"]
+
+["browser_waterfox_styles.js"]
+
+["browser_waterfoxtheme.js"]
