@@ -1,0 +1,19 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+.tabbrowser-tab[waterfox-private] .tab-label {
+  text-decoration: underline dashed;
+}
+
+#newPrivateTab-button,
+#newPrivateTab-button-vertical {
+  list-style-image: url("chrome://browser/skin/privateBrowsing.svg");
+}
+
+/* The indicator only shows in real private windows; light it up while the
+   selected tab sits in the private container. */
+:root[waterfox-private-tab] #TabsToolbar .private-browsing-indicator-with-label,
+:root[waterfox-private-tab] #navigator-toolbox[tabs-hidden] #nav-bar > .private-browsing-indicator-with-label {
+  display: flex !important;
+}
