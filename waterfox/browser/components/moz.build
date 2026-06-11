@@ -7,6 +7,7 @@ DIRS += [
     "remotesettings",
     "search",
     "settings",
+    "statusbar",
     "theme",
     "utils",
 ]
