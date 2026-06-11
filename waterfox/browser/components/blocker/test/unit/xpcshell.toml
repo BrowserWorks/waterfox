@@ -3,6 +3,8 @@ firefox-appdir = "browser"
 
 ["test_engine_compatibility.js"]
 
+["test_engine_publication.js"]
+
 ["test_extension_detector.js"]
 
 ["test_list_atomic_writes.js"]
@@ -15,9 +17,9 @@ firefox-appdir = "browser"
 
 ["test_list_write_serialization.js"]
 
-["test_redirect_resources.js"]
+["test_native_shutdown.js"]
 
-["test_engine_publication.js"]
+["test_redirect_resources.js"]
 
 ["test_replace_response_filter.js"]
 prefs = [
@@ -27,5 +29,9 @@ prefs = [
   "network.trr.ohttp.uri=''",
   "network.trr.use_ohttp=false",
 ]
+
+["test_request_snapshots.js"]
+
+["test_startup_baseline.js"]
 
 ["test_waterfox_unbreak.js"]

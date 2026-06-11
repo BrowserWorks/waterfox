@@ -12,7 +12,6 @@ import {
   applyProceduralUpward,
   filterProceduralCandidates,
   isPrivateBrowsingContext,
-  isPrivateOriginAttributes,
   MAX_PROCEDURAL_CANDIDATES,
 } from "resource:///modules/WaterfoxBlockerUtils.sys.mjs";
 
@@ -35,6 +34,10 @@ ChromeUtils.defineESModuleGetters(lazy, {
 
 const CONTRACT_ID = "@waterfox.com/waterfox-blocker-engine;1";
 
+ChromeUtils.defineLazyGetter(lazy, "blockerPolicy", () =>
+  Cc[CONTRACT_ID].createInstance(Ci.nsIWaterfoxBlockerEngine)
+);
+
 // Prefs
 const PREF_ENABLED = "waterfox.blocker.enabled";
 const PREF_ALLOW_SEARCH_PARTNER_ADS = "waterfox.blocker.allowSearchPartnerAds";
@@ -46,25 +49,15 @@ const PREF_SITE_EXCEPTIONS_MIGRATED =
 const PREF_REMOTE_RESOURCES_ENABLED = "waterfox.blocker.remoteResourcesEnabled";
 const PREF_BRANCH = "waterfox.blocker.";
 
-const SEARCH_PARTNER_DOMAINS = Object.freeze([
-  "qwant.com",
-  "search.waterfox.com",
-]);
-
 const BLOCKED_COUNT_MAP_MAX_ENTRIES = 500;
 const BLOCKED_COUNT_MAP_TRIM_TO_ENTRIES = 250;
 const TOPIC_BLOCKED_COUNT_UPDATED = "WaterfoxBlocker:BlockedCountUpdated";
 const TOPIC_BLOCKED_COUNTS_CLEARED = "WaterfoxBlocker:BlockedCountsCleared";
-const TOPIC_HTTP_ON_MODIFY_REQUEST = "http-on-modify-request";
-const TOPIC_HTTP_ON_EXAMINE_RESPONSE = "http-on-examine-response";
-const TOPIC_HTTP_ON_EXAMINE_CACHED_RESPONSE = "http-on-examine-cached-response";
-const TOPIC_HTTP_ON_EXAMINE_MERGED_RESPONSE = "http-on-examine-merged-response";
 const TOPIC_PREF_CHANGED = "nsPref:changed";
+const TOPIC_PERMISSION_CHANGED = "perm-changed";
 
-const BLOCKED_PAGE_URL = "about:contentblocked";
 const INIT_RETRY_DELAY_MS = 30 * 1000;
 const LIST_UPDATE_FALLBACK_INTERVAL_MS = 60 * 60 * 1000;
-const TOP_LEVEL_NAVIGATION_BYPASS_TTL_MS = 60 * 1000;
 const REMOTE_SETTINGS_POLL_END_TOPIC = "remote-settings:changes-poll-end";
 const REPLACE_RESPONSE_MAX_BYTES = 10 * 1024 * 1024;
 export const REPLACE_MAX_INPUT_BYTES = 2 * 1024 * 1024;
@@ -1600,20 +1593,17 @@ class ResponseFilteringListener {
 }
 
 /**
- * Owns the native engine, loads and refreshes filter lists, intercepts
- * network channels to block requests and apply CSP, and tracks blocked
- * counts for each tab so the protections UI can read them.
+ * Loads and refreshes filter lists, publishes the native engine, adapts
+ * response filtering, and provides cosmetic resources and per-tab blocked
+ * counts for the protections UI.
  */
 export const WaterfoxBlockerService = {
   QueryInterface: ChromeUtils.generateQI([
     "nsIObserver",
-    "nsIWaterfoxBlockerContentPolicyBridge",
+    "nsIContentClassifierAdBlockingBridge",
   ]),
 
   _blockedCountByBrowserId: new Map(),
-  _topLevelHostByBrowserId: new Map(),
-  _blockedTopLevelDocumentByBrowserId: new Map(),
-  _topLevelNavigationBypassByBrowserId: new Map(),
   _listUpdatesState: null,
   _listUpdatePromise: null,
   _listUpdateRerunRequested: false,
@@ -1626,8 +1616,8 @@ export const WaterfoxBlockerService = {
   _initGeneration: 0,
   _initRetryTimerId: null,
   _initialized: false,
+  _policyObserverRegistered: false,
   _listUpdateObserverRegistered: false,
-  __thirdPartyUtil: undefined,
 
   _siteExceptions() {
     if (!this._siteExceptionsState) {
@@ -1653,26 +1643,6 @@ export const WaterfoxBlockerService = {
     return !!options.isPrivate;
   },
 
-  _isPrivateLoadInfo(loadInfo) {
-    try {
-      if (isPrivateOriginAttributes(loadInfo?.originAttributes)) {
-        return true;
-      }
-    } catch (_) {
-      // Fall back to the browsing context below.
-    }
-
-    try {
-      return (
-        isPrivateBrowsingContext(loadInfo?.browsingContext) ||
-        isPrivateBrowsingContext(loadInfo?.targetBrowsingContext) ||
-        isPrivateBrowsingContext(loadInfo?.workerAssociatedBrowsingContext)
-      );
-    } catch (_) {
-      return false;
-    }
-  },
-
   _clearBlockedCounts() {
     if (!this._blockedCountByBrowserId.size) {
       return;
@@ -1683,9 +1653,8 @@ export const WaterfoxBlockerService = {
   },
 
   _clearTopLevelNavigationState() {
-    this._topLevelHostByBrowserId.clear();
-    this._blockedTopLevelDocumentByBrowserId.clear();
-    this._topLevelNavigationBypassByBrowserId.clear();
+    lazy.blockerPolicy.clearNavigationState();
+    this._invalidateRequestPolicy();
   },
 
   _createEngine() {
@@ -1693,6 +1662,7 @@ export const WaterfoxBlockerService = {
   },
 
   _publishEngine(engine, resourcePayload) {
+    this._registerPolicyObserver();
     engine.publish();
     this._engine = engine;
     this._resourcePayload = resourcePayload;
@@ -1702,6 +1672,65 @@ export const WaterfoxBlockerService = {
     this._engine?.unpublish();
     this._engine = null;
     this._resourcePayload = null;
+  },
+
+  onAdBlockingAction(browserId, hostname, requestType, isPrivate, isTopLevel) {
+    this.incrementBlockedCount(browserId, {
+      hostname,
+      requestType,
+      isPrivate,
+      topLevel: isTopLevel,
+    });
+  },
+
+  filterAdBlockingResponse(
+    subject,
+    url,
+    requestType,
+    resourcesJson,
+    replaceJson
+  ) {
+    const channel = subject.QueryInterface(Ci.nsIHttpChannel);
+    const resources = JSON.parse(resourcesJson);
+    const htmlFilters = sanitizeStringList(
+      resources.html_filters,
+      MAX_HTML_FILTERS,
+      4096
+    );
+    const headers = sanitizeResponseHeaderNames(
+      resources.response_header_filters
+    );
+    this._applyResponseHeaderFilters(channel, headers);
+    const replaceDirectives = isReplaceEligibleContent(channel, requestType)
+      ? sanitizeStringList(
+          JSON.parse(replaceJson),
+          MAX_REPLACE_DIRECTIVES,
+          4096
+        )
+      : [];
+    const eligibleHtmlFilters = isHtmlFilterEligibleContent(
+      channel,
+      requestType
+    )
+      ? htmlFilters
+      : [];
+    this._installResponseFilters(
+      channel,
+      url,
+      eligibleHtmlFilters,
+      replaceDirectives
+    );
+  },
+
+  _registerPolicyObserver() {
+    if (!this._policyObserverRegistered) {
+      Services.obs.addObserver(this, TOPIC_PERMISSION_CHANGED);
+      this._policyObserverRegistered = true;
+    }
+  },
+
+  _invalidateRequestPolicy() {
+    this._engine?.invalidatePolicy?.();
   },
 
   async _prepareAndPublishEngine(engine, generation) {
@@ -1732,7 +1761,89 @@ export const WaterfoxBlockerService = {
       const resourcePayload = lazy.Resources.loadSync(engine);
       this._publishEngine(engine, resourcePayload);
     } catch (_) {
-      // Cache missing, corrupt, or incompatible. Async path will rebuild.
+      // Cache missing, corrupt, or incompatible. Fall back to local sources.
+    }
+  },
+
+  _ensureStartupEngineSync() {
+    if (!this.isEnabled() || this._engine) {
+      return;
+    }
+    try {
+      const descriptors = lazy.ListCatalog.getListDescriptorsSync();
+      if (
+        descriptors.every(descriptor => descriptor.customFilters) &&
+        !this._hasSelectedRules(
+          lazy.ListStore.readStoredListsSync(descriptors).map(record => ({
+            ...record,
+            text: lazy.ListPreprocessor.preprocessFilterListText(record.text),
+          }))
+        )
+      ) {
+        return;
+      }
+      this._tryInitFromCacheSync();
+      if (!this._engine) {
+        this._initFromLocalSourcesSync(descriptors);
+      }
+    } catch (err) {
+      console.error(
+        "[WaterfoxBlocker] Failed to initialise local baseline:",
+        err
+      );
+    }
+  },
+
+  _hasSelectedRules(records) {
+    return records.some(record =>
+      String(record.text)
+        .split(/\r?\n/)
+        .some(line => {
+          const rule = line.trim();
+          return rule && !rule.startsWith("!") && !rule.startsWith("[");
+        })
+    );
+  },
+
+  _initFromLocalSourcesSync(descriptors = null) {
+    if (!this.isEnabled()) {
+      return;
+    }
+    try {
+      descriptors ??= lazy.ListCatalog.getListDescriptorsSync();
+      const generation = this._initGeneration;
+      const { complete, listRecords } =
+        lazy.ListStore.resolveLocalListRecordsSync(descriptors);
+      if (!complete) {
+        throw new Error(
+          "Bundled filter lists unavailable for synchronous baseline"
+        );
+      }
+      if (!listRecords.length) {
+        return;
+      }
+      const records = lazy.ListStore.withWaterfoxUnbreakRecordSync(
+        listRecords
+      ).map(record => ({
+        ...record,
+        text: lazy.ListPreprocessor.preprocessFilterListText(record.text),
+      }));
+      if (!this._hasSelectedRules(records.slice(0, listRecords.length))) {
+        return;
+      }
+      const candidate = this._createEngineFromListRecords(records);
+      if (!candidate) {
+        throw new Error("Filter lists contained no valid rules");
+      }
+      const resources = lazy.Resources.loadSync(candidate);
+      if (this._isCurrentListUpdate(generation)) {
+        this._publishEngine(candidate, resources);
+      }
+    } catch (err) {
+      console.error(
+        "[WaterfoxBlocker] Failed to initialise local baseline:",
+        err
+      );
     }
   },
 
@@ -1804,6 +1915,14 @@ export const WaterfoxBlockerService = {
 
     const listRecordsForEngine = await this._preprocessListRecords(listRecords);
     if (this._initGeneration !== generation) {
+      return;
+    }
+
+    if (
+      !this._hasSelectedRules(listRecordsForEngine.slice(0, listRecords.length))
+    ) {
+      this._clearEngine();
+      await lazy.EngineCache.clear();
       return;
     }
 
@@ -1898,7 +2017,9 @@ export const WaterfoxBlockerService = {
       const storedListsForEngine =
         await this._preprocessListRecords(storedLists);
       const cacheMatchesCurrentLists =
-        storedLists.length &&
+        this._hasSelectedRules(
+          storedListsForEngine.slice(0, storedLists.length)
+        ) &&
         (await lazy.EngineCache.matchesCurrentLists(
           descriptors,
           storedListsForEngine
@@ -1929,40 +2050,6 @@ export const WaterfoxBlockerService = {
     }
   },
 
-  _mapContentPolicyType(contentPolicyType) {
-    switch (contentPolicyType) {
-      case Ci.nsIContentPolicy.TYPE_DOCUMENT:
-        return "document";
-      case Ci.nsIContentPolicy.TYPE_SUBDOCUMENT:
-        return "subdocument";
-      case Ci.nsIContentPolicy.TYPE_STYLESHEET:
-        return "stylesheet";
-      case Ci.nsIContentPolicy.TYPE_SCRIPT:
-        return "script";
-      case Ci.nsIContentPolicy.TYPE_IMAGE:
-      case Ci.nsIContentPolicy.TYPE_IMAGESET:
-        return "image";
-      case Ci.nsIContentPolicy.TYPE_MEDIA:
-        return "media";
-      case Ci.nsIContentPolicy.TYPE_FONT:
-        return "font";
-      case Ci.nsIContentPolicy.TYPE_FETCH:
-      case Ci.nsIContentPolicy.TYPE_XMLHTTPREQUEST:
-        return "xmlhttprequest";
-      case Ci.nsIContentPolicy.TYPE_WEBSOCKET:
-        return "websocket";
-      case Ci.nsIContentPolicy.TYPE_PING:
-      case Ci.nsIContentPolicy.TYPE_BEACON:
-        return "ping";
-      case Ci.nsIContentPolicy.TYPE_CSP_REPORT:
-        return "csp_report";
-      case Ci.nsIContentPolicy.TYPE_OBJECT:
-        return "object";
-      default:
-        return "other";
-    }
-  },
-
   _notifyBlockedCountsCleared() {
     try {
       Services.obs.notifyObservers(null, TOPIC_BLOCKED_COUNTS_CLEARED);
@@ -1987,36 +2074,6 @@ export const WaterfoxBlockerService = {
     }
   },
 
-  _buildBlockedPageUrl(url, result) {
-    const params = new URLSearchParams();
-    params.set("url", String(url || ""));
-
-    const matchedRule = this._extractMatchedRule(result);
-    if (matchedRule) {
-      params.set("rule", matchedRule);
-    }
-
-    return `${BLOCKED_PAGE_URL}?${params.toString()}`;
-  },
-
-  _extractMatchedRule(result) {
-    if (!result || typeof result !== "object") {
-      return "";
-    }
-
-    for (const key of ["rule", "matchedRule", "filter", "rawFilter"]) {
-      const value = result[key];
-      if (typeof value === "string") {
-        const trimmed = value.trim();
-        if (trimmed) {
-          return trimmed;
-        }
-      }
-    }
-
-    return "";
-  },
-
   _getURIHost(uri) {
     if (!uri) {
       return "";
@@ -2032,15 +2089,6 @@ export const WaterfoxBlockerService = {
 
   _getPrincipalHost(principal) {
     return this._getURIHost(principal?.URI);
-  },
-
-  _getChannelReferrerHost(channel) {
-    try {
-      const referrerSpec = channel?.referrerInfo?.computedReferrerSpec;
-      return referrerSpec ? new URL(referrerSpec).hostname : "";
-    } catch (_) {
-      return "";
-    }
   },
 
   _getBrowsingContextDocumentHost(browsingContext) {
@@ -2066,51 +2114,6 @@ export const WaterfoxBlockerService = {
     }
   },
 
-  _canUseTopLevelDocumentContext(loadInfo, isTopLevelDocument) {
-    if (!isTopLevelDocument) {
-      return true;
-    }
-
-    const triggeringPrincipal = loadInfo?.triggeringPrincipal;
-    return (
-      !!triggeringPrincipal &&
-      !triggeringPrincipal.isSystemPrincipal &&
-      !loadInfo?.loadTriggeredFromExternal &&
-      (triggeringPrincipal.isContentPrincipal ||
-        triggeringPrincipal.isNullPrincipal ||
-        !!loadInfo?.hasValidUserGestureActivation)
-    );
-  },
-
-  _shouldBypassLoadInfo(
-    loadInfo,
-    { isTopLevelDocument = false, targetHostname = "" } = {}
-  ) {
-    const candidateHosts = [
-      targetHostname,
-      this._getPrincipalHost(loadInfo?.triggeringPrincipal),
-      this._getPrincipalHost(loadInfo?.loadingPrincipal),
-      this._getPrincipalHost(loadInfo?.principalToInherit),
-    ];
-
-    if (this._canUseTopLevelDocumentContext(loadInfo, isTopLevelDocument)) {
-      candidateHosts.push(
-        this._getBrowsingContextDocumentHost(loadInfo?.browsingContext?.top),
-        this._getBrowsingContextDocumentHost(
-          loadInfo?.targetBrowsingContext?.top
-        ),
-        this._getBrowsingContextDocumentHost(
-          loadInfo?.workerAssociatedBrowsingContext?.top
-        )
-      );
-    }
-
-    const options = { isPrivate: this._isPrivateLoadInfo(loadInfo) };
-    return candidateHosts.some(host =>
-      this.shouldBypassBlocking(host, options)
-    );
-  },
-
   _normalizeHostname(hostname) {
     return String(hostname || "")
       .replace(/\.$/, "")
@@ -2118,45 +2121,18 @@ export const WaterfoxBlockerService = {
   },
 
   _rememberTopLevelHost(browserId, hostname) {
-    const id = Number(browserId || 0);
-    const host = this._normalizeHostname(hostname);
-    if (!id || !host) {
-      return;
-    }
-
-    this._topLevelHostByBrowserId.set(id, host);
-    if (this._topLevelHostByBrowserId.size > BLOCKED_COUNT_MAP_MAX_ENTRIES) {
-      const firstId = this._topLevelHostByBrowserId.keys().next().value;
-      this._topLevelHostByBrowserId.delete(firstId);
-      this._blockedTopLevelDocumentByBrowserId.delete(firstId);
-      this._topLevelNavigationBypassByBrowserId.delete(firstId);
-    }
+    lazy.blockerPolicy.rememberTopHost(
+      Number(browserId || 0),
+      String(hostname || "")
+    );
   },
 
   _rememberBlockedTopLevelDocument(browserId, hostname, url) {
-    const id = Number(browserId || 0);
-    const host = this._normalizeHostname(hostname);
-    const spec = String(url || "");
-    if (!id || !host || !spec) {
-      return;
-    }
-
-    this._blockedTopLevelDocumentByBrowserId.set(id, { host, url: spec });
-    if (
-      this._blockedTopLevelDocumentByBrowserId.size >
-      BLOCKED_COUNT_MAP_MAX_ENTRIES
-    ) {
-      const firstId = this._blockedTopLevelDocumentByBrowserId
-        .keys()
-        .next().value;
-      this._blockedTopLevelDocumentByBrowserId.delete(firstId);
-      this._topLevelHostByBrowserId.delete(firstId);
-      this._topLevelNavigationBypassByBrowserId.delete(firstId);
-    }
-  },
-
-  _forgetBlockedTopLevelDocument(browserId) {
-    this._blockedTopLevelDocumentByBrowserId.delete(Number(browserId || 0));
+    lazy.blockerPolicy.rememberBlockedDocument(
+      Number(browserId || 0),
+      String(hostname || ""),
+      String(url || "")
+    );
   },
 
   /**
@@ -2168,481 +2144,11 @@ export const WaterfoxBlockerService = {
    * @param {string} [url]
    */
   wasHostBlockedFor(browserId, hostname, url = "") {
-    const id = Number(browserId || 0);
-    const host = this._normalizeHostname(hostname);
-    if (!id || !host) {
-      return false;
-    }
-
-    const blockedDocument = this._blockedTopLevelDocumentByBrowserId.get(id);
-    this._blockedTopLevelDocumentByBrowserId.delete(id);
-    if (!blockedDocument || blockedDocument.host !== host) {
-      return false;
-    }
-
-    const requestedUrl = String(url || "");
-    return !requestedUrl || requestedUrl === blockedDocument.url;
-  },
-
-  _getTopLevelNavigationBypassSourceHost(
-    browserId,
-    channel,
-    loadInfo,
-    isPrivate
-  ) {
-    const id = Number(browserId || 0);
-    const candidateHosts = [
-      this._getChannelReferrerHost(channel),
-      this._getPrincipalHost(loadInfo?.triggeringPrincipal),
-      this._getPrincipalHost(loadInfo?.loadingPrincipal),
-      this._getPrincipalHost(loadInfo?.principalToInherit),
-      this._getBrowsingContextDocumentHost(loadInfo?.browsingContext?.top),
-      this._getBrowsingContextDocumentHost(
-        loadInfo?.targetBrowsingContext?.top
-      ),
-      this._topLevelHostByBrowserId.get(id) || "",
-    ];
-
-    if (!id || !this._topLevelHostByBrowserId.has(id)) {
-      candidateHosts.push(
-        this._getBrowsingContextDocumentHost(
-          loadInfo?.browsingContext?.opener?.top
-        ),
-        this._getBrowsingContextDocumentHost(
-          loadInfo?.targetBrowsingContext?.opener?.top
-        )
-      );
-    }
-
-    const options = { isPrivate };
-    return (
-      candidateHosts.find(host => this.shouldBypassBlocking(host, options)) ||
-      ""
+    return lazy.blockerPolicy.consumeBlockedDocument(
+      Number(browserId || 0),
+      String(hostname || ""),
+      String(url || "")
     );
-  },
-
-  _hasActiveTopLevelNavigationBypass(browserId, isPrivate = false) {
-    const id = Number(browserId || 0);
-    const activeBypass = this._topLevelNavigationBypassByBrowserId.get(id);
-    if (activeBypass?.until > Date.now()) {
-      if (
-        this.shouldBypassBlocking(activeBypass.sourceHost, {
-          isPrivate,
-        })
-      ) {
-        return true;
-      }
-      this._topLevelNavigationBypassByBrowserId.delete(id);
-      return false;
-    }
-
-    this._topLevelNavigationBypassByBrowserId.delete(id);
-    return false;
-  },
-
-  _rememberTopLevelResponse(channel, loadInfo, requestType, hostname) {
-    if (requestType !== "document" || !loadInfo?.isTopLevelLoad) {
-      return;
-    }
-
-    let responseStatus = 0;
-    try {
-      responseStatus = Number(channel.responseStatus || 0);
-    } catch (_) {
-      // Some channels do not expose response status yet.
-    }
-
-    if (responseStatus >= 300 && responseStatus < 400) {
-      return;
-    }
-
-    const browserId = this._getTopBrowserId(loadInfo);
-    this._rememberTopLevelHost(browserId, hostname);
-    this._forgetBlockedTopLevelDocument(browserId);
-    this._topLevelNavigationBypassByBrowserId.delete(browserId);
-  },
-
-  _shouldBypassTopLevelDocumentRequest(browserId, channel, loadInfo, hostname) {
-    const id = Number(browserId || 0);
-    const isPrivate = this._isPrivateLoadInfo(loadInfo);
-    const canUseSourceContext = this._canUseTopLevelDocumentContext(
-      loadInfo,
-      true
-    );
-    const sourceHost = canUseSourceContext
-      ? this._getTopLevelNavigationBypassSourceHost(
-          id,
-          channel,
-          loadInfo,
-          isPrivate
-        )
-      : "";
-
-    if (
-      this._shouldBypassLoadInfo(loadInfo, {
-        isTopLevelDocument: true,
-        targetHostname: hostname,
-      })
-    ) {
-      if (
-        id &&
-        sourceHost &&
-        !this.shouldBypassBlocking(hostname, { isPrivate })
-      ) {
-        this._topLevelNavigationBypassByBrowserId.set(id, {
-          sourceHost,
-          until: Date.now() + TOP_LEVEL_NAVIGATION_BYPASS_TTL_MS,
-        });
-      }
-      return true;
-    }
-
-    if (!canUseSourceContext) {
-      return false;
-    }
-
-    if (id && this._hasActiveTopLevelNavigationBypass(id, isPrivate)) {
-      return true;
-    }
-
-    if (!sourceHost) {
-      return false;
-    }
-
-    if (id) {
-      this._topLevelNavigationBypassByBrowserId.set(id, {
-        sourceHost,
-        until: Date.now() + TOP_LEVEL_NAVIGATION_BYPASS_TTL_MS,
-      });
-    }
-    return true;
-  },
-
-  _getTopBrowserId(loadInfo) {
-    try {
-      return Number(loadInfo?.browsingContext?.top?.browserId || 0);
-    } catch (_) {
-      // BrowsingContext can disappear during navigation teardown.
-      return 0;
-    }
-  },
-
-  _getRequestMethod(channel) {
-    try {
-      return channel?.requestMethod || "";
-    } catch (_) {
-      return "";
-    }
-  },
-
-  _isThirdPartyChannel(channel) {
-    const thirdPartyUtil = this._thirdPartyUtil;
-    if (!thirdPartyUtil) {
-      return true;
-    }
-
-    try {
-      return thirdPartyUtil.isThirdPartyChannel(channel);
-    } catch (_) {
-      // Be conservative if third-party classification fails.
-      return true;
-    }
-  },
-
-  _isThirdPartyLoadInfo(loadInfo) {
-    if (!loadInfo) {
-      return true;
-    }
-
-    try {
-      return !!(
-        loadInfo.isThirdPartyContextToTopWindow ||
-        loadInfo.isInThirdPartyContext
-      );
-    } catch (_) {
-      // Be conservative if third-party classification fails.
-      return true;
-    }
-  },
-
-  _handleTopLevelDocumentRequest(
-    channel,
-    loadInfo,
-    url,
-    sourceHostname,
-    hostname
-  ) {
-    const browserId = this._getTopBrowserId(loadInfo);
-    const isPrivate = this._isPrivateLoadInfo(loadInfo);
-    if (
-      this._shouldBypassTopLevelDocumentRequest(
-        browserId,
-        channel,
-        loadInfo,
-        hostname
-      )
-    ) {
-      if (this.shouldBypassBlocking(hostname, { isPrivate })) {
-        this._rememberTopLevelHost(browserId, hostname);
-      }
-      this._forgetBlockedTopLevelDocument(browserId);
-      return;
-    }
-
-    const result = this.checkRequest(
-      url,
-      sourceHostname,
-      hostname,
-      "document",
-      this._getRequestMethod(channel),
-      this._isThirdPartyChannel(channel)
-    );
-    if (!result.matched || result.exception) {
-      this._rememberTopLevelHost(browserId, hostname);
-      this._forgetBlockedTopLevelDocument(browserId);
-      return;
-    }
-
-    try {
-      const blockedPageUrl = this._buildBlockedPageUrl(url, result);
-      channel.redirectTo(Services.io.newURI(blockedPageUrl));
-      this._rememberBlockedTopLevelDocument(browserId, hostname, url);
-    } catch (err) {
-      console.error(
-        "[WaterfoxBlocker] Failed to redirect to blocked page:",
-        err
-      );
-      channel.cancel(Cr.NS_ERROR_ABORT);
-    }
-
-    try {
-      if (browserId) {
-        this.incrementBlockedCount(browserId);
-      }
-    } catch (err) {
-      console.warn("[WaterfoxBlocker] Failed to increment blocked count:", err);
-    }
-  },
-
-  /**
-   * Redirects blocked top level documents to the blocked page, runs bypass
-   * checks, and cancels matched subresource requests. Loads served from
-   * internal caches are handled by the `shouldLoad` bridge instead.
-   *
-   * @param {nsISupports} subject
-   */
-  _onModifyRequest(subject) {
-    if (!this._engine || !this.isEnabled()) {
-      return;
-    }
-
-    let channel;
-    try {
-      channel = subject.QueryInterface(Ci.nsIHttpChannel);
-    } catch (_) {
-      // Some observer subjects are not HTTP channels.
-      return;
-    }
-
-    const uri = channel.URI;
-    if (!uri || (!uri.schemeIs("http") && !uri.schemeIs("https"))) {
-      return;
-    }
-
-    const loadInfo = channel.loadInfo;
-    if (!loadInfo) {
-      return;
-    }
-
-    const requestType = this._mapContentPolicyType(
-      loadInfo.externalContentPolicyType
-    );
-    const url = uri.spec;
-    const browserId = this._getTopBrowserId(loadInfo);
-
-    let hostname = "";
-    try {
-      hostname = uri.host || "";
-    } catch (_) {
-      // nsIURI.host throws for URI types without an authority component.
-    }
-
-    if (requestType === "document" && loadInfo.isTopLevelLoad) {
-      this._handleTopLevelDocumentRequest(
-        channel,
-        loadInfo,
-        url,
-        this._getPrincipalHost(loadInfo.loadingPrincipal),
-        hostname
-      );
-      return;
-    }
-
-    if (this._shouldBypassLoadInfo(loadInfo)) {
-      return;
-    }
-
-    const result = this.checkRequest(
-      url,
-      this._getPrincipalHost(loadInfo.loadingPrincipal),
-      hostname,
-      requestType,
-      this._getRequestMethod(channel),
-      this._isThirdPartyChannel(channel)
-    );
-
-    if (result.matched && !result.exception) {
-      // `$redirect`/`$redirect-rule` rules carry a data: URL replacement; serve
-      // it instead of cancelling so the request receives a neutered payload.
-      const redirected =
-        !!result.redirect && this._redirectChannel(channel, result.redirect);
-      if (!redirected) {
-        channel.cancel(Cr.NS_ERROR_ABORT);
-      }
-
-      try {
-        if (browserId) {
-          this.incrementBlockedCount(browserId);
-        }
-      } catch (err) {
-        console.warn(
-          "[WaterfoxBlocker] Failed to increment blocked count:",
-          err
-        );
-      }
-      return;
-    }
-
-    // `$removeparam` rules rewrite the URL without blocking the request;
-    // redirect to the cleaned URL so tracking parameters are stripped.
-    if (
-      !result.exception &&
-      result.rewrittenUrl &&
-      result.rewrittenUrl !== url
-    ) {
-      this._redirectChannel(channel, result.rewrittenUrl);
-    }
-  },
-
-  /**
-   * Redirects a channel to a replacement URL during http-on-modify-request:
-   * a `$redirect` data: URL or a `$removeparam` rewritten URL.
-   *
-   * @param {nsIHttpChannel} channel
-   * @param {string} target
-   * @returns {boolean} Whether the redirect was applied.
-   */
-  _redirectChannel(channel, target) {
-    try {
-      channel.redirectTo(Services.io.newURI(target));
-      return true;
-    } catch (err) {
-      console.warn("[WaterfoxBlocker] Failed to redirect channel:", err);
-      return false;
-    }
-  },
-
-  /**
-   * Applies response-time blocker actions, including `$replace=` body rewrites
-   * and `$csp` response headers.
-   *
-   * @param {nsISupports} subject
-   */
-  _onExamineResponse(subject) {
-    if (!this._engine || !this.isEnabled()) {
-      return;
-    }
-
-    let channel;
-    try {
-      channel = subject.QueryInterface(Ci.nsIHttpChannel);
-    } catch (_) {
-      // Some observer subjects are not HTTP channels.
-      return;
-    }
-
-    const uri = channel.URI;
-    if (!uri || (!uri.schemeIs("http") && !uri.schemeIs("https"))) {
-      return;
-    }
-
-    const loadInfo = channel.loadInfo;
-    if (!loadInfo) {
-      return;
-    }
-
-    const requestType = this._mapContentPolicyType(
-      loadInfo.externalContentPolicyType
-    );
-
-    const url = uri.spec;
-
-    let hostname = "";
-    try {
-      hostname = uri.host || "";
-    } catch (_) {
-      // uri.host throws for URIs without an authority component (e.g.
-      // about: pages).
-    }
-
-    const isTopLevelDocument =
-      requestType === "document" && loadInfo.isTopLevelLoad;
-    const shouldBypassResponse =
-      this._shouldBypassLoadInfo(loadInfo, {
-        isTopLevelDocument,
-        targetHostname: hostname,
-      }) ||
-      (isTopLevelDocument &&
-        this._hasActiveTopLevelNavigationBypass(
-          this._getTopBrowserId(loadInfo),
-          this._isPrivateLoadInfo(loadInfo)
-        ));
-
-    this._rememberTopLevelResponse(channel, loadInfo, requestType, hostname);
-
-    if (shouldBypassResponse) {
-      return;
-    }
-
-    const htmlFilteringResources =
-      requestType === "document" || requestType === "subdocument"
-        ? this.getHtmlFilteringResources(url)
-        : { htmlFilters: [], responseHeaderFilters: [] };
-    this._applyResponseHeaderFilters(
-      channel,
-      htmlFilteringResources.responseHeaderFilters
-    );
-
-    this._maybeFilterResponseBody(
-      channel,
-      loadInfo,
-      url,
-      hostname,
-      requestType,
-      htmlFilteringResources.htmlFilters
-    );
-
-    if (requestType !== "document" && requestType !== "subdocument") {
-      return;
-    }
-
-    const directives = this.getCspDirectives(
-      url,
-      this._getPrincipalHost(loadInfo.loadingPrincipal),
-      hostname,
-      requestType,
-      this._getRequestMethod(channel),
-      this._isThirdPartyChannel(channel)
-    );
-    if (!directives) {
-      return;
-    }
-
-    try {
-      channel.setResponseHeader("Content-Security-Policy", directives, true);
-    } catch (err) {
-      console.error("[WaterfoxBlocker] Failed to apply CSP directives:", err);
-    }
   },
 
   _applyResponseHeaderFilters(channel, responseHeaderFilters) {
@@ -2655,31 +2161,12 @@ export const WaterfoxBlockerService = {
     }
   },
 
-  _maybeFilterResponseBody(
+  _installResponseFilters(
     channel,
-    loadInfo,
     url,
-    hostname,
-    requestType,
-    htmlFilters
+    eligibleHtmlFilters,
+    replaceDirectives
   ) {
-    const replaceDirectives = isReplaceEligibleContent(channel, requestType)
-      ? this.getReplaceDirectives(
-          url,
-          this._getPrincipalHost(loadInfo.loadingPrincipal),
-          hostname,
-          requestType,
-          this._getRequestMethod(channel),
-          this._isThirdPartyChannel(channel)
-        )
-      : [];
-    const eligibleHtmlFilters = isHtmlFilterEligibleContent(
-      channel,
-      requestType
-    )
-      ? htmlFilters
-      : [];
-
     if (!replaceDirectives.length && !eligibleHtmlFilters.length) {
       return;
     }
@@ -2783,20 +2270,6 @@ export const WaterfoxBlockerService = {
     }
   },
 
-  get _thirdPartyUtil() {
-    if (this.__thirdPartyUtil === undefined) {
-      try {
-        this.__thirdPartyUtil = Cc["@mozilla.org/thirdpartyutil;1"].getService(
-          Ci.mozIThirdPartyUtil
-        );
-      } catch (_) {
-        // Some builds may not expose the third-party utility service.
-        this.__thirdPartyUtil = null;
-      }
-    }
-    return this.__thirdPartyUtil;
-  },
-
   _trimBlockedCountMapIfNeeded() {
     if (this._blockedCountByBrowserId.size <= BLOCKED_COUNT_MAP_MAX_ENTRIES) {
       return;
@@ -2817,7 +2290,9 @@ export const WaterfoxBlockerService = {
     const storedLists = await this._readStoredLists(descriptors);
     const storedListsForEngine = await this._preprocessListRecords(storedLists);
     const cacheMatchesCurrentLists =
-      storedLists.length &&
+      this._hasSelectedRules(
+        storedListsForEngine.slice(0, storedLists.length)
+      ) &&
       (await lazy.EngineCache.matchesCurrentLists(
         descriptors,
         storedListsForEngine
@@ -3012,73 +2487,6 @@ export const WaterfoxBlockerService = {
     this._siteExceptions().allowSiteForSession(domain, options);
   },
 
-  _normalizeCheckResult(rawResult) {
-    const normalized = {
-      exception: false,
-      important: false,
-      matched: false,
-      redirect: "",
-      rewrittenUrl: "",
-    };
-
-    if (!rawResult || typeof rawResult !== "object") {
-      return normalized;
-    }
-
-    normalized.matched = !!rawResult.matched;
-    normalized.important = !!rawResult.important;
-    normalized.exception = !!rawResult.exception;
-
-    if (typeof rawResult.redirect === "string") {
-      normalized.redirect = rawResult.redirect;
-    }
-
-    if (typeof rawResult.rewrittenUrl === "string") {
-      normalized.rewrittenUrl = rawResult.rewrittenUrl;
-    }
-
-    return normalized;
-  },
-
-  /**
-   * @param {string} url
-   * @param {string} sourceHostname
-   * @param {string} hostname
-   * @param {string} requestType adblock-rs request type string.
-   * @param {string} requestMethod HTTP request method.
-   * @param {boolean} isThirdParty
-   * @returns {{matched: boolean, important: boolean, exception: boolean, redirect: string, rewrittenUrl: string}}
-   */
-  checkRequest(
-    url,
-    sourceHostname,
-    hostname,
-    requestType,
-    requestMethod,
-    isThirdParty
-  ) {
-    if (!this._engine) {
-      return this._normalizeCheckResult(null);
-    }
-
-    try {
-      // IDL method order:
-      // url, sourceHostname, hostname, requestType, requestMethod, isThirdParty
-      const json = this._engine.checkRequestDetailed(
-        url,
-        sourceHostname,
-        hostname,
-        requestType,
-        requestMethod || "",
-        !!isThirdParty
-      );
-      return this._normalizeCheckResult(JSON.parse(json));
-    } catch (err) {
-      console.error("[WaterfoxBlocker] checkRequest failed:", err);
-      return this._normalizeCheckResult(null);
-    }
-  },
-
   getBlockedCount(browserId) {
     return this._blockedCountByBrowserId.get(browserId) || 0;
   },
@@ -3156,130 +2564,6 @@ export const WaterfoxBlockerService = {
     } catch (err) {
       console.error("[WaterfoxBlocker] getCosmeticResources failed:", err);
       return {};
-    }
-  },
-
-  /**
-   * @param {string} url
-   * @param {string} sourceHostname
-   * @param {string} hostname
-   * @param {string} requestType
-   * @param {string} requestMethod
-   * @param {boolean} isThirdParty
-   * @returns {string} Directive string, or empty when none apply.
-   */
-  getCspDirectives(
-    url,
-    sourceHostname,
-    hostname,
-    requestType,
-    requestMethod,
-    isThirdParty
-  ) {
-    if (!this._engine) {
-      return "";
-    }
-
-    if (requestType !== "document" && requestType !== "subdocument") {
-      return "";
-    }
-
-    try {
-      if (typeof this._engine.getCspDirectives !== "function") {
-        return "";
-      }
-
-      return (
-        this._engine.getCspDirectives(
-          url,
-          sourceHostname,
-          hostname,
-          requestType,
-          requestMethod || "",
-          !!isThirdParty
-        ) || ""
-      );
-    } catch (err) {
-      console.error("[WaterfoxBlocker] getCspDirectives failed:", err);
-      return "";
-    }
-  },
-
-  /**
-   * @param {string} url
-   * @param {string} sourceHostname
-   * @param {string} hostname
-   * @param {string} requestType
-   * @param {string} requestMethod
-   * @param {boolean} isThirdParty
-   * @returns {string[]} Matched `$replace=` directive strings.
-   */
-  getReplaceDirectives(
-    url,
-    sourceHostname,
-    hostname,
-    requestType,
-    requestMethod,
-    isThirdParty
-  ) {
-    if (!this._engine) {
-      return [];
-    }
-
-    try {
-      if (typeof this._engine.getReplaceDirectives !== "function") {
-        return [];
-      }
-
-      const rawDirectives = JSON.parse(
-        this._engine.getReplaceDirectives(
-          url,
-          sourceHostname,
-          hostname,
-          requestType,
-          requestMethod || "",
-          !!isThirdParty
-        ) || "[]"
-      );
-      return sanitizeStringList(rawDirectives, MAX_REPLACE_DIRECTIVES, 4096);
-    } catch (err) {
-      console.error("[WaterfoxBlocker] getReplaceDirectives failed:", err);
-      return [];
-    }
-  },
-
-  /**
-   * @param {string} url
-   * @returns {{htmlFilters: string[], responseHeaderFilters: string[]}}
-   */
-  getHtmlFilteringResources(url) {
-    if (!this._engine) {
-      return { htmlFilters: [], responseHeaderFilters: [] };
-    }
-
-    try {
-      if (typeof this._engine.getCosmeticResources !== "function") {
-        return { htmlFilters: [], responseHeaderFilters: [] };
-      }
-
-      const resources = JSON.parse(this._engine.getCosmeticResources(url));
-      if (!resources || typeof resources !== "object") {
-        return { htmlFilters: [], responseHeaderFilters: [] };
-      }
-
-      return {
-        htmlFilters: sanitizeStringList(
-          resources.html_filters,
-          MAX_HTML_FILTERS,
-          4096
-        ),
-        responseHeaderFilters: sanitizeResponseHeaderNames(
-          resources.response_header_filters
-        ),
-      };
-    } catch (err) {
-      console.error("[WaterfoxBlocker] getHtmlFilteringResources failed:", err);
-      return { htmlFilters: [], responseHeaderFilters: [] };
     }
   },
 
@@ -3422,45 +2706,6 @@ export const WaterfoxBlockerService = {
     return next;
   },
 
-  _networkObserversRegistered: false,
-
-  _registerNetworkObservers() {
-    if (this._networkObserversRegistered) {
-      return;
-    }
-    for (const topic of [
-      TOPIC_HTTP_ON_MODIFY_REQUEST,
-      TOPIC_HTTP_ON_EXAMINE_RESPONSE,
-      TOPIC_HTTP_ON_EXAMINE_CACHED_RESPONSE,
-      TOPIC_HTTP_ON_EXAMINE_MERGED_RESPONSE,
-    ]) {
-      Services.obs.addObserver(this, topic);
-    }
-    this._networkObserversRegistered = true;
-  },
-
-  _unregisterNetworkObservers() {
-    if (!this._networkObserversRegistered) {
-      return;
-    }
-    for (const topic of [
-      TOPIC_HTTP_ON_MODIFY_REQUEST,
-      TOPIC_HTTP_ON_EXAMINE_RESPONSE,
-      TOPIC_HTTP_ON_EXAMINE_CACHED_RESPONSE,
-      TOPIC_HTTP_ON_EXAMINE_MERGED_RESPONSE,
-    ]) {
-      try {
-        Services.obs.removeObserver(this, topic);
-      } catch (err) {
-        console.warn(
-          `[WaterfoxBlocker] Failed to remove observer for ${topic}:`,
-          err
-        );
-      }
-    }
-    this._networkObserversRegistered = false;
-  },
-
   _clearInitRetryTimer() {
     if (!this._initRetryTimerId) {
       return;
@@ -3480,7 +2725,6 @@ export const WaterfoxBlockerService = {
       if (!this._initialized || !this.isEnabled()) {
         return;
       }
-      this._registerNetworkObservers();
       this._initializeEngineWithRetry();
     }, INIT_RETRY_DELAY_MS);
   },
@@ -3565,6 +2809,8 @@ export const WaterfoxBlockerService = {
     }
 
     Services.prefs.addObserver(PREF_BRANCH, this);
+    this._registerPolicyObserver();
+    lazy.blockerPolicy.setNetworkBridge(this);
     this._initialized = true;
 
     this._migrateSiteExceptions();
@@ -3573,11 +2819,8 @@ export const WaterfoxBlockerService = {
       return;
     }
 
-    this._registerNetworkObservers();
-
-    // Load the engine from the serialised cache synchronously so it is
-    // ready before the first request arrives.
-    this._tryInitFromCacheSync();
+    // Publish a resource-complete local engine before the first async yield.
+    this._ensureStartupEngineSync();
     lazy.EngineCache.cleanupStale().catch(err => {
       console.warn("[WaterfoxBlocker] Cache cleanup failed:", err);
     });
@@ -3608,20 +2851,17 @@ export const WaterfoxBlockerService = {
    * @param {string} data
    */
   observe(subject, topic, data) {
-    if (topic === TOPIC_HTTP_ON_MODIFY_REQUEST) {
-      this._onModifyRequest(subject);
+    if (topic === TOPIC_PERMISSION_CHANGED) {
+      if (!subject || data === "cleared" || data === "batch-deleted") {
+        this._invalidateRequestPolicy();
+      } else {
+        const type = subject.QueryInterface(Ci.nsIPermission).type;
+        if (type === "waterfox-blocker" || type === "waterfox-blocker-pb") {
+          this._invalidateRequestPolicy();
+        }
+      }
       return;
     }
-
-    if (
-      topic === TOPIC_HTTP_ON_EXAMINE_RESPONSE ||
-      topic === TOPIC_HTTP_ON_EXAMINE_CACHED_RESPONSE ||
-      topic === TOPIC_HTTP_ON_EXAMINE_MERGED_RESPONSE
-    ) {
-      this._onExamineResponse(subject);
-      return;
-    }
-
     if (topic === REMOTE_SETTINGS_POLL_END_TOPIC) {
       this._updateListsIfNeeded().catch(err => {
         console.warn(
@@ -3636,14 +2876,22 @@ export const WaterfoxBlockerService = {
       return;
     }
 
+    if (
+      [
+        PREF_ENABLED,
+        PREF_ALLOW_SEARCH_PARTNER_ADS,
+        "waterfox.blocker.coexist",
+      ].includes(data)
+    ) {
+      this._invalidateRequestPolicy();
+    }
     switch (data) {
       case PREF_ENABLED:
         if (this.isEnabled()) {
-          this._registerNetworkObservers();
+          this._ensureStartupEngineSync();
           this._initializeEngineWithRetry();
         } else {
           this._clearInitRetryTimer();
-          this._unregisterNetworkObservers();
           this._stopListUpdateTriggers();
           this._clearBlockedCounts();
           this._clearTopLevelNavigationState();
@@ -3712,110 +2960,21 @@ export const WaterfoxBlockerService = {
    * @returns {boolean}
    */
   shouldBypassBlocking(candidateDomain, options = {}) {
-    const domain = String(candidateDomain || "").replace(/\.$/, "");
-    if (!domain) {
-      return false;
-    }
-
-    if (
-      this.isSiteExcepted(domain, {
-        isPrivate: this._isPrivateExceptionContext(options),
-      })
-    ) {
-      return true;
-    }
-
-    if (!Services.prefs.getBoolPref(PREF_ALLOW_SEARCH_PARTNER_ADS, true)) {
-      return false;
-    }
-
-    return SEARCH_PARTNER_DOMAINS.some(
-      p => domain === p || domain.endsWith(`.${p}`)
+    return lazy.blockerPolicy.shouldBypassHost(
+      String(candidateDomain || ""),
+      this._isPrivateExceptionContext(options)
     );
-  },
-
-  /**
-   * Runs before every load (including loads served from internal caches) and
-   * applies the same blocking logic as the observer path for requests that
-   * are not top level.
-   *
-   * @param {nsIURI} contentLocation
-   * @param {nsILoadInfo} loadInfo
-   * @returns {number} `nsIContentPolicy` decision code.
-   */
-  shouldLoad(contentLocation, loadInfo) {
-    const ACCEPT = Ci.nsIContentPolicy.ACCEPT;
-    const REJECT_TYPE = Ci.nsIContentPolicy.REJECT_TYPE;
-
-    if (!this.isEnabled() || !contentLocation || !loadInfo) {
-      return ACCEPT;
-    }
-
-    if (!this._engine) {
-      return ACCEPT;
-    }
-
-    if (
-      !contentLocation.schemeIs("http") &&
-      !contentLocation.schemeIs("https")
-    ) {
-      return ACCEPT;
-    }
-
-    const requestType = this._mapContentPolicyType(
-      loadInfo.externalContentPolicyType
-    );
-
-    // Top-level documents are handled by `_handleTopLevelDocumentRequest`
-    // in the observer path so the blocked-page redirect works.
-    if (requestType === "document" && loadInfo.isTopLevelLoad) {
-      return ACCEPT;
-    }
-
-    const browserId = this._getTopBrowserId(loadInfo);
-    if (this._shouldBypassLoadInfo(loadInfo)) {
-      return ACCEPT;
-    }
-
-    const url = contentLocation.spec || "";
-    if (!url) {
-      return ACCEPT;
-    }
-
-    let hostname = "";
-    try {
-      hostname = contentLocation.host || "";
-    } catch (_) {
-      // nsIURI.host throws for URI types without an authority component.
-    }
-
-    const result = this.checkRequest(
-      url,
-      this._getPrincipalHost(loadInfo.loadingPrincipal),
-      hostname,
-      requestType,
-      "",
-      this._isThirdPartyLoadInfo(loadInfo)
-    );
-    if (!result.matched || result.exception) {
-      return ACCEPT;
-    }
-
-    try {
-      if (browserId) {
-        this.incrementBlockedCount(browserId);
-      }
-    } catch (err) {
-      console.warn("[WaterfoxBlocker] Failed to increment blocked count:", err);
-    }
-
-    return REJECT_TYPE;
   },
 
   /**
    * Safe to call more than once.
    */
   uninit() {
+    lazy.blockerPolicy.setNetworkBridge(null);
+    if (this._policyObserverRegistered) {
+      Services.obs.removeObserver(this, TOPIC_PERMISSION_CHANGED);
+      this._policyObserverRegistered = false;
+    }
     if (!this._initialized) {
       return;
     }
@@ -3826,7 +2985,6 @@ export const WaterfoxBlockerService = {
       console.warn("[WaterfoxBlocker] Failed to remove pref observer:", err);
     }
 
-    this._unregisterNetworkObservers();
     this._clearInitRetryTimer();
     this._stopListUpdateTriggers();
     this._clearBlockedCounts();
@@ -3837,7 +2995,6 @@ export const WaterfoxBlockerService = {
     this._clearEngine();
     this._engineInitPromise = null;
     this._initGeneration++;
-    this.__thirdPartyUtil = undefined;
     this._siteExceptionsState = null;
     this._initialized = false;
   },
