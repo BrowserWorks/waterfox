@@ -1,0 +1,4 @@
+browser.jar:
+%   content browser %content/browser/ contentaccessible=yes
+    content/browser/waterfox/settings/WaterfoxSettingsPanes.mjs          (WaterfoxSettingsPanes.mjs)
+    content/browser/waterfox/settings/waterfoxDns.mjs                    (waterfoxDns.mjs)
