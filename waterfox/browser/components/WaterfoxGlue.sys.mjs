@@ -5,6 +5,7 @@
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  WaterfoxBlockerPanel: "resource:///modules/WaterfoxBlockerPanel.sys.mjs",
   WaterfoxBlockerService: "resource:///modules/WaterfoxBlockerService.sys.mjs",
   WaterfoxSearchExtensionPolicy:
     "resource:///modules/WaterfoxSearchExtensionPolicy.sys.mjs",
@@ -55,6 +56,8 @@ export const WaterfoxGlue = {
       matches: ["about:contentblocked?*"],
       allFrames: true,
     });
+
+    lazy.WaterfoxBlockerPanel.init();
   },
 
   // Runs once per profile upgrade. Migrations for profiles coming from
