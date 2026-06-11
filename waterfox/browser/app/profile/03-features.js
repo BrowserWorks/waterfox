@@ -98,6 +98,10 @@ pref("browser.tabs.autoGroupNewTabs.resumeGraceMs", 1000);
 // The ML based smart tab grouping stays off until the user opts in.
 pref("browser.tabs.groups.smart.enabled", false);
 
+// Private tabs.
+pref("browser.privateTab.showNewTabButton", false);
+pref("browser.tabs.selectedTabPrivate", false);
+
 pref("browser.download.always_ask_before_handling_new_types", true);
 pref("browser.download.manager.addToRecentDocs", false);
 pref("browser.download.open_pdf_attachments_inline", true);
