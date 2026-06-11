@@ -12,6 +12,10 @@ pref("browser.tabs.warnOnClose", true);
 
 pref("browser.uidensity", 1);
 pref("browser.compactmode.show", true);
+// Nova is the default style: stock Firefox chrome (Lepton off) plus the
+// Waterfox theme. Lepton (value 0/1) only drives tab styling for Photon.
+pref("browser.theme.enableWaterfoxCustomizations", 2);
+pref("browser.nova.enabled", true);
 pref("toolkit.legacyUserProfileCustomizations.stylesheets", true, locked);
 pref("general.smoothScroll.msdPhysics.enabled", true);
 
