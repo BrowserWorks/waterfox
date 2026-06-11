@@ -8,7 +8,9 @@ Reference notes for reading or changing blocker code. The engine is Brave's `adb
 
 `WaterfoxBlockerService` observes `http-on-modify-request`, normalises the request context, and calls `checkRequestDetailed(...)` on `nsIWaterfoxBlockerEngine`. XPCOM forwards through the C++ `ContentClassifierEngine` into the Rust FFI and `adblock-rs`.
 
-If the request matches and there is no exception, resources that are not documents are cancelled and documents loaded at the top level are redirected to `blockedPage.xhtml`. Clicking "Load anyway" goes through the `WaterfoxBlockedPage` actor, records a `waterfox-blocker` permission for the session, and navigates to the original URL. Later loads from the same host bypass the engine until the browser is closed.
+If the request matches and there is no exception, resources that are not documents are cancelled and documents loaded at the top level are redirected to `blockedPage.xhtml`. Clicking "Load anyway" goes through the `WaterfoxBlockedPage` actor, records a permission for the session in `nsIPermissionManager`, and navigates to the original URL.
+
+Normal windows use `waterfox-blocker`, private windows use `waterfox-blocker-pb`, and the private permission type is cleared when the last private context exits. Permanent user exceptions remain normal `waterfox-blocker` permissions: a site permanently allowed in normal browsing is still blocked in private windows, where it can be allowed again from the panel in the private window for that session.
 
 ### CSP rules
 
@@ -17,6 +19,14 @@ The service also observes `http-on-examine-response` (plus the cached and merged
 ### Cosmetic filters and scriptlets
 
 The child actor asks the parent for cosmetic resources for the current URL, the parent queries the service, and the child applies hide selectors, procedural cosmetic filters, and generic hide updates. Scriptlets are injected into the page's main world when present.
+
+## Toolbar panel
+
+`WaterfoxBlockerPanel` owns the shield toolbar button and its doorhanger. The main view shows the per-tab blocked count with a category breakdown, a per-site blocking toggle, and lifetime stats; a subview lists the blocked domains for the page with a per-domain "Allow" action.
+
+The per-tab breakdown comes from `WaterfoxBlockerService.getBlockedStats(browserId)`. The engine does not report which list a match came from, so blocked requests are bucketed independently: blocked top-level documents count as pop-ups; ping/report types, and domains found in the url-classifier tracking tables (the ETP tracking-annotation data), count as trackers; everything else counts as ads. Classification is async and cached per base domain, so category counts can trail the total by a beat. On a fresh profile the tracking tables may not have downloaded yet, in which case blocks land under ads. Counts reset on top-level navigation.
+
+Lifetime totals persist as JSON in `waterfox.blocker.globalStats` (flushed on a debounce and at shutdown); the "data saved" figure is an estimate derived from the total. Per-domain "Allow" choices persist as JSON in `waterfox.blocker.domainExceptions`, keyed by top-level base domain, and are consulted in both network and content-policy blocking paths.
 
 ## Filter sources and My Filters
 

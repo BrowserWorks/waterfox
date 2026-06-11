@@ -32,6 +32,29 @@ export function toSafeDomain(input) {
     .toLowerCase();
 }
 
+export function isPrivateOriginAttributes(originAttributes) {
+  return Number(originAttributes?.privateBrowsingId || 0) > 0;
+}
+
+export function isPrivateBrowsingContext(browsingContext) {
+  try {
+    const top = browsingContext?.top;
+    return !!(
+      browsingContext?.usePrivateBrowsing ||
+      top?.usePrivateBrowsing ||
+      isPrivateOriginAttributes(
+        browsingContext?.currentWindowGlobal?.documentPrincipal
+          ?.originAttributes
+      ) ||
+      isPrivateOriginAttributes(
+        top?.currentWindowGlobal?.documentPrincipal?.originAttributes
+      )
+    );
+  } catch (_) {
+    return false;
+  }
+}
+
 /**
  * Callers should provide their own fallback when both name and id are empty
  * (the preferences pane uses a localised "this extension" string, while the

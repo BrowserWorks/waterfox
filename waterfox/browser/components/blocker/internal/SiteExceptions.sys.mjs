@@ -59,9 +59,20 @@ function principalForDomain(domain) {
   }
 }
 
+function isPrivateExceptionContext(options = {}) {
+  if (typeof options === "boolean") {
+    return options;
+  }
+  if (!options || typeof options !== "object") {
+    return false;
+  }
+  return !!options.isPrivate;
+}
+
 /**
- * Stores blocker site exceptions as waterfox-blocker permissions, permanent
- * for user exceptions and session scoped for "load anyway" choices.
+ * Stores blocker site exceptions as waterfox-blocker permissions. Permanent
+ * user exceptions use the normal type; private "load anyway" choices use a
+ * private-session type that is cleared when the private session ends.
  */
 export class SiteExceptionsState {
   addPermanentSiteException(domain) {
@@ -79,7 +90,7 @@ export class SiteExceptionsState {
     );
   }
 
-  allowSiteForSession(domain) {
+  allowSiteForSession(domain, options = {}) {
     const principal = principalForDomain(domain);
     if (!principal) {
       return;
@@ -88,34 +99,44 @@ export class SiteExceptionsState {
     maybeRegisterPbContextObserver();
     Services.perms.addFromPrincipal(
       principal,
-      PERMISSION_TYPE,
+      isPrivateExceptionContext(options) ? PERMISSION_TYPE_PB : PERMISSION_TYPE,
       Services.perms.ALLOW_ACTION,
       Services.perms.EXPIRE_SESSION
     );
   }
 
-  removePermanentSiteException(domain) {
+  removeSiteException(domain, options = {}) {
     const principal = principalForDomain(domain);
     if (!principal) {
       return;
     }
-    Services.perms.removeFromPrincipal(principal, PERMISSION_TYPE);
+
+    Services.perms.removeFromPrincipal(
+      principal,
+      isPrivateExceptionContext(options) ? PERMISSION_TYPE_PB : PERMISSION_TYPE
+    );
   }
 
-  isSiteExcepted(domain) {
+  countPermanentSiteExceptions() {
+    try {
+      return Services.perms.getAllByTypes([PERMISSION_TYPE]).length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  isSiteExcepted(domain, options = {}) {
     const principal = principalForDomain(domain);
     if (!principal) {
       return false;
     }
 
-    const ALLOW = Services.perms.ALLOW_ACTION;
+    const permissionType = isPrivateExceptionContext(options)
+      ? PERMISSION_TYPE_PB
+      : PERMISSION_TYPE;
     return (
-      Services.perms.testPermissionFromPrincipal(principal, PERMISSION_TYPE) ===
-        ALLOW ||
-      Services.perms.testPermissionFromPrincipal(
-        principal,
-        PERMISSION_TYPE_PB
-      ) === ALLOW
+      Services.perms.testPermissionFromPrincipal(principal, permissionType) ===
+      Services.perms.ALLOW_ACTION
     );
   }
 }

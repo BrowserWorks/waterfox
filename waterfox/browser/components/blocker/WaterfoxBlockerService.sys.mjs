@@ -15,6 +15,24 @@ import {
 
 const lazy = {};
 
+ChromeUtils.defineLazyGetter(lazy, "urlClassifier", () => {
+  try {
+    return Cc["@mozilla.org/url-classifier/dbservice;1"].getService(
+      Ci.nsIURIClassifier
+    );
+  } catch (_) {
+    return null;
+  }
+});
+
+ChromeUtils.defineLazyGetter(lazy, "trackingClassifierFeature", () => {
+  try {
+    return lazy.urlClassifier?.getFeatureByName("tracking-annotation") || null;
+  } catch (_) {
+    return null;
+  }
+});
+
 ChromeUtils.defineESModuleGetters(lazy, {
   EngineCache: "resource:///modules/internal/EngineCache.sys.mjs",
   ListCatalog: "resource:///modules/internal/ListCatalog.sys.mjs",
@@ -41,6 +59,8 @@ const PREF_LEGACY_SITE_EXCEPTIONS = "waterfox.blocker.siteExceptions";
 const PREF_SITE_EXCEPTIONS_MIGRATED =
   "waterfox.blocker.siteExceptions.migrated";
 const PREF_REMOTE_RESOURCES_ENABLED = "waterfox.blocker.remoteResourcesEnabled";
+const PREF_GLOBAL_STATS = "waterfox.blocker.globalStats";
+const PREF_DOMAIN_EXCEPTIONS = "waterfox.blocker.domainExceptions";
 const PREF_BRANCH = "waterfox.blocker.";
 
 const SEARCH_PARTNER_DOMAINS = Object.freeze([
@@ -51,6 +71,18 @@ const SEARCH_PARTNER_DOMAINS = Object.freeze([
 
 const BLOCKED_COUNT_MAP_MAX_ENTRIES = 500;
 const BLOCKED_COUNT_MAP_TRIM_TO_ENTRIES = 250;
+const BLOCKED_DOMAINS_PER_TAB_MAX = 60;
+const DOMAIN_EXCEPTIONS_SITES_MAX = 200;
+const DOMAIN_EXCEPTIONS_PER_SITE_MAX = 100;
+const GLOBAL_STATS_FLUSH_DELAY_MS = 30 * 1000;
+// Rough average payload of a blocked request, used only for the "data saved"
+// estimate shown in the panel footer.
+const ESTIMATED_BYTES_PER_BLOCKED_REQUEST = 12 * 1024;
+// The engine does not report which list a match came from, so blocked
+// requests are bucketed for the panel by request shape and by checking the
+// domain against the url-classifier tracking tables.
+const TRACKER_REQUEST_TYPES = new Set(["ping", "csp_report"]);
+const TRACKER_DOMAIN_CACHE_MAX = 500;
 const TOPIC_BLOCKED_COUNT_UPDATED = "WaterfoxBlocker:BlockedCountUpdated";
 const TOPIC_BLOCKED_COUNTS_CLEARED = "WaterfoxBlocker:BlockedCountsCleared";
 const TOPIC_HTTP_ON_MODIFY_REQUEST = "http-on-modify-request";
@@ -1689,6 +1721,10 @@ export const WaterfoxBlockerService = {
   ]),
 
   _blockedCountByBrowserId: new Map(),
+  _blockedStatsByBrowserId: new Map(),
+  _globalStats: null,
+  _globalStatsFlushTimerId: null,
+  _domainExceptionsBySite: null,
   _topLevelHostByBrowserId: new Map(),
   _blockedTopLevelDocumentByBrowserId: new Map(),
   _topLevelNavigationBypassByBrowserId: new Map(),
@@ -1724,12 +1760,43 @@ export const WaterfoxBlockerService = {
     return this._listUpdatesState;
   },
 
+  _isPrivateExceptionContext(options = {}) {
+    if (typeof options === "boolean") {
+      return options;
+    }
+    if (!options || typeof options !== "object") {
+      return false;
+    }
+    return !!options.isPrivate;
+  },
+
+  _isPrivateLoadInfo(loadInfo) {
+    try {
+      if (isPrivateOriginAttributes(loadInfo?.originAttributes)) {
+        return true;
+      }
+    } catch (_) {
+      // Fall back to the browsing context below.
+    }
+
+    try {
+      return (
+        isPrivateBrowsingContext(loadInfo?.browsingContext) ||
+        isPrivateBrowsingContext(loadInfo?.targetBrowsingContext) ||
+        isPrivateBrowsingContext(loadInfo?.workerAssociatedBrowsingContext)
+      );
+    } catch (_) {
+      return false;
+    }
+  },
+
   _clearBlockedCounts() {
     if (!this._blockedCountByBrowserId.size) {
       return;
     }
 
     this._blockedCountByBrowserId.clear();
+    this._blockedStatsByBrowserId.clear();
     this._notifyBlockedCountsCleared();
   },
 
@@ -2182,7 +2249,10 @@ export const WaterfoxBlockerService = {
       );
     }
 
-    return candidateHosts.some(host => this.shouldBypassBlocking(host));
+    const options = { isPrivate: this._isPrivateLoadInfo(loadInfo) };
+    return candidateHosts.some(host =>
+      this.shouldBypassBlocking(host, options)
+    );
   },
 
   _normalizeHostname(hostname) {
@@ -2236,6 +2306,10 @@ export const WaterfoxBlockerService = {
   /**
    * Consumes the recorded blocked top-level document for this browser, including
    * on host or URL mismatch. Callers must not treat this as idempotent.
+   *
+   * @param {number} browserId
+   * @param {string} hostname
+   * @param {string} [url]
    */
   wasHostBlockedFor(browserId, hostname, url = "") {
     const id = Number(browserId || 0);
@@ -2254,7 +2328,12 @@ export const WaterfoxBlockerService = {
     return !requestedUrl || requestedUrl === blockedDocument.url;
   },
 
-  _getTopLevelNavigationBypassSourceHost(browserId, channel, loadInfo) {
+  _getTopLevelNavigationBypassSourceHost(
+    browserId,
+    channel,
+    loadInfo,
+    isPrivate
+  ) {
     const id = Number(browserId || 0);
     const candidateHosts = [
       this._getChannelReferrerHost(channel),
@@ -2279,14 +2358,22 @@ export const WaterfoxBlockerService = {
       );
     }
 
-    return candidateHosts.find(host => this.shouldBypassBlocking(host)) || "";
+    const options = { isPrivate };
+    return (
+      candidateHosts.find(host => this.shouldBypassBlocking(host, options)) ||
+      ""
+    );
   },
 
-  _hasActiveTopLevelNavigationBypass(browserId) {
+  _hasActiveTopLevelNavigationBypass(browserId, isPrivate = false) {
     const id = Number(browserId || 0);
     const activeBypass = this._topLevelNavigationBypassByBrowserId.get(id);
     if (activeBypass?.until > Date.now()) {
-      if (this.shouldBypassBlocking(activeBypass.sourceHost)) {
+      if (
+        this.shouldBypassBlocking(activeBypass.sourceHost, {
+          isPrivate,
+        })
+      ) {
         return true;
       }
       this._topLevelNavigationBypassByBrowserId.delete(id);
@@ -2321,12 +2408,18 @@ export const WaterfoxBlockerService = {
 
   _shouldBypassTopLevelDocumentRequest(browserId, channel, loadInfo, hostname) {
     const id = Number(browserId || 0);
+    const isPrivate = this._isPrivateLoadInfo(loadInfo);
     const canUseSourceContext = this._canUseTopLevelDocumentContext(
       loadInfo,
       true
     );
     const sourceHost = canUseSourceContext
-      ? this._getTopLevelNavigationBypassSourceHost(id, channel, loadInfo)
+      ? this._getTopLevelNavigationBypassSourceHost(
+          id,
+          channel,
+          loadInfo,
+          isPrivate
+        )
       : "";
 
     if (
@@ -2335,7 +2428,11 @@ export const WaterfoxBlockerService = {
         targetHostname: hostname,
       })
     ) {
-      if (id && sourceHost && !this.shouldBypassBlocking(hostname)) {
+      if (
+        id &&
+        sourceHost &&
+        !this.shouldBypassBlocking(hostname, { isPrivate })
+      ) {
         this._topLevelNavigationBypassByBrowserId.set(id, {
           sourceHost,
           until: Date.now() + TOP_LEVEL_NAVIGATION_BYPASS_TTL_MS,
@@ -2348,7 +2445,7 @@ export const WaterfoxBlockerService = {
       return false;
     }
 
-    if (id && this._hasActiveTopLevelNavigationBypass(id)) {
+    if (id && this._hasActiveTopLevelNavigationBypass(id, isPrivate)) {
       return true;
     }
 
@@ -2420,6 +2517,7 @@ export const WaterfoxBlockerService = {
     hostname
   ) {
     const browserId = this._getTopBrowserId(loadInfo);
+    const isPrivate = this._isPrivateLoadInfo(loadInfo);
     if (
       this._shouldBypassTopLevelDocumentRequest(
         browserId,
@@ -2428,7 +2526,7 @@ export const WaterfoxBlockerService = {
         hostname
       )
     ) {
-      if (this.shouldBypassBlocking(hostname)) {
+      if (this.shouldBypassBlocking(hostname, { isPrivate })) {
         this._rememberTopLevelHost(browserId, hostname);
       }
       this._forgetBlockedTopLevelDocument(browserId);
@@ -2463,7 +2561,12 @@ export const WaterfoxBlockerService = {
 
     try {
       if (browserId) {
-        this.incrementBlockedCount(browserId);
+        this.incrementBlockedCount(browserId, {
+          hostname,
+          requestType: "document",
+          topLevel: true,
+          isPrivate,
+        });
       }
     } catch (err) {
       console.warn("[WaterfoxBlocker] Failed to increment blocked count:", err);
@@ -2538,6 +2641,10 @@ export const WaterfoxBlockerService = {
     );
 
     if (result.matched && !result.exception) {
+      if (this._isRequestDomainExceptedForTab(browserId, hostname)) {
+        return;
+      }
+
       // `$redirect`/`$redirect-rule` rules carry a data: URL replacement; serve
       // it instead of cancelling so the request receives a neutered payload.
       const redirected =
@@ -2548,7 +2655,11 @@ export const WaterfoxBlockerService = {
 
       try {
         if (browserId) {
-          this.incrementBlockedCount(browserId);
+          this.incrementBlockedCount(browserId, {
+            hostname,
+            requestType,
+            isPrivate: this._isPrivateLoadInfo(loadInfo),
+          });
         }
       } catch (err) {
         console.warn(
@@ -2640,7 +2751,8 @@ export const WaterfoxBlockerService = {
       }) ||
       (isTopLevelDocument &&
         this._hasActiveTopLevelNavigationBypass(
-          this._getTopBrowserId(loadInfo)
+          this._getTopBrowserId(loadInfo),
+          this._isPrivateLoadInfo(loadInfo)
         ));
 
     this._rememberTopLevelResponse(channel, loadInfo, requestType, hostname);
@@ -2859,6 +2971,7 @@ export const WaterfoxBlockerService = {
       this._blockedCountByBrowserId.size - BLOCKED_COUNT_MAP_TRIM_TO_ENTRIES;
     for (const browserId of this._blockedCountByBrowserId.keys()) {
       this._blockedCountByBrowserId.delete(browserId);
+      this._blockedStatsByBrowserId.delete(browserId);
       removeCount--;
       if (removeCount <= 0) {
         break;
@@ -3050,13 +3163,14 @@ export const WaterfoxBlockerService = {
   },
 
   /**
-   * Allows the domain for the rest of the browser session. The entry is
-   * dropped on browser shutdown.
+   * Allows the domain for the rest of the normal browser session or the
+   * current private session.
    *
    * @param {string} domain
+   * @param {{isPrivate?: boolean}|boolean} [options]
    */
-  allowSiteForSession(domain) {
-    this._siteExceptions().allowSiteForSession(domain);
+  allowSiteForSession(domain, options = {}) {
+    this._siteExceptions().allowSiteForSession(domain, options);
   },
 
   _normalizeCheckResult(rawResult) {
@@ -3133,9 +3247,10 @@ export const WaterfoxBlockerService = {
   /**
    * @param {number} newBrowserId
    * @param {string} sourceHost
+   * @param {{isPrivate?: boolean}} [options]
    */
-  recordNewTabSourceHost(newBrowserId, sourceHost) {
-    if (this.shouldBypassBlocking(sourceHost)) {
+  recordNewTabSourceHost(newBrowserId, sourceHost, options = {}) {
+    if (this.shouldBypassBlocking(sourceHost, options)) {
       this._rememberTopLevelHost(newBrowserId, sourceHost);
     }
   },
@@ -3151,6 +3266,7 @@ export const WaterfoxBlockerService = {
     }
 
     this._blockedCountByBrowserId.set(id, 0);
+    this._blockedStatsByBrowserId.delete(id);
     this._notifyBlockedCountUpdated(id, 0);
     return 0;
   },
@@ -3173,13 +3289,16 @@ export const WaterfoxBlockerService = {
       return null;
     }
 
+    const options = {
+      isPrivate: isPrivateBrowsingContext(browsingContext),
+    };
     if (
       !hostname ||
       [
         hostname,
         this._getBrowsingContextDocumentHost(browsingContext),
         this._getBrowsingContextDocumentHost(browsingContext?.top),
-      ].some(host => this.shouldBypassBlocking(host))
+      ].some(host => this.shouldBypassBlocking(host, options))
     ) {
       return null;
     }
@@ -3449,15 +3568,378 @@ export const WaterfoxBlockerService = {
 
   /**
    * @param {number} browserId
+   * @param {{hostname?: string, requestType?: string, topLevel?: boolean,
+   *          isPrivate?: boolean}|null} [details]
+   *   Request details used to bucket the block for the panel UI. Counting
+   *   still works when omitted; the block is then attributed to "ads".
    * @returns {number}
    */
-  incrementBlockedCount(browserId) {
+  incrementBlockedCount(browserId, details = null) {
     const current = this.getBlockedCount(browserId);
     const next = current + 1;
     this._blockedCountByBrowserId.set(browserId, next);
+    this._recordBlockedRequestStats(browserId, details);
     this._trimBlockedCountMapIfNeeded();
     this._notifyBlockedCountUpdated(browserId, next);
     return next;
+  },
+
+  _trackerDomainCache: new Map(),
+
+  /**
+   * Classifies the domain against the url-classifier tracking tables (the
+   * ETP tracking-annotation data). The matched table names distinguish ad
+   * networks from other trackers. Results are cached; missing tables or
+   * classifier errors resolve to null.
+   *
+   * @param {string} domain
+   * @returns {Promise<"ads"|"trackers"|null>}
+   */
+  _classifyDomainViaTrackingTables(domain) {
+    const cached = this._trackerDomainCache.get(domain);
+    if (cached !== undefined) {
+      // Either a settled category (or null) or an in-flight promise.
+      return Promise.resolve(cached);
+    }
+
+    const promise = new Promise(resolve => {
+      const feature = lazy.trackingClassifierFeature;
+      if (!lazy.urlClassifier || !feature) {
+        resolve(null);
+        return;
+      }
+
+      try {
+        lazy.urlClassifier.asyncClassifyLocalWithFeatures(
+          Services.io.newURI(`https://${domain}/`),
+          [feature],
+          Ci.nsIUrlClassifierFeature.blocklist,
+          results => {
+            const tables = results.map(r => r.list).join(",");
+            if (!tables) {
+              resolve(null);
+            } else if (tables.includes("ads-track")) {
+              resolve("ads");
+            } else {
+              resolve("trackers");
+            }
+          }
+        );
+      } catch (_) {
+        resolve(null);
+      }
+    }).then(category => {
+      this._trackerDomainCache.set(domain, category);
+      return category;
+    });
+
+    if (this._trackerDomainCache.size >= TRACKER_DOMAIN_CACHE_MAX) {
+      this._trackerDomainCache.clear();
+    }
+    this._trackerDomainCache.set(domain, promise);
+    return promise;
+  },
+
+  async _resolveBlockedCategory(details, hostname) {
+    if (details?.topLevel) {
+      return "popups";
+    }
+
+    if (TRACKER_REQUEST_TYPES.has(String(details?.requestType || ""))) {
+      return "trackers";
+    }
+
+    if (hostname) {
+      const category = await this._classifyDomainViaTrackingTables(hostname);
+      if (category) {
+        return category;
+      }
+    }
+
+    return "ads";
+  },
+
+  _baseDomain(hostname) {
+    const host = this._normalizeHostname(hostname);
+    if (!host) {
+      return "";
+    }
+
+    try {
+      return Services.eTLD.getBaseDomainFromHost(host);
+    } catch (_) {
+      // IP literals and hosts without a public suffix are used as entered.
+      return host;
+    }
+  },
+
+  _recordBlockedRequestStats(browserId, details) {
+    const id = Number(browserId || 0);
+    if (!id) {
+      return;
+    }
+
+    let stats = this._blockedStatsByBrowserId.get(id);
+    if (!stats) {
+      stats = {
+        counts: { ads: 0, trackers: 0, popups: 0 },
+        domains: new Map(),
+        lastBlockedAt: 0,
+      };
+      this._blockedStatsByBrowserId.set(id, stats);
+    }
+
+    stats.lastBlockedAt = Date.now();
+
+    if (!details?.isPrivate) {
+      this._globalStatsState().totalBlocked++;
+      this._scheduleGlobalStatsFlush();
+    }
+
+    const domain = this._baseDomain(details?.hostname);
+    // Classify the full hostname: subdomains can sit in a different tracking
+    // category than their base domain (e.g. adservice.google.com).
+    this._resolveBlockedCategory(
+      details,
+      this._normalizeHostname(details?.hostname)
+    )
+      .then(category => {
+        // A navigation may have replaced or cleared the record meanwhile.
+        if (this._blockedStatsByBrowserId.get(id) !== stats) {
+          return;
+        }
+
+        stats.counts[category]++;
+
+        if (domain) {
+          const entry = stats.domains.get(domain);
+          if (entry) {
+            entry.count++;
+          } else if (stats.domains.size < BLOCKED_DOMAINS_PER_TAB_MAX) {
+            stats.domains.set(domain, { category, count: 1 });
+          }
+        }
+
+        this._notifyBlockedCountUpdated(id, this.getBlockedCount(id));
+      })
+      .catch(() => {});
+  },
+
+  /**
+   * Blocked counts and domains for one tab, read by the toolbar panel.
+   *
+   * @param {number} browserId
+   * @returns {{total: number, counts: {ads: number, trackers: number,
+   *            popups: number}, entries: Array<{domain: string,
+   *            category: string, count: number}>, lastBlockedAt: number}}
+   */
+  getBlockedStats(browserId) {
+    const stats = this._blockedStatsByBrowserId.get(Number(browserId || 0));
+    if (!stats) {
+      return {
+        total: 0,
+        counts: { ads: 0, trackers: 0, popups: 0 },
+        entries: [],
+        lastBlockedAt: 0,
+      };
+    }
+
+    const entries = Array.from(stats.domains, ([domain, entry]) => ({
+      domain,
+      category: entry.category,
+      count: entry.count,
+    })).sort((a, b) => b.count - a.count);
+
+    return {
+      total: this.getBlockedCount(Number(browserId || 0)),
+      counts: { ...stats.counts },
+      entries,
+      lastBlockedAt: stats.lastBlockedAt,
+    };
+  },
+
+  _globalStatsState() {
+    if (!this._globalStats) {
+      let parsed = null;
+      try {
+        parsed = JSON.parse(
+          Services.prefs.getStringPref(PREF_GLOBAL_STATS, "")
+        );
+      } catch (_) {
+        // Missing or corrupt pref starts a fresh stats record.
+      }
+
+      this._globalStats = {
+        totalBlocked: Math.max(0, Number(parsed?.totalBlocked) || 0),
+        since: Number(parsed?.since) || Date.now(),
+      };
+    }
+    return this._globalStats;
+  },
+
+  /**
+   * @returns {{totalBlocked: number, bytesSaved: number, since: number}}
+   */
+  getGlobalStats() {
+    const stats = this._globalStatsState();
+    return {
+      totalBlocked: stats.totalBlocked,
+      bytesSaved: stats.totalBlocked * ESTIMATED_BYTES_PER_BLOCKED_REQUEST,
+      since: stats.since,
+    };
+  },
+
+  _scheduleGlobalStatsFlush() {
+    if (this._globalStatsFlushTimerId) {
+      return;
+    }
+
+    this._globalStatsFlushTimerId = lazy.setTimeout(() => {
+      this._globalStatsFlushTimerId = null;
+      this._flushGlobalStats();
+    }, GLOBAL_STATS_FLUSH_DELAY_MS);
+  },
+
+  _flushGlobalStats() {
+    if (!this._globalStats) {
+      return;
+    }
+
+    try {
+      Services.prefs.setStringPref(
+        PREF_GLOBAL_STATS,
+        JSON.stringify(this._globalStats)
+      );
+    } catch (err) {
+      console.warn("[WaterfoxBlocker] Failed to persist global stats:", err);
+    }
+  },
+
+  _domainExceptions() {
+    if (!this._domainExceptionsBySite) {
+      const map = new Map();
+      try {
+        const parsed = JSON.parse(
+          Services.prefs.getStringPref(PREF_DOMAIN_EXCEPTIONS, "")
+        );
+        for (const [site, domains] of Object.entries(parsed || {})) {
+          if (Array.isArray(domains) && domains.length) {
+            map.set(site, new Set(domains.map(d => String(d)).filter(Boolean)));
+          }
+        }
+      } catch (_) {
+        // Missing or corrupt pref starts with no domain exceptions.
+      }
+      this._domainExceptionsBySite = map;
+    }
+    return this._domainExceptionsBySite;
+  },
+
+  _saveDomainExceptions() {
+    const serialized = {};
+    for (const [site, domains] of this._domainExceptions()) {
+      if (domains.size) {
+        serialized[site] = Array.from(domains);
+      }
+    }
+
+    try {
+      Services.prefs.setStringPref(
+        PREF_DOMAIN_EXCEPTIONS,
+        JSON.stringify(serialized)
+      );
+    } catch (err) {
+      console.warn(
+        "[WaterfoxBlocker] Failed to persist domain exceptions:",
+        err
+      );
+    }
+  },
+
+  /**
+   * Allows a single blocked domain on one site, e.g. the panel's per-row
+   * "Allow" action. Both hosts collapse to their base domain.
+   *
+   * @param {string} siteHost
+   * @param {string} domain
+   */
+  addDomainExceptionForSite(siteHost, domain) {
+    const site = this._baseDomain(siteHost);
+    const allowed = this._baseDomain(domain);
+    if (!site || !allowed) {
+      return;
+    }
+
+    const exceptions = this._domainExceptions();
+    let domains = exceptions.get(site);
+    if (!domains) {
+      if (exceptions.size >= DOMAIN_EXCEPTIONS_SITES_MAX) {
+        return;
+      }
+      domains = new Set();
+      exceptions.set(site, domains);
+    }
+
+    if (domains.size >= DOMAIN_EXCEPTIONS_PER_SITE_MAX) {
+      return;
+    }
+
+    domains.add(allowed);
+    this._saveDomainExceptions();
+  },
+
+  /**
+   * @param {string} siteHost
+   * @param {string} domain
+   */
+  removeDomainExceptionForSite(siteHost, domain) {
+    const site = this._baseDomain(siteHost);
+    const allowed = this._baseDomain(domain);
+    const exceptions = this._domainExceptions();
+    const domains = exceptions.get(site);
+    if (!domains?.delete(allowed)) {
+      return;
+    }
+
+    if (!domains.size) {
+      exceptions.delete(site);
+    }
+    this._saveDomainExceptions();
+  },
+
+  /**
+   * @param {string} siteHost
+   * @returns {string[]}
+   */
+  getDomainExceptionsForSite(siteHost) {
+    const domains = this._domainExceptions().get(this._baseDomain(siteHost));
+    return domains ? Array.from(domains) : [];
+  },
+
+  /**
+   * @param {string} siteHost
+   * @param {string} domain
+   * @returns {boolean}
+   */
+  isDomainExceptedOnSite(siteHost, domain) {
+    const domains = this._domainExceptions().get(this._baseDomain(siteHost));
+    return !!domains?.has(this._baseDomain(domain));
+  },
+
+  _isRequestDomainExceptedForTab(browserId, hostname) {
+    const site =
+      this._topLevelHostByBrowserId.get(Number(browserId || 0)) || "";
+    if (!site) {
+      return false;
+    }
+    return this.isDomainExceptedOnSite(site, hostname);
+  },
+
+  /**
+   * @returns {number} Count of sites with a permanent blocker exception.
+   */
+  getSiteExceptionCount() {
+    return this._siteExceptions().countPermanentSiteExceptions();
   },
 
   _networkObserversRegistered: false,
@@ -3633,10 +4115,11 @@ export const WaterfoxBlockerService = {
    * `www.example.com` does not match `example.com`.
    *
    * @param {string} domain
+   * @param {{isPrivate?: boolean}|boolean} [options]
    * @returns {boolean}
    */
-  isSiteExcepted(domain) {
-    return this._siteExceptions().isSiteExcepted(domain);
+  isSiteExcepted(domain, options = {}) {
+    return this._siteExceptions().isSiteExcepted(domain, options);
   },
 
   /**
@@ -3714,6 +4197,10 @@ export const WaterfoxBlockerService = {
         }
         break;
 
+      case PREF_DOMAIN_EXCEPTIONS:
+        this._domainExceptionsBySite = null;
+        break;
+
       case PREF_REMOTE_RESOURCES_ENABLED:
         if (this.isEnabled() && this._engine) {
           this._loadResourcesAndBumpGeneration().catch(err => {
@@ -3732,9 +4219,10 @@ export const WaterfoxBlockerService = {
 
   /**
    * @param {string} domain
+   * @param {{isPrivate?: boolean}|boolean} [options]
    */
-  removeSiteException(domain) {
-    this._siteExceptions().removePermanentSiteException(domain);
+  removeSiteException(domain, options = {}) {
+    this._siteExceptions().removeSiteException(domain, options);
   },
 
   /**
@@ -3743,15 +4231,20 @@ export const WaterfoxBlockerService = {
    * - Search partner exemptions when enabled.
    *
    * @param {string} candidateDomain Domain to test as a site exception or partner bypass.
+   * @param {{isPrivate?: boolean}|boolean} [options]
    * @returns {boolean}
    */
-  shouldBypassBlocking(candidateDomain) {
+  shouldBypassBlocking(candidateDomain, options = {}) {
     const domain = String(candidateDomain || "").replace(/\.$/, "");
     if (!domain) {
       return false;
     }
 
-    if (this.isSiteExcepted(domain)) {
+    if (
+      this.isSiteExcepted(domain, {
+        isPrivate: this._isPrivateExceptionContext(options),
+      })
+    ) {
       return true;
     }
 
@@ -3831,9 +4324,17 @@ export const WaterfoxBlockerService = {
       return ACCEPT;
     }
 
+    if (this._isRequestDomainExceptedForTab(browserId, hostname)) {
+      return ACCEPT;
+    }
+
     try {
       if (browserId) {
-        this.incrementBlockedCount(browserId);
+        this.incrementBlockedCount(browserId, {
+          hostname,
+          requestType,
+          isPrivate: this._isPrivateLoadInfo(loadInfo),
+        });
       }
     } catch (err) {
       console.warn("[WaterfoxBlocker] Failed to increment blocked count:", err);
@@ -3855,6 +4356,12 @@ export const WaterfoxBlockerService = {
     } catch (err) {
       console.warn("[WaterfoxBlocker] Failed to remove pref observer:", err);
     }
+
+    if (this._globalStatsFlushTimerId) {
+      lazy.clearTimeout(this._globalStatsFlushTimerId);
+      this._globalStatsFlushTimerId = null;
+    }
+    this._flushGlobalStats();
 
     this._unregisterNetworkObservers();
     this._clearInitRetryTimer();
