@@ -1,0 +1,84 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+.tabbrowser-tab[waterfox-private] .tab-label {
+  text-decoration: underline dashed;
+}
+
+#newPrivateTab-button,
+#newPrivateTab-button-vertical {
+  list-style-image: url("chrome://browser/skin/privateBrowsing.svg");
+}
+
+/* stylelint-disable stylelint-plugin-mozilla/use-design-tokens -- Match native tab geometry across toolbar densities. */
+#tabbrowser-tabs[orient="vertical"] :is(#newPrivateTab-button, #newPrivateTab-button-vertical) {
+  appearance: none;
+  min-height: var(--tab-min-height);
+  line-height: var(--tab-label-line-height);
+  border-radius: var(--tab-border-radius);
+  padding: 0 calc(var(--tab-inline-padding) - var(--tab-inner-inline-margin));
+  width: var(--tab-collapsed-background-width);
+  min-inline-size: 0;
+  margin-inline: var(--tab-inner-inline-margin);
+
+  > .toolbarbutton-icon {
+    inline-size: var(--icon-size);
+    block-size: var(--icon-size);
+  }
+
+  > .toolbarbutton-text {
+    contain: inline-size;
+    text-align: start;
+    padding-inline-start: var(--tab-icon-end-margin);
+  }
+
+  &:hover {
+    background-color: var(--tab-background-color-hover);
+    outline-color: var(--tab-hover-outline-color);
+  }
+
+  &:focus-visible {
+    outline: var(--focus-outline);
+    outline-offset: var(--focus-outline-inset);
+  }
+
+  #tabbrowser-tabs:not([expanded]) & > .toolbarbutton-text {
+    display: none;
+  }
+
+  #tabbrowser-tabs[expanded] & {
+    width: auto;
+  }
+}
+
+@media -moz-pref("browser.privateTab.showNewTabButton") {
+  #tabbrowser-arrowscrollbox[orient="vertical"] > #tabbrowser-arrowscrollbox-periphery {
+    flex-wrap: wrap;
+  }
+}
+
+#tabbrowser-arrowscrollbox[orient="vertical"] > #tabbrowser-arrowscrollbox-periphery > #newPrivateTab-button {
+  margin-block: var(--tab-block-margin);
+  order: 1;
+  flex-basis: calc(100% - 2 * var(--tab-inner-inline-margin));
+}
+/* stylelint-enable stylelint-plugin-mozilla/use-design-tokens */
+
+#tabbrowser-tabs[orient="horizontal"] > #newPrivateTab-button-vertical,
+#tabbrowser-tabs[orient="vertical"]:not([overflow]) > #newPrivateTab-button-vertical,
+#tabbrowser-arrowscrollbox[overflowing] > #tabbrowser-arrowscrollbox-periphery > #newPrivateTab-button,
+#vertical-tabs[tree-tabs-enabled] #tabbrowser-tabs > #newPrivateTab-button-vertical {
+  display: none;
+}
+
+#vertical-tabs[tree-tabs-enabled] #tabbrowser-arrowscrollbox[overflowing] > #tabbrowser-arrowscrollbox-periphery > #newPrivateTab-button:not([hidden]) {
+  display: flex;
+}
+
+/* The indicator only shows in real private windows; light it up while the
+   selected tab sits in the private container. */
+:root[waterfox-private-tab] #TabsToolbar .private-browsing-indicator-with-label,
+:root[waterfox-private-tab] #navigator-toolbox[tabs-hidden] #nav-bar > .private-browsing-indicator-with-label {
+  display: flex !important;
+}
