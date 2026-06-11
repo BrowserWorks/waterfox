@@ -36,6 +36,11 @@ pref("browser.settings-redesign.promo.dismissed", true);
 
 #ifdef XP_LINUX
 pref("spellchecker.dictionary_path", "/usr/share/hunspell");
+pref("browser.urlbar.clickSelectsAll", false);
+pref("browser.urlbar.doubleClickSelectsAll", true);
+#else
+pref("browser.urlbar.clickSelectsAll", true);
+pref("browser.urlbar.doubleClickSelectsAll", false);
 #endif
 
 #ifdef XP_MACOSX

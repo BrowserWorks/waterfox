@@ -3,11 +3,15 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { Preferences } from "chrome://global/content/preferences/Preferences.mjs";
+import { ADDRESS_BAR_APPEARANCE_ITEMS } from "chrome://browser/content/waterfox/settings/waterfoxAppearanceOptions.mjs";
 import { SettingGroupManager } from "chrome://browser/content/preferences/config/SettingGroupManager.mjs";
 
+const CLICK_SELECTS_ALL_PREF = "browser.urlbar.clickSelectsAll";
+const DOUBLE_CLICK_SELECTS_ALL_PREF = "browser.urlbar.doubleClickSelectsAll";
 const SUGGESTIONS_PROXY_PREF = "waterfox.search.suggestions.useProxy";
 const DISABLE_AI_PREF = "waterfox.search.disableAIFeatures";
 
+const SUGGEST_GROUP_ID = "firefoxSuggest";
 const DEFAULT_ENGINE_GROUP_ID = "defaultEngine";
 const SHOW_SEARCH_TERMS_ITEM_ID = "searchShowSearchTermCheckbox";
 const SEARCH_SUGGESTIONS_GROUP_ID = "searchSuggestions";
@@ -35,11 +39,51 @@ const WATERFOX_DISABLE_AI_ITEM = {
   },
 };
 
+const ADDRESS_BAR_BEHAVIOR_ITEM = {
+  id: "waterfoxAddressBarBehavior",
+  l10nId: "waterfox-search-address-bar-behavior-heading",
+  control: "moz-fieldset",
+  controlAttrs: {
+    badge: "waterfox-exclusive",
+    headinglevel: 2,
+  },
+  items: [
+    {
+      id: "waterfoxClickSelectsAll",
+      l10nId: "waterfox-search-click-selects-all-toggle",
+      control: "moz-toggle",
+      controlAttrs: {
+        searchkeywords: "address bar search bar click select all",
+      },
+    },
+    {
+      id: "waterfoxDoubleClickSelectsAll",
+      l10nId: "waterfox-search-double-click-selects-all-toggle",
+      control: "moz-toggle",
+      controlAttrs: {
+        searchkeywords: "address bar search bar double click select all",
+      },
+    },
+    ...ADDRESS_BAR_APPEARANCE_ITEMS,
+  ],
+};
+
 Preferences.addAll([
+  { id: CLICK_SELECTS_ALL_PREF, type: "bool" },
+  { id: DOUBLE_CLICK_SELECTS_ALL_PREF, type: "bool" },
   { id: SUGGESTIONS_PROXY_PREF, type: "bool" },
   { id: DISABLE_AI_PREF, type: "bool" },
 ]);
 
+Preferences.addSetting({ id: "waterfoxAddressBarBehavior" });
+Preferences.addSetting({
+  id: "waterfoxClickSelectsAll",
+  pref: CLICK_SELECTS_ALL_PREF,
+});
+Preferences.addSetting({
+  id: "waterfoxDoubleClickSelectsAll",
+  pref: DOUBLE_CLICK_SELECTS_ALL_PREF,
+});
 Preferences.addSetting({
   id: "waterfoxSearchSuggestionsProxy",
   pref: SUGGESTIONS_PROXY_PREF,
@@ -48,6 +92,20 @@ Preferences.addSetting({
   id: "waterfoxSearchDisableAI",
   pref: DISABLE_AI_PREF,
 });
+
+function appendAddressBarBehavior(group) {
+  if (group.items.some(item => item.id === "waterfoxAddressBarBehavior")) {
+    return;
+  }
+  group.items.push(ADDRESS_BAR_BEHAVIOR_ITEM);
+}
+
+function amendSuggestGroup(group) {
+  if (!group || !Array.isArray(group.items)) {
+    return;
+  }
+  appendAddressBarBehavior(group);
+}
 
 function amendDefaultEngineGroup(group) {
   if (!group || !Array.isArray(group.items)) {
@@ -85,6 +143,11 @@ function amendSearchSuggestionsGroup(group) {
 // after this module. Amend them whether they are already registered or
 // register later.
 try {
+  amendSuggestGroup(SettingGroupManager.get(SUGGEST_GROUP_ID));
+} catch (_ex) {
+  // Not registered yet; the wrapper below catches it.
+}
+try {
   amendDefaultEngineGroup(SettingGroupManager.get(DEFAULT_ENGINE_GROUP_ID));
 } catch (_ex) {
   // Not registered yet; the wrapper below catches it.
@@ -100,6 +163,9 @@ try {
 const origRegisterGroups =
   SettingGroupManager.registerGroups.bind(SettingGroupManager);
 SettingGroupManager.registerGroups = groups => {
+  if (groups?.[SUGGEST_GROUP_ID]) {
+    amendSuggestGroup(groups[SUGGEST_GROUP_ID]);
+  }
   if (groups?.[DEFAULT_ENGINE_GROUP_ID]) {
     amendDefaultEngineGroup(groups[DEFAULT_ENGINE_GROUP_ID]);
   }
