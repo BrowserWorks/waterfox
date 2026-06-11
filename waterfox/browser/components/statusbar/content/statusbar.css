@@ -1,0 +1,60 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+@media not (-moz-platform: macos) {
+  #browser-bottombox {
+    background-color: var(--lwt-accent-color);
+  }
+}
+
+/* Bottom positioned bars must not cover fullscreen video. */
+:root[inDOMFullscreen] #browser-bottombox {
+  visibility: collapse;
+}
+
+/* The bar matches the chrome, so it follows the theme variables, not the
+   design tokens. */
+@media not -moz-pref("browser.nova.enabled") {
+  #status-bar {
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
+    border-top: 1px solid var(--chrome-content-separator-color);
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
+    background-color: var(--toolbar-bgcolor);
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
+    color: var(--toolbar-color);
+  }
+}
+
+/* In Nova the bar is a floating chrome-block pill like the nav bar. The
+   radius, border and inactive colors come from .chrome-block; #browser
+   already provides the gap above via its block-end padding. */
+@media -moz-pref("browser.nova.enabled") {
+  #browser-bottombox {
+    background-color: transparent;
+  }
+
+  #status-bar {
+    background-color: var(--toolbar-background-color);
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
+    margin-inline: var(--chrome-window-gap);
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
+    margin-block-end: var(--chrome-window-gap);
+  }
+}
+
+:root[customizing] #status-bar {
+  visibility: visible;
+}
+
+#status-bar #status-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#status-text > #statuspanel-label {
+  margin: 0;
+  border-top: 0;
+  background-color: transparent;
+}

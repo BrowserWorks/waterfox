@@ -3016,6 +3016,12 @@ function showFullScreenViewContextMenuItems(popup) {
 
 function onViewToolbarCommand(aEvent) {
   let node = aEvent.originalTarget;
+  if (
+    !node.getAttribute?.("toolbarId") &&
+    aEvent.target?.getAttribute?.("toolbarId")
+  ) {
+    node = aEvent.target;
+  }
   let menuId;
   let toolbarId;
   let isVisible;
@@ -3029,8 +3035,17 @@ function onViewToolbarCommand(aEvent) {
     );
   } else {
     menuId = node.parentNode.id;
-    toolbarId = node.getAttribute("toolbarId");
+    toolbarId =
+      node.getAttribute("toolbarId") ||
+      aEvent.target?.getAttribute?.("toolbarId");
+    const toggleId = node.id || aEvent.target?.id;
+    if (!toolbarId && toggleId?.startsWith("toggle_")) {
+      toolbarId = toggleId.slice("toggle_".length);
+    }
     isVisible = node.hasAttribute("checked");
+  }
+  if (!toolbarId) {
+    return;
   }
   CustomizableUI.setToolbarVisibility(toolbarId, isVisible);
   BrowserUsageTelemetry.recordToolbarVisibility(toolbarId, isVisible, menuId);
