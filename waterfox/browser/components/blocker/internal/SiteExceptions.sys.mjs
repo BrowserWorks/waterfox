@@ -117,6 +117,14 @@ export class SiteExceptionsState {
     );
   }
 
+  countPermanentSiteExceptions() {
+    try {
+      return Services.perms.getAllByTypes([PERMISSION_TYPE]).length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   isSiteExcepted(domain, options = {}) {
     const principal = principalForDomain(domain);
     if (!principal) {
