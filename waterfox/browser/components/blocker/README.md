@@ -1,6 +1,6 @@
 # Waterfox blocker component
 
-Reference notes for reading or changing blocker code. The engine is Brave's `adblock-rs` v0.13.2 (MPL-2.0). The Waterfox integration around it is also MPL-2.0.
+Reference notes for reading or changing blocker code. The engine is Brave's `adblock-rs` v0.13.3 (MPL-2.0). The Waterfox integration around it is also MPL-2.0.
 
 ## Request and response flow
 
@@ -8,7 +8,9 @@ Reference notes for reading or changing blocker code. The engine is Brave's `adb
 
 `WaterfoxBlockerService` observes `http-on-modify-request`, normalises the request context, and calls `checkRequestDetailed(...)` on `nsIWaterfoxBlockerEngine`. XPCOM forwards through the C++ `ContentClassifierEngine` into the Rust FFI and `adblock-rs`.
 
-If the request matches and there is no exception, resources that are not documents are cancelled and documents loaded at the top level are redirected to `blockedPage.xhtml`. Clicking "Load anyway" goes through the `WaterfoxBlockedPage` actor, records a `waterfox-blocker` permission for the session, and navigates to the original URL. Later loads from the same host bypass the engine until the browser is closed.
+If the request matches and there is no exception, resources that are not documents are cancelled and documents loaded at the top level are redirected to `blockedPage.xhtml`. Clicking "Load anyway" goes through the `WaterfoxBlockedPage` actor, records a permission for the session in `nsIPermissionManager`, and navigates to the original URL.
+
+Normal windows use `waterfox-blocker`, private windows use `waterfox-blocker-pb`, and the private permission type is cleared when the last private context exits. Permanent user exceptions remain normal `waterfox-blocker` permissions: a site permanently allowed in normal browsing is still blocked in private windows, where it can be allowed again from the panel in the private window for that session.
 
 ### CSP rules
 
@@ -30,6 +32,12 @@ My Filters reads from profile text at `ProfD/waterfox-blocker/custom-filters.txt
 
 My Filters is deliberately separate from uBlock Origin's dynamic "My rules". Dynamic allow/block/noop rules are not parsed by `adblock-rs` and are out of scope here.
 
+`adblock-rs` v0.13.3 parses `$to=` destination-domain options but excludes those rules from matching. They are not supported for blocking or exceptions; `$from=` and `$domain=` restrict the source domain, not the destination.
+
+## Engine cache compatibility
+
+`adblock-rs` v0.13.3 uses DAT v6, which is incompatible with the DAT v5 caches written by v0.13.2. Engine caches are namespaced by the application build ID. If an incompatible cache is encountered, both the synchronous and asynchronous initialization paths reject it and fall back to rebuilding from local filter-list text. The rebuilt cache replaces the old data, and supplementary redirect and scriptlet resources are loaded separately.
+
 ## Scriptlet bundling
 
 uBO scriptlets now ship as ESM. The older `adblock-rs` resource assembler route is deprecated and does not handle that format well, so Waterfox follows Brave's Node.js packaging flow instead. The dependency resolution and `fn.toString()` bundling algorithm come from `https://github.com/brave/brave-core-crx-packager/pull/599`.
@@ -42,7 +50,7 @@ uBO scriptlets now ship as ESM. The older `adblock-rs` resource assembler route 
 
 | Item | Source | Licence or notice | Notes |
 | --- | --- | --- | --- |
-| `adblock-rs` (v0.13.2) | Brave | MPL-2.0 | Core blocking engine |
+| `adblock-rs` (v0.13.3) | Brave | MPL-2.0 | Core blocking engine |
 | Brave entries in `resources/resources.json` | Brave (`adblock-resources`) | MPL-2.0 | Redirect and script resources |
 | uBO redirect entries in `resources/resources.json` | `gorhill/uBlock` | GPL-3.0 | Generated offline from resources that can be reached from the web and bundled as data, never compiled into the Waterfox binary |
 | Generated `resources/ubo-scriptlets.json` | `gorhill/uBlock` | GPL-3.0 | Generated offline from source and bundled as data, never compiled into the Waterfox binary |
