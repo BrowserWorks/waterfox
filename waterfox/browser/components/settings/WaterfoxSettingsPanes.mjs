@@ -8,4 +8,14 @@ if (Services.prefs.getBoolPref("browser.settings-redesign.enabled", false)) {
   const aboutPane = SettingPaneManager.get("about");
   aboutPane.module =
     "chrome://browser/content/waterfox/settings/waterfoxUpdates.mjs";
+
+  // Amend Mozilla's DoH controls without changing the frozen CONFIG_PANES table.
+  // dnsOverHttps carries no module of its own; its other settings load through
+  // the privacy parent chain.
+  const dohPane = SettingPaneManager.get("dnsOverHttps");
+  dohPane.module = "chrome://browser/content/waterfox/settings/waterfoxDns.mjs";
+  ChromeUtils.importESModule(
+    "chrome://browser/content/waterfox/settings/waterfoxDns.mjs",
+    { global: "current" }
+  );
 }
