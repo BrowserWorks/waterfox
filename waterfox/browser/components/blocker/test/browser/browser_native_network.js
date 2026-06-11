@@ -150,6 +150,20 @@ add_task(
         "One native event per cancellation"
       );
       assertNativeOwnership();
+      blocker.addDomainExceptionForSite("example.org", "example.com");
+      Assert.equal(
+        (
+          await contentFetch(
+            browser,
+            `${AD_URL}?case=domain-${sequence++}`,
+            "POST"
+          )
+        ).success,
+        true,
+        "Domain allowances override important native blocks"
+      );
+      Assert.equal(blocker.getBlockedCount(browserId), 2);
+      blocker.removeDomainExceptionForSite("example.org", "example.com");
       blocker.allowSiteForSession("example.org");
       Assert.equal(
         (

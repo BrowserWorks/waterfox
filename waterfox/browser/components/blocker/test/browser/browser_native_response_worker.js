@@ -712,6 +712,14 @@ add_task(async function test_dedicated_worker_fetch_policy_and_attribution() {
         "A worker POST is blocked by the native HTTP pipeline"
       );
       Assert.equal(blocker.getBlockedCount(browserId), 1);
+      blocker.addDomainExceptionForSite("example.org", "example.com");
+      Assert.equal(
+        (await workerRequest(browser, url, "fetch", "POST")).text,
+        "network-body",
+        "The owning tab's domain allowance overrides an important worker block"
+      );
+      Assert.equal(blocker.getBlockedCount(browserId), 1);
+      blocker.removeDomainExceptionForSite("example.org", "example.com");
       blocker.allowSiteForSession("example.org");
       Assert.equal(
         (await workerRequest(browser, url, "fetch", "POST")).text,
@@ -722,6 +730,7 @@ add_task(async function test_dedicated_worker_fetch_policy_and_attribution() {
       assertNativeOwnership(trace);
     } finally {
       trace.restore();
+      blocker.removeDomainExceptionForSite("example.org", "example.com");
       blocker.removeSiteException("example.org");
       publishNativeRules();
     }
@@ -803,6 +812,9 @@ add_task(async function test_classic_worker_import_blocking_and_context() {
       Assert.equal(blocked.imported, 0, "The blocked import did not execute");
       if (captured.browserId === browserId) {
         Assert.equal(blocker.getBlockedCount(browserId), 1);
+        blocker.addDomainExceptionForSite("example.org", "example.com");
+        Assert.equal((await workerRequest(browser, url, "import")).imported, 1);
+        Assert.equal(blocker.getBlockedCount(browserId), 1);
       } else {
         Assert.equal(
           captured.browserId,
@@ -818,6 +830,7 @@ add_task(async function test_classic_worker_import_blocking_and_context() {
     } finally {
       Services.obs.removeObserver(observer, "http-on-examine-response");
       trace.restore();
+      blocker.removeDomainExceptionForSite("example.org", "example.com");
       publishNativeRules();
     }
   });
