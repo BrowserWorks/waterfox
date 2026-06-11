@@ -1,0 +1,4 @@
+[DEFAULT]
+tags = "waterfox_statusbar"
+
+["browser_statusbar.js"]

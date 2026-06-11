@@ -119,6 +119,7 @@ const BROWSER_UI_CONTAINER_IDS = {
   TabsToolbar: "tabs-bar",
   "vertical-tabs": "vertical-tabs-container",
   PersonalToolbar: "bookmarks-bar",
+  "status-dummybar": "status-bar",
   "appMenu-popup": "app-menu",
   tabContextMenu: "tabs-context",
   contentAreaContextMenu: "content-context",
