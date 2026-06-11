@@ -1,0 +1,44 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Waterfox userContent media audit</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    font: menu;
+  }
+
+  body {
+    margin: 0;
+    padding: 24px;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  main {
+    display: grid;
+    gap: 20px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  h1,
+  p {
+    margin: 0;
+  }
+
+  video {
+    width: 100%;
+    max-height: 480px;
+    background: linear-gradient(135deg, #182848, #4b6cb7);
+  }
+
+  audio {
+    width: 100%;
+  }
+</style>
+<main>
+  <h1>Local media controls</h1>
+  <p>The video has no audio track; the audio control uses the local MP4 track.</p>
+  <video id="audit-video" controls preload="metadata" src="gizmo-noaudio.webm"></video>
+  <audio id="audit-audio" controls preload="metadata" src="gizmo.mp4"></audio>
+</main>
