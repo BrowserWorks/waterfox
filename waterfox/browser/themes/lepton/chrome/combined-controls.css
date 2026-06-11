@@ -1,0 +1,222 @@
+@namespace xul url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+@namespace html url("http://www.w3.org/1999/xhtml");
+/** Combined Controls *********************************************************/
+@media -moz-pref("userChrome.combined.nav_button") or -moz-pref("userChrome.combined.nav_button.home_button") {
+  #nav-bar {
+    --uc-combined-circlebutton-background: hsla(0, 100%, 100%, 0.5);
+    --uc-combined-circlebutton-hover-background: var(--uc-combined-circlebutton-background);
+    --uc-combined-circlebutton-active-background: var(--toolbarbutton-active-background);
+    --uc-combined-circlebutton-border-color: hsla(240, 5%, 5%, 0.3);
+    --uc-toolbarbutton-boundary: calc(var(--toolbarbutton-padding-outer) + var(--toolbarbutton-padding-inner));
+    --uc-toolbarbutton-padding: calc(2 * var(--uc-toolbarbutton-boundary));
+    --uc-toolbarbutton-size: calc(12px + var(--uc-toolbarbutton-padding));
+    --uc-toolbarbutton-halfsize: calc(6px + var(--uc-toolbarbutton-boundary));
+    --uc-urlbar-icon-size: calc(16px + 2 * var(--urlbar-icon-padding));
+  }
+  #nav-bar[brighttext] {
+    --uc-combined-circlebutton-background: var(--toolbarbutton-hover-background);
+    --uc-combined-circlebutton-hover-background: var(--toolbarbutton-active-background);
+    --uc-combined-circlebutton-active-background: color-mix(in srgb, currentColor 20%, transparent);
+  }
+  #nav-bar-customization-target > * {
+    order: 1;
+    -moz-box-ordinal-group: 1;
+  }
+  #nav-bar-customization-target > #urlbar-container {
+    order: 5;
+    -moz-box-ordinal-group: 5;
+  }
+  #nav-bar-customization-target > #urlbar-container ~ * {
+    order: 7;
+    -moz-box-ordinal-group: 7;
+  }
+}
+@media -moz-pref("userChrome.combined.nav_button") {
+  #nav-bar-customization-target > #forward-button {
+    --uc-forward-button-margin: calc(-1 * var(--uc-toolbarbutton-boundary) + 1px);
+    z-index: 2;
+    position: relative;
+  }
+  #nav-bar-customization-target > #forward-button > .toolbarbutton-icon {
+    padding-inline-end: var(--urlbar-icon-padding) !important;
+    padding-block: var(--urlbar-icon-padding) !important;
+    height: var(--uc-urlbar-icon-size) !important;
+  }
+  #nav-bar-customization-target > #forward-button > .toolbarbutton-icon {
+    background-color: var(--uc-combined-circlebutton-background);
+  }
+  #nav-bar-customization-target > #forward-button:not([disabled], [open]):hover > .toolbarbutton-icon {
+    background-color: var(--uc-combined-circlebutton-hover-background) !important;
+    box-shadow: 0 1px 6px hsla(0deg, 0%, 0%, 0.1);
+    border-color: hsla(240deg, 5%, 5%, 0.35);
+  }
+  #nav-bar-customization-target > #forward-button[open] > .toolbarbutton-icon,
+  #nav-bar-customization-target > #forward-button:not([disabled]):hover:active > .toolbarbutton-icon {
+    background-color: var(--uc-combined-circlebutton-active-background) !important;
+    border-color: hsla(240deg, 5%, 5%, 0.4);
+  }
+  #nav-bar-customization-target > #forward-button[disabled="true"] > .toolbarbutton-icon {
+    background-color: color-mix(in srgb, var(--toolbarbutton-hover-background), var(--toolbar-field-background-color) 40%) !important;
+    fill: color-mix(in srgb, var(--toolbarbutton-icon-fill), transparent 60%);
+  }
+  @media not -moz-pref("userChrome.autohide.forward_button") {
+    #nav-bar-customization-target > #forward-button[disabled="true"][disabled="true"] {
+      opacity: 1 !important;
+    }
+  }
+  @media not -moz-pref("userChrome.autohide.forward_button") {
+    #nav-bar-customization-target > #forward-button {
+      margin-inline-start: var(--uc-forward-button-margin) !important;
+    }
+  }
+  @media -moz-pref("userChrome.autohide.forward_button") {
+    #nav-bar-customization-target > #forward-button:not([disabled="true"]) {
+      margin-inline-start: var(--uc-forward-button-margin) !important;
+    }
+  }
+  #nav-bar-customization-target > #back-button {
+    position: relative;
+  }
+  @media not -moz-pref("userChrome.combined.nav_button.home_button") {
+    #nav-bar-customization-target > #back-button > .toolbarbutton-icon {
+      background-color: var(--uc-combined-circlebutton-background);
+    }
+    #nav-bar-customization-target > #back-button:not([disabled], [open]):hover > .toolbarbutton-icon {
+      background-color: var(--uc-combined-circlebutton-hover-background) !important;
+      box-shadow: 0 1px 6px hsla(0deg, 0%, 0%, 0.1);
+      border-color: hsla(240deg, 5%, 5%, 0.35);
+    }
+    #nav-bar-customization-target > #back-button[open] > .toolbarbutton-icon,
+    #nav-bar-customization-target > #back-button:not([disabled]):hover:active > .toolbarbutton-icon {
+      background-color: var(--uc-combined-circlebutton-active-background) !important;
+      border-color: hsla(240deg, 5%, 5%, 0.4);
+    }
+    #nav-bar-customization-target > #back-button[disabled="true"] > .toolbarbutton-icon {
+      background-color: color-mix(in srgb, var(--toolbarbutton-hover-background), var(--toolbar-field-background-color) 40%) !important;
+      fill: color-mix(in srgb, var(--toolbarbutton-icon-fill), transparent 60%);
+    }
+    @media not -moz-pref("userChrome.autohide.back_button") {
+      #nav-bar-customization-target > #back-button[disabled="true"][disabled="true"] {
+        opacity: 1 !important;
+      }
+    }
+  }
+  @media -moz-pref("userChrome.combined.nav_button.home_button") {
+    #nav-bar-customization-target > #back-button {
+      z-index: 2;
+    }
+    #nav-bar-customization-target > #back-button {
+      margin-inline-end: calc(-1 * var(--uc-toolbarbutton-boundary) - 1px) !important;
+    }
+    #nav-bar-customization-target > #back-button > .toolbarbutton-icon {
+      background-color: var(--uc-combined-circlebutton-background);
+    }
+    #nav-bar-customization-target > #back-button:not([disabled], [open]):hover > .toolbarbutton-icon {
+      background-color: var(--uc-combined-circlebutton-hover-background) !important;
+      box-shadow: 0 1px 6px hsla(0deg, 0%, 0%, 0.1);
+      border-color: hsla(240deg, 5%, 5%, 0.35);
+    }
+    #nav-bar-customization-target > #back-button[open] > .toolbarbutton-icon,
+    #nav-bar-customization-target > #back-button:not([disabled]):hover:active > .toolbarbutton-icon {
+      background-color: var(--uc-combined-circlebutton-active-background) !important;
+      border-color: hsla(240deg, 5%, 5%, 0.4);
+    }
+    #nav-bar-customization-target > #back-button[disabled="true"] > .toolbarbutton-icon {
+      background-color: color-mix(in srgb, var(--toolbarbutton-hover-background), var(--toolbar-field-background-color) 40%) !important;
+      fill: color-mix(in srgb, var(--toolbarbutton-icon-fill), transparent 60%);
+    }
+    @media not -moz-pref("userChrome.autohide.back_button") {
+      #nav-bar-customization-target > #back-button[disabled="true"][disabled="true"] {
+        opacity: 1 !important;
+      }
+    }
+    #nav-bar-customization-target > #back-button > .toolbarbutton-icon {
+      padding-inline-start: var(--urlbar-icon-padding) !important;
+      padding-block: var(--urlbar-icon-padding) !important;
+      height: var(--uc-urlbar-icon-size) !important;
+    }
+  }
+  @media not -moz-pref("userChrome.combined.nav_button.home_button") {
+    #nav-bar-customization-target > #back-button {
+      z-index: 3 !important;
+      background-color: var(--toolbar-bgcolor, var(--toolbar-background-color)) !important;
+      background-clip: content-box !important;
+      border-radius: 100%;
+      padding-block: 0 !important;
+    }
+    @media -moz-pref("userChrome.padding.toolbar_button") {
+      @media -moz-pref("userChrome.padding.toolbar_button.compact") {
+        #nav-bar-customization-target > #back-button {
+          --toolbarbutton-padding-inner: var(--uc-toolbarbutton-inner-padding-default);
+        }
+      }
+    }
+    @media not -moz-pref("userChrome.autohide.back_button") {
+      #nav-bar-customization-target > #back-button {
+        padding-inline-end: 0 !important;
+      }
+    }
+    @media -moz-pref("userChrome.autohide.back_button") {
+      #nav-bar-customization-target > #back-button:not([disabled="true"]) {
+        padding-inline-end: 0 !important;
+      }
+      #nav-bar-customization-target > #back-button[disabled="true"] {
+        padding-inline-end: calc(var(--toolbarbutton-padding-outer) + 1px) !important;
+      }
+    }
+    #nav-bar-customization-target > #back-button > menupopup {
+      margin-top: -1px !important;
+    }
+    #nav-bar-customization-target > #back-button > .toolbarbutton-icon {
+      background-origin: padding-box;
+      background-clip: padding-box;
+      border: 1px solid var(--uc-combined-circlebutton-border-color);
+      border-radius: 10000px !important;
+      padding-inline-end: var(--urlbar-icon-padding) !important;
+      height: auto !important;
+    }
+  }
+}
+@media -moz-pref("userChrome.combined.nav_button") {
+  @media -moz-pref("userChrome.combined.nav_button.home_button") {
+    #nav-bar-customization-target > #home-button {
+      order: 4;
+      -moz-box-ordinal-group: 4;
+      position: relative;
+      z-index: 3 !important;
+      background-color: var(--toolbar-bgcolor, var(--toolbar-background-color)) !important;
+      background-clip: content-box !important;
+      border-radius: 100%;
+      padding-block: 0 !important;
+      padding-inline-end: 0 !important;
+    }
+    @media -moz-pref("userChrome.padding.toolbar_button") {
+      @media -moz-pref("userChrome.padding.toolbar_button.compact") {
+        #nav-bar-customization-target > #home-button {
+          --toolbarbutton-padding-inner: var(--uc-toolbarbutton-inner-padding-default);
+        }
+      }
+    }
+    #nav-bar-customization-target > #home-button > menupopup {
+      margin-top: -1px !important;
+    }
+    #nav-bar-customization-target > #home-button > .toolbarbutton-icon {
+      background-color: var(--uc-combined-circlebutton-background);
+      background-origin: padding-box;
+      background-clip: padding-box;
+      border: 1px solid var(--uc-combined-circlebutton-border-color);
+      border-radius: 10000px !important;
+      padding-inline-end: var(--urlbar-icon-padding) !important;
+      height: auto !important;
+    }
+    #nav-bar-customization-target > #home-button:hover > .toolbarbutton-icon {
+      background-color: var(--uc-combined-circlebutton-hover-background) !important;
+      box-shadow: 0 1px 6px hsla(0deg, 0%, 0%, 0.1);
+      border-color: hsla(240deg, 5%, 5%, 0.35);
+    }
+    #nav-bar-customization-target > #home-button:hover:active > .toolbarbutton-icon {
+      background-color: var(--uc-combined-circlebutton-active-background) !important;
+      border-color: hsla(240deg, 5%, 5%, 0.4);
+    }
+  }
+}

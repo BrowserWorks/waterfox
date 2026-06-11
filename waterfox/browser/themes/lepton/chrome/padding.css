@@ -1,0 +1,499 @@
+@namespace xul url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+@namespace html url("http://www.w3.org/1999/xhtml");
+/** Reduce Padding ************************************************************/
+/*= Tab Bar - Distribution padding, radius ===================================*/
+@media -moz-pref("browser.theme.waterfox.browserStyle", "photon") and (-moz-pref("userChrome.tab.lepton_like_padding") or -moz-pref("userChrome.tab.photon_like_padding")) {
+  :root {
+    --proton-tab-block-margin: var(--tab-block-margin) !important; /* Original: 4px, Legacy */
+  }
+  :root[uidensity="touch"] {
+    /* Like Original */
+    --tab-block-margin: 4px !important;
+  }
+}
+@media -moz-pref("browser.theme.waterfox.browserStyle", "photon") and (-moz-pref("userChrome.tab.lepton_like_padding")) {
+  :root {
+    --tab-block-margin: 2px !important; /* New version of --proton-tab-block-margin */
+  }
+  #tabbrowser-tabs[orient="vertical"] {
+    --tab-block-margin: 4px !important;
+  }
+  #tabbrowser-tabs[orient="vertical"] .tabbrowser-tab {
+    margin-block: -1px !important;
+  }
+}
+@media -moz-pref("browser.theme.waterfox.browserStyle", "photon") and (-moz-pref("userChrome.tab.photon_like_padding")) {
+  :root {
+    --tab-block-margin: 0px !important;
+  }
+}
+/*= Tab Bar - Reduce Width, Show more tabs ===================================*/
+@media -moz-pref("userChrome.padding.first_tab") {
+  :root {
+    --uc-space-left-tabbar: 12px;
+  }
+  @media not -moz-pref("userChrome.padding.first_tab.always") {
+    :root[sizemode="normal"] #tabbrowser-tabs[orient="horizontal"] {
+      padding-inline-start: var(--uc-space-left-tabbar) !important;
+    }
+  }
+  @media -moz-pref("userChrome.padding.first_tab.always") {
+    #tabbrowser-tabs[orient="horizontal"] {
+      padding-inline-start: var(--uc-space-left-tabbar) !important;
+    }
+  }
+}
+@media -moz-pref("userChrome.padding.tabbar_width") {
+  #tabbrowser-tabs[orient="horizontal"] {
+    --tab-min-width-pref: 60px !important;
+    --tab-max-width: 180px;
+  }
+  /* Titlebar Space */
+  :root {
+    --uc-title-pre-spacer: 30px; /* Original: 40px */
+    --uc-title-post-spacer: 25px; /* Original: 40px */
+  }
+  :root:-moz-locale-dir(rtl) {
+    --uc-title-pre-spacer: 25px;
+    --uc-title-post-spacer: 30px;
+  }
+  @media -moz-pref("layout.css.osx-font-smoothing.enabled") {
+    .titlebar-spacer[type="pre-tabs"] {
+      width: var(--uc-title-pre-spacer) !important;
+    }
+    .titlebar-spacer[type="post-tabs"] {
+      width: var(--uc-title-post-spacer) !important;
+    }
+  }
+  @media (-moz-gtk-csd-available) and (-moz-gtk-csd-reversed-placement) {
+    .titlebar-spacer[type="pre-tabs"] {
+      width: var(--uc-title-pre-spacer) !important;
+    }
+    .titlebar-spacer[type="post-tabs"] {
+      width: var(--uc-title-post-spacer) !important;
+    }
+  }
+  @media (-moz-platform: windows) {
+    .titlebar-spacer[type="pre-tabs"] {
+      width: var(--uc-title-post-spacer) !important;
+    }
+    .titlebar-spacer[type="post-tabs"] {
+      width: var(--uc-title-pre-spacer) !important;
+    }
+  }
+  @media (-moz-gtk-csd-available) and (-moz-gtk-csd-reversed-placement: 0) {
+    .titlebar-spacer[type="pre-tabs"] {
+      width: var(--uc-title-post-spacer) !important;
+    }
+    .titlebar-spacer[type="post-tabs"] {
+      width: var(--uc-title-pre-spacer) !important;
+    }
+  }
+  /* Tabbar Buttons */
+  :root {
+    --newtab-button-minus-width-padding: 2px;
+    --newtab-button-width-padding: calc(var(--toolbarbutton-padding-inner) - var(--newtab-button-minus-width-padding));
+  }
+  #widget-overflow-mainView #new-tab-button,
+  #widget-overflow-mainView #alltabs-button {
+    --newtab-button-width-padding: 0px;
+  }
+  #new-tab-button > .toolbarbutton-icon,
+  #alltabs-button > .toolbarbutton-badge-stack {
+    /* Original: calc(2 * var(--toolbarbutton-padding-inner) + 16px) */
+    width: calc(2 * var(--newtab-button-width-padding) + 16px) !important;
+    /* Original: --toolbarbutton-inner-padding */
+    padding-left: var(--newtab-button-width-padding) !important;
+    padding-right: var(--newtab-button-width-padding) !important;
+  }
+  @media not -moz-pref("browser.theme.waterfox.browserStyle", "photon"), not -moz-pref("userChrome.tab.photon_like_padding") {
+    #tabbrowser-tabs[haspinnedtabs] > #tabbrowser-arrowscrollbox > .tabbrowser-tab:is([first-visible-unpinned-tab], :nth-child(1 of :not([pinned], [hidden]))) {
+      margin-inline-start: 1px !important;
+    }
+  }
+  @media -moz-pref("browser.theme.waterfox.browserStyle", "photon") and (-moz-pref("userChrome.tab.photon_like_padding")) {
+    #tabbrowser-tabs[haspinnedtabs] > #tabbrowser-arrowscrollbox > .tabbrowser-tab:is([first-visible-unpinned-tab], :nth-child(1 of :not([pinned], [hidden]))) {
+      margin-inline-start: 0 !important;
+    }
+  }
+  :root:not([uidensity="touch"]) #pinned-tabs-container,
+  :root:not([uidensity="touch"]) #tabbrowser-arrowscrollbox {
+    --scrollbtn-inner-padding: 1px;
+    --scrollbtn-outer-padding: 3px;
+  }
+  #scrollbutton-up {
+    padding-left: var(--scrollbtn-inner-padding, 4px) !important; /* Original: 4px */
+    padding-right: var(--scrollbtn-outer-padding, 4px) !important;
+  }
+  #scrollbutton-down {
+    padding-left: var(--scrollbtn-outer-padding, 4px) !important; /* Original: 4px */
+    padding-right: var(--scrollbtn-inner-padding, 4px) !important;
+  }
+  :root:not([uidensity="touch"]) #new-tab-button,
+  #alltabs-button {
+    --toolbarbutton-padding-outer: 1px;
+    /* Original: 2px*/
+  }
+  /* Tab - Max Size */
+  @media not -moz-pref("browser.theme.waterfox.browserStyle", "photon"), not -moz-pref("userChrome.tab.photon_like_padding") {
+    :root {
+      --tab-max-width: 240px;
+    }
+  }
+  @media -moz-pref("browser.theme.waterfox.browserStyle", "photon") and (-moz-pref("userChrome.tab.photon_like_padding")) {
+    :root {
+      --tab-max-width: 225px;
+    }
+  }
+  @media -moz-pref("userChrome.tabbar.one_liner") {
+    @media not -moz-pref("userChrome.tabbar.one_liner.responsive") {
+      :root {
+        --tab-max-width: 180px;
+      }
+    }
+    @media -moz-pref("userChrome.tabbar.one_liner.responsive") {
+      @media screen and (min-width: 1100px) {
+        :root {
+          --tab-max-width: 180px;
+        }
+      }
+    }
+  }
+  .tabbrowser-tab[fadein]:not([pinned]):not([style*="max-width"]) {
+    max-width: var(--tab-max-width) !important; /* Original: 225px */
+  }
+  #tabbrowser-tabs[orient="vertical"][expanded] .tabbrowser-tab[fadein]:not([pinned]):not([style*="max-width"]) {
+    max-width: none !important;
+  }
+  #tabbrowser-tabs[orient="horizontal"] tab-group[collapsed] > .tabbrowser-tab[fadein]:not([pinned]):not([style*="max-width"]) {
+    min-width: 0 !important;
+    max-width: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow-clip-margin: 0;
+  }
+  /* neighbouring tabs should "pinch" together */
+  :root[customizing="true"] #tabbrowser-arrowscrollbox-periphery,
+  #tabbrowser-tabs:not([hasadjacentnewtabbutton]):not([overflow="true"]) > #pinned-tabs-container > #tabbrowser-arrowscrollbox-periphery,
+  #tabbrowser-tabs:not([hasadjacentnewtabbutton]):not([overflow="true"]) > #tabbrowser-arrowscrollbox > #tabbrowser-arrowscrollbox-periphery {
+    min-width: 3px;
+  }
+  #tabbrowser-tabs[orient="horizontal"] .tab-group-label-container {
+    margin-inline-start: 4px !important;
+  }
+  @media not -moz-pref("browser.theme.waterfox.browserStyle", "photon"), not -moz-pref("userChrome.tab.photon_like_padding") {
+    @media -moz-pref("browser.theme.waterfox.browserStyle", "photon") and (-moz-pref("userChrome.tab.lepton_like_padding")) {
+      #TabsToolbar .tabbrowser-tab[pinned] {
+        padding-inline: 1px !important;
+      }
+      #TabsToolbar .tabbrowser-tab:not([pinned]):not(:first-of-type) {
+        margin-inline: -1px !important;
+      }
+      #TabsToolbar .tabbrowser-tab:not([pinned]):first-of-type {
+        margin-inline-end: -1px !important;
+      }
+    }
+    #TabsToolbar .tabbrowser-tab:not(:last-of-type) {
+      margin-inline-end: -2px !important;
+    }
+  }
+  @media -moz-pref("browser.theme.waterfox.browserStyle", "photon") and (-moz-pref("userChrome.tab.photon_like_padding")) {
+    .tabbrowser-tab {
+      padding-inline: 0 !important;
+    }
+  }
+}
+/*= Tab Bar - Reduce Height, Show more contents ==============================*/
+@media -moz-pref("userChrome.padding.drag_space") {
+  /* for Extra Drag Space */
+  :root {
+    --uc-space-above-tabbar: 8px; /* If the option is not specified, it is equivalent to 0px. */
+  }
+  @media (-moz-platform: windows) {
+    :root:is([tabsintitlebar], [customtitlebar])[sizemode="normal"] #toolbar-menubar[autohide="true"] {
+      height: calc(var(--tab-min-height) + var(--uc-space-above-tabbar) - var(--tabs-navbar-shadow-size));
+    }
+    @media -moz-pref("userChrome.padding.drag_space.maximized") {
+      :root:is([tabsintitlebar], [customtitlebar])[sizemode="maximized"] #toolbar-menubar[autohide="true"] {
+        height: calc(var(--tab-min-height) + var(--uc-space-above-tabbar) - var(--tabs-navbar-shadow-size));
+      }
+    }
+  }
+  @media (-moz-gtk-csd-available) {
+    :root:is([tabsintitlebar], [customtitlebar])[sizemode="normal"] #toolbar-menubar[autohide="true"] {
+      height: calc(var(--tab-min-height) + var(--uc-space-above-tabbar));
+    }
+    @media -moz-pref("userChrome.padding.drag_space.maximized") {
+      :root:is([tabsintitlebar], [customtitlebar])[sizemode="maximized"] #toolbar-menubar[autohide="true"] {
+        height: calc(var(--tab-min-height) + var(--uc-space-above-tabbar));
+      }
+    }
+  }
+  @media -moz-pref("layout.css.osx-font-smoothing.enabled") {
+    #TabsToolbar > .toolbar-items {
+      padding-top: var(--uc-space-above-tabbar) !important;
+    }
+  }
+  @media (-moz-platform: windows), (-moz-gtk-csd-available) {
+    /* Add extra space to titlebar for dragging */
+    :root[sizemode="normal"][chromehidden~="menubar"] #TabsToolbar > .toolbar-items,
+    :root[sizemode="normal"] #toolbar-menubar[autohide="true"][inactive] + #TabsToolbar > .toolbar-items {
+      padding-top: var(--uc-space-above-tabbar) !important;
+    }
+    @media -moz-pref("userChrome.padding.drag_space.maximized") {
+      :root[sizemode="maximized"][chromehidden~="menubar"] #TabsToolbar > .toolbar-items,
+      :root[sizemode="maximized"] #toolbar-menubar[autohide="true"][inactive] + #TabsToolbar > .toolbar-items {
+        padding-top: var(--uc-space-above-tabbar) !important;
+      }
+    }
+  }
+}
+@media -moz-pref("userChrome.padding.tabbar_height") {
+  /* Toolbar Height */
+  @media -moz-pref("browser.theme.waterfox.browserStyle", "photon") and (-moz-pref("userChrome.tab.lepton_like_padding")) {
+    :root:not([uidensity]) {
+      --tab-min-height: 36px !important;
+    }
+    :root[uidensity="compact"] {
+      --tab-min-height: 32px !important;
+    }
+    :root[uidensity="touch"] {
+      --tab-min-height: 41px !important;
+    }
+  }
+  @media -moz-pref("browser.theme.waterfox.browserStyle", "photon") and (-moz-pref("userChrome.tab.photon_like_padding")) {
+    :root:not([uidensity]) {
+      --tab-min-height: 32px !important;
+    }
+    :root[uidensity="compact"] {
+      --tab-min-height: 29px !important;
+    }
+    :root[uidensity="touch"] {
+      --tab-min-height: 41px !important;
+    }
+    /* Top Margin */
+    .tab-background,
+    .tab-content {
+      margin-top: 0 !important;
+    }
+  }
+  @media not -moz-pref("browser.theme.waterfox.browserStyle", "photon"), not -moz-pref("userChrome.tab.lepton_like_padding") {
+    @media not -moz-pref("browser.theme.waterfox.browserStyle", "photon"), not -moz-pref("userChrome.tab.photon_like_padding") {
+      :root:not([uidensity]) {
+        --tab-min-height: 36px !important; /* 38px -> 36px */
+      }
+      :root[uidensity="compact"] {
+        --tab-min-height: 29px !important; /* 36px -> 29px */
+      }
+    }
+  }
+  :root {
+    /* Works with TabMixPlus */
+    --tab-min-height_mlt: calc(var(--tab-min-height) + 2 * (var(--tab-block-margin, var(--proton-tab-block-margin, 0px)))) !important;
+  }
+
+  @media -moz-pref("browser.theme.waterfox.browserStyle", "photon") and (-moz-pref("userChrome.tab.connect_to_window")) {
+    :root {
+      --tab-min-height_mlt: calc(var(--tab-min-height) + var(--tab-block-margin, var(--proton-tab-block-margin, 0px))) !important;
+    }
+    #TabsToolbar {
+      --toolbarbutton-padding-inner: calc((var(--tab-min-height) - 18px) / 2) !important;
+      /* Prevent overflow pinned tab bottom margin */
+    }
+    :root:not([uidensity="compact"]) #TabsToolbar #pinned-tabs-container,
+    #TabsToolbar #pinned-tabs-container[overflowing="true"] > .tabbrowser-tab[pinned="true"],
+    #TabsToolbar #pinned-tabs-container[overflowing="true"] > .tabbrowser-tab[pinned="true"] .tab-stack,
+    #TabsToolbar #pinned-tabs-container[overflowing="true"] > .tabbrowser-tab[pinned="true"] .tab-content,
+    :root:not([uidensity="compact"]) #TabsToolbar #tabbrowser-arrowscrollbox,
+    #TabsToolbar #tabbrowser-arrowscrollbox[overflowing="true"] > .tabbrowser-tab[pinned="true"],
+    #TabsToolbar #tabbrowser-arrowscrollbox[overflowing="true"] > .tabbrowser-tab[pinned="true"] .tab-stack,
+    #TabsToolbar #tabbrowser-arrowscrollbox[overflowing="true"] > .tabbrowser-tab[pinned="true"] .tab-content {
+      max-height: var(--tab-min-height) !important;
+    }
+    :root[uidensity="compact"] #TabsToolbar #pinned-tabs-container,
+    :root[uidensity="compact"] #TabsToolbar #tabbrowser-arrowscrollbox {
+      height: var(--tab-min-height) !important;
+    }
+  }
+  /* Scroll Button - Size Fix */
+  :root #pinned-tabs-container,
+  :root #tabbrowser-arrowscrollbox {
+    --scrollbtn-vertical-padding: 3px;
+    --scrollbtn-vertical-border: 2px;
+    --scrollbtn-border-radius: 7px;
+  }
+  #scrollbutton-up,
+  #scrollbutton-down {
+    /* Original: var(--toolbarbutton-padding-inner) calc(var(--toolbarbutton-padding-inner) - 6px) = 9px */
+    /* https://github.com/mozilla/gecko-dev/blob/71b1259afd1cdaf41871ae675c2dadb967ea5b34/browser/themes/shared/toolbarbuttons.inc.css#L142 */
+    padding-top: var(--scrollbtn-vertical-padding, var(--toolbarbutton-padding-inner)) !important;
+    padding-bottom: var(--scrollbtn-vertical-padding, var(--toolbarbutton-padding-inner)) !important;
+    /* Original: 4px */
+    border-top-width: var(--scrollbtn-vertical-border, 4px) !important;
+    border-bottom-width: var(--scrollbtn-vertical-border, 4px) !important;
+    /* Original: calc(var(--tab-border-radius) + 4px) = 8px */
+    border-radius: var(--scrollbtn-border-radius, calc(var(--tab-border-radius) + 4px)) !important;
+  }
+  :root:is([tabsintitlebar], [customtitlebar]):not([uidensity="compact"]) #toolbar-menubar[autohide="true"] {
+    height: calc(var(--tab-min-height) - var(--tabs-navbar-shadow-size) - 2px);
+  }
+  :root:not([uidensity]) {
+    --tab-min-height: 30px !important;
+  }
+  :root[uidensity="compact"] {
+    --tab-min-height: 28px !important;
+  }
+  :root[uidensity="touch"] {
+    --tab-min-height: 36px !important;
+  }
+}
+/*= Tool Bar - Button Padding ================================================*/
+@media -moz-pref("userChrome.padding.toolbar_button") or (-moz-pref("browser.theme.waterfox.browserStyle", "photon") and -moz-pref("userChrome.tab.newtab_button_smaller")) {
+  :root {
+    --uc-small-toolbarbutton-inner-padding: 6px;
+    --uc-toolbarbutton-inner-padding-default: 8px;
+  }
+  :root[uidensity="compact"] {
+    --uc-small-toolbarbutton-inner-padding: 4px;
+    --uc-toolbarbutton-inner-padding-default: 6px;
+  }
+  :root[uidensity="touch"] #tabs-newtab-button > .toolbarbutton-icon {
+    --uc-small-toolbarbutton-inner-padding: 9px;
+    --uc-toolbarbutton-inner-padding-default: 9px;
+  }
+}
+@media -moz-pref("userChrome.padding.toolbar_button") {
+  :root[uidensity="compact"] {
+    --toolbarbutton-padding-outer: var(--toolbarbutton-padding-outer-narrow, 1px) !important;
+  }
+  @media -moz-pref("userChrome.padding.toolbar_button.compact") {
+    :root {
+      --toolbarbutton-padding-inner: var(--uc-small-toolbarbutton-inner-padding) !important;
+    }
+  }
+}
+/*= Nav Bar - Reduce Width ===================================================*/
+/*= URL Bar - Reduce Padding =================================================*/
+@media -moz-pref("userChrome.padding.urlView_result") {
+  .urlbarView {
+    --urlbarView-row-padding-block: 2px;
+    --urlbarView-row-min-height: 28px;
+    margin-inline: 0 !important;
+    width: 100% !important;
+  }
+}
+/*= BookMark Bar - Reduce Height =============================================*/
+@media -moz-pref("userChrome.padding.bookmarkbar") {
+  :root[uidensity="compact"] #PersonalToolbar toolbarbutton {
+    margin-top: 0px !important; /* Original: 2px */
+    margin-bottom: 1px !important;
+  }
+}
+/*= Info Bar - Reduce Padding ================================================*/
+@media -moz-pref("userChrome.padding.infobar") or -moz-pref("userChrome.autohide.infobar") {
+  #tab-notification-deck notification-message[message-bar-type="infobar"]:not([style*="margin-top"]) {
+    margin: var(--infobar-message-margin, 0 4px var(--infobar-message-vertical-margin, 8px)) !important;
+  }
+}
+@media -moz-pref("userChrome.padding.infobar") {
+  :root:not([uidensity]) notification-message {
+    --infobar-message-vertical-margin: 3px;
+    --infobar-button-vertical-margin: 3px;
+    --infobar-container-padding-block: 1px;
+    --infobar-text-padding-block: 2px;
+    --infobar-close-margin-block: 1px;
+    --message-bar-container-min-height: 28px;
+  }
+  :root[uidensity="compact"] notification-message {
+    --infobar-message-vertical-margin: 2px;
+    --infobar-button-vertical-margin: 2px;
+    --infobar-container-padding-block: 0px;
+    --infobar-text-padding-block: 1px;
+    --infobar-close-margin-block: 0px;
+    --message-bar-container-min-height: 24px;
+  }
+  :root[uidensity="touch"] notification-message {
+    --infobar-message-vertical-margin: 4px;
+    --infobar-button-vertical-margin: 4px;
+    --infobar-container-padding-block: 2px;
+    --infobar-text-padding-block: 3px;
+    --infobar-close-margin-block: 2px;
+    --message-bar-container-min-height: 32px;
+  }
+
+  /* Hard coded for compatibility - Disappearing phenomenon */
+  .container.infobar::before {
+    content: "";
+    display: block;
+    width: 2px;
+    position: absolute;
+    background-image: linear-gradient(0deg, #9059ff 0%, #ff4aa2 52.08%, #ffbd4f 100%);
+    top: 0;
+    inset-inline-start: 0;
+    height: 100%;
+    border-start-start-radius: 4px;
+    border-end-start-radius: 4px;
+  }
+}
+/*= Menu - Reduce Padding ====================================================*/
+/*= Bookmark Menu - Reduce Padding ===========================================*/
+@media -moz-pref("userChrome.padding.bookmark_menu") {
+  :root {
+    --bookmark-menu-padding: 3px;
+  }
+  :root[uidensity="compact"] {
+    --bookmark-menu-padding: 1.5px;
+  }
+  :root:not([uidensity="touch"]) #BMB_bookmarksPopup .subviewbutton,
+  :root:not([uidensity="touch"]) #PlacesToolbar menupopup[placespopup] .bookmark-item,
+  :root:not([uidensity="touch"]) #PlacesToolbar menupopup[placespopup] .openintabs-menuitem {
+    padding-block: var(--bookmark-menu-padding) !important;
+  }
+  @media -moz-pref("userChrome.padding.bookmark_menu.compact") {
+    :root:not([uidensity="touch"]) #BMB_bookmarksPopup .bookmark-item,
+    :root:not([uidensity="touch"]) #PlacesToolbar menupopup[placespopup] .bookmark-item {
+      min-height: unset !important; /* Original: 24px */
+    }
+  }
+}
+/*= Global Menu - Set Padding ================================================*/
+@media -moz-pref("userChrome.padding.global_menubar") {
+  /* Vertical Align - Center & Height: 100%  */
+  #main-menubar {
+    flex: 1 !important;
+    -moz-box-flex: 1 !important;
+  }
+  /* Rounding */
+  #main-menubar > menu {
+    border-radius: 4px;
+  }
+  /* Menubar item padding */
+  :root {
+    --global-menubar-padding: 2px;
+  }
+  :root[uidensity="compact"] {
+    --global-menubar-padding: 1px;
+  }
+  :root[uidensity="touch"] {
+    --global-menubar-padding: 4px;
+  }
+  #main-menubar > menu {
+    padding-block: var(--global-menubar-padding) !important;
+  }
+  /* Reduce items */
+  #main-menubar > menu > menupopup menuitem,
+  #main-menubar > menu > menupopup menu {
+    padding-block: var(--bookmark-menu-padding) !important;
+  }
+  @media -moz-pref("userChrome.compatibility.os.win11") {
+    #main-menubar > menu > menupopup menuitem,
+    #main-menubar > menu > menupopup menu {
+      --bookmark-menu-padding: 3px;
+    }
+    #main-menubar > menu > menupopup menuitem:is([type="checkbox"], [type="radio"]),
+    #main-menubar > menu > menupopup menu:is([type="checkbox"], [type="radio"]) {
+      --bookmark-menu-padding: 0px;
+    }
+  }
+}
+/*= Panel - Reduce padding ===================================================*/

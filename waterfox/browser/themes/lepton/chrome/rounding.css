@@ -1,0 +1,168 @@
+@namespace xul url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+@namespace html url("http://www.w3.org/1999/xhtml");
+/** Rounding ******************************************************************/
+@media -moz-pref("browser.theme.waterfox.browserStyle", "photon") {
+  .unified-extensions-item-menu-button.subviewbutton {
+    border-radius: var(--arrowpanel-menuitem-border-radius) !important;
+  }
+}
+
+@media -moz-pref("userChrome.rounding.square_tab") {
+  :root {
+    --tab-border-radius: 0px !important; /* Original: 4px */
+  }
+}
+@media -moz-pref("browser.theme.waterfox.browserStyle", "photon") {
+  @media not -moz-pref("userChrome.rounding.square_tab") {
+    :root {
+      --tab-border-radius: 4px !important;
+    }
+  }
+}
+
+@media -moz-pref("userChrome.rounding.square_button") {
+  :root {
+    --urlbar-icon-border-radius: 0px !important; /* Original: calc(var(--toolbarbutton-border-radius) - 1px); */
+  }
+  .toolbarbutton-1,
+  .toolbarbutton-icon,
+  .panel-info-button,
+  .searchbar-engine-one-off-item,
+  .urlbarView-button,
+  .urlbarView-tip-button,
+  .urlbarView-action,
+  toolbarbutton.bookmark-item:not(.subviewbutton),
+  #sidebar-switcher-target {
+    --toolbarbutton-border-radius: 0px; /* Original: 4px */
+  }
+  button,
+  .close-icon,
+  .toggle-group-label,
+  findbar toolbarbutton,
+  .notification-button,
+  #main-menubar > menu {
+    border-radius: 0px !important;
+  }
+}
+@media -moz-pref("userChrome.rounding.square_tab") or -moz-pref("userChrome.rounding.square_button") {
+  /* Fix Tab bar button radius */
+  #TabsToolbar .toolbarbutton-1:not(#tabs-newtab-button),
+  .tab-close-button {
+    --tab-border-radius: var(--toolbarbutton-border-radius);
+  }
+}
+@media -moz-pref("userChrome.rounding.square_panel") {
+  :root {
+    --arrowpanel-border-radius: 0px !important;
+  }
+  panel {
+    --panel-border-radius: 0px !important;
+  }
+  panel::part(content) {
+    border-radius: 0 !important;
+  }
+}
+@media -moz-pref("userChrome.rounding.square_panelitem") {
+  :root {
+    --arrowpanel-menuitem-border-radius: 0px !important;
+    --panel-menuitem-border-radius: 0px !important;
+    --subviewbutton-border-radius: 0px !important;
+  }
+}
+@media -moz-pref("userChrome.rounding.square_menupopup") {
+  menupopup {
+    --panel-border-radius: 0px !important;
+    border-radius: 0 !important;
+  }
+  menupopup::part(content) {
+    border-radius: 0 !important;
+  }
+}
+@media -moz-pref("userChrome.rounding.square_menuitem") {
+  menupopup {
+    --menuitem-border-radius: 0px !important;
+  }
+  xul|menulist:not([native]),
+  xul|menulist > xul|menupopup xul|menu,
+  xul|menulist > xul|menupopup xul|menuitem,
+  .customization-uidensity-menuitem {
+    border-radius: 0px !important;
+  }
+}
+@media -moz-pref("userChrome.rounding.square_infobox") {
+  #sanitizeEverythingWarningBox {
+    border-radius: 0px !important;
+  }
+}
+@media -moz-pref("userChrome.rounding.square_toolbar") {
+  :root {
+    --uc-rounding-toolbar: 0px;
+  }
+  .container.infobar,
+  .container.infobar::before,
+  notification-message {
+    border-radius: var(--uc-rounding-toolbar) !important;
+  }
+}
+@media -moz-pref("userChrome.rounding.square_field") {
+  :root {
+    --urlbar-border-radius: 0px !important;
+    --urlbarview-border-radius: 0px !important;
+  }
+  input:not([type="radio"], [type="checkbox"]),
+  textarea,
+  select,
+  menulist,
+  tree,
+  treecols,
+  listheader,
+  richlistbox,
+  search-textbox,
+  .subviewradio {
+    border-radius: 0 !important;
+  }
+  #urlbar-input-container,
+  #urlbar-background,
+  #searchbar {
+    --toolbarbutton-border-radius: 0px;
+    border-radius: 0 !important;
+  }
+}
+@media -moz-pref("userChrome.rounding.square_urlView_item") {
+  .urlbarView-row,
+  .urlbarView-row-inner,
+  .urlbarView-realtime-item {
+    --toolbarbutton-border-radius: 0px;
+    --urlbarView-row-border-radius: 0px;
+    border-radius: 0 !important;
+  }
+}
+@media -moz-pref("userChrome.rounding.square_checklabel") {
+  input[type="checkbox"],
+  .checkbox-check {
+    border-radius: 0px !important;
+  }
+}
+@media -moz-pref("userChrome.rounding.square_dialog") {
+  dialog,
+  .dialogBox {
+    border-radius: 0 !important;
+  }
+}
+/*= Library ==============================================================*/
+@media -moz-pref("userChrome.rounding.square_button") {
+  #placesToolbar > toolbarbutton,
+  #placesMenu > menu {
+    border-radius: 0 !important;
+  }
+}
+@media -moz-pref("userChrome.rounding.square_field") {
+  #searchFilter,
+  #detailsPane html|input,
+  #places input #editBMPanel_tagsSelectorRow > richlistbox {
+    border-radius: 0 !important;
+  }
+}
+/*
+--toolbarbutton-border-radius: 4px;
+*/

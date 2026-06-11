@@ -1,0 +1,72 @@
+@namespace xul url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+@namespace html url("http://www.w3.org/1999/xhtml");
+/** Url View UI ***************************************************************/
+/*= Url Bar - Icon box as Separator ==========================================*/
+@media -moz-pref("userChrome.urlbar.iconbox_with_separator") {
+  #identity-box,
+  #trust-icon-container {
+    /* separator */
+    position: relative;
+  }
+  .urlbar-input-container[pageproxystate="valid"] > #trust-icon-container:not(:hover, [open]),
+  #identity-box[pageproxystate="valid"].notSecureText > .identity-box-button:not(:hover, [open]),
+  #identity-box[pageproxystate="valid"].chromeUI > .identity-box-button:not(:hover, [open]),
+  #identity-box[pageproxystate="valid"].extensionPage > .identity-box-button:not(:hover, [open]) {
+    /* remove background from urlbar box */
+    background-color: transparent !important;
+  }
+  .urlbar-input-container[pageproxystate="valid"] > #trust-icon-container:not(:hover, [open])::after,
+  #identity-box[pageproxystate="valid"].notSecureText > .identity-box-button:not(:hover, [open])::after,
+  #identity-box[pageproxystate="valid"].chromeUI > .identity-box-button:not(:hover, [open])::after,
+  #identity-box[pageproxystate="valid"].extensionPage > .identity-box-button:not(:hover, [open])::after {
+    opacity: 0.375;
+  }
+  .urlbar-input-container[pageproxystate="valid"] > #trust-icon-container::after,
+  #identity-box[pageproxystate="valid"].notSecureText > .identity-box-button::after,
+  #identity-box[pageproxystate="valid"].chromeUI > .identity-box-button::after,
+  #identity-box[pageproxystate="valid"].extensionPage > .identity-box-button::after {
+    /* Box Model */
+    content: "";
+    position: absolute;
+    display: block;
+    /* Position */
+    inset-inline-end: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    /* Bar shape */
+    width: 1px;
+    height: 1em;
+    /* Bar Color */
+    opacity: 0;
+    background-color: currentColor;
+  }
+  #identity-box[pageproxystate="valid"] #identity-icon-label {
+    /* increase space between icon and text - as identity box padding */
+    padding-inline-start: 8px !important;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .identity-box-button::after,
+    #trust-icon-container::after {
+      transition: opacity 0.2s var(--animation-easing-function);
+    }
+  }
+}
+/*= Url View - Share Layout ==================================================*/
+/*= Url View - Looks like Launcher ===========================================*/
+
+/*= Url View - Always show page actions ======================================*/
+@media -moz-pref("userChrome.urlbar.always_show_page_actions") {
+  #urlbar:not([breakout-extend="true"]) #pageActionButton {
+    display: block !important;
+    visibility: visible !important;
+  }
+}
+/*= Url View - Move icon to left =============================================*/
+/*= Url View - Go button when typing =========================================*/
+/*= Url View - Item Focus Border =============================================*/
+@media -moz-pref("userChrome.urlView.focus_item_border") {
+  .urlbarView-row:not([type="tip"], [type="dynamic"])[selected] > .urlbarView-row-inner,
+  .urlbarView-row-inner[selected] {
+    box-shadow: inset 0 0 0 2px var(--toolbar-field-border-color-focus, var(--focus-outline-color)) !important;
+  }
+}
