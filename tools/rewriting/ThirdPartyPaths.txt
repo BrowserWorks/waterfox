@@ -205,6 +205,8 @@ toolkit/crashreporter/google-breakpad/
 toolkit/modules/third_party/
 tools/fuzzing/libfuzzer/
 tools/profiler/core/vtune/
+waterfox/browser/themes/lepton/icons/
+waterfox/browser/themes/lepton/leptonChrome.css
 xpcom/build/mach_override.c
 xpcom/build/mach_override.h
 xpcom/io/crc32c.c
