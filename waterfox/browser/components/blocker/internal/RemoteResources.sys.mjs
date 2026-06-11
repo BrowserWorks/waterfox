@@ -13,17 +13,30 @@ const PREF_REMOTE_RESOURCES_ENABLED = "waterfox.blocker.remoteResourcesEnabled";
 // 4 MB ceiling per bundle. The worker outputs are well under 1 MB today; this
 // guards against a runaway response masquerading as a valid payload.
 const MAX_BUNDLE_BYTES = 4 * 1024 * 1024;
+const REDIRECT_RESOURCE_MIME_TYPES = new Set([
+  "application/javascript",
+  "application/json",
+  "audio/mp3",
+  "image/gif",
+  "image/png",
+  "text/css",
+  "text/html",
+  "text/javascript",
+  "text/plain",
+  "text/xml",
+  "video/mp4",
+]);
 
 const REMOTE_BUNDLES = Object.freeze([
   Object.freeze({
     name: "ubo-scriptlets",
-    url: "https://aus.waterfox.com/v1/blocker/ubo-scriptlets.json",
+    url: "https://aus.waterfox.com/v2/blocker/ubo-scriptlets.json",
     bundledUrl:
       "resource://waterfox/blocker/assets/resources/ubo-scriptlets.json",
   }),
   Object.freeze({
     name: "resources",
-    url: "https://aus.waterfox.com/v1/blocker/resources.json",
+    url: "https://aus.waterfox.com/v2/blocker/resources.json",
     bundledUrl: "resource://waterfox/blocker/assets/resources/resources.json",
   }),
 ]);
@@ -58,9 +71,10 @@ function validateBundleText(text) {
     if (typeof entry.content !== "string") {
       throw new Error(`entry "${entry.name}" missing string \`content\``);
     }
-    if (entry.kind?.mime !== "application/javascript") {
+    const mime = entry.kind?.mime;
+    if (!REDIRECT_RESOURCE_MIME_TYPES.has(mime)) {
       throw new Error(
-        `entry "${entry.name}" has unsupported kind.mime: ${entry.kind?.mime}`
+        `entry "${entry.name}" has unsupported kind.mime: ${mime}`
       );
     }
   }
