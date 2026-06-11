@@ -97,6 +97,12 @@
         "filename": "ublock-filters-general.txt",
         "title": "uBlock Origin filters - General",
         "format": "Standard"
+      },
+      {
+        "url": "https://raw.githubusercontent.com/uBlockOrigin/uAssets/master/filters/ubo-link-shorteners.txt",
+        "filename": "ublock-link-shorteners.txt",
+        "title": "uBlock Origin filters - Link shorteners",
+        "format": "Standard"
       }
     ],
     "bundled": true

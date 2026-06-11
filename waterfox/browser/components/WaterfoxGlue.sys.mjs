@@ -61,6 +61,9 @@ export const WaterfoxGlue = {
 
     lazy.WaterfoxBlockerPanel.init();
     lazy.WaterfoxBlockerExtensionDetector.init();
+    lazy.WaterfoxBlockerService.init().catch(error =>
+      console.error("WaterfoxBlockerService startup init failed", error)
+    );
   },
 
   // Runs once per profile upgrade. Migrations for profiles coming from

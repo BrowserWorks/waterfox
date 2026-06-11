@@ -7,7 +7,7 @@
 pref("browser.search.serpEventTelemetryCategorization.enabled", false, locked);
 
 // The blocker built into the browser.
-pref("waterfox.blocker.enabled", false);
+pref("waterfox.blocker.enabled", true);
 // Show ad blocking controls in Settings.
 pref("waterfox.blocker.ui.enabled", true);
 // Show the blocked count badge on the blocker toolbar button.
