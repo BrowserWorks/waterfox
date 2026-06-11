@@ -321,6 +321,56 @@ Prompter.prototype = {
   },
 
   /**
+   * Waterfox: like confirmEx, but with a second optional, labeled checkbox.
+   *
+   * @param {mozIDOMWindowProxy} domWin - The parent window or null.
+   * @param {string} title - Text to appear in the title of the dialog.
+   * @param {string} text - Text to appear in the body of the dialog.
+   * @param {number} flags - A combination of Button Flags.
+   * @param {string} button0 - Used when button 0 uses TITLE_IS_STRING.
+   * @param {string} button1 - Used when button 1 uses TITLE_IS_STRING.
+   * @param {string} button2 - Used when button 2 uses TITLE_IS_STRING.
+   * @param {string} checkLabel - Text to appear with the checkbox.
+   *        Null if no checkbox.
+   * @param {object} checkValue - Contains the initial checked state of the
+   *        checkbox when this method
+   *        is called and the final checked state after this method returns.
+   * @param {string} checkLabel2 - Text to appear with the second checkbox.
+   *        Null if no checkbox.
+   * @param {object} checkValue2 - Contains the initial checked state of the
+   *        second checkbox when this method is called and the final checked
+   *        state after this method returns.
+   * @returns {number} The index of the button pressed.
+   */
+  confirmEx2(
+    domWin,
+    title,
+    text,
+    flags,
+    button0,
+    button1,
+    button2,
+    checkLabel,
+    checkValue,
+    checkLabel2,
+    checkValue2
+  ) {
+    let p = this.pickPrompter({ domWin });
+    return p.confirmEx2(
+      title,
+      text,
+      flags,
+      button0,
+      button1,
+      button2,
+      checkLabel,
+      checkValue,
+      checkLabel2,
+      checkValue2
+    );
+  },
+
+  /**
    * Puts up a dialog with up to 3 buttons and an optional, labeled checkbox.
    *
    * @param {BrowsingContext} browsingContext - The browsing context the
@@ -1483,6 +1533,79 @@ class ModalPrompter {
 
     this.openPromptSync(args);
     checkValue.value = args.checked;
+    return args.buttonNumClicked;
+  }
+
+  // Waterfox: like confirmEx, but with a second optional, labeled checkbox.
+  confirmEx2(
+    title,
+    text,
+    flags,
+    button0,
+    button1,
+    button2,
+    checkLabel,
+    checkValue,
+    checkLabel2,
+    checkValue2,
+    extraArgs = {}
+  ) {
+    if (!title) {
+      title = InternalPromptUtils.getLocalizedString("Confirm");
+    }
+
+    let args = {
+      promptType: "confirmEx2",
+      title,
+      text,
+      checkLabel,
+      checked: this.async ? checkValue : checkValue.value,
+      checkLabel2,
+      checked2: this.async ? checkValue2 : checkValue2.value,
+      ok: false,
+      buttonNumClicked: 1,
+      ...extraArgs,
+    };
+
+    let [
+      label0,
+      label1,
+      label2,
+      defaultButtonNum,
+      isDelayEnabled,
+      allowNoButtons,
+    ] = InternalPromptUtils.confirmExHelper(flags, button0, button1, button2);
+
+    args.defaultButtonNum = defaultButtonNum;
+    args.enableDelay = isDelayEnabled;
+    args.allowNoButtons = allowNoButtons;
+
+    if (label0) {
+      args.button0Label = label0;
+      if (label1) {
+        args.button1Label = label1;
+        if (label2) {
+          args.button2Label = label2;
+        }
+      }
+    }
+
+    if (flags & Ci.nsIPrompt.BUTTON_POS_1_IS_SECONDARY) {
+      args.isExtra1Secondary = true;
+    }
+
+    if (this.async) {
+      return this.openPromptAsync(args, result => ({
+        checked: !!result.checked,
+        checked2: !!result.checked2,
+        buttonNumClicked: result.buttonNumClicked,
+        isExtra1Secondary: result.isExtra1Secondary,
+      }));
+    }
+
+    this.openPromptSync(args);
+    checkValue.value = args.checked;
+    checkValue2.value = args.checked2;
     return args.buttonNumClicked;
   }
 
