@@ -5,6 +5,7 @@
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  StatusBar: "resource:///modules/StatusBar.sys.mjs",
   StyleSheetUtils: "resource:///modules/StyleSheetUtils.sys.mjs",
   WaterfoxBlockerExtensionDetector:
     "resource:///modules/WaterfoxBlockerExtensionDetector.sys.mjs",
@@ -79,6 +80,17 @@ export const WaterfoxGlue = {
     lazy.WaterfoxBlockerService.init().catch(error =>
       console.error("WaterfoxBlockerService startup init failed", error)
     );
+
+    lazy.StatusBar.init();
+    Services.obs.addObserver(this, "browser-delayed-startup-finished");
+  },
+
+  observe(subject, topic) {
+    switch (topic) {
+      case "browser-delayed-startup-finished":
+        lazy.StatusBar.onWindowOpened(subject);
+        break;
+    }
   },
 
   // Runs once per profile upgrade. Migrations for profiles coming from
