@@ -242,5 +242,7 @@ tools/browsertime/package.json
 tools/ts/error_list.json
 tools/ts/test/baselines/
 try_task_config.json
+waterfox/browser/components/blocker/assets/filters/
+waterfox/browser/components/blocker/assets/resources/
 xpcom/idl-parser/xpidl/fixtures/xpctest.d.json
 **/package-lock.json

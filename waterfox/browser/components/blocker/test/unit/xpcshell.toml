@@ -15,6 +15,10 @@ firefox-appdir = "browser"
 
 ["test_list_write_serialization.js"]
 
+["test_redirect_resources.js"]
+
+["test_engine_publication.js"]
+
 ["test_replace_response_filter.js"]
 prefs = [
   "network.trr.mode=5",
