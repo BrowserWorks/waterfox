@@ -10,6 +10,9 @@ pref("app.support.baseURL", "https://www.waterfox.com/support/");
 pref("browser.startup.page", 3);
 pref("browser.tabs.warnOnClose", true);
 
+pref("browser.statusbar.enabled", false);
+pref("browser.statusbar.appendStatusText", true);
+
 pref("browser.uidensity", 1);
 pref("browser.compactmode.show", true);
 
