@@ -8,7 +8,9 @@ Reference notes for reading or changing blocker code. The engine is Brave's `adb
 
 `WaterfoxBlockerService` observes `http-on-modify-request`, normalises the request context, and calls `checkRequestDetailed(...)` on `nsIWaterfoxBlockerEngine`. XPCOM forwards through the C++ `ContentClassifierEngine` into the Rust FFI and `adblock-rs`.
 
-If the request matches and there is no exception, resources that are not documents are cancelled and documents loaded at the top level are redirected to `blockedPage.xhtml`. Clicking "Load anyway" goes through the `WaterfoxBlockedPage` actor, records a `waterfox-blocker` permission for the session, and navigates to the original URL. Later loads from the same host bypass the engine until the browser is closed.
+If the request matches and there is no exception, resources that are not documents are cancelled and documents loaded at the top level are redirected to `blockedPage.xhtml`. Clicking "Load anyway" goes through the `WaterfoxBlockedPage` actor, records a permission for the session in `nsIPermissionManager`, and navigates to the original URL.
+
+Normal windows use `waterfox-blocker`, private windows use `waterfox-blocker-pb`, and the private permission type is cleared when the last private context exits. Permanent user exceptions remain normal `waterfox-blocker` permissions: a site permanently allowed in normal browsing is still blocked in private windows, where it can be allowed again from the panel in the private window for that session.
 
 ### CSP rules
 
