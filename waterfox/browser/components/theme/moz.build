@@ -10,6 +10,8 @@ EXTRA_JS_MODULES += [
     "WaterfoxThemeColors.sys.mjs",
 ]
 
+JAR_MANIFESTS += ["jar.mn"]
+
 BROWSER_CHROME_MANIFESTS += [
     "test/browser/browser.toml",
 ]
