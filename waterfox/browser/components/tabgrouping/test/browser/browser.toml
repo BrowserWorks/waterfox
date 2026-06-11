@@ -1,0 +1,8 @@
+[DEFAULT]
+tags = "waterfox_tabgrouping"
+prefs = [
+  "browser.tabs.autoGroupNewTabs=true",
+  "browser.tabs.autoGroupNewTabs.resumeGraceMs=0",
+]
+
+["browser_tabgrouping.js"]
