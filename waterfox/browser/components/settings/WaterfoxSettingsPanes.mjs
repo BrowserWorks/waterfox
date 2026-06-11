@@ -90,4 +90,11 @@ if (Services.prefs.getBoolPref("browser.settings-redesign.enabled", false)) {
     "chrome://browser/content/waterfox/settings/waterfoxHome.mjs",
     { global: "current" }
   );
+
+  // The search pane keeps its Mozilla module; waterfoxSearch amends its
+  // firefoxSuggest group at runtime, so it only needs to load before that pane.
+  ChromeUtils.importESModule(
+    "chrome://browser/content/waterfox/settings/waterfoxSearch.mjs",
+    { global: "current" }
+  );
 }
