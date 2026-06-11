@@ -708,7 +708,7 @@ export const WaterfoxBlockerPanel = {
 
     try {
       if (typeof win.openTrustedLinkIn === "function") {
-        win.openTrustedLinkIn("about:preferences#privacy", "tab");
+        win.openTrustedLinkIn("about:preferences#adBlocking", "tab");
         return;
       }
     } catch (_) {
@@ -717,7 +717,7 @@ export const WaterfoxBlockerPanel = {
 
     try {
       if (typeof win.openPreferences === "function") {
-        win.openPreferences("panePrivacy", {
+        win.openPreferences("paneAdBlocking", {
           origin: "waterfox-blocker",
         });
       }
