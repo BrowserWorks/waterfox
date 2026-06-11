@@ -23,6 +23,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   NetUtil: "resource://gre/modules/NetUtil.sys.mjs",
   NimbusFeatures: "resource://nimbus/ExperimentAPI.sys.mjs",
   PrivateBrowsingUtils: "resource://gre/modules/PrivateBrowsingUtils.sys.mjs",
+  PrivateTab: "resource:///modules/PrivateTab.sys.mjs",
   ScreenshotsUtils:
     "moz-src:///browser/components/screenshots/ScreenshotsUtils.sys.mjs",
   SearchService: "moz-src:///toolkit/components/search/SearchService.sys.mjs",
@@ -2805,9 +2806,12 @@ export class nsContextMenu {
     let engineName = lazy.SearchService.defaultEngine.name;
     let privateEngineName = lazy.SearchService.defaultPrivateEngine.name;
     if (!menuItem.hidden) {
-      const docIsPrivate = lazy.PrivateBrowsingUtils.isBrowserPrivate(
-        this.browser
-      );
+      const docIsPrivate =
+        lazy.PrivateBrowsingUtils.isBrowserPrivate(this.browser) ||
+        // Waterfox: private container tabs search with the private engine.
+        lazy.PrivateTab.isPrivate(
+          this.window.gBrowser?.getTabForBrowser(this.browser)
+        );
 
       let menuLabel = gNavigatorBundle.getFormattedString("contextMenuSearch", [
         docIsPrivate ? privateEngineName : engineName,
@@ -2857,9 +2861,12 @@ export class nsContextMenu {
       return;
     }
 
-    let isBrowserPrivate = lazy.PrivateBrowsingUtils.isBrowserPrivate(
-      this.browser
-    );
+    let isBrowserPrivate =
+      lazy.PrivateBrowsingUtils.isBrowserPrivate(this.browser) ||
+      // Waterfox: private container tabs search with the private engine.
+      lazy.PrivateTab.isPrivate(
+        this.window.gBrowser?.getTabForBrowser(this.browser)
+      );
     let engine =
       isBrowserPrivate || isPrivateSearchMenuitem
         ? lazy.SearchService.defaultPrivateEngine
