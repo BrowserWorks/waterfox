@@ -85,6 +85,12 @@ const TOGGLES = [
     fieldset: "display",
     inverted: true,
   },
+  {
+    id: "waterfox-tabs-private-new-tab-button",
+    l10nId: "waterfox-tabs-private-new-tab-button-toggle",
+    pref: "browser.privateTab.showNewTabButton",
+    fieldset: "display",
+  },
 ];
 
 // sidebar.verticalTabs is already registered by the Mozilla pane module,

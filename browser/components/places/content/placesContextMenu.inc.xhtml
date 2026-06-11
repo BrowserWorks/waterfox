@@ -33,16 +33,25 @@
             hide-if-usercontext-disabled="true">
       <menupopup id="placesContext_open_newcontainertab_popup"/>
   </menu>
+  <menuitem id="openPrivate"
+            hidden="true"
+            ignore-item="true"/>
   <menuitem id="placesContext_openContainer:tabs"
             data-l10n-id="places-open-all-in-tabs"
             selection-type="single|none"
             node-type="query"
             hide-if-node-type="query_tag"/>
+  <menuitem id="openAllPrivate"
+            hidden="true"
+            ignore-item="true"/>
   <menuitem id="placesContext_openLinks:tabs"
             data-l10n-id="places-open-all-in-tabs"
             selection-type="multiple"
             node-type="link"
             hide-if-node-type="link_bookmark"/>
+  <menuitem id="openAllLinksPrivate"
+            hidden="true"
+            ignore-item="true"/>
   <menuitem id="placesContext_open:newwindow"
             command="placesCmd_open:window"
             data-l10n-id="places-open-in-window"

@@ -29,6 +29,7 @@ const lazy = XPCOMUtils.declareLazy({
   CustomizableUI:
     "moz-src:///browser/components/customizableui/CustomizableUI.sys.mjs",
   PrivateBrowsingUtils: "resource://gre/modules/PrivateBrowsingUtils.sys.mjs",
+  PrivateTab: "resource:///modules/PrivateTab.sys.mjs",
   SearchEngineInstallError:
     "moz-src:///toolkit/components/search/SearchUtils.sys.mjs",
   SearchService: "moz-src:///toolkit/components/search/SearchService.sys.mjs",
@@ -409,6 +410,8 @@ export var SearchUIUtils = {
    *   `SearchUtils.URL_TYPE.SEARCH`, which will perform a usual web search.
    * @param {keyof typeof lazy.BrowserSearchTelemetry.KNOWN_SEARCH_SOURCES} options.sapSource
    *   The search access point source.
+   * @param {number} [options.userContextId]
+   *   The container id the search result tab should open in.
    * @param {boolean} [options.avoidBrowserFocus]
    *   When loading into the current tab, skip focusing the target browser
    *   element so keyboard focus stays where it was. Used by callers (e.g.
@@ -427,6 +430,7 @@ export var SearchUIUtils = {
     tab,
     searchUrlType,
     sapSource,
+    userContextId = 0,
     avoidBrowserFocus = false,
   }) {
     if (!triggeringPrincipal) {
@@ -456,6 +460,7 @@ export var SearchUIUtils = {
       postData: submission.postData,
       inBackground,
       relatedToCurrent: true,
+      userContextId,
       triggeringPrincipal,
       policyContainer,
       targetBrowser: tab?.linkedBrowser,
@@ -515,8 +520,16 @@ export var SearchUIUtils = {
       // override: historically search opens in new tab
       where = "tab";
     }
+    // Waterfox: a search from a private container tab uses the private
+    // engine but opens as a tab in the same container, not a window.
+    let userContextId = window.gBrowser?.selectedTab?.userContextId || 0;
+    let isPrivateContainerTab =
+      usePrivateWindow &&
+      !!userContextId &&
+      userContextId == lazy.PrivateTab.userContextId;
     if (
       usePrivateWindow &&
+      !isPrivateContainerTab &&
       !lazy.PrivateBrowsingUtils.isWindowPrivate(window)
     ) {
       where = "window";
@@ -535,6 +548,7 @@ export var SearchUIUtils = {
       searchUrlType,
       where,
       usePrivateWindow,
+      userContextId: isPrivateContainerTab ? userContextId : 0,
       triggeringPrincipal: Services.scriptSecurityManager.createNullPrincipal(
         triggeringPrincipal.originAttributes
       ),
