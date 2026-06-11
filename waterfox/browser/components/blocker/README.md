@@ -6,7 +6,9 @@ Reference notes for reading or changing blocker code. The engine is Brave's `adb
 
 ### Network requests
 
-`WaterfoxBlockerService` observes `http-on-modify-request`, normalises the request context, and calls `checkRequestDetailed(...)` on `nsIWaterfoxBlockerEngine`. XPCOM forwards through the C++ `ContentClassifierEngine` into the Rust FFI and `adblock-rs`.
+`ContentClassifierService` owns the published ad engine and classifies detached native request snapshots on a background queue separate from engine construction. `AdBlockingPolicy` captures request context, private mode, permissions, domain allowances and navigation state on the main thread. Before connecting, the HTTP classifier runs ETP and ad policies independently; already-cancelled channels and channels undergoing ETP cancellation skip ad work. Native modify-request handling revalidates pending redirects and query rewrites before applying them. A synchronous native content policy protects loads served from internal caches.
+
+The JS service retains list providers, resource loading, preferences, UI statistics, cosmetic resources and content actors, but no parallel request-matching or cancellation backend. `waterfox.blocker.enabled` controls ad protection; no JS/native backend selection is needed. This migration uses the existing native ad-blocking path and does not require an ETP production-list backend. ETP settings and exceptions do not enable, disable or exempt ads.
 
 If the request matches and there is no exception, resources that are not documents are cancelled and documents loaded at the top level are redirected to `blockedPage.xhtml`. Clicking "Load anyway" goes through the `WaterfoxBlockedPage` actor, records a permission for the session in `nsIPermissionManager`, and navigates to the original URL.
 
@@ -14,7 +16,9 @@ Normal windows use `waterfox-blocker`, private windows use `waterfox-blocker-pb`
 
 ### CSP rules
 
-The service also observes `http-on-examine-response` (plus the cached and merged variants). For `document` and `subdocument` loads it calls `getCspDirectives(...)`, and if directives come back it sets `Content-Security-Policy` on the response.
+Native response observers cover network, cached and merged responses. They apply engine-provided CSP to documents and subdocuments while preserving origin policy and keeping blocker-only policy out of cached metadata. Same-channel authentication retries discard response-specific CSP state and markers before processing the authenticated response. The vendored engine rejects type-qualified CSP rules such as `$subdocument,csp=...`; unqualified CSP remains supported.
+
+The dedicated JS `filterAdBlockingResponse` adapter retains HTML, header and body transformations, using pinned inputs supplied by native response processing rather than recapturing policy or matching rules. The current engine does not produce HTML/header directives, and the replacement FFI returns `[]`; adapter tests inject directives explicitly and do not imply unsupported engine capabilities.
 
 ### Cosmetic filters and scriptlets
 
