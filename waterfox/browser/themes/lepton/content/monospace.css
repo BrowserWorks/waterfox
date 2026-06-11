@@ -1,0 +1,11 @@
+@namespace xul url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+@namespace html url("http://www.w3.org/1999/xhtml");
+
+@media -moz-pref("userContent.page.monospace") {
+  @-moz-document url-prefix("about:"), url-prefix("chrome://"), regexp("^((jar:)?file:///).*/$")
+  {
+    * {
+      font-family: -moz-fixed;
+    }
+  }
+}
