@@ -1,0 +1,16 @@
+@namespace xul url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+@namespace html url("http://www.w3.org/1999/xhtml");
+/** Default Theme - Contrast **************************************************/
+@media -moz-pref("userChrome.theme.built_in_contrast") {
+  @media (prefers-color-scheme: light) {
+    :root[theme-in-app] {
+      --toolbox-background-color: rgb(229, 229, 235) !important;
+    }
+  }
+  @media (prefers-color-scheme: dark) {
+    :root[theme-in-app] {
+      --toolbar-bgcolor: rgb(50, 49, 58) !important;
+      --toolbar-background-color: rgb(50, 49, 58) !important;
+    }
+  }
+}

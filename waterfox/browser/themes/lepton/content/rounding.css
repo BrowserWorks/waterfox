@@ -1,0 +1,173 @@
+@namespace xul url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+@namespace html url("http://www.w3.org/1999/xhtml");
+
+@media -moz-pref("userChrome.rounding.square_button") {
+  .videocontrols #pictureInPictureToggle > .pip-small {
+    border-radius: 0 !important;
+  }
+  @-moz-document url-prefix("about:"), regexp("^chrome://\\w+/content/.*.xhtml$")
+  {
+    button:not(.toggle-button),
+    .close-icon,
+    .action-icon::before,
+    #categories > .category,
+    .sidebar-footer-link {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document url-prefix("about:debugging") {
+    .sidebar-item {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document url-prefix("chrome://browser/content/places/places.xhtml"), url-prefix("about:downloads")
+  {
+    .downloadButton > .button-box {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document url-prefix("about:protections") {
+    #manage-protections,
+    #sign-up-for-monitor-link,
+    #get-vpn-link,
+    #vpn-banner-link,
+    .monitor-partial-breaches-link-wrapper,
+    .monitor-breaches-link-wrapper {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document regexp(".*.pdf$") {
+    .toolbarButton,
+    .dropdownToolbarButton,
+    .dialogButton {
+      border-radius: 0 !important;
+    }
+  }
+}
+@media -moz-pref("userChrome.rounding.square_dialog") {
+  @-moz-document url("about:home"), url("about:newtab") {
+    .modal {
+      border-radius: 0 !important;
+    }
+  }
+}
+@media -moz-pref("userChrome.rounding.square_checklabel") {
+  @-moz-document url-prefix("about:"), regexp("^chrome://\\w+/content/.*.xhtml$")
+  {
+    input[type="checkbox"]:not(.toggle-button),
+    .checkbox-check {
+      border-radius: 0 !important;
+    }
+  }
+}
+@media -moz-pref("userChrome.rounding.square_field") {
+  @-moz-document url-prefix("about:"), regexp("^chrome://\\w+/content/.*.xhtml$")
+  {
+    input:is([type="color"], [type="email"], [type="tel"], [type="text"], [type="password"], [type="url"], [type="number"]),
+    textarea,
+    select,
+    menulist,
+    tree,
+    treecols,
+    listheader,
+    richlistbox,
+    search-textbox,
+    #translations-manage-install-list {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document url-prefix("about:debugging") {
+    .default-input {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document url("about:home"), url("about:newtab") {
+    .search-wrapper .search-handoff-button,
+    .search-wrapper input {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document regexp(".*.pdf$") {
+    .toolbarField {
+      border-radius: 0 !important;
+    }
+  }
+}
+@media -moz-pref("userChrome.rounding.square_menupopup") {
+  @-moz-document url-prefix("about:"), url-prefix("chrome://")
+  {
+    panel,
+    menupopup {
+      --panel-border-radius: 0 !important;
+    }
+  }
+  @-moz-document url-prefix("about:addons") {
+    panel-list {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document url-prefix("about:logins") {
+    .menu {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document url("about:home"), url("about:newtab") {
+    .context-menu {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document regexp(".*.pdf$") {
+    .doorHanger,
+    .doorHangerRight {
+      border-radius: 0 !important;
+    }
+  }
+}
+@media -moz-pref("userChrome.rounding.square_infobox") {
+  @-moz-document url-prefix("about:"), regexp("^chrome://\\w+/content/.*.xhtml$")
+  {
+    /* Scope the generic shadow DOM class through its stylesheet link. */
+    link[href="chrome://global/content/elements/message-bar.css"] + .container,
+    .info-box-container,
+    .options-container,
+    #sanitizeEverythingWarningBox {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document url-prefix("about:debugging") {
+    .message {
+      border-radius: 0 !important;
+    }
+  }
+  @-moz-document url-prefix("about:firefoxview") {
+    .card,
+    .card::before,
+    .empty-container {
+      border-radius: 0 !important;
+    }
+  }
+}
+@-moz-document url-prefix("about:"), regexp(".*.pdf$") {
+  @media -moz-pref("userChrome.rounding.square_dialog") {
+    dialog,
+    .dialogBox {
+      border-radius: 0 !important;
+    }
+  }
+}
+@-moz-document url("chrome://browser/content/places/places.xhtml")
+{
+  @media -moz-pref("userChrome.rounding.square_button") {
+    #placesToolbar > toolbarbutton,
+    #placesMenu > menu {
+      border-radius: 0 !important;
+    }
+  }
+  @media -moz-pref("userChrome.rounding.square_field") {
+    #searchFilter,
+    #detailsPane html|input,
+    #places input #editBMPanel_tagsSelectorRow > richlistbox {
+      border-radius: 0 !important;
+    }
+  }
+}
