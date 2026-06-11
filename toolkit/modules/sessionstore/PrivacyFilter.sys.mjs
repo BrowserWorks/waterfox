@@ -106,7 +106,7 @@ export var PrivacyFilter = Object.freeze({
    *        The given object will be modified.
    */
   filterPrivateWindowsAndTabs(browserState) {
-    // Remove private opened windows.
+    // Remove private opened windows and tabs.
     for (let i = browserState.windows.length - 1; i >= 0; i--) {
       let win = browserState.windows[i];
 
@@ -115,6 +115,16 @@ export var PrivacyFilter = Object.freeze({
 
         if (browserState.selectedWindow >= i) {
           browserState.selectedWindow--;
+        }
+        continue;
+      }
+
+      for (let j = win.tabs.length - 1; j >= 0; j--) {
+        if (win.tabs[j].isPrivate) {
+          win.tabs.splice(j, 1);
+          if (win.selected > j) {
+            win.selected--;
+          }
         }
       }
     }
