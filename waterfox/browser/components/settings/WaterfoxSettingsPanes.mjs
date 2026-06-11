@@ -9,6 +9,16 @@ if (Services.prefs.getBoolPref("browser.settings-redesign.enabled", false)) {
   aboutPane.module =
     "chrome://browser/content/waterfox/settings/waterfoxUpdates.mjs";
 
+  // Amend Mozilla's DoH controls without changing the frozen CONFIG_PANES table.
+  // dnsOverHttps carries no module of its own; its other settings load through
+  // the privacy parent chain.
+  const dohPane = SettingPaneManager.get("dnsOverHttps");
+  dohPane.module = "chrome://browser/content/waterfox/settings/waterfoxDns.mjs";
+  ChromeUtils.importESModule(
+    "chrome://browser/content/waterfox/settings/waterfoxDns.mjs",
+    { global: "current" }
+  );
+
   // The search pane keeps its Mozilla module; waterfoxSearch amends its
   // defaultEngine and searchSuggestions groups at runtime, so it only needs
   // to load before that pane.
