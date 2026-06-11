@@ -76,6 +76,24 @@ pref("browser.tabs.copyurl.shortcut", true);
 pref("browser.tabs.duplicateTab", true);
 pref("browser.tabs.pinnedIconOnly", true);
 
+// Automatic tab grouping: a new tab can join its source tab's group.
+pref("browser.tabs.autoGroupNewTabs", false);
+pref("browser.tabs.autoGroupNewTabs.placement", "after");
+pref("browser.tabs.autoGroupNewTabs.delayEnabled", false);
+pref("browser.tabs.autoGroupNewTabs.delayMs", 1000);
+#ifdef XP_MACOSX
+pref("browser.tabs.autoGroupNewTabs.cancelShortcut", "Option+`");
+pref("browser.tabs.autoGroupNewTabs.bypassShortcut", "Option+Shift+T");
+#else
+pref("browser.tabs.autoGroupNewTabs.cancelShortcut", "Ctrl+`");
+pref("browser.tabs.autoGroupNewTabs.bypassShortcut", "Alt+Shift+T");
+#endif
+pref("browser.tabs.autoGroupNewTabs.debugLog", false);
+pref("browser.tabs.autoGroupNewTabs.resumeGraceMs", 1000);
+
+// The ML based smart tab grouping stays off until the user opts in.
+pref("browser.tabs.groups.smart.enabled", false);
+
 pref("browser.download.always_ask_before_handling_new_types", true);
 pref("browser.download.manager.addToRecentDocs", false);
 pref("browser.download.open_pdf_attachments_inline", true);
