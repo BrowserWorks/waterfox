@@ -1,0 +1,19 @@
+@namespace xul url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+@namespace html url("http://www.w3.org/1999/xhtml");
+
+@media -moz-pref("userContent.page.dark_mode.pdf") {
+  @media (prefers-color-scheme: dark) {
+    @-moz-document unobservable-document() {
+      @-moz-document regexp("^(?!.*\\.pdf\\?n).*") {
+        #outerContainer {
+          --sidebaritem-bg-color: #38383d;
+          --uc-pdf-dark-filter: grayscale(10%) invert(90%);
+        }
+
+        #viewerContainer > #viewer > .page > .canvasWrapper > canvas {
+          filter: var(--uc-pdf-dark-filter);
+        }
+      }
+    }
+  }
+}
