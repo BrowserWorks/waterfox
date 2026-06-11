@@ -5215,11 +5215,16 @@ ${
 
   /**
    * Determines if we should select all the text in the Urlbar based on the
-   *  Urlbar state, and whether the selection is empty.
+   * clickSelectsAll pref, the Urlbar state, and whether the selection is
+   * empty.
+   *
+   * @param {boolean} [ignoreClickSelectsAllPref]
+   *        If true, the browser.urlbar.clickSelectsAll pref is ignored.
    */
-  #maybeSelectAll() {
+  #maybeSelectAll(ignoreClickSelectsAllPref = false) {
     if (
       !this.#preventClickSelectsAll &&
+      (ignoreClickSelectsAllPref || lazy.UrlbarPrefs.get("clickSelectsAll")) &&
       this.#compositionState != lazy.UrlbarUtils.COMPOSITION.COMPOSING &&
       this.focused &&
       this.inputField.selectionStart == this.inputField.selectionEnd
@@ -5359,7 +5364,8 @@ ${
     switch (event.target) {
       case this.inputField:
       case this._inputContainer:
-        this.#maybeSelectAll();
+        // A right click selects all regardless of the clickSelectsAll pref.
+        this.#maybeSelectAll(event.button == 2);
         this.#maybeUntrimUrl();
         break;
 
@@ -5377,7 +5383,7 @@ ${
       return;
     }
 
-    this.#maybeSelectAll();
+    this.#maybeSelectAll(true);
   }
 
   _on_focus(event) {
@@ -5426,7 +5432,7 @@ ${
       }
 
       if (this.inputField.hasAttribute("refocused-by-panel")) {
-        this.#maybeSelectAll();
+        this.#maybeSelectAll(true);
       }
     }
 
@@ -5484,6 +5490,16 @@ ${
         // doesn't affect drag selection.
         if (this.focusedViaMousedown) {
           this.inputField.setSelectionRange(0, 0);
+        }
+
+        // Waterfox: a double click selects everything when enabled.
+        if (
+          event.detail == 2 &&
+          lazy.UrlbarPrefs.get("doubleClickSelectsAll")
+        ) {
+          this.editor.selectAll();
+          event.preventDefault();
+          break;
         }
 
         // Do not suppress the focus border if we are already focused. If we
