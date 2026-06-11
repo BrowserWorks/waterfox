@@ -1,0 +1,17 @@
+@charset "UTF-8";
+/* Forked from black7375/Firefox-UI-Fix at 6f02881a25d6. This copy is not
+ * synchronised with upstream. It omits deprecated -moz-bool-pref rules and dead
+ * selectors; Photon tab rules also check browserStyle to remain inactive under
+ * Nova and Proton. */
+@import url("chrome://browser/skin/lepton/chrome/contrast.css");
+@import url("chrome://browser/skin/lepton/chrome/compatibility.css");
+@import url("chrome://browser/skin/lepton/chrome/theme.css");
+@import url("chrome://browser/skin/lepton/chrome/decoration.css");
+@import url("chrome://browser/skin/lepton/chrome/rounding.css");
+@import url("chrome://browser/skin/lepton/chrome/padding.css");
+@import url("chrome://browser/skin/lepton/chrome/tabs.css");
+@import url("chrome://browser/skin/lepton/chrome/bookmarks.css");
+@import url("chrome://browser/skin/lepton/chrome/urlbar.css");
+@import url("chrome://browser/skin/lepton/chrome/combined-controls.css");
+@import url("chrome://browser/skin/lepton/chrome/behavior.css");
+@import url("chrome://browser/skin/lepton/chrome/icons.css");

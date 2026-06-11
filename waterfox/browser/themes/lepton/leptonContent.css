@@ -1,0 +1,11 @@
+/* Forked from black7375/Firefox-UI-Fix at 6f02881a25d6. This copy is not
+ * synchronised with upstream. It omits deprecated -moz-bool-pref rules and dead
+ * selectors; colour rules for about: pages remain in WaterfoxContentTheme. */
+@import url("chrome://browser/skin/lepton/content/about-pages.css");
+@import url("chrome://browser/skin/lepton/content/media-controls.css");
+@import url("chrome://browser/skin/lepton/content/new-tab.css");
+@import url("chrome://browser/skin/lepton/content/error-pages.css");
+@import url("chrome://browser/skin/lepton/content/pdf-dark-mode.css");
+@import url("chrome://browser/skin/lepton/content/rounding.css");
+@import url("chrome://browser/skin/lepton/content/monospace.css");
+@import url("chrome://browser/skin/lepton/content/menu-icons.css");
