@@ -35,4 +35,19 @@ if (Services.prefs.getBoolPref("browser.settings-redesign.enabled", false)) {
     "chrome://browser/content/waterfox/settings/waterfoxDns.mjs",
     { global: "current" }
   );
+
+  // The appearance pane already has a Mozilla module in its slot, so the
+  // Waterfox group module loads here instead.
+  const appearancePane = SettingPaneManager.get("appearance");
+  appearancePane.groupIds = [
+    "waterfoxBrowserStyle",
+    "waterfoxAppearanceDetails",
+    "waterfoxThemeColors",
+    "waterfoxStatusBar",
+    ...appearancePane.groupIds,
+  ];
+  ChromeUtils.importESModule(
+    "chrome://browser/content/waterfox/settings/waterfoxAppearance.mjs",
+    { global: "current" }
+  );
 }
