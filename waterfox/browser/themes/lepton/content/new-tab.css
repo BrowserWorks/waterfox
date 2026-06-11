@@ -1,0 +1,155 @@
+@namespace xul url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+@namespace html url("http://www.w3.org/1999/xhtml");
+
+@-moz-document url("about:home"), url("about:newtab") {
+  @media -moz-pref("userChrome.icon.context_menu") {
+    .context-menu-list .context-menu-item button {
+      padding-inline-start: 0 !important;
+    }
+    .context-menu-list .context-menu-item button span {
+      -moz-context-properties: fill, fill-opacity, stroke !important;
+      fill: currentColor !important;
+      stroke: currentColor;
+      background-size: 16px !important;
+      background-repeat: no-repeat !important;
+      background-image: var(--menuitem-image);
+      padding-inline-start: 24px; /* 16px icon with 4px spacing. */
+      background-position: var(--uc-menu-background-position, left) 4px center;
+    }
+    .context-menu-list .context-menu-item button span:dir(rtl) {
+      --uc-menu-background-position: right;
+    }
+    .context-menu-item span[data-l10n-id="newtab-menu-pin"] {
+      --menuitem-image: url("chrome://browser/skin/lepton/pin-tab.svg");
+    }
+    .context-menu-item span[data-l10n-id="newtab-menu-unpin"] {
+      --menuitem-image: url("chrome://browser/skin/lepton/unpin-tab.svg");
+    }
+    .context-menu-item span[data-l10n-id="newtab-menu-edit-topsites"] {
+      --menuitem-image: url("chrome://browser/skin/lepton/edit-active.svg");
+    }
+    .context-menu-item span[data-l10n-id="newtab-menu-bookmark"] {
+      --menuitem-image: url("chrome://browser/skin/bookmark.svg");
+    }
+    .context-menu-item span[data-l10n-id="newtab-menu-remove-bookmark"] {
+      --menuitem-image: url("chrome://browser/skin/bookmark-hollow.svg");
+    }
+    .context-menu-item span[data-l10n-id="newtab-menu-save-to-pocket"] {
+      --menuitem-image: url("chrome://browser/skin/lepton/pocket-outline.svg");
+    }
+    .context-menu-item span[data-l10n-id="newtab-menu-open-file"] {
+      --menuitem-image: url("chrome://browser/skin/lepton/fluid.svg");
+    }
+    .context-menu-item span[data-l10n-id="newtab-menu-show-file"] {
+      --menuitem-image: url("chrome://global/skin/icons/folder.svg");
+    }
+    @media -moz-pref("userChrome.icon.library") {
+      .context-menu-item span[data-l10n-id="newtab-menu-show-file"] {
+        --menuitem-image: url("chrome://browser/skin/lepton/folder.svg");
+      }
+    }
+    .context-menu-item span[data-l10n-id="newtab-menu-open-new-window"] {
+      --menuitem-image: url("chrome://browser/skin/window.svg");
+    }
+    .context-menu-item span[data-l10n-id="newtab-menu-open-new-private-window"] {
+      --menuitem-image: url("chrome://browser/skin/privateBrowsing.svg");
+    }
+    .context-menu-item span[data-l10n-id="newtab-menu-dismiss"] {
+      --menuitem-image: url("chrome://global/skin/icons/delete.svg");
+    }
+    .context-menu-item span[data-l10n-id="newtab-menu-delete-history"] {
+      --menuitem-image: url("chrome://browser/skin/lepton/eraser.svg");
+    }
+  }
+
+  @media -moz-pref("userContent.newTab.full_icon") {
+    .top-site-outer {
+      width: 120px !important;
+    }
+    .top-site-outer .tile {
+      width: 80px !important;
+      height: 80px !important;
+      overflow: hidden;
+    }
+    .top-site-outer .icon-wrapper {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    .top-site-outer.add-button .tile .icon-wrapper {
+      width: 24px !important;
+      height: 24px !important;
+    }
+    .top-site-outer .context-menu-button {
+      top: 0px !important;
+      right: 0px !important;
+      width: 22px !important;
+      height: 22px !important;
+    }
+    .top-site-outer .context-menu {
+      top: 16.75px !important;
+    }
+  }
+
+  @media -moz-pref("userContent.newTab.animate") {
+    @media (prefers-reduced-motion: no-preference) {
+      :root {
+        --animation-easing-function: cubic-bezier(0.07, 0.95, 0, 1);
+      }
+
+      .top-site-outer,
+      #searchSubmit,
+      button.icon,
+      button.close-button {
+        transition: background 1.5s var(--animation-easing-function);
+      }
+      .top-site-outer:hover,
+      #searchSubmit:hover,
+      button.icon:hover,
+      button.close-button:hover {
+        transition: background 0.5s var(--animation-easing-function);
+      }
+
+      .search-wrapper .search-inner-wrapper > input,
+      .search-wrapper .search-inner-wrapper > .search-handoff-button {
+        transition: 1s var(--animation-easing-function);
+        transition-property: border-color, box-shadow;
+      }
+      .search-wrapper .search-inner-wrapper:active > input,
+      .search-wrapper .search-inner-wrapper:active > .search-handoff-button,
+      .search-wrapper .search-inner-wrapper > input:focus,
+      .search-wrapper .search-inner-wrapper > .search-handoff-button:focus {
+        transition:
+          border-color 0.5s var(--animation-easing-function),
+          box-shadow 1s var(--animation-easing-function);
+      }
+    }
+  }
+
+  @media -moz-pref("userContent.newTab.hidden_logo") {
+    .logo-and-wordmark {
+      display: none !important;
+    }
+    .outer-wrapper:not(.fixed-search) .search-wrapper {
+      padding-top: 0 !important;
+    }
+  }
+
+  @media -moz-pref("userContent.newTab.background_image") {
+    body::before {
+      content: "";
+      position: fixed;
+      width: 100%;
+      height: 100%;
+      background-image: var(--uc-newTab-wallpaper, url("chrome://browser/skin/lepton/horizon-sunrise.svg"));
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: right top;
+      background-attachment: fixed;
+    }
+    @media (prefers-color-scheme: dark) {
+      body::before {
+        background-image: var(--uc-newTab-wallpaper, url("chrome://browser/skin/lepton/horizon-night.svg"));
+      }
+    }
+  }
+}

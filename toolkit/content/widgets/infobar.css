@@ -25,12 +25,12 @@
   .container {
     /* Don't let lwthemes set a text-shadow. */
     text-shadow: none;
-    padding-block: 3px;
+    padding-block: var(--infobar-container-padding-block, 3px);
     align-items: center;
   }
 
   .text-container {
-    padding-block: calc(1lh - var(--icon-size) / 2);
+    padding-block: var(--infobar-text-padding-block, calc(1lh - var(--icon-size) / 2));
   }
 
   .content {
@@ -39,7 +39,7 @@
   }
 
   .close {
-    margin-block: 4px;
+    margin-block: var(--infobar-close-margin-block, 4px);
     margin-inline-start: 8px;
     align-self: flex-start;
   }

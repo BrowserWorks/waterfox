@@ -1,0 +1,41 @@
+@namespace xul url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
+@namespace html url("http://www.w3.org/1999/xhtml");
+
+@-moz-document url-prefix("about:preferences") {
+  .content-blocking-warning.info-box-container > hbox > .content-blocking-warning-image {
+    margin-inline-start: -7px !important;
+    margin-inline-end: 8px !important;
+    width: 20px !important;
+  }
+
+  .translations-manage-language:first-child {
+    padding-block: 4px !important;
+    margin-bottom: 4px !important;
+  }
+  .translations-manage-language button {
+    min-height: var(--size-item-medium, 28px) !important;
+    max-height: var(--size-item-medium, 28px) !important;
+  }
+
+  .firefoxLabs-description {
+    border-bottom: 1px solid var(--in-content-border-color);
+    padding-bottom: 1.5em;
+  }
+}
+@-moz-document url-prefix("about:addons") {
+  #updates-message + .page-options-menu > .more-options-button {
+    box-sizing: content-box;
+    padding: 0 !important;
+  }
+  #updates-message[state="manual-updates-found"] {
+    align-items: stretch;
+  }
+  categories-box > moz-page-nav {
+    padding-inline-end: 1px !important;
+  }
+}
+@-moz-document url-prefix("about:policies") {
+  #categories > .category {
+    box-sizing: border-box;
+  }
+}
