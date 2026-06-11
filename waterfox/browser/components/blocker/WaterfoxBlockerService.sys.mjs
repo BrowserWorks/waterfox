@@ -1728,6 +1728,36 @@ export const WaterfoxBlockerService = {
     return this._listUpdatesState;
   },
 
+  _isPrivateExceptionContext(options = {}) {
+    if (typeof options === "boolean") {
+      return options;
+    }
+    if (!options || typeof options !== "object") {
+      return false;
+    }
+    return !!options.isPrivate;
+  },
+
+  _isPrivateLoadInfo(loadInfo) {
+    try {
+      if (isPrivateOriginAttributes(loadInfo?.originAttributes)) {
+        return true;
+      }
+    } catch (_) {
+      // Fall back to the browsing context below.
+    }
+
+    try {
+      return (
+        isPrivateBrowsingContext(loadInfo?.browsingContext) ||
+        isPrivateBrowsingContext(loadInfo?.targetBrowsingContext) ||
+        isPrivateBrowsingContext(loadInfo?.workerAssociatedBrowsingContext)
+      );
+    } catch (_) {
+      return false;
+    }
+  },
+
   _clearBlockedCounts() {
     if (!this._blockedCountByBrowserId.size) {
       return;
@@ -2392,7 +2422,10 @@ export const WaterfoxBlockerService = {
       );
     }
 
-    return candidateHosts.some(host => this.shouldBypassBlocking(host));
+    const options = { isPrivate: this._isPrivateLoadInfo(loadInfo) };
+    return candidateHosts.some(host =>
+      this.shouldBypassBlocking(host, options)
+    );
   },
 
   _normalizeHostname(hostname) {
@@ -2464,7 +2497,12 @@ export const WaterfoxBlockerService = {
     return !requestedUrl || requestedUrl === blockedDocument.url;
   },
 
-  _getTopLevelNavigationBypassSourceHost(browserId, channel, loadInfo) {
+  _getTopLevelNavigationBypassSourceHost(
+    browserId,
+    channel,
+    loadInfo,
+    isPrivate
+  ) {
     const id = Number(browserId || 0);
     const candidateHosts = [
       this._getChannelReferrerHost(channel),
@@ -2489,14 +2527,22 @@ export const WaterfoxBlockerService = {
       );
     }
 
-    return candidateHosts.find(host => this.shouldBypassBlocking(host)) || "";
+    const options = { isPrivate };
+    return (
+      candidateHosts.find(host => this.shouldBypassBlocking(host, options)) ||
+      ""
+    );
   },
 
-  _hasActiveTopLevelNavigationBypass(browserId) {
+  _hasActiveTopLevelNavigationBypass(browserId, isPrivate = false) {
     const id = Number(browserId || 0);
     const activeBypass = this._topLevelNavigationBypassByBrowserId.get(id);
     if (activeBypass?.until > Date.now()) {
-      if (this.shouldBypassBlocking(activeBypass.sourceHost)) {
+      if (
+        this.shouldBypassBlocking(activeBypass.sourceHost, {
+          isPrivate,
+        })
+      ) {
         return true;
       }
       this._topLevelNavigationBypassByBrowserId.delete(id);
@@ -2531,12 +2577,18 @@ export const WaterfoxBlockerService = {
 
   _shouldBypassTopLevelDocumentRequest(browserId, channel, loadInfo, hostname) {
     const id = Number(browserId || 0);
+    const isPrivate = this._isPrivateLoadInfo(loadInfo);
     const canUseSourceContext = this._canUseTopLevelDocumentContext(
       loadInfo,
       true
     );
     const sourceHost = canUseSourceContext
-      ? this._getTopLevelNavigationBypassSourceHost(id, channel, loadInfo)
+      ? this._getTopLevelNavigationBypassSourceHost(
+          id,
+          channel,
+          loadInfo,
+          isPrivate
+        )
       : "";
 
     if (
@@ -2545,7 +2597,11 @@ export const WaterfoxBlockerService = {
         targetHostname: hostname,
       })
     ) {
-      if (id && sourceHost && !this.shouldBypassBlocking(hostname)) {
+      if (
+        id &&
+        sourceHost &&
+        !this.shouldBypassBlocking(hostname, { isPrivate })
+      ) {
         this._topLevelNavigationBypassByBrowserId.set(id, {
           sourceHost,
           until: Date.now() + TOP_LEVEL_NAVIGATION_BYPASS_TTL_MS,
@@ -2558,7 +2614,7 @@ export const WaterfoxBlockerService = {
       return false;
     }
 
-    if (id && this._hasActiveTopLevelNavigationBypass(id)) {
+    if (id && this._hasActiveTopLevelNavigationBypass(id, isPrivate)) {
       return true;
     }
 
@@ -2622,6 +2678,7 @@ export const WaterfoxBlockerService = {
     hostname
   ) {
     const browserId = this._getTopBrowserId(loadInfo);
+    const isPrivate = this._isPrivateLoadInfo(loadInfo);
     if (
       this._shouldBypassTopLevelDocumentRequest(
         browserId,
@@ -2630,7 +2687,7 @@ export const WaterfoxBlockerService = {
         hostname
       )
     ) {
-      if (this.shouldBypassBlocking(hostname)) {
+      if (this.shouldBypassBlocking(hostname, { isPrivate })) {
         this._rememberTopLevelHost(browserId, hostname);
       }
       this._forgetBlockedTopLevelDocument(browserId);
@@ -2840,7 +2897,8 @@ export const WaterfoxBlockerService = {
       }) ||
       (isTopLevelDocument &&
         this._hasActiveTopLevelNavigationBypass(
-          this._getTopBrowserId(loadInfo)
+          this._getTopBrowserId(loadInfo),
+          this._isPrivateLoadInfo(loadInfo)
         ));
 
     this._rememberTopLevelResponse(channel, loadInfo, requestType, hostname);
@@ -3181,13 +3239,14 @@ export const WaterfoxBlockerService = {
   },
 
   /**
-   * Allows the domain for the rest of the browser session. The entry is
-   * dropped on browser shutdown.
+   * Allows the domain for the rest of the normal browser session or the
+   * current private session.
    *
    * @param {string} domain
+   * @param {{isPrivate?: boolean}|boolean} [options]
    */
-  allowSiteForSession(domain) {
-    this._siteExceptions().allowSiteForSession(domain);
+  allowSiteForSession(domain, options = {}) {
+    this._siteExceptions().allowSiteForSession(domain, options);
   },
 
   _normalizeCheckResult(rawResult) {
@@ -3256,8 +3315,8 @@ export const WaterfoxBlockerService = {
    * @param {number} newBrowserId
    * @param {string} sourceHost
    */
-  recordNewTabSourceHost(newBrowserId, sourceHost) {
-    if (this.shouldBypassBlocking(sourceHost)) {
+  recordNewTabSourceHost(newBrowserId, sourceHost, options = {}) {
+    if (this.shouldBypassBlocking(sourceHost, options)) {
       this._rememberTopLevelHost(newBrowserId, sourceHost);
     }
   },
@@ -3295,13 +3354,16 @@ export const WaterfoxBlockerService = {
       return null;
     }
 
+    const options = {
+      isPrivate: isPrivateBrowsingContext(browsingContext),
+    };
     if (
       !hostname ||
       [
         hostname,
         this._getBrowsingContextDocumentHost(browsingContext),
         this._getBrowsingContextDocumentHost(browsingContext?.top),
-      ].some(host => this.shouldBypassBlocking(host))
+      ].some(host => this.shouldBypassBlocking(host, options))
     ) {
       return null;
     }
@@ -3740,10 +3802,11 @@ export const WaterfoxBlockerService = {
    * `www.example.com` does not match `example.com`.
    *
    * @param {string} domain
+   * @param {{isPrivate?: boolean}|boolean} [options]
    * @returns {boolean}
    */
-  isSiteExcepted(domain) {
-    return this._siteExceptions().isSiteExcepted(domain);
+  isSiteExcepted(domain, options = {}) {
+    return this._siteExceptions().isSiteExcepted(domain, options);
   },
 
   /**
@@ -3841,8 +3904,8 @@ export const WaterfoxBlockerService = {
   /**
    * @param {string} domain
    */
-  removeSiteException(domain) {
-    this._siteExceptions().removePermanentSiteException(domain);
+  removeSiteException(domain, options = {}) {
+    this._siteExceptions().removeSiteException(domain, options);
   },
 
   /**
@@ -3851,15 +3914,20 @@ export const WaterfoxBlockerService = {
    * - Search partner exemptions when enabled.
    *
    * @param {string} candidateDomain Domain to test as a site exception or partner bypass.
+   * @param {{isPrivate?: boolean}|boolean} [options]
    * @returns {boolean}
    */
-  shouldBypassBlocking(candidateDomain) {
+  shouldBypassBlocking(candidateDomain, options = {}) {
     const domain = String(candidateDomain || "").replace(/\.$/, "");
     if (!domain) {
       return false;
     }
 
-    if (this.isSiteExcepted(domain)) {
+    if (
+      this.isSiteExcepted(domain, {
+        isPrivate: this._isPrivateExceptionContext(options),
+      })
+    ) {
       return true;
     }
 
