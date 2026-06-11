@@ -2,16 +2,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-DIRS += [
-    "blocker",
-    "remotesettings",
-    "search",
-    "settings",
-    "statusbar",
-    "theme",
-    "utils",
-]
-
-EXTRA_JS_MODULES += [
-    "WaterfoxGlue.sys.mjs",
-]
+browser.jar:
+%   content browser %content/browser/ contentaccessible=yes
+    content/browser/waterfox/statusbar/statusbar.css          (content/statusbar.css)
