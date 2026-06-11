@@ -5,6 +5,7 @@
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  StyleSheetUtils: "resource:///modules/StyleSheetUtils.sys.mjs",
   WaterfoxBlockerExtensionDetector:
     "resource:///modules/WaterfoxBlockerExtensionDetector.sys.mjs",
   WaterfoxBlockerPanel: "resource:///modules/WaterfoxBlockerPanel.sys.mjs",
@@ -20,6 +21,10 @@ const MIGRATION_VERSION = 2;
 export const WaterfoxGlue = {
   init() {
     this.migrateUI();
+
+    lazy.StyleSheetUtils.registerStylesheet(
+      "chrome://browser/skin/waterfox/general.css"
+    );
 
     lazy.WaterfoxSearchExtensionPolicy.init();
     lazy.WaterfoxSearchTweaks.init();
