@@ -1,0 +1,36 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+/* stylelint-disable stylelint-plugin-mozilla/use-design-tokens */
+
+#waterfox-blocker-toolbar-button {
+  list-style-image: url("chrome://browser/content/blocker/waterfoxShield.svg");
+}
+
+#waterfox-blocker-toolbar-button[page-not-protectable] > .toolbarbutton-icon,
+#waterfox-blocker-toolbar-button[page-not-protectable] > .toolbarbutton-badge-stack > .toolbarbutton-icon {
+  opacity: var(--opacity-deemphasized-strong);
+}
+
+#waterfox-blocker-toolbar-button > .toolbarbutton-badge-stack > .toolbarbutton-badge {
+  background-color: var(--color-accent-primary);
+  color: var(--button-text-color-primary);
+  border-radius: var(--border-radius-circle);
+  box-shadow: none;
+  font-weight: var(--font-weight-semibold);
+}
+
+#waterfox-blocker-panel {
+  --arrowpanel-background: var(--background-color-box);
+  --arrowpanel-border-color: var(--card-border-color);
+  --arrowpanel-border-radius: var(--border-radius-large);
+  --arrowpanel-padding: 0;
+  fill: currentColor;
+  font: menu;
+}
+
+#waterfox-blocker-panel-site-toggle {
+  font-size: 1.15em;
+  font-weight: var(--font-weight-bold);
+}
