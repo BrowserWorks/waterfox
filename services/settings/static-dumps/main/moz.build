@@ -6,13 +6,18 @@ if CONFIG["MOZ_BUILD_APP"] == "browser":
     DIST_SUBDIR = "browser"
 
 FINAL_TARGET_FILES.defaults.settings.main += [
+    "addons-manager-settings.json",
     "bounce-tracking-protection-exceptions.json",
+    "change-password-urls.json",
     "doh-config.json",
     "doh-providers.json",
     "fingerprinting-protection-overrides.json",
+    "mfcdm-origins-list.json",
     "partitioning-exempt-urls.json",
     "query-stripping.json",
     "third-party-cookie-blocking-exempt-urls.json",
     "tracking-protection-lists.json",
+    "translations-models-v2.json",
+    "translations-wasm-v2.json",
     "url-classifier-exceptions.json",
 ]

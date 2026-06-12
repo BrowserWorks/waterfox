@@ -4,6 +4,7 @@
 
 DIRS += [
     "extensions",
+    "remotesettings",
     "settings",
     "utils",
 ]
