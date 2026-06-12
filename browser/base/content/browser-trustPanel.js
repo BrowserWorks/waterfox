@@ -390,6 +390,12 @@ class TrustPanel {
 
   /** Asynchronous check for the current page's breached status, updating the address bar icon if the page was breached */
   async #checkForBreaches(uri) {
+    // Waterfox: skip the breach collection query entirely when the alerts
+    // are off; the status check below only gates the display.
+    if (!UrlbarPrefs.get("trustPanel.breachAlerts")) {
+      this.#breachedStatus = "disabled";
+      return;
+    }
     const capturedUri = uri;
     const [applicableBreaches, hasMonitorAccountOrStoredPasswords] =
       await Promise.all([
@@ -1710,9 +1716,13 @@ class TrustPanel {
   }
 
   async #getApplicableBreaches(site) {
+    if (!UrlbarPrefs.get("trustPanel.breachAlerts") || !site) {
+      return [];
+    }
+
     const breaches = await this.#getBreachedWebsites();
 
-    if (!site || !breaches.length) {
+    if (!breaches.length) {
       return [];
     }
 
