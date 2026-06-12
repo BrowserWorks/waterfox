@@ -231,6 +231,9 @@ var gIdentityHandler = {
       "identity-popup-clear-sitedata-button": event => {
         this.clearSiteData(event);
       },
+      "identity-popup-allow-sitedata-button": () => {
+        this.toggleSiteData();
+      },
       "identity-popup-remove-cert-exception": () => {
         this.removeCertException();
       },
@@ -476,6 +479,36 @@ var gIdentityHandler = {
     }
 
     event.stopPropagation();
+  },
+
+  // Waterfox: the cookie exception toggle in the site data footer.
+  refreshSiteData() {
+    document
+      .getElementById("identity-popup-allow-sitedata-toggle")
+      .toggleAttribute(
+        "pressed",
+        Services.perms.testExactPermissionFromPrincipal(
+          gBrowser.contentPrincipal,
+          "cookie"
+        ) === Services.perms.ALLOW_ACTION
+      );
+  },
+
+  toggleSiteData() {
+    const pressed = document
+      .getElementById("identity-popup-allow-sitedata-toggle")
+      .toggleAttribute("pressed");
+
+    if (pressed) {
+      Services.perms.addFromPrincipal(
+        gBrowser.contentPrincipal,
+        "cookie",
+        Services.perms.ALLOW_ACTION,
+        Services.perms.EXPIRE_NEVER
+      );
+    } else {
+      Services.perms.removeFromPrincipal(gBrowser.contentPrincipal, "cookie");
+    }
   },
 
   /**
@@ -1229,6 +1262,8 @@ var gIdentityHandler = {
     this._identityPopupContentOwner.textContent = owner;
     this._identityPopupContentSupp.textContent = supplemental;
     this._identityPopupContentVerif.textContent = verifier;
+
+    this.refreshSiteData();
   },
 
   setURI(uri) {
