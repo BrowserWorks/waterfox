@@ -118,6 +118,16 @@ pref("app.normandy.enabled", false, locked);
 pref("app.normandy.api_url", "", locked);
 pref("app.shield.optoutstudies.enabled", false, locked);
 
+// Nimbus rollouts and Firefox Labs recipes come from a Remote Settings
+// collection that stays offline here, so the loader has nothing to do.
+pref("nimbus.rollouts.enabled", false, locked);
+pref("nimbus.labs.enabled", false, locked);
+pref("browser.preferences.experimental.hidden", true);
+
+// Firefox Monitor breach alerts query a Mozilla breach collection.
+pref("signon.management.page.breach-alerts.enabled", false, locked);
+pref("browser.urlbar.trustPanel.breachAlerts", false, locked);
+
 // Crash reporting.
 pref("breakpad.reportURL", "", locked);
 pref("browser.tabs.crashReporting.sendReport", false, locked);
