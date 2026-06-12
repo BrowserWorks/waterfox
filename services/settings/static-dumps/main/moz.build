@@ -14,5 +14,7 @@ FINAL_TARGET_FILES.defaults.settings.main += [
     "query-stripping.json",
     "third-party-cookie-blocking-exempt-urls.json",
     "tracking-protection-lists.json",
+    "translations-models-v2.json",
+    "translations-wasm-v2.json",
     "url-classifier-exceptions.json",
 ]
