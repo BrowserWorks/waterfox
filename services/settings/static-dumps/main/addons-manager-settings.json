@@ -1,0 +1,15 @@
+{
+  "data": [
+    {
+      "schema": 1688561643547,
+      "filter_expression": "env.appinfo.ID == \"{ec8030f7-c20a-464f-9b0e-13a3a9e97384}\"",
+      "quarantinedDomains": {
+        "extensions.quarantinedDomains.list": "autoatendimento.bb.com.br,ibpf.sicredi.com.br,ibpj.sicredi.com.br,internetbanking.caixa.gov.br,www.ib12.bradesco.com.br,www2.bancobrasil.com.br"
+      },
+      "installTriggerDeprecation": null,
+      "id": "AddonManagerSettings-quarantinedDomains",
+      "last_modified": 1688747728721
+    }
+  ],
+  "timestamp": 1688747728721
+}

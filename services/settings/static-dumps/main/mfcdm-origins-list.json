@@ -1,0 +1,33 @@
+{
+  "data": [
+    {
+      "origin": "www.canalplus.com",
+      "schema": 1750801287681,
+      "allowed": true,
+      "id": "bcaeeb5a-9d45-4046-a9d1-2e9f01ca19e8",
+      "last_modified": 1750871406038
+    },
+    {
+      "origin": "www.hulu.com",
+      "schema": 1746548607671,
+      "allowed": false,
+      "id": "6993790c-1952-422f-b130-7ec2efe42465",
+      "last_modified": 1746549218431
+    },
+    {
+      "origin": "on.orf.at",
+      "schema": 1746548607502,
+      "allowed": false,
+      "id": "e755fa8f-3e2a-49e5-b9ce-4d3754145ce1",
+      "last_modified": 1746549218428
+    },
+    {
+      "origin": "www.netflix.com",
+      "schema": 1746437701305,
+      "allowed": true,
+      "id": "93a2bfd3-99a0-454a-8ea9-b6903497c299",
+      "last_modified": 1746549218425
+    }
+  ],
+  "timestamp": 1750871406038
+}
