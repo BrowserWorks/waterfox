@@ -52,7 +52,7 @@ if (Services.prefs.getBoolPref("browser.settings-redesign.enabled", false)) {
   );
 
   const tabsPane = SettingPaneManager.get("tabsBrowsing");
-  tabsPane.groupIds = [...tabsPane.groupIds, "waterfoxTabs"];
+  tabsPane.groupIds = ["waterfoxTabs", ...tabsPane.groupIds];
   ChromeUtils.importESModule(
     "chrome://browser/content/waterfox/settings/waterfoxTabs.mjs",
     { global: "current" }
@@ -70,6 +70,25 @@ if (Services.prefs.getBoolPref("browser.settings-redesign.enabled", false)) {
   // firefoxSuggest group at runtime, so it only needs to load before that pane.
   ChromeUtils.importESModule(
     "chrome://browser/content/waterfox/settings/waterfoxSearch.mjs",
+    { global: "current" }
+  );
+
+  // The privacy pane keeps its Mozilla module; waterfoxPrivacy adjusts its Safe
+  // Browsing status warning at runtime, so it only needs to load before that pane.
+  ChromeUtils.importESModule(
+    "chrome://browser/content/waterfox/settings/waterfoxPrivacy.mjs",
+    { global: "current" }
+  );
+
+  // The Waterfox notice renders where Mozilla's data collection group sits;
+  // that group stays empty in builds without data reporting.
+  const permissionsPane = SettingPaneManager.get("permissionsData");
+  permissionsPane.groupIds = [
+    "waterfoxDataCollection",
+    ...permissionsPane.groupIds,
+  ];
+  ChromeUtils.importESModule(
+    "chrome://browser/content/waterfox/settings/waterfoxDataCollection.mjs",
     { global: "current" }
   );
 }
