@@ -1,0 +1,4 @@
+[DEFAULT]
+firefox-appdir = "browser"
+
+["test_waterfox_remote_settings_policy.js"]
