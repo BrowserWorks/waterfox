@@ -938,7 +938,11 @@ export class TopSitesFeed {
     Services.prefs.addObserver(DEFAULT_SITES_OVERRIDE_PREF, this);
     Services.prefs.addObserver(DEFAULT_SITES_EXPERIMENTS_PREF_BRANCH, this);
     lazy.NimbusFeatures.newtab.onUpdate(this._nimbusChangeListener);
-    this.frecencyBoostProvider.init();
+    // Waterfox: the boosted sponsors collection is only consulted for
+    // sponsored tiles, so skip the client when those are off.
+    if (this.store.getState().Prefs?.values?.[SHOW_SPONSORED_PREF]) {
+      this.frecencyBoostProvider.init();
+    }
   }
 
   uninit() {
