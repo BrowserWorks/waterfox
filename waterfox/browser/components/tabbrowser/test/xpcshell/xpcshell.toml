@@ -1,0 +1,9 @@
+[DEFAULT]
+firefox-appdir = "browser"
+head = "head.js"
+
+["test_TreeTabsMigration.js"]
+
+["test_TreeTabsService.js"]
+
+["test_TreeTabsStore.js"]
