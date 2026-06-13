@@ -223,6 +223,9 @@
       return (
         this.isOpen &&
         !this.hidden &&
+        // A collapsed tree subtree hides tabs only in vertical mode, like a
+        // collapsed tab group.
+        !(this.dataset.treeHidden == "true" && this.container.verticalMode) &&
         (!this.group || this.group.isTabVisibleInGroup(this))
       );
     }
@@ -688,6 +691,13 @@
       let tabContainer = this.container;
       if (
         tabContainer._closeTabByDblclick &&
+        !(
+          tabContainer.verticalMode &&
+          Services.prefs.getBoolPref(
+            "browser.tabs.verticalTabs.tree.enabled",
+            false
+          )
+        ) &&
         this._selectedOnFirstMouseDown &&
         this.selected &&
         !event.target.classList.contains("tab-icon-overlay")
