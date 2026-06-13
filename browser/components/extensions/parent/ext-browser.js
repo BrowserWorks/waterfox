@@ -500,6 +500,9 @@ class TabTracker extends TabTrackerBase {
 
     if (nativeTab.openerTab !== nativeOpenerTab) {
       nativeTab.openerTab = nativeOpenerTab;
+      nativeTab.documentGlobal.gBrowser._tabAttrModified(nativeTab, [
+        "openerTab",
+      ]);
       this.emit("tab-openerTabId", { nativeTab, openerTabId });
     }
   }

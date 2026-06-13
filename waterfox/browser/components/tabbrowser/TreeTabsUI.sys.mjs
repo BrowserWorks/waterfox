@@ -12,6 +12,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
 });
 
 const PREF_ENABLED = "browser.tabs.verticalTabs.tree.enabled";
+const PREF_INDENT_PX = "browser.tabs.verticalTabs.tree.indentPx";
 const PREF_AUTO_COLLAPSE_ON_SELECT =
   "browser.tabs.verticalTabs.tree.autoCollapse.onSelect";
 const PREF_DOUBLE_CLICK_BEHAVIOR =
@@ -141,10 +142,7 @@ function createTreeTabsController(window) {
     },
 
     _getIndentUnit() {
-      const px = Services.prefs.getIntPref(
-        "browser.tabs.verticalTabs.tree.indentPx",
-        16
-      );
+      const px = Services.prefs.getIntPref(PREF_INDENT_PX, 16);
       return px > 0 ? px : 16;
     },
 
@@ -740,6 +738,7 @@ function createTreeTabsController(window) {
       lazy.TreeTabsStore.initWindow(window);
 
       Services.prefs.addObserver(PREF_ENABLED, this);
+      Services.prefs.addObserver(PREF_INDENT_PX, this);
       Services.prefs.addObserver(PREF_STICKY_ACTIVE_TAB, this);
       Services.obs.addObserver(this, "tree-tabs-attached");
       Services.obs.addObserver(this, "tree-tabs-detached");
@@ -804,6 +803,7 @@ function createTreeTabsController(window) {
       lazy.TreeTabsService.uninit(window);
 
       Services.prefs.removeObserver(PREF_ENABLED, this);
+      Services.prefs.removeObserver(PREF_INDENT_PX, this);
       Services.prefs.removeObserver(PREF_STICKY_ACTIVE_TAB, this);
       Services.obs.removeObserver(this, "tree-tabs-attached");
       Services.obs.removeObserver(this, "tree-tabs-detached");
@@ -1001,6 +1001,8 @@ function createTreeTabsController(window) {
       if (topic == "nsPref:changed") {
         if (data == PREF_ENABLED) {
           this._updateEnabledState();
+        } else if (data == PREF_INDENT_PX && this._isEnabled()) {
+          this._updateAllTabs();
         } else if (data == PREF_STICKY_ACTIVE_TAB && this._isEnabled()) {
           this._updateHiddenTabs();
         }
@@ -1360,8 +1362,59 @@ function createTreeTabsController(window) {
 
     _handleTabAttrModified(event) {
       const changed = event.detail?.changed || [];
-      if (Array.isArray(changed) && changed.includes("muted")) {
+      if (!Array.isArray(changed)) {
+        return;
+      }
+      if (changed.includes("muted")) {
         this._handleMutedStateChange(event.target);
+      }
+      if (changed.includes("openerTab")) {
+        this._handleOpenerChange(event.target);
+      }
+    },
+
+    // An extension changed openerTabId on an existing tab; mirror the new
+    // opener into the tree, the reverse of _syncOpenerTab. Our own writes
+    // assign openerTab directly and never raise this notification.
+    _handleOpenerChange(tab) {
+      if (!this._isEnabled() || !tab || tab.closing || !this._ownsTab(tab)) {
+        return;
+      }
+      const service = lazy.TreeTabsService;
+      const currentParent = service.getParent(tab);
+      const parent = tab.openerTab;
+      const valid = !!(
+        parent &&
+        parent != tab &&
+        !parent.closing &&
+        !parent.pinned &&
+        !tab.pinned &&
+        this._ownsTab(parent)
+      );
+      if (!valid) {
+        if (currentParent) {
+          service.detachTab(tab);
+        }
+        return;
+      }
+      if (currentParent == parent) {
+        return;
+      }
+
+      const children = service
+        .getChildren(parent)
+        .filter(child => child != tab)
+        .sort((a, b) => a._tPos - b._tPos);
+      const insertBefore = children.find(child => child._tPos > tab._tPos);
+      const insertAfter = children.findLast(child => child._tPos < tab._tPos);
+      let options = { index: 0 };
+      if (insertBefore) {
+        options = { insertBefore };
+      } else if (insertAfter) {
+        options = { insertAfter };
+      }
+      if (service.attachTab(tab, parent, options)) {
+        TreeTabsDnD._syncSubtreeStripPosition(tab);
       }
     },
 
@@ -2048,10 +2101,7 @@ function createTreeTabsController(window) {
     },
 
     _updateAllTabs() {
-      const indentPx = Services.prefs.getIntPref(
-        "browser.tabs.verticalTabs.tree.indentPx",
-        16
-      );
+      const indentPx = Services.prefs.getIntPref(PREF_INDENT_PX, 16);
       // Feed the per level indent into the stylesheet variable so the pref
       // drives the visual step, not just the depth clamp below.
       this._verticalTabsBox?.style.setProperty(
@@ -2082,12 +2132,7 @@ function createTreeTabsController(window) {
       }
 
       const level = lazy.TreeTabsService.getLevel(tab);
-      const indent =
-        indentPx ??
-        Services.prefs.getIntPref(
-          "browser.tabs.verticalTabs.tree.indentPx",
-          16
-        );
+      const indent = indentPx ?? Services.prefs.getIntPref(PREF_INDENT_PX, 16);
       const containerWidth =
         this._verticalTabsBox?.getBoundingClientRect().width || 250;
       const minContentWidth = 120;

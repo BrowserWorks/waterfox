@@ -106,6 +106,78 @@ add_task(async function test_unread_italics_toggle() {
   }
 });
 
+add_task(async function test_tree_auto_collapse_layout_and_binding() {
+  const pref = "browser.tabs.verticalTabs.tree.autoCollapse.onSelect";
+  is(
+    Services.prefs.getDefaultBranch("").getBoolPref(pref),
+    false,
+    "Automatic collapse on tab selection is off by default"
+  );
+  await SpecialPowers.pushPrefEnv({
+    set: [["browser.tabs.verticalTabs.tree.enabled", true]],
+    clear: [[pref]],
+  });
+
+  let tab;
+  try {
+    tab = await openPrefsTab("tabsBrowsing");
+    let doc = tab.linkedBrowser.contentDocument;
+    let layout = await settingGroupRenders(doc, "browserLayout");
+    await layout.updateComplete;
+
+    let toggle = doc
+      .getElementById("setting-control-waterfox-tree-auto-collapse-on-select")
+      ?.querySelector("moz-toggle");
+    ok(toggle, "The automatic collapse toggle renders");
+    is(
+      toggle.closest("setting-group"),
+      layout,
+      "The automatic collapse toggle is in Browser layout"
+    );
+    is(
+      toggle.closest("moz-fieldset")?.id,
+      "waterfox-tabs-tree",
+      "The toggle is inside the Tree tabs fieldset"
+    );
+    ok(BrowserTestUtils.isVisible(toggle), "The toggle is visible");
+    ok(!toggle.disabled, "The toggle is enabled while tree tabs are on");
+    ok(!toggle.pressed, "The toggle reflects the default off state");
+    ok(
+      toggle.getAttribute("searchkeywords").includes("auto-collapse"),
+      "The toggle includes an auto-collapse search keyword"
+    );
+
+    for (let value of [true, false]) {
+      let prefChanged = TestUtils.waitForPrefChange(pref);
+      synthesizeClick(toggle);
+      await prefChanged;
+      is(
+        Services.prefs.getBoolPref(pref),
+        value,
+        `Clicking the toggle writes ${value} to the selection collapse pref`
+      );
+      await TestUtils.waitForCondition(
+        () => toggle.pressed === value,
+        `The toggle reflects ${value} after clicking`
+      );
+    }
+
+    for (let value of [true, false]) {
+      Services.prefs.setBoolPref(pref, value);
+      await TestUtils.waitForCondition(
+        () => toggle.pressed === value,
+        `The toggle reflects an external pref change to ${value}`
+      );
+    }
+  } finally {
+    if (tab) {
+      BrowserTestUtils.removeTab(tab);
+    }
+    Services.prefs.clearUserPref(pref);
+    await SpecialPowers.popPrefEnv();
+  }
+});
+
 add_task(async function test_grouping_placement_follows_master() {
   let tab = await openPrefsTab("tabsBrowsing");
   let doc = tab.linkedBrowser.contentDocument;
