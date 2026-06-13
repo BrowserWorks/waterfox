@@ -256,6 +256,7 @@
       var dropEffect = dt.dropEffect;
       var draggedTab;
       let movingTabs;
+      let treeDropState = null;
       /** @type {TabMetricsContext} */
       const dropMetricsContext = gBrowser.TabMetrics.userTriggeredContext(
         gBrowser.TabMetrics.METRIC_SOURCE.DRAG_AND_DROP
@@ -271,6 +272,21 @@
         draggedTab.container.tabDragAndDrop.finishMoveTogetherSelectedTabs(
           draggedTab
         );
+
+        treeDropState = window.TreeTabsDnD?.prepareDrop?.(
+          this._tabbrowserTabs,
+          event,
+          { draggedTab, movingTabs, dropEffect }
+        );
+        if (Array.isArray(treeDropState?.movingTabs)) {
+          movingTabs = treeDropState.movingTabs;
+        }
+        if (treeDropState?.cancel) {
+          this.finishAnimateTabMove();
+          this._tabDropIndicator.hidden = true;
+          event.stopPropagation();
+          return;
+        }
       }
 
       if (this._rtlMode) {
@@ -451,6 +467,12 @@
             this._setIsDraggingTabGroup(draggedTab.group, false);
             this._expandGroupOnDrop(draggedTab);
           }
+
+          window.TreeTabsDnD?.afterSameWindowDrop?.(
+            this._tabbrowserTabs,
+            event,
+            { draggedTab, dropEffect, state: treeDropState }
+          );
         };
 
         if (shouldPin || shouldUnpin) {
@@ -547,6 +569,7 @@
         let selectedTab;
         let indexForSelectedTab;
         let unpinnedSplitViews = [];
+        const adoptedTabMap = new Map();
         for (let i = 0; i < movingTabs.length; ++i) {
           const tab = movingTabs[i];
           if (tab.selected) {
@@ -573,6 +596,7 @@
               selectTab: tab == draggedTab,
             });
             if (newTab) {
+              adoptedTabMap.set(tab, newTab);
               ++newIndex;
             }
           }
@@ -583,9 +607,22 @@
             selectTab: selectedTab == draggedTab,
           });
           if (newTab) {
+            adoptedTabMap.set(selectedTab, newTab);
             ++newIndex;
           }
         }
+
+        window.TreeTabsDnD?.afterCrossWindowDrop?.(
+          this._tabbrowserTabs,
+          event,
+          {
+            draggedTab,
+            dropEffect,
+            adoptedDraggedTab: adoptedTabMap.get(draggedTab) || null,
+            adoptedTabMap,
+            state: treeDropState,
+          }
+        );
 
         if (movingTabs.length > 1) {
           // Restore tab selection
@@ -2376,6 +2413,7 @@
           Services.prefs.getBoolPref(
             "browser.tabs.dragDrop.createGroup.enabled"
           ) &&
+          !window.TreeTabsDnD?._isEnabled?.(this._tabbrowserTabs) &&
           !movingTabsSet.has(dropElement) &&
           (isTab(dropElement) || isSplitViewWrapper(dropElement)) &&
           !dropElement?.group &&
