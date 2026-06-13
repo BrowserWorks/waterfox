@@ -8,6 +8,9 @@ EXTRA_JS_MODULES += [
     "TreeTabsMigration.sys.mjs",
     "TreeTabsService.sys.mjs",
     "TreeTabsStore.sys.mjs",
+    "TreeTabsUI.sys.mjs",
 ]
+
+BROWSER_CHROME_MANIFESTS += ["test/browser/browser.toml"]
 
 XPCSHELL_TESTS_MANIFESTS += ["test/xpcshell/xpcshell.toml"]

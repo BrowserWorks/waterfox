@@ -28,6 +28,8 @@ pref("browser.tabs.verticalTabs.tree.propagateMutedState", true);
 // Tree-aware pick of the next selected tab when the active tab closes.
 pref("browser.tabs.verticalTabs.tree.successorControl", true);
 
+// A link dropped onto a tab: 0 load in that tab, 1 ask, 2 open as child.
+pref("browser.tabs.verticalTabs.tree.dropLinksOnTab", 1);
 
 // Deepest nesting level allowed, -1 for no limit.
 pref("browser.tabs.verticalTabs.tree.maxDepth", -1);
