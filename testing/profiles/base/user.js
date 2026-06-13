@@ -26,3 +26,15 @@ user_pref("browser.startup.couldRestoreSession.count", -1);
 // This is used to disable address autofill telemetry since we cannot download
 // the model within tests.
 user_pref("extensions.formautofill.useml", false);
+
+// Waterfox turns on features that reach the network at startup, which trip the
+// non-local connection guard and fatal tests. Turn Ultra DNS off and clear its
+// Oblivious HTTP endpoints so nothing is fetched at startup, and leave the
+// blocker off so it does not pull filter lists. Suites that exercise these
+// features turn them back on themselves with local endpoints.
+user_pref("network.trr.mode", 5);
+user_pref("network.trr.use_ohttp", false);
+user_pref("network.trr.ohttp.config_uri", "");
+user_pref("network.trr.ohttp.uri", "");
+user_pref("network.trr.ohttp.relay_uri", "");
+user_pref("waterfox.blocker.enabled", false);
