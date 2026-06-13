@@ -256,6 +256,8 @@
       var dropEffect = dt.dropEffect;
       var draggedTab;
       let movingTabs;
+      let animatedTabs = [];
+      let treeDropState = null;
       /** @type {TabMetricsContext} */
       const dropMetricsContext = gBrowser.TabMetrics.userTriggeredContext(
         gBrowser.TabMetrics.METRIC_SOURCE.DRAG_AND_DROP
@@ -271,6 +273,28 @@
         draggedTab.container.tabDragAndDrop.finishMoveTogetherSelectedTabs(
           draggedTab
         );
+
+        animatedTabs = movingTabs.filter(item => {
+          const element = elementToMove(item);
+          return (
+            element.hasAttribute("dragtarget") &&
+            element.getBoundingClientRect().height
+          );
+        });
+        treeDropState = window.TreeTabsDnD?.prepareDrop?.(
+          this._tabbrowserTabs,
+          event,
+          { draggedTab, movingTabs, dropEffect }
+        );
+        if (Array.isArray(treeDropState?.movingTabs)) {
+          movingTabs = treeDropState.movingTabs;
+        }
+        if (treeDropState?.cancel) {
+          this.finishAnimateTabMove();
+          this._tabDropIndicator.hidden = true;
+          event.stopPropagation();
+          return;
+        }
       }
 
       if (this._rtlMode) {
@@ -278,6 +302,7 @@
         // positioning and animation. For drop, we require the original
         // order, so reverse back.
         movingTabs?.reverse();
+        animatedTabs.reverse();
       }
 
       let overPinnedDropIndicator =
@@ -341,8 +366,9 @@
             : tabWidth;
           let firstTab = tabs[0];
           let lastTab = tabs.at(-1);
-          let lastMovingTabScreen = movingTabs.at(-1)[screenAxis];
-          let firstMovingTabScreen = movingTabs[0][screenAxis];
+          let animationTabs = animatedTabs.length ? animatedTabs : [draggedTab];
+          let lastMovingTabScreen = animationTabs.at(-1)[screenAxis];
+          let firstMovingTabScreen = animationTabs[0][screenAxis];
           let startBound = firstTab[screenAxis] - firstMovingTabScreen;
           let endBound =
             lastTab[screenAxis] +
@@ -451,6 +477,12 @@
             this._setIsDraggingTabGroup(draggedTab.group, false);
             this._expandGroupOnDrop(draggedTab);
           }
+
+          window.TreeTabsDnD?.afterSameWindowDrop?.(
+            this._tabbrowserTabs,
+            event,
+            { draggedTab, dropEffect, state: treeDropState }
+          );
         };
 
         if (shouldPin || shouldUnpin) {
@@ -468,7 +500,9 @@
 
         if (shouldTranslate) {
           let translationPromises = [];
-          for (let item of movingTabs) {
+          // Tree descendants added at drop time were not animated; hidden ones
+          // cannot dispatch transitionend at all.
+          for (let item of animatedTabs) {
             item = elementToMove(item);
             let translationPromise = new Promise(resolve => {
               item.toggleAttribute("tabdrop-samewindow", true);
@@ -547,6 +581,7 @@
         let selectedTab;
         let indexForSelectedTab;
         let unpinnedSplitViews = [];
+        const adoptedTabMap = new Map();
         for (let i = 0; i < movingTabs.length; ++i) {
           const tab = movingTabs[i];
           if (tab.selected) {
@@ -573,6 +608,7 @@
               selectTab: tab == draggedTab,
             });
             if (newTab) {
+              adoptedTabMap.set(tab, newTab);
               ++newIndex;
             }
           }
@@ -583,9 +619,22 @@
             selectTab: selectedTab == draggedTab,
           });
           if (newTab) {
+            adoptedTabMap.set(selectedTab, newTab);
             ++newIndex;
           }
         }
+
+        window.TreeTabsDnD?.afterCrossWindowDrop?.(
+          this._tabbrowserTabs,
+          event,
+          {
+            draggedTab,
+            dropEffect,
+            adoptedDraggedTab: adoptedTabMap.get(draggedTab) || null,
+            adoptedTabMap,
+            state: treeDropState,
+          }
+        );
 
         if (movingTabs.length > 1) {
           // Restore tab selection
@@ -2387,6 +2436,7 @@
           Services.prefs.getBoolPref(
             "browser.tabs.dragDrop.createGroup.enabled"
           ) &&
+          !window.TreeTabsDnD?._isEnabled?.(this._tabbrowserTabs) &&
           !movingTabsSet.has(dropElement) &&
           (isTab(dropElement) || isSplitViewWrapper(dropElement)) &&
           !dropElement?.group &&
