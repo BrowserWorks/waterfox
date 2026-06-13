@@ -1,0 +1,47 @@
+[DEFAULT]
+tags = "waterfox_tree_tabs"
+firefox-appdir = "browser"
+prefs = [
+  "network.trr.mode=5",
+  "network.trr.uri=",
+  "network.trr.use_ohttp=false",
+  "network.trr.ohttp.config_uri=",
+  "network.trr.ohttp.relay_uri=",
+  "network.trr.ohttp.uri=",
+  "network.trr.default_provider_uri=",
+  "browser.startup.page=0",
+  "browser.startup.homepage=about:blank",
+  "browser.aboutwelcome.enabled=false",
+  "browser.startup.homepage_override.mstone=ignore",
+  "browser.startup.homepage_override.buildID=ignore",
+  "startup.homepage_override_url=about:blank",
+  "startup.homepage_welcome_url=about:blank",
+  "startup.homepage_welcome_url.additional=about:blank",
+  "app.update.url.details=about:blank",
+  "services.settings.server=data:,#remote-settings-dummy/v1",
+  "security.remote_settings.intermediates.enabled=false",
+  "security.remote_settings.crlite_filters.enabled=false",
+]
+support-files = ["head.js"]
+
+["browser_tree_tabs_auto_collapse.js"]
+
+["browser_tree_tabs_basic.js"]
+
+["browser_tree_tabs_collapse.js"]
+
+["browser_tree_tabs_context_menu.js"]
+
+["browser_tree_tabs_dblclick.js"]
+
+["browser_tree_tabs_hidden.js"]
+
+["browser_tree_tabs_keyboard.js"]
+
+["browser_tree_tabs_moves.js"]
+
+["browser_tree_tabs_mute.js"]
+
+["browser_tree_tabs_rendering.js"]
+
+["browser_tree_tabs_restore.js"]

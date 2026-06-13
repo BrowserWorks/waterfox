@@ -27,6 +27,7 @@ const VISIBILITY_SETTING_PREF = "sidebar.visibility";
 const EXPAND_ON_HOVER_PREF = "sidebar.expandOnHover";
 const POSITION_SETTING_PREF = "sidebar.position_start";
 const TAB_DIRECTION_SETTING_PREF = "sidebar.verticalTabs";
+const TREE_TABS_ENABLED_PREF = "browser.tabs.verticalTabs.tree.enabled";
 
 export class SidebarCustomize extends SidebarPage {
   constructor() {
@@ -67,10 +68,20 @@ export class SidebarCustomize extends SidebarPage {
         this.expandOnHoverEnabled = newValue;
       }
     );
+    XPCOMUtils.defineLazyPreferenceGetter(
+      this.#prefValues,
+      "treeTabsEnabled",
+      TREE_TABS_ENABLED_PREF,
+      false,
+      (_aPreference, _previousValue, newValue) => {
+        this.treeTabsEnabled = newValue;
+      }
+    );
     this.visibility = this.#prefValues.visibility;
     this.isPositionStart = this.#prefValues.isPositionStart;
     this.verticalTabsEnabled = this.#prefValues.verticalTabsEnabled;
     this.expandOnHoverEnabled = this.#prefValues.expandOnHoverEnabled;
+    this.treeTabsEnabled = this.#prefValues.treeTabsEnabled;
     this.boundObserve = (...args) => this.observe(...args);
   }
 
@@ -81,6 +92,7 @@ export class SidebarCustomize extends SidebarPage {
     isPositionStart: { type: Boolean },
     verticalTabsEnabled: { type: Boolean },
     expandOnHoverEnabled: { type: Boolean },
+    treeTabsEnabled: { type: Boolean },
   };
 
   static queries = {
@@ -91,6 +103,7 @@ export class SidebarCustomize extends SidebarPage {
     visibilityInput: "#hide-sidebar",
     verticalTabsInput: "#vertical-tabs",
     expandOnHoverInput: "#expand-on-hover",
+    treeVerticalTabsInput: "#tree-vertical-tabs",
   };
 
   connectedCallback() {
@@ -257,6 +270,15 @@ export class SidebarCustomize extends SidebarPage {
                   ?disabled=${this.getWindow().SidebarController._state
                     .revampVisibility === "expand-on-hover"}
                 ></moz-checkbox>
+                <moz-checkbox
+                  slot="nested"
+                  type="checkbox"
+                  id="tree-vertical-tabs"
+                  name="treeVerticalTabs"
+                  data-l10n-id="sidebar-tree-vertical-tabs"
+                  @change=${this.#handleTreeVerticalTabsChange}
+                  ?checked=${this.treeTabsEnabled}
+                ></moz-checkbox>
               `
             )}
             </moz-checkbox>
@@ -350,6 +372,11 @@ export class SidebarCustomize extends SidebarPage {
     Glean.sidebarCustomize.tabsLayout.record({
       orientation: verticalTabsEnabled ? "vertical" : "horizontal",
     });
+  }
+
+  #handleTreeVerticalTabsChange({ target: { checked } }) {
+    Services.prefs.setBoolPref(TREE_TABS_ENABLED_PREF, checked);
+    this.treeTabsEnabled = checked;
   }
 }
 

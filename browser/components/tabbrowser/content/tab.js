@@ -223,6 +223,9 @@
       return (
         this.isOpen &&
         !this.hidden &&
+        // A collapsed tree subtree hides tabs only in vertical mode, like a
+        // collapsed tab group.
+        !(this.dataset.treeHidden == "true" && this.container.verticalMode) &&
         (!this.group || this.group.isTabVisibleInGroup(this))
       );
     }
