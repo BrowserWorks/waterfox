@@ -256,6 +256,7 @@
       var dropEffect = dt.dropEffect;
       var draggedTab;
       let movingTabs;
+      let treeDropState = null;
       /** @type {TabMetricsContext} */
       const dropMetricsContext = gBrowser.TabMetrics.userTriggeredContext(
         gBrowser.TabMetrics.METRIC_SOURCE.DRAG_AND_DROP
@@ -271,6 +272,21 @@
         draggedTab.container.tabDragAndDrop.finishMoveTogetherSelectedTabs(
           draggedTab
         );
+
+        treeDropState = window.TreeTabsDnD?.prepareDrop?.(
+          this._tabbrowserTabs,
+          event,
+          { draggedTab, movingTabs, dropEffect }
+        );
+        if (Array.isArray(treeDropState?.movingTabs)) {
+          movingTabs = treeDropState.movingTabs;
+        }
+        if (treeDropState?.cancel) {
+          this.finishAnimateTabMove();
+          this._tabDropIndicator.hidden = true;
+          event.stopPropagation();
+          return;
+        }
       }
 
       if (this._rtlMode) {
@@ -451,6 +467,12 @@
             this._setIsDraggingTabGroup(draggedTab.group, false);
             this._expandGroupOnDrop(draggedTab);
           }
+
+          window.TreeTabsDnD?.afterSameWindowDrop?.(
+            this._tabbrowserTabs,
+            event,
+            { draggedTab, dropEffect, state: treeDropState }
+          );
         };
 
         if (shouldPin || shouldUnpin) {
@@ -2376,6 +2398,7 @@
           Services.prefs.getBoolPref(
             "browser.tabs.dragDrop.createGroup.enabled"
           ) &&
+          !window.TreeTabsDnD?._isEnabled?.(this._tabbrowserTabs) &&
           !movingTabsSet.has(dropElement) &&
           (isTab(dropElement) || isSplitViewWrapper(dropElement)) &&
           !dropElement?.group &&
