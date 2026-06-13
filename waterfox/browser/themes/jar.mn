@@ -7,3 +7,4 @@ browser.jar:
     skin/classic/browser/userChrome.css                       (lepton/leptonChrome.css)
     skin/classic/browser/lepton/                              (lepton/icons/*.svg)
     skin/classic/browser/waterfox/general.css                 (waterfox/general.css)
+    skin/classic/browser/vertical-tabs-tree.css               (vertical-tabs-tree.css)
