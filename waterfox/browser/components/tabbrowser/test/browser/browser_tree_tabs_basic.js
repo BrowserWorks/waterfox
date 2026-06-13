@@ -236,3 +236,145 @@ add_task(async function test_auto_attach_from_link_click() {
   BrowserTestUtils.removeTab(childTab);
   BrowserTestUtils.removeTab(parentTab);
 });
+
+add_task(async function test_opener_tab_reverse_sync_attaches_and_reparents() {
+  await enableTreeTabs();
+
+  const firstParent = BrowserTestUtils.addTab(
+    gBrowser,
+    "about:blank?waterfox-tree-opener-sync-first-parent"
+  );
+  const secondParent = BrowserTestUtils.addTab(
+    gBrowser,
+    "about:blank?waterfox-tree-opener-sync-second-parent"
+  );
+  const targetTab = BrowserTestUtils.addTab(
+    gBrowser,
+    "about:blank?waterfox-tree-opener-sync-target"
+  );
+  const targetChild = await openTabWithTree(
+    targetTab,
+    "https://example.com/?waterfox-tree-opener-sync-target-child"
+  );
+
+  targetTab.openerTab = firstParent;
+  gBrowser._tabAttrModified(targetTab, ["openerTab"]);
+  await waitForTreeCondition(
+    () =>
+      getTreeParent(targetTab) == firstParent &&
+      targetTab._tPos == firstParent._tPos + 1 &&
+      targetChild._tPos == targetTab._tPos + 1,
+    "Waiting for openerTab to attach and position the target subtree"
+  );
+
+  is(
+    getTreeParent(targetTab),
+    firstParent,
+    "Setting openerTab attaches an existing tab to the opener"
+  );
+  is(
+    targetTab._tPos,
+    firstParent._tPos + 1,
+    "Attached tab immediately follows its opener"
+  );
+  is(
+    targetChild._tPos,
+    targetTab._tPos + 1,
+    "Attached tab keeps its child contiguous in the strip"
+  );
+  is(
+    secondParent._tPos,
+    targetChild._tPos + 1,
+    "The following root stays after the attached subtree"
+  );
+
+  targetTab.openerTab = secondParent;
+  gBrowser._tabAttrModified(targetTab, ["openerTab"]);
+  await waitForTreeCondition(
+    () =>
+      getTreeParent(targetTab) == secondParent &&
+      targetTab._tPos == secondParent._tPos + 1 &&
+      targetChild._tPos == targetTab._tPos + 1,
+    "Waiting for an openerTab change to reparent and move the target subtree"
+  );
+
+  is(
+    getTreeParent(targetTab),
+    secondParent,
+    "Changing openerTab reparents the existing tab"
+  );
+  ok(
+    !gBrowser.TreeTabsService.getChildren(firstParent).includes(targetTab),
+    "The previous opener no longer owns the target tab"
+  );
+  is(
+    targetTab._tPos,
+    secondParent._tPos + 1,
+    "Reparented tab immediately follows its new opener"
+  );
+  is(
+    targetChild._tPos,
+    targetTab._tPos + 1,
+    "Reparented subtree remains contiguous in the strip"
+  );
+
+  BrowserTestUtils.removeTab(targetChild);
+  BrowserTestUtils.removeTab(targetTab);
+  BrowserTestUtils.removeTab(secondParent);
+  BrowserTestUtils.removeTab(firstParent);
+});
+
+add_task(
+  async function test_opener_tab_reverse_sync_uses_nearest_child_and_detaches() {
+    await enableTreeTabs();
+
+    const parentTab = BrowserTestUtils.addTab(
+      gBrowser,
+      "about:blank?waterfox-tree-opener-nearest-parent"
+    );
+    const firstChild = await openTabWithTree(
+      parentTab,
+      "about:blank?waterfox-tree-opener-nearest-first"
+    );
+    const secondChild = await openTabWithTree(
+      parentTab,
+      "about:blank?waterfox-tree-opener-nearest-second"
+    );
+    const targetTab = BrowserTestUtils.addTab(
+      gBrowser,
+      "about:blank?waterfox-tree-opener-nearest-target"
+    );
+    gBrowser.TreeTabsService.detachTab(targetTab);
+    window.TreeTabsDnD._suppressMoveFixup = true;
+    gBrowser.moveTabTo(targetTab, { tabIndex: secondChild._tPos });
+    window.TreeTabsDnD._suppressMoveFixup = false;
+
+    targetTab.openerTab = parentTab;
+    gBrowser._tabAttrModified(targetTab, ["openerTab"]);
+    await waitForTreeCondition(
+      () =>
+        getTreeParent(targetTab) == parentTab &&
+        gBrowser.TreeTabsService.getChildren(parentTab)[1] == targetTab,
+      "Waiting for opener sync to use the nearest child position"
+    );
+
+    Assert.deepEqual(
+      gBrowser.TreeTabsService.getChildren(parentTab),
+      [firstChild, targetTab, secondChild],
+      "Reverse opener sync inserts at the nearest child position"
+    );
+
+    targetTab.openerTab = null;
+    gBrowser._tabAttrModified(targetTab, ["openerTab"]);
+    await waitForTreeCondition(
+      () => getTreeParent(targetTab) == null,
+      "Waiting for clearing openerTab to detach the tree edge"
+    );
+    is(getTreeParent(targetTab), null, "Clearing openerTab detaches the tab");
+
+    BrowserTestUtils.removeTab(secondChild);
+    BrowserTestUtils.removeTab(targetTab);
+    BrowserTestUtils.removeTab(firstChild);
+    BrowserTestUtils.removeTab(parentTab);
+  }
+);
