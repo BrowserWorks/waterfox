@@ -7,7 +7,6 @@ const lazy = {};
 ChromeUtils.defineESModuleGetters(lazy, {
   PrivateTab: "resource:///modules/PrivateTab.sys.mjs",
   StatusBar: "resource:///modules/StatusBar.sys.mjs",
-  StyleSheetUtils: "resource:///modules/StyleSheetUtils.sys.mjs",
   TabFeatures: "resource:///modules/TabFeatures.sys.mjs",
   TabGrouping: "resource:///modules/TabGrouping.sys.mjs",
   UICustomizations: "resource:///modules/UICustomizations.sys.mjs",
@@ -19,6 +18,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
     "resource:///modules/WaterfoxSearchExtensionPolicy.sys.mjs",
   WaterfoxSearchTweaks: "resource:///modules/WaterfoxSearchTweaks.sys.mjs",
   WaterfoxBrowserStyle: "resource:///modules/WaterfoxBrowserStyle.sys.mjs",
+  WaterfoxStyles: "resource:///modules/WaterfoxStyles.sys.mjs",
   WaterfoxTheme: "resource:///modules/WaterfoxTheme.sys.mjs",
   WaterfoxThemeColors: "resource:///modules/WaterfoxThemeColors.sys.mjs",
 });
@@ -37,9 +37,7 @@ export const WaterfoxGlue = {
     this.migrateUI();
     lazy.WaterfoxBrowserStyle.ensureCurrentStyle();
 
-    lazy.StyleSheetUtils.registerStylesheet(
-      "chrome://browser/skin/waterfox/general.css"
-    );
+    lazy.WaterfoxStyles.init();
     lazy.WaterfoxTheme.init();
     lazy.WaterfoxThemeColors.init();
 
