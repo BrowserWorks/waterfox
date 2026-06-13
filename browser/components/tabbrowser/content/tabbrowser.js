@@ -209,6 +209,8 @@
         TaskbarTabsUtils:
           "resource:///modules/taskbartabs/TaskbarTabsUtils.sys.mjs",
         TaskbarTabs: "resource:///modules/taskbartabs/TaskbarTabs.sys.mjs",
+        TreeTabsService: "resource:///modules/TreeTabsService.sys.mjs",
+        TreeTabsStore: "resource:///modules/TreeTabsStore.sys.mjs",
         UrlbarUtils: "moz-src:///browser/components/urlbar/UrlbarUtils.sys.mjs",
         UrlbarProviderOpenTabs:
           "moz-src:///browser/components/urlbar/UrlbarProviderOpenTabs.sys.mjs",
@@ -3209,12 +3211,22 @@
       Services.obs.notifyObservers(
         {
           wrappedJSObject: new Promise(resolve => {
-            this.selectedTab = this.addTrustedTab(BROWSER_NEW_TAB_URL, {
-              tabIndex: tab._tPos + 1,
+            const treeTabs = this.TreeTabsService;
+            // The new tab becomes the base tab's next sibling, so it goes
+            // after the base tab's whole subtree.
+            const treeAnchor = treeTabs.enabled
+              ? treeTabs.getSubtreeEndAnchor(tab)
+              : null;
+            const newTab = this.addTrustedTab(BROWSER_NEW_TAB_URL, {
+              tabIndex: (treeAnchor || tab)._tPos + 1,
               userContextId: tab.userContextId,
               tabGroup: tab.group,
               focusUrlBar: true,
             });
+            this.selectedTab = newTab;
+            if (treeTabs.enabled) {
+              treeTabs.onTabOpened(newTab, { nextSiblingOf: tab });
+            }
             resolve(this.selectedBrowser);
           }),
         },
@@ -3405,6 +3417,8 @@
             pinned,
             bulkOrderedOpen,
             tabGroup: tabGroup ?? openerTab?.group,
+            uriString,
+            fromExternal,
           });
         }
 
@@ -3490,6 +3504,17 @@
           fromExternal,
         };
         this._fireTabOpen(t, tabOpenDetail);
+
+        const treeTabs = this.TreeTabsService;
+        if (treeTabs.enabled) {
+          treeTabs.onTabOpened(t, {
+            opener: t.openerTab,
+            currentTab: this.selectedTab,
+            url: uriString,
+            fromExternal,
+            bulk: bulkOrderedOpen,
+          });
+        }
 
         this._kickOffBrowserLoad(b, {
           uri,
@@ -4846,6 +4871,8 @@
         pinned,
         bulkOrderedOpen,
         tabGroup,
+        uriString,
+        fromExternal,
       } = {}
     ) {
       // If this new tab is owned by another, assert that relationship
@@ -4857,21 +4884,42 @@
       if (typeof elementIndex != "number" && typeof tabIndex != "number") {
         // Move the new tab after another tab if needed, to the end otherwise.
         elementIndex = Infinity;
+        // Tree tabs place a new tab after the subtree it will join, so the
+        // strip order matches the tree without a second move.
+        let treeAnchor = null;
+        if (!bulkOrderedOpen && this.TreeTabsService.enabled) {
+          if (openerTab?.pinned) {
+            treeAnchor = this.TreeTabsService.getPinnedOpenerAnchor(
+              openerTab,
+              this.#lastRelatedTabMap.get(openerTab),
+              window
+            );
+          } else {
+            treeAnchor = this.TreeTabsService.getNewTabAnchor(
+              openerTab,
+              this.selectedTab,
+              { url: uriString, fromExternal }
+            );
+          }
+        }
         if (
-          !bulkOrderedOpen &&
-          ((openerTab &&
-            Services.prefs.getBoolPref(
-              "browser.tabs.insertRelatedAfterCurrent"
-            )) ||
-            Services.prefs.getBoolPref("browser.tabs.insertAfterCurrent"))
+          treeAnchor ||
+          (!bulkOrderedOpen &&
+            ((openerTab &&
+              Services.prefs.getBoolPref(
+                "browser.tabs.insertRelatedAfterCurrent"
+              )) ||
+              Services.prefs.getBoolPref("browser.tabs.insertAfterCurrent")))
         ) {
           let lastRelatedTab =
             openerTab && this.#lastRelatedTabMap.get(openerTab);
-          let previousTab = lastRelatedTab || openerTab || this.selectedTab;
+          let previousTab =
+            treeAnchor || lastRelatedTab || openerTab || this.selectedTab;
           if (!tabGroup) {
             tabGroup = previousTab.group;
           }
           if (
+            !treeAnchor &&
             Services.prefs.getBoolPref(
               "browser.tabs.insertAfterCurrentExceptPinned"
             ) &&
@@ -5671,6 +5719,17 @@
       // state).
       let tabWidth = window.windowUtils.getBoundsWithoutFlushing(aTab).width;
       let isLastTab = this.#isLastTabInWindow(aTab);
+
+      // Save the subtree before close-parent behavior detaches or closes
+      // descendants, so undo close can restore their links.
+      const treeTabs = this.TreeTabsService;
+      if (treeTabs.enabled) {
+        this.TreeTabsStore.saveTabState(aTab, { force: true });
+        for (const descendant of treeTabs.getDescendants(aTab)) {
+          this.TreeTabsStore.saveTabState(descendant, { force: true });
+        }
+      }
+
       if (
         !this._beginRemoveTab(aTab, {
           closeWindowFastpath: true,
@@ -5687,6 +5746,12 @@
         Glean.browserTabclose.timeNoAnim.cancel(aTab._closeTimeNoAnimTimerId);
         aTab._closeTimeNoAnimTimerId = null;
         return;
+      }
+
+      if (treeTabs.enabled) {
+        treeTabs.onTabClosed(aTab, {
+          isUserTriggered: isUserTriggered || !!triggeringEvent,
+        });
       }
 
       let lockTabSizing =
@@ -6299,6 +6364,16 @@
         Services.prefs.getBoolPref("browser.tabs.selectOwnerOnClose")
       ) {
         return aTab.owner;
+      }
+
+      if (this.TreeTabsService.enabled) {
+        const treeSuccessor = this.TreeTabsService.getSuccessor(
+          aTab,
+          excludeTabs
+        );
+        if (treeSuccessor) {
+          return treeSuccessor;
+        }
       }
 
       // Try to find a remaining tab that comes after the given tab
@@ -7492,6 +7567,11 @@
           currentTabState,
           metricsContext
         );
+
+        const treeTabs = this.TreeTabsService;
+        if (treeTabs.enabled) {
+          treeTabs.onTabMoved(tab);
+        }
       }
 
       let currentFirst = this.#getTabMoveState(tabs[0]);
@@ -7666,6 +7746,19 @@
      *          The new index of the tab
      */
     duplicateTab(aTab, aRestoreTabImmediately, aOptions) {
+      const treeTabs = this.TreeTabsService;
+      if (
+        treeTabs.enabled &&
+        aTab.documentGlobal == window &&
+        typeof aOptions?.tabIndex != "number"
+      ) {
+        // The duplicate becomes the source's next sibling, so place it
+        // right after the source's subtree.
+        const anchor = treeTabs.getSubtreeEndAnchor(aTab);
+        if (anchor) {
+          aOptions = { ...aOptions, tabIndex: anchor._tPos + 1 };
+        }
+      }
       let newTab = SessionStore.duplicateTab(
         window,
         aTab,
@@ -7675,6 +7768,13 @@
       );
       if (aTab.group) {
         Glean.tabgroup.tabInteractions.duplicate.add();
+      }
+      if (newTab && treeTabs.enabled && aTab.documentGlobal == window) {
+        treeTabs.onTabOpened(newTab, {
+          opener: aTab,
+          currentTab: aTab,
+          duplicate: true,
+        });
       }
       return newTab;
     }
