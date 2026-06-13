@@ -1363,8 +1363,59 @@ function createTreeTabsController(window) {
 
     _handleTabAttrModified(event) {
       const changed = event.detail?.changed || [];
-      if (Array.isArray(changed) && changed.includes("muted")) {
+      if (!Array.isArray(changed)) {
+        return;
+      }
+      if (changed.includes("muted")) {
         this._handleMutedStateChange(event.target);
+      }
+      if (changed.includes("openerTab")) {
+        this._handleOpenerChange(event.target);
+      }
+    },
+
+    // An extension changed openerTabId on an existing tab; mirror the new
+    // opener into the tree, the reverse of _syncOpenerTab. Our own writes
+    // assign openerTab directly and never raise this notification.
+    _handleOpenerChange(tab) {
+      if (!this._isEnabled() || !tab || tab.closing || !this._ownsTab(tab)) {
+        return;
+      }
+      const service = lazy.TreeTabsService;
+      const currentParent = service.getParent(tab);
+      const parent = tab.openerTab;
+      const valid = !!(
+        parent &&
+        parent != tab &&
+        !parent.closing &&
+        !parent.pinned &&
+        !tab.pinned &&
+        this._ownsTab(parent)
+      );
+      if (!valid) {
+        if (currentParent) {
+          service.detachTab(tab);
+        }
+        return;
+      }
+      if (currentParent == parent) {
+        return;
+      }
+
+      const children = service
+        .getChildren(parent)
+        .filter(child => child != tab)
+        .sort((a, b) => a._tPos - b._tPos);
+      const insertBefore = children.find(child => child._tPos > tab._tPos);
+      const insertAfter = children.findLast(child => child._tPos < tab._tPos);
+      let options = { index: 0 };
+      if (insertBefore) {
+        options = { insertBefore };
+      } else if (insertAfter) {
+        options = { insertAfter };
+      }
+      if (service.attachTab(tab, parent, options)) {
+        TreeTabsDnD._syncSubtreeStripPosition(tab);
       }
     },
 
