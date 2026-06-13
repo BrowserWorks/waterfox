@@ -61,6 +61,21 @@ add_task(async function test_tree_tabs_visual_attributes_and_indent_capping() {
     "Grandchild tab margin-inline-start matches indent"
   );
 
+  const newIndentPx = indentPx == 1 ? 8 : 1;
+  try {
+    Services.prefs.setIntPref(PREF_TREE_INDENT_PX, newIndentPx);
+    for (const [level, tab] of [parentTab, childTab, grandchildTab].entries()) {
+      isApprox(
+        parseFloat(window.getComputedStyle(tab).marginInlineStart),
+        newIndentPx * level,
+        1,
+        `Level ${level} indentation updates immediately after changing the pref`
+      );
+    }
+  } finally {
+    Services.prefs.setIntPref(PREF_TREE_INDENT_PX, indentPx);
+  }
+
   const beforeStyle = window.getComputedStyle(parentTab, "::before");
   ok(
     beforeStyle.content && beforeStyle.content != "none",
