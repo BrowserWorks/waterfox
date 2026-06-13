@@ -15,4 +15,5 @@ JS_PREFERENCE_PP_FILES += [
     "app/profile/02-privacy.js",
     "app/profile/03-features.js",
     "app/profile/04-dns.js",
+    "app/profile/05-treetabs.js",
 ]
