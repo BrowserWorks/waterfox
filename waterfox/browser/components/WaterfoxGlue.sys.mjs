@@ -9,6 +9,8 @@ ChromeUtils.defineESModuleGetters(lazy, {
   StatusBar: "resource:///modules/StatusBar.sys.mjs",
   TabFeatures: "resource:///modules/TabFeatures.sys.mjs",
   TabGrouping: "resource:///modules/TabGrouping.sys.mjs",
+  TreeTabsStore: "resource:///modules/TreeTabsStore.sys.mjs",
+  TreeTabsUI: "resource:///modules/TreeTabsUI.sys.mjs",
   UICustomizations: "resource:///modules/UICustomizations.sys.mjs",
   WaterfoxBlockerExtensionDetector:
     "resource:///modules/WaterfoxBlockerExtensionDetector.sys.mjs",
@@ -34,6 +36,10 @@ const MIGRATION_VERSION = 6;
 
 export const WaterfoxGlue = {
   init() {
+    // Bring the tree tabs store up before any window restores, so its session
+    // restore handling and the one time pref migration run first.
+    lazy.TreeTabsStore.init();
+
     this.migrateUI();
     lazy.WaterfoxBrowserStyle.ensureCurrentStyle();
 
@@ -103,6 +109,7 @@ export const WaterfoxGlue = {
         lazy.TabFeatures.onWindowOpened(subject);
         lazy.TabGrouping.onWindowOpened(subject);
         lazy.UICustomizations.onWindowOpened(subject);
+        lazy.TreeTabsUI.onWindowOpened(subject);
         break;
     }
   },

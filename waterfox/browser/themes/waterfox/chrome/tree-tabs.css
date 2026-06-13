@@ -1,0 +1,113 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+/* Default per level indent. The UI overrides this inline from the
+   browser.tabs.verticalTabs.tree.indentPx pref when it updates the tabs. */
+#vertical-tabs[tree-tabs-enabled] {
+  --tree-indent-unit: 16px;
+  --tree-twisty-size: var(--icon-size-xsmall);
+  --tree-twisty-gap: var(--space-small);
+}
+
+/* Collapsed vertical tabs have no room for indentation or twisties. */
+#vertical-tabs[tree-tabs-enabled] #tabbrowser-tabs:not([expanded]) {
+  --tree-indent-unit: 0;
+}
+
+/* Hierarchy */
+#vertical-tabs[tree-tabs-enabled] .tabbrowser-tab[data-tree-level] {
+  margin-inline-start: calc(var(--tree-indent-unit) * var(--tree-level, 0)) !important;
+}
+
+#vertical-tabs[tree-tabs-enabled] .tabbrowser-tab[data-tree-hidden] {
+  display: none;
+}
+
+/* Disclosure control */
+#vertical-tabs[tree-tabs-enabled] .tabbrowser-tab[data-tree-has-children] {
+  position: relative;
+}
+
+#vertical-tabs[tree-tabs-enabled] .tabbrowser-tab[data-tree-level]:not([pinned]) .tab-content {
+  padding-inline-start: calc(var(--tab-inline-padding) + var(--tree-twisty-size) + var(--tree-twisty-gap)) !important;
+}
+
+#vertical-tabs[tree-tabs-enabled] .tabbrowser-tab[data-tree-level="0"]:not([pinned], [data-tree-has-children], tab-split-view-wrapper > *) .tab-content,
+#vertical-tabs[tree-tabs-enabled] #tabbrowser-tabs:not([expanded]) .tabbrowser-tab[data-tree-level]:not([pinned]) .tab-content {
+  padding-inline-start: var(--tab-inline-padding) !important;
+}
+
+/* Keep leaf icons aligned without painting an unused disclosure slot. */
+#vertical-tabs[tree-tabs-enabled]
+  #tabbrowser-tabs[expanded]
+  .tabbrowser-tab[data-tree-level]:not([data-tree-level="0"], [data-tree-has-children], [pinned], tab-split-view-wrapper > *)
+  .tab-background {
+  margin-inline-start: calc(var(--tab-inner-inline-margin) + var(--tree-twisty-size) + var(--tree-twisty-gap)) !important;
+}
+
+#vertical-tabs[tree-tabs-enabled] .tabbrowser-tab[data-tree-has-children]::before {
+  content: url("chrome://global/skin/icons/arrow-down-12.svg");
+  display: block;
+  position: absolute;
+  inset-inline-start: var(--tab-inline-padding);
+  inset-block-start: 50%;
+  width: var(--tree-twisty-size);
+  height: var(--tree-twisty-size);
+  -moz-context-properties: fill, fill-opacity;
+  fill: currentColor;
+  --tree-twisty-rotation: 0deg;
+  --tree-twisty-scale: 1;
+  transform: translateY(-50%) rotate(var(--tree-twisty-rotation)) scale(var(--tree-twisty-scale));
+  transition: opacity 120ms ease;
+  opacity: var(--opacity-deemphasized);
+  z-index: 2;
+  pointer-events: none;
+
+  @media (prefers-reduced-motion: no-preference) {
+    transition:
+      opacity 120ms ease,
+      300ms transform ease-in-out;
+  }
+}
+
+#vertical-tabs[tree-tabs-enabled] #tabbrowser-tabs:not([expanded]) .tabbrowser-tab[data-tree-has-children]::before {
+  display: none;
+}
+
+#vertical-tabs[tree-tabs-enabled] .tabbrowser-tab[data-tree-has-children][data-tree-twisty-hover]::before {
+  --tree-twisty-scale: 1.08;
+  opacity: 1;
+}
+
+#vertical-tabs[tree-tabs-enabled] .tabbrowser-tab[data-tree-collapsed]::before {
+  --tree-twisty-rotation: -90deg;
+}
+
+#vertical-tabs[tree-tabs-enabled] .tabbrowser-tab[data-tree-collapsed]:dir(rtl)::before {
+  --tree-twisty-rotation: 90deg;
+}
+
+/* Hierarchy guide */
+#vertical-tabs[tree-tabs-enabled] .tabbrowser-tab[data-tree-level]:not([data-tree-level="0"]) {
+  border-inline-start: 1px solid var(--border-color-deemphasized);
+}
+
+/* Drop target */
+#vertical-tabs[tree-tabs-enabled] .tabbrowser-tab[data-tree-drop-target="child"] {
+  outline: 2px solid var(--focus-outline-color);
+  outline-offset: -2px;
+}
+
+/* Descendant counter on collapsed parents */
+#vertical-tabs[tree-tabs-enabled]
+  #tabbrowser-tabs[expanded]
+  .tabbrowser-tab[data-tree-collapsed]
+  .tab-label-container[data-tree-counter]:not([data-tree-counter="0"])::after {
+  content: "(" attr(data-tree-counter) ")";
+  margin-inline-start: var(--space-xsmall);
+  align-self: center;
+  color: currentColor;
+  opacity: var(--opacity-deemphasized);
+  font-size: var(--font-size-small);
+}
