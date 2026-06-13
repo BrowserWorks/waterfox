@@ -26,3 +26,11 @@ user_pref("browser.startup.couldRestoreSession.count", -1);
 // This is used to disable address autofill telemetry since we cannot download
 // the model within tests.
 user_pref("extensions.formautofill.useml", false);
+
+// Ultra DNS can access the network during startup. Disable it in automation
+// because the test harness rejects non-local connections.
+user_pref("network.trr.mode", 5);
+user_pref("network.trr.use_ohttp", false);
+user_pref("network.trr.ohttp.config_uri", "");
+user_pref("network.trr.ohttp.uri", "");
+user_pref("network.trr.ohttp.relay_uri", "");
