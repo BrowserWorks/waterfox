@@ -7,6 +7,7 @@ import {
   hasPermission,
   isAbuseReportSupported,
   getOptionsType,
+  getUpdateInstall,
   isAddonOptionsUIAllowed,
 } from "../aboutaddons-utils.mjs";
 
@@ -143,8 +144,9 @@ export class AddonOptions extends AboutAddonsHTMLElement {
   }
 
   update(card, addon, updateInstall) {
+    const effectiveUpdateInstall = updateInstall || getUpdateInstall(addon);
     for (let el of this.items) {
-      this.setElementState(el, card, addon, updateInstall);
+      this.setElementState(el, card, addon, effectiveUpdateInstall);
     }
 
     // Update the separators visibility based on the updated visibility
