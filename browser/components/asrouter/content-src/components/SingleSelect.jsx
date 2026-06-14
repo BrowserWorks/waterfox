@@ -19,6 +19,14 @@ export const SingleSelect = ({
   singleSelectId,
 }) => {
   const category = content.tiles?.category?.type || content.tiles?.type;
+  const className = [
+    "tiles-single-select-section",
+    category,
+    content.tiles?.class_name,
+    content.tiles?.className,
+  ]
+    .filter(Boolean)
+    .join(" ");
   const isSingleSelect = category === "single-select";
 
   const autoTriggerAllowed = itemAction => {
@@ -92,8 +100,14 @@ export const SingleSelect = ({
   return (
     <div className={`tiles-single-select-container`}>
       <div>
-        <fieldset className={`tiles-single-select-section ${category}`}>
-          <Localized text={content.tiles?.subtitle || content.subtitle}>
+        <fieldset className={className}>
+          <Localized
+            text={
+              content.tiles?.legend ||
+              content.tiles?.subtitle ||
+              content.subtitle
+            }
+          >
             <legend className="sr-only" />
           </Localized>
           {content.tiles.data.map(
@@ -113,7 +127,7 @@ export const SingleSelect = ({
               tilebutton,
             }) => {
               const value = id || theme;
-              let inputName = `select-item-${id}`;
+              let inputName = singleSelectId;
               if (!isSingleSelect) {
                 inputName = category === "theme" ? "theme" : id; // unique names per item are currently used in the wallpaper picker
               }
@@ -204,7 +218,7 @@ export const SingleSelect = ({
                       <TileButton
                         content={tilebutton}
                         handleAction={handleAction}
-                        inputName={inputName}
+                        inputName={`${singleSelectId}-${value}`}
                       />
                     ) : (
                       ""

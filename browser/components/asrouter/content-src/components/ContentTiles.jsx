@@ -305,7 +305,7 @@ export const ContentTiles = props => {
             )}
             {["theme", "single-select"].includes(tile.type) && tile.data && (
               <SingleSelect
-                content={{ tiles: tile }}
+                content={{ tiles: tile, subtitle: content.subtitle }}
                 activeTheme={props.activeTheme}
                 handleAction={props.handleAction}
                 activeSingleSelectSelections={
