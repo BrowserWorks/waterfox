@@ -1875,7 +1875,7 @@ class ProtonScreen extends (react__WEBPACK_IMPORTED_MODULE_0___default().PureCom
     const combinedStyles = this.getCombinedInnerStyles(content, isWideScreen);
     return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("main", {
       className: `screen ${this.props.id || ""}
-          ${screenClassName} ${textColorClass}`,
+          ${screenClassName} ${textColorClass} ${content.transition_content ? "transition-content" : ""}`,
       "reverse-split": content.reverse_split ? "" : null,
       fullscreen: content.fullscreen ? "" : null,
       style: content.screen_style && _lib_multistage_utils_mjs__WEBPACK_IMPORTED_MODULE_2__.MultiStageUtils.getValidStyle(content.screen_style, ["overflow", "display"]),
@@ -2968,7 +2968,8 @@ const ContentTiles = props => {
       layout: content.position
     }), ["theme", "single-select"].includes(tile.type) && tile.data && /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_SingleSelect__WEBPACK_IMPORTED_MODULE_3__.SingleSelect, {
       content: {
-        tiles: tile
+        tiles: tile,
+        subtitle: content.subtitle
       },
       activeTheme: props.activeTheme,
       handleAction: props.handleAction,
@@ -3324,6 +3325,7 @@ const SingleSelect = ({
   singleSelectId
 }) => {
   const category = content.tiles?.category?.type || content.tiles?.type;
+  const className = ["tiles-single-select-section", category, content.tiles?.class_name, content.tiles?.className].filter(Boolean).join(" ");
   const isSingleSelect = category === "single-select";
   const autoTriggerAllowed = itemAction => {
     // Currently only enabled for sidebar experiment prefs
@@ -3368,9 +3370,9 @@ const SingleSelect = ({
   return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
     className: `tiles-single-select-container`
   }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("fieldset", {
-    className: `tiles-single-select-section ${category}`
+    className: className
   }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_MSLocalized__WEBPACK_IMPORTED_MODULE_1__.Localized, {
-    text: content.tiles?.subtitle || content.subtitle
+    text: content.tiles?.legend || content.tiles?.subtitle || content.subtitle
   }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("legend", {
     className: "sr-only"
   })), content.tiles.data.map(({
@@ -3389,7 +3391,7 @@ const SingleSelect = ({
     tilebutton
   }) => {
     const value = id || theme;
-    let inputName = `select-item-${id}`;
+    let inputName = singleSelectId;
     if (!isSingleSelect) {
       inputName = category === "theme" ? "theme" : id; // unique names per item are currently used in the wallpaper picker
     }
@@ -3454,7 +3456,7 @@ const SingleSelect = ({
     })) : "", tilebutton ? /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_TileButton__WEBPACK_IMPORTED_MODULE_2__.TileButton, {
       content: tilebutton,
       handleAction: handleAction,
-      inputName: inputName
+      inputName: `${singleSelectId}-${value}`
     }) : ""));
   }))));
 };
@@ -3914,6 +3916,7 @@ __webpack_require__.r(__webpack_exports__);
  *   - {string} option_expander_title_string - Title string for the option expander
  *   - {boolean} hide_option_expander_subtitle - Whether or not to hide the option expander subtitle
  *   - {string} data_import_complete_success_string - Success message string after import completion
+ *   - {string} migrator_key - The migrator key to select by default
  *   - {string} selection_header_string - Header string for the selection section
  *   - {string} selection_subheader_string - Subheader string for the selection section
  *   - {boolean} hide_select_all - Whether to hide the select all option
@@ -3965,9 +3968,10 @@ const EmbeddedMigrationWizard = ({
     "force-show-import-all": options?.force_show_import_all || "false",
     "auto-request-state": "",
     ref: ref,
-    "option-expander-title-string": options?.option_expander_title_string || "",
+    "option-expander-title-string": options?.option_expander_title_string ?? null,
     "hide-option-expander-subtitle": options?.hide_option_expander_subtitle || false,
     "data-import-complete-success-string": options?.data_import_complete_success_string || "",
+    "migrator-key": options?.migrator_key || "",
     "selection-header-string": options?.selection_header_string || "",
     "selection-subheader-string": options?.selection_subheader_string || "",
     "hide-select-all": options?.hide_select_all || false,

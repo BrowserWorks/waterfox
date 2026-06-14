@@ -57,6 +57,9 @@ ChromeUtils.defineESModuleGetters(lazy, {
   TaskbarTabs: "resource:///modules/taskbartabs/TaskbarTabs.sys.mjs",
   UIState: "resource://services-sync/UIState.sys.mjs",
   UITour: "moz-src:///browser/components/uitour/UITour.sys.mjs",
+  WaterfoxOnboardingActions:
+    // eslint-disable-next-line mozilla/no-browser-refs-in-toolkit
+    "resource:///modules/WaterfoxOnboardingActions.sys.mjs",
 });
 
 export const SpecialMessageActions = {
@@ -973,6 +976,9 @@ export const SpecialMessageActions = {
         break;
       case "SET_PREF":
         this.setPref(action.data.pref, action.data.onImpression);
+        break;
+      case "WATERFOX_ONBOARDING":
+        await lazy.WaterfoxOnboardingActions.handle(action.data);
         break;
       case "MULTI_ACTION":
         await this.handleMultiAction(
