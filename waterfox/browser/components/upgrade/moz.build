@@ -7,3 +7,7 @@
 EXTRA_JS_MODULES += [
     "WaterfoxUpgradeMessage.sys.mjs",
 ]
+
+BROWSER_CHROME_MANIFESTS += [
+    "test/browser/browser.toml",
+]
