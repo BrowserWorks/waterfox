@@ -1,0 +1,10 @@
+[DEFAULT]
+run-if = [
+  "os != 'android'",
+]
+head = "../../../../../../browser/components/migration/tests/unit/head_migration.js"
+tags = "waterfox_migration"
+firefox-appdir = "browser"
+prefs = ["browser.migrate.showBookmarksToolbarAfterMigration=true"]
+
+["test_FirefoxImportMigrator.js"]
