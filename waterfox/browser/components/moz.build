@@ -8,6 +8,7 @@ DIRS += [
     "extensions",
     "feeds",
     "icloudpasswords",
+    "migration",
     "privatetab",
     "remotesettings",
     "search",

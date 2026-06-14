@@ -779,6 +779,11 @@ export class MigrationWizardParent extends JSWindowActorParent {
           "migration-wizard-progress-success-formdata"
         );
       }
+      case lazy.MigrationWizardConstants.DISPLAYED_RESOURCE_TYPES.COOKIES: {
+        return lazy.gFluentStrings.formatValue(
+          "migration-wizard-progress-success-cookies"
+        );
+      }
       case lazy.MigrationWizardConstants.DISPLAYED_RESOURCE_TYPES
         .PAYMENT_METHODS: {
         let quantity = MigrationUtils.getImportedCount("cards");

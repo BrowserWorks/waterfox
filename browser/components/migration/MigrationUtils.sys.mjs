@@ -53,6 +53,10 @@ const MIGRATOR_MODULES = Object.freeze({
     moduleURI: "resource:///modules/EdgeProfileMigrator.sys.mjs",
     platforms: ["win"],
   },
+  FirefoxImportMigrator: {
+    moduleURI: "resource:///modules/FirefoxImportMigrator.sys.mjs",
+    platforms: ["linux", "macosx", "win"],
+  },
   FirefoxProfileMigrator: {
     moduleURI: "resource:///modules/FirefoxProfileMigrator.sys.mjs",
     platforms: ["linux", "macosx", "win"],
@@ -509,8 +513,8 @@ class MigrationUtils {
       "Internet Explorer": "ie",
       "Microsoft Edge": "edge",
       Safari: "safari",
-      Firefox: "firefox",
-      Nightly: "firefox",
+      Firefox: "firefox-import",
+      Nightly: "firefox-import",
       Opera: "opera",
       Vivaldi: "vivaldi",
       "Opera GX": "opera-gx",
@@ -531,7 +535,7 @@ class MigrationUtils {
       key = APP_DESC_TO_KEY[browserDesc] || "";
       // Handle devedition, as well as "FirefoxNightly" on OS X.
       if (!key && browserDesc.startsWith("Firefox")) {
-        key = "firefox";
+        key = "firefox-import";
       }
     } catch (ex) {
       console.error("Could not detect default browser: ", ex);
@@ -1163,6 +1167,7 @@ class MigrationUtils {
   #SOURCE_NAME_TO_ID_MAPPING_ENUM = Object.freeze({
     nothing: 1,
     firefox: 2,
+    "firefox-import": 2,
     edge: 3,
     ie: 4,
     chrome: 5,
