@@ -107,6 +107,9 @@ export class MigrationWizard extends HTMLElement {
                 <label id="payment-methods" class="resource-type-label" data-resource-type="PAYMENT_METHODS">
                   <input type="checkbox"/><span data-l10n-id="migration-payment-methods-option-label"></span>
                 </label>
+                <label id="cookies" class="resource-type-label" data-resource-type="COOKIES">
+                  <input type="checkbox"/><span data-l10n-id="migration-cookies-option-label"></span>
+                </label>
               </fieldset>
             </details>
 
@@ -259,6 +262,23 @@ export class MigrationWizard extends HTMLElement {
             </ol>
             <p>
               <span data-l10n-id="migration-chrome-windows-password-import-step4"></span>
+            </p>
+            <moz-button-group class="buttons" part="buttons">
+              <button class="manual-password-import-skip" data-l10n-id="migration-manual-password-import-skip-button"></button>
+              <button class="manual-password-import-select primary" data-l10n-id="migration-manual-password-import-select-button"></button>
+            </moz-button-group>
+          </div>
+
+          <div name="page-firefox-password-permission">
+            <h1 data-l10n-id="migration-firefox-password-import-header" part="header"></h1>
+            <span data-l10n-id="migration-firefox-password-import-steps-header"></span>
+            <ol>
+              <li data-l10n-id="migration-firefox-password-import-step1"></li>
+              <li data-l10n-id="migration-firefox-password-import-step2"></li>
+              <li data-l10n-id="migration-firefox-password-import-step3"></li>
+            </ol>
+            <p>
+              <span data-l10n-id="migration-firefox-password-import-step4"></span>
             </p>
             <moz-button-group class="buttons" part="buttons">
               <button class="manual-password-import-skip" data-l10n-id="migration-manual-password-import-skip-button"></button>
@@ -1264,6 +1284,8 @@ export class MigrationWizard extends HTMLElement {
         "migration-list-autofill-label",
       [MigrationWizardConstants.DISPLAYED_RESOURCE_TYPES.PAYMENT_METHODS]:
         "migration-list-payment-methods-label",
+      [MigrationWizardConstants.DISPLAYED_RESOURCE_TYPES.COOKIES]:
+        "migration-list-cookies-label",
     };
 
     if (MigrationWizardConstants.USES_FAVORITES.includes(key)) {
