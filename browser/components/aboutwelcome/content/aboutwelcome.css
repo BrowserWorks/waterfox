@@ -1427,6 +1427,11 @@ html {
   flex-grow: 1;
   justify-content: space-around;
 }
+.onboardingContainer .screen.transition-content .main-content-inner,
+.onboardingContainer .screen.transition-content .main-content > .brand-logo {
+  transition: var(--transition);
+  transition-delay: 0s;
+}
 .onboardingContainer .main-content .no-steps .main-content {
   padding-bottom: 48px;
 }
@@ -4038,36 +4043,46 @@ html {
   rotate: var(--rotate);
   scale: var(--scale);
 }
-.onboardingContainer.transition-in .dialog-initial .main-content,
-.onboardingContainer.transition-in .dialog-initial .dismiss-button,
-.onboardingContainer.transition-in .dialog-initial .more-button {
+.onboardingContainer.transition-in .dialog-initial:not(.transition-content) .main-content,
+.onboardingContainer.transition-in .dialog-initial:not(.transition-content) .dismiss-button,
+.onboardingContainer.transition-in .dialog-initial:not(.transition-content) .more-button {
   translate: 0 calc(-2 * var(--translate));
 }
-.onboardingContainer.transition-in .dialog-initial .brand-logo,
-.onboardingContainer.transition-in .dialog-initial .steps {
+.onboardingContainer.transition-in .dialog-initial:not(.transition-content) .brand-logo,
+.onboardingContainer.transition-in .dialog-initial:not(.transition-content) .steps {
   opacity: 0;
   translate: 0 calc(-1 * var(--translate));
 }
-.onboardingContainer.transition-in .screen .welcome-text,
-.onboardingContainer.transition-in .screen .multi-select-container,
-.onboardingContainer.transition-in .screen .tiles-single-select-section,
-.onboardingContainer.transition-in .screen .link-paragraph,
-.onboardingContainer.transition-in .screen .inline-image,
-.onboardingContainer.transition-in .screen .primary,
-.onboardingContainer.transition-in .screen .checkbox-container:not(.multi-select-item),
-.onboardingContainer.transition-in .screen .secondary,
-.onboardingContainer.transition-in .screen .secondary-cta:not(.top),
-.onboardingContainer.transition-in .screen .cta-link,
-.onboardingContainer.transition-in .screen .legal-paragraph,
-.onboardingContainer.transition-in .screen migration-wizard,
-.onboardingContainer.transition-in .screen turn-on-scheduled-backups::part(form),
-.onboardingContainer.transition-in .screen .tile-title-container,
-.onboardingContainer.transition-in .screen .steps[above-button]:not(.progress-bar) {
+.onboardingContainer.transition-in .dialog-initial.transition-content .main-content,
+.onboardingContainer.transition-in .dialog-initial.transition-content .dismiss-button,
+.onboardingContainer.transition-in .dialog-initial.transition-content .more-button {
+  translate: 0 calc(-2 * var(--translate));
+}
+.onboardingContainer.transition-in .screen:not(.transition-content) .welcome-text,
+.onboardingContainer.transition-in .screen:not(.transition-content) .multi-select-container,
+.onboardingContainer.transition-in .screen:not(.transition-content) .tiles-single-select-section,
+.onboardingContainer.transition-in .screen:not(.transition-content) .link-paragraph,
+.onboardingContainer.transition-in .screen:not(.transition-content) .inline-image,
+.onboardingContainer.transition-in .screen:not(.transition-content) .primary,
+.onboardingContainer.transition-in .screen:not(.transition-content) .checkbox-container:not(.multi-select-item),
+.onboardingContainer.transition-in .screen:not(.transition-content) .secondary,
+.onboardingContainer.transition-in .screen:not(.transition-content) .secondary-cta:not(.top),
+.onboardingContainer.transition-in .screen:not(.transition-content) .cta-link,
+.onboardingContainer.transition-in .screen:not(.transition-content) .legal-paragraph,
+.onboardingContainer.transition-in .screen:not(.transition-content) migration-wizard,
+.onboardingContainer.transition-in .screen:not(.transition-content) turn-on-scheduled-backups::part(form),
+.onboardingContainer.transition-in .screen:not(.transition-content) .tile-title-container,
+.onboardingContainer.transition-in .screen:not(.transition-content) .steps[above-button]:not(.progress-bar) {
   opacity: 0;
   translate: 0 calc(-1 * var(--translate));
 }
-.onboardingContainer.transition-in .screen:not(.dialog-initial) .steps:not(.progress-bar, [above-button]) {
+.onboardingContainer.transition-in .screen:not(.transition-content):not(.dialog-initial) .steps:not(.progress-bar, [above-button]) {
   opacity: 0.2;
+}
+.onboardingContainer.transition-in .screen.transition-content .main-content-inner,
+.onboardingContainer.transition-in .screen.transition-content .main-content > .brand-logo {
+  opacity: 0;
+  translate: 0 calc(-1 * var(--translate));
 }
 .onboardingContainer .system-prompt-spotlight .inline-icon-container {
   display: flex;
@@ -4103,38 +4118,47 @@ html {
   scale: var(--scale);
   transition-delay: 0.2s;
 }
-.onboardingContainer.transition-out .screen:not(.dialog-last) .main-content {
+.onboardingContainer.transition-out .screen:not(.dialog-last, .transition-content) .main-content {
   overflow: hidden;
 }
-.onboardingContainer.transition-out .screen:not(.dialog-last) .welcome-text,
-.onboardingContainer.transition-out .screen:not(.dialog-last) .multi-select-container {
+.onboardingContainer.transition-out .screen:not(.dialog-last, .transition-content) .welcome-text,
+.onboardingContainer.transition-out .screen:not(.dialog-last, .transition-content) .multi-select-container {
   opacity: 0;
   translate: 0 var(--translate);
   transition-delay: 0.1s;
 }
-.onboardingContainer.transition-out .screen:not(.dialog-last) .tiles-single-select-section,
-.onboardingContainer.transition-out .screen:not(.dialog-last) .inline-image,
-.onboardingContainer.transition-out .screen:not(.dialog-last) .link-paragraph,
-.onboardingContainer.transition-out .screen:not(.dialog-last) migration-wizard,
-.onboardingContainer.transition-out .screen:not(.dialog-last) turn-on-scheduled-backups::part(form) {
+.onboardingContainer.transition-out .screen:not(.dialog-last, .transition-content) .tiles-single-select-section,
+.onboardingContainer.transition-out .screen:not(.dialog-last, .transition-content) .inline-image,
+.onboardingContainer.transition-out .screen:not(.dialog-last, .transition-content) .link-paragraph,
+.onboardingContainer.transition-out .screen:not(.dialog-last, .transition-content) migration-wizard,
+.onboardingContainer.transition-out .screen:not(.dialog-last, .transition-content) turn-on-scheduled-backups::part(form) {
   opacity: 0;
   translate: 0 var(--translate);
   transition-delay: 0.2s;
 }
-.onboardingContainer.transition-out .screen:not(.dialog-last) .primary,
-.onboardingContainer.transition-out .screen:not(.dialog-last) .checkbox-container:not(.multi-select-item),
-.onboardingContainer.transition-out .screen:not(.dialog-last) .secondary,
-.onboardingContainer.transition-out .screen:not(.dialog-last) .secondary-cta:not(.top),
-.onboardingContainer.transition-out .screen:not(.dialog-last) .cta-link,
-.onboardingContainer.transition-out .screen:not(.dialog-last) .legal-paragraph,
-.onboardingContainer.transition-out .screen:not(.dialog-last) .steps[above-button]:not(.progress-bar) {
+.onboardingContainer.transition-out .screen:not(.dialog-last, .transition-content) .primary,
+.onboardingContainer.transition-out .screen:not(.dialog-last, .transition-content) .checkbox-container:not(.multi-select-item),
+.onboardingContainer.transition-out .screen:not(.dialog-last, .transition-content) .secondary,
+.onboardingContainer.transition-out .screen:not(.dialog-last, .transition-content) .secondary-cta:not(.top),
+.onboardingContainer.transition-out .screen:not(.dialog-last, .transition-content) .cta-link,
+.onboardingContainer.transition-out .screen:not(.dialog-last, .transition-content) .legal-paragraph,
+.onboardingContainer.transition-out .screen:not(.dialog-last, .transition-content) .steps[above-button]:not(.progress-bar) {
   opacity: 0;
   translate: 0 var(--translate);
   transition-delay: 0.3s;
 }
-.onboardingContainer.transition-out .screen:not(.dialog-last) .steps:not(.progress-bar, [above-button]) {
+.onboardingContainer.transition-out .screen:not(.dialog-last, .transition-content) .steps:not(.progress-bar, [above-button]) {
   opacity: 0.2;
   transition-delay: 0.5s;
+}
+.onboardingContainer.transition-out .screen.transition-content:not(.dialog-last) .main-content {
+  overflow: hidden;
+}
+.onboardingContainer.transition-out .screen.transition-content:not(.dialog-last) .main-content-inner,
+.onboardingContainer.transition-out .screen.transition-content:not(.dialog-last) .main-content > .brand-logo {
+  opacity: 0;
+  translate: 0 var(--translate);
+  transition-delay: 0.1s;
 }
 .onboardingContainer.transition-out .dialog-last .noodle {
   transition-delay: 0s;
