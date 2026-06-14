@@ -1,0 +1,8 @@
+[DEFAULT]
+tags = "waterfox_aboutcfg"
+prefs = [
+  "browser.aboutConfig.showWarning=false",
+  "general.aboutConfig.enable=true",
+]
+
+["browser_aboutcfg.js"]
