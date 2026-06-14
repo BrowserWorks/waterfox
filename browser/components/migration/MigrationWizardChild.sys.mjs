@@ -317,7 +317,7 @@ export class MigrationWizardChild extends JSWindowActorChild {
    *   message.
    */
   async beginMigration(migrationDetails, extraArgs) {
-    // We redirect to manual password import for Safari and Chrome on Windows.
+    // We redirect to manual password import for browsers that require a CSV file.
     if (
       migrationDetails.resourceTypes.includes(
         MigrationWizardConstants.DISPLAYED_RESOURCE_TYPES.PASSWORDS
