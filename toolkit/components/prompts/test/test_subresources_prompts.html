@@ -138,6 +138,10 @@ add_task(async function runTestAuth() {
   await checkEchoedAuthInfo({user: "mochiuser1", pass: "mochipass1"},
                             iframe_prompt);
 
+  SpecialPowers.Cc["@mozilla.org/network/http-auth-manager;1"]
+    .getService(SpecialPowers.Ci.nsIHttpAuthManager)
+    .clearAll();
+
   // Cross-origin subresourse test.
   state = {
     msg: "This site is asking you to sign in. Warning: Your login information " +
