@@ -44,8 +44,6 @@ ChromeUtils.defineESModuleGetters(lazy, {
   LoginHelper: "resource://gre/modules/LoginHelper.sys.mjs",
   MigrationUtils: "resource:///modules/MigrationUtils.sys.mjs",
   NimbusFeatures: "resource://nimbus/ExperimentAPI.sys.mjs",
-  OnboardingMessageProvider:
-    "resource:///modules/asrouter/OnboardingMessageProvider.sys.mjs",
   PageDataService:
     "moz-src:///browser/components/pagedata/PageDataService.sys.mjs",
   PdfJs: "resource://pdf.js/PdfJs.sys.mjs",
@@ -73,6 +71,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   TelemetryReportingPolicy:
     "resource://gre/modules/TelemetryReportingPolicy.sys.mjs",
   TRRRacer: "resource:///modules/TRRPerformance.sys.mjs",
+  WaterfoxUpgradeMessage: "resource:///modules/WaterfoxUpgradeMessage.sys.mjs",
   WebChannel: "resource://gre/modules/WebChannel.sys.mjs",
   WebProtocolHandlerRegistrar:
     "resource:///modules/WebProtocolHandlerRegistrar.sys.mjs",
@@ -1649,7 +1648,7 @@ BrowserGlue.prototype = {
   },
 
   async _showUpgradeDialog() {
-    const data = await lazy.OnboardingMessageProvider.getUpgradeMessage();
+    const data = await lazy.WaterfoxUpgradeMessage.getUpgradeMessage();
     const { gBrowser } = lazy.BrowserWindowTracker.getTopWindow({
       allowFromInactiveWorkspace: true,
     });
@@ -1725,7 +1724,7 @@ BrowserGlue.prototype = {
     // request and is limited in various ways, e.g., major upgrades.
     await lazy.TelemetryReportingPolicy.ensureUserIsNotified();
 
-    const dialogVersion = 106;
+    const dialogVersion = lazy.WaterfoxUpgradeMessage.dialogVersion;
     const dialogVersionPref = "browser.startup.upgradeDialog.version";
     const dialogReason = await (async () => {
       if (!lazy.BrowserHandler.majorUpgrade) {
@@ -1748,8 +1747,7 @@ BrowserGlue.prototype = {
         return "disallow-postUpdate";
       }
 
-      const showUpgradeDialog =
-        lazy.NimbusFeatures.upgradeDialog.getVariable("enabled");
+      const showUpgradeDialog = lazy.WaterfoxUpgradeMessage.enabled;
 
       return showUpgradeDialog ? "" : "disabled";
     })();
