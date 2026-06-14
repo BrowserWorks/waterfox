@@ -17,6 +17,7 @@ import React, { useEffect, useRef } from "react";
  *   - {string} option_expander_title_string - Title string for the option expander
  *   - {boolean} hide_option_expander_subtitle - Whether or not to hide the option expander subtitle
  *   - {string} data_import_complete_success_string - Success message string after import completion
+ *   - {string} migrator_key - The migrator key to select by default
  *   - {string} selection_header_string - Header string for the selection section
  *   - {string} selection_subheader_string - Subheader string for the selection section
  *   - {boolean} hide_select_all - Whether to hide the select all option
@@ -64,13 +65,16 @@ export const EmbeddedMigrationWizard = ({ handleAction, content }) => {
       force-show-import-all={options?.force_show_import_all || "false"}
       auto-request-state=""
       ref={ref}
-      option-expander-title-string={options?.option_expander_title_string || ""}
+      option-expander-title-string={
+        options?.option_expander_title_string ?? null
+      }
       hide-option-expander-subtitle={
         options?.hide_option_expander_subtitle || false
       }
       data-import-complete-success-string={
         options?.data_import_complete_success_string || ""
       }
+      migrator-key={options?.migrator_key || ""}
       selection-header-string={options?.selection_header_string || ""}
       selection-subheader-string={options?.selection_subheader_string || ""}
       hide-select-all={options?.hide_select_all || false}

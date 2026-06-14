@@ -349,6 +349,12 @@ html {
     }
   }
 
+  .screen.transition-content .main-content-inner,
+  .screen.transition-content .main-content > .brand-logo {
+    transition: var(--transition);
+    transition-delay: 0s;
+  }
+
   // Handle conditional display of steps indicator
   // Don't show when there's only one screen
   .main-content .no-steps {
@@ -3198,7 +3204,7 @@ html {
       scale: var(--scale);
     }
 
-    .dialog-initial {
+    .dialog-initial:not(.transition-content) {
       .main-content,
       .dismiss-button,
       .more-button {
@@ -3212,7 +3218,15 @@ html {
       }
     }
 
-    .screen {
+    .dialog-initial.transition-content {
+      .main-content,
+      .dismiss-button,
+      .more-button {
+        translate: 0 calc(-2 * var(--translate));
+      }
+    }
+
+    .screen:not(.transition-content) {
       .welcome-text,
       .multi-select-container,
       .tiles-single-select-section,
@@ -3237,6 +3251,12 @@ html {
           opacity: 0.2;
         }
       }
+    }
+
+    .screen.transition-content .main-content-inner,
+    .screen.transition-content .main-content > .brand-logo {
+      opacity: 0;
+      translate: 0 calc(-1 * var(--translate));
     }
   }
 
@@ -3285,7 +3305,7 @@ html {
       transition-delay: 0.2s;
     }
 
-    .screen:not(.dialog-last) {
+    .screen:not(.dialog-last, .transition-content) {
       .main-content {
         overflow: hidden;
       }
@@ -3324,6 +3344,19 @@ html {
       .steps:not(.progress-bar, [above-button]) {
         opacity: 0.2;
         transition-delay: 0.5s;
+      }
+    }
+
+    .screen.transition-content:not(.dialog-last) {
+      .main-content {
+        overflow: hidden;
+      }
+
+      .main-content-inner,
+      .main-content > .brand-logo {
+        opacity: 0;
+        translate: 0 var(--translate);
+        transition-delay: 0.1s;
       }
     }
 
