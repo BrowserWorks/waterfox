@@ -895,7 +895,9 @@ export class ProtonScreen extends React.PureComponent {
     return (
       <main
         className={`screen ${this.props.id || ""}
-          ${screenClassName} ${textColorClass}`}
+          ${screenClassName} ${textColorClass} ${
+            content.transition_content ? "transition-content" : ""
+          }`}
         reverse-split={content.reverse_split ? "" : null}
         fullscreen={content.fullscreen ? "" : null}
         style={
