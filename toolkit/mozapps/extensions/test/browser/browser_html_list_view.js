@@ -64,6 +64,7 @@ add_task(async function testExtensionList() {
   let extension = ExtensionTestUtils.loadExtension({
     manifest: {
       name: "Test extension",
+      version: "1.2.3",
       browser_specific_settings: { gecko: { id } },
       icons: {
         32: "test-icon.png",
@@ -97,6 +98,11 @@ add_task(async function testExtensionList() {
 
   // Check the properties of the card.
   is(card.addonNameEl.textContent, "Test extension", "The name is set");
+  is(
+    card.querySelector(".addon-version-number").textContent,
+    "1.2.3",
+    "The version is visible in the list card"
+  );
   is(
     card.querySelector("h3").id,
     headingId,
