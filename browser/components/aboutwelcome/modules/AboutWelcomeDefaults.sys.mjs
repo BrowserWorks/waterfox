@@ -22,6 +22,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   ASRouterScreenUtils:
     "resource:///modules/asrouter/ASRouterScreenUtils.sys.mjs",
   BrowserUtils: "resource://gre/modules/BrowserUtils.sys.mjs",
+  WaterfoxOnboarding: "resource:///modules/WaterfoxOnboarding.sys.mjs",
 });
 
 const isMSIX =
@@ -1390,7 +1391,10 @@ async function getAttributionContent() {
 
 // Return default multistage welcome content
 function getDefaults() {
-  return Cu.cloneInto(MR_ABOUT_WELCOME_DEFAULT, {});
+  return (
+    lazy.WaterfoxOnboarding.getDefaults() ||
+    Cu.cloneInto(MR_ABOUT_WELCOME_DEFAULT, {})
+  );
 }
 
 let gSourceL10n = null;
