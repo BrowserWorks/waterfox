@@ -94,6 +94,10 @@ add_task(async function runTest() {
 });
 
 add_task(async function runTestAuth() {
+  await SpecialPowers.pushPrefEnv({
+    set: [["network.auth.subresource-http-auth-allow", 2]],
+  });
+
   // Following tests check prompt message for a cross-origin and not
   // cross-origin subresources load
 
@@ -133,6 +137,10 @@ add_task(async function runTestAuth() {
   await iframe3Loaded;
   await checkEchoedAuthInfo({user: "mochiuser1", pass: "mochipass1"},
                             iframe_prompt);
+
+  SpecialPowers.Cc["@mozilla.org/network/http-auth-manager;1"]
+    .getService(SpecialPowers.Ci.nsIHttpAuthManager)
+    .clearAll();
 
   // Cross-origin subresourse test.
   state = {
