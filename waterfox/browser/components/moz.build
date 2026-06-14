@@ -8,6 +8,7 @@ DIRS += [
     "blocker",
     "extensions",
     "feeds",
+    "migration",
     "privatetab",
     "remotesettings",
     "search",
