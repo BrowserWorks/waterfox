@@ -754,6 +754,12 @@ export class AddonCard extends AboutAddonsHTMLElement {
       this.addonNameEl = nameHeading;
     }
     nameContainer.prepend(nameHeading);
+    if (!this.expanded && addon.version) {
+      let version = document.createElement("span");
+      version.classList.add("addon-version-number");
+      version.textContent = addon.version;
+      nameHeading.after(version);
+    }
 
     let panelType = addon.type == "plugin" ? "plugin-options" : "addon-options";
     this.options = document.createElement(panelType);
