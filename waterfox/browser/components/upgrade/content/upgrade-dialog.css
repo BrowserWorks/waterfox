@@ -1,0 +1,144 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+/* Waterfox styling for the major upgrade dialog rendered in spotlight.html.
+ * The multistage renderer and its stock styles come from aboutwelcome; this
+ * sheet only adds the Waterfox tiles and screen sizing. */
+
+.onboardingContainer {
+  --waterfox-card-background-color: var(--background-color-box);
+  --waterfox-card-text-color: var(--text-color);
+  --waterfox-card-hover-background-color: var(--button-background-color-hover);
+  --waterfox-card-hover-text-color: var(--button-text-color-hover);
+  --waterfox-card-disabled-background-color: var(--button-background-color-disabled);
+  --waterfox-card-disabled-border-color: var(--button-border-color-disabled);
+  --waterfox-card-disabled-text-color: var(--button-text-color-disabled);
+
+  .tiles-single-select-container:has(.waterfox-style) {
+    align-items: stretch;
+    width: 100%;
+    margin: 0;
+
+    > div {
+      min-width: 0;
+      width: 100%;
+    }
+  }
+
+  .tiles-single-select-section.waterfox-style {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    box-sizing: border-box;
+    width: 100%;
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens -- no size token this large */
+    max-width: 620px;
+    gap: var(--space-medium);
+    margin: 0;
+    padding: 0;
+
+    .select-item {
+      min-width: 0;
+      box-sizing: border-box;
+      overflow: hidden;
+      padding: var(--space-small);
+
+      .icon {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 340 / 72;
+        border-radius: var(--border-radius-medium);
+        z-index: 0;
+      }
+
+      .label-text {
+        justify-content: center;
+        margin: var(--space-small) 0 0;
+        font-weight: var(--font-weight-bold);
+      }
+
+      .body-text {
+        display: none;
+      }
+    }
+  }
+
+  .tiles-single-select-section.waterfox-style {
+    .select-item {
+      border-color: currentColor;
+      background-color: var(--waterfox-card-background-color);
+      color: var(--waterfox-card-text-color);
+
+      &:hover {
+        border-color: currentColor;
+        background-color: var(--waterfox-card-hover-background-color);
+        color: var(--waterfox-card-hover-text-color);
+      }
+
+      &:has(.selected),
+      &:has(.input:checked) {
+        border: 3px solid currentColor;
+      }
+
+      &:has(.input:focus) {
+        outline: none;
+      }
+
+      &:has(.input:focus-visible) {
+        outline: var(--focus-outline);
+        outline-offset: var(--focus-outline-offset);
+      }
+
+      &:has(.input:disabled) {
+        border: 1px solid var(--waterfox-card-disabled-border-color);
+        background-color: var(--waterfox-card-disabled-background-color);
+        color: var(--waterfox-card-disabled-text-color);
+        cursor: default;
+      }
+
+      &:has(.input:disabled:checked) {
+        border-width: 3px;
+      }
+    }
+  }
+
+  [class*="WATERFOX_153_UPGRADE_"] {
+    overflow: auto;
+
+    .section-main {
+      max-width: 100%;
+    }
+  }
+
+  .WATERFOX_153_UPGRADE_APPEARANCE {
+    .main-content-inner {
+      box-sizing: border-box;
+      padding-inline: var(--space-xxlarge);
+    }
+
+    .welcome-text {
+      margin-block-end: var(--space-large);
+    }
+
+    .tiles-single-select-container {
+      margin-block: var(--space-large);
+    }
+  }
+
+  @media only screen and (width <= 500px) {
+    [class*="WATERFOX_153_UPGRADE_"] {
+      min-width: 0;
+      width: 100%;
+    }
+
+    .WATERFOX_153_UPGRADE_APPEARANCE {
+      .main-content-inner {
+        padding-inline: var(--space-large);
+      }
+
+      .tiles-single-select-section.waterfox-style {
+        grid-template-columns: 1fr;
+      }
+    }
+  }
+}

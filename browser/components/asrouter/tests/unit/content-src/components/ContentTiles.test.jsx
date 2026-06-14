@@ -701,6 +701,7 @@ describe("ContentTiles component", () => {
   it("should select defaults of single select tiles independently of one another", () => {
     const SINGLE_SELECT_1 = {
       type: "single-select",
+      legend: { raw: "First picker" },
       selected: "test1",
       data: [
         {
@@ -739,7 +740,10 @@ describe("ContentTiles component", () => {
       ],
     };
 
-    const content = { tiles: [SINGLE_SELECT_1, SINGLE_SELECT_2] };
+    const content = {
+      subtitle: { raw: "Parent picker" },
+      tiles: [SINGLE_SELECT_1, SINGLE_SELECT_2],
+    };
     wrapper = mount(
       <ContentTiles
         content={content}
@@ -748,6 +752,28 @@ describe("ContentTiles component", () => {
       />
     );
     wrapper.update();
+
+    const fieldsets = wrapper.find("fieldset");
+    assert.deepEqual(
+      fieldsets
+        .at(0)
+        .find('input[type="radio"]')
+        .map(input => input.prop("name")),
+      ["single-select-0", "single-select-0"]
+    );
+    assert.deepEqual(
+      fieldsets
+        .at(1)
+        .find('input[type="radio"]')
+        .map(input => input.prop("name")),
+      ["single-select-1", "single-select-1"]
+    );
+    assert.notEqual(
+      fieldsets.at(0).find("input").at(0).prop("name"),
+      fieldsets.at(1).find("input").at(0).prop("name")
+    );
+    assert.equal(fieldsets.at(0).find("legend").text(), "First picker");
+    assert.equal(fieldsets.at(1).find("legend").text(), "Parent picker");
 
     sinon.assert.calledWithExactly(
       setActiveSingleSelectSelection.getCall(0),
@@ -759,6 +785,67 @@ describe("ContentTiles component", () => {
       setActiveSingleSelectSelection.getCall(1),
       "test4",
       "single-select-1"
+    );
+    wrapper.unmount();
+  });
+
+  it("should give tile buttons unique IDs and telemetry sources", () => {
+    const content = {
+      subtitle: { raw: "Picker" },
+      tiles: {
+        type: "single-select",
+        selected: "first",
+        data: [
+          {
+            id: "first",
+            label: { raw: "First" },
+            tilebutton: {
+              label: { raw: "First action" },
+              action: { type: "FIRST_ACTION" },
+            },
+          },
+          {
+            id: "second",
+            label: { raw: "Second" },
+            tilebutton: {
+              label: { raw: "Second action" },
+              action: { type: "SECOND_ACTION" },
+            },
+          },
+        ],
+      },
+    };
+    wrapper = mount(
+      <ContentTiles
+        content={content}
+        setActiveSingleSelectSelection={setActiveSingleSelectSelection}
+        handleAction={handleAction}
+      />
+    );
+
+    const tileButtons = wrapper.find("button.tile-button");
+    assert.deepEqual(
+      tileButtons.map(button => button.prop("id")),
+      [
+        "tile-button-single-select-0-first",
+        "tile-button-single-select-0-second",
+      ]
+    );
+
+    tileButtons.at(0).simulate("click", {
+      target: { id: "tile-button-single-select-0-first" },
+    });
+    tileButtons.at(1).simulate("click", {
+      target: { id: "tile-button-single-select-0-second" },
+    });
+
+    assert.equal(
+      handleAction.getCall(0).args[0].source,
+      "tile-button-single-select-0-first"
+    );
+    assert.equal(
+      handleAction.getCall(1).args[0].source,
+      "tile-button-single-select-0-second"
     );
     wrapper.unmount();
   });
@@ -1140,6 +1227,27 @@ describe("ContentTiles component", () => {
       migrationWizardEl.prop("hide-select-all"),
       true,
       "hide-select-all is set"
+    );
+
+    mountedWrapper.unmount();
+  });
+
+  it("does not override migration wizard defaults with missing options", () => {
+    const mountedWrapper = mount(
+      <ContentTiles
+        content={{ tiles: [{ type: "migration-wizard" }] }}
+        handleAction={handleAction}
+        activeMultiSelect={null}
+        setActiveMultiSelect={setActiveMultiSelect}
+      />
+    );
+
+    assert.isFalse(
+      mountedWrapper
+        .find("migration-wizard")
+        .getDOMNode()
+        .hasAttribute("option-expander-title-string"),
+      "option-expander-title-string is omitted"
     );
 
     mountedWrapper.unmount();
