@@ -193,6 +193,7 @@ migration-list-history-label = history
 migration-list-extensions-label = extensions
 migration-list-autofill-label = autofill data
 migration-list-payment-methods-label = payment methods
+migration-list-cookies-label = cookies
 
 ##
 
@@ -237,6 +238,13 @@ migration-chrome-windows-password-import-step1 = Open the main menu <img data-l1
 migration-chrome-windows-password-import-step2 = Select “Settings” from the menu.
 migration-chrome-windows-password-import-step3 = Choose “Download file” and save it to your device.
 migration-chrome-windows-password-import-step4 = Return here and “Select file” to finish import.
+
+migration-firefox-password-import-header = Import passwords from { migration-wizard-migrator-display-name-firefox }
+migration-firefox-password-import-steps-header = In { migration-wizard-migrator-display-name-firefox }:
+migration-firefox-password-import-step1 = Open the main menu and go to Passwords.
+migration-firefox-password-import-step2 = Select the password manager menu and choose “Export Passwords”.
+migration-firefox-password-import-step3 = Save the passwords file to your device.
+migration-firefox-password-import-step4 = Return here and “Select file” to finish import.
 
 migration-manual-password-import-skip-button = Skip
 migration-manual-password-import-cancel-button = Cancel
@@ -321,6 +329,7 @@ migration-wizard-progress-success-history =
     }
 
 migration-wizard-progress-success-formdata = Form history
+migration-wizard-progress-success-cookies = Cookies
 
 # Shown in the migration wizard after importing payment methods from another
 # browser has completed.
