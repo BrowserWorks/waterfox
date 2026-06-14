@@ -1,0 +1,4 @@
+[DEFAULT]
+tags = "waterfox_aboutpasswords"
+
+["browser_aboutpasswords.js"]
