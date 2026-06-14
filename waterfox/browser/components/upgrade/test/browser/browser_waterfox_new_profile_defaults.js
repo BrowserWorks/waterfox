@@ -8,6 +8,7 @@ const SIDEBAR_PREF = "sidebar.revamp";
 const SIDEBAR_DEFAULT_LAUNCHER_VISIBLE_PREF =
   "sidebar.revamp.defaultLauncherVisible";
 const SIDEBAR_TOOLS_PREF = "sidebar.main.tools";
+const SIDEBAR_VISIBILITY_PREF = "sidebar.visibility";
 
 const DEFAULT_SIDEBAR_TOOLS = [
   "aichat",

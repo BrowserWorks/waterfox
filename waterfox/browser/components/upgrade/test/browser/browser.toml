@@ -1,0 +1,6 @@
+[DEFAULT]
+tags = "waterfox_upgrade"
+
+["browser_browserGlue_upgradeDialog_trigger.js"]
+
+["browser_waterfox_new_profile_defaults.js"]
