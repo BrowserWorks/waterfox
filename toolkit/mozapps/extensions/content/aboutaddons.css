@@ -259,6 +259,13 @@ addon-card[expanded] .update-postponed-bar,
   align-items: center;
 }
 
+.addon-version-number {
+  color: var(--text-color-deemphasized);
+  font-size: var(--font-size-small);
+  margin-inline-start: var(--space-small);
+  white-space: nowrap;
+}
+
 .addon-name {
   font-size: 16px;
   font-weight: var(--font-weight-semibold);
