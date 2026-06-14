@@ -1343,7 +1343,16 @@ const ExtensionBlocklistMLBF = {
     // undefined if it's an addon update descriptor instead of an addon wrapper.
     let { signedDate } = addon;
     if (!signedDate) {
-      // The MLBF does not apply to unsigned add-ons.
+      // Waterfox permits unsigned legacy add-ons, so retain hard MLBF checks.
+      if (
+        signedDate === null &&
+        addon.isWebExtension === false &&
+        mlbfData === this._mlbfData
+      ) {
+        return mlbfData?.cascadeFilter.has(`${addon.id}:${addon.version}`);
+      }
+
+      // The MLBF does not apply to other unsigned add-ons.
       return false;
     }
 
