@@ -23,6 +23,7 @@ export const MigrationWizardConstants = Object.freeze({
       "safari-password-permission-pre-sequoia",
     SAFARI_PASSWORD_PERMISSION: "safari-password-permission",
     CHROME_WINDOWS_PASSWORD_PERMISSION: "chrome-windows-password-permission",
+    FIREFOX_PASSWORD_PERMISSION: "firefox-password-permission",
     NO_BROWSERS_FOUND: "no-browsers-found",
   }),
 
