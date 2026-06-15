@@ -519,6 +519,7 @@ Section "Uninstall"
   ${un.RegCleanFileHandler}  ".svg"   "WaterfoxHTML-$AppUserModelID"
   ${un.RegCleanFileHandler}  ".webp"  "WaterfoxHTML-$AppUserModelID"
   ${un.RegCleanFileHandler}  ".avif"  "WaterfoxHTML-$AppUserModelID"
+  ${un.RegCleanFileHandler}  ".jxl"   "WaterfoxHTML-$AppUserModelID"
 
   ${un.RegCleanFileHandler}  ".pdf"   "WaterfoxPDF-$AppUserModelID"
 
