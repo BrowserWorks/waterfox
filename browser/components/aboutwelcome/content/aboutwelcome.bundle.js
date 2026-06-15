@@ -3324,6 +3324,7 @@ const SingleSelect = ({
   singleSelectId
 }) => {
   const category = content.tiles?.category?.type || content.tiles?.type;
+  const className = ["tiles-single-select-section", category, content.tiles?.class_name, content.tiles?.className].filter(Boolean).join(" ");
   const isSingleSelect = category === "single-select";
   const autoTriggerAllowed = itemAction => {
     // Currently only enabled for sidebar experiment prefs
@@ -3368,7 +3369,7 @@ const SingleSelect = ({
   return /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", {
     className: `tiles-single-select-container`
   }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("div", null, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("fieldset", {
-    className: `tiles-single-select-section ${category}`
+    className: className
   }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement(_MSLocalized__WEBPACK_IMPORTED_MODULE_1__.Localized, {
     text: content.tiles?.subtitle || content.subtitle
   }, /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().createElement("legend", {
@@ -3914,6 +3915,7 @@ __webpack_require__.r(__webpack_exports__);
  *   - {string} option_expander_title_string - Title string for the option expander
  *   - {boolean} hide_option_expander_subtitle - Whether or not to hide the option expander subtitle
  *   - {string} data_import_complete_success_string - Success message string after import completion
+ *   - {string} migrator_key - The migrator key to select by default
  *   - {string} selection_header_string - Header string for the selection section
  *   - {string} selection_subheader_string - Subheader string for the selection section
  *   - {boolean} hide_select_all - Whether to hide the select all option
@@ -3968,6 +3970,7 @@ const EmbeddedMigrationWizard = ({
     "option-expander-title-string": options?.option_expander_title_string || "",
     "hide-option-expander-subtitle": options?.hide_option_expander_subtitle || false,
     "data-import-complete-success-string": options?.data_import_complete_success_string || "",
+    "migrator-key": options?.migrator_key || "",
     "selection-header-string": options?.selection_header_string || "",
     "selection-subheader-string": options?.selection_subheader_string || "",
     "hide-select-all": options?.hide_select_all || false,

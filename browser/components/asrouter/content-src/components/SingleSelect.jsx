@@ -19,6 +19,14 @@ export const SingleSelect = ({
   singleSelectId,
 }) => {
   const category = content.tiles?.category?.type || content.tiles?.type;
+  const className = [
+    "tiles-single-select-section",
+    category,
+    content.tiles?.class_name,
+    content.tiles?.className,
+  ]
+    .filter(Boolean)
+    .join(" ");
   const isSingleSelect = category === "single-select";
 
   const autoTriggerAllowed = itemAction => {
@@ -92,7 +100,7 @@ export const SingleSelect = ({
   return (
     <div className={`tiles-single-select-container`}>
       <div>
-        <fieldset className={`tiles-single-select-section ${category}`}>
+        <fieldset className={className}>
           <Localized text={content.tiles?.subtitle || content.subtitle}>
             <legend className="sr-only" />
           </Localized>
