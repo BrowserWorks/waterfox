@@ -323,6 +323,7 @@ FunctionEnd
   ${AddAssociationIfNoneExist} ".svg" "WaterfoxHTML$5"
   ${AddAssociationIfNoneExist} ".webp"  "WaterfoxHTML$5"
   ${AddAssociationIfNoneExist} ".avif" "WaterfoxHTML$5"
+  ${AddAssociationIfNoneExist} ".jxl" "WaterfoxHTML$5"
 
   ${AddAssociationIfNoneExist} ".pdf" "WaterfoxPDF$5"
 
@@ -419,6 +420,7 @@ FunctionEnd
   WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".svg"   "WaterfoxHTML$2"
   WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".webp"  "WaterfoxHTML$2"
   WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".avif"  "WaterfoxHTML$2"
+  WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".jxl"   "WaterfoxHTML$2"
 
   WriteRegStr ${RegKey} "$0\Capabilities\FileAssociations" ".pdf"   "WaterfoxPDF$2"
 
@@ -475,6 +477,7 @@ FunctionEnd
     ${WriteApplicationsSupportedType} ${RegKey} ".jpeg"
     ${WriteApplicationsSupportedType} ${RegKey} ".jpg"
     ${WriteApplicationsSupportedType} ${RegKey} ".json"
+    ${WriteApplicationsSupportedType} ${RegKey} ".jxl"
     ${WriteApplicationsSupportedType} ${RegKey} ".m4a"
     ${WriteApplicationsSupportedType} ${RegKey} ".mp3"
     ${WriteApplicationsSupportedType} ${RegKey} ".oga"
@@ -1548,6 +1551,8 @@ Function SetAsDefaultAppUserHKCU
     AppAssocReg::SetAppAsDefault "$R9" ".webp" "file"
     Pop $0
     AppAssocReg::SetAppAsDefault "$R9" ".avif" "file"
+    Pop $0
+    AppAssocReg::SetAppAsDefault "$R9" ".jxl" "file"
     Pop $0
     AppAssocReg::SetAppAsDefault "$R9" ".xht" "file"
     Pop $0
