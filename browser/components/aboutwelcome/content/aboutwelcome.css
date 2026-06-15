@@ -3195,7 +3195,7 @@ html {
   margin-block-start: var(--space-large);
 }
 .onboardingContainer .AW_WATERFOX_THEME_COLOR {
-  --waterfox-onboarding-split-accent: light-dark(#F0E8FF, #1D1133);
+  --waterfox-onboarding-split-accent: light-dark(#E7F3FF, #0D2640);
   --waterfox-onboarding-split-background: linear-gradient(135deg, color-mix(in srgb, var(--waterfox-onboarding-split-accent) 36%, var(--background-color-canvas)), var(--background-color-canvas));
 }
 .onboardingContainer .AW_WATERFOX_THEME_COLOR:has(.waterfox-color-smoke.selected) {
@@ -3353,6 +3353,19 @@ html {
     grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
   }
 }
+.onboardingContainer .AW_WATERFOX_STYLE .main-content-inner {
+  max-width: 520px;
+}
+.onboardingContainer .AW_WATERFOX_STYLE .welcome-text {
+  margin-block-end: var(--space-medium);
+}
+.onboardingContainer .AW_WATERFOX_STYLE .tiles-single-select-container {
+  align-items: flex-start;
+  margin: 0;
+}
+.onboardingContainer .AW_WATERFOX_STYLE .action-buttons {
+  margin-block-start: 0;
+}
 .onboardingContainer .tiles-single-select-section.waterfox-style {
   flex-direction: row;
   flex-wrap: wrap;
@@ -3392,6 +3405,45 @@ html {
 .onboardingContainer .tiles-single-select-section.waterfox-style .select-item .text.body-text {
   margin-block: var(--space-xxsmall) 0;
   color: var(--text-color-deemphasized);
+  font-size: 13px;
+}
+.onboardingContainer .AW_WATERFOX_STYLE .tiles-single-select-section.waterfox-density {
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  gap: var(--space-medium);
+  margin: 0;
+  padding: 0;
+}
+.onboardingContainer .AW_WATERFOX_STYLE .tiles-single-select-section.waterfox-density .select-item {
+  flex: 0 0 auto;
+  width: 132px;
+  padding: var(--space-small);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: var(--border-radius-medium);
+}
+.onboardingContainer .AW_WATERFOX_STYLE .tiles-single-select-section.waterfox-density .select-item:has(.selected) {
+  border-color: var(--button-background-color-primary);
+  border-radius: var(--border-radius-medium);
+}
+.onboardingContainer .AW_WATERFOX_STYLE .tiles-single-select-section.waterfox-density .select-item .icon {
+  width: 100%;
+  height: 48px;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: var(--border-radius-small);
+  z-index: 0;
+}
+.onboardingContainer .AW_WATERFOX_STYLE .tiles-single-select-section.waterfox-density .select-item .icon.waterfox-density-normal {
+  background-image: url("chrome://browser/skin/customizableui/density-normal.svg");
+}
+.onboardingContainer .AW_WATERFOX_STYLE .tiles-single-select-section.waterfox-density .select-item .icon.waterfox-density-compact {
+  background-image: url("chrome://browser/skin/customizableui/density-compact.svg");
+}
+.onboardingContainer .AW_WATERFOX_STYLE .tiles-single-select-section.waterfox-density .select-item .text {
+  margin-block: var(--space-small) 0;
+  text-align: center;
   font-size: 13px;
 }
 .onboardingContainer .tiles-container {

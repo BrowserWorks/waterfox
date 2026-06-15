@@ -4,4 +4,11 @@
 
 EXTRA_JS_MODULES += [
     "WaterfoxOnboarding.sys.mjs",
+    "WaterfoxOnboardingActions.sys.mjs",
+]
+
+JAR_MANIFESTS += ["jar.mn"]
+
+BROWSER_CHROME_MANIFESTS += [
+    "test/browser/browser.toml",
 ]

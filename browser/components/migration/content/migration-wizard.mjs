@@ -415,7 +415,12 @@ export class MigrationWizard extends HTMLElement {
 
   requestState() {
     this.dispatchEvent(
-      new CustomEvent("MigrationWizard:RequestState", { bubbles: true })
+      new CustomEvent("MigrationWizard:RequestState", {
+        bubbles: true,
+        detail: {
+          migratorKey: this.getAttribute("migrator-key"),
+        },
+      })
     );
   }
 
@@ -720,7 +725,9 @@ export class MigrationWizard extends HTMLElement {
       let panelItem = this.#browserProfileSelectorList.querySelector(
         `panel-item[key="${state.migratorKey}"]`
       );
-      this.#onBrowserProfileSelectionChanged(panelItem);
+      if (panelItem) {
+        this.#onBrowserProfileSelectionChanged(panelItem);
+      }
     }
 
     let fileImportErrorMessageEl = selectionPage.querySelector(

@@ -83,7 +83,10 @@ export class MigrationWizardChild extends JSWindowActorChild {
     switch (event.type) {
       case "MigrationWizard:RequestState": {
         this.#sendTelemetryEvent("opened");
-        await this.#requestState(event.detail?.allowOnlyFileMigrators);
+        await this.#requestState(
+          event.detail?.allowOnlyFileMigrators,
+          event.detail?.migratorKey
+        );
         break;
       }
 
@@ -174,12 +177,12 @@ export class MigrationWizardChild extends JSWindowActorChild {
     }
   }
 
-  async #requestState(allowOnlyFileMigrators) {
+  async #requestState(allowOnlyFileMigrators, migratorKey) {
     this.setComponentState({
       page: MigrationWizardConstants.PAGES.LOADING,
     });
 
-    await this.#populateMigrators(allowOnlyFileMigrators);
+    await this.#populateMigrators(allowOnlyFileMigrators, migratorKey);
 
     this.#wizardEl.dispatchEvent(
       new this.contentWindow.CustomEvent("MigrationWizard:Ready", {
