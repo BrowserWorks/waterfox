@@ -45,8 +45,12 @@ UniquePtr<OggCodecState> OggCodecState::Create(
       "vulnerabilities if this is incorrect.";
   long body_len = aPage_t->body_len.unverified_safe_because(codec_reason);
 
-  if (body_len > 6 && rlbox::memcmp(*aSandbox, aPage_t->body + 1, "vorbis", 6u)
+  if (body_len > 6 && rlbox::memcmp(*aSandbox, aPage_t->body + 1, "theora", 6u)
                               .unverified_safe_because(codec_reason) == 0) {
+    codecState = MakeUnique<TheoraState>(aSandbox, aPage, aSerial);
+  } else if (body_len > 6 &&
+             rlbox::memcmp(*aSandbox, aPage_t->body + 1, "vorbis", 6u)
+                     .unverified_safe_because(codec_reason) == 0) {
     codecState = MakeUnique<VorbisState>(aSandbox, aPage, aSerial);
   } else if (body_len > 8 &&
              rlbox::memcmp(*aSandbox, aPage_t->body, "OpusHead", 8u)
@@ -343,8 +347,8 @@ nsresult OggCodecState::PacketOutUntilGranulepos(bool& aFoundGranulepos) {
       } else {
         // We buffer data packets until we encounter a granulepos. We'll
         // then use the granulepos to figure out the granulepos of the
-        // preceeding packets.
-        aFoundGranulepos = clone.get()->granulepos > 0;
+        // preceding packets.
+        aFoundGranulepos = clone.get()->granulepos != INT64_MIN;
         mUnstamped.AppendElement(std::move(clone));
       }
     }
@@ -356,6 +360,252 @@ nsresult OggCodecState::PacketOutUntilGranulepos(bool& aFoundGranulepos) {
     return NS_ERROR_FAILURE;
   }
   return NS_OK;
+}
+
+TheoraState::TheoraState(rlbox_sandbox_ogg* aSandbox,
+                         tainted_opaque_ogg<ogg_page*> aBosPage,
+                         uint32_t aSerial)
+    : OggCodecState(aSandbox, aBosPage, aSerial, true),
+      mSetup(nullptr),
+      mCtx(nullptr) {
+  MOZ_COUNT_CTOR(TheoraState);
+  th_info_init(&mTheoraInfo);
+  th_comment_init(&mComment);
+}
+
+TheoraState::~TheoraState() {
+  MOZ_COUNT_DTOR(TheoraState);
+  th_setup_free(mSetup);
+  th_decode_free(mCtx);
+  th_comment_clear(&mComment);
+  th_info_clear(&mTheoraInfo);
+  Reset();
+}
+
+bool TheoraState::Init() {
+  if (!mActive) {
+    return false;
+  }
+
+  int64_t n = mTheoraInfo.aspect_numerator;
+  int64_t d = mTheoraInfo.aspect_denominator;
+
+  float aspectRatio =
+      (n == 0 || d == 0) ? 1.0f : static_cast<float>(n) / static_cast<float>(d);
+
+  gfx::IntSize frame(mTheoraInfo.frame_width, mTheoraInfo.frame_height);
+  gfx::IntRect picture(mTheoraInfo.pic_x, mTheoraInfo.pic_y,
+                       mTheoraInfo.pic_width, mTheoraInfo.pic_height);
+  gfx::IntSize display(mTheoraInfo.pic_width, mTheoraInfo.pic_height);
+  ScaleDisplayByAspectRatio(display, aspectRatio);
+  if (!IsValidVideoRegion(frame, picture, display)) {
+    return mActive = false;
+  }
+
+  mCtx = th_decode_alloc(&mTheoraInfo, mSetup);
+  if (!mCtx) {
+    return mActive = false;
+  }
+
+  mInfo.mMimeType = "video/theora"_ns;
+  mInfo.mDisplay = display;
+  mInfo.mImage = frame;
+  mInfo.SetImageRect(picture);
+
+  return mActive =
+             SetCodecSpecificConfig(mInfo.mCodecSpecificConfig.get(), mHeaders);
+}
+
+nsresult TheoraState::Reset() {
+  mHeaders.Erase();
+  return OggCodecState::Reset();
+}
+
+bool TheoraState::DecodeHeader(OggPacketPtr aPacket) {
+  ogg_packet* packet = aPacket.get();
+  mHeaders.Append(std::move(aPacket));
+  mPacketCount++;
+  int ret = th_decode_headerin(&mTheoraInfo, &mComment, &mSetup, packet);
+
+  bool isSetupHeader = packet->bytes > 0 && packet->packet[0] == 0x82;
+  if (ret < 0 || mPacketCount > 3) {
+    return false;
+  }
+  if (ret > 0 && isSetupHeader && mPacketCount == 3) {
+    mDoneReadingHeaders = true;
+  }
+  return true;
+}
+
+TimeUnit TheoraState::Time(int64_t aGranulepos) {
+  if (!mActive) {
+    return TimeUnit::Invalid();
+  }
+  return TheoraState::Time(&mTheoraInfo, aGranulepos);
+}
+
+bool TheoraState::IsHeader(ogg_packet* aPacket) {
+  return th_packet_isheader(aPacket);
+}
+
+TimeUnit TheoraState::Time(th_info* aInfo, int64_t aGranulepos) {
+  if (aGranulepos < 0 || aInfo->fps_numerator == 0) {
+    return TimeUnit::Invalid();
+  }
+  int shift = aInfo->keyframe_granule_shift;
+  ogg_int64_t iframe = aGranulepos >> shift;
+  ogg_int64_t pframe = aGranulepos - (iframe << shift);
+  int64_t frameno = iframe + pframe - TheoraVersion(aInfo, 3, 2, 1);
+  CheckedInt64 t =
+      ((CheckedInt64(frameno) + 1) * USECS_PER_S) * aInfo->fps_denominator;
+  if (!t.isValid()) {
+    return TimeUnit::Invalid();
+  }
+  t /= aInfo->fps_numerator;
+  return TimeUnit::FromMicroseconds(t.value());
+}
+
+TimeUnit TheoraState::StartTime(int64_t aGranulepos) {
+  if (aGranulepos < 0 || !mActive || mTheoraInfo.fps_numerator == 0) {
+    return TimeUnit::Invalid();
+  }
+  CheckedInt64 t =
+      (CheckedInt64(th_granule_frame(mCtx, aGranulepos)) * USECS_PER_S) *
+      mTheoraInfo.fps_denominator;
+  if (!t.isValid()) {
+    return TimeUnit::Invalid();
+  }
+  return TimeUnit::FromMicroseconds(t.value() / mTheoraInfo.fps_numerator);
+}
+
+TimeUnit TheoraState::PacketDuration(ogg_packet*) {
+  if (!mActive || mTheoraInfo.fps_numerator == 0) {
+    return TimeUnit::Invalid();
+  }
+  CheckedInt64 t = SaferMultDiv(mTheoraInfo.fps_denominator, USECS_PER_S,
+                                mTheoraInfo.fps_numerator);
+  return t.isValid() ? TimeUnit::FromMicroseconds(t.value())
+                     : TimeUnit::Invalid();
+}
+
+TimeUnit TheoraState::MaxKeyframeOffset() {
+  if (mTheoraInfo.fps_numerator == 0) {
+    return TimeUnit::Zero();
+  }
+  CheckedInt64 frameDuration = SaferMultDiv(
+      mTheoraInfo.fps_denominator, USECS_PER_S, mTheoraInfo.fps_numerator);
+  int64_t keyframeDiff = (int64_t(1) << mTheoraInfo.keyframe_granule_shift) - 1;
+  CheckedInt64 offset = frameDuration * keyframeDiff;
+  return offset.isValid() ? TimeUnit::FromMicroseconds(offset.value())
+                          : TimeUnit::Invalid();
+}
+
+bool TheoraState::IsKeyframe(ogg_packet* aPacket) {
+  return aPacket->bytes >= 1 && (aPacket->packet[0] & 0x40) == 0x00;
+}
+
+UniquePtr<MetadataTags> TheoraState::GetTags() {
+  NS_ASSERTION(mComment.user_comments, "no theora comment strings!");
+  NS_ASSERTION(mComment.comment_lengths, "no theora comment lengths!");
+  auto tags = MakeUnique<MetadataTags>();
+  for (int i = 0; i < mComment.comments; i++) {
+    AddVorbisComment(tags, mComment.user_comments[i],
+                     mComment.comment_lengths[i]);
+  }
+  return tags;
+}
+
+nsresult TheoraState::PageIn(tainted_opaque_ogg<ogg_page*> aPage) {
+  if (!mActive) {
+    return NS_OK;
+  }
+  NS_ASSERTION((rlbox::sandbox_static_cast<uint32_t>(sandbox_invoke(
+                    *mSandbox, ogg_page_serialno, aPage)) == mSerial)
+                   .unverified_safe_because(RLBOX_OGG_PAGE_SERIAL_REASON),
+               "Page must be for this stream!");
+  if (sandbox_invoke(*mSandbox, ogg_stream_pagein, mState, aPage)
+          .unverified_safe_because(RLBOX_OGG_STATE_ASSERT_REASON) == -1) {
+    return NS_ERROR_FAILURE;
+  }
+  bool foundGp;
+  nsresult res = PacketOutUntilGranulepos(foundGp);
+  if (NS_FAILED(res)) {
+    return res;
+  }
+  if (foundGp && mDoneReadingHeaders) {
+    ReconstructTheoraGranulepos();
+    for (uint32_t i = 0; i < mUnstamped.Length(); ++i) {
+      OggPacketPtr packet = std::move(mUnstamped[i]);
+#ifdef DEBUG
+      NS_ASSERTION(!IsHeader(packet.get()),
+                   "Don't try to recover header packet gp");
+      NS_ASSERTION(packet->granulepos != INT64_MIN,
+                   "Packet must have gp by now");
+#endif
+      mPackets.Append(std::move(packet));
+    }
+    mUnstamped.Clear();
+  }
+  return NS_OK;
+}
+
+int TheoraVersion(th_info* aInfo, unsigned char aMajor, unsigned char aMinor,
+                  unsigned char aSubminor) {
+  ogg_uint32_t version = (aMajor << 16) + (aMinor << 8) + aSubminor;
+  ogg_uint32_t theoraVersion = (aInfo->version_major << 16) +
+                               (aInfo->version_minor << 8) +
+                               aInfo->version_subminor;
+  return theoraVersion >= version ? 1 : 0;
+}
+
+void TheoraState::ReconstructTheoraGranulepos() {
+  if (mUnstamped.IsEmpty()) {
+    return;
+  }
+  ogg_int64_t lastGranulepos = mUnstamped.LastElement()->granulepos;
+  NS_ASSERTION(lastGranulepos != INT64_MIN, "Must know last granulepos");
+
+  ogg_int64_t shift = mTheoraInfo.keyframe_granule_shift;
+  ogg_int64_t version_3_2_1 = TheoraVersion(&mTheoraInfo, 3, 2, 1);
+  ogg_int64_t lastFrame =
+      th_granule_frame(mCtx, lastGranulepos) + version_3_2_1;
+  ogg_int64_t unstampedLength = AssertedCast<ogg_int64_t>(mUnstamped.Length());
+  ogg_int64_t firstFrame = lastFrame - unstampedLength + 1;
+  ogg_int64_t keyframe = lastGranulepos >> shift;
+
+  for (uint32_t i = 0; i < mUnstamped.Length() - 1; ++i) {
+    ogg_int64_t frame = firstFrame + i;
+    ogg_int64_t granulepos;
+    auto& packet = mUnstamped[i];
+    bool isKeyframe = th_packet_iskeyframe(packet.get()) == 1;
+
+    if (isKeyframe) {
+      granulepos = frame << shift;
+      keyframe = frame;
+    } else if (frame >= keyframe &&
+               frame - keyframe < (ogg_int64_t(1) << shift)) {
+      granulepos = (keyframe << shift) + (frame - keyframe);
+    } else {
+      ogg_int64_t k =
+          std::max(frame - ((ogg_int64_t(1) << shift) - 1), version_3_2_1);
+      granulepos = (k << shift) + (frame - k);
+    }
+
+    NS_ASSERTION(granulepos >= version_3_2_1,
+                 "Invalid granulepos for Theora version");
+    NS_ASSERTION(
+        i == 0 || th_granule_frame(mCtx, granulepos) ==
+                      th_granule_frame(mCtx, mUnstamped[i - 1]->granulepos) + 1,
+        "Granulepos calculation is incorrect!");
+
+    packet->granulepos = granulepos;
+  }
+
+  NS_ASSERTION(mUnstamped.Length() < 2 ||
+                   (th_granule_frame(
+                        mCtx, mUnstamped[mUnstamped.Length() - 2]->granulepos) +
+                    1) == th_granule_frame(mCtx, lastGranulepos),
+               "Granulepos recovery should catch up with packet->granulepos!");
 }
 
 nsresult VorbisState::Reset() {

@@ -21,6 +21,7 @@ namespace mozilla::media {
   X(VP9)           \
   X(AV1)           \
   X(HEVC)          \
+  X(Theora)        \
   X(AAC)           \
   X(FLAC)          \
   X(MP3)           \
