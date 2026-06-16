@@ -10,6 +10,7 @@
 #include "PDMFactory.h"
 #include "PEMFactory.h"
 #include "PlatformDecoderModule.h"
+#include "TheoraDecoder.h"
 #include "VPXDecoder.h"
 #include "VideoUtils.h"
 #include "mozilla/AppShutdown.h"
@@ -307,6 +308,9 @@ MediaCodec MCSInfo::GetMediaCodecFromMimeType(const nsACString& aMimeType) {
   if (AOMDecoder::IsAV1(aMimeType)) {
     return MediaCodec::AV1;
   }
+  if (TheoraDecoder::IsTheora(aMimeType)) {
+    return MediaCodec::Theora;
+  }
   if (aMimeType.EqualsLiteral("video/av01")) {
     return MediaCodec::AV1;
   }
@@ -367,6 +371,7 @@ std::array<CodecDefinition, 13> MCSInfo::GetAllCodecDefinitions() {
        MEDIA_CODEC_DEF_ENTRY(VP8, "video/vp8"),
        MEDIA_CODEC_DEF_ENTRY_LACKOFEXT(AV1, "video/av1"),
        MEDIA_CODEC_DEF_ENTRY_LACKOFEXT(HEVC, "video/hevc"),
+       MEDIA_CODEC_DEF_ENTRY(Theora, "video/theora"),
        MEDIA_CODEC_DEF_ENTRY(AAC, "audio/mp4a-latm"),
        MEDIA_CODEC_DEF_ENTRY(MP3, "audio/mpeg"),
        MEDIA_CODEC_DEF_ENTRY(Opus, "audio/opus"),

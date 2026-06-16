@@ -256,6 +256,9 @@ class OggDemuxer : public MediaDataDemuxer,
   // Map of codec-specific bitstream states.
   OggCodecStore mCodecStore;
 
+  // Decode state of the Theora bitstream we're decoding, if we have video.
+  OggCodecState* mTheoraState;
+
   // Decode state of the Vorbis bitstream we're decoding, if we have audio.
   OggCodecState* mVorbisState;
 
@@ -293,6 +296,7 @@ class OggDemuxer : public MediaDataDemuxer,
   MediaResourceIndex* Resource(TrackInfo::TrackType aType);
   MediaResourceIndex* CommonResource();
   OggStateContext mAudioOggState;
+  OggStateContext mVideoOggState;
 
   Maybe<media::TimeUnit> mStartTime;
 

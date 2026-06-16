@@ -10,6 +10,7 @@
 #  include <nsClassHashtable.h>
 #  include <nsDeque.h>
 #  include <nsTArray.h>
+#  include <theora/theoradec.h>
 #  include <vorbis/codec.h>
 
 #  include "FlacFrameParser.h"
@@ -101,6 +102,7 @@ class OggCodecState {
   // Ogg types we know about
   enum CodecType {
     TYPE_VORBIS = 0,
+    TYPE_THEORA,
     TYPE_OPUS,
     TYPE_SKELETON,
     TYPE_FLAC,
@@ -228,6 +230,7 @@ class OggCodecState {
   // Returns the maximum number of microseconds which a keyframe can be offset
   // from any given interframe.b
   virtual TimeUnit MaxKeyframeOffset() { return TimeUnit::Zero(); }
+  virtual int32_t KeyframeGranuleShift() { return 0; }
 
   // Number of packets read.
   uint64_t mPacketCount;
@@ -366,6 +369,49 @@ class VorbisState : public OggCodecState {
   // This function has no effect if VALIDATE_VORBIS_SAMPLE_CALCULATION
   // is not defined.
   void ValidateVorbisPacketSamples(ogg_packet* aPacket, long aSamples);
+};
+
+// Returns 1 if the Theora info struct is decoding a media of Theora
+// version (maj,min,sub) or later, otherwise returns 0.
+int TheoraVersion(th_info* aInfo, unsigned char aMajor, unsigned char aMinor,
+                  unsigned char aSubminor);
+
+class TheoraState : public OggCodecState {
+ public:
+  explicit TheoraState(rlbox_sandbox_ogg* aSandbox,
+                       tainted_opaque_ogg<ogg_page*> aBosPage,
+                       uint32_t aSerial);
+  ~TheoraState();
+
+  CodecType GetType() override { return TYPE_THEORA; }
+  bool DecodeHeader(OggPacketPtr aPacket) override;
+  TimeUnit Time(int64_t aGranulepos) override;
+  TimeUnit StartTime(int64_t aGranulepos) override;
+  TimeUnit PacketDuration(ogg_packet* aPacket) override;
+  bool Init() override;
+  nsresult Reset() override;
+  bool IsHeader(ogg_packet* aPacket) override;
+  bool IsKeyframe(ogg_packet* aPacket) override;
+  nsresult PageIn(tainted_opaque_ogg<ogg_page*> aPage) override;
+  const TrackInfo* GetInfo() const override { return &mInfo; }
+  UniquePtr<MetadataTags> GetTags() override;
+  TimeUnit MaxKeyframeOffset() override;
+  int32_t KeyframeGranuleShift() override {
+    return mTheoraInfo.keyframe_granule_shift;
+  }
+
+ private:
+  static TimeUnit Time(th_info* aInfo, int64_t aGranulePos);
+
+  th_info mTheoraInfo = {};
+  th_comment mComment = {};
+  th_setup_info* mSetup;
+  th_dec_ctx* mCtx;
+
+  VideoInfo mInfo;
+  OggPacketQueue mHeaders;
+
+  void ReconstructTheoraGranulepos();
 };
 
 class OpusState : public OggCodecState {
