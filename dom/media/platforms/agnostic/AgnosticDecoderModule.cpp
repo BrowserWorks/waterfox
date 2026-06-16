@@ -6,6 +6,7 @@
 
 #include "AOMDecoder.h"
 #include "DAV1DDecoder.h"
+#include "TheoraDecoder.h"
 #include "VPXDecoder.h"
 #include "VideoUtils.h"
 #include "mozilla/Logging.h"
@@ -16,6 +17,7 @@ namespace mozilla {
 enum class DecoderType {
   AV1,
   Opus,
+  Theora,
   Vorbis,
   VPX,
   Wave,
@@ -25,6 +27,8 @@ static bool IsAvailableInDefault(DecoderType type) {
   switch (type) {
     case DecoderType::AV1:
       return StaticPrefs::media_av1_enabled();
+    case DecoderType::Theora:
+      return StaticPrefs::media_theora_enabled();
     case DecoderType::Opus:
     case DecoderType::Vorbis:
     case DecoderType::VPX:
@@ -41,6 +45,9 @@ static bool IsAvailableInRdd(DecoderType type) {
       return StaticPrefs::media_av1_enabled();
     case DecoderType::Opus:
       return StaticPrefs::media_rdd_opus_enabled();
+    case DecoderType::Theora:
+      return StaticPrefs::media_theora_enabled() &&
+             StaticPrefs::media_rdd_theora_enabled();
     case DecoderType::Vorbis:
 #if defined(__MINGW32__)
       // If this is a MinGW build we need to force AgnosticDecoderModule to
@@ -107,6 +114,7 @@ media::DecodeSupportSet AgnosticDecoderModule::Supports(
       // decoding on the content process doesn't accidentally happen in case
       // something goes wrong with launching the RDD process.
       (AOMDecoder::IsAV1(mimeType) && IsAvailable(DecoderType::AV1)) ||
+      (TheoraDecoder::IsTheora(mimeType) && IsAvailable(DecoderType::Theora)) ||
       (VPXDecoder::IsVPX(mimeType) && IsAvailable(DecoderType::VPX));
   MOZ_LOG_FMT(
       sPDMLog, LogLevel::Debug, "Agnostic decoder {} requested type '{}'",
@@ -125,7 +133,9 @@ already_AddRefed<MediaDataDecoder> AgnosticDecoderModule::CreateVideoDecoder(
   }
   RefPtr<MediaDataDecoder> m;
 
-  if (VPXDecoder::IsVPX(aParams.mConfig.mMimeType)) {
+  if (TheoraDecoder::IsTheora(aParams.mConfig.mMimeType)) {
+    m = new TheoraDecoder(aParams);
+  } else if (VPXDecoder::IsVPX(aParams.mConfig.mMimeType)) {
     m = new VPXDecoder(aParams);
   }
   // We remove support for decoding AV1 here if RDD is enabled so that
