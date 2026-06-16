@@ -118,6 +118,10 @@ DecodeSupportSet AndroidDecoderModule::SupportsMimeType(
       SLOG("Rejecting audio of type {}", PromiseFlatCString(aMimeType).get());
       return media::DecodeSupportSet{};
 
+    case MediaCodec::Theora:
+      SLOG("Rejecting Theora of type {}", PromiseFlatCString(aMimeType).get());
+      return media::DecodeSupportSet{};
+
     // H264 always reports software decode
     case MediaCodec::H264:
       return DecodeSupport::SoftwareDecode;
