@@ -7706,7 +7706,7 @@
   mirror: once
 #endif
 
-# Whether to load fonts (e.g. Twemoji Mozilla) bundled with the application:
+# Whether to load fonts (e.g. Twemoji) bundled with the application:
 #  -1 - Auto behavior based on OS version (currently, disables loading on
 #       "low-memory" Android devices)
 #   0 - Skip loading any bundled fonts

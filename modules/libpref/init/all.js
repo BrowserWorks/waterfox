@@ -2063,7 +2063,7 @@ pref("font.size.monospace.x-math", 13);
 
 #ifdef XP_WIN
 
-  pref("font.name-list.emoji", "Segoe UI Emoji, Twemoji Mozilla");
+  pref("font.name-list.emoji", "Segoe UI Emoji, Twemoji");
 
   pref("font.name-list.serif.ar", "Times New Roman");
   pref("font.name-list.sans-serif.ar", "Segoe UI, Tahoma, Arial");
@@ -2691,7 +2691,7 @@ pref("font.size.monospace.x-math", 13);
 
   // fontconfig doesn't support emoji yet
   // https://lists.freedesktop.org/archives/fontconfig/2016-October/005842.html
-  pref("font.name-list.emoji", "Noto Color Emoji, Twemoji Mozilla");
+  pref("font.name-list.emoji", "Noto Color Emoji, Twemoji");
 
   pref("font.name-list.serif.ar", "serif");
   pref("font.name-list.sans-serif.ar", "sans-serif");

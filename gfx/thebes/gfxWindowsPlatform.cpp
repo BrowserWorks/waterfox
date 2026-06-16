@@ -554,7 +554,7 @@ void gfxWindowsPlatform::GetCommonFallbackFonts(
     nsTArray<const char*>& aFontList) {
   if (PrefersColor(aPresentation)) {
     aFontList.AppendElement("Segoe UI Emoji");
-    aFontList.AppendElement("Twemoji Mozilla");
+    aFontList.AppendElement("Twemoji");
   }
 
   switch (aRunScript) {
@@ -1054,7 +1054,7 @@ void gfxWindowsPlatform::GetCommonFallbackFonts(
   // broken) fonts in the global fallback path.
   if (!PrefersColor(aPresentation)) {
     aFontList.AppendElement("Segoe UI Emoji");
-    aFontList.AppendElement("Twemoji Mozilla");
+    aFontList.AppendElement("Twemoji");
   }
 }
 

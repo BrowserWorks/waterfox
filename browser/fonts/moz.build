@@ -4,4 +4,4 @@
 
 if CONFIG["MOZ_WIDGET_TOOLKIT"] in ("windows", "gtk"):
     DIST_SUBDIR = ""
-    FINAL_TARGET_FILES.fonts += ["TwemojiMozilla.ttf"]
+    FINAL_TARGET_FILES.fonts += ["Twemoji-17.0.2.ttf"]
