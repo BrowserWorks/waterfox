@@ -60,7 +60,9 @@ OGG = []
 WEBM_CODECS = ["av1", "vp9"]
 
 if "--all" in ARGS:
-    OGG = cross_combine([{"ext": "ogg"}], keyed_combiner("vcodec", ["vp8", "vp9"]))
+    OGG = cross_combine(
+        [{"ext": "ogg"}], keyed_combiner("vcodec", ["theora", "vp8", "vp9"])
+    )
     WEBM_CODECS += ["vp8"]
 
 MP4 = cross_combine([{"ext": "mp4"}], keyed_combiner("vcodec", ["av1", "h264", "vp9"]))

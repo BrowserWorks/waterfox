@@ -18,7 +18,13 @@ bool OggDecoder::IsSupportedType(const MediaContainerType& aContainerType) {
   }
 
   if (aContainerType.Type() != MEDIAMIMETYPE(AUDIO_OGG) &&
+      aContainerType.Type() != MEDIAMIMETYPE(VIDEO_OGG) &&
       aContainerType.Type() != MEDIAMIMETYPE("application/ogg")) {
+    return false;
+  }
+
+  const bool isOggVideo = aContainerType.Type() == MEDIAMIMETYPE(VIDEO_OGG);
+  if (isOggVideo && !StaticPrefs::media_theora_enabled()) {
     return false;
   }
 
@@ -33,6 +39,10 @@ bool OggDecoder::IsSupportedType(const MediaContainerType& aContainerType) {
     if ((MediaDecoder::IsOpusEnabled() && codec.EqualsLiteral("opus")) ||
         codec.EqualsLiteral("vorbis") || codec.EqualsLiteral("flac")) {
       continue;
+    }
+    if (aContainerType.Type() != MEDIAMIMETYPE(AUDIO_OGG) &&
+        codec.EqualsLiteral("theora")) {
+      return StaticPrefs::media_theora_enabled();
     }
     // Some unsupported codec.
     return false;
@@ -60,6 +70,11 @@ nsTArray<UniquePtr<TrackInfo>> OggDecoder::GetTracksInfo(
       tracks.AppendElement(
           CreateTrackInfoWithMIMETypeAndContainerTypeExtraParameters(
               "audio/"_ns + NS_ConvertUTF16toUTF8(codec), aType));
+    } else {
+      MOZ_ASSERT(codec.EqualsLiteral("theora"));
+      tracks.AppendElement(
+          CreateTrackInfoWithMIMETypeAndContainerTypeExtraParameters(
+              "video/"_ns + NS_ConvertUTF16toUTF8(codec), aType));
     }
   }
   return tracks;

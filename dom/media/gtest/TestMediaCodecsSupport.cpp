@@ -229,6 +229,7 @@ TEST(MediaCodecsSupport, GetMediaCodecFromMimeType)
       {"video/mp4"_ns, MediaCodec::H264},
       {"video/vp8"_ns, MediaCodec::VP8},
       {"video/vp9"_ns, MediaCodec::VP9},
+      {"video/theora"_ns, MediaCodec::Theora},
       // Audio codecs
       {"audio/mp4a-latm"_ns, MediaCodec::AAC},
       {"audio/flac"_ns, MediaCodec::FLAC},
