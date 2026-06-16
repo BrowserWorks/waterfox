@@ -408,7 +408,7 @@ static const char kFontDejaVuSerif[] = "DejaVu Serif";
 static const char kFontFreeSans[] = "FreeSans";
 static const char kFontFreeSerif[] = "FreeSerif";
 static const char kFontTakaoPGothic[] = "TakaoPGothic";
-static const char kFontTwemojiMozilla[] = "Twemoji Mozilla";
+static const char kFontTwemoji[] = "Twemoji";
 static const char kFontDroidSansFallback[] = "Droid Sans Fallback";
 static const char kFontWenQuanYiMicroHei[] = "WenQuanYi Micro Hei";
 static const char kFontNanumGothic[] = "NanumGothic";
@@ -420,7 +420,7 @@ void gfxPlatformGtk::GetCommonFallbackFonts(uint32_t aCh, Script aRunScript,
                                             FontPresentation aPresentation,
                                             nsTArray<const char*>& aFontList) {
   if (PrefersColor(aPresentation)) {
-    aFontList.AppendElement(kFontTwemojiMozilla);
+    aFontList.AppendElement(kFontTwemoji);
   }
 
   aFontList.AppendElement(kFontDejaVuSerif);
