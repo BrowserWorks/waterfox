@@ -12447,6 +12447,25 @@
   mirror: always
 #endif
 
+- name: media.rdd-theora.enabled
+  type: RelaxedAtomicBool
+#if defined(XP_WIN)
+  value: true
+#elif defined(XP_MACOSX)
+  value: true
+#elif defined(XP_LINUX) && !defined(ANDROID)
+  value: true
+#elif defined(XP_FREEBSD)
+  value: true
+#elif defined(XP_OPENBSD)
+  value: true
+#elif defined(XP_SOLARIS)
+  value: true
+#else
+  value: false
+#endif
+  mirror: always
+
 - name: media.rdd-vorbis.enabled
   type: RelaxedAtomicBool
 #if defined(XP_WIN)
@@ -13129,6 +13148,11 @@
 - name: media.ogg.enabled
   type: RelaxedAtomicBool
   value: true
+  mirror: always
+
+- name: media.theora.enabled
+  type: RelaxedAtomicBool
+  value: false
   mirror: always
 
 # WebM
