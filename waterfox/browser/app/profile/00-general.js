@@ -6,6 +6,12 @@
 
 pref("app.support.baseURL", "https://www.waterfox.com/support/");
 
+#ifdef XP_WIN
+pref("font.name-list.emoji", "Segoe UI Emoji, Noto Color Emoji");
+#elif defined(MOZ_WIDGET_GTK)
+pref("font.name-list.emoji", "Noto Color Emoji");
+#endif
+
 // Resume the previous session on startup.
 pref("browser.startup.page", 3);
 pref("browser.tabs.warnOnClose", true);
