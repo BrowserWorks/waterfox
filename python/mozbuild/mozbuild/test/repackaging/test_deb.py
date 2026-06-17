@@ -392,6 +392,22 @@ def test_generate_deb_archive(
             False,
             ["dpkg-buildpackage", "-us", "-uc", "-b", "--host-arch=amd64"],
         ),
+        (
+            "aarch64",
+            True,
+            [
+                "chroot",
+                "/srv/buster-amd64",
+                "bash",
+                "-c",
+                "cd /tmp/*/source; dpkg-buildpackage -us -uc -b --host-arch=arm64",
+            ],
+        ),
+        (
+            "aarch64",
+            False,
+            ["dpkg-buildpackage", "-us", "-uc", "-b", "--host-arch=arm64"],
+        ),
     ),
 )
 def test_get_command(monkeypatch, arch, is_chroot_available, expected):
@@ -406,8 +422,10 @@ def test_get_command(monkeypatch, arch, is_chroot_available, expected):
         ("all", True, "/srv/jessie-amd64", True),
         ("x86", False, "/srv/jessie-i386", False),
         ("x86_64", False, "/srv/jessie-amd64", False),
+        ("aarch64", False, "/srv/buster-amd64", False),
         ("x86", True, "/srv/jessie-i386", True),
         ("x86_64", True, "/srv/jessie-amd64", True),
+        ("aarch64", True, "/srv/buster-amd64", True),
     ),
 )
 def test_is_chroot_available(
@@ -427,6 +445,7 @@ def test_is_chroot_available(
         ("all", "/srv/jessie-amd64"),
         ("x86", "/srv/jessie-i386"),
         ("x86_64", "/srv/jessie-amd64"),
+        ("aarch64", "/srv/buster-amd64"),
     ),
 )
 def test_get_chroot_path(arch, expected):
