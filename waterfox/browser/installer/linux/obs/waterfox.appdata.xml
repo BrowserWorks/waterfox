@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>net.waterfox.waterfox</id>
+  <launchable type="desktop-id">waterfox.desktop</launchable>
+  <name>Waterfox</name>
+  <summary>A privacy conscious web browser</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MPL-2.0</project_license>
+  <developer id="net.waterfox">
+    <name>BrowserWorks</name>
+  </developer>
+  <description>
+    <p>
+      Waterfox is a customizable, privacy conscious web browser based on
+      Firefox. It keeps the features people rely on while putting control and
+      privacy first.
+    </p>
+  </description>
+  <url type="homepage">https://www.waterfox.net/</url>
+  <url type="bugtracker">https://github.com/BrowserWorks/Waterfox/issues</url>
+  <categories>
+    <category>Network</category>
+    <category>WebBrowser</category>
+  </categories>
+</component>

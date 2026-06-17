@@ -1,0 +1,6 @@
+<services>
+  <service name="set_version">
+    <param name="version">@PARENT_TAG@</param>
+  </service>
+  <service name="download_files" />
+</services>
