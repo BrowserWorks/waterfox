@@ -1,0 +1,8 @@
+<services>
+  <service name="download_url">
+    <param name="protocol">https</param>
+    <param name="host">cdn.waterfox.com</param>
+    <param name="path">waterfox/releases/@UPSTREAM_VERSION@/Linux_@RPM_ARCH@/waterfox-@UPSTREAM_VERSION@.tar.bz2</param>
+    <param name="filename">waterfox-@PACKAGE_VERSION@.tar.bz2</param>
+  </service>
+</services>
