@@ -1,0 +1,13 @@
+Source: ${PKG_NAME}
+Maintainer: BrowserWorks <MrAlex94@users.noreply.github.com>
+Priority: optional
+Section: web
+Standards-Version: 4.6.2
+Build-Depends: debhelper (>= 9)
+Homepage: https://www.waterfox.com/
+
+Package: ${PKG_NAME}
+Architecture: ${ARCH_NAME}
+Depends: ${DEPENDS}
+Provides: gnome-www-browser, www-browser
+Description: ${DESCRIPTION}
