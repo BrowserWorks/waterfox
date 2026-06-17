@@ -1,0 +1,13 @@
+#!/bin/sh -e
+
+if [ "$$1" = "configure" ] || [ "$$1" = "abort-upgrade" ] || [ "$$1" = "abort-remove" ]; then
+    update-alternatives --install /usr/bin/gnome-www-browser \
+        gnome-www-browser /usr/bin/${PKG_NAME} 100 \
+        --slave /usr/share/man/man1/gnome-www-browser.1.gz \
+        gnome-www-browser.1.gz /usr/share/man/man1/${PKG_NAME}.1.gz
+
+    update-alternatives --install /usr/bin/x-www-browser \
+        x-www-browser /usr/bin/${PKG_NAME} 100 \
+        --slave /usr/share/man/man1/x-www-browser.1.gz \
+        x-www-browser.1.gz /usr/share/man/man1/${PKG_NAME}.1.gz
+fi
