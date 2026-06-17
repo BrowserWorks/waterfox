@@ -1,0 +1,63 @@
+.TH ${DISPLAY_NAME} 1 "${MANPAGE_DATE}" ${PKG_NAME} "Linux User's Manual"
+.SH NAME
+${PKG_NAME} \- ${DISPLAY_NAME} web browser
+.SH SYNOPSIS
+.B ${PKG_NAME}
+[\fIOPTIONS\fR] [\fIURL\fR]
+
+.B /usr/lib/${PKG_NAME}/${PKG_NAME}
+[\fIOPTIONS\fR] [\fIURL\fR]
+.SH DESCRIPTION
+\fB${DISPLAY_NAME}\fR is an open-source web browser focused on performance,
+privacy, standards support, and user choice.
+.SH USAGE
+If ${DISPLAY_NAME} is already running, \fB${PKG_NAME}\fR asks it to open a new
+browser window. Otherwise it starts a new browser instance.
+.SH OPTIONS
+.SS "Browser options"
+.TP
+.B \-h, \-help
+Show a summary of options.
+.TP
+.B \-v, \-version
+Print ${DISPLAY_NAME} version.
+.TP
+\fB\-P\fR [\fIprofile\fR]
+Start with \fIprofile\fR. When no profile is given, show the Profile Manager.
+.TP
+.B \-ProfileManager
+Start with the Profile Manager.
+.TP
+.B \-no\-remote
+Do not connect to a running ${DISPLAY_NAME} instance.
+.TP
+\fB\-new\-window\fR \fIURL\fR
+Open \fIURL\fR in a new window.
+.TP
+\fB\-new\-tab\fR \fIURL\fR
+Open \fIURL\fR in a new tab.
+.TP
+.B \-private\-window
+Open a new private browsing window.
+.TP
+.B \-safe\-mode
+Start ${DISPLAY_NAME} in Troubleshoot Mode.
+.TP
+.B \-headless
+Run without a visible UI.
+.SH FILES
+.TP
+\fI/usr/bin/${PKG_NAME}\fR
+Symbolic link to \fB/usr/lib/${PKG_NAME}/${PKG_NAME}\fR.
+.TP
+\fI/usr/lib/${PKG_NAME}/${PKG_NAME}\fR
+${DISPLAY_NAME} executable.
+.TP
+\fI/usr/lib/${PKG_NAME}/${PKG_NAME}\-bin\fR
+Legacy executable.
+.SH BUGS
+Report issues at \fIhttps://github.com/BrowserWorks/Waterfox/issues\fR.
+.SH AUTHORS
+.TP
+.B BrowserWorks
+.I https://www.waterfox.com/
