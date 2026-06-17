@@ -1,0 +1,45 @@
+#!/usr/bin/make -f
+# Waterfox OBS Debian rules: install the prebuilt, VMP signed tree that OBS's
+# debtransform extracted from the release tarball. No compile. The binaries are
+# already stripped and VMP signed, so this never strips or alters them, or the
+# Widevine signature breaks and DRM stops working.
+
+PKGDIR := debian/waterfox
+INSTDIR := $(PKGDIR)/usr/lib/waterfox
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+override_dh_auto_build:
+override_dh_auto_test:
+
+override_dh_auto_install:
+	install -d $(INSTDIR)
+	# debtransform extracts the tarball as the source. Depending on its layout
+	# the Waterfox tree is either ./waterfox/ or the current directory itself.
+	if [ -e waterfox/waterfox-bin ]; then \
+	  cp -a waterfox/. $(INSTDIR)/ ; \
+	else \
+	  find . -maxdepth 1 -mindepth 1 ! -name debian -exec cp -a {} $(INSTDIR)/ \; ; \
+	fi
+	install -d $(PKGDIR)/usr/bin
+	ln -sf /usr/lib/waterfox/waterfox $(PKGDIR)/usr/bin/waterfox
+	install -D -m 0644 debian/waterfox.desktop $(PKGDIR)/usr/share/applications/waterfox.desktop
+	install -D -m 0644 debian/waterfox.appdata.xml $(PKGDIR)/usr/share/metainfo/waterfox.appdata.xml
+	install -D -m 0644 debian/usr.bin.waterfox $(PKGDIR)/etc/apparmor.d/usr.bin.waterfox
+	install -D -m 0644 debian/package-prefs.js $(INSTDIR)/defaults/pref/package-prefs.js
+	install -D -m 0644 debian/waterfox.1 $(PKGDIR)/usr/share/man/man1/waterfox.1
+	echo "This is a packaged app." > $(INSTDIR)/is-packaged-app
+	for s in 16 32 48 64 128; do \
+	  install -D -m 0644 $(INSTDIR)/browser/chrome/icons/default/default$${s}.png \
+	    $(PKGDIR)/usr/share/icons/hicolor/$${s}x$${s}/apps/waterfox.png ; \
+	done
+
+# VMP signed binaries: never strip or alter them.
+override_dh_strip:
+override_dh_strip_nondeterminism:
+override_dh_dwz:
+
+override_dh_shlibdeps:
+	dh_shlibdeps -l$(CURDIR)/$(INSTDIR)
