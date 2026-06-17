@@ -482,6 +482,18 @@ RPMBUILD_COMMAND = [
             False,
             RPMBUILD_COMMAND + ["x86_64"],
         ),
+        (
+            "aarch64",
+            True,
+            [
+                "chroot",
+                "/srv/rpm-aarch64",
+                "bash",
+                "-c",
+                f"cd /tmp/*/source; {' '.join(RPMBUILD_COMMAND)} aarch64",
+            ],
+        ),
+        ("aarch64", False, RPMBUILD_COMMAND + ["aarch64"]),
     ),
 )
 def test_get_command(monkeypatch, arch, is_chroot_available, expected):
@@ -496,8 +508,10 @@ def test_get_command(monkeypatch, arch, is_chroot_available, expected):
         ("all", True, "/srv/rpm-all", True),
         ("x86", False, "/srv/rpm-x86", False),
         ("x86_64", False, "/srv/rpm-x86_64", False),
+        ("aarch64", False, "/srv/rpm-aarch64", False),
         ("x86", True, "/srv/rpm-x86", True),
         ("x86_64", True, "/srv/rpm-x86_64", True),
+        ("aarch64", True, "/srv/rpm-aarch64", True),
     ),
 )
 def test_is_chroot_available(
@@ -517,6 +531,7 @@ def test_is_chroot_available(
         ("all", "/srv/rpm-all"),
         ("x86", "/srv/rpm-x86"),
         ("x86_64", "/srv/rpm-x86_64"),
+        ("aarch64", "/srv/rpm-aarch64"),
     ),
 )
 def test_get_chroot_path(arch, expected):

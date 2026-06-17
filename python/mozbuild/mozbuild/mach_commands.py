@@ -2832,7 +2832,12 @@ def repackage(command_context):
     "--input", "-i", type=str, required=True, help="Input tarfile filename"
 )
 @CommandArgument("--output", "-o", type=str, required=True, help="Output .deb filename")
-@CommandArgument("--arch", type=str, required=True, help="One of ['x86', 'x86_64']")
+@CommandArgument(
+    "--arch",
+    type=str,
+    required=True,
+    help="One of ['x86', 'x86_64', 'aarch64']",
+)
 @CommandArgument(
     "--version",
     type=str,
@@ -3005,7 +3010,12 @@ def repackage_deb_l10n(
     required=True,
     help="Output directory for the .rpm files",
 )
-@CommandArgument("--arch", type=str, required=True, help="One of ['x86', 'x86_64']")
+@CommandArgument(
+    "--arch",
+    type=str,
+    required=True,
+    help="One of ['x86', 'x86_64', 'aarch64']",
+)
 @CommandArgument(
     "--version",
     type=str,
