@@ -1,0 +1,16 @@
+# AppArmor profile for Waterfox.
+#
+# On Ubuntu 24.04 and later, kernel.apparmor_restrict_unprivileged_userns
+# blocks the browser's sandbox unless a profile grants user namespaces. This
+# follows the same approach Ubuntu and Mozilla use for browsers: the profile
+# does not confine Waterfox, it only grants the unprivileged user namespace
+# capability the sandbox needs.
+abi <abi/4.0>,
+include <tunables/global>
+
+profile waterfox /usr/lib/waterfox/{waterfox,waterfox-bin,updater,plugin-container,glxtest,vaapitest} flags=(unconfined) {
+  userns,
+
+  # Site-specific additions and overrides. See local/README for details.
+  include if exists <local/waterfox>
+}
