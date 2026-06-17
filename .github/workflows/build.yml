@@ -1,0 +1,635 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      MOZ_BUILD_DATE:
+        description: Build date (YYYYMMDDHHMMSS), shared by every platform build
+        required: true
+        type: string
+      PRE_RELEASE:
+        description: Mark the build as a pre-release
+        required: false
+        default: "true"
+        type: string
+      TAG_VERSION:
+        description: Display version
+        required: true
+        type: string
+  workflow_call:
+    inputs:
+      MOZ_BUILD_DATE:
+        required: true
+        type: string
+      PRE_RELEASE:
+        required: false
+        default: "true"
+        type: string
+      TAG_VERSION:
+        required: true
+        type: string
+    outputs:
+      versiondisplay:
+        description: Display version used for this build
+        value: ${{ jobs.metadata.outputs.version_display }}
+      run_id:
+        description: Build workflow run id
+        value: ${{ jobs.metadata.outputs.run_id }}
+
+permissions:
+  contents: read
+
+env:
+  MACH_MAIN_PID: "0"
+  MOZ_BUILD_DATE: ${{ inputs.MOZ_BUILD_DATE }}
+  PRE_RELEASE: ${{ inputs.PRE_RELEASE }}
+  RUST_TOOLCHAIN: 1.97.1
+  TAG_VERSION: ${{ inputs.TAG_VERSION }}
+
+jobs:
+  metadata:
+    name: Build metadata
+    runs-on:
+      - namespace-profile-linux-xs
+    timeout-minutes: 120
+    outputs:
+      run_id: ${{ steps.outputs.outputs.run_id }}
+      version_display: ${{ steps.outputs.outputs.version_display }}
+    steps:
+      - name: Resolve version
+        shell: bash
+        run: |
+          VERSION_DISPLAY="${TAG_VERSION}"
+
+          {
+            echo 'VERSION_DISPLAY<<EOF'
+            printf '%s\n' "${VERSION_DISPLAY}"
+            echo 'EOF'
+          } >> "$GITHUB_ENV"
+
+      - name: Export metadata outputs
+        id: outputs
+        shell: bash
+        run: |
+          echo "run_id=${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+          echo "version_display=${VERSION_DISPLAY}" >> "$GITHUB_OUTPUT"
+
+      - name: Save build metadata
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          {
+            echo "VERSION_DISPLAY=${VERSION_DISPLAY}"
+            echo "PRE_RELEASE=${PRE_RELEASE}"
+            echo "MOZ_BUILD_DATE=${MOZ_BUILD_DATE}"
+            echo "TAG_VERSION=${TAG_VERSION}"
+            echo "BUILD_RUN_ID=${GITHUB_RUN_ID}"
+            echo "COMMIT_SHA=${GITHUB_SHA}"
+          } > artifacts/build-metadata.env
+
+      - name: Upload build metadata
+        uses: namespace-actions/upload-artifact@f6ccaacc655aec41b93af180d1d7eef21af862d2 # v1
+        with:
+          name: build-metadata
+          path: artifacts/build-metadata.env
+
+  prepare-assets:
+    name: Build asset snapshot
+    runs-on:
+      - namespace-profile-linux-xs
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            scripts
+            services/settings
+            waterfox/browser/components/blocker/assets
+            waterfox/browser/components/blocker/scripts
+
+      - name: Update bundled blocker assets
+        shell: bash
+        run: node waterfox/browser/components/blocker/scripts/update-bundled-assets.js
+
+      - name: Update offline Remote Settings dumps
+        shell: bash
+        run: python3 scripts/update-remote-settings-dumps.py
+
+      - name: Archive build asset snapshot
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          tar -cf artifacts/build-assets-snapshot.tar \
+            waterfox/browser/components/blocker/assets \
+            services/settings/dumps \
+            services/settings/static-dumps
+
+      - name: Upload build asset snapshot
+        uses: namespace-actions/upload-artifact@f6ccaacc655aec41b93af180d1d7eef21af862d2 # v1
+        with:
+          name: build-assets-snapshot
+          path: artifacts/build-assets-snapshot.tar
+
+  build-windows-x64-stage-1:
+    name: Windows x64 PGO generate (stage 1)
+    needs:
+      - prepare-assets
+    runs-on:
+      - namespace-profile-linux-md
+    timeout-minutes: 120
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-windows-x64-stage-1
+      cancel-in-progress: true
+    env:
+      ARCH: x86_64-pc-windows-msvc
+      MOZCONFIG: waterfox/build/mozconfig-x86_64-pc-windows-msvc
+      WINEDEBUG: -all
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      - name: Prepare tree
+        uses: ./.github/actions/prepare-tree
+        with:
+          sccache-cache-name: wf-build-windows-x64-stage1
+          apt-packages: msitools zstd
+          rust-target: x86_64-pc-windows-msvc
+          tag-version: ${{ inputs.TAG_VERSION }}
+          pre-release: ${{ inputs.PRE_RELEASE }}
+
+      - name: Build instrumented binary
+        shell: bash
+        run: |
+          export GEN_PGO=1
+          ./mach build
+
+      - name: Package instrumented binary
+        shell: bash
+        run: ./mach package
+
+      - name: Upload Windows x64 PGO generate outputs
+        uses: namespace-actions/upload-artifact@f6ccaacc655aec41b93af180d1d7eef21af862d2 # v1
+        with:
+          name: windows-${{ env.ARCH }}-pgo-generate
+          path: obj-${{ env.ARCH }}/dist/waterfox
+
+  build-windows-x64-stage-2:
+    name: Windows x64 PGO profile (stage 2)
+    needs:
+      - build-windows-x64-stage-1
+    runs-on: namespace-profile-windows-md
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-windows-x64-stage-2
+      cancel-in-progress: true
+    env:
+      ARCH: x86_64-pc-windows-msvc
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            build
+            python
+            scripts
+            taskcluster/scripts
+            testing/gtest
+            testing/mozbase
+            testing/profiles
+            testing/talos/talos
+            testing/web-platform/tests/tools/third_party/certifi
+            third_party/python
+            third_party/webkit
+            tools/quitter
+            waterfox/build
+
+      - name: Setup profile packages
+        run: |
+          curl -L https://ftp.mozilla.org/pub/mozilla/libraries/win32/MozillaBuildSetup-4.2.1.exe --output MozillaBuildSetup.exe
+          7z x MozillaBuildSetup.exe -o/c/mozilla-build
+          scripts/fetch-clang-22.sh
+
+      - name: Install Rust toolchain
+        run: rustup default "${RUST_TOOLCHAIN}"
+
+      - name: Download Windows x64 PGO generate outputs
+        uses: namespace-actions/download-artifact@7cbad919e4b0e09f17e9d6311a444ff002992b5b # v2
+        with:
+          name: windows-${{ env.ARCH }}-pgo-generate
+          path: obj-${{ env.ARCH }}/dist/waterfox
+
+      - name: Run PGO profile
+        shell: pwsh
+        run: |
+          Remove-Item .mozconfig
+          $env:LLVM_PROFDATA = "$HOME/.mozbuild/clang-22/bin/llvm-profdata.exe"
+          $env:JARLOG_FILE = "en-US.log"
+          python mach python build/pgo/profileserver.py --binary "./obj-${{ env.ARCH }}/dist/waterfox/waterfox.exe"
+
+      - name: Upload Windows x64 PGO profile data
+        uses: namespace-actions/upload-artifact@f6ccaacc655aec41b93af180d1d7eef21af862d2 # v1
+        with:
+          name: windows-${{ env.ARCH }}-pgo-profile
+          path: |
+            merged.profdata
+            en-US.log
+
+  build-windows-x64-stage-3:
+    name: Windows x64 PGO use (stage 3)
+    needs:
+      - build-windows-x64-stage-2
+    runs-on:
+      - namespace-profile-linux-md
+    timeout-minutes: 120
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-windows-x64-stage-3
+      cancel-in-progress: true
+    env:
+      ARCH: x86_64-pc-windows-msvc
+      MOZCONFIG: waterfox/build/mozconfig-x86_64-pc-windows-msvc
+      WINEDEBUG: -all
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      - name: Prepare tree
+        uses: ./.github/actions/prepare-tree
+        with:
+          sccache-cache-name: wf-build-windows-x64-stage3
+          apt-packages: msitools zstd
+          rust-target: x86_64-pc-windows-msvc
+          tag-version: ${{ inputs.TAG_VERSION }}
+          pre-release: ${{ inputs.PRE_RELEASE }}
+
+      - name: Download Windows x64 PGO profile data
+        uses: namespace-actions/download-artifact@7cbad919e4b0e09f17e9d6311a444ff002992b5b # v2
+        with:
+          name: windows-${{ env.ARCH }}-pgo-profile
+          path: ${{ github.workspace }}
+
+      - name: Build
+        shell: bash
+        run: |
+          export USE_PGO=1
+          ./mach build
+
+      - name: Package
+        shell: bash
+        run: |
+          ./mach package
+          if [[ -d "$PWD/waterfox/browser/locales/en-GB" ]]; then
+            ./mach package-multi-locale --locales $WFX_L10N_LOCALES
+          fi
+
+      - name: Upload Windows build outputs
+        uses: namespace-actions/upload-artifact@f6ccaacc655aec41b93af180d1d7eef21af862d2 # v1
+        with:
+          name: windows-${{ env.ARCH }}-build
+          path: |
+            obj-${{ env.ARCH }}/dist/waterfox
+            obj-${{ env.ARCH }}/dist/host/bin/mar
+            obj-${{ env.ARCH }}/dist/host/bin/mbsdiff
+            obj-${{ env.ARCH }}/browser/installer/windows/instgen/
+
+  build-windows-arm64:
+    name: Windows ARM64
+    needs:
+      - prepare-assets
+    runs-on:
+      - namespace-profile-linux-md
+    timeout-minutes: 120
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-windows-arm64
+      cancel-in-progress: true
+    env:
+      ARCH: aarch64-pc-windows-msvc
+      MOZCONFIG: waterfox/build/mozconfig-aarch64-pc-windows-msvc
+      WINEDEBUG: -all
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      - name: Prepare tree
+        uses: ./.github/actions/prepare-tree
+        with:
+          sccache-cache-name: wf-build-windows-arm64
+          apt-packages: msitools zstd
+          rust-target: aarch64-pc-windows-msvc
+          tag-version: ${{ inputs.TAG_VERSION }}
+          pre-release: ${{ inputs.PRE_RELEASE }}
+
+      - name: Build
+        shell: bash
+        run: ./mach build
+
+      - name: Package
+        shell: bash
+        run: |
+          ./mach package
+          if [[ -d "$PWD/waterfox/browser/locales/en-GB" ]]; then
+            ./mach package-multi-locale --locales $WFX_L10N_LOCALES
+          fi
+
+      - name: Upload Windows ARM64 build outputs
+        uses: namespace-actions/upload-artifact@f6ccaacc655aec41b93af180d1d7eef21af862d2 # v1
+        with:
+          name: windows-${{ env.ARCH }}-build
+          path: |
+            obj-${{ env.ARCH }}/dist/waterfox
+            obj-${{ env.ARCH }}/dist/host/bin/mar
+            obj-${{ env.ARCH }}/dist/host/bin/mbsdiff
+            obj-${{ env.ARCH }}/browser/installer/windows/instgen/
+
+  build-macos:
+    name: macOS ${{ matrix.arch }}
+    needs:
+      - prepare-assets
+    runs-on:
+      - namespace-profile-macos-tahoe-lg
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-macos-${{ matrix.arch }}
+      cancel-in-progress: true
+    env:
+      ARCH: ${{ matrix.arch }}
+      MOZCONFIG: waterfox/build/mozconfig-${{ matrix.arch }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      - name: Prepare tree
+        uses: ./.github/actions/prepare-tree
+        with:
+          sccache-cache-name: wf-build-macos-${{ matrix.arch }}
+          rust-target: ${{ matrix.arch }}
+          tag-version: ${{ inputs.TAG_VERSION }}
+          pre-release: ${{ inputs.PRE_RELEASE }}
+
+      - name: Build
+        shell: bash
+        run: ./mach build
+
+      - name: Package
+        shell: bash
+        run: |
+          ./mach package
+          if [[ -d "$PWD/waterfox/browser/locales/en-GB" ]]; then
+            ./mach package-multi-locale --locales $WFX_L10N_LOCALES
+          fi
+
+      - name: Upload macOS build outputs
+        uses: namespace-actions/upload-artifact@f6ccaacc655aec41b93af180d1d7eef21af862d2 # v1
+        with:
+          name: macos-${{ matrix.arch }}-build
+          path: |
+            obj-${{ matrix.arch }}/dist/waterfox/*.app
+            obj-${{ matrix.arch }}/dist/host/bin/mar
+            obj-${{ matrix.arch }}/dist/host/bin/mbsdiff
+
+  build-linux-x64:
+    name: Linux x64
+    needs:
+      - prepare-assets
+    runs-on:
+      - namespace-profile-legacy-linux-md
+    timeout-minutes: 120
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-linux-x64
+      cancel-in-progress: true
+    env:
+      ARCH: x86_64-pc-linux-gnu
+      MOZCONFIG: waterfox/build/mozconfig-x86_64-pc-linux-gnu
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      - name: Prepare tree
+        uses: ./.github/actions/prepare-tree
+        with:
+          sccache-cache-name: wf-build-linux-x64
+          apt-packages: xvfb zstd
+          tag-version: ${{ inputs.TAG_VERSION }}
+          pre-release: ${{ inputs.PRE_RELEASE }}
+
+      - name: Build
+        shell: bash
+        run: xvfb-run -a --server-args="-screen 0 1280x1024x24" ./mach build
+
+      - name: Package
+        shell: bash
+        run: |
+          ./mach package
+          if [[ -d "$PWD/waterfox/browser/locales/en-GB" ]]; then
+            ./mach package-multi-locale --locales $WFX_L10N_LOCALES
+          fi
+
+      - name: Bundle Linux build outputs
+        shell: bash
+        run: |
+          dist_root="obj-${ARCH}/dist"
+          tar -C "$dist_root" -cf linux-build.tar waterfox host/bin/mar host/bin/mbsdiff
+
+      - name: Upload Linux build outputs
+        uses: namespace-actions/upload-artifact@f6ccaacc655aec41b93af180d1d7eef21af862d2 # v1
+        with:
+          name: linux-build
+          path: linux-build.tar
+
+  build-linux-arm64-stage-1:
+    name: Linux ARM64 PGO generate (stage 1)
+    needs:
+      - prepare-assets
+    runs-on:
+      - namespace-profile-legacy-linux-md
+    timeout-minutes: 120
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-linux-arm64-stage-1
+      cancel-in-progress: true
+    env:
+      ARCH: aarch64-unknown-linux-gnu
+      MOZCONFIG: waterfox/build/mozconfig-aarch64-unknown-linux-gnu
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      - name: Prepare tree
+        uses: ./.github/actions/prepare-tree
+        with:
+          sccache-cache-name: wf-build-linux-arm64-stage1
+          apt-packages: xvfb zstd
+          rust-target: aarch64-unknown-linux-gnu
+          tag-version: ${{ inputs.TAG_VERSION }}
+          pre-release: ${{ inputs.PRE_RELEASE }}
+
+      - name: Build instrumented binary
+        shell: bash
+        run: |
+          export GEN_PGO=1
+          ./mach build
+
+      - name: Package instrumented binary
+        shell: bash
+        run: ./mach package
+
+      - name: Bundle Linux ARM64 PGO generate outputs
+        shell: bash
+        run: tar -C "obj-${ARCH}/dist" -cf linux-aarch64-pgo-generate.tar waterfox
+
+      - name: Upload Linux ARM64 PGO generate outputs
+        uses: namespace-actions/upload-artifact@f6ccaacc655aec41b93af180d1d7eef21af862d2 # v1
+        with:
+          name: linux-aarch64-pgo-generate
+          path: linux-aarch64-pgo-generate.tar
+
+  build-linux-arm64-stage-2:
+    name: Linux ARM64 PGO profile (stage 2)
+    needs:
+      - build-linux-arm64-stage-1
+    runs-on:
+      - namespace-profile-linux-md-arm
+    timeout-minutes: 120
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-linux-arm64-stage-2
+      cancel-in-progress: true
+    env:
+      ARCH: aarch64-unknown-linux-gnu
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            build
+            python
+            scripts
+            taskcluster/scripts
+            testing/gtest
+            testing/mozbase
+            testing/profiles
+            testing/talos/talos
+            testing/web-platform/tests/tools/third_party/certifi
+            third_party/python
+            third_party/webkit
+            tools/quitter
+            waterfox/build
+
+      - name: Setup profile packages
+        shell: bash
+        run: |
+          sudo apt update
+          sudo apt install -y libasound2-dev libdbus-1-dev libgtk-3-dev libpulse-dev libx11-xcb-dev libxt-dev pkg-config xvfb zstd
+          scripts/fetch-clang-22.sh
+          test -x "$HOME/.mozbuild/clang-22/bin/llvm-profdata"
+
+      - name: Download Linux ARM64 PGO generate outputs
+        uses: namespace-actions/download-artifact@7cbad919e4b0e09f17e9d6311a444ff002992b5b # v2
+        with:
+          name: linux-aarch64-pgo-generate
+          path: .
+
+      - name: Run PGO profile
+        shell: bash
+        run: |
+          rm -f .mozconfig
+          mkdir -p "obj-${ARCH}/dist"
+          tar -xf linux-aarch64-pgo-generate.tar -C "obj-${ARCH}/dist"
+          rm -f linux-aarch64-pgo-generate.tar
+          export PATH="$HOME/.mozbuild/clang-22/bin:$PATH"
+          export CC="$HOME/.mozbuild/clang-22/bin/clang"
+          export CXX="$HOME/.mozbuild/clang-22/bin/clang++"
+          export LLVM_PROFDATA="$HOME/.mozbuild/clang-22/bin/llvm-profdata"
+          export JARLOG_FILE="en-US.log"
+          xvfb-run -a --server-args="-screen 0 1280x1024x24" python3 mach python build/pgo/profileserver.py --binary "./obj-${ARCH}/dist/waterfox/waterfox"
+
+      - name: Upload Linux ARM64 PGO profile data
+        uses: namespace-actions/upload-artifact@f6ccaacc655aec41b93af180d1d7eef21af862d2 # v1
+        with:
+          name: linux-aarch64-pgo-profile
+          path: |
+            merged.profdata
+            en-US.log
+
+  build-linux-arm64-stage-3:
+    name: Linux ARM64 PGO use (stage 3)
+    needs:
+      - build-linux-arm64-stage-2
+    runs-on:
+      - namespace-profile-legacy-linux-md
+    timeout-minutes: 120
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}-linux-arm64-stage-3
+      cancel-in-progress: true
+    env:
+      ARCH: aarch64-unknown-linux-gnu
+      MOZCONFIG: waterfox/build/mozconfig-aarch64-unknown-linux-gnu
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      - name: Prepare tree
+        uses: ./.github/actions/prepare-tree
+        with:
+          sccache-cache-name: wf-build-linux-arm64-stage3
+          apt-packages: xvfb zstd
+          rust-target: aarch64-unknown-linux-gnu
+          tag-version: ${{ inputs.TAG_VERSION }}
+          pre-release: ${{ inputs.PRE_RELEASE }}
+
+      - name: Download Linux ARM64 PGO profile data
+        uses: namespace-actions/download-artifact@7cbad919e4b0e09f17e9d6311a444ff002992b5b # v2
+        with:
+          name: linux-aarch64-pgo-profile
+          path: ${{ github.workspace }}
+
+      - name: Build
+        shell: bash
+        run: |
+          export USE_PGO=1
+          ./mach build
+
+      - name: Package
+        shell: bash
+        run: |
+          ./mach package
+          if [[ -d "$PWD/waterfox/browser/locales/en-GB" ]]; then
+            ./mach package-multi-locale --locales $WFX_L10N_LOCALES
+          fi
+
+      - name: Bundle Linux ARM64 build outputs
+        shell: bash
+        run: |
+          dist_root="obj-${ARCH}/dist"
+          tar -C "$dist_root" -cf linux-aarch64-build.tar waterfox host/bin/mar host/bin/mbsdiff
+
+      - name: Upload Linux ARM64 build outputs
+        uses: namespace-actions/upload-artifact@f6ccaacc655aec41b93af180d1d7eef21af862d2 # v1
+        with:
+          name: linux-aarch64-build
+          path: linux-aarch64-build.tar
