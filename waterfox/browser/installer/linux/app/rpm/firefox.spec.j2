@@ -1,0 +1,75 @@
+Name:           {{ PKG_NAME }}
+Version:        {{ PKG_VERSION }}
+Release:        {{ PKG_BUILD_NUMBER }}%{?dist}
+Summary:        {{ DESCRIPTION }}
+URL:            https://www.waterfox.com/
+Group:          Applications/Internet
+License:        MPL-2
+Vendor:         BrowserWorks
+Source0:        %{name}.tar.xz
+Source1:        %{name}.desktop
+Source2:        %{name}.1
+Source3:        package-prefs.js
+{%- for codename, metadata in LANGUAGES.items() %}
+Source{{ loop.index + 3 }}:        {{ metadata.extension_id }}.xpi
+{%- endfor %}
+
+%global __requires_exclude_from ^/usr/lib/waterfox.*/libonnxruntime\\.so$
+
+%global mozappdir /{{ PKG_INSTALL_PATH }}
+%global appdir %{_datadir}/applications/
+
+%description
+{{ DESCRIPTION }}
+
+%prep
+%setup -q -n waterfox
+%{__mkdir_p} %{buildroot}/%{mozappdir} %{buildroot}%{appdir} %{buildroot}%{_bindir} %{buildroot}%{_mandir}/man1/
+%{__cp} -r . %{buildroot}/%{mozappdir}
+%{__install} -m 0644 %{SOURCE1} %{buildroot}%{_datadir}/applications/
+%{__install} -m 0644 %{SOURCE2} %{buildroot}%{_mandir}/man1/%{name}.1
+%{__ln_s} %{mozappdir}/waterfox %{buildroot}%{_bindir}/%{name}
+%{__mkdir_p} %{buildroot}/%{mozappdir}/distribution/extensions
+%{__install} -m 0644 %{_sourcedir}/waterfox/distribution/distribution.ini %{buildroot}%{mozappdir}/distribution/distribution.ini
+%{__install} -D -m 0644 %{SOURCE3} %{buildroot}%{mozappdir}/defaults/pref/package-prefs.js
+echo "This is a packaged app." > %{buildroot}%{mozappdir}/is-packaged-app
+{%- for codename, metadata in LANGUAGES.items() %}
+%{__install} -m 0644 %{SOURCE{{ loop.index + 3 }}} %{buildroot}%{mozappdir}/distribution/extensions/{{ metadata.extension_id }}.xpi
+{%- endfor %}
+%{__install} -D -m 0644 %{buildroot}%{mozappdir}/browser/chrome/icons/default/default16.png %{buildroot}%{_datadir}/icons/hicolor/16x16/apps/%{name}.png
+%{__install} -D -m 0644 %{buildroot}%{mozappdir}/browser/chrome/icons/default/default32.png %{buildroot}%{_datadir}/icons/hicolor/32x32/apps/%{name}.png
+%{__install} -D -m 0644 %{buildroot}%{mozappdir}/browser/chrome/icons/default/default48.png %{buildroot}%{_datadir}/icons/hicolor/48x48/apps/%{name}.png
+%{__install} -D -m 0644 %{buildroot}%{mozappdir}/browser/chrome/icons/default/default64.png %{buildroot}%{_datadir}/icons/hicolor/64x64/apps/%{name}.png
+%{__install} -D -m 0644 %{buildroot}%{mozappdir}/browser/chrome/icons/default/default128.png %{buildroot}%{_datadir}/icons/hicolor/128x128/apps/%{name}.png
+
+{% for codename, metadata in LANGUAGES.items() %}
+%package l10n-{{ codename }}
+Summary:       {{ metadata.description }}
+BuildArch:     noarch
+Requires:      %{name} = %{version}-%{release}
+Supplements:   (%{name} = %{version}-%{release} and langpacks-{{ codename }})
+
+%description l10n-{{ codename }}
+{{ metadata.description }}
+
+%files l10n-{{ codename }}
+%{mozappdir}/distribution/extensions/{{ metadata.extension_id }}.xpi
+{% endfor %}
+
+%files
+%dir %{mozappdir}
+%{mozappdir}/*
+%exclude %dir %{mozappdir}/distribution/extensions
+%exclude %{mozappdir}/distribution/extensions/*.xpi
+%{appdir}/%{name}.desktop
+%{_bindir}/%{name}
+%{_mandir}/man1/%{name}.1*
+%{_datadir}/icons/hicolor/16x16/apps/%{name}.png
+%{_datadir}/icons/hicolor/32x32/apps/%{name}.png
+%{_datadir}/icons/hicolor/48x48/apps/%{name}.png
+%{_datadir}/icons/hicolor/64x64/apps/%{name}.png
+%{_datadir}/icons/hicolor/128x128/apps/%{name}.png
+
+%changelog
+* {{ CHANGELOG_DATE }} BrowserWorks <MrAlex94@users.noreply.github.com> {{ PKG_VERSION }}-{{ PKG_BUILD_NUMBER }}
+  - N/A

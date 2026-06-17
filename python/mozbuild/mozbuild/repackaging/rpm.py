@@ -59,7 +59,7 @@ def repackage_rpm(
     fluent_resource_loader,
 ):
     if not tarfile.is_tarfile(infile):
-        raise Exception("Input file %s is not a valid tarfile." % infile)
+        raise Exception(f"Input file {infile} is not a valid tarfile.")
     if not pathlib.Path(xpi_directory).is_dir():
         raise NotADirectoryError("The xpi_directory is not a directory.")
 
@@ -87,6 +87,9 @@ def repackage_rpm(
         build_variables["LANGUAGES"] = prepare_langpack_files(rpm_dir, xpi_directory)
 
         copy_plain_config(template_dir, rpm_dir)
+        package_prefs_path = mozpath.join(template_dir, "package-prefs.js")
+        if os.path.exists(package_prefs_path):
+            shutil.copy(package_prefs_path, rpm_dir)
         render_templates(
             template_dir,
             rpm_dir,
