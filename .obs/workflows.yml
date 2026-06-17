@@ -1,0 +1,9 @@
+version: '1.1'
+
+release:
+  steps:
+    - trigger_services:
+        project: home:MrAlex94:waterfox
+        package: waterfox
+  filters:
+    event: tag_push
