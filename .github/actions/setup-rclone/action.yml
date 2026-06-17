@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: Setup rclone
+description: Install a pinned rclone release
+
+runs:
+  using: composite
+  steps:
+    - name: Install rclone
+      shell: bash
+      run: |
+        RCLONE_VERSION=v1.74.3
+        RCLONE_SHA256=dbee7ccd7a5d617e4ed4cd4555c16669b511abfe8d31164f61be35ac9e999bd2
+        curl -fsSL -o rclone.zip "https://downloads.rclone.org/${RCLONE_VERSION}/rclone-${RCLONE_VERSION}-linux-amd64.zip"
+        echo "${RCLONE_SHA256}  rclone.zip" | sha256sum -c -
+        unzip -q rclone.zip
+        sudo install -m 0755 "rclone-${RCLONE_VERSION}-linux-amd64/rclone" /usr/local/bin/rclone
+        rm -rf rclone.zip "rclone-${RCLONE_VERSION}-linux-amd64"

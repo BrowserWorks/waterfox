@@ -1,0 +1,172 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Production
+on:
+  workflow_call:
+    inputs:
+      COMMIT_SHA:
+        required: true
+        type: string
+      DISPLAY_VERSION:
+        description: Display Version
+        required: true
+        type: string
+      PRE_RELEASE:
+        required: true
+        type: string
+    secrets:
+      AWS_ACCESS_KEY_ID:
+        required: false
+      AWS_SECRET_ACCESS_KEY:
+        required: false
+      CF_ACCESS_KEY_ID:
+        required: false
+      CF_ACCESS_KEY_SECRET:
+        required: false
+      CF_ENDPOINT:
+        required: true
+      RELEASE_TOKEN:
+        required: true
+      AUS_ADMIN_TOKEN:
+        required: true
+      AUS_BASE_URL:
+        required: true
+      OBS_TRIGGER_TOKEN:
+        required: true
+permissions:
+  contents: read
+env:
+  DISPLAY_VERSION: '${{ inputs.DISPLAY_VERSION }}'
+  PRE_RELEASE: '${{ inputs.PRE_RELEASE }}'
+  RCLONE_S3_ACCESS_KEY_ID: '${{ secrets.AWS_ACCESS_KEY_ID || secrets.CF_ACCESS_KEY_ID }}'
+  RCLONE_S3_ACL: private
+  RCLONE_S3_ENDPOINT: '${{ secrets.CF_ENDPOINT }}'
+  RCLONE_S3_PROVIDER: Cloudflare
+  RCLONE_S3_SECRET_ACCESS_KEY: '${{ secrets.AWS_SECRET_ACCESS_KEY || secrets.CF_ACCESS_KEY_SECRET }}'
+  RCLONE_S3_DECOMPRESS: true
+jobs:
+  soft-release:
+    name: Soft Release
+    environment: Approval
+    runs-on: namespace-profile-linux-xs
+    timeout-minutes: 120
+    steps:
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          DV: ${{ inputs.DISPLAY_VERSION }}
+          SHA: ${{ inputs.COMMIT_SHA }}
+          PRE_RELEASE: ${{ inputs.PRE_RELEASE }}
+        run: |
+          prerelease_args=()
+          if [[ "$PRE_RELEASE" == "true" ]]; then
+            prerelease_args+=(--prerelease)
+          fi
+
+          if gh release view "$DV" >/dev/null 2>&1; then
+            gh release edit "$DV" --target "$SHA" "${prerelease_args[@]}"
+          else
+            gh release create "$DV" --target "$SHA" --draft "${prerelease_args[@]}" --title "$DV" --generate-notes
+          fi
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            .github
+            scripts
+      - name: Setup rclone
+        uses: ./.github/actions/setup-rclone
+      - name: Move installers from staging to production
+        run: |
+          rclone moveto ":s3:cdn/waterfox/staging/${DISPLAY_VERSION}/WINNT_x86_64/Waterfox Setup ${DISPLAY_VERSION}.exe" \
+            ":s3:cdn/waterfox/releases/${DISPLAY_VERSION}/WINNT_x86_64/Waterfox Setup ${DISPLAY_VERSION}.exe"
+          rclone moveto ":s3:cdn/waterfox/staging/${DISPLAY_VERSION}/WINNT_x86_64/Waterfox Setup ${DISPLAY_VERSION}.exe.sha512" \
+            ":s3:cdn/waterfox/releases/${DISPLAY_VERSION}/WINNT_x86_64/Waterfox Setup ${DISPLAY_VERSION}.exe.sha512"
+          rclone moveto ":s3:cdn/waterfox/staging/${DISPLAY_VERSION}/Darwin_x86_64-aarch64/Waterfox ${DISPLAY_VERSION}.dmg" \
+            ":s3:cdn/waterfox/releases/${DISPLAY_VERSION}/Darwin_x86_64-aarch64/Waterfox ${DISPLAY_VERSION}.dmg"
+          rclone moveto ":s3:cdn/waterfox/staging/${DISPLAY_VERSION}/Darwin_x86_64-aarch64/Waterfox ${DISPLAY_VERSION}.dmg.sha512" \
+            ":s3:cdn/waterfox/releases/${DISPLAY_VERSION}/Darwin_x86_64-aarch64/Waterfox ${DISPLAY_VERSION}.dmg.sha512"
+          rclone moveto ":s3:cdn/waterfox/staging/${DISPLAY_VERSION}/Linux_x86_64/waterfox-${DISPLAY_VERSION}.tar.bz2" \
+            ":s3:cdn/waterfox/releases/${DISPLAY_VERSION}/Linux_x86_64/waterfox-${DISPLAY_VERSION}.tar.bz2"
+          rclone moveto ":s3:cdn/waterfox/staging/${DISPLAY_VERSION}/Linux_x86_64/waterfox-${DISPLAY_VERSION}.tar.bz2.sha512" \
+            ":s3:cdn/waterfox/releases/${DISPLAY_VERSION}/Linux_x86_64/waterfox-${DISPLAY_VERSION}.tar.bz2.sha512"
+          rclone moveto ":s3:cdn/waterfox/staging/${DISPLAY_VERSION}/WINNT_aarch64/Waterfox Setup ${DISPLAY_VERSION}.exe" \
+            ":s3:cdn/waterfox/releases/${DISPLAY_VERSION}/WINNT_aarch64/Waterfox Setup ${DISPLAY_VERSION}.exe"
+          rclone moveto ":s3:cdn/waterfox/staging/${DISPLAY_VERSION}/WINNT_aarch64/Waterfox Setup ${DISPLAY_VERSION}.exe.sha512" \
+            ":s3:cdn/waterfox/releases/${DISPLAY_VERSION}/WINNT_aarch64/Waterfox Setup ${DISPLAY_VERSION}.exe.sha512"
+          rclone moveto ":s3:cdn/waterfox/staging/${DISPLAY_VERSION}/Linux_aarch64/waterfox-${DISPLAY_VERSION}.tar.bz2" \
+            ":s3:cdn/waterfox/releases/${DISPLAY_VERSION}/Linux_aarch64/waterfox-${DISPLAY_VERSION}.tar.bz2"
+          rclone moveto ":s3:cdn/waterfox/staging/${DISPLAY_VERSION}/Linux_aarch64/waterfox-${DISPLAY_VERSION}.tar.bz2.sha512" \
+            ":s3:cdn/waterfox/releases/${DISPLAY_VERSION}/Linux_aarch64/waterfox-${DISPLAY_VERSION}.tar.bz2.sha512"
+      - name: Load sign metadata
+        uses: namespace-actions/download-artifact@7cbad919e4b0e09f17e9d6311a444ff002992b5b # v2
+        with:
+          name: sign-metadata
+          path: sign-metadata
+      - name: Publish to AUS (rollout=0, latest pointer flips)
+        env:
+          AUS_BASE_URL: ${{ secrets.AUS_BASE_URL }}
+          AUS_ADMIN_TOKEN: ${{ secrets.AUS_ADMIN_TOKEN }}
+        run: scripts/ci/aus-publish.sh production sign-metadata/build-metadata.env
+  obs-release:
+    name: OBS Packages
+    needs:
+      - soft-release
+    concurrency:
+      group: waterfox-obs-publication
+      cancel-in-progress: false
+    runs-on: namespace-profile-linux-xs
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            scripts
+            waterfox/browser/installer/linux/obs
+      - name: Publish OBS package
+        env:
+          OBS_TRIGGER_TOKEN: ${{ secrets.OBS_TRIGGER_TOKEN }}
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: scripts/ci/obs-publish.sh "$DISPLAY_VERSION"
+  hard-release:
+    name: Hard Release
+    needs:
+      - soft-release
+    environment: Approval
+    runs-on: namespace-profile-linux-xs
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          filter: blob:none
+          sparse-checkout: |
+            .github
+            scripts
+      - name: Setup rclone
+        uses: ./.github/actions/setup-rclone
+      - name: Move MARs from staging
+        # Per-directory moves carry both the complete and any partial MARs.
+        run: |
+          for platform in WINNT_x86_64 Darwin_x86_64-aarch64 Linux_x86_64 WINNT_aarch64 Linux_aarch64; do
+            rclone move ":s3:cdn/waterfox/staging/${DISPLAY_VERSION}/update/${platform}/" \
+              ":s3:cdn/waterfox/releases/${DISPLAY_VERSION}/update/${platform}/"
+          done
+      - name: Flip rollout to 100 (auto-update goes live)
+        env:
+          AUS_BASE_URL: ${{ secrets.AUS_BASE_URL }}
+          AUS_ADMIN_TOKEN: ${{ secrets.AUS_ADMIN_TOKEN }}
+        run: |
+          curl -fsS -X PATCH \
+            "${AUS_BASE_URL}/admin/versions/${DISPLAY_VERSION}/rollout" \
+            -H "Authorization: Bearer ${AUS_ADMIN_TOKEN}" \
+            -H "Content-Type: application/json" \
+            --data '{"rollout":100}'
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release edit "$DISPLAY_VERSION" --draft=false

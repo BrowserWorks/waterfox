@@ -1,0 +1,128 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: Prepare tree
+description: Shared build job setup that runs between checkout and mach build
+
+inputs:
+  sccache-cache-name:
+    description: Namespace sccache cache name (empty skips sccache setup)
+    default: ""
+  apt-packages:
+    description: Space separated apt packages to install (empty skips apt)
+    default: ""
+  rust-target:
+    description: Rust target triple to add (empty skips the target add)
+    default: ""
+  tag-version:
+    description: Display version written to browser/config/version_display.txt
+    required: true
+  pre-release:
+    description: true for a pre-release (beta), false for a release
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Install sccache
+      if: ${{ inputs.sccache-cache-name != '' }}
+      uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
+
+    - name: Setup Namespace sccache
+      if: ${{ inputs.sccache-cache-name != '' }}
+      shell: bash
+      env:
+        SCCACHE_CACHE_NAME: ${{ inputs.sccache-cache-name }}
+      run: |
+        SCCACHE_ENV_VARS="$(nsc cache sccache setup --cache_name "$SCCACHE_CACHE_NAME")"
+        for kv in $SCCACHE_ENV_VARS; do
+          echo "$kv" >> "$GITHUB_ENV"
+        done
+
+    - name: Setup build packages
+      if: ${{ inputs.apt-packages != '' }}
+      shell: bash
+      env:
+        APT_PACKAGES: ${{ inputs.apt-packages }}
+      run: |
+        sudo apt update
+        sudo apt install -y $APT_PACKAGES
+
+    - name: Fetch clang toolchain
+      shell: bash
+      run: scripts/fetch-clang-22.sh
+
+    - name: Install Rust toolchain
+      shell: bash
+      env:
+        RUST_TARGET: ${{ inputs.rust-target }}
+      run: |
+        rustup default "${RUST_TOOLCHAIN}"
+        if [[ -n "$RUST_TARGET" ]]; then
+          rustup target add --toolchain "${RUST_TOOLCHAIN}" "$RUST_TARGET"
+        fi
+
+    - name: Prepare version
+      shell: bash
+      env:
+        TAG_VERSION_INPUT: ${{ inputs.tag-version }}
+      run: printf '%s\n' "${TAG_VERSION_INPUT}" > browser/config/version_display.txt
+
+    - name: Configure release mode
+      shell: bash
+      env:
+        PRE_RELEASE_INPUT: ${{ inputs.pre-release }}
+      run: |
+        case "${PRE_RELEASE_INPUT}" in
+          true)
+            echo WFX_PRE_RELEASE=1 >> "$GITHUB_ENV"
+            ;;
+          false)
+            echo WFX_RELEASE=1 >> "$GITHUB_ENV"
+            ;;
+          *)
+            echo "PRE_RELEASE must be true or false" >&2
+            exit 1
+            ;;
+        esac
+
+    - name: Export locale list
+      shell: bash
+      run: |
+        locales="$({
+          git -C waterfox/browser/locales ls-tree -r -l HEAD
+        } | awk '
+          {
+            size = $4
+            sub(/^[^\t]*\t/, "")
+            n = split($0, part, "/")
+          }
+          size > 0 &&
+          n >= 3 &&
+          part[1] !~ /^\./ &&
+          (part[2] == "browser" || part[2] == "toolkit" || part[2] == "waterfox") {
+            count[part[1]]++
+          }
+          END {
+            for (locale in count) {
+              if (count[locale] >= 10) {
+                print locale
+              }
+            }
+          }
+        ' | LC_ALL=C sort -u | paste -sd ' ' -)"
+        test -n "$locales"
+        printf 'WFX_L10N_LOCALES=%s\n' "$locales" >> "$GITHUB_ENV"
+
+    - name: Download build asset snapshot
+      uses: namespace-actions/download-artifact@7cbad919e4b0e09f17e9d6311a444ff002992b5b # v2
+      with:
+        name: build-assets-snapshot
+        path: artifacts
+
+    - name: Apply build asset snapshot
+      shell: bash
+      run: |
+        rm -rf \
+          waterfox/browser/components/blocker/assets \
+          services/settings/dumps \
+          services/settings/static-dumps
+        tar -xf artifacts/build-assets-snapshot.tar -C .
