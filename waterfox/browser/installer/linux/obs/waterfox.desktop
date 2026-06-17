@@ -1,0 +1,29 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Exec=waterfox %u
+Terminal=false
+X-MultipleArgs=false
+Icon=waterfox
+StartupWMClass=waterfox
+Categories=GNOME;GTK;Network;WebBrowser;
+MimeType=application/json;application/pdf;application/rdf+xml;application/rss+xml;application/x-xpinstall;application/xhtml+xml;application/xml;audio/flac;audio/ogg;audio/webm;image/avif;image/gif;image/jpeg;image/png;image/svg+xml;image/webp;text/html;text/xml;video/ogg;video/webm;x-scheme-handler/chrome;x-scheme-handler/http;x-scheme-handler/https;x-scheme-handler/mailto;
+StartupNotify=true
+Actions=new-window;new-private-window;open-profile-manager;
+Name=Waterfox
+Comment=Browse the Web
+GenericName=Web Browser
+Keywords=Internet;WWW;Browser;Web;Explorer;
+X-GNOME-FullName=Waterfox Web Browser
+
+[Desktop Action new-window]
+Exec=waterfox --new-window %u
+Name=New Window
+
+[Desktop Action new-private-window]
+Exec=waterfox --private-window %u
+Name=New Private Window
+
+[Desktop Action open-profile-manager]
+Exec=waterfox --ProfileManager
+Name=Open Profile Manager
