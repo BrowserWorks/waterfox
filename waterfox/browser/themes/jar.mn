@@ -12,4 +12,5 @@ browser.jar:
     skin/classic/browser/waterfox/chrome.css                  (waterfox/waterfoxChrome.css)
     skin/classic/browser/waterfox/content.css                 (waterfox/waterfoxContent.css)
     skin/classic/browser/waterfox/chrome/                     (waterfox/chrome/*.css)
+    skin/classic/browser/waterfox/content/                    (waterfox/content/*.css)
     skin/classic/browser/waterfox/general.css                 (waterfox/general.css)
