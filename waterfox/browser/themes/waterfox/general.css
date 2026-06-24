@@ -8,3 +8,10 @@
     display: none !important;
   }
 }
+
+/* about:preferences includes a Mozilla feedback link. */
+@-moz-document url-prefix("about:preferences") {
+  #supportShareIdeas {
+    display: none !important;
+  }
+}
