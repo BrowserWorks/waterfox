@@ -31,6 +31,11 @@ legend {
   }
 }
 
+/* Waterfox-exclusive badges sit beside the group or section title. */
+moz-badge[type="waterfox-exclusive"] {
+  align-self: center;
+}
+
 .icon {
   width: var(--icon-size);
   height: var(--icon-size);
