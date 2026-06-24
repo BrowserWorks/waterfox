@@ -58,6 +58,18 @@ customElements.define("moz-radio-group", MozRadioGroup);
 export class MozRadio extends SelectControlItemMixin(MozBaseInputElement) {
   static activatedProperty = "checked";
 
+  static properties = {
+    badge: { type: String },
+  };
+
+  labelTemplate() {
+    let label = super.labelTemplate();
+    if (!this.badge) {
+      return label;
+    }
+    return html`${label}<moz-badge type=${this.badge}></moz-badge>`;
+  }
+
   get isDisabled() {
     return (
       super.isDisabled || this.parentDisabled || this.controller.parentDisabled
