@@ -37,3 +37,11 @@
     outline-color: var(--badge-border-color-filled);
   }
 }
+
+:host([type="waterfox-exclusive"]) {
+  .moz-badge {
+    color: var(--badge-text-color-filled);
+    background-color: var(--color-accent-primary);
+    outline-color: var(--color-accent-primary);
+  }
+}
