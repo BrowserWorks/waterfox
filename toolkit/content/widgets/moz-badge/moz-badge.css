@@ -4,6 +4,11 @@
 
 @import url("chrome://global/content/elements/moz-badge.tokens.css");
 
+:host {
+  display: inline-flex;
+  vertical-align: middle;
+}
+
 .moz-badge {
   display: flex;
   align-items: center;
@@ -35,5 +40,13 @@
     color: var(--badge-text-color-filled);
     background-color: var(--badge-background-color-filled);
     outline-color: var(--badge-border-color-filled);
+  }
+}
+
+:host([type="waterfox-exclusive"]) {
+  .moz-badge {
+    color: var(--badge-text-color-filled);
+    background-color: var(--color-accent-primary);
+    outline-color: var(--color-accent-primary);
   }
 }

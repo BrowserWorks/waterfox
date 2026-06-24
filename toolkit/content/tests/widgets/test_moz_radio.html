@@ -35,6 +35,23 @@
           type: "radio",
         });
       });
+
+      add_task(async function testMozRadioBadge() {
+        let group = document.createElement("moz-radio-group");
+        let radio = document.createElement("moz-radio");
+        radio.label = "Radio with badge";
+        radio.badge = "exclusive";
+        group.append(radio);
+        document.body.append(group);
+        registerCleanupFunction(() => group.remove());
+        await radio.updateComplete;
+        let badges = radio.shadowRoot.querySelectorAll("moz-badge");
+        is(badges.length, 1, "A radio renders exactly one badge");
+        is(badges[0].getAttribute("type"), "exclusive", "The badge uses the requested type");
+        radio.badge = "";
+        await radio.updateComplete;
+        is(radio.shadowRoot.querySelectorAll("moz-badge").length, 0, "An empty badge removes it");
+      });
     </script>
   </head>
   <body></body>

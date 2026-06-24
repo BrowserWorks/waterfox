@@ -237,6 +237,7 @@ export class MozLitElement extends LitElement {
  * @property {string} value - The value of the input control
  * @property {boolean} disabled - The disabled state of the input control
  * @property {string} iconSrc - The src for an optional icon
+ * @property {string} badge - Include a badge of this type with matching text.
  * @property {string} description - The text for the description element that helps describe the input control
  * @property {string} supportPage - Name of the SUMO support page to link to.
  * @property {boolean} parentDisabled - When this element is nested under another input and that
@@ -255,6 +256,7 @@ export class MozBaseInputElement extends MozLitElement {
     name: { type: String },
     value: { type: String },
     iconSrc: { type: String },
+    badge: { type: String },
     disabled: { type: Boolean },
     description: { type: String, fluent: true },
     supportPage: { type: String, attribute: "support-page" },
@@ -478,7 +480,7 @@ export class MozBaseInputElement extends MozLitElement {
       labelEl = html`<span class="text" .textContent=${this.label}></span>`;
     }
     return html`<span class="text-container"
-      >${this.iconTemplate()}${labelEl}</span
+      >${this.iconTemplate()}${labelEl}${this.badgeTemplate()}</span
     >`;
   }
 
@@ -501,6 +503,13 @@ export class MozBaseInputElement extends MozLitElement {
       return html`<img src=${this.iconSrc} role="presentation" class="icon" />`;
     }
     return "";
+  }
+
+  badgeTemplate() {
+    if (!this.badge) {
+      return "";
+    }
+    return html`<moz-badge type=${this.badge}></moz-badge>`;
   }
 
   supportLinkTemplate() {

@@ -90,6 +90,18 @@
     text-overflow: ellipsis;
   }
 
+  .text-container:has(> moz-badge) {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .text-container:has(> moz-badge) > .text {
+    flex: 1;
+  }
+  .text-container > moz-badge {
+    margin-inline-start: var(--space-small);
+  }
+
   /* Undocumented hack for AI controls, do not use, it WILL be removed. (bug 2012250) */
   h3.text {
     display: inline-block;
