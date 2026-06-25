@@ -10,6 +10,15 @@ const CLICK_SELECTS_ALL_PREF = "browser.urlbar.clickSelectsAll";
 const DOUBLE_CLICK_SELECTS_ALL_PREF = "browser.urlbar.doubleClickSelectsAll";
 
 const SUGGEST_GROUP_ID = "firefoxSuggest";
+const SUGGEST_HEADER_ID = "locationBarGroupHeader";
+
+// The Firefox Suggest sponsored and dismissed suggestion controls are nested
+// under the address bar header. Waterfox locks Suggest off, so these never apply
+// and are removed from the search pane.
+const HIDDEN_SUGGEST_ITEM_IDS = [
+  "firefoxSuggestAll",
+  "dismissedSuggestionsDescription",
+];
 
 const ADDRESS_BAR_BEHAVIOR_ITEM = {
   id: "waterfoxAddressBarBehavior",
@@ -62,10 +71,21 @@ function appendAddressBarBehavior(group) {
   group.items.push(ADDRESS_BAR_BEHAVIOR_ITEM);
 }
 
+function removeSponsoredSuggestItems(group) {
+  const header = group.items.find(item => item.id === SUGGEST_HEADER_ID);
+  if (!header || !Array.isArray(header.items)) {
+    return;
+  }
+  header.items = header.items.filter(
+    item => !HIDDEN_SUGGEST_ITEM_IDS.includes(item.id)
+  );
+}
+
 function amendSuggestGroup(group) {
   if (!group || !Array.isArray(group.items)) {
     return;
   }
+  removeSponsoredSuggestItems(group);
   appendAddressBarBehavior(group);
 }
 
