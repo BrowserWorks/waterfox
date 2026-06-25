@@ -53,6 +53,10 @@ pref("browser.ml.linkPreview.labs", 0, locked);
 pref("browser.preferences.aiControls", false);
 
 pref("browser.urlbar.suggest.weather", false);
+pref("browser.urlbar.quicksuggest.enabled", false, locked);
+pref("browser.urlbar.quicksuggest.online.available", false, locked);
+pref("browser.urlbar.quicksuggest.online.enabled", false, locked);
+pref("browser.urlbar.suggest.quicksuggest.all", false, locked);
 pref("browser.urlbar.suggest.quicksuggest.sponsored", false, locked);
 pref("browser.urlbar.trending.featureGate", false);
 
