@@ -12,10 +12,19 @@ const SUGGESTIONS_PROXY_PREF = "waterfox.search.suggestions.useProxy";
 const DISABLE_AI_PREF = "waterfox.search.disableAIFeatures";
 
 const SUGGEST_GROUP_ID = "firefoxSuggest";
+const SUGGEST_HEADER_ID = "locationBarGroupHeader";
 const DEFAULT_ENGINE_GROUP_ID = "defaultEngine";
 const SHOW_SEARCH_TERMS_ITEM_ID = "searchShowSearchTermCheckbox";
 const SEARCH_SUGGESTIONS_GROUP_ID = "searchSuggestions";
 const SHOW_SUGGESTIONS_ITEM_ID = "suggestionsInSearchFieldsCheckbox";
+
+// The Firefox Suggest sponsored and dismissed suggestion controls are nested
+// under the address bar header. Waterfox locks Suggest off, so these never apply
+// and are removed from the search pane.
+const HIDDEN_SUGGEST_ITEM_IDS = [
+  "firefoxSuggestAll",
+  "dismissedSuggestionsDescription",
+];
 
 // No explicit control on these items, so they use the default moz-checkbox
 // like the surrounding Mozilla options.
@@ -100,10 +109,21 @@ function appendAddressBarBehavior(group) {
   group.items.push(ADDRESS_BAR_BEHAVIOR_ITEM);
 }
 
+function removeSponsoredSuggestItems(group) {
+  const header = group.items.find(item => item.id === SUGGEST_HEADER_ID);
+  if (!header || !Array.isArray(header.items)) {
+    return;
+  }
+  header.items = header.items.filter(
+    item => !HIDDEN_SUGGEST_ITEM_IDS.includes(item.id)
+  );
+}
+
 function amendSuggestGroup(group) {
   if (!group || !Array.isArray(group.items)) {
     return;
   }
+  removeSponsoredSuggestItems(group);
   appendAddressBarBehavior(group);
 }
 

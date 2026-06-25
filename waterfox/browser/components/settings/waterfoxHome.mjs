@@ -198,6 +198,24 @@ function injectCustomNewTabItem(config) {
   );
 }
 
+// Waterfox ships no sponsored content, so drop the "Support Firefox" sponsored
+// group from the Home pane without editing AboutPreferences.sys.mjs.
+function removeSupportFirefoxItem(items) {
+  if (!Array.isArray(items)) {
+    return false;
+  }
+  for (let i = 0; i < items.length; i++) {
+    if (items[i]?.id === "supportFirefox") {
+      items.splice(i, 1);
+      return true;
+    }
+    if (removeSupportFirefoxItem(items[i]?.items)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 try {
   injectCustomNewTabItem(SettingGroupManager.get("homepage"));
 } catch (_ex) {
@@ -209,6 +227,9 @@ const origRegisterGroups =
 SettingGroupManager.registerGroups = groups => {
   if (groups?.homepage) {
     injectCustomNewTabItem(groups.homepage);
+  }
+  if (groups?.home) {
+    removeSupportFirefoxItem(groups.home.items);
   }
   return origRegisterGroups(groups);
 };
