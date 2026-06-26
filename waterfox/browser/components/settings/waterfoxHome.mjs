@@ -216,6 +216,31 @@ function removeSupportFirefoxItem(items) {
   return false;
 }
 
+// Mozilla labels the Home defaults, content header, and disabled notice with the
+// Firefox brand; Waterfox uses neutral wording.
+const HOME_LABEL_OVERRIDES = {
+  "home-mode-choice-default-fx-srd": "waterfox-home-mode-choice-default",
+  "home-prefs-content-header": "waterfox-home-prefs-content-header",
+  "home-prefs-firefox-home-disabled-notice": "waterfox-home-disabled-notice",
+};
+
+function rewriteHomeLabels(node) {
+  if (!node || typeof node !== "object") {
+    return;
+  }
+  const override = HOME_LABEL_OVERRIDES[node.l10nId];
+  if (override) {
+    node.l10nId = override;
+  }
+  for (const key of ["items", "options"]) {
+    if (Array.isArray(node[key])) {
+      for (const child of node[key]) {
+        rewriteHomeLabels(child);
+      }
+    }
+  }
+}
+
 try {
   injectCustomNewTabItem(SettingGroupManager.get("homepage"));
 } catch (_ex) {
@@ -230,6 +255,11 @@ SettingGroupManager.registerGroups = groups => {
   }
   if (groups?.home) {
     removeSupportFirefoxItem(groups.home.items);
+  }
+  for (const id of ["homepage", "customHomepage", "home"]) {
+    if (groups?.[id]) {
+      rewriteHomeLabels(groups[id]);
+    }
   }
   return origRegisterGroups(groups);
 };
