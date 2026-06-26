@@ -56,9 +56,9 @@ export default class SidebarPinsPromo extends MozLitElement {
     this.launcherObserver = new MutationObserver(() => this.requestUpdate());
   }
   #icons = [
-    { name: "firefox", src: "chrome://browser/skin/sidebar/firefox.svg" },
+    { name: "firefox", src: "chrome://branding/content/about-logo.svg" },
     { name: "slack", src: "chrome://browser/skin/sidebar/slack.svg" },
-    { name: "foxy", src: "chrome://browser/skin/sidebar/foxy.svg" },
+    { name: "foxy", src: "chrome://branding/content/about-logo.svg" },
     { name: "gmail", src: "chrome://browser/skin/sidebar/gmail.svg" },
   ];
 

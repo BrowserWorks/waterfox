@@ -69,10 +69,18 @@
   > img {
     -moz-context-properties: fill;
     fill: light-dark(#9059ff, #f4f0ff);
+    max-inline-size: 100%;
+    max-block-size: var(--icon-height);
+    object-fit: contain;
 
     @media (prefers-contrast) {
       fill: currentColor;
     }
+  }
+
+  > img[src="chrome://branding/content/about-logo.svg"] {
+    inline-size: 32px;
+    block-size: 32px;
   }
 
   /* Start hiding icons as the sidebar width shrinks. */
