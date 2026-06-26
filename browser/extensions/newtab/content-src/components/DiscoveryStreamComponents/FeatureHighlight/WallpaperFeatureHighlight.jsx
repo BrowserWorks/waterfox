@@ -39,7 +39,7 @@ export function WallpaperFeatureHighlight({
 
   const novaHighlightImage = isWorldCup
     ? "chrome://newtab/content/data/content/assets/highlights/wallpaper-callout.png"
-    : "chrome://newtab/content/data/content/assets/highlights/firefox-mascot-prop-paintbucket-rgb.svg";
+    : "chrome://branding/content/about-logo.svg";
   const novaImgWidth = isWorldCup ? "319" : "207";
   const novaImgHeight = isWorldCup ? "204" : "156";
   const novaTitleL10nId = isWorldCup

@@ -82,7 +82,7 @@ export default class BreachAlert extends MozLitElement {
           <div class="main">
             <img
               class="fox-icon-legacy"
-              src="chrome://browser/content/controlcenter/assets/fox-concern.svg"
+              src="chrome://branding/content/about-logo.svg"
               alt=""
             />
             <div class="content">

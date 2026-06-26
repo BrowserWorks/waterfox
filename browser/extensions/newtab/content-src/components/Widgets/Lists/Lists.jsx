@@ -45,8 +45,7 @@ const LISTS_EMPTY_STATE_ILLUSTRATION =
   "chrome://newtab/content/data/content/assets/lists-empty-state-comet.svg";
 const LISTS_CELEBRATION = {
   headlineL10nId: "newtab-widget-lists-celebration-headline",
-  illustrationSrc:
-    "chrome://newtab/content/data/content/assets/firefox-motion-head-pop-up-no-bg.svg",
+  illustrationSrc: "chrome://branding/content/about-logo.svg",
   subheadL10nId: "newtab-widget-lists-celebration-subhead",
 };
 const ENABLE_COMPACT_COMPLETED_PREVIEW = false;

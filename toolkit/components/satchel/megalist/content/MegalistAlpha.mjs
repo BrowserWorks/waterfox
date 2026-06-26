@@ -578,7 +578,7 @@ export class MegalistAlpha extends MozLitElement {
           aria-labelledby="no-logins-card-heading"
         >
           <img
-            src="chrome://global/content/megalist/icons/cpm-fox-illustration.svg"
+            src="chrome://branding/content/about-logo.svg"
             role="presentation"
             alt=""
           />
@@ -901,7 +901,7 @@ export class MegalistAlpha extends MozLitElement {
       <moz-card class="empty-state-card">
         <div class="reauth-card-content">
           <img
-            src="chrome://global/content/megalist/icons/cpm-fox-illustration.svg"
+            src="chrome://branding/content/about-logo.svg"
             role="presentation"
             alt=""
           />

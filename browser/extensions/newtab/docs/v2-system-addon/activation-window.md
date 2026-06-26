@@ -99,8 +99,8 @@ Messages for the activation window use the `ActivationWindowMessage` component a
     // OR
     message: { string_id: "activation-window-welcome-message-fluent-id" },
 
-    // Image (optional, defaults to kit-in-circle.svg if not provided)
-    imageSrc: "chrome://newtab/content/data/content/assets/kit.png",
+    // Image (optional, defaults to the Waterfox branding logo if not provided)
+    imageSrc: "chrome://branding/content/about-logo.svg",
 
     primaryButton: {
       // Plain text label (for tests)
@@ -136,7 +136,7 @@ Messages for the activation window use the `ActivationWindowMessage` component a
 - **`message`** (string or object, optional): Message text
   - Plain string: `"We've personalized your experience"`
   - Fluent ID: `{ string_id: "activation-window-message-fluent-id" }`
-- **`imageSrc`** (string, optional): Chrome URL to image displayed in the message. If not provided, defaults to `"chrome://newtab/content/data/content/assets/kit-in-circle.svg"`
+- **`imageSrc`** (string, optional): Chrome URL to image displayed in the message. If not provided, defaults to `"chrome://branding/content/about-logo.svg"`
 - **`primaryButton`** (object, optional): Configuration for primary button.
 - **`secondaryButton`** (object, optional): Configuration for secondary button
 
