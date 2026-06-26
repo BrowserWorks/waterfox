@@ -49,9 +49,8 @@
 # and kept in English.
 -firefox-home-brand-name = { -brand-product-name } Home
 
-# View" can be localized, “Firefox” must be treated as a brand
-# and kept in English.
--firefoxview-brand-name = Firefox View
+# Generic name for the page that collects recent browsing activity.
+-firefoxview-brand-name = Browsing overview
 
 # Waterfox Labs is the name for a page in Settings to allow users to learn about
 # experimental and in-development features, and turn those features on and off.
