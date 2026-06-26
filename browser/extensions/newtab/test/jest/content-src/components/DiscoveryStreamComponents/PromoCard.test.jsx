@@ -24,7 +24,7 @@ describe("<PromoCard>", () => {
     expect(container.querySelector(".promo-card-wrapper")).toBeInTheDocument();
     expect(container.querySelector(".img-wrapper img")).toHaveAttribute(
       "src",
-      "chrome://newtab/content/data/content/assets/firefox-mascot-prop-paintbucket-rgb.svg"
+      "chrome://branding/content/about-logo.svg"
     );
     expect(container.querySelector(".promo-card-title")).toHaveAttribute(
       "data-l10n-id",

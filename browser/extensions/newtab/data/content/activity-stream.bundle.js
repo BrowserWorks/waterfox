@@ -4,7 +4,7 @@ var NewtabRenderUtils;
 /******/ 	"use strict";
 /******/ 	// The require scope
 /******/ 	var __webpack_require__ = {};
-/******/ 	
+/******/
 /************************************************************************/
 /******/ 	/* webpack/runtime/compat get default export */
 /******/ 	(() => {
@@ -17,7 +17,7 @@ var NewtabRenderUtils;
 /******/ 			return getter;
 /******/ 		};
 /******/ 	})();
-/******/ 	
+/******/
 /******/ 	/* webpack/runtime/define property getters */
 /******/ 	(() => {
 /******/ 		// define getter functions for harmony exports
@@ -29,7 +29,7 @@ var NewtabRenderUtils;
 /******/ 			}
 /******/ 		};
 /******/ 	})();
-/******/ 	
+/******/
 /******/ 	/* webpack/runtime/global */
 /******/ 	(() => {
 /******/ 		__webpack_require__.g = (function() {
@@ -41,12 +41,12 @@ var NewtabRenderUtils;
 /******/ 			}
 /******/ 		})();
 /******/ 	})();
-/******/ 	
+/******/
 /******/ 	/* webpack/runtime/hasOwnProperty shorthand */
 /******/ 	(() => {
 /******/ 		__webpack_require__.o = (obj, prop) => (Object.prototype.hasOwnProperty.call(obj, prop))
 /******/ 	})();
-/******/ 	
+/******/
 /******/ 	/* webpack/runtime/make namespace object */
 /******/ 	(() => {
 /******/ 		// define __esModule on exports
@@ -57,7 +57,7 @@ var NewtabRenderUtils;
 /******/ 			Object.defineProperty(exports, '__esModule', { value: true });
 /******/ 		};
 /******/ 	})();
-/******/ 	
+/******/
 /************************************************************************/
 var __webpack_exports__ = {};
 // ESM COMPAT FLAG
@@ -4667,7 +4667,7 @@ function AdBannerContextMenu({
 
 
 const PREF_PROMO_CARD_DISMISSED = "discoverystream.promoCard.visible";
-const PROMO_CARD_IMAGE_SRC = "chrome://newtab/content/data/content/assets/firefox-mascot-prop-paintbucket-rgb.svg";
+const PROMO_CARD_IMAGE_SRC = "chrome://branding/content/about-logo.svg";
 
 /**
  * The PromoCard component displays a promotional message.
@@ -13167,7 +13167,7 @@ const Lists_PREF_NOVA_ENABLED = "nova.enabled";
 const LISTS_EMPTY_STATE_ILLUSTRATION = "chrome://newtab/content/data/content/assets/lists-empty-state-comet.svg";
 const LISTS_CELEBRATION = {
   headlineL10nId: "newtab-widget-lists-celebration-headline",
-  illustrationSrc: "chrome://newtab/content/data/content/assets/firefox-motion-head-pop-up-no-bg.svg",
+  illustrationSrc: "chrome://branding/content/about-logo.svg",
   subheadL10nId: "newtab-widget-lists-celebration-subhead"
 };
 const ENABLE_COMPACT_COMPLETED_PREVIEW = false;
@@ -17572,7 +17572,7 @@ const MATCHES_TABS = {
   NOW: "now",
   UPCOMING: "upcoming"
 };
-const SPORTS_CELEBRATION_ILLUSTRATION = "chrome://newtab/content/data/content/assets/firefox-motion-head-pop-up-no-bg.svg";
+const SPORTS_CELEBRATION_ILLUSTRATION = "chrome://branding/content/about-logo.svg";
 function getVisibleMatchesTabs(hasLiveGames, hasPreviousResults) {
   return Object.values(MATCHES_TABS)
   // Only show the Now tab when there are live games.
@@ -25913,7 +25913,7 @@ function WallpaperFeatureHighlight({
     messageData
   } = (0,external_ReactRedux_namespaceObject.useSelector)(state => state.Messages);
   const isWorldCup = isNova && messageData?.content?.messageType === "WorldCupWallpaperHighlight";
-  const novaHighlightImage = isWorldCup ? "chrome://newtab/content/data/content/assets/highlights/wallpaper-callout.png" : "chrome://newtab/content/data/content/assets/highlights/firefox-mascot-prop-paintbucket-rgb.svg";
+  const novaHighlightImage = isWorldCup ? "chrome://newtab/content/data/content/assets/highlights/wallpaper-callout.png" : "chrome://branding/content/about-logo.svg";
   const novaImgWidth = isWorldCup ? "319" : "207";
   const novaImgHeight = isWorldCup ? "204" : "156";
   const novaTitleL10nId = isWorldCup ? "newtab-sports-widget-message-wallpapers-title" : "newtab-wallpaper-feature-highlight-title";
@@ -26029,7 +26029,7 @@ function ActivationWindowMessage({
   })), /*#__PURE__*/external_React_default().createElement("div", {
     className: "activation-window-message-inner"
   }, /*#__PURE__*/external_React_default().createElement("img", {
-    src: content.imageSrc || "chrome://newtab/content/data/content/assets/kit-in-circle.svg",
+    src: content.imageSrc || "chrome://branding/content/about-logo.svg",
     alt: "",
     role: "presentation"
   }), /*#__PURE__*/external_React_default().createElement("div", null, content.heading && (typeof content.heading === "string" ? /*#__PURE__*/external_React_default().createElement("h2", null, content.heading) : /*#__PURE__*/external_React_default().createElement("h2", {

@@ -854,7 +854,7 @@ SettingGroupManager.registerGroups({
     inProgress: true,
     l10nId: "browser-language-heading",
     headingLevel: 2,
-    iconSrc: "chrome://browser/skin/sidebar/firefox.svg",
+    iconSrc: "chrome://branding/content/about-logo.svg",
     items: [
       {
         id: "browserLanguagePreferred",

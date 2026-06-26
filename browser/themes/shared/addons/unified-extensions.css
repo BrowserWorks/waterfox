@@ -30,8 +30,9 @@
 
 #unified-extensions-empty-state {
   > img {
-    /* The parent is a vbox using flexbox, which causes the img to grow to the full width by default. Avoid that: */
     align-self: center;
+    height: 64px;
+    width: 64px;
   }
   > h2 {
     color: inherit; /* undo var(--text-color-deemphasized) from panelUI-shared.css */

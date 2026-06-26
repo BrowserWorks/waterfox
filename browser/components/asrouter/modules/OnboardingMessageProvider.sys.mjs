@@ -67,8 +67,7 @@ const BASE_MESSAGES = () => [
     layout: "column",
     content: {
       messageType: "default_cta",
-      imageURL:
-        "chrome://browser/content/asrouter/assets/fox-with-checkmark.svg",
+      imageURL: "chrome://branding/content/about-logo.svg",
       imageWidth: 68,
       primaryText: {
         string_id: "set-default-menu-message-row-layout-title",
@@ -116,8 +115,7 @@ const BASE_MESSAGES = () => [
     template: "menu_message",
     layout: "column",
     content: {
-      imageURL:
-        "chrome://browser/content/asrouter/assets/fox-with-checkmark.svg",
+      imageURL: "chrome://branding/content/about-logo.svg",
       imageWidth: 68,
       messageType: "default_cta",
       primaryText: {
@@ -909,8 +907,7 @@ const BASE_MESSAGES = () => [
               height: "580px",
             },
             logo: {
-              imageURL:
-                "chrome://browser/content/asrouter/assets/fox-with-checkmark.svg",
+              imageURL: "chrome://branding/content/about-logo.svg",
               height: "96px",
             },
             title: {
@@ -1012,8 +1009,7 @@ const BASE_MESSAGES = () => [
               height: "580px",
             },
             logo: {
-              imageURL:
-                "chrome://browser/content/asrouter/assets/fox-with-checkmark.svg",
+              imageURL: "chrome://branding/content/about-logo.svg",
               height: "96px",
             },
             title: {
@@ -2112,7 +2108,7 @@ const BASE_MESSAGES = () => [
             position: "split",
             split_content_padding_block: "166px",
             background:
-              "url('chrome://activity-stream/content/data/content/assets/fox-doodle-backup.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
+              "url('chrome://branding/content/about-logo.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
             logo: {},
             title: {
               string_id: "restored-from-backup-success-title",
@@ -2157,7 +2153,7 @@ const BASE_MESSAGES = () => [
           content: {
             position: "split",
             background:
-              "url('chrome://activity-stream/content/data/content/assets/fox-doodle-backup.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
+              "url('chrome://branding/content/about-logo.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
             logo: {},
             title: {
               string_id: "restored-from-backup-success-title",
@@ -2262,7 +2258,7 @@ const BASE_MESSAGES = () => [
           content: {
             position: "split",
             background:
-              "url('chrome://activity-stream/content/data/content/assets/fox-doodle-backup.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
+              "url('chrome://branding/content/about-logo.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
             logo: {},
             title: {
               string_id: "restored-from-backup-success-title",
@@ -2345,7 +2341,7 @@ const BASE_MESSAGES = () => [
           content: {
             position: "split",
             background:
-              "url('chrome://activity-stream/content/data/content/assets/fox-doodle-backup.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
+              "url('chrome://branding/content/about-logo.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
             logo: {},
             title: {
               string_id: "restored-from-backup-success-title",

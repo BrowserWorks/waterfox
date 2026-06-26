@@ -386,8 +386,7 @@ const MESSAGES = () => {
               padding: 16,
               width: "330px",
               title_logo: {
-                imageURL:
-                  "chrome://browser/content/asrouter/assets/smiling-fox-icon.svg",
+                imageURL: "chrome://branding/content/about-logo.svg",
                 width: "24px",
                 height: "24px",
                 marginInline: "0 16px",
@@ -448,8 +447,7 @@ const MESSAGES = () => {
               padding: 16,
               width: "330px",
               title_logo: {
-                imageURL:
-                  "chrome://browser/content/asrouter/assets/smiling-fox-icon.svg",
+                imageURL: "chrome://branding/content/about-logo.svg",
                 width: "24px",
                 height: "24px",
                 marginInline: "0 16px",
@@ -511,8 +509,7 @@ const MESSAGES = () => {
               padding: 16,
               width: "330px",
               title_logo: {
-                imageURL:
-                  "chrome://browser/content/asrouter/assets/smiling-fox-icon.svg",
+                imageURL: "chrome://branding/content/about-logo.svg",
                 width: "24px",
                 height: "24px",
                 marginInline: "0 16px",
@@ -573,8 +570,7 @@ const MESSAGES = () => {
               padding: 16,
               width: "330px",
               title_logo: {
-                imageURL:
-                  "chrome://browser/content/asrouter/assets/smiling-fox-icon.svg",
+                imageURL: "chrome://branding/content/about-logo.svg",
                 width: "24px",
                 height: "24px",
                 marginInline: "0 16px",
@@ -634,8 +630,7 @@ const MESSAGES = () => {
               padding: 16,
               width: "330px",
               title_logo: {
-                imageURL:
-                  "chrome://browser/content/asrouter/assets/smiling-fox-icon.svg",
+                imageURL: "chrome://branding/content/about-logo.svg",
                 width: "24px",
                 height: "24px",
                 marginInline: "0 16px",
@@ -696,8 +691,7 @@ const MESSAGES = () => {
               padding: 16,
               width: "330px",
               title_logo: {
-                imageURL:
-                  "chrome://browser/content/asrouter/assets/smiling-fox-icon.svg",
+                imageURL: "chrome://branding/content/about-logo.svg",
                 width: "24px",
                 height: "24px",
                 marginInline: "0 16px",
@@ -1082,8 +1076,7 @@ const MESSAGES = () => {
             content: {
               position: "callout",
               logo: {
-                imageURL:
-                  "chrome://browser/content/asrouter/assets/fox-with-profiles.svg",
+                imageURL: "chrome://branding/content/about-logo.svg",
                 height: "100%",
                 width: "100%",
               },

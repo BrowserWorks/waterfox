@@ -13010,7 +13010,7 @@ hr {
   background-size: cover;
 }
 .ds-navigation.ds-navigation-new-topics .ds-navigation-family .firefox-logo {
-  background-image: url("chrome://newtab/content/data/content/assets/firefox.svg");
+  background-image: url("chrome://branding/content/about-logo.svg");
 }
 .ds-navigation.ds-navigation-new-topics .ds-navigation-family .pocket-logo {
   background-image: url("chrome://global/skin/icons/help.svg");
