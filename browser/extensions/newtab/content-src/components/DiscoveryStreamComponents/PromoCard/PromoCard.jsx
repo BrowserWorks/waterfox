@@ -8,8 +8,7 @@ import { actionCreators as ac, actionTypes as at } from "common/Actions.mjs";
 import { useIntersectionObserver } from "../../../lib/utils";
 
 const PREF_PROMO_CARD_DISMISSED = "discoverystream.promoCard.visible";
-const PROMO_CARD_IMAGE_SRC =
-  "chrome://newtab/content/data/content/assets/firefox-mascot-prop-paintbucket-rgb.svg";
+const PROMO_CARD_IMAGE_SRC = "chrome://branding/content/about-logo.svg";
 
 /**
  * The PromoCard component displays a promotional message.

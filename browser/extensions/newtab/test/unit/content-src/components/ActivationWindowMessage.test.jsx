@@ -177,10 +177,7 @@ describe("<ActivationWindowMessage>", () => {
 
     const img = wrapper.find("img");
     assert.ok(img.exists());
-    assert.equal(
-      img.prop("src"),
-      "chrome://newtab/content/data/content/assets/kit-in-circle.svg"
-    );
+    assert.equal(img.prop("src"), "chrome://branding/content/about-logo.svg");
     assert.equal(img.prop("role"), "presentation");
   });
 
