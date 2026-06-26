@@ -59,10 +59,7 @@ export function ActivationWindowMessage({
       </div>
       <div className="activation-window-message-inner">
         <img
-          src={
-            content.imageSrc ||
-            "chrome://newtab/content/data/content/assets/kit-in-circle.svg"
-          }
+          src={content.imageSrc || "chrome://branding/content/about-logo.svg"}
           alt=""
           role="presentation"
         />

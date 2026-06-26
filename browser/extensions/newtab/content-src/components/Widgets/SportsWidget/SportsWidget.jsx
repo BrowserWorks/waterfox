@@ -44,7 +44,7 @@ const MATCHES_TABS = {
 };
 
 const SPORTS_CELEBRATION_ILLUSTRATION =
-  "chrome://newtab/content/data/content/assets/firefox-motion-head-pop-up-no-bg.svg";
+  "chrome://branding/content/about-logo.svg";
 
 function getVisibleMatchesTabs(hasLiveGames, hasPreviousResults) {
   return (
