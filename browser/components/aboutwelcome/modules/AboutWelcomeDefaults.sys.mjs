@@ -60,7 +60,7 @@ const MR_ABOUT_WELCOME_DEFAULT = {
         position: "split",
         split_narrow_bkg_position: "-42px",
         background:
-          "url('chrome://activity-stream/content/data/content/assets/fox-doodle-backup-restore.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
+          "url('chrome://branding/content/about-logo.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
         progress_bar: true,
         hide_secondary_section: "responsive",
         backup_show_filepicker: {
@@ -119,7 +119,7 @@ const MR_ABOUT_WELCOME_DEFAULT = {
         position: "split",
         split_narrow_bkg_position: "-42px",
         background:
-          "url('chrome://activity-stream/content/data/content/assets/fox-doodle-backup-restore.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
+          "url('chrome://branding/content/about-logo.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
         progress_bar: true,
         hide_secondary_section: "responsive",
         backup_show_filepicker: {
@@ -663,10 +663,10 @@ const MR_ABOUT_WELCOME_DEFAULT = {
         position: "split",
         split_narrow_bkg_position: "-60px",
         image_alt_text: {
-          string_id: "mr2022-onboarding-default-image-alt",
+          string_id: "waterfox-onboarding-logo-image-alt",
         },
         background:
-          "url('chrome://activity-stream/content/data/content/assets/br-set-default-fox-heart.svg') var(--mr-secondary-position) no-repeat light-dark(rgba(252, 245, 240, 1), rgba(33, 3, 64, 1))",
+          "url('chrome://branding/content/about-logo.svg') var(--mr-secondary-position) no-repeat light-dark(rgba(252, 245, 240, 1), rgba(33, 3, 64, 1))",
         progress_bar: true,
         hide_secondary_section: "responsive",
         logo: {},
@@ -807,10 +807,10 @@ const MR_ABOUT_WELCOME_DEFAULT = {
         position: "split",
         split_narrow_bkg_position: "-60px",
         image_alt_text: {
-          string_id: "mr2022-onboarding-default-image-alt",
+          string_id: "waterfox-onboarding-logo-image-alt",
         },
         background:
-          "url('chrome://activity-stream/content/data/content/assets/br-set-default-fox-heart.svg') var(--mr-secondary-position) no-repeat light-dark(rgba(252, 245, 240, 1), rgba(33, 3, 64, 1))",
+          "url('chrome://branding/content/about-logo.svg') var(--mr-secondary-position) no-repeat light-dark(rgba(252, 245, 240, 1), rgba(33, 3, 64, 1))",
         progress_bar: true,
         logo: {},
         title: {
@@ -928,10 +928,10 @@ const MR_ABOUT_WELCOME_DEFAULT = {
         position: "split",
         split_narrow_bkg_position: "-60px",
         image_alt_text: {
-          string_id: "mr2022-onboarding-default-image-alt",
+          string_id: "waterfox-onboarding-logo-image-alt",
         },
         background:
-          "url('chrome://activity-stream/content/data/content/assets/br-set-default-fox-heart.svg') var(--mr-secondary-position) no-repeat light-dark(rgba(252, 245, 240, 1), rgba(33, 3, 64, 1))",
+          "url('chrome://branding/content/about-logo.svg') var(--mr-secondary-position) no-repeat light-dark(rgba(252, 245, 240, 1), rgba(33, 3, 64, 1))",
         progress_bar: true,
         logo: {},
         title: {
@@ -1070,7 +1070,7 @@ const MR_ABOUT_WELCOME_DEFAULT = {
         position: "split",
         split_narrow_bkg_position: "-42px",
         background:
-          "url('chrome://activity-stream/content/data/content/assets/fox-doodle-backup-restore.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
+          "url('chrome://branding/content/about-logo.svg') var(--mr-secondary-position) no-repeat var(--mr-screen-background-color)",
         progress_bar: true,
         hide_secondary_section: "responsive",
         backup_show_filepicker: {
@@ -1141,7 +1141,7 @@ const MR_ABOUT_WELCOME_DEFAULT = {
         position: "split",
         split_narrow_bkg_position: "-42px",
         image_alt_text: {
-          string_id: "mr2022-onboarding-import-image-alt",
+          string_id: "waterfox-onboarding-logo-image-alt",
         },
         title: {
           string_id: "onboarding-refresh-import-title",
@@ -1150,7 +1150,7 @@ const MR_ABOUT_WELCOME_DEFAULT = {
           string_id: "onboarding-refresh-import-subtitle",
         },
         background:
-          "url('chrome://activity-stream/content/data/content/assets/br-import-fox-house.svg') var(--mr-secondary-position) no-repeat light-dark(rgba(252, 245, 240, 1), rgba(33, 3, 64, 1))",
+          "url('chrome://branding/content/about-logo.svg') var(--mr-secondary-position) no-repeat light-dark(rgba(252, 245, 240, 1), rgba(33, 3, 64, 1))",
         progress_bar: true,
         hide_secondary_section: "responsive",
         migrate_start: {
@@ -1194,7 +1194,7 @@ const MR_ABOUT_WELCOME_DEFAULT = {
         fullscreen: true,
         split_narrow_bkg_position: "-58px",
         background:
-          "url('chrome://activity-stream/content/data/content/assets/br-amo-fox-paint.svg') var(--mr-secondary-position) no-repeat light-dark(rgba(252, 245, 240, 1), rgba(33, 3, 64, 1))",
+          "url('chrome://branding/content/about-logo.svg') var(--mr-secondary-position) no-repeat light-dark(rgba(252, 245, 240, 1), rgba(33, 3, 64, 1))",
         progress_bar: true,
         logo: {},
         title: {
@@ -1248,10 +1248,10 @@ const MR_ABOUT_WELCOME_DEFAULT = {
         position: "split",
         split_narrow_bkg_position: "-228px",
         image_alt_text: {
-          string_id: "mr2022-onboarding-gratitude-image-alt",
+          string_id: "waterfox-onboarding-logo-image-alt",
         },
         background:
-          "url('chrome://activity-stream/content/data/content/assets/br-gratitude-fox-rock.svg') var(--mr-secondary-position) no-repeat light-dark(rgba(252, 245, 240, 1), rgba(33, 3, 64, 1))",
+          "url('chrome://branding/content/about-logo.svg') var(--mr-secondary-position) no-repeat light-dark(rgba(252, 245, 240, 1), rgba(33, 3, 64, 1))",
         progress_bar: true,
         logo: {},
         title: {
@@ -1278,10 +1278,10 @@ const MR_ABOUT_WELCOME_DEFAULT = {
         position: "split",
         split_narrow_bkg_position: "-228px",
         image_alt_text: {
-          string_id: "mr2022-onboarding-gratitude-image-alt",
+          string_id: "waterfox-onboarding-logo-image-alt",
         },
         background:
-          "url('chrome://activity-stream/content/data/content/assets/br-fxa-fox-mirror.svg') var(--mr-secondary-position) no-repeat light-dark(rgba(252, 245, 240, 1), rgba(33, 3, 64, 1))",
+          "url('chrome://branding/content/about-logo.svg') var(--mr-secondary-position) no-repeat light-dark(rgba(252, 245, 240, 1), rgba(33, 3, 64, 1))",
         progress_bar: true,
         logo: {},
         title: {
