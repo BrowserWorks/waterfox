@@ -83,7 +83,7 @@ export class WikipediaSuggestions extends SuggestProvider {
       {
         name: "manage",
         l10n: {
-          id: "urlbar-result-menu-manage-firefox-suggest",
+          id: "waterfox-urlbar-result-menu-manage-suggestions",
         },
       },
     ];
