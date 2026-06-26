@@ -20,6 +20,12 @@ const HIDDEN_SUGGEST_ITEM_IDS = [
   "dismissedSuggestionsDescription",
 ];
 
+// Mozilla shows the Suggest brand name as the address bar header when Suggest is
+// enabled; Waterfox uses a neutral "Suggestions" label instead.
+const MOZ_SUGGEST_HEADER_L10N_ID = "addressbar-header-firefox-suggest-2";
+const WATERFOX_SUGGEST_HEADER_L10N_ID =
+  "waterfox-addressbar-header-suggestions";
+
 const ADDRESS_BAR_BEHAVIOR_ITEM = {
   id: "waterfoxAddressBarBehavior",
   l10nId: "waterfox-search-address-bar-behavior-heading",
@@ -105,4 +111,38 @@ SettingGroupManager.registerGroups = groups => {
     amendSuggestGroup(groups[SUGGEST_GROUP_ID]);
   }
   return origRegisterGroups(groups);
+};
+
+// Rewrite the address bar header label without editing the Mozilla setting.
+function wrapSuggestHeaderLabel(config) {
+  if (config._waterfoxGenericLabel) {
+    return;
+  }
+  config._waterfoxGenericLabel = true;
+  const origGetControlConfig = config.getControlConfig;
+  config.getControlConfig = (...args) => {
+    const result = origGetControlConfig
+      ? origGetControlConfig(...args)
+      : args[0];
+    if (result?.l10nId === MOZ_SUGGEST_HEADER_L10N_ID) {
+      return { ...result, l10nId: WATERFOX_SUGGEST_HEADER_L10N_ID };
+    }
+    return result;
+  };
+}
+
+const existingHeader = Preferences.getSetting(SUGGEST_HEADER_ID);
+if (existingHeader) {
+  wrapSuggestHeaderLabel(existingHeader.config);
+}
+
+const origAddSetting = Preferences.addSetting.bind(Preferences);
+Preferences.addSetting = config => {
+  if (
+    config.id === SUGGEST_HEADER_ID &&
+    !Preferences.getSetting(SUGGEST_HEADER_ID)
+  ) {
+    wrapSuggestHeaderLabel(config);
+  }
+  return origAddSetting(config);
 };

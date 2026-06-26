@@ -2882,7 +2882,7 @@ export class UrlbarView {
     if (row.result.providerName == lazy.UrlbarProviderQuickSuggest.name) {
       return row.result.isBestMatch
         ? null
-        : { id: "urlbar-group-firefox-suggest" };
+        : { id: "waterfox-urlbar-group-suggestions" };
     }
 
     if (row.result.isBestMatch) {
@@ -2906,7 +2906,7 @@ export class UrlbarView {
       case lazy.UrlbarUtils.RESULT_TYPE.REMOTE_TAB:
       case lazy.UrlbarUtils.RESULT_TYPE.TAB_SWITCH:
       case lazy.UrlbarUtils.RESULT_TYPE.URL:
-        return { id: "urlbar-group-firefox-suggest" };
+        return { id: "waterfox-urlbar-group-suggestions" };
       case lazy.UrlbarUtils.RESULT_TYPE.SEARCH:
         return {
           id: "urlbar-group-search-suggestions",
@@ -3655,7 +3655,7 @@ export class UrlbarView {
     ];
 
     if (lazy.UrlbarPrefs.get("groupLabels.enabled")) {
-      idArgs.push({ id: "urlbar-group-firefox-suggest" });
+      idArgs.push({ id: "waterfox-urlbar-group-suggestions" });
       idArgs.push({ id: "urlbar-group-best-match" });
     }
 
@@ -3773,7 +3773,7 @@ export class UrlbarView {
       commands.push({
         name: RESULT_MENU_COMMANDS.MANAGE,
         l10n: {
-          id: "urlbar-result-menu-manage-firefox-suggest",
+          id: "waterfox-urlbar-result-menu-manage-suggestions",
         },
       });
     }

@@ -138,7 +138,7 @@ export class AddonSuggestions extends SuggestProvider {
       {
         name: RESULT_MENU_COMMAND.MANAGE,
         l10n: {
-          id: "urlbar-result-menu-manage-firefox-suggest",
+          id: "waterfox-urlbar-result-menu-manage-suggestions",
         },
       }
     );
