@@ -606,7 +606,7 @@ function createDefaultBrowserConfig({
     l10nId: "is-default-browser-2",
     control: "moz-promo",
     controlAttrs: {
-      imagesrc: "chrome://global/skin/illustrations/kit-happy.svg",
+      imagesrc: "chrome://branding/content/about-logo.svg",
       imagedisplay: "cover",
     },
   };
@@ -628,7 +628,7 @@ function createDefaultBrowserConfig({
       },
     ],
     controlAttrs: {
-      imagesrc: "chrome://global/skin/illustrations/kit-concerned.svg",
+      imagesrc: "chrome://branding/content/about-logo.svg",
       imagedisplay: "cover",
     },
   };
