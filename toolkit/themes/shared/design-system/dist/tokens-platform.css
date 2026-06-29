@@ -214,8 +214,8 @@
         /** button **/
         /* TODO Bug 1821203 - Gray use needs to be consolidated */
         --button-background-color: transparent;
-        --button-background-color-hover: light-dark(var(--color-violet-desaturated-20), var(--color-violet-desaturated-50));
-        --button-background-color-active: light-dark(var(--color-violet-desaturated-30), var(--color-violet-desaturated-40));
+        --button-background-color-hover: color-mix(in srgb, var(--color-accent-primary) 17%, transparent);
+        --button-background-color-active: color-mix(in srgb, var(--color-accent-primary) 30%, transparent);
         --button-background-color-ghost: var(--button-background-color);
         --button-text-color: light-dark(var(--color-violet-90), var(--color-gray-0));
         --button-text-color-primary: light-dark(var(--color-white), var(--color-gray-70));

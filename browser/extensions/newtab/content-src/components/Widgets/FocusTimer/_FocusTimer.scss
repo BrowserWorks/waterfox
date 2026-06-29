@@ -32,13 +32,13 @@
 
   // @nova-cleanup(remove-conditional): Once Nova ships, hoist these rules to the root selector
   .nova-enabled & {
-    --timer-focus-color: var(--color-orange-30, #FF8D5B);
-    --timer-break-color: var(--color-violet-50, #764EDD);
+    --timer-focus-color: var(--color-violet-50, #09429F);
+    --timer-break-color: var(--color-violet-40, #4A82D2);
     // Figma celebration palette; no matching design-system token.
     /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
-    --timer-celebration-leading: #B89CFF;
+    --timer-celebration-leading: #B1D3F5;
     /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
-    --timer-celebration-trailing: #FF9565;
+    --timer-celebration-trailing: #4A82D2;
     // Diverges from --border-color for dark-mode contrast on translucent surfaces.
     --timer-ring-idle-color: light-dark(var(--color-gray-20), var(--color-gray-30));
     --widget-celebration-accent-color: var(--timer-celebration-leading);
@@ -411,8 +411,8 @@
 
 @media (prefers-color-scheme: dark) {
   .nova-enabled .focus-timer {
-    --timer-focus-color: var(--color-orange-30, #FF8D5B);
-    --timer-break-color: var(--color-violet-50, #764EDD);
+    --timer-focus-color: var(--color-violet-50, #09429F);
+    --timer-break-color: var(--color-violet-40, #4A82D2);
   }
 }
 
