@@ -8,4 +8,6 @@ support-files = ["head.js"]
 
 ["browser_waterfox_settings_registration.js"]
 
+["browser_waterfox_tabs.js"]
+
 ["browser_waterfox_ultra_dns.js"]
