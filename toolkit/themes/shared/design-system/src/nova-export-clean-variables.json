@@ -664,15 +664,15 @@
           "HCM": "{ButtonFace}",
           "Private": "rgba(54, 45, 81, 0)",
           "hover": {
-            "Light": "{color/violet-desaturated/20}",
-            "Dark": "{color/violet-desaturated/50}",
+            "Light": "color-mix(in srgb, {color.accent.primary.@base} 17%, transparent)",
+            "Dark": "color-mix(in srgb, {color.accent.primary.@base} 17%, transparent)",
             "HCM": "{SelectedItemText}",
             "Private": "{color/violet-desaturated/50}",
             "Smart Light (WIP)": "rgba(172, 61, 234, 0.15000000596046448)"
           },
           "active": {
-            "Light": "{color/violet-desaturated/30}",
-            "Dark": "{color/violet-desaturated/40}",
+            "Light": "color-mix(in srgb, {color.accent.primary.@base} 30%, transparent)",
+            "Dark": "color-mix(in srgb, {color.accent.primary.@base} 30%, transparent)",
             "HCM": "{SelectedItemText}",
             "Private": "{color/violet-desaturated/40}",
             "Smart Light (WIP)": "rgba(172, 61, 234, 0.30000001192092896)"
@@ -1454,11 +1454,11 @@
     "promo": {
       "border": {
         "color": {
-          "Light": "rgba(24, 14, 48, 0.11999999731779099)",
-          "Dark": "rgba(242, 240, 248, 0.11999999731779099)",
+          "Light": "rgba(12, 27, 51, 0.11999999731779099)",
+          "Dark": "rgba(240, 245, 251, 0.11999999731779099)",
           "HCM": "{CanvasText}",
           "Private": "rgba(251, 251, 254, 0.11999999731779099)",
-          "Smart Light (WIP)": "rgba(24, 14, 48, 0.11999999731779099)",
+          "Smart Light (WIP)": "rgba(12, 27, 51, 0.11999999731779099)",
           "vibrant": {
             "Light": "{promo/border/color}",
             "Dark": "{promo/border/color}",
@@ -2016,15 +2016,15 @@
         "HCM": "{CanvasText}",
         "Private": "#FFFFFF",
         "deemphasized": {
-          "Light": "rgba(24, 14, 48, 0.699999988079071)",
-          "Dark": "rgba(242, 240, 248, 0.699999988079071)",
+          "Light": "rgba(12, 27, 51, 0.699999988079071)",
+          "Dark": "rgba(240, 245, 251, 0.699999988079071)",
           "HCM": "{CanvasText}",
           "Private": "rgba(251, 251, 254, 0.699999988079071)",
           "Smart Light (WIP)": "rgba(43, 27, 85, 0.699999988079071)"
         },
         "disabled": {
-          "Light": "rgba(24, 14, 48, 0.4000000059604645)",
-          "Dark": "rgba(242, 240, 248, 0.4000000059604645)",
+          "Light": "rgba(12, 27, 51, 0.4000000059604645)",
+          "Dark": "rgba(240, 245, 251, 0.4000000059604645)",
           "HCM": "{GrayText}",
           "Private": "rgba(251, 251, 254, 0.4000000059604645)",
           "Smart Light (WIP)": "rgba(21, 20, 26, 0.4000000059604645)"
@@ -2080,10 +2080,10 @@
       },
       "separator": {
         "color": {
-          "Light": "rgba(24, 14, 48, 0.25)",
-          "Dark": "rgba(242, 240, 248, 0.25)",
+          "Light": "rgba(12, 27, 51, 0.25)",
+          "Dark": "rgba(240, 245, 251, 0.25)",
           "HCM": "{border/color}",
-          "Private": "rgba(242, 240, 248, 0.25)",
+          "Private": "rgba(240, 245, 251, 0.25)",
           "Smart Light (WIP)": "#FFFFFF"
         }
       }
@@ -2491,15 +2491,15 @@
       "background": {
         "color": {
           "gradient-leading": {
-            "Light": "{color/violet/10}",
-            "Dark": "{color/violet-desaturated/70}",
+            "Light": "#e7f3ff",
+            "Dark": "#0d2640",
             "HCM": "{Canvas}",
             "Private": "{color/violet-desaturated/90}",
             "Smart Light (WIP)": "{toolbar/background/color}"
           },
           "gradient-trailing": {
-            "Light": "{color/orange/10}",
-            "Dark": "{color/orange/70}",
+            "Light": "{color/violet/30}",
+            "Dark": "#081a2d",
             "HCM": "{Canvas}",
             "Private": "{color/violet-desaturated/90}",
             "Smart Light (WIP)": "{toolbar/background/color}"
@@ -2642,17 +2642,17 @@
       "background": {
         "color": {
           "hover": {
-            "Light": "rgba(117, 102, 159, 0.25)",
-            "Dark": "rgba(182, 170, 217, 0.25)",
+            "Light": "color-mix(in srgb, {color.accent.primary.@base} 25%, transparent)",
+            "Dark": "color-mix(in srgb, {color.accent.primary.@base} 25%, transparent)",
             "HCM": "{button/background/color/hover}",
-            "Private": "rgba(182, 170, 217, 0.25)",
+            "Private": "rgba(159, 190, 222, 0.25)",
             "Smart Light (WIP)": "#FFFFFF"
           },
           "active": {
-            "Light": "rgba(117, 102, 159, 0.4000000059604645)",
-            "Dark": "rgba(182, 170, 217, 0.4000000059604645)",
+            "Light": "color-mix(in srgb, {color.accent.primary.@base} 40%, transparent)",
+            "Dark": "color-mix(in srgb, {color.accent.primary.@base} 40%, transparent)",
             "HCM": "{button/background/color/active}",
-            "Private": "rgba(182, 170, 217, 0.4000000059604645)",
+            "Private": "rgba(159, 190, 222, 0.4000000059604645)",
             "Smart Light (WIP)": "#FFFFFF"
           }
         }
@@ -2922,66 +2922,72 @@
       },
       "violet": {
         "0": {
-          "Value": "#F5ECFF"
+          "Value": "#EBF4FB"
         },
         "10": {
-          "Value": "#EADDFF"
+          "Value": "#D8E7F3"
         },
         "20": {
-          "Value": "#D4C1FF"
+          "Value": "#C5DEF6"
         },
         "30": {
-          "Value": "#B89CFF"
+          "Value": "#B1D3F5"
         },
         "40": {
-          "Value": "#9871FF"
+          "Value": "#4A82D2"
         },
         "50": {
-          "Value": "#764EDD"
+          "Value": "#09429F"
         },
         "60": {
-          "Value": "#5939A8"
+          "Value": "#083578"
         },
         "70": {
-          "Value": "#3E2976"
+          "Value": "#07295C"
         },
         "80": {
-          "Value": "#271C48"
+          "Value": "#061E42"
         },
         "90": {
-          "Value": "#161423"
+          "Value": "#071527"
+        },
+        "100": {
+          "Value": "#050F1D"
+        },
+        "110": {
+          "Value": "#040A14"
         }
       },
       "violet-desaturated": {
         "0": {
-          "Value": "#F2F0F8"
+          "Value": "#F0F5FB"
         },
         "10": {
-          "Value": "#E7E1F8"
+          "Value": "#DFE9F5"
         },
         "20": {
-          "Value": "#D2C8EC"
+          "Value": "#C4D7EB"
         },
         "30": {
-          "Value": "#B6AAD9"
+          "Value": "#9FBEDE"
         },
         "40": {
-          "Value": "#9687C0"
+          "Value": "#74A0CE"
         },
         "50": {
-          "Value": "#75669F"
+          "Value": "#4F7DAF"
         },
         "60": {
-          "Value": "#584A7D"
+          "Value": "#395E88"
         },
         "70": {
-          "Value": "#3E315F"
+          "Value": "#274565"
         },
         "80": {
-          "Value": "#281D44"
+          "Value": "#172C45"
         },
         "90": {
-          "Value": "#180E30"
+          "Value": "#0C1B33"
         }
       },
       "purple": {
