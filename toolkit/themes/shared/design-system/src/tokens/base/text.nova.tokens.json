@@ -9,15 +9,15 @@
     },
     "deemphasized": {
       "value": {
-        "light": "rgba(24, 14, 48, 0.7)",
-        "dark": "rgba(242, 240, 248, 0.7)",
+        "light": "rgba(12, 27, 51, 0.7)",
+        "dark": "rgba(240, 245, 251, 0.7)",
         "forcedColors": "CanvasText"
       }
     },
     "disabled": {
       "value": {
-        "light": "rgba(24, 14, 48, 0.4)",
-        "dark": "rgba(242, 240, 248, 0.4)",
+        "light": "rgba(12, 27, 51, 0.4)",
+        "dark": "rgba(240, 245, 251, 0.4)",
         "forcedColors": "GrayText"
       }
     },
