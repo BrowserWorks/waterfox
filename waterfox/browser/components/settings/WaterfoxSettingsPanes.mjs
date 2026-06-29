@@ -40,8 +40,8 @@ if (Services.prefs.getBoolPref("browser.settings-redesign.enabled", false)) {
     { global: "current" }
   );
 
-  // The appearance pane already has a Mozilla module in its slot, so the
-  // Waterfox group module loads here instead.
+  // The appearance and tabs panes already have Mozilla modules in their
+  // slots, so the Waterfox group modules load here instead.
   const appearancePane = SettingPaneManager.get("appearance");
   // Keep browser and palette choices before Mozilla's website appearance group.
   const WATERFOX_APPEARANCE_LEAD = [
@@ -73,6 +73,13 @@ if (Services.prefs.getBoolPref("browser.settings-redesign.enabled", false)) {
   );
   ChromeUtils.importESModule(
     "chrome://browser/content/waterfox/settings/waterfoxAppearanceOptions.mjs",
+    { global: "current" }
+  );
+
+  const tabsPane = SettingPaneManager.get("tabsBrowsing");
+  tabsPane.groupIds = ["waterfoxTabs", ...tabsPane.groupIds];
+  ChromeUtils.importESModule(
+    "chrome://browser/content/waterfox/settings/waterfoxTabs.mjs",
     { global: "current" }
   );
 
