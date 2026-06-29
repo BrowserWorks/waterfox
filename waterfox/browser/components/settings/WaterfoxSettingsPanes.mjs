@@ -36,8 +36,8 @@ if (Services.prefs.getBoolPref("browser.settings-redesign.enabled", false)) {
     { global: "current" }
   );
 
-  // The appearance pane already has a Mozilla module in its slot, so the
-  // Waterfox group module loads here instead.
+  // The appearance and tabs panes already have Mozilla modules in their
+  // slots, so the Waterfox group modules load here instead.
   const appearancePane = SettingPaneManager.get("appearance");
   appearancePane.groupIds = [
     "waterfoxBrowserStyle",
@@ -48,6 +48,21 @@ if (Services.prefs.getBoolPref("browser.settings-redesign.enabled", false)) {
   ];
   ChromeUtils.importESModule(
     "chrome://browser/content/waterfox/settings/waterfoxAppearance.mjs",
+    { global: "current" }
+  );
+
+  const tabsPane = SettingPaneManager.get("tabsBrowsing");
+  tabsPane.groupIds = [...tabsPane.groupIds, "waterfoxTabs"];
+  ChromeUtils.importESModule(
+    "chrome://browser/content/waterfox/settings/waterfoxTabs.mjs",
+    { global: "current" }
+  );
+
+  // The Home pane's groups are registered by AboutPreferences.observe(); the
+  // custom new tab URL control attaches to them at runtime, so this module only
+  // needs to load before the home pane registers.
+  ChromeUtils.importESModule(
+    "chrome://browser/content/waterfox/settings/waterfoxHome.mjs",
     { global: "current" }
   );
 }

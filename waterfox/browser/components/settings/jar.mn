@@ -5,3 +5,5 @@ browser.jar:
     content/browser/waterfox/settings/waterfoxAppearance.mjs             (waterfoxAppearance.mjs)
     content/browser/waterfox/settings/waterfoxAppearance.css             (waterfoxAppearance.css)
     content/browser/waterfox/settings/waterfoxDns.mjs                    (waterfoxDns.mjs)
+    content/browser/waterfox/settings/waterfoxHome.mjs                   (waterfoxHome.mjs)
+    content/browser/waterfox/settings/waterfoxTabs.mjs                   (waterfoxTabs.mjs)
