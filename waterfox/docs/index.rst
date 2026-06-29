@@ -10,3 +10,5 @@ Waterfox page says otherwise.
 
    building
    blocker
+   packaging
+   release-validation
