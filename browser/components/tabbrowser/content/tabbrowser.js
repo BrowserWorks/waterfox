@@ -209,6 +209,8 @@
         TaskbarTabsUtils:
           "resource:///modules/taskbartabs/TaskbarTabsUtils.sys.mjs",
         TaskbarTabs: "resource:///modules/taskbartabs/TaskbarTabs.sys.mjs",
+        TreeTabsService: "resource:///modules/TreeTabsService.sys.mjs",
+        TreeTabsStore: "resource:///modules/TreeTabsStore.sys.mjs",
         UrlbarUtils: "moz-src:///browser/components/urlbar/UrlbarUtils.sys.mjs",
         UrlbarProviderOpenTabs:
           "moz-src:///browser/components/urlbar/UrlbarProviderOpenTabs.sys.mjs",
@@ -3487,6 +3489,14 @@
         };
         this._fireTabOpen(t, tabOpenDetail);
 
+        const treeTabs = this.TreeTabsService;
+        if (treeTabs.enabled) {
+          treeTabs.onTabOpened(t, {
+            opener: t.openerTab,
+            currentTab: this.selectedTab,
+          });
+        }
+
         this._kickOffBrowserLoad(b, {
           uri,
           uriString,
@@ -5667,6 +5677,14 @@
       // state).
       let tabWidth = window.windowUtils.getBoundsWithoutFlushing(aTab).width;
       let isLastTab = this.#isLastTabInWindow(aTab);
+
+      // Snapshot the tree links before the tab leaves the model, so a later
+      // undo close can put it back under its parent.
+      const treeTabs = this.TreeTabsService;
+      if (treeTabs.enabled) {
+        this.TreeTabsStore.saveTabState(aTab, { force: true });
+      }
+
       if (
         !this._beginRemoveTab(aTab, {
           closeWindowFastpath: true,
@@ -5683,6 +5701,10 @@
         Glean.browserTabclose.timeNoAnim.cancel(aTab._closeTimeNoAnimTimerId);
         aTab._closeTimeNoAnimTimerId = null;
         return;
+      }
+
+      if (treeTabs.enabled) {
+        treeTabs.onTabClosed(aTab);
       }
 
       let lockTabSizing =
@@ -7488,6 +7510,11 @@
           currentTabState,
           metricsContext
         );
+
+        const treeTabs = this.TreeTabsService;
+        if (treeTabs.enabled) {
+          treeTabs.onTabMoved(tab);
+        }
       }
 
       let currentFirst = this.#getTabMoveState(tabs[0]);
@@ -7671,6 +7698,13 @@
       );
       if (aTab.group) {
         Glean.tabgroup.tabInteractions.duplicate.add();
+      }
+      const treeTabs = this.TreeTabsService;
+      if (newTab && treeTabs.enabled) {
+        treeTabs.onTabOpened(newTab, {
+          opener: aTab,
+          currentTab: aTab,
+        });
       }
       return newTab;
     }
