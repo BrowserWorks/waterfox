@@ -249,34 +249,40 @@
   },
   "violet": {
     "0": {
-      "value": "#f5ecff"
+      "value": "#ebf4fb"
     },
     "10": {
-      "value": "#eaddff"
+      "value": "#d8e7f3"
     },
     "20": {
-      "value": "#d4c1ff"
+      "value": "#c5def6"
     },
     "30": {
-      "value": "#b89cff"
+      "value": "#b1d3f5"
     },
     "40": {
-      "value": "#9871ff"
+      "value": "#4a82d2"
     },
     "50": {
-      "value": "#764edd"
+      "value": "#09429f"
     },
     "60": {
-      "value": "#5939a8"
+      "value": "#083578"
     },
     "70": {
-      "value": "#3e2976"
+      "value": "#07295c"
     },
     "80": {
-      "value": "#271c48"
+      "value": "#061e42"
     },
     "90": {
-      "value": "#161423"
+      "value": "#071527"
+    },
+    "100": {
+      "value": "#050f1d"
+    },
+    "110": {
+      "value": "#040a14"
     }
   },
   "purple": {
@@ -345,34 +351,34 @@
   },
   "violet-desaturated": {
     "0": {
-      "value": "#f2f0f8"
+      "value": "#f0f5fb"
     },
     "10": {
-      "value": "#e7e1f8"
+      "value": "#dfe9f5"
     },
     "20": {
-      "value": "#d2c8ec"
+      "value": "#c4d7eb"
     },
     "30": {
-      "value": "#b6aad9"
+      "value": "#9fbede"
     },
     "40": {
-      "value": "#9687c0"
+      "value": "#74a0ce"
     },
     "50": {
-      "value": "#75669f"
+      "value": "#4f7daf"
     },
     "60": {
-      "value": "#584a7d"
+      "value": "#395e88"
     },
     "70": {
-      "value": "#3e315f"
+      "value": "#274565"
     },
     "80": {
-      "value": "#281d44"
+      "value": "#172c45"
     },
     "90": {
-      "value": "#180e30"
+      "value": "#0c1b33"
     }
   },
   "accent": {

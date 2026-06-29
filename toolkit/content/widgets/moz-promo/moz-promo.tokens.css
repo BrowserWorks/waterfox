@@ -45,7 +45,7 @@
     :host {
       --promo-background-color: var(--background-color-box-info);
       --promo-background-color-vibrant: light-dark(var(--color-violet-desaturated-10), var(--color-violet-desaturated-70));
-      --promo-border-color: light-dark(rgba(24, 14, 48, 0.12), rgba(242, 240, 248, 0.12));
+      --promo-border-color: light-dark(rgba(12, 27, 51, 0.12), rgba(240, 245, 251, 0.12));
       --promo-border-color-vibrant: var(--promo-border-color);
     }
   }

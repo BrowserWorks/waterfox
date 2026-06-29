@@ -61,7 +61,7 @@
     }
 
     @media -moz-pref("browser.nova.enabled") {
-      --chrome-content-separator-color: light-dark(rgb(201, 192, 227), rgb(16, 17, 24));
+      --chrome-content-separator-color: light-dark(rgb(196, 215, 235), rgb(8, 18, 31));
     }
   }
 }

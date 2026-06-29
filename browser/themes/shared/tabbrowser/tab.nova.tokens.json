@@ -3,12 +3,12 @@
     "color": {
       "selected": {
         "leading": {
-          "value": "{color.violet.30}"
+          "value": "{color.violet.40}"
         },
         "trailing": {
           "value": {
-            "light": "{color.orange.30}",
-            "dark": "{color.violet.50}"
+            "light": "{color.violet.50}",
+            "dark": "{color.violet.30}"
           }
         }
       },
