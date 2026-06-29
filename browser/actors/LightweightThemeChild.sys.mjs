@@ -2,6 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this file,
  * You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+const lazy = {};
+
+ChromeUtils.defineESModuleGetters(lazy, {
+  WaterfoxContentTheme: "resource:///modules/WaterfoxContentTheme.sys.mjs",
+});
+
 /**
  * LightweightThemeChild forwards theme data to in-content pages.
  */
@@ -65,12 +71,15 @@ export class LightweightThemeChild extends JSWindowActorChild {
    * Forward the theme data to the page.
    */
   update() {
+    const data = Services.cpmm.sharedData.get(
+      `theme/${this._getChromeOuterWindowID()}`
+    );
+    lazy.WaterfoxContentTheme.apply(this.contentWindow.document, data);
+
     const event = Cu.cloneInto(
       {
         detail: {
-          data: Services.cpmm.sharedData.get(
-            `theme/${this._getChromeOuterWindowID()}`
-          ),
+          data,
         },
       },
       this.contentWindow
