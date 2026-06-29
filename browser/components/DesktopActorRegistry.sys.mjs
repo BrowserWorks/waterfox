@@ -565,6 +565,7 @@ let JSWINDOWACTORS = {
     includeChrome: true,
     allFrames: true,
     matches: [
+      "about:addons",
       "about:asrouter",
       "about:home",
       "about:newtab",
@@ -583,6 +584,7 @@ let JSWINDOWACTORS = {
       "about:deleteprofile",
       "about:newprofile",
       "about:opentabs",
+      "about:preferences",
       "about:aichatcontent",
     ],
     remoteTypes: ["parent", "privilegedabout"],
