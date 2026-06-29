@@ -745,8 +745,8 @@
       /** button **/
       /* TODO Bug 1821203 - Gray use needs to be consolidated */
       --button-background-color: transparent;
-      --button-background-color-hover: light-dark(var(--color-violet-desaturated-20), var(--color-violet-desaturated-50));
-      --button-background-color-active: light-dark(var(--color-violet-desaturated-30), var(--color-violet-desaturated-40));
+      --button-background-color-hover: color-mix(in srgb, var(--color-accent-primary) 17%, transparent);
+      --button-background-color-active: color-mix(in srgb, var(--color-accent-primary) 30%, transparent);
       --button-background-color-disabled: var(--button-background-color);
       --button-background-color-destructive: light-dark(var(--color-red-50), var(--color-red-30));
       --button-background-color-destructive-hover: light-dark(var(--color-red-60), var(--color-red-20));
@@ -885,26 +885,28 @@
       --color-red-70: #69172d;
       --color-red-80: #42121f;
       --color-red-90: #211014;
-      --color-violet-0: #f5ecff;
-      --color-violet-10: #eaddff;
-      --color-violet-20: #d4c1ff;
-      --color-violet-30: #b89cff;
-      --color-violet-40: #9871ff;
-      --color-violet-50: #764edd;
-      --color-violet-60: #5939a8;
-      --color-violet-70: #3e2976;
-      --color-violet-80: #271c48;
-      --color-violet-90: #161423;
-      --color-violet-desaturated-0: #f2f0f8;
-      --color-violet-desaturated-10: #e7e1f8;
-      --color-violet-desaturated-20: #d2c8ec;
-      --color-violet-desaturated-30: #b6aad9;
-      --color-violet-desaturated-40: #9687c0;
-      --color-violet-desaturated-50: #75669f;
-      --color-violet-desaturated-60: #584a7d;
-      --color-violet-desaturated-70: #3e315f;
-      --color-violet-desaturated-80: #281d44;
-      --color-violet-desaturated-90: #180e30;
+      --color-violet-0: #ebf4fb;
+      --color-violet-10: #d8e7f3;
+      --color-violet-20: #c5def6;
+      --color-violet-30: #b1d3f5;
+      --color-violet-40: #4a82d2;
+      --color-violet-50: #09429f;
+      --color-violet-60: #083578;
+      --color-violet-70: #07295c;
+      --color-violet-80: #061e42;
+      --color-violet-90: #071527;
+      --color-violet-100: #050f1d;
+      --color-violet-110: #040a14;
+      --color-violet-desaturated-0: #f0f5fb;
+      --color-violet-desaturated-10: #dfe9f5;
+      --color-violet-desaturated-20: #c4d7eb;
+      --color-violet-desaturated-30: #9fbede;
+      --color-violet-desaturated-40: #74a0ce;
+      --color-violet-desaturated-50: #4f7daf;
+      --color-violet-desaturated-60: #395e88;
+      --color-violet-desaturated-70: #274565;
+      --color-violet-desaturated-80: #172c45;
+      --color-violet-desaturated-90: #0c1b33;
       --color-yellow-0: #f9f5e6;
       --color-yellow-10: #fde8b5;
       --color-yellow-20: #fbcc77;
@@ -962,9 +964,9 @@
 
       /** text-color **/
       --text-color: light-dark(var(--color-violet-desaturated-90), var(--color-violet-desaturated-0));
-      --text-color-disabled: light-dark(rgba(24, 14, 48, 0.4), rgba(242, 240, 248, 0.4));
+      --text-color-disabled: light-dark(rgba(12, 27, 51, 0.4), rgba(240, 245, 251, 0.4));
       --text-color-accent-primary-selected: light-dark(var(--color-white), var(--color-gray-55));
-      --text-color-deemphasized: light-dark(rgba(24, 14, 48, 0.7), rgba(242, 240, 248, 0.7));
+      --text-color-deemphasized: light-dark(rgba(12, 27, 51, 0.7), rgba(240, 245, 251, 0.7));
       --text-color-error: light-dark(var(--color-red-50), var(--color-red-20));
 
       /** toolbar **/
@@ -978,8 +980,8 @@
       --toolbar-padding-inline: 6px;
 
       /** toolbarbutton **/
-      --toolbarbutton-background-color-hover: light-dark(rgba(117, 102, 159, 0.25), rgba(182, 170, 217, 0.25));
-      --toolbarbutton-background-color-active: light-dark(rgba(117, 102, 159, 0.4), rgba(182, 170, 217, 0.4));
+      --toolbarbutton-background-color-hover: color-mix(in srgb, var(--color-accent-primary) 25%, transparent);
+      --toolbarbutton-background-color-active: color-mix(in srgb, var(--color-accent-primary) 40%, transparent);
       --toolbarbutton-icon-fill: light-dark(var(--color-violet-desaturated-50), var(--color-violet-desaturated-10));
       --toolbarbutton-icon-fill-attention: var(--color-accent-primary);
       --toolbarbutton-opacity-disabled: 0.4;
@@ -991,14 +993,14 @@
       --toolbarbutton-padding-inner-touch-narrow: 0;
 
       /** toolbox **/
-      --toolbox-background-color-gradient-leading: light-dark(var(--color-violet-10), var(--color-violet-desaturated-70));
-      --toolbox-background-color-gradient-trailing: light-dark(var(--color-orange-10), var(--color-orange-70));
+      --toolbox-background-color-gradient-leading: light-dark(#e7f3ff, #0d2640);
+      --toolbox-background-color-gradient-trailing: light-dark(var(--color-violet-30), #081a2d);
       --toolbox-background-color-inactive: transparent;
       /* This gradient is only used for Nova */
       --toolbox-background-gradient: linear-gradient(
         96deg,
-        color-mix(var(--toolbox-background-color-gradient-leading) 50%, transparent) 39.84%,
-        color-mix(var(--toolbox-background-color-gradient-trailing) 50%, transparent) 101.72%
+        var(--toolbox-background-color-gradient-leading) 39.84%,
+        var(--toolbox-background-color-gradient-trailing) 101.72%
       );
       --toolbox-text-color: var(--text-color);
       --toolbox-text-color-inactive: var(--text-color-deemphasized);
