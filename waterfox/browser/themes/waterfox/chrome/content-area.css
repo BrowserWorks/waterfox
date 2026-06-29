@@ -1,0 +1,16 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+@media -moz-pref("browser.nova.enabled") {
+  :root[inDOMFullscreen] {
+    --chrome-window-gap: 0px !important;
+    --chrome-block-radius: 0px !important;
+
+    #tabbrowser-tabpanels .browserContainer {
+      border: 0 !important;
+      outline: 0 !important;
+      box-shadow: none !important;
+    }
+  }
+}

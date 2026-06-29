@@ -10,18 +10,18 @@
     }
   </style>
   <defs>
-    <linearGradient id="nova-bg-l" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3eefb"/><stop offset="1" stop-color="#fdeee0"/></linearGradient>
-    <linearGradient id="nova-flame-l" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b89cff"/><stop offset="1" stop-color="#ff9565"/></linearGradient>
+    <linearGradient id="nova-bg-l" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e7f3ff"/><stop offset="1" stop-color="#b1d3f5"/></linearGradient>
+    <linearGradient id="nova-flame-l" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#09429f"/><stop offset="1" stop-color="#b1d3f5"/></linearGradient>
     <filter id="nova-sh-l" x="-30%" y="-40%" width="160%" height="200%"><feDropShadow dx="0" dy="1" stdDeviation="1.2" flood-color="#000000" flood-opacity="0.12"/></filter>
-    <linearGradient id="nova-bg-d" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#241f31"/><stop offset="1" stop-color="#2a201d"/></linearGradient>
-    <linearGradient id="nova-flame-d" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b89cff"/><stop offset="1" stop-color="#ff9565"/></linearGradient>
+    <linearGradient id="nova-bg-d" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0d2640"/><stop offset="1" stop-color="#081a2d"/></linearGradient>
+    <linearGradient id="nova-flame-d" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b1d3f5"/><stop offset="1" stop-color="#d8e7f3"/></linearGradient>
     <filter id="nova-sh-d" x="-30%" y="-40%" width="160%" height="200%"><feDropShadow dx="0" dy="1" stdDeviation="1.2" flood-color="#000000" flood-opacity="0.4"/></filter>
   </defs>
   <g class="wf-l">
-    <rect x="1" y="1" width="338" height="70" rx="10" fill="url(#nova-bg-l)" stroke="#e7e1f1" stroke-width="1"/>
+    <rect x="1" y="1" width="338" height="70" rx="10" fill="url(#nova-bg-l)" stroke="#c5def6" stroke-width="1"/>
     <rect x="9" y="31" width="96" height="32" rx="16" fill="#ffffff" filter="url(#nova-sh-l)"/>
     <rect x="9.75" y="31.75" width="94.5" height="30.5" rx="15.25" fill="none" stroke="url(#nova-flame-l)" stroke-width="1.5"/>
-    <rect x="20" y="40.5" width="13" height="13" rx="4" fill="#764edd"/>
+    <rect x="20" y="40.5" width="13" height="13" rx="4" fill="#09429f"/>
     <rect x="40" y="44.5" width="43.5" height="5" rx="2.5" fill="#7c7c87"/>
     <rect x="122" y="40.5" width="13" height="13" rx="4" fill="#b7b7c2"/>
     <rect x="142" y="44.5" width="31.8" height="5" rx="2.5" fill="#b7b7c2"/>
@@ -30,10 +30,10 @@
     <path d="M318 49 h10 M323 44 v10" stroke="#8a8a93" stroke-width="2" stroke-linecap="round" fill="none"/>
   </g>
   <g class="wf-d">
-    <rect x="1" y="1" width="338" height="70" rx="10" fill="url(#nova-bg-d)" stroke="#3a3346" stroke-width="1"/>
+    <rect x="1" y="1" width="338" height="70" rx="10" fill="url(#nova-bg-d)" stroke="#274565" stroke-width="1"/>
     <rect x="9" y="31" width="96" height="32" rx="16" fill="#2b2a33" filter="url(#nova-sh-d)"/>
     <rect x="9.75" y="31.75" width="94.5" height="30.5" rx="15.25" fill="none" stroke="url(#nova-flame-d)" stroke-width="1.5"/>
-    <rect x="20" y="40.5" width="13" height="13" rx="4" fill="#b89cff"/>
+    <rect x="20" y="40.5" width="13" height="13" rx="4" fill="#b1d3f5"/>
     <rect x="40" y="44.5" width="43.5" height="5" rx="2.5" fill="#cfced8"/>
     <rect x="122" y="40.5" width="13" height="13" rx="4" fill="#6c6b77"/>
     <rect x="142" y="44.5" width="31.8" height="5" rx="2.5" fill="#6c6b77"/>

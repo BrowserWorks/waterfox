@@ -12,16 +12,14 @@
       "hover": {
         "value": {
           "nativeTheme": "color-mix(in srgb, currentColor 17%, transparent)",
-          "light": "{color.violet-desaturated.20}",
-          "dark": "{color.violet-desaturated.50}",
+          "default": "color-mix(in srgb, {color.accent.primary.@base} 17%, transparent)",
           "forcedColors": "SelectedItemText"
         }
       },
       "active": {
         "value": {
           "nativeTheme": "color-mix(in srgb, currentColor 30%, transparent)",
-          "light": "{color.violet-desaturated.30}",
-          "dark": "{color.violet-desaturated.40}",
+          "default": "color-mix(in srgb, {color.accent.primary.@base} 30%, transparent)",
           "forcedColors": "SelectedItemText"
         }
       },
