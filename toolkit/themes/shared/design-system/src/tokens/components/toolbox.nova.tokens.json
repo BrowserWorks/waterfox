@@ -9,15 +9,15 @@
       },
       "gradient-leading": {
         "value": {
-          "light": "{color.violet.10}",
-          "dark": "{color.violet-desaturated.70}",
+          "light": "#e7f3ff",
+          "dark": "#0d2640",
           "forcedColors": "Canvas"
         }
       },
       "gradient-trailing": {
         "value": {
-          "light": "{color.orange.10}",
-          "dark": "{color.orange.70}",
+          "light": "{color.violet.30}",
+          "dark": "#081a2d",
           "forcedColors": "Canvas"
         }
       }

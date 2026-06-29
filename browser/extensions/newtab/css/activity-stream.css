@@ -6288,12 +6288,12 @@ dialog:dir(rtl)::after {
   width: var(--newtab-card-width-medium);
 }
 .nova-enabled .focus-timer {
-  --timer-focus-color: var(--color-orange-30, #FF8D5B);
-  --timer-break-color: var(--color-violet-50, #764EDD);
+  --timer-focus-color: var(--color-violet-50, #09429F);
+  --timer-break-color: var(--color-violet-40, #4A82D2);
   /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
-  --timer-celebration-leading: #B89CFF;
+  --timer-celebration-leading: #B1D3F5;
   /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
-  --timer-celebration-trailing: #FF9565;
+  --timer-celebration-trailing: #4A82D2;
   --timer-ring-idle-color: light-dark(var(--color-gray-20), var(--color-gray-30));
   --widget-celebration-accent-color: var(--timer-celebration-leading);
   --widget-celebration-copy-color: var(--text-color-deemphasized);
@@ -6766,8 +6766,8 @@ dialog:dir(rtl)::after {
 }
 @media (prefers-color-scheme: dark) {
   .nova-enabled .focus-timer {
-    --timer-focus-color: var(--color-orange-30, #FF8D5B);
-    --timer-break-color: var(--color-violet-50, #764EDD);
+    --timer-focus-color: var(--color-violet-50, #09429F);
+    --timer-break-color: var(--color-violet-40, #4A82D2);
   }
 }
 @media (forced-colors: active) {
@@ -14430,11 +14430,11 @@ hr {
 }
 
 .nova-enabled .wallpaper-feature-highlight .feature-highlight .wallpaper-feature-highlight-modal {
-  --nova-highlight-border-gradient-start: light-dark(#B58CFF, #A67CE5);
-  --nova-highlight-border-gradient-end: light-dark(#FF8A5B, #764EDD);
+  --nova-highlight-border-gradient-start: light-dark(#B1D3F5, #4A82D2);
+  --nova-highlight-border-gradient-end: light-dark(#09429F, #B1D3F5);
   --nova-highlight-shadow:
-    -10px -10px 28px rgba(231, 217, 255, 70%),
-    8px 8px 28px rgba(255, 211, 183, 70%),
+    -10px -10px 28px rgba(216, 231, 243, 70%),
+    8px 8px 28px rgba(197, 222, 246, 70%),
     0 3px 12px rgba(0, 0, 0, 4%),
     0 0.375px 1px rgba(0, 0, 0, 1.5%);
   border: var(--border-width) solid var(--border-color-transparent);
@@ -14593,11 +14593,11 @@ hr {
   grid-column: 1/-1;
 }
 .nova-enabled .widgets-row-feature-highlight .feature-highlight .widgets-row-highlight-modal {
-  --nova-highlight-border-gradient-start: light-dark(#B58CFF, #A67CE5);
-  --nova-highlight-border-gradient-end: light-dark(#FF8A5B, #764EDD);
+  --nova-highlight-border-gradient-start: light-dark(#B1D3F5, #4A82D2);
+  --nova-highlight-border-gradient-end: light-dark(#09429F, #B1D3F5);
   --nova-highlight-shadow:
-    -10px -10px 28px rgba(231, 217, 255, 70%),
-    8px 8px 28px rgba(255, 211, 183, 70%),
+    -10px -10px 28px rgba(216, 231, 243, 70%),
+    8px 8px 28px rgba(197, 222, 246, 70%),
     0 3px 12px rgba(0, 0, 0, 4%),
     0 0.375px 1px rgba(0, 0, 0, 1.5%);
   border: var(--border-width) solid var(--border-color-transparent);
@@ -14686,11 +14686,11 @@ hr {
   z-index: 4;
 }
 .nova-enabled .feature-highlight .widgets-callout {
-  --nova-highlight-border-gradient-start: light-dark(#B58CFF, #A67CE5);
-  --nova-highlight-border-gradient-end: light-dark(#FF8A5B, #764EDD);
+  --nova-highlight-border-gradient-start: light-dark(#B1D3F5, #4A82D2);
+  --nova-highlight-border-gradient-end: light-dark(#09429F, #B1D3F5);
   --nova-highlight-shadow:
-    -10px -10px 28px rgba(231, 217, 255, 70%),
-    8px 8px 28px rgba(255, 211, 183, 70%),
+    -10px -10px 28px rgba(216, 231, 243, 70%),
+    8px 8px 28px rgba(197, 222, 246, 70%),
     0 3px 12px rgba(0, 0, 0, 4%),
     0 0.375px 1px rgba(0, 0, 0, 1.5%);
   border: var(--border-width) solid var(--border-color-transparent);
@@ -15749,8 +15749,8 @@ hr {
   /** button **/
   /* TODO Bug 1821203 - Gray use needs to be consolidated */
   --button-background-color: transparent;
-  --button-background-color-hover: light-dark(var(--color-violet-desaturated-20), var(--color-violet-desaturated-50));
-  --button-background-color-active: light-dark(var(--color-violet-desaturated-30), var(--color-violet-desaturated-40));
+  --button-background-color-hover: color-mix(in srgb, var(--color-accent-primary) 17%, transparent);
+  --button-background-color-active: color-mix(in srgb, var(--color-accent-primary) 30%, transparent);
   --button-background-color-disabled: var(--button-background-color);
   --button-background-color-destructive: light-dark(var(--color-red-50), var(--color-red-30));
   --button-background-color-destructive-hover: light-dark(var(--color-red-60), var(--color-red-20));
@@ -15887,26 +15887,28 @@ hr {
   --color-red-70: #69172D;
   --color-red-80: #42121F;
   --color-red-90: #211014;
-  --color-violet-0: #F5ECFF;
-  --color-violet-10: #EADDFF;
-  --color-violet-20: #D4C1FF;
-  --color-violet-30: #B89CFF;
-  --color-violet-40: #9871FF;
-  --color-violet-50: #764EDD;
-  --color-violet-60: #5939A8;
-  --color-violet-70: #3E2976;
-  --color-violet-80: #271C48;
-  --color-violet-90: #161423;
-  --color-violet-desaturated-0: #F2F0F8;
-  --color-violet-desaturated-10: #E7E1F8;
-  --color-violet-desaturated-20: #D2C8EC;
-  --color-violet-desaturated-30: #B6AAD9;
-  --color-violet-desaturated-40: #9687C0;
-  --color-violet-desaturated-50: #75669F;
-  --color-violet-desaturated-60: #584A7D;
-  --color-violet-desaturated-70: #3E315F;
-  --color-violet-desaturated-80: #281D44;
-  --color-violet-desaturated-90: #180E30;
+  --color-violet-0: #EBF4FB;
+  --color-violet-10: #D8E7F3;
+  --color-violet-20: #C5DEF6;
+  --color-violet-30: #B1D3F5;
+  --color-violet-40: #4A82D2;
+  --color-violet-50: #09429F;
+  --color-violet-60: #083578;
+  --color-violet-70: #07295C;
+  --color-violet-80: #061E42;
+  --color-violet-90: #071527;
+  --color-violet-100: #050F1D;
+  --color-violet-110: #040A14;
+  --color-violet-desaturated-0: #F0F5FB;
+  --color-violet-desaturated-10: #DFE9F5;
+  --color-violet-desaturated-20: #C4D7EB;
+  --color-violet-desaturated-30: #9FBEDE;
+  --color-violet-desaturated-40: #74A0CE;
+  --color-violet-desaturated-50: #4F7DAF;
+  --color-violet-desaturated-60: #395E88;
+  --color-violet-desaturated-70: #274565;
+  --color-violet-desaturated-80: #172C45;
+  --color-violet-desaturated-90: #0C1B33;
   --color-yellow-0: #F9F5E6;
   --color-yellow-10: #FDE8B5;
   --color-yellow-20: #FBCC77;
@@ -15956,9 +15958,9 @@ hr {
   --table-row-background-color-alternate: light-dark(var(--color-gray-20), var(--color-gray-65));
   /** text-color **/
   --text-color: light-dark(var(--color-violet-desaturated-90), var(--color-violet-desaturated-0));
-  --text-color-disabled: light-dark(rgba(24, 14, 48, 40%), rgba(242, 240, 248, 40%));
+  --text-color-disabled: light-dark(rgba(12, 27, 51, 40%), rgba(240, 245, 251, 40%));
   --text-color-accent-primary-selected: light-dark(var(--color-white), var(--color-gray-55));
-  --text-color-deemphasized: light-dark(rgba(24, 14, 48, 70%), rgba(242, 240, 248, 70%));
+  --text-color-deemphasized: light-dark(rgba(12, 27, 51, 70%), rgba(240, 245, 251, 70%));
   --text-color-error: light-dark(var(--color-red-50), var(--color-red-20));
   /** toolbar **/
   --toolbar-background-color: var(--background-color-box);
@@ -15970,8 +15972,8 @@ hr {
   --toolbar-field-text-color-focus: var(--toolbar-field-text-color);
   --toolbar-padding-inline: 6px;
   /** toolbarbutton **/
-  --toolbarbutton-background-color-hover: light-dark(rgba(117, 102, 159, 25%), rgba(182, 170, 217, 25%));
-  --toolbarbutton-background-color-active: light-dark(rgba(117, 102, 159, 40%), rgba(182, 170, 217, 40%));
+  --toolbarbutton-background-color-hover: color-mix(in srgb, var(--color-accent-primary) 25%, transparent);
+  --toolbarbutton-background-color-active: color-mix(in srgb, var(--color-accent-primary) 40%, transparent);
   --toolbarbutton-icon-fill: light-dark(var(--color-violet-desaturated-50), var(--color-violet-desaturated-10));
   --toolbarbutton-icon-fill-attention: var(--color-accent-primary);
   --toolbarbutton-opacity-disabled: 0.4;
@@ -15982,11 +15984,11 @@ hr {
   --toolbarbutton-outline-offset: -1px;
   --toolbarbutton-padding-inner-touch-narrow: 0;
   /** toolbox **/
-  --toolbox-background-color-gradient-leading: light-dark(var(--color-violet-10), var(--color-violet-desaturated-70));
-  --toolbox-background-color-gradient-trailing: light-dark(var(--color-orange-10), var(--color-orange-70));
+  --toolbox-background-color-gradient-leading: light-dark(#E7F3FF, #0D2640);
+  --toolbox-background-color-gradient-trailing: light-dark(var(--color-violet-30), #081A2D);
   --toolbox-background-color-inactive: transparent;
   /* This gradient is only used for Nova */
-  --toolbox-background-gradient: linear-gradient(96deg, color-mix(var(--toolbox-background-color-gradient-leading) 50%, transparent) 39.84%, color-mix(var(--toolbox-background-color-gradient-trailing) 50%, transparent) 101.72%);
+  --toolbox-background-gradient: linear-gradient(96deg, var(--toolbox-background-color-gradient-leading) 39.84%, var(--toolbox-background-color-gradient-trailing) 101.72%);
   --toolbox-text-color: var(--text-color);
   --toolbox-text-color-inactive: var(--text-color-deemphasized);
 }

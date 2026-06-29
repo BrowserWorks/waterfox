@@ -153,11 +153,11 @@ $side-col-width-px: $col-width-px * 2;
 
 // Nova feature highlight gradient border, shared across highlight components.
 @mixin nova-feature-highlight-border {
-  --nova-highlight-border-gradient-start: light-dark(#B58CFF, #A67CE5);
-  --nova-highlight-border-gradient-end: light-dark(#FF8A5B, #764EDD);
+  --nova-highlight-border-gradient-start: light-dark(#B1D3F5, #4A82D2);
+  --nova-highlight-border-gradient-end: light-dark(#09429F, #B1D3F5);
   --nova-highlight-shadow:
-    -10px -10px 28px rgba(231, 217, 255, 70%),
-    8px 8px 28px rgba(255, 211, 183, 70%),
+    -10px -10px 28px rgba(216, 231, 243, 70%),
+    8px 8px 28px rgba(197, 222, 246, 70%),
     0 3px 12px rgba(0, 0, 0, 4%),
     0 0.375px 1px rgba(0, 0, 0, 1.5%);
 

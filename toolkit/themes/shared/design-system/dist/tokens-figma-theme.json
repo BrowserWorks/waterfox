@@ -1015,8 +1015,8 @@
     "forcedColors": "{Theme$toolbox/background/color}"
   },
   "toolbox/background/nova-gradient": {
-    "light": "linear-gradient(96deg, color-mix({Primitives$toolbox/background/color/gradient-leading} 50%, transparent) 39.84%, color-mix({Primitives$toolbox/background/color/gradient-trailing} 50%, transparent) 101.72%)",
-    "dark": "linear-gradient(96deg, color-mix({Primitives$toolbox/background/color/gradient-leading} 50%, transparent) 39.84%, color-mix({Primitives$toolbox/background/color/gradient-trailing} 50%, transparent) 101.72%)",
+    "light": "linear-gradient(96deg, {Primitives$toolbox/background/color/gradient-leading} 39.84%, {Primitives$toolbox/background/color/gradient-trailing} 101.72%)",
+    "dark": "linear-gradient(96deg, {Primitives$toolbox/background/color/gradient-leading} 39.84%, {Primitives$toolbox/background/color/gradient-trailing} 101.72%)",
     "forcedColors": "image(transparent)"
   },
   "toolbox/text/color": {
