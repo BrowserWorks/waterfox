@@ -30,6 +30,7 @@ rumdl:
         - tools/sanitizer/docs/
         - tools/update-verify/docs/
         - uriloader/docs/
+        - waterfox/docs/
         - widget/cocoa/docs/
         - widget/windows/docs/
         - xpcom/docs/
