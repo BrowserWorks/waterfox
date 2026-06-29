@@ -115,13 +115,13 @@
     "forcedColors": "{HCM Theme$CanvasText}"
   },
   "text/color/deemphasized": {
-    "light": "rgba(24, 14, 48, 0.7)",
-    "dark": "rgba(242, 240, 248, 0.7)",
+    "light": "rgba(12, 27, 51, 0.7)",
+    "dark": "rgba(240, 245, 251, 0.7)",
     "forcedColors": "{HCM Theme$CanvasText}"
   },
   "text/color/disabled": {
-    "light": "rgba(24, 14, 48, 0.4)",
-    "dark": "rgba(242, 240, 248, 0.4)",
+    "light": "rgba(12, 27, 51, 0.4)",
+    "dark": "rgba(240, 245, 251, 0.4)",
     "forcedColors": "{HCM Theme$GrayText}"
   },
   "text/color/error": {
@@ -140,13 +140,13 @@
     "forcedColors": "{HCM Theme$ButtonFace}"
   },
   "button/background/color/hover": {
-    "light": "{Colors$color/violet-desaturated/20}",
-    "dark": "{Colors$color/violet-desaturated/50}",
+    "light": "color-mix(in srgb, {Theme$color/accent/primary} 17%, transparent)",
+    "dark": "color-mix(in srgb, {Theme$color/accent/primary} 17%, transparent)",
     "forcedColors": "{HCM Theme$SelectedItemText}"
   },
   "button/background/color/active": {
-    "light": "{Colors$color/violet-desaturated/30}",
-    "dark": "{Colors$color/violet-desaturated/40}",
+    "light": "color-mix(in srgb, {Theme$color/accent/primary} 30%, transparent)",
+    "dark": "color-mix(in srgb, {Theme$color/accent/primary} 30%, transparent)",
     "forcedColors": "{HCM Theme$SelectedItemText}"
   },
   "button/background/color/disabled": {
@@ -445,13 +445,13 @@
     "forcedColors": "{Theme$color/accent/primary}"
   },
   "toolbarbutton/background/color/hover": {
-    "light": "rgba(117, 102, 159, 0.25)",
-    "dark": "rgba(182, 170, 217, 0.25)",
+    "light": "color-mix(in srgb, {Theme$color/accent/primary} 25%, transparent)",
+    "dark": "color-mix(in srgb, {Theme$color/accent/primary} 25%, transparent)",
     "forcedColors": "{Theme$button/background/color/hover}"
   },
   "toolbarbutton/background/color/active": {
-    "light": "rgba(117, 102, 159, 0.4)",
-    "dark": "rgba(182, 170, 217, 0.4)",
+    "light": "color-mix(in srgb, {Theme$color/accent/primary} 40%, transparent)",
+    "dark": "color-mix(in srgb, {Theme$color/accent/primary} 40%, transparent)",
     "forcedColors": "{Theme$button/background/color/active}"
   },
   "toolbarbutton/outline/color": {
@@ -480,13 +480,13 @@
     "forcedColors": "transparent"
   },
   "toolbox/background/color/gradient-leading": {
-    "light": "{Colors$color/violet/10}",
-    "dark": "{Colors$color/violet-desaturated/70}",
+    "light": "#e7f3ff",
+    "dark": "#0d2640",
     "forcedColors": "{HCM Theme$Canvas}"
   },
   "toolbox/background/color/gradient-trailing": {
-    "light": "{Colors$color/orange/10}",
-    "dark": "{Colors$color/orange/70}",
+    "light": "{Colors$color/violet/30}",
+    "dark": "#081a2d",
     "forcedColors": "{HCM Theme$Canvas}"
   },
   "toolbox/text/color": {
@@ -535,8 +535,8 @@
     "forcedColors": "{HCM Theme$Canvas}"
   },
   "promo/border/color": {
-    "light": "rgba(24, 14, 48, 0.12)",
-    "dark": "rgba(242, 240, 248, 0.12)",
+    "light": "rgba(12, 27, 51, 0.12)",
+    "dark": "rgba(240, 245, 251, 0.12)",
     "forcedColors": "{HCM Theme$CanvasText}"
   },
   "promo/border/color/vibrant": {
@@ -545,8 +545,8 @@
     "forcedColors": "{Theme$promo/border/color}"
   },
   "tab/border/color/selected/trailing": {
-    "light": "{Colors$color/orange/30}",
-    "dark": "{Colors$color/violet/50}",
+    "light": "{Colors$color/violet/50}",
+    "dark": "{Colors$color/violet/30}",
     "forcedColors": "transparent"
   },
   "tab/background/color/hover": {

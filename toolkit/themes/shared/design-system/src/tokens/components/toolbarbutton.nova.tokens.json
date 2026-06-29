@@ -37,15 +37,13 @@
     "color": {
       "hover": {
         "value": {
-          "light": "rgba(117, 102, 159, 0.25)",
-          "dark": "rgba(182, 170, 217, 0.25)",
+          "default": "color-mix(in srgb, {color.accent.primary.@base} 25%, transparent)",
           "forcedColors": "{button.background.color.hover}"
         }
       },
       "active": {
         "value": {
-          "light": "rgba(117, 102, 159, 0.4)",
-          "dark": "rgba(182, 170, 217, 0.4)",
+          "default": "color-mix(in srgb, {color.accent.primary.@base} 40%, transparent)",
           "forcedColors": "{button.background.color.active}"
         }
       }
