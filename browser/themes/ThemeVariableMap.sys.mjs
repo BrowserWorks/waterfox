@@ -173,4 +173,9 @@ export const ThemeContentPropertyList = [
   "sidebar_text",
   "zap_gradient",
   "ai_background_color",
+  "waterfox_accent_primary",
+  "waterfox_accent_primary_hover",
+  "waterfox_accent_primary_active",
+  "waterfox_background_color_information",
+  "waterfox_icon_color_information",
 ];

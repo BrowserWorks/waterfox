@@ -4,8 +4,10 @@
 
 EXTRA_JS_MODULES += [
     "WaterfoxBrowserStyle.sys.mjs",
+    "WaterfoxContentTheme.sys.mjs",
     "WaterfoxStyles.sys.mjs",
     "WaterfoxTheme.sys.mjs",
+    "WaterfoxThemeColors.sys.mjs",
 ]
 
 JAR_MANIFESTS += ["jar.mn"]
