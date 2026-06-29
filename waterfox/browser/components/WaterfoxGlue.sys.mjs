@@ -7,6 +7,7 @@ const lazy = {};
 ChromeUtils.defineESModuleGetters(lazy, {
   StatusBar: "resource:///modules/StatusBar.sys.mjs",
   StyleSheetUtils: "resource:///modules/StyleSheetUtils.sys.mjs",
+  UICustomizations: "resource:///modules/UICustomizations.sys.mjs",
   WaterfoxBlockerExtensionDetector:
     "resource:///modules/WaterfoxBlockerExtensionDetector.sys.mjs",
   WaterfoxBlockerPanel: "resource:///modules/WaterfoxBlockerPanel.sys.mjs",
@@ -82,6 +83,7 @@ export const WaterfoxGlue = {
     );
 
     lazy.StatusBar.init();
+    lazy.UICustomizations.init();
     Services.obs.addObserver(this, "browser-delayed-startup-finished");
   },
 
@@ -89,6 +91,7 @@ export const WaterfoxGlue = {
     switch (topic) {
       case "browser-delayed-startup-finished":
         lazy.StatusBar.onWindowOpened(subject);
+        lazy.UICustomizations.onWindowOpened(subject);
         break;
     }
   },
