@@ -13,6 +13,9 @@ pref("browser.tabs.warnOnClose", true);
 pref("browser.statusbar.enabled", false);
 pref("browser.statusbar.appendStatusText", true);
 
+pref("browser.tabs.toolbarposition", "topabove");
+pref("browser.bookmarks.toolbarposition", "top");
+
 pref("browser.uidensity", 1);
 pref("browser.compactmode.show", true);
 

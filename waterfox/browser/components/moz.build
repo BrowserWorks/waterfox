@@ -10,6 +10,7 @@ DIRS += [
     "settings",
     "statusbar",
     "theme",
+    "uicustomizations",
     "utils",
 ]
 
