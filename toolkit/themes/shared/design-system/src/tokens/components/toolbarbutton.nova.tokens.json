@@ -37,15 +37,15 @@
     "color": {
       "hover": {
         "value": {
-          "light": "rgba(117, 102, 159, 0.25)",
-          "dark": "rgba(182, 170, 217, 0.25)",
+          "light": "rgba(116, 160, 206, 0.25)",
+          "dark": "rgba(159, 190, 222, 0.25)",
           "forcedColors": "{button.background.color.hover}"
         }
       },
       "active": {
         "value": {
-          "light": "rgba(117, 102, 159, 0.4)",
-          "dark": "rgba(182, 170, 217, 0.4)",
+          "light": "rgba(116, 160, 206, 0.4)",
+          "dark": "rgba(159, 190, 222, 0.4)",
           "forcedColors": "{button.background.color.active}"
         }
       }
