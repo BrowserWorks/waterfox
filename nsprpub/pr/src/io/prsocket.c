@@ -305,7 +305,7 @@ static PRStatus PR_CALLBACK SocketConnectContinue(PRFileDesc* fd,
     } else {
 #  if defined(_WIN64)
       if (fd->secret->overlappedActive) {
-        PRInt32 rvSent;
+        DWORD rvSent;
         if (GetOverlappedResult((HANDLE)osfd, &fd->secret->ol, &rvSent,
                                 FALSE) == FALSE) {
           err = WSAGetLastError();
@@ -339,7 +339,7 @@ static PRStatus PR_CALLBACK SocketConnectContinue(PRFileDesc* fd,
    * To get result we need to use GetOverlappedResult. */
   if (fd->secret->overlappedActive) {
     PR_ASSERT(fd->secret->nonblocking);
-    PRInt32 rvSent;
+    DWORD rvSent;
     if (GetOverlappedResult((HANDLE)osfd, &fd->secret->ol, &rvSent, FALSE) ==
         TRUE) {
       fd->secret->overlappedActive = PR_FALSE;
