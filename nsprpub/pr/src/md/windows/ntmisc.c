@@ -732,10 +732,13 @@ PRStatus _PR_WaitWindowsProcess(PRProcess* process, PRInt32* exitCode) {
     return PR_FAILURE;
   }
   PR_ASSERT(dwRetVal == WAIT_OBJECT_0);
-  if (exitCode != NULL &&
-      GetExitCodeProcess(process->md.handle, exitCode) == FALSE) {
-    PR_SetError(PR_UNKNOWN_ERROR, GetLastError());
-    return PR_FAILURE;
+  if (exitCode != NULL) {
+    DWORD tmpExitCode;
+    if (GetExitCodeProcess(process->md.handle, &tmpExitCode) == FALSE) {
+      PR_SetError(PR_UNKNOWN_ERROR, GetLastError());
+      return PR_FAILURE;
+    }
+    *exitCode = (PRInt32)tmpExitCode;
   }
   CloseHandle(process->md.handle);
   PR_DELETE(process);
