@@ -95,7 +95,7 @@ PRInt32 _MD_CloseSocket(PROsfd osfd) {
 }
 
 PRInt32 _MD_SocketAvailable(PRFileDesc* fd) {
-  PRInt32 result;
+  u_long result;
 
   if (ioctlsocket(fd->secret->md.osfd, FIONREAD, &result) < 0) {
     PR_SetError(PR_BAD_DESCRIPTOR_ERROR, WSAGetLastError());
@@ -302,7 +302,7 @@ static _pr_win_connectex_ptr _pr_win_connectex = NULL;
 static PRStatus PR_CALLBACK _pr_set_connectex(void) {
   _pr_win_connectex = NULL;
   SOCKET sock;
-  PRInt32 dwBytes;
+  DWORD dwBytes;
   int rc;
 
   /* Dummy socket needed for WSAIoctl */
