@@ -229,7 +229,7 @@ PROsfd _PR_MD_OPEN_FILE(const char* name, PRIntn osflags, int mode) {
 }
 
 PRInt32 _PR_MD_READ(PRFileDesc* fd, void* buf, PRInt32 len) {
-  PRUint32 bytes;
+  DWORD bytes;
   int rv, err;
 
   rv = ReadFile((HANDLE)fd->secret->md.osfd, (LPVOID)buf, len, &bytes, NULL);
@@ -250,7 +250,7 @@ PRInt32 _PR_MD_READ(PRFileDesc* fd, void* buf, PRInt32 len) {
 
 PRInt32 _PR_MD_WRITE(PRFileDesc* fd, const void* buf, PRInt32 len) {
   PROsfd f = fd->secret->md.osfd;
-  PRInt32 bytes;
+  DWORD bytes;
   int rv;
 
   rv = WriteFile((HANDLE)f, buf, len, &bytes, NULL);
