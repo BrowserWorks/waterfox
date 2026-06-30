@@ -4,8 +4,10 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import argparse
+import multiprocessing
 import os
 import shutil
+import socket
 import ssl
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -15,6 +17,12 @@ import certifi
 import yaml
 from buildconfig import topsrcdir
 from vsdownload import downloadPackages, extractPackages
+
+# vsdownload arms a socket timeout only inside its own __main__. We import its
+# download helpers instead, so without this urlretrieve has no timeout and a
+# stalled CDN connection hangs forever rather than raising and letting
+# vsdownload's retry loop recover.
+socket.setdefaulttimeout(120)
 
 # Hack to hook certifi
 _urlopen = request.urlopen
@@ -29,7 +37,17 @@ def urlopen(url, data=None):
 request.urlopen = urlopen
 
 
+def use_fork_multiprocessing():
+    if "fork" not in multiprocessing.get_all_start_methods():
+        return
+    try:
+        multiprocessing.set_start_method("fork")
+    except RuntimeError:
+        pass
+
+
 if __name__ == "__main__":
+    use_fork_multiprocessing()
     parser = argparse.ArgumentParser(
         description="Download and build a Visual Studio artifact"
     )
