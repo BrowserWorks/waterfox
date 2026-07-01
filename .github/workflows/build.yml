@@ -44,7 +44,7 @@ env:
   MACH_MAIN_PID: "0"
   MOZ_BUILD_DATE: ${{ inputs.MOZ_BUILD_DATE }}
   PRE_RELEASE: ${{ inputs.PRE_RELEASE }}
-  RUST_TOOLCHAIN: 1.96.1
+  RUST_TOOLCHAIN: 1.97.0
   TAG_VERSION: ${{ inputs.TAG_VERSION }}
 
 jobs:
