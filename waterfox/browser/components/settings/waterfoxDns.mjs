@@ -67,8 +67,8 @@ function writeUltraPrefs(callback) {
 
 function applyUltra() {
   writeUltraPrefs(() => {
-    clearUserPref(OHTTP_PREF);
-    clearUserPref(USE_GET_PREF);
+    Services.prefs.setBoolPref(OHTTP_PREF, true);
+    Services.prefs.setBoolPref(USE_GET_PREF, false);
     clearUserPref(TRR_MODE_PREF);
     clearUserPref(TRR_URI_PREF);
   });
