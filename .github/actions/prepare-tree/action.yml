@@ -88,12 +88,25 @@ runs:
       shell: bash
       run: |
         locales="$({
-          git -C waterfox/browser/locales ls-files
-        } | awk -F/ '
-          NF >= 3 &&
-          $1 !~ /^\./ &&
-          ($2 == "browser" || $2 == "toolkit" || $2 == "waterfox") {
-            print $1
+          git -C waterfox/browser/locales ls-tree -r -l HEAD
+        } | awk '
+          {
+            size = $4
+            sub(/^[^\t]*\t/, "")
+            n = split($0, part, "/")
+          }
+          size > 0 &&
+          n >= 3 &&
+          part[1] !~ /^\./ &&
+          (part[2] == "browser" || part[2] == "toolkit" || part[2] == "waterfox") {
+            count[part[1]]++
+          }
+          END {
+            for (locale in count) {
+              if (count[locale] >= 10) {
+                print locale
+              }
+            }
           }
         ' | LC_ALL=C sort -u | paste -sd ' ' -)"
         test -n "$locales"
