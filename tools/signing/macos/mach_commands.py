@@ -37,7 +37,7 @@ from mozbuild.base import MachCommandConditions as conditions
     "Release channel entitlements, but the configuration used will be the "
     "Release configuration as defined in the repo working directory, not the "
     "configuration from the revision of the earlier 120 build.",
-    conditions=[conditions.is_firefox],
+#    conditions=[conditions.is_firefox],
 )
 @CommandArgument(
     "-v",
