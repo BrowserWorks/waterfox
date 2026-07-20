@@ -27,3 +27,5 @@ prefs = [
   "network.trr.ohttp.uri=''",
   "network.trr.use_ohttp=false",
 ]
+
+["test_waterfox_unbreak.js"]
