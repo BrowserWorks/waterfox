@@ -12,6 +12,12 @@ import {
 export const MAX_CUSTOM_FILTERS_BYTES = 2 * 1024 * 1024;
 export const MAX_CUSTOM_FILTER_LINE_LENGTH = 16 * 1024;
 
+const WATERFOX_UNBREAK_FILTERS_FILE_NAME = "waterfox-unbreak.txt";
+const WATERFOX_UNBREAK_FILTERS_URL =
+  "resource://waterfox/blocker/assets/filters/waterfox-unbreak.txt";
+
+let gWaterfoxUnbreakRecord = null;
+
 export function normalizeCustomFiltersText(text) {
   const normalized = String(text || "")
     .toWellFormed()
@@ -184,6 +190,35 @@ async function withCustomFiltersRecord(listRecords, descriptors) {
   return [...listRecords, customFiltersRecord];
 }
 
+async function readWaterfoxUnbreakRecord() {
+  if (gWaterfoxUnbreakRecord) {
+    return gWaterfoxUnbreakRecord;
+  }
+
+  const response = await fetch(WATERFOX_UNBREAK_FILTERS_URL, {
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+
+  const text = await response.text();
+  if (!text.trim()) {
+    throw new Error("Waterfox unbreak filters were empty");
+  }
+
+  gWaterfoxUnbreakRecord = {
+    filename: WATERFOX_UNBREAK_FILTERS_FILE_NAME,
+    text,
+    url: WATERFOX_UNBREAK_FILTERS_URL,
+  };
+  return gWaterfoxUnbreakRecord;
+}
+
+async function withWaterfoxUnbreakRecord(listRecords) {
+  return [...listRecords, await readWaterfoxUnbreakRecord()];
+}
+
 export const ListStore = {
   MAX_CUSTOM_FILTERS_BYTES,
   MAX_CUSTOM_FILTER_LINE_LENGTH,
@@ -220,6 +255,7 @@ export const ListStore = {
   readCustomFiltersText,
   readCustomFiltersRecord,
   withCustomFiltersRecord,
+  withWaterfoxUnbreakRecord,
 
   async readStoredLists(descriptors) {
     const out = [];
