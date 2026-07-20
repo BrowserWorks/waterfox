@@ -79,9 +79,10 @@ function computeListsHash(descriptors, listRecords) {
   const byKey = new Map(
     listRecords.map(record => [
       makeRecordKey(record.url, record.filename),
-      record.text ?? "",
+      record,
     ])
   );
+  const descriptorKeys = new Set();
 
   const hasher = Cc["@mozilla.org/security/hash;1"].createInstance(
     Ci.nsICryptoHash
@@ -89,18 +90,28 @@ function computeListsHash(descriptors, listRecords) {
   hasher.init(hasher.SHA256);
 
   const encoder = new TextEncoder();
-  for (const descriptor of descriptors) {
-    const descriptorTag = `${descriptor.url}\n${descriptor.filename}\n`;
-    const descriptorBytes = encoder.encode(descriptorTag);
+  const separatorBytes = encoder.encode("\n---\n");
+  const updateHash = (url, filename, content) => {
+    const descriptorBytes = encoder.encode(`${url}\n${filename}\n`);
     hasher.update(descriptorBytes, descriptorBytes.length);
 
-    const content =
-      byKey.get(makeRecordKey(descriptor.url, descriptor.filename)) ?? "";
     const contentBytes = encoder.encode(content);
     hasher.update(contentBytes, contentBytes.length);
+    hasher.update(separatorBytes, separatorBytes.length);
+  };
 
-    const sep = encoder.encode("\n---\n");
-    hasher.update(sep, sep.length);
+  for (const descriptor of descriptors) {
+    const key = makeRecordKey(descriptor.url, descriptor.filename);
+    descriptorKeys.add(key);
+    updateHash(descriptor.url, descriptor.filename, byKey.get(key)?.text ?? "");
+  }
+
+  const extraRecordKeys = Array.from(byKey.keys())
+    .filter(key => !descriptorKeys.has(key))
+    .sort();
+  for (const key of extraRecordKeys) {
+    const record = byKey.get(key);
+    updateHash(record.url, record.filename, record.text ?? "");
   }
 
   return bytesToHex(hasher.finish(false));
