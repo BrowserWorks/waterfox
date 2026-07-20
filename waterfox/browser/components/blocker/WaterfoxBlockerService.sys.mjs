@@ -1803,8 +1803,9 @@ export const WaterfoxBlockerService = {
     return lazy.ListStore.resolveLocalListRecords(descriptors);
   },
 
-  _preprocessListRecords(listRecords) {
-    return listRecords.map(record => ({
+  async _preprocessListRecords(listRecords) {
+    const records = await lazy.ListStore.withWaterfoxUnbreakRecord(listRecords);
+    return records.map(record => ({
       ...record,
       text: lazy.ListPreprocessor.preprocessFilterListText(record.text),
     }));
@@ -1937,7 +1938,8 @@ export const WaterfoxBlockerService = {
       }
 
       const storedLists = await this._readStoredLists(descriptors);
-      const storedListsForEngine = this._preprocessListRecords(storedLists);
+      const storedListsForEngine =
+        await this._preprocessListRecords(storedLists);
       const cacheMatchesCurrentLists =
         storedLists.length &&
         (await lazy.EngineCache.matchesCurrentLists(
@@ -2866,7 +2868,7 @@ export const WaterfoxBlockerService = {
 
   async _tryInitFromCache(descriptors, generation) {
     const storedLists = await this._readStoredLists(descriptors);
-    const storedListsForEngine = this._preprocessListRecords(storedLists);
+    const storedListsForEngine = await this._preprocessListRecords(storedLists);
     const cacheMatchesCurrentLists =
       storedLists.length &&
       (await lazy.EngineCache.matchesCurrentLists(
