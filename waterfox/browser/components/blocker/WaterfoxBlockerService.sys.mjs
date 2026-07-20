@@ -1855,8 +1855,9 @@ export const WaterfoxBlockerService = {
     return lazy.ListCatalog.getListDescriptors();
   },
 
-  _preprocessListRecords(listRecords) {
-    return listRecords.map(record => ({
+  async _preprocessListRecords(listRecords) {
+    const records = await lazy.ListStore.withWaterfoxUnbreakRecord(listRecords);
+    return records.map(record => ({
       ...record,
       text: lazy.ListPreprocessor.preprocessFilterListText(record.text),
     }));
@@ -1908,7 +1909,8 @@ export const WaterfoxBlockerService = {
         this._hasNonCustomListRecords(storedLists));
     if (storedListsUsable) {
       try {
-        const storedListsForEngine = this._preprocessListRecords(storedLists);
+        const storedListsForEngine =
+          await this._preprocessListRecords(storedLists);
         const initializedFromStored =
           await this._initEngineFromListRecords(storedListsForEngine);
         if (initializedFromStored) {
@@ -1937,7 +1939,7 @@ export const WaterfoxBlockerService = {
       fetchedLists,
       descriptors
     );
-    const preprocessedFetchedListsForEngine = this._preprocessListRecords(
+    const preprocessedFetchedListsForEngine = await this._preprocessListRecords(
       fetchedListsForEngine
     );
     const fetchedListsUsable =
@@ -1981,7 +1983,7 @@ export const WaterfoxBlockerService = {
       bundledLists,
       descriptors
     );
-    const preprocessedBundledListsForEngine = this._preprocessListRecords(
+    const preprocessedBundledListsForEngine = await this._preprocessListRecords(
       bundledListsForEngine
     );
     if (!bundledListsForEngine.length) {
@@ -2079,7 +2081,8 @@ export const WaterfoxBlockerService = {
       }
 
       const storedLists = await this._readStoredLists(descriptors);
-      const storedListsForEngine = this._preprocessListRecords(storedLists);
+      const storedListsForEngine =
+        await this._preprocessListRecords(storedLists);
       const cacheMatchesCurrentLists =
         storedLists.length &&
         (!this._hasNonCustomDescriptors(descriptors) ||
@@ -2962,7 +2965,7 @@ export const WaterfoxBlockerService = {
 
   async _tryInitFromCache(descriptors) {
     const storedLists = await this._readStoredLists(descriptors);
-    const storedListsForEngine = this._preprocessListRecords(storedLists);
+    const storedListsForEngine = await this._preprocessListRecords(storedLists);
     const cacheMatchesCurrentLists =
       storedLists.length &&
       (!this._hasNonCustomDescriptors(descriptors) ||
@@ -2991,7 +2994,8 @@ export const WaterfoxBlockerService = {
     if (anyUpdated) {
       const storedLists = await this._readStoredLists(descriptors);
       if (storedLists.length) {
-        const storedListsForEngine = this._preprocessListRecords(storedLists);
+        const storedListsForEngine =
+          await this._preprocessListRecords(storedLists);
         const initializedFromStored =
           await this._initEngineFromListRecords(storedListsForEngine);
         if (initializedFromStored) {
