@@ -26,6 +26,7 @@ browser.jar:
     waterfox/blocker/assets/filters/ublock-quick-fixes.txt            (assets/filters/ublock-quick-fixes.txt)
     waterfox/blocker/assets/filters/ublock-resource-abuse.txt         (assets/filters/ublock-resource-abuse.txt)
     waterfox/blocker/assets/filters/ublock-unbreak.txt                (assets/filters/ublock-unbreak.txt)
+    waterfox/blocker/assets/filters/waterfox-unbreak.txt              (assets/filters/waterfox-unbreak.txt)
     waterfox/blocker/assets/list_catalog.json                         (assets/list_catalog.json)
     waterfox/blocker/assets/resources/resources.json                  (assets/resources/resources.json)
     waterfox/blocker/assets/resources/ubo-scriptlets.json             (assets/resources/ubo-scriptlets.json)
