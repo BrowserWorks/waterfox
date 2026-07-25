@@ -20,7 +20,7 @@ import mozfile
 import mozinfo
 import six
 from mozlog import structured
-from runxpcshelltests import XPCShellTests
+from runxpcshelltests import XPCShellTests, get_app_dir_key
 
 TEST_PASS_STRING = "TEST-PASS"
 TEST_FAIL_STRING = "TEST-UNEXPECTED-FAIL"
@@ -486,6 +486,18 @@ class XPCShellTestsTests(unittest.TestCase):
     def tearDown(self):
         mozfile.remove(self.tempdir)
         self.x.shutdownNode()
+
+    def testBrowserAppDirKey(self):
+        self.assertEqual(
+            "firefox-appdir",
+            get_app_dir_key({"appname": "waterfox", "buildapp": "browser"}),
+        )
+
+    def testNonBrowserAppDirKey(self):
+        self.assertEqual(
+            "thunderbird-appdir",
+            get_app_dir_key({"appname": "thunderbird", "buildapp": "comm/mail"}),
+        )
 
     def writeFile(self, name, contents, mode="w"):
         """
