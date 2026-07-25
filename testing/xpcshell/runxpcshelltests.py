@@ -57,6 +57,14 @@ except ImportError:
 HARNESS_TIMEOUT = 30
 TBPL_RETRY = 4  # defined in mozharness
 
+
+def get_app_dir_key(moz_info):
+    if moz_info.get("buildapp") == "browser":
+        return "firefox-appdir"
+    app_name = moz_info.get("appname")
+    return f"{app_name}-appdir" if app_name else None
+
+
 # Based on recent benchmarking on highcpu pools, this value gives the best
 # balance between runtime and memory usage
 #
@@ -2089,9 +2097,7 @@ class XPCShellTests:
         # sections that defines a relative application directory for test runs. If
         # defined we pass 'grePath/$appDirKey' for the -a parameter of the xpcshell
         # test harness.
-        appDirKey = None
-        if "appname" in self.mozInfo:
-            appDirKey = self.mozInfo["appname"] + "-appdir"
+        appDirKey = get_app_dir_key(self.mozInfo)
 
         # We have to do this before we run tests that depend on having the node
         # http/2 server.
