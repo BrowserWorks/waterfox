@@ -208,7 +208,7 @@
   "syncAvailable_notification_message": { "message": "Tabs can be transferred between your devices. Please click here to set an identifiable name to this device." },
   "syncAvailable_notification_message_linux": { "message": "Tabs can be transferred between your devices. Please click the button to set an identifiable name to this device." },
   "sentTabs_notification_title":            { "message": "\u200b" },
-  "sentTabs_notification_message":          { "message": "Tabs is sent to $DEVICE$",
+  "sentTabs_notification_message":          { "message": "Tab is sent to $DEVICE$",
     "placeholders": {
       "DEVICE": { "content": "$1", "example": "Firefox on Device X" }
     }},
@@ -421,9 +421,9 @@
   "config_animationForce_label": { "message": "Enable animations regardless \"reduce animations\" platform settings" },
   "config_tabPreviewTooltip_label": { "message": "Show tab preview image on tab hover, instead of legacy tooltip (*You need to allow executing scripts on webpages)" },
   "config_tabPreviewTooltipRenderIn_label_before": { "message": "\u200b" },
-  "config_tabPreviewTooltipRenderIn_content": { "message": "in the conetnt area (and show nothing if impossible)" },
+  "config_tabPreviewTooltipRenderIn_content": { "message": "in the content area (and show nothing if impossible)" },
   "config_tabPreviewTooltipRenderIn_sidebar": { "message": "in the sidebar always" },
-  "config_tabPreviewTooltipRenderIn_anywhere": { "message": "in the conetnt area if possible, otherwise in the sidebar" },
+  "config_tabPreviewTooltipRenderIn_anywhere": { "message": "in the content area if possible, otherwise in the sidebar" },
   "config_tabPreviewTooltipRenderIn_label_after": { "message": "\u200b" },
   "config_inContentUIOffsetTop_label_before": { "message": "Shift tab preview " },
   "config_inContentUIOffsetTop_label_after": { "message": "px vertically when the height of the sidebar header cannot be detected due to privacy protection (ex. \"privacy.resistFingerprinting\"=\"true\")" },
@@ -454,7 +454,7 @@
   "config_suppressGroupTabForStructuredTabsFromBookmarks_label": { "message": "Suppress top-level group tab when opened tabs are already organized as a tree" },
 
   "config_sendTabsToDevice_caption": { "message": "Send Tabs to Other Devices with the context menu via Firefox Sync" },
-  "config_syncRequirements_description": { "message": "This feature depends on Firefox Sync, and tabs can be sent only to devices with TST installed. Please activate Firefox Sync with ther browser's options at first, and install TST to other devices also." },
+  "config_syncRequirements_description": { "message": "This feature depends on Firefox Sync, and tabs can be sent only to devices with TST installed. Please activate Firefox Sync with the browser's options at first, and install TST to other devices also." },
   "config_syncDeviceInfo_name_label": { "message": "Name and icon of this device:" },
   "config_syncDeviceInfo_name_description_before": { "message": "TST cannot detect the name of this device you configured for Firefox Sync, due to restrictions of WebExtensions API. Please set an identifiable name for this device manually. (It is recommended to copy " },
   "config_syncDeviceInfo_name_description_link": { "message": "the device name for Firefox Sync" },
@@ -619,7 +619,7 @@
   "config_tabBunchesDetectionTimeout_after": { "message": "msec, and:" },
   "config_autoGroupNewTabsFromBookmarks_label": { "message": "Group tabs under a tab with a title like \"... and more\"" },
   "config_restoreTreeForTabsFromBookmarks_label": { "message": "Restore tree structure" },
-  "config_requireBookmarksPermission_tooltiptext": { "message": "This feature needs a right to access bookmarks. Click here to request an required permission." },
+  "config_requireBookmarksPermission_tooltiptext": { "message": "This feature needs a right to access bookmarks. Click here to request a required permission." },
   "config_requestPermissions_bookmarks_autoGroupNewTabs_before": { "message": "(" },
   "config_requestPermissions_bookmarks_autoGroupNewTabs_after": { "message": "Allow to detect bookmarks corresponding to tabs)" },
   "config_tabsFromSameFolderMinThresholdPercentage_before": { "message": "Treat all new tabs as opened from one bookmark folder, if over " },
@@ -664,7 +664,7 @@
   "config_autoCollapseExpandSubtreeOnSelect_label": { "message": "When a tab gets focus, expand its tree and collapse others automatically" },
   "config_autoCollapseExpandSubtreeOnSelectExceptActiveTabRemove_label": { "message": "Except focus moving caused by closing of the current tab" },
   "config_unfocusableCollapsedTab_label": { "message": "When a tab under a collapsed tree gets focus, expand its tree automatically" },
-  "config_autoDiscardTabForUnexpectedFocus_label": { "message": "Keep tabs pending (unloaded) when tabs are accidentaly focused and the focus is redirected immediately" },
+  "config_autoDiscardTabForUnexpectedFocus_label": { "message": "Keep tabs pending (unloaded) when tabs are accidentally focused and the focus is redirected immediately" },
   "config_avoidDiscardedTabToBeActivatedIfPossible_label": { "message": "Avoid pending (unloaded) tabs to be activated accidentally on current tab closes or tree collapsing" },
 
   "config_treeDoubleClickBehavior_caption":             { "message": "Double-click on a tab" },
@@ -742,7 +742,7 @@
   "config_tabDragBehavior_detachSoloTabIfExpanded":      { "message": "Detach Solo Tab if expanded or Entire Tree if collapsed, from the window (but impossible to create bookmark)" },
   "config_tabDragBehavior_bookmarkSoloTabIfExpanded":    { "message": "Create link or bookmark from Solo Tab if expanded or Entire Tree if collapsed (but impossible to detach from the window)" },
   "config_tabDragBehavior_doNothing":                    { "message": "Do nothing" },
-  "config_tabDragBehavior_noteForDragstartOutsideSidebar": { "message": "When a parent tabs is dragged from the browser's native tab bar, it will behave according to the section \"Tree Behavior\" => \"When a parent tab is Closed or Moved\"." },
+  "config_tabDragBehavior_noteForDragstartOutsideSidebar": { "message": "When a parent tab is dragged from the browser's native tab bar, it will behave according to the section \"Tree Behavior\" => \"When a parent tab is Closed or Moved\"." },
   "config_showTabDragBehaviorNotification_label": { "message": "Show notification about what will happen on tabs dropped outside the sidebar, while tab dragging." },
 
   "config_dropLinksOnTabBehavior_caption": { "message": "When a link or URL string is dropped on a tab" },
@@ -829,7 +829,7 @@
   "helper_theme_list_link_uri": { "message": "https://github.com/piroor/treestyletab/wiki/Code-snippets-for-custom-style-rules#restore-old-built-in-themes" },
 
   "config_externaladdonpermissions_label": { "message": "Permissions for API Call from Other Extensions" },
-  "config_externaladdonpermissions_description": { "message": "Extensions allowed here may access detailed tab data or tabs in private windows, <em>through Tree Vertical Tabs's permissions</em>, even if the extension ifself is forbidden by the browser to access them. <em>Please don't give permission for extensions if you cannot trust them.</em>" },
+  "config_externaladdonpermissions_description": { "message": "Extensions allowed here may access detailed tab data or tabs in private windows, <em>through Tree Vertical Tabs's permissions</em>, even if the extension itself is forbidden by the browser to access them. <em>Please don't give permission for extensions if you cannot trust them.</em>" },
   "config_externalAddonPermissions_header_name": { "message": "Extension Name" },
   "config_externalAddonPermissions_header_permissions": { "message": "Allowed Special Operations" },
   "config_externalAddonPermissions_header_incognito": { "message": "Notify Messages from Private Windows" },
@@ -866,7 +866,7 @@
   "config_useCachedTree_label": { "message": "Optimize tree restoration with cache" },
   "config_useCachedTree_description": { "message": "*Please try unchecking and re-checking this to refresh the cache, when the behavior around tree is unstable." },
   "config_persistCachedTree_label": { "message": "Persist tree cache" },
-  "config_persistCachedTree_description": { "message": "*Initialization process at the browser startup may be optimized, but it will broat the size of browser's session file and increase disk I/O." },
+  "config_persistCachedTree_description": { "message": "*Initialization process at the browser startup may be optimized, but it will bloat the size of browser's session file and increase disk I/O." },
   "config_acceleratedTabCreation_label": { "message": "Accelerate operations around newly opened tabs (*NOTE: You'll see unstable behavior around tabs.)" },
   "config_maximumAcceptableDelayForTabDuplication_before": { "message": "Abort tab duplication when it takes" },
   "config_maximumAcceptableDelayForTabDuplication_after": { "message": "milliseconds or more." },
@@ -1003,7 +1003,7 @@
   "tryConfirmUsingTST_WS":      { "message": "Waterfox's Tree Vertical Tabs" },
   "tryConfirmUsingTST_TST":     { "message": "Tree Style Tab" },
   "tryConfirmUsingTST_both":    { "message": "Activate Both" },
-  "tryConfirmUsingTST_ask":     { "message": "Confirm again when conflictiong features are detected" },
+  "tryConfirmUsingTST_ask":     { "message": "Confirm again when conflicting features are detected" },
   "howToActivateAgain_title":   { "message": "Tree Vertical Tabs disabled" },
   "howToActivateAgain_message": { "message": "Deactivating Waterfox's Tree Vertical Tabs. You can activate it again via the Add-ons Manager." },
 
