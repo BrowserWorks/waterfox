@@ -16,6 +16,8 @@ import {
   hasPermission,
   isAllowedInPrivateBrowsing,
   isInState,
+  isPendingRestartInstall,
+  openOptionsInDialog,
   openOptionsInTab,
   shouldShowPermissionsPrompt,
   showPermissionsPrompt,
@@ -53,6 +55,8 @@ const PRIVATE_BROWSING_PERMS = {
  * @property {string} [linkUrl]
  * @property {string} [linkId]
  * @property {string} [linkSumoPage]
+ * @property {string} [action]
+ * @property {string} [actionId]
  */
 
 /**
@@ -318,6 +322,7 @@ export class AddonCard extends AboutAddonsHTMLElement {
           } else {
             await addon.disable();
           }
+          this.update();
           break;
         case "always-activate":
           addon.userDisabled = false;
@@ -339,23 +344,27 @@ export class AddonCard extends AboutAddonsHTMLElement {
           }
           break;
         }
-        case "install-update":
+        case "install-update": {
+          const updateInstall = this.updateInstall;
+          if (!updateInstall) {
+            break;
+          }
           // Make sure that an update handler is attached to the install object
           // before starting the update installation (otherwise the user would
           // not be prompted for the new permissions requested if necessary),
           // and also make sure that a prompt handler attached from a closed
           // about:addons tab is replaced by the one attached by the currently
           // active about:addons tab.
-          attachUpdateHandler(this.updateInstall);
-          this.updateInstall.install().then(
+          attachUpdateHandler(updateInstall);
+          Promise.resolve(updateInstall.install()).then(
             () => {
-              detachUpdateHandler(this.updateInstall);
+              detachUpdateHandler(updateInstall);
               // The card will update with the new add-on when it gets
               // installed.
               this.sendEvent("update-installed");
             },
             () => {
-              detachUpdateHandler(this.updateInstall);
+              detachUpdateHandler(updateInstall);
               // Update our state if the install is cancelled.
               this.update();
               this.sendEvent("update-cancelled");
@@ -365,11 +374,28 @@ export class AddonCard extends AboutAddonsHTMLElement {
           // available updates (whether it succeeds or fails).
           this.updateInstall = null;
           break;
+        }
+        case "cancel-install": {
+          const install = addon.install;
+          if (isPendingRestartInstall(install)) {
+            await install.cancel();
+          }
+          break;
+        }
+        case "cancel-update": {
+          const updateInstall = getUpdateInstall(addon);
+          if (updateInstall && isInState(updateInstall, "installed")) {
+            await updateInstall.cancel();
+          }
+          break;
+        }
         case "contribute":
           windowRoot.window.openWebLinkIn(addon.contributionURL, "tab");
           break;
         case "preferences":
-          if (getOptionsType(addon) == "tab") {
+          if (getOptionsType(addon) == "dialog") {
+            openOptionsInDialog(addon);
+          } else if (getOptionsType(addon) == "tab") {
             openOptionsInTab(addon.optionsURL);
           } else if (getOptionsType(addon) == "inline") {
             gViewController.loadView(`detail/${this.addon.id}/preferences`);
@@ -427,6 +453,7 @@ export class AddonCard extends AboutAddonsHTMLElement {
         default:
           // Handle a click on the card itself.
           if (
+            !isPendingRestartInstall(addon.install) &&
             !this.expanded &&
             (e.target === this.addonNameEl || !e.target.closest("a")) &&
             // moz-button handles its own click/toggle; exclude it here to
@@ -549,7 +576,11 @@ export class AddonCard extends AboutAddonsHTMLElement {
 
     // Update the name.
     let name = this.addonNameEl;
-    let setDisabledStyle = !(addon.isActive || addon.type === "theme");
+    let setDisabledStyle = !(
+      addon.isActive ||
+      addon.type === "theme" ||
+      isPendingRestartInstall(addon.install)
+    );
     if (!setDisabledStyle) {
       name.textContent = addon.name;
       name.removeAttribute("data-l10n-id");
@@ -563,7 +594,9 @@ export class AddonCard extends AboutAddonsHTMLElement {
     let toggleDisabledButton = card.querySelector('[action="toggle-disabled"]');
     if (toggleDisabledButton) {
       let toggleDisabledAction = addon.userDisabled ? "enable" : "disable";
-      toggleDisabledButton.hidden = !hasPermission(addon, toggleDisabledAction);
+      toggleDisabledButton.hidden =
+        isPendingRestartInstall(addon.install) ||
+        !hasPermission(addon, toggleDisabledAction);
       if (addon.type === "theme") {
         document.l10n.setAttributes(
           toggleDisabledButton,
@@ -654,6 +687,8 @@ export class AddonCard extends AboutAddonsHTMLElement {
 
     const resolveMessageInfo = AddonCard.#getAddonMessageInfoHook;
     const {
+      action,
+      actionId,
       linkUrl,
       linkId,
       linkSumoPage,
@@ -673,6 +708,13 @@ export class AddonCard extends AboutAddonsHTMLElement {
       messageBar.setAttribute("data-l10n-attrs", "message");
 
       messageBar.innerHTML = "";
+      if (action && actionId) {
+        const actionButton = document.createElement("button");
+        document.l10n.setAttributes(actionButton, actionId);
+        actionButton.setAttribute("action", action);
+        actionButton.setAttribute("slot", "actions");
+        messageBar.append(actionButton);
+      }
       if (linkUrl) {
         const linkButton = document.createElement("button");
         document.l10n.setAttributes(linkButton, linkId);
@@ -744,7 +786,7 @@ export class AddonCard extends AboutAddonsHTMLElement {
     let nameHeading = document.createElement(headingLevel);
     nameHeading.classList.add("addon-name");
     nameHeading.id = headingId;
-    if (!this.expanded) {
+    if (!this.expanded && !isPendingRestartInstall(addon.install)) {
       let name = document.createElement("a");
       name.classList.add("addon-name-link");
       name.href = `addons://detail/${addon.id}`;
@@ -819,12 +861,33 @@ export class AddonCard extends AboutAddonsHTMLElement {
   }
 
   onInstallEnded(install) {
-    this.setAddon(install.addon);
+    const addon =
+      install.existingAddon &&
+      install.addon.pendingOperations & AddonManager.PENDING_INSTALL
+        ? install.existingAddon
+        : install.addon;
+    this.setAddon(addon);
   }
 
   onInstallPostponed(install) {
     this.updateInstall = install;
     this.sendEvent("update-postponed");
+  }
+
+  onDisabling(_addon, needsRestart) {
+    if (needsRestart) {
+      this.update();
+    }
+  }
+
+  onEnabling(_addon, needsRestart) {
+    if (needsRestart) {
+      this.update();
+    }
+  }
+
+  onOperationCancelled() {
+    this.update();
   }
 
   onDisabled() {
