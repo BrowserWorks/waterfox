@@ -81,6 +81,68 @@ const ZipReader = Components.Constructor(
   "open"
 );
 
+function ensureDirectory(directory, root) {
+  if (directory.exists()) {
+    return;
+  }
+  const parent = directory.parent;
+  if (!parent.equals(root)) {
+    ensureDirectory(parent, root);
+  }
+  directory.create(Ci.nsIFile.DIRECTORY_TYPE, lazy.FileUtils.PERMS_DIRECTORY);
+}
+
+function extractXPIToDirectory(source, destination) {
+  if (destination.exists()) {
+    recursiveRemove(destination);
+  }
+  destination.create(Ci.nsIFile.DIRECTORY_TYPE, lazy.FileUtils.PERMS_DIRECTORY);
+
+  const zip = new ZipReader(source);
+  try {
+    for (const entry of zip.findEntries(null)) {
+      const isDirectory = entry.endsWith("/");
+      const path = isDirectory ? entry.slice(0, -1) : entry;
+      const parts = path.split("/");
+      if (
+        !path ||
+        path.startsWith("/") ||
+        path.includes("\\") ||
+        parts.some(part => !part || part === "." || part === "..")
+      ) {
+        throw new Error(`Unsafe path in packed add-on: ${entry}`);
+      }
+
+      const target = destination.clone();
+      for (const part of parts) {
+        target.append(part);
+      }
+
+      ensureDirectory(target.parent, destination);
+      try {
+        zip.extract(entry, target);
+      } catch (error) {
+        if (
+          !isDirectory ||
+          error.result !== Cr.NS_ERROR_FILE_DIR_NOT_EMPTY ||
+          !target.exists() ||
+          !target.isDirectory()
+        ) {
+          throw error;
+        }
+      }
+      if (!isDirectory) {
+        target.permissions |= lazy.FileUtils.PERMS_FILE;
+      }
+    }
+  } catch (error) {
+    recursiveRemove(destination);
+    throw error;
+  } finally {
+    zip.close();
+  }
+}
+
 XPCOMUtils.defineLazyServiceGetters(lazy, {
   gCertDB: ["@mozilla.org/security/x509certdb;1", Ci.nsIX509CertDB],
 });
@@ -681,9 +743,15 @@ function generateTemporaryInstallID(aFile) {
   return id;
 }
 
-var loadManifest = async function (aPackage, aLocation, aOldAddon) {
+var loadManifest = async function (
+  aPackage,
+  aLocation,
+  aOldAddon,
+  aLegacyAddon = aOldAddon
+) {
   let addon;
   let verifiedSignedState;
+  let hasLegacyManifest = false;
   if (await aPackage.hasResource("manifest.json")) {
     ({ addon, verifiedSignedState } = await loadManifestFromWebManifest(
       aPackage,
@@ -694,7 +762,12 @@ var loadManifest = async function (aPackage, aLocation, aOldAddon) {
     for (let loader of AddonManagerPrivate.externalExtensionLoaders.values()) {
       if (await aPackage.hasResource(loader.manifestFile)) {
         addon = await loader.loadManifest(aPackage);
-        addon.loader = loader.name;
+        hasLegacyManifest ||=
+          addon.startupData?.legacyManifest === "rdf" ||
+          Boolean(addon.startupData?.legacyMode);
+        if (addon.loader !== null) {
+          addon.loader = loader.name;
+        }
         verifiedSignedState = await aPackage.verifySignedState(
           addon.id,
           addon.type,
@@ -733,6 +806,28 @@ var loadManifest = async function (aPackage, aLocation, aOldAddon) {
     if (!addon.id && aLocation.isTemporary) {
       addon.id = generateTemporaryInstallID(aPackage.file);
     }
+  }
+
+  const resolvedLegacyAddon =
+    hasLegacyManifest &&
+    signedState > AddonManager.SIGNEDSTATE_MISSING &&
+    typeof aLegacyAddon === "function"
+      ? await aLegacyAddon(addon)
+      : aLegacyAddon;
+  const legacyAddonWasLegacy = Boolean(
+    resolvedLegacyAddon?.startupData?.legacyMode ||
+    resolvedLegacyAddon?.startupData?.legacyManifest === "rdf" ||
+    resolvedLegacyAddon?.loader === "bootstrap"
+  );
+  if (
+    hasLegacyManifest &&
+    !legacyAddonWasLegacy &&
+    !addon.isPrivileged &&
+    signedState > AddonManager.SIGNEDSTATE_MISSING
+  ) {
+    throw new Error(
+      `The legacy manifest key is unavailable to ordinary signed extension ${addon.id}`
+    );
   }
 
   addon.propagateDisabledState(aOldAddon);
@@ -774,13 +869,21 @@ var loadManifest = async function (aPackage, aLocation, aOldAddon) {
  *        The currently-installed add-on with the same ID, if one exist.
  *        This is used to migrate user settings like the add-on's
  *        disabled state.
+ * @param {AddonInternal|XPIState?} [aLegacyAddon = aOldAddon]
+ *        The installed add-on state used only to authorise updates containing
+ *        a legacy manifest.
  * @returns {AddonInternal}
  *        The parsed Addon object for the file's manifest.
  */
-var loadManifestFromFile = async function (aFile, aLocation, aOldAddon) {
+var loadManifestFromFile = async function (
+  aFile,
+  aLocation,
+  aOldAddon,
+  aLegacyAddon = aOldAddon
+) {
   let pkg = Package.get(aFile);
   try {
-    let addon = await loadManifest(pkg, aLocation, aOldAddon);
+    let addon = await loadManifest(pkg, aLocation, aOldAddon, aLegacyAddon);
     return addon;
   } finally {
     pkg.close();
@@ -1234,12 +1337,6 @@ SafeInstallOperation.prototype = {
       let move = this._installedFiles.pop();
       if (move.isMoveTo) {
         move.newFile.moveTo(move.oldDir.parent, move.oldDir.leafName);
-      } else if (move.newFile.isDirectory() && !move.newFile.isSymlink()) {
-        let oldDir = getFile(move.oldFile.leafName, move.oldFile.parent);
-        oldDir.create(
-          Ci.nsIFile.DIRECTORY_TYPE,
-          lazy.FileUtils.PERMS_DIRECTORY
-        );
       } else if (!move.oldFile) {
         // No old file means this was a copied file
         move.newFile.remove(true);
@@ -1599,7 +1696,13 @@ class AddonInstall {
 
     try {
       try {
-        this.addon = await loadManifest(pkg, this.location, this.existingAddon);
+        this.addon = await loadManifest(
+          pkg,
+          this.location,
+          this.existingAddon,
+          this.existingAddon ??
+            (addon => XPIExports.XPIDatabase.getVisibleAddonForID(addon.id))
+        );
         // Set the install.name property to the addon name if it is not set yet,
         // install.name is expected to be set to the addon name and used to
         // fill the addon name in the fluent strings when reporting install
@@ -1640,12 +1743,14 @@ class AddonInstall {
           ]);
         }
 
-        if (this.existingAddon.isWebExtension && !this.addon.isWebExtension) {
-          // This condition is never met on regular Firefox builds.
-          // Remove it along with externalExtensionLoaders (bug 1674799).
+        if (
+          this.existingAddon.isWebExtension &&
+          !this.addon.isWebExtension &&
+          this.addon.startupData?.legacyManifest !== "rdf"
+        ) {
           return Promise.reject([
             AddonManager.ERROR_UNEXPECTED_ADDON_TYPE,
-            "WebExtensions may not be updated to other extension types",
+            "WebExtensions may not be updated to unrelated extension loaders",
           ]);
         }
         if (this.existingAddon.type != this.addon.type) {
@@ -1958,6 +2063,7 @@ class AddonInstall {
         let file = await this.location.installer.installAddon({
           id: this.addon.id,
           source: stagedAddon,
+          unpack: this.addon.unpack,
         });
 
         // Update the metadata in the database
@@ -2015,7 +2121,10 @@ class AddonInstall {
       this._startupPromise = (async () => {
         if (!willActivate) {
           await install();
-        } else if (this.existingAddon) {
+        } else if (
+          XPIExports.XPIInternal.hasLifecycleScope(this.existingAddon) &&
+          XPIExports.XPIInternal.hasLifecycleScope(this.addon)
+        ) {
           await XPIExports.XPIInternal.BootstrapScope.get(
             this.existingAddon
           ).update(this.addon, !this.addon.disabled, install);
@@ -2024,11 +2133,24 @@ class AddonInstall {
             flushJarCache(this.file);
           }
         } else {
+          let reason = this.existingAddon
+            ? newVersionReason(this.existingAddon.version, this.addon.version)
+            : XPIExports.XPIInternal.BOOTSTRAP_REASONS.ADDON_INSTALL;
+          if (XPIExports.XPIInternal.hasLifecycleScope(this.existingAddon)) {
+            await XPIExports.XPIInternal.BootstrapScope.get(
+              this.existingAddon
+            ).uninstall(reason, { newVersion: this.addon.version });
+          }
+
+          let oldVersion = this.existingAddon?.version;
           await install();
-          await XPIExports.XPIInternal.BootstrapScope.get(this.addon).install(
-            undefined,
-            true
-          );
+          if (XPIExports.XPIInternal.hasLifecycleScope(this.addon)) {
+            await XPIExports.XPIInternal.BootstrapScope.get(this.addon).install(
+              reason,
+              true,
+              oldVersion ? { oldVersion } : undefined
+            );
+          }
         }
       })();
 
@@ -3576,13 +3698,17 @@ class DirectoryInstaller {
    *          The source files will be copied,
    *          "proxy"
    *          A "proxy file" is going to refer to the source file path
+   * @param {boolean} [options.unpack]
+   *        Whether to extract a packed add-on before installation.
    * @returns {nsIFile}
    *        An nsIFile indicating where the add-on was installed to
    */
-  installAddon({ id, source, action = "move" }) {
+  installAddon({ id, source, action = "move", unpack = false }) {
     let trashDir = this.getTrashDir();
 
     let transaction = new SafeInstallOperation();
+    let unpackedSource = null;
+    let installSource = source;
 
     let moveOldAddon = aId => {
       // We do not create unpacked directories any more since bug 1457072. This
@@ -3602,12 +3728,23 @@ class DirectoryInstaller {
     // If any of these operations fails the finally block will clean up the
     // temporary directory
     try {
+      if (unpack && source.isFile()) {
+        const unpackRoot = getFile("unpacked", trashDir);
+        unpackRoot.createUnique(
+          Ci.nsIFile.DIRECTORY_TYPE,
+          lazy.FileUtils.PERMS_DIRECTORY
+        );
+        unpackedSource = getFile(id, unpackRoot);
+        extractXPIToDirectory(source, unpackedSource);
+        installSource = unpackedSource;
+      }
+
       moveOldAddon(id);
       if (action == "copy") {
-        transaction.copy(source, this.dir);
+        transaction.copy(installSource, this.dir);
       } else if (action == "move") {
         flushJarCache(source);
-        transaction.moveUnder(source, this.dir);
+        transaction.moveUnder(installSource, this.dir);
       }
       // Do nothing for the proxy file as we sideload an addon permanently
     } finally {
@@ -3632,7 +3769,14 @@ class DirectoryInstaller {
 
       writeStringToFile(newFile, source.path);
     } else {
-      newFile.append(source.leafName);
+      newFile.append(unpackedSource ? id : source.leafName);
+      if (unpackedSource && action == "move" && source.exists()) {
+        try {
+          source.remove(false);
+        } catch (error) {
+          logger.warn(`Failed to remove packed source ${source.path}`, error);
+        }
+      }
     }
 
     try {
@@ -4364,6 +4508,7 @@ export var XPIInstall = {
       id,
       source: file,
       action: "copy",
+      unpack: addon.unpack,
     });
 
     XPIExports.XPIInternal.XPIStates.addAddon(addon);
@@ -4398,7 +4543,17 @@ export var XPIInstall = {
       throw new Error(`Ignoring invalid staging directory entry: ${id}`);
     }
 
-    let addon = await loadManifestFromFile(source, location);
+    let legacyAddon = XPIExports.XPIInternal.XPIStates.findAddon(
+      id,
+      addonLocation => addonLocation !== location
+    );
+    legacyAddon ??= location.get(id);
+    let addon = await loadManifestFromFile(
+      source,
+      location,
+      undefined,
+      legacyAddon
+    );
 
     if (
       XPIExports.XPIDatabase.mustSign(addon.type) &&
@@ -4430,6 +4585,7 @@ export var XPIInstall = {
       addon.sourceBundle = location.installer.installAddon({
         id,
         source,
+        unpack: addon.unpack,
       });
       XPIExports.XPIInternal.XPIStates.addAddon(addon);
     } catch (e) {
