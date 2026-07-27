@@ -210,6 +210,33 @@ const LOGGER_ID = "addons.xpi";
 // (Requires AddonManager.sys.mjs)
 var logger = Log.repository.getLogger(LOGGER_ID);
 
+function copyLifecycleError(error) {
+  let message;
+  try {
+    message = error?.message;
+  } catch {}
+  if (typeof message !== "string") {
+    try {
+      message = String(error);
+    } catch {
+      message = "Add-on lifecycle error";
+    }
+  }
+
+  const copy = new Error(message);
+  try {
+    if (typeof error?.name === "string") {
+      copy.name = error.name;
+    }
+  } catch {}
+  try {
+    if (typeof error?.stack === "string") {
+      copy.stack = error.stack;
+    }
+  } catch {}
+  return copy;
+}
+
 /**
  * Spins the event loop until the given promise resolves, and then eiter returns
  * its success value or throws its rejection value.
@@ -1847,10 +1874,7 @@ var XPIStates = {
     aAddon.location.addAddon(aAddon);
   },
 
-  /**
-   * Save the current state of installed add-ons.
-   */
-  save() {
+  _ensureJSONFile() {
     if (!this._jsonFile) {
       this._jsonFile = new lazy.JSONFile({
         path: PathUtils.join(
@@ -1889,8 +1913,23 @@ var XPIStates = {
       });
       this._jsonFile.data = this;
     }
+    return this._jsonFile;
+  },
 
-    this._jsonFile.saveSoon();
+  /**
+   * Save the current state of installed add-ons.
+   */
+  save() {
+    this._ensureJSONFile().saveSoon();
+  },
+
+  async saveImmediately() {
+    const jsonFile = this._ensureJSONFile();
+    jsonFile._saver.disarm();
+    if (jsonFile._saver.isRunning) {
+      await jsonFile._saver._runningPromise;
+    }
+    return jsonFile._save();
   },
 
   toJSON() {
@@ -1953,6 +1992,9 @@ class BootstrapScope {
     this.instanceID = null;
     this.scope = null;
     this.started = false;
+    this.abortOnLifecycleError = false;
+    this._pendingDisable = false;
+    this._pendingUpdate = null;
   }
 
   /**
@@ -2030,17 +2072,17 @@ class BootstrapScope {
       }
 
       let method = undefined;
+      let methodFailed = false;
       let { scope } = this;
       try {
         method = scope[aMethod];
       } catch (e) {
+        methodFailed = true;
         // An exception will be caught if the expected method is not defined.
         // That will be logged below.
       }
 
-      if (aMethod == "startup") {
-        this.started = true;
-      } else if (aMethod == "shutdown") {
+      if (aMethod == "shutdown") {
         this.started = false;
 
         // Extensions are automatically deinitialized in the correct order at shutdown.
@@ -2097,11 +2139,18 @@ class BootstrapScope {
         try {
           result = await method.call(scope, params, aReason);
         } catch (e) {
+          methodFailed = true;
           logger.warn(
             `Exception running bootstrap method ${aMethod} on ${addon.id}`,
             e
           );
+          if (this.abortOnLifecycleError && scope.fatalLifecycleErrors) {
+            throw copyLifecycleError(e);
+          }
         }
+      }
+      if (aMethod == "startup" && !methodFailed) {
+        this.started = true;
       }
       return result;
     } finally {
@@ -2300,7 +2349,19 @@ class BootstrapScope {
     }
 
     if (startup && this.addon.active) {
-      await this.startup(reason, extraArgs);
+      try {
+        await this.startup(reason, extraArgs);
+      } catch (error) {
+        try {
+          await this.callBootstrapMethod("shutdown", reason, extraArgs);
+        } catch (shutdownError) {
+          logger.warn(
+            `Exception cleaning up failed startup on ${this.addon.id}`,
+            shutdownError
+          );
+        }
+        throw error;
+      }
     } else if (this.addon.disabled) {
       this.unloadBootstrapScope();
     }
@@ -3105,7 +3166,6 @@ export var XPIProvider = {
     for (let [id, addon] of tempLocation.entries()) {
       tempLocation.delete(id);
 
-      let bootstrap = BootstrapScope.get(addon);
       let existing = XPIStates.findAddon(id, loc => !loc.isTemporary);
 
       let cleanup = () => {
@@ -3113,6 +3173,7 @@ export var XPIProvider = {
         tempLocation.removeAddon(id);
       };
 
+      let bootstrap = BootstrapScope.get(addon);
       let promise;
       if (existing) {
         promise = bootstrap.update(existing, false, () => {
