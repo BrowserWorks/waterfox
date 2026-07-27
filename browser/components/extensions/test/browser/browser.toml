@@ -70,6 +70,9 @@ tags = "bleedover"
 
 ["browser_ext_lastError.js"]
 
+["browser_ext_legacy_xul_bridge.js"]
+prefs = ["browser.newtab.preload=false"]
+
 ["browser_ext_management.js"]
 
 ["browser_ext_mousewheel_zoom.js"]
