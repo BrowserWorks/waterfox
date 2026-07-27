@@ -372,9 +372,10 @@ struct CachedDirective {
 }  // namespace
 
 void ParseManifest(NSLocationType aType, FileLocation& aFile, char* aBuf,
-                   bool aChromeOnly) {
-  nsComponentManagerImpl::ManifestProcessingContext mgrcx(aType, aFile,
-                                                          aChromeOnly);
+                   bool aChromeOnly,
+                   nsComponentManagerImpl::ManifestLocationSet* aVisited) {
+  nsComponentManagerImpl::ManifestProcessingContext mgrcx(
+      aType, aFile, aChromeOnly, aVisited);
   nsChromeRegistry::ManifestProcessingContext chromecx(aType, aFile);
   nsresult rv;
 
@@ -398,6 +399,8 @@ void ParseManifest(NSLocationType aType, FileLocation& aFile, char* aBuf,
   constexpr auto kContent = u"content"_ns;
 
   // Obsolete
+  constexpr auto kRemoteEnabled = u"remoteenabled"_ns;
+  constexpr auto kRemoteRequired = u"remoterequired"_ns;
   constexpr auto kXPCNativeWrappers = u"xpcnativewrappers"_ns;
 
   nsAutoString appID;
@@ -526,6 +529,13 @@ void ParseManifest(NSLocationType aType, FileLocation& aFile, char* aBuf,
       continue;
     }
 
+    if (!directive->ischrome && aType == NS_BOOTSTRAPPED_LOCATION) {
+      LogMessageWithContext(
+          aFile, line,
+          "Bootstrapped manifest not allowed to use '%s' directive.", token);
+      continue;
+    }
+
     NS_ASSERTION(directive->argc < 4, "Need to reset argv array length");
     char* argv[4];
     for (int i = 0; i < directive->argc; ++i) {
@@ -601,6 +611,14 @@ void ParseManifest(NSLocationType aType, FileLocation& aFile, char* aBuf,
         bool flag;
         if (CheckFlag(kContentAccessible, wtoken, flag)) {
           if (flag) flags |= nsChromeRegistry::CONTENT_ACCESSIBLE;
+          continue;
+        }
+        if (aType == NS_BOOTSTRAPPED_LOCATION &&
+            (CheckFlag(kRemoteEnabled, wtoken, flag) ||
+             CheckFlag(kRemoteRequired, wtoken, flag))) {
+          LogMessageWithContext(
+              aFile, line,
+              "Ignoring obsolete chrome registration modifier '%s'.", token);
           continue;
         }
       }
