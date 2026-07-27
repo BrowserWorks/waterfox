@@ -17,10 +17,10 @@ const TEMP_RAW_FAILURE_ID = "temporary-raw-failure@tests.waterfox.net";
 const TEMP_REPLACEMENT_ID = "temporary-replacement@tests.waterfox.net";
 const CROSS_LOCATION_ID = "cross-location-classic@tests.waterfox.net";
 const CROSS_LOCATION_CRASH_ID = "cross-location-crash@tests.waterfox.net";
-
+const PERSISTENCE_CRASH_ID = "persistence-crash@tests.waterfox.net";
 const ACTUAL_CLASSIC_UPDATE_ID = "actual-classic-update@tests.waterfox.net";
 const RETAINED_SCOPE_ID = "retained-scope@tests.waterfox.net";
-
+const APP_SHUTDOWN_ID = "app-shutdown-classic@tests.waterfox.net";
 const SIGNING_MATRIX_IDS = {
   unsigned: "legacy-unsigned@tests.waterfox.net",
   ordinary: "legacy-ordinary@tests.waterfox.net",
@@ -160,6 +160,30 @@ function createDictionaryXPI() {
     "dictionaries/zz_ZZ.aff": "",
     "dictionaries/zz_Latn_ZZ.dic": "",
     "dictionaries/zz_Latn_ZZ.aff": "",
+  });
+}
+
+function createClassicXPI() {
+  return AddonTestUtils.createTempXPIFile({
+    "install.rdf": createInstallRDF(`
+    <em:id>${CLASSIC_ID}</em:id>
+    <em:type>2</em:type>
+    <em:name>Classic RDF extension</em:name>
+    <em:version>1.0</em:version>
+    <em:bootstrap>false</em:bootstrap>
+    <em:unpack>true</em:unpack>
+    <em:optionsURL>chrome://classic-loader/content/options.xhtml</em:optionsURL>
+    <em:optionsType>3</em:optionsType>
+    <em:targetApplication>
+      <Description>
+        <em:id>${APP_ID}</em:id>
+        <em:minVersion>1</em:minVersion>
+        <em:maxVersion>*</em:maxVersion>
+      </Description>
+    </em:targetApplication>
+    `),
+    "chrome.manifest": "content classic-loader content/",
+    "content/options.xhtml": "<window/>",
   });
 }
 
@@ -385,6 +409,18 @@ function createHybridBootstrapXPI(id, version, options = {}) {
   });
 }
 
+function createClassicVersionXPI(id, version, chromePackage) {
+  return AddonTestUtils.createTempXPIFile(
+    createRawClassicFiles(
+      id,
+      `Classic ${version}`,
+      chromePackage,
+      version,
+      version
+    )
+  );
+}
+
 function getP0Events(id = null) {
   const events = Services.prefs
     .getStringPref(P0_EVENTS_PREF, "")
@@ -397,12 +433,98 @@ function clearP0Events() {
   Services.prefs.clearUserPref(P0_EVENTS_PREF);
 }
 
+async function readAddonStateSnapshot() {
+  return {
+    startup: await IOUtils.readJSON(AddonTestUtils.addonStartup.path, {
+      decompress: true,
+    }),
+    database: await IOUtils.readJSON(gExtensionsJSON.path),
+  };
+}
+
+async function writeAddonStateSnapshot({ startup, database }) {
+  await IOUtils.writeJSON(AddonTestUtils.addonStartup.path, startup, {
+    tmpPath: `${AddonTestUtils.addonStartup.path}.tmp`,
+    compress: true,
+  });
+  await IOUtils.writeJSON(gExtensionsJSON.path, database, {
+    tmpPath: `${gExtensionsJSON.path}.tmp`,
+  });
+}
+
+async function removeAddonFromStateSnapshot(id) {
+  const snapshot = await readAddonStateSnapshot();
+  snapshot.database.addons = snapshot.database.addons.filter(
+    addon => addon.id !== id
+  );
+  for (const location of Object.values(snapshot.startup)) {
+    if (location.addons) {
+      delete location.addons[id];
+    }
+    if (location.staged) {
+      delete location.staged[id];
+    }
+  }
+  await writeAddonStateSnapshot(snapshot);
+  Services.prefs.setBoolPref("extensions.pendingOperations", false);
+}
+
 async function copyNamedXPI(source, id) {
   const target = do_get_tempdir();
   target.append(`${id}.xpi`);
   await IOUtils.remove(target.path, { ignoreAbsent: true });
   await IOUtils.copy(source.path, target.path);
   return target;
+}
+
+function getAppExtensionsDir() {
+  const appRoot = Services.dirsvc.get("XREAddonAppDir", Ci.nsIFile);
+  const extensions = appRoot.clone();
+  extensions.append("extensions");
+  if (!extensions.exists()) {
+    extensions.create(Ci.nsIFile.DIRECTORY_TYPE, 0o755);
+  }
+  return extensions;
+}
+
+async function cleanupClassicProviderTest(
+  id,
+  appTargetPath,
+  managerRunning,
+  enabledScopes,
+  sideloadScopes
+) {
+  if (managerRunning) {
+    await promiseShutdownManager();
+  }
+  for (const path of [
+    PathUtils.join(AddonTestUtils.profileExtensions.path, `${id}.xpi`),
+    PathUtils.join(AddonTestUtils.profileExtensions.path, id),
+    PathUtils.join(
+      AddonTestUtils.profileExtensions.path,
+      "staged",
+      `${id}.xpi`
+    ),
+    appTargetPath,
+  ]) {
+    if (path) {
+      await IOUtils.remove(path, { recursive: true, ignoreAbsent: true });
+    }
+  }
+  await removeAddonFromStateSnapshot(id);
+  Services.prefs.setIntPref("extensions.enabledScopes", enabledScopes);
+  Services.prefs.setIntPref("extensions.sideloadScopes", sideloadScopes);
+  await promiseStartupManager();
+}
+
+async function readChromeMarker(chromePackage) {
+  const registry = Cc["@mozilla.org/chrome/chrome-registry;1"].getService(
+    Ci.nsIChromeRegistry
+  );
+  const uri = registry.convertChromeURL(
+    Services.io.newURI(`chrome://${chromePackage}/content/marker.txt`)
+  );
+  return (await fetch(uri.spec)).text();
 }
 
 function getBootstrapEvents() {
@@ -1646,6 +1768,61 @@ add_task(async function test_ordinary_signed_rdf_is_rejected() {
   }
 });
 
+add_task(async function test_current_hybrid_grandfathering() {
+  const previousRealCertChecks = gUseRealCertChecks;
+  const previousPrivilegedSignatures = AddonTestUtils.usePrivilegedSignatures;
+  let managerRunning = true;
+  try {
+    gUseRealCertChecks = true;
+    let addon = (
+      await promiseInstallFile(
+        createHybridBootstrapXPI(GRANDFATHERED_HYBRID_ID, "1.0")
+      )
+    ).addon;
+    Assert.ok(addon.isActive);
+
+    await promiseShutdownManager();
+    managerRunning = false;
+    const snapshot = await readAddonStateSnapshot();
+    const databaseAddon = snapshot.database.addons.find(
+      candidate => candidate.id === GRANDFATHERED_HYBRID_ID
+    );
+    const startupAddon =
+      snapshot.startup["app-profile"].addons[GRANDFATHERED_HYBRID_ID];
+    Assert.ok(databaseAddon);
+    Assert.ok(startupAddon);
+    for (const field of ["bootstrap", "unpack", "startupData"]) {
+      delete databaseAddon[field];
+      delete startupAddon[field];
+    }
+    databaseAddon.signedState = AddonManager.SIGNEDSTATE_SIGNED;
+    startupAddon.signedState = AddonManager.SIGNEDSTATE_SIGNED;
+    snapshot.database.schemaVersion = 37;
+    Services.prefs.setIntPref("extensions.databaseSchema", 37);
+    await writeAddonStateSnapshot(snapshot);
+
+    gUseRealCertChecks = false;
+    AddonTestUtils.usePrivilegedSignatures = false;
+    await promiseStartupManager();
+    managerRunning = true;
+
+    addon = await AddonManager.getAddonByID(GRANDFATHERED_HYBRID_ID);
+    Assert.ok(addon?.isActive, "The installed hybrid remains active");
+    Assert.equal(addon.signedState, AddonManager.SIGNEDSTATE_SIGNED);
+    Assert.deepEqual(addon.__AddonInternal__.startupData, {
+      legacyLoader: "bootstrap",
+      legacyMode: "bootstrap",
+    });
+    await addon.uninstall();
+  } finally {
+    gUseRealCertChecks = previousRealCertChecks;
+    AddonTestUtils.usePrivilegedSignatures = previousPrivilegedSignatures;
+    if (!managerRunning) {
+      await promiseStartupManager();
+    }
+  }
+});
+
 add_task(async function test_waterfox_legacy_signing_state_matrix() {
   const previousRealCertChecks = gUseRealCertChecks;
   const previousPrivilegedSignatures = AddonTestUtils.usePrivilegedSignatures;
@@ -1930,6 +2107,127 @@ add_task(async function test_bootstrap_lifecycle_order() {
   clearBootstrapEvents();
 });
 
+add_task(async function test_staged_lifecycle_journal_recovery() {
+  const destination = AddonTestUtils.profileExtensions.clone();
+  destination.append(`${BOOTSTRAP_ID}.xpi`);
+  const stagingDir = AddonTestUtils.profileExtensions.clone();
+  stagingDir.append("staged");
+  const staged = stagingDir.clone();
+  staged.append(`${BOOTSTRAP_ID}.xpi`);
+  const v1XPI = createLifecycleBootstrapXPI("1.0");
+  const v2XPI = createLifecycleBootstrapXPI("2.0");
+
+  const readSnapshot = async () => ({
+    startup: await IOUtils.readJSON(AddonTestUtils.addonStartup.path, {
+      decompress: true,
+    }),
+    database: await IOUtils.readJSON(gExtensionsJSON.path),
+  });
+  const writeSnapshot = async ({ startup, database }) => {
+    await IOUtils.writeJSON(AddonTestUtils.addonStartup.path, startup, {
+      tmpPath: `${AddonTestUtils.addonStartup.path}.tmp`,
+      compress: true,
+    });
+    await IOUtils.writeJSON(gExtensionsJSON.path, database, {
+      tmpPath: `${gExtensionsJSON.path}.tmp`,
+    });
+  };
+  const replaceFile = async (source, target, lastModifiedTime) => {
+    await IOUtils.remove(target.path, { ignoreAbsent: true });
+    await IOUtils.copy(source.path, target.path);
+    target.lastModifiedTime = lastModifiedTime;
+    return target.clone().lastModifiedTime;
+  };
+  const assertFinalized = async () => {
+    const { startup } = await readSnapshot();
+    Assert.ok(
+      !startup["app-profile"]?.staged?.[BOOTSTRAP_ID],
+      "The completed staged journal should be removed"
+    );
+    Assert.ok(
+      !(await IOUtils.exists(staged.path)),
+      "The staged source should be removed after journal finalization"
+    );
+  };
+
+  clearBootstrapEvents();
+  const install = await promiseInstallFile(v1XPI);
+  Assert.equal(install.addon.version, "1.0");
+  const stagedInstall = await AddonManager.getInstallForFile(v2XPI);
+  const stagedMetadata = stagedInstall.addon.__AddonInternal__.toJSON();
+  stagedInstall.cancel();
+  await promiseShutdownManager();
+  clearBootstrapEvents();
+
+  const v1Snapshot = await readSnapshot();
+  const v1ModifiedTime =
+    v1Snapshot.startup["app-profile"].addons[BOOTSTRAP_ID].lastModifiedTime;
+  const v2ModifiedTime = await replaceFile(
+    v2XPI,
+    destination,
+    v1ModifiedTime + 1000
+  );
+  await IOUtils.makeDirectory(stagingDir.path, { ignoreExisting: true });
+  await IOUtils.copy(v2XPI.path, staged.path);
+
+  const startup = structuredClone(v1Snapshot.startup);
+  const location = startup["app-profile"];
+  const state = location.addons[BOOTSTRAP_ID];
+  state.lastModifiedTime = v2ModifiedTime;
+  state.version = "2.0";
+  state.telemetryKey = `${BOOTSTRAP_ID}:2.0`;
+  location.staged ??= {};
+  location.staged[BOOTSTRAP_ID] = {
+    type: "install",
+    metadata: structuredClone(stagedMetadata),
+    lifecycleStarted: true,
+    filesComplete: true,
+  };
+  await writeSnapshot({
+    startup,
+    database: structuredClone(v1Snapshot.database),
+  });
+  BootstrapMonitor.clear(BOOTSTRAP_ID);
+
+  await promiseStartupManager();
+  let addon = await AddonManager.getAddonByID(BOOTSTRAP_ID);
+  Assert.equal(addon?.version, "2.0");
+  Assert.ok(addon.isActive);
+  Assert.deepEqual(getBootstrapEvents(), [
+    `install:${BOOTSTRAP_REASONS.ADDON_UPGRADE}`,
+    `startup:${BOOTSTRAP_REASONS.ADDON_UPGRADE}`,
+  ]);
+  await assertFinalized();
+
+  await promiseShutdownManager();
+  clearBootstrapEvents();
+  const v2Snapshot = await readSnapshot();
+  await IOUtils.remove(destination.path);
+
+  const uninstallStartup = structuredClone(v2Snapshot.startup);
+  const uninstallLocation = uninstallStartup["app-profile"];
+  delete uninstallLocation.addons[BOOTSTRAP_ID];
+  uninstallLocation.staged ??= {};
+  uninstallLocation.staged[BOOTSTRAP_ID] = {
+    type: "uninstall",
+    lifecycleStarted: true,
+    lifecycleComplete: true,
+    filesComplete: true,
+  };
+  await writeSnapshot({
+    startup: uninstallStartup,
+    database: structuredClone(v2Snapshot.database),
+  });
+  BootstrapMonitor.clear(BOOTSTRAP_ID);
+
+  await promiseStartupManager();
+  addon = await AddonManager.getAddonByID(BOOTSTRAP_ID);
+  Assert.equal(addon, null);
+  Assert.deepEqual(getBootstrapEvents(), []);
+  await assertFinalized();
+  clearBootstrapEvents();
+});
+
 add_task(async function test_dictionary_uses_generic_scope() {
   const install = await promiseInstallFile(createDictionaryXPI());
   const addon = install.addon;
@@ -1952,4 +2250,1017 @@ add_task(async function test_dictionary_uses_generic_scope() {
   });
 
   await addon.uninstall();
+});
+
+add_task(async function test_classic_restart_operations() {
+  const chromeRegistry = Cc["@mozilla.org/chrome/chrome-registry;1"].getService(
+    Ci.nsIChromeRegistry
+  );
+  const classicURL = Services.io.newURI(
+    "chrome://classic-loader/content/options.xhtml"
+  );
+  const assertChromeRegistered = message =>
+    Assert.ok(
+      chromeRegistry
+        .convertChromeURL(classicURL)
+        .spec.endsWith("/content/options.xhtml"),
+      message
+    );
+  const assertChromeMissing = message =>
+    Assert.throws(
+      () => chromeRegistry.convertChromeURL(classicURL),
+      error => error.result === Cr.NS_ERROR_FILE_NOT_FOUND,
+      message
+    );
+
+  const install = await promiseInstallFile(createClassicXPI());
+  let addon = install.addon;
+  Assert.ok(!addon.isActive);
+  Assert.equal(addon.pendingOperations, AddonManager.PENDING_INSTALL);
+  Assert.ok(
+    hasFlag(
+      addon.operationsRequiringRestart,
+      AddonManager.OP_NEEDS_RESTART_INSTALL
+    )
+  );
+  assertChromeMissing("Classic chrome should wait for the install restart");
+
+  await promiseRestartManager();
+  addon = await AddonManager.getAddonByID(CLASSIC_ID);
+  Assert.ok(addon?.isActive);
+  Assert.equal(addon.id, CLASSIC_ID);
+  Assert.equal(addon.name, "Classic RDF extension");
+  Assert.equal(addon.version, "1.0");
+  Assert.equal(addon.manifestVersion, 2);
+  Assert.equal(addon.pendingOperations, AddonManager.PENDING_NONE);
+  Assert.equal(addon.optionsType, AddonManager.OPTIONS_TYPE_TAB);
+  Assert.deepEqual(addon.__AddonInternal__.startupData, {
+    legacyMode: "xul",
+    legacyManifest: "rdf",
+  });
+  Assert.ok(addon.__AddonInternal__.unpack);
+  Assert.ok(
+    addon.__AddonInternal__.sourceBundle.isDirectory(),
+    "em:unpack installs the classic extension as a directory"
+  );
+  Assert.ok(
+    hasFlag(
+      addon.operationsRequiringRestart,
+      AddonManager.OP_NEEDS_RESTART_DISABLE
+    )
+  );
+  Assert.ok(
+    hasFlag(
+      addon.operationsRequiringRestart,
+      AddonManager.OP_NEEDS_RESTART_UNINSTALL
+    )
+  );
+  assertChromeRegistered("Classic chrome should load after restart");
+  Assert.ok(
+    ExtensionSupport.loadedLegacyExtensions.has(CLASSIC_ID),
+    "The compatibility state tracks the active classic extension"
+  );
+
+  await addon.disable();
+  Assert.ok(addon.userDisabled);
+  Assert.ok(addon.isActive);
+  Assert.equal(addon.pendingOperations, AddonManager.PENDING_DISABLE);
+  Assert.ok(
+    hasFlag(
+      addon.operationsRequiringRestart,
+      AddonManager.OP_NEEDS_RESTART_DISABLE
+    )
+  );
+  assertChromeRegistered("Pending disable must not unload classic chrome");
+
+  await addon.enable();
+  Assert.ok(!addon.userDisabled);
+  Assert.ok(addon.isActive);
+  Assert.equal(addon.pendingOperations, AddonManager.PENDING_NONE);
+  assertChromeRegistered("Cancelling disable must leave classic chrome loaded");
+
+  await addon.disable();
+  Assert.ok(addon.isActive);
+  Assert.equal(addon.pendingOperations, AddonManager.PENDING_DISABLE);
+  assertChromeRegistered("Classic chrome must remain until disable restart");
+
+  await promiseRestartManager();
+  addon = await AddonManager.getAddonByID(CLASSIC_ID);
+  Assert.ok(addon);
+  Assert.ok(addon.userDisabled);
+  Assert.ok(!addon.isActive);
+  Assert.equal(addon.pendingOperations, AddonManager.PENDING_NONE);
+  Assert.ok(
+    hasFlag(
+      addon.operationsRequiringRestart,
+      AddonManager.OP_NEEDS_RESTART_ENABLE
+    )
+  );
+  Assert.ok(
+    !hasFlag(
+      addon.operationsRequiringRestart,
+      AddonManager.OP_NEEDS_RESTART_UNINSTALL
+    )
+  );
+  assertChromeMissing("Disabled classic chrome should be absent after restart");
+  Assert.ok(
+    !ExtensionSupport.loadedLegacyExtensions.has(CLASSIC_ID),
+    "The compatibility state omits the disabled classic extension"
+  );
+
+  await addon.enable();
+  Assert.ok(!addon.userDisabled);
+  Assert.ok(!addon.isActive);
+  Assert.equal(addon.pendingOperations, AddonManager.PENDING_ENABLE);
+  Assert.ok(
+    hasFlag(
+      addon.operationsRequiringRestart,
+      AddonManager.OP_NEEDS_RESTART_ENABLE
+    )
+  );
+  assertChromeMissing("Pending enable must not load classic chrome early");
+
+  await addon.disable();
+  Assert.ok(addon.userDisabled);
+  Assert.ok(!addon.isActive);
+  Assert.equal(addon.pendingOperations, AddonManager.PENDING_NONE);
+  assertChromeMissing("Cancelling enable must leave classic chrome unloaded");
+
+  await addon.enable();
+  Assert.ok(!addon.isActive);
+  Assert.equal(addon.pendingOperations, AddonManager.PENDING_ENABLE);
+  await promiseRestartManager();
+  addon = await AddonManager.getAddonByID(CLASSIC_ID);
+  Assert.ok(addon?.isActive);
+  Assert.ok(!addon.userDisabled);
+  Assert.equal(addon.pendingOperations, AddonManager.PENDING_NONE);
+  assertChromeRegistered("Classic chrome should reload after enable restart");
+  Assert.ok(
+    ExtensionSupport.loadedLegacyExtensions.has(CLASSIC_ID),
+    "The compatibility state returns after the enable restart"
+  );
+
+  await addon.uninstall();
+  Assert.ok(addon.isActive);
+  Assert.equal(addon.pendingOperations, AddonManager.PENDING_UNINSTALL);
+  Assert.ok(
+    hasFlag(
+      addon.operationsRequiringRestart,
+      AddonManager.OP_NEEDS_RESTART_UNINSTALL
+    )
+  );
+  assertChromeRegistered("Pending uninstall must not unload classic chrome");
+
+  await addon.cancelUninstall();
+  Assert.ok(addon.isActive);
+  Assert.equal(addon.pendingOperations, AddonManager.PENDING_NONE);
+  assertChromeRegistered("Cancelling uninstall must preserve classic chrome");
+
+  await addon.uninstall();
+  Assert.ok(addon.isActive);
+  Assert.equal(addon.pendingOperations, AddonManager.PENDING_UNINSTALL);
+  assertChromeRegistered("Classic chrome must remain until uninstall restart");
+
+  await promiseRestartManager();
+  Assert.equal(await AddonManager.getAddonByID(CLASSIC_ID), null);
+  assertChromeMissing(
+    "Uninstalled classic chrome should be absent after restart"
+  );
+  Assert.ok(
+    !ExtensionSupport.loadedLegacyExtensions.has(CLASSIC_ID),
+    "The compatibility state is removed after uninstall"
+  );
+});
+
+add_task(async function test_raw_classic_sideloads() {
+  const packedName = "Raw packed RDF extension";
+  const unpackedName = "Raw unpacked RDF extension";
+  const packedChromePackage = "raw-packed-xul";
+  const unpackedChromePackage = "raw-unpacked-xul";
+  const profileExtensions = AddonTestUtils.profileExtensions.clone();
+  const packedPath = PathUtils.join(
+    profileExtensions.path,
+    `${RAW_PACKED_ID}.xpi`
+  );
+  const unpackedPath = PathUtils.join(profileExtensions.path, RAW_UNPACKED_ID);
+  const chromeRegistry = Cc["@mozilla.org/chrome/chrome-registry;1"].getService(
+    Ci.nsIChromeRegistry
+  );
+  const chromeURL = chromePackage =>
+    Services.io.newURI(`chrome://${chromePackage}/content/marker.txt`);
+  const assertChromeRegistered = (chromePackage, message) =>
+    Assert.ok(
+      chromeRegistry
+        .convertChromeURL(chromeURL(chromePackage))
+        .spec.endsWith("/content/marker.txt"),
+      message
+    );
+  const assertChromeMissing = (chromePackage, message) =>
+    Assert.throws(
+      () => chromeRegistry.convertChromeURL(chromeURL(chromePackage)),
+      error => error.result === Cr.NS_ERROR_FILE_NOT_FOUND,
+      message
+    );
+  const removeSideloads = async () => {
+    await IOUtils.remove(packedPath, { ignoreAbsent: true });
+    await IOUtils.remove(unpackedPath, {
+      recursive: true,
+      ignoreAbsent: true,
+    });
+  };
+
+  let clean = false;
+  let managerRunning = true;
+  try {
+    await promiseShutdownManager();
+    managerRunning = false;
+    await removeSideloads();
+
+    const packedXPI = AddonTestUtils.createTempXPIFile(
+      createRawClassicFiles(RAW_PACKED_ID, packedName, packedChromePackage)
+    );
+    const unpackedXPI = AddonTestUtils.createTempXPIFile(
+      createRawClassicFiles(
+        RAW_UNPACKED_ID,
+        unpackedName,
+        unpackedChromePackage
+      )
+    );
+    const packedTarget = await AddonTestUtils.manuallyInstall(
+      packedXPI,
+      profileExtensions,
+      RAW_PACKED_ID,
+      false
+    );
+    const unpackedTarget = await AddonTestUtils.manuallyInstall(
+      unpackedXPI,
+      profileExtensions,
+      RAW_UNPACKED_ID,
+      true
+    );
+    Assert.ok(packedTarget.isFile(), "Packed sideload is an XPI");
+    Assert.ok(unpackedTarget.isDirectory(), "Unpacked sideload is a directory");
+
+    await promiseStartupManager();
+    managerRunning = true;
+    const addons = await AddonManager.getAddonsByIDs([
+      RAW_PACKED_ID,
+      RAW_UNPACKED_ID,
+    ]);
+    for (const [addon, id, name] of [
+      [addons[0], RAW_PACKED_ID, packedName],
+      [addons[1], RAW_UNPACKED_ID, unpackedName],
+    ]) {
+      Assert.ok(addon, `${name} is discovered`);
+      Assert.equal(addon.id, id);
+      Assert.equal(addon.name, name);
+      Assert.ok(addon.isActive, `${name} is active after startup`);
+      Assert.equal(addon.pendingOperations, AddonManager.PENDING_NONE);
+      Assert.deepEqual(addon.__AddonInternal__.startupData, {
+        legacyMode: "xul",
+        legacyManifest: "rdf",
+      });
+      Assert.ok(
+        hasFlag(
+          addon.operationsRequiringRestart,
+          AddonManager.OP_NEEDS_RESTART_UNINSTALL
+        ),
+        `${name} remains restart-required`
+      );
+    }
+    assertChromeRegistered(
+      packedChromePackage,
+      "Packed sideload chrome is registered"
+    );
+    assertChromeRegistered(
+      unpackedChromePackage,
+      "Unpacked sideload chrome is registered"
+    );
+
+    await promiseShutdownManager();
+    managerRunning = false;
+    await removeSideloads();
+    await promiseStartupManager();
+    managerRunning = true;
+
+    Assert.equal(await AddonManager.getAddonByID(RAW_PACKED_ID), null);
+    Assert.equal(await AddonManager.getAddonByID(RAW_UNPACKED_ID), null);
+    assertChromeMissing(
+      packedChromePackage,
+      "Packed sideload chrome is removed"
+    );
+    assertChromeMissing(
+      unpackedChromePackage,
+      "Unpacked sideload chrome is removed"
+    );
+    clean = true;
+  } finally {
+    if (!clean) {
+      if (managerRunning) {
+        await promiseShutdownManager();
+        managerRunning = false;
+      }
+      await removeSideloads();
+      if (!managerRunning) {
+        await promiseStartupManager();
+      }
+    }
+  }
+});
+
+add_task(async function test_locked_classic_sideload_uninstall() {
+  const appRoot = Services.dirsvc.get("XREAddonAppDir", Ci.nsIFile);
+  const appExtensions = appRoot.clone();
+  appExtensions.append("extensions");
+  if (!appExtensions.exists()) {
+    appExtensions.create(Ci.nsIFile.DIRECTORY_TYPE, 0o755);
+  }
+
+  const xpi = AddonTestUtils.createTempXPIFile(
+    createRawClassicFiles(
+      LOCKED_SIDELOAD_ID,
+      "Locked classic sideload",
+      "locked-sideload-xul"
+    )
+  );
+  const targetPath = PathUtils.join(
+    appExtensions.path,
+    `${LOCKED_SIDELOAD_ID}.xpi`
+  );
+  const chromeRegistry = Cc["@mozilla.org/chrome/chrome-registry;1"].getService(
+    Ci.nsIChromeRegistry
+  );
+  const chromeURL = Services.io.newURI(
+    "chrome://locked-sideload-xul/content/marker.txt"
+  );
+  const enabledScopes = Services.prefs.getIntPref("extensions.enabledScopes");
+  const sideloadScopes = Services.prefs.getIntPref(
+    "extensions.sideloadScopes",
+    AddonManager.SCOPE_PROFILE
+  );
+
+  let managerRunning = true;
+  try {
+    await promiseShutdownManager();
+    managerRunning = false;
+    await IOUtils.remove(targetPath, { ignoreAbsent: true });
+    Services.prefs.setIntPref(
+      "extensions.enabledScopes",
+      AddonManager.SCOPE_ALL
+    );
+    Services.prefs.setIntPref(
+      "extensions.sideloadScopes",
+      AddonManager.SCOPE_ALL
+    );
+    await AddonTestUtils.manuallyInstall(
+      xpi,
+      appExtensions,
+      LOCKED_SIDELOAD_ID,
+      false
+    );
+
+    await promiseStartupManager();
+    managerRunning = true;
+    let addon = await AddonManager.getAddonByID(LOCKED_SIDELOAD_ID);
+    Assert.ok(addon?.isActive, "The locked classic sideload starts");
+    Assert.ok(addon.foreignInstall, "The application add-on is a sideload");
+    Assert.ok(
+      chromeRegistry
+        .convertChromeURL(chromeURL)
+        .spec.endsWith("/content/marker.txt")
+    );
+
+    Services.prefs.setIntPref(
+      "extensions.sideloadScopes",
+      AddonManager.SCOPE_PROFILE
+    );
+    await promiseRestartManager();
+    addon = await AddonManager.getAddonByID(LOCKED_SIDELOAD_ID);
+    Assert.ok(addon?.isActive, "The legacy sideload remains active");
+
+    await addon.uninstall();
+    Assert.equal(addon.pendingOperations, AddonManager.PENDING_UNINSTALL);
+    Assert.ok(await IOUtils.exists(targetPath), "The shared XPI is preserved");
+
+    await promiseRestartManager();
+    Assert.equal(await AddonManager.getAddonByID(LOCKED_SIDELOAD_ID), null);
+    Assert.ok(await IOUtils.exists(targetPath), "The shared XPI still exists");
+    Assert.throws(
+      () => chromeRegistry.convertChromeURL(chromeURL),
+      error => error.result === Cr.NS_ERROR_FILE_NOT_FOUND,
+      "The uninstalled sideload chrome is no longer registered"
+    );
+
+    await promiseRestartManager();
+    Assert.equal(
+      await AddonManager.getAddonByID(LOCKED_SIDELOAD_ID),
+      null,
+      "The disabled sideload scope does not rediscover the shared XPI"
+    );
+  } finally {
+    Services.prefs.setIntPref("extensions.enabledScopes", enabledScopes);
+    Services.prefs.setIntPref("extensions.sideloadScopes", sideloadScopes);
+    if (managerRunning) {
+      await promiseShutdownManager();
+      managerRunning = false;
+    }
+    await IOUtils.remove(targetPath, { ignoreAbsent: true });
+    await promiseStartupManager();
+  }
+});
+
+add_task(async function test_cross_location_staged_legacy_replacement() {
+  const id = CROSS_LOCATION_ID;
+  const chromePackage = "cross-location-classic";
+  const appExtensions = getAppExtensionsDir();
+  const appTargetPath = PathUtils.join(appExtensions.path, `${id}.xpi`);
+  const enabledScopes = Services.prefs.getIntPref("extensions.enabledScopes");
+  const sideloadScopes = Services.prefs.getIntPref(
+    "extensions.sideloadScopes",
+    AddonManager.SCOPE_PROFILE
+  );
+  let managerRunning = true;
+
+  try {
+    await promiseShutdownManager();
+    managerRunning = false;
+    Services.prefs.setIntPref(
+      "extensions.enabledScopes",
+      AddonManager.SCOPE_ALL
+    );
+    Services.prefs.setIntPref(
+      "extensions.sideloadScopes",
+      AddonManager.SCOPE_ALL
+    );
+    await IOUtils.remove(appTargetPath, { ignoreAbsent: true });
+    await AddonTestUtils.manuallyInstall(
+      createClassicVersionXPI(id, "1.0", chromePackage),
+      appExtensions,
+      id,
+      false
+    );
+
+    await promiseStartupManager();
+    managerRunning = true;
+    let addon = await AddonManager.getAddonByID(id);
+    Assert.equal(addon?.version, "1.0");
+    Assert.equal(addon.__AddonInternal__.location.name, "app-global");
+    Assert.equal(await readChromeMarker(chromePackage), "1.0");
+
+    const update = await promiseInstallFile(
+      createClassicVersionXPI(id, "2.0", chromePackage)
+    );
+    Assert.equal(update.state, AddonManager.STATE_INSTALLED);
+    await promiseShutdownManager();
+    managerRunning = false;
+
+    let snapshot = await readAddonStateSnapshot();
+    const record = snapshot.startup["app-profile"].staged[id];
+    Assert.equal(record.oldAddon.location, "app-global");
+    Assert.equal(record.newAddon.location, "app-profile");
+    Assert.ok(record.lifecycle.oldShutdown.complete);
+    Assert.ok(record.lifecycle.oldUninstall.complete);
+    Assert.ok(!record.lifecycle.newInstall);
+    Assert.ok(!record.lifecycle.newStartup);
+
+    await promiseStartupManager();
+    managerRunning = true;
+    addon = await AddonManager.getAddonByID(id);
+    Assert.equal(addon?.version, "2.0");
+    Assert.equal(addon.__AddonInternal__.location.name, "app-profile");
+    Assert.equal(await readChromeMarker(chromePackage), "2.0");
+    snapshot = await readAddonStateSnapshot();
+    Assert.ok(!snapshot.startup["app-profile"].staged?.[id]);
+  } finally {
+    await cleanupClassicProviderTest(
+      id,
+      appTargetPath,
+      managerRunning,
+      enabledScopes,
+      sideloadScopes
+    );
+  }
+});
+
+add_task(async function test_cross_location_staged_crash_markers() {
+  const id = CROSS_LOCATION_CRASH_ID;
+  const chromePackage = "cross-location-crash";
+  const appExtensions = getAppExtensionsDir();
+  const appTargetPath = PathUtils.join(appExtensions.path, `${id}.xpi`);
+  const enabledScopes = Services.prefs.getIntPref("extensions.enabledScopes");
+  const sideloadScopes = Services.prefs.getIntPref(
+    "extensions.sideloadScopes",
+    AddonManager.SCOPE_PROFILE
+  );
+  let managerRunning = true;
+
+  try {
+    await promiseShutdownManager();
+    managerRunning = false;
+    Services.prefs.setIntPref(
+      "extensions.enabledScopes",
+      AddonManager.SCOPE_ALL
+    );
+    Services.prefs.setIntPref(
+      "extensions.sideloadScopes",
+      AddonManager.SCOPE_ALL
+    );
+    await IOUtils.remove(appTargetPath, { ignoreAbsent: true });
+    await AddonTestUtils.manuallyInstall(
+      createClassicVersionXPI(id, "1.0", chromePackage),
+      appExtensions,
+      id,
+      false
+    );
+    await promiseStartupManager();
+    managerRunning = true;
+
+    const { XPIExports } = ChromeUtils.importESModule(
+      "resource://gre/modules/addons/XPIExports.sys.mjs"
+    );
+    const injectFault = point => {
+      let injected = false;
+      XPIExports.XPIProvider._stagedLifecycleTestHook = details => {
+        if (
+          !injected &&
+          details.phase === "newInstall" &&
+          details.point === point
+        ) {
+          injected = true;
+          throw new Error(`Injected staged lifecycle fault at ${point}`);
+        }
+      };
+      return () => Assert.ok(injected, `Injected a real ${point} fault`);
+    };
+
+    await promiseInstallFile(createClassicVersionXPI(id, "2.0", chromePackage));
+    await promiseShutdownManager();
+    managerRunning = false;
+    let assertInjected = injectFault("after-started-marker");
+    await promiseStartupManager();
+    managerRunning = true;
+    assertInjected();
+    let snapshot = await readAddonStateSnapshot();
+    let record = snapshot.startup["app-profile"].staged[id];
+    Assert.ok(record.lifecycle.newInstall.started);
+    Assert.ok(!record.lifecycle.newInstall.complete);
+
+    BootstrapMonitor.installed.set(id, {
+      reason: BOOTSTRAP_REASONS.ADDON_UPGRADE,
+      params: { id, version: "2.0" },
+    });
+    XPIExports.XPIProvider._stagedLifecycleTestHook = null;
+    await promiseRestartManager();
+    let addon = await AddonManager.getAddonByID(id);
+    Assert.equal(addon?.version, "2.0");
+    Assert.ok(addon.isActive);
+    Assert.ok(
+      XPIExports.XPIInternal.XPIStates.getAddon("app-profile", id)?.enabled,
+      "The recovered package is enabled in XPI state"
+    );
+    Assert.ok(
+      XPIExports.XPIProvider.activeAddons.get(id)?.started,
+      "The recovered package has a started lifecycle scope"
+    );
+    Assert.equal(await readChromeMarker(chromePackage), "2.0");
+
+    await promiseInstallFile(createClassicVersionXPI(id, "3.0", chromePackage));
+    await promiseShutdownManager();
+    managerRunning = false;
+    assertInjected = injectFault("after-callback");
+    await promiseStartupManager();
+    managerRunning = true;
+    assertInjected();
+    snapshot = await readAddonStateSnapshot();
+    record = snapshot.startup["app-profile"].staged[id];
+    Assert.ok(record.lifecycle.newInstall.started);
+    Assert.ok(!record.lifecycle.newInstall.complete);
+
+    XPIExports.XPIProvider._stagedLifecycleTestHook = null;
+    await promiseRestartManager();
+    addon = await AddonManager.getAddonByID(id);
+    Assert.equal(addon?.version, "3.0");
+    Assert.ok(addon.isActive);
+    Assert.equal(await readChromeMarker(chromePackage), "3.0");
+    snapshot = await readAddonStateSnapshot();
+    Assert.ok(!snapshot.startup["app-profile"].staged?.[id]);
+  } finally {
+    const { XPIExports } = ChromeUtils.importESModule(
+      "resource://gre/modules/addons/XPIExports.sys.mjs"
+    );
+    XPIExports.XPIProvider._stagedLifecycleTestHook = null;
+    await cleanupClassicProviderTest(
+      id,
+      appTargetPath,
+      managerRunning,
+      enabledScopes,
+      sideloadScopes
+    );
+  }
+});
+
+add_task(async function test_staged_persistence_boundaries() {
+  const id = PERSISTENCE_CRASH_ID;
+  const chromePackage = "persistence-crash";
+  const appExtensions = getAppExtensionsDir();
+  const appTargetPath = PathUtils.join(appExtensions.path, `${id}.xpi`);
+  const profileTargetPath = PathUtils.join(
+    AddonTestUtils.profileExtensions.path,
+    `${id}.xpi`
+  );
+  const stagedPath = PathUtils.join(
+    AddonTestUtils.profileExtensions.path,
+    "staged",
+    `${id}.xpi`
+  );
+  const enabledScopes = Services.prefs.getIntPref("extensions.enabledScopes");
+  const sideloadScopes = Services.prefs.getIntPref(
+    "extensions.sideloadScopes",
+    AddonManager.SCOPE_PROFILE
+  );
+  const boundaries = [
+    {
+      point: "before-file-operation",
+      phase: "files",
+      filesComplete: false,
+      databaseComplete: false,
+      databaseVersion: "1.0",
+      profileTargetPresent: false,
+      stagedSourcePresent: true,
+      newInstallOnRecovery: 1,
+    },
+    {
+      point: "after-file-operation",
+      phase: "files",
+      filesComplete: false,
+      databaseComplete: false,
+      databaseVersion: "1.0",
+      profileTargetPresent: true,
+      stagedSourcePresent: true,
+      newInstallOnRecovery: 1,
+    },
+    {
+      point: "before-xpi-state-save",
+      phase: "files",
+      filesComplete: false,
+      databaseComplete: false,
+      databaseVersion: "1.0",
+      profileTargetPresent: true,
+      stagedSourcePresent: true,
+      newInstallOnRecovery: 1,
+    },
+    {
+      point: "after-xpi-state-save",
+      phase: "files",
+      filesComplete: true,
+      databaseComplete: false,
+      databaseVersion: "1.0",
+      profileTargetPresent: true,
+      stagedSourcePresent: true,
+      newInstallOnRecovery: 1,
+    },
+    {
+      point: "before-database-save",
+      phase: "database",
+      filesComplete: true,
+      databaseComplete: false,
+      databaseVersion: "1.0",
+      profileTargetPresent: true,
+      stagedSourcePresent: true,
+      newInstallOnRecovery: 0,
+    },
+    {
+      point: "after-database-save",
+      phase: "database",
+      filesComplete: true,
+      databaseComplete: false,
+      databaseVersion: "2.0",
+      profileTargetPresent: true,
+      stagedSourcePresent: true,
+      newInstallOnRecovery: 0,
+    },
+    {
+      point: "before-xpi-state-save",
+      phase: "database",
+      filesComplete: true,
+      databaseComplete: false,
+      databaseVersion: "2.0",
+      profileTargetPresent: true,
+      stagedSourcePresent: true,
+      newInstallOnRecovery: 0,
+    },
+    {
+      point: "after-xpi-state-save",
+      phase: "database",
+      filesComplete: true,
+      databaseComplete: true,
+      databaseVersion: "2.0",
+      profileTargetPresent: true,
+      stagedSourcePresent: true,
+      newInstallOnRecovery: 0,
+    },
+    {
+      point: "before-finalization",
+      phase: "finalization",
+      filesComplete: true,
+      databaseComplete: true,
+      databaseVersion: "2.0",
+      profileTargetPresent: true,
+      stagedSourcePresent: true,
+      newInstallOnRecovery: 0,
+    },
+    {
+      point: "after-staging-cleanup",
+      phase: "finalization",
+      filesComplete: true,
+      databaseComplete: true,
+      databaseVersion: "2.0",
+      profileTargetPresent: true,
+      stagedSourcePresent: false,
+      newInstallOnRecovery: 0,
+    },
+    {
+      point: "after-finalization",
+      phase: "finalization",
+      journalPresent: false,
+      databaseVersion: "2.0",
+      profileTargetPresent: true,
+      stagedSourcePresent: false,
+      newInstallOnRecovery: 0,
+    },
+  ];
+  let managerRunning = true;
+
+  const removeScenarioState = async () => {
+    if (managerRunning) {
+      await promiseShutdownManager();
+      managerRunning = false;
+    }
+    for (const path of [profileTargetPath, stagedPath, appTargetPath]) {
+      await IOUtils.remove(path, { recursive: true, ignoreAbsent: true });
+    }
+    await removeAddonFromStateSnapshot(id);
+    BootstrapMonitor.clear(id);
+    await promiseStartupManager();
+    managerRunning = true;
+  };
+
+  try {
+    await promiseShutdownManager();
+    managerRunning = false;
+    Services.prefs.setIntPref(
+      "extensions.enabledScopes",
+      AddonManager.SCOPE_ALL
+    );
+    Services.prefs.setIntPref(
+      "extensions.sideloadScopes",
+      AddonManager.SCOPE_ALL
+    );
+    await promiseStartupManager();
+    managerRunning = true;
+
+    for (const boundary of boundaries) {
+      await promiseShutdownManager();
+      managerRunning = false;
+      await AddonTestUtils.manuallyInstall(
+        createClassicVersionXPI(id, "1.0", chromePackage),
+        appExtensions,
+        id,
+        false
+      );
+      await promiseStartupManager();
+      managerRunning = true;
+
+      let addon = await AddonManager.getAddonByID(id);
+      Assert.equal(
+        addon?.version,
+        "1.0",
+        `${boundary.point}: baseline version`
+      );
+      await promiseInstallFile(
+        createClassicVersionXPI(id, "2.0", chromePackage)
+      );
+      await promiseShutdownManager();
+      managerRunning = false;
+
+      const { XPIExports } = ChromeUtils.importESModule(
+        "resource://gre/modules/addons/XPIExports.sys.mjs"
+      );
+      let injected = false;
+      XPIExports.XPIProvider._stagedLifecycleTestHook = details => {
+        if (
+          !injected &&
+          details.journal.id === id &&
+          details.phase === boundary.phase &&
+          details.point === boundary.point
+        ) {
+          injected = true;
+          throw new Error(
+            `Injected staged persistence fault at ${boundary.point}`
+          );
+        }
+      };
+      await promiseStartupManager();
+      managerRunning = true;
+      Assert.ok(injected, `${boundary.point}: injected a real boundary fault`);
+
+      let snapshot = await readAddonStateSnapshot();
+      const pendingOperations = Services.prefs.getBoolPref(
+        "extensions.pendingOperations"
+      );
+      let record = snapshot.startup["app-profile"].staged?.[id];
+      Assert.equal(
+        Boolean(record),
+        boundary.journalPresent !== false,
+        `${boundary.point}: journal presence`
+      );
+      if (record) {
+        Assert.equal(
+          Boolean(record.filesComplete),
+          boundary.filesComplete,
+          `${boundary.point}: file checkpoint`
+        );
+        Assert.equal(
+          Boolean(record.databaseComplete),
+          boundary.databaseComplete,
+          `${boundary.point}: database checkpoint`
+        );
+      }
+      const databaseAddon =
+        snapshot.database.addons.find(
+          candidate =>
+            candidate.id === id &&
+            candidate.location === "app-profile" &&
+            candidate.visible
+        ) ?? snapshot.database.addons.find(candidate => candidate.id === id);
+      Assert.equal(
+        databaseAddon?.version,
+        boundary.databaseVersion,
+        `${boundary.point}: durable database version`
+      );
+      Assert.equal(
+        await IOUtils.exists(profileTargetPath),
+        boundary.profileTargetPresent,
+        `${boundary.point}: installed package presence`
+      );
+      Assert.equal(
+        await IOUtils.exists(stagedPath),
+        boundary.stagedSourcePresent,
+        `${boundary.point}: staged source presence`
+      );
+
+      XPIExports.XPIProvider._stagedLifecycleTestHook = null;
+      await promiseShutdownManager();
+      managerRunning = false;
+      await writeAddonStateSnapshot(snapshot);
+      Services.prefs.setBoolPref(
+        "extensions.pendingOperations",
+        pendingOperations
+      );
+      const { XPIExports: recoveryXPIExports } = ChromeUtils.importESModule(
+        "resource://gre/modules/addons/XPIExports.sys.mjs"
+      );
+      let newInstallOnRecovery = 0;
+      recoveryXPIExports.XPIProvider._stagedLifecycleTestHook = details => {
+        if (
+          details.journal.id === id &&
+          details.phase === "newInstall" &&
+          details.point === "before-started-marker"
+        ) {
+          newInstallOnRecovery++;
+        }
+      };
+      await promiseStartupManager();
+      managerRunning = true;
+      Assert.equal(
+        newInstallOnRecovery,
+        boundary.newInstallOnRecovery,
+        `${boundary.point}: new install callback replay policy`
+      );
+      recoveryXPIExports.XPIProvider._stagedLifecycleTestHook = null;
+
+      addon = await AddonManager.getAddonByID(id);
+      Assert.equal(
+        addon?.version,
+        "2.0",
+        `${boundary.point}: recovered version`
+      );
+      Assert.ok(
+        addon.isActive,
+        `${boundary.point}: recovered add-on is active`
+      );
+      Assert.ok(
+        recoveryXPIExports.XPIInternal.XPIStates.getAddon("app-profile", id)
+          ?.enabled,
+        `${boundary.point}: recovered XPI state is enabled`
+      );
+      Assert.ok(
+        recoveryXPIExports.XPIProvider.activeAddons.get(id)?.started,
+        `${boundary.point}: recovered scope is started`
+      );
+      Assert.equal(
+        await readChromeMarker(chromePackage),
+        "2.0",
+        `${boundary.point}: recovered chrome is registered`
+      );
+      snapshot = await readAddonStateSnapshot();
+      Assert.ok(
+        !snapshot.startup["app-profile"].staged?.[id],
+        `${boundary.point}: recovered journal is finalized`
+      );
+      Assert.ok(
+        !(await IOUtils.exists(stagedPath)),
+        `${boundary.point}: recovered staged source is cleaned`
+      );
+
+      await removeScenarioState();
+    }
+  } finally {
+    const { XPIExports } = ChromeUtils.importESModule(
+      "resource://gre/modules/addons/XPIExports.sys.mjs"
+    );
+    XPIExports.XPIProvider._stagedLifecycleTestHook = null;
+    await cleanupClassicProviderTest(
+      id,
+      appTargetPath,
+      managerRunning,
+      enabledScopes,
+      sideloadScopes
+    );
+  }
+});
+
+add_task(async function test_actual_classic_staged_update_and_cancel() {
+  const id = ACTUAL_CLASSIC_UPDATE_ID;
+  const chromePackage = "actual-classic-update";
+  const enabledScopes = Services.prefs.getIntPref("extensions.enabledScopes");
+  const sideloadScopes = Services.prefs.getIntPref(
+    "extensions.sideloadScopes",
+    AddonManager.SCOPE_PROFILE
+  );
+  let managerRunning = true;
+
+  try {
+    let install = await promiseInstallFile(
+      createClassicVersionXPI(id, "1.0", chromePackage)
+    );
+    Assert.equal(install.state, AddonManager.STATE_INSTALLED);
+    await promiseRestartManager();
+    let addon = await AddonManager.getAddonByID(id);
+    Assert.equal(addon?.version, "1.0");
+    Assert.equal(await readChromeMarker(chromePackage), "1.0");
+
+    install = await promiseInstallFile(
+      createClassicVersionXPI(id, "2.0", chromePackage)
+    );
+    Assert.equal(install.state, AddonManager.STATE_INSTALLED);
+    await install.cancel();
+    let snapshot = await readAddonStateSnapshot();
+    Assert.ok(!snapshot.startup["app-profile"].staged?.[id]);
+
+    await promiseRestartManager();
+    addon = await AddonManager.getAddonByID(id);
+    Assert.equal(addon?.version, "1.0");
+    Assert.equal(await readChromeMarker(chromePackage), "1.0");
+
+    await promiseInstallFile(createClassicVersionXPI(id, "2.0", chromePackage));
+    await promiseRestartManager();
+    addon = await AddonManager.getAddonByID(id);
+    Assert.equal(addon?.version, "2.0");
+    Assert.ok(addon.isActive);
+    Assert.equal(await readChromeMarker(chromePackage), "2.0");
+  } finally {
+    await cleanupClassicProviderTest(
+      id,
+      null,
+      managerRunning,
+      enabledScopes,
+      sideloadScopes
+    );
+  }
+});
+
+add_task(async function test_app_shutdown_registration_retention() {
+  const id = APP_SHUTDOWN_ID;
+  const chromePackage = "app-shutdown-classic";
+  await promiseInstallFile(createClassicVersionXPI(id, "1.0", chromePackage));
+  await promiseRestartManager();
+
+  const addon = await AddonManager.getAddonByID(id);
+  Assert.ok(addon?.isActive);
+  Assert.equal(await readChromeMarker(chromePackage), "1.0");
+
+  Services.startup.advanceShutdownPhase(
+    Ci.nsIAppStartup.SHUTDOWN_PHASE_APPSHUTDOWNCONFIRMED
+  );
+  const { MockAsyncShutdown } = ChromeUtils.importESModule(
+    "resource://testing-common/AddonTestUtils.sys.mjs"
+  );
+  await MockAsyncShutdown.appShutdownConfirmed.trigger();
+
+  Assert.equal(await readChromeMarker(chromePackage), "1.0");
+  Assert.ok(
+    ExtensionSupport.loadedLegacyExtensions.has(id),
+    "Classic registrations remain owned until process exit"
+  );
 });

@@ -504,6 +504,7 @@ function migrateAddonLoader(addon) {
  */
 const JSON_FIELDS = Object.freeze([
   "blocklistState",
+  "bootstrap",
   "dependencies",
   "enabled",
   "file",
@@ -518,6 +519,7 @@ const JSON_FIELDS = Object.freeze([
   "startupData",
   "telemetryKey",
   "type",
+  "unpack",
   "version",
 ]);
 
@@ -527,6 +529,8 @@ class XPIState {
     this.id = id;
 
     // Set default values.
+    this.bootstrap = true;
+    this.unpack = false;
     this.type = "extension";
 
     for (let prop of JSON_FIELDS) {
@@ -613,6 +617,7 @@ class XPIState {
   toJSON() {
     let json = {
       blocklistState: this.blocklistState,
+      bootstrap: this.bootstrap,
       dependencies: this.dependencies,
       enabled: this.enabled,
       lastModifiedTime: this.lastModifiedTime,
@@ -624,6 +629,7 @@ class XPIState {
       signedState: this.signedState,
       signedDate: this.signedDate,
       telemetryKey: this.telemetryKey,
+      unpack: this.unpack,
       version: this.version,
     };
     if (this.type != "extension") {
@@ -712,6 +718,8 @@ class XPIState {
     this.version = aDBAddon.version;
     this.type = aDBAddon.type;
     this.loader = aDBAddon.loader;
+    this.bootstrap = aDBAddon.bootstrap;
+    this.unpack = aDBAddon.unpack;
 
     if (aDBAddon.startupData) {
       this.startupData = aDBAddon.startupData;
@@ -720,7 +728,8 @@ class XPIState {
     this.telemetryKey = this.getTelemetryKey();
 
     this.dependencies = aDBAddon.dependencies;
-    this.runInSafeMode = canRunInSafeMode(aDBAddon);
+    this.runInSafeMode =
+      aDBAddon.startupData?.legacyMode !== "xul" && canRunInSafeMode(aDBAddon);
     this.signedState = aDBAddon.signedState;
     this.signedDate = aDBAddon.signedDate;
     this.file = aDBAddon._sourceBundle;
@@ -738,6 +747,105 @@ class XPIState {
       }
     }
   }
+}
+
+const STAGED_LIFECYCLE_PHASES = Object.freeze([
+  "oldShutdown",
+  "oldUninstall",
+  "newInstall",
+  "newStartup",
+]);
+
+function getAddonPackageGeneration(addon) {
+  if (!addon?.id || !addon.location?.name || !addon.version) {
+    return null;
+  }
+  return JSON.stringify([
+    addon.location.name,
+    addon.id,
+    addon.version,
+    addon.rootURI ?? null,
+    addon.path ?? addon.file?.path ?? addon._sourceBundle?.path ?? null,
+  ]);
+}
+
+function getStagedAddonIdentity(addon) {
+  if (!addon?.location?.name || !addon.version) {
+    return null;
+  }
+  return {
+    location: addon.location.name,
+    version: addon.version,
+    packageGeneration: getAddonPackageGeneration(addon),
+  };
+}
+
+function stagedIdentityMatches(addon, identity, checkPackage = false) {
+  return Boolean(
+    addon &&
+    identity &&
+    addon.location?.name === identity.location &&
+    addon.version === identity.version &&
+    (!checkPackage ||
+      !identity.packageGeneration ||
+      getAddonPackageGeneration(addon) === identity.packageGeneration)
+  );
+}
+
+function normalizeStagedRecord(record) {
+  record =
+    record?.type === "install" || record?.type === "uninstall"
+      ? record
+      : { type: "install", metadata: record };
+  record.generation ??= Services.uuid.generateUUID().toString();
+  record.lifecycle ??= {};
+  if (record.lifecycleStarted || record.lifecycleComplete) {
+    record.lifecycle.oldUninstall ??= {
+      ...(record.lifecycleStarted ? { started: true } : {}),
+      ...(record.lifecycleComplete ? { complete: true } : {}),
+    };
+    delete record.lifecycleStarted;
+    delete record.lifecycleComplete;
+  }
+  return record;
+}
+
+function getStagedLifecycle(record, phase) {
+  return normalizeStagedRecord(record).lifecycle[phase];
+}
+
+function isStagedLifecycleInterrupted(record, phase) {
+  const lifecycle = getStagedLifecycle(record, phase);
+  return Boolean(lifecycle?.started && !lifecycle.complete);
+}
+
+function isStagedLifecycleComplete(record, phase) {
+  return Boolean(getStagedLifecycle(record, phase)?.complete);
+}
+
+function stagedLifecycleMayHaveRun(record, phase) {
+  const lifecycle = getStagedLifecycle(record, phase);
+  return Boolean(
+    lifecycle && !lifecycle.skipped && (lifecycle.started || lifecycle.complete)
+  );
+}
+
+function isStagedFileOperationHandled(record) {
+  return Boolean(
+    record?.filesComplete ||
+    stagedLifecycleMayHaveRun(record, "oldShutdown") ||
+    stagedLifecycleMayHaveRun(record, "oldUninstall")
+  );
+}
+
+function isStagedJournalComplete(record) {
+  return Boolean(
+    record?.filesComplete &&
+    record.databaseComplete &&
+    STAGED_LIFECYCLE_PHASES.every(phase =>
+      isStagedLifecycleComplete(record, phase)
+    )
+  );
 }
 
 /**
@@ -814,7 +922,12 @@ class XPIStateLocation extends Map {
       this.path = saved.path;
       this.dir = new nsIFile(this.path);
     }
-    this.staged = saved.staged || {};
+    this.staged = Object.fromEntries(
+      Object.entries(saved.staged || {}).map(([id, record]) => [
+        id,
+        normalizeStagedRecord(record),
+      ])
+    );
 
     this.changed = saved.changed || isRelocatedLocation || false;
 
@@ -895,10 +1008,12 @@ class XPIStateLocation extends Map {
    * @param {string} aId
    *        The ID of the add-on.
    */
-  removeAddon(aId) {
+  removeAddon(aId, save = true) {
     if (this.has(aId)) {
       this.delete(aId);
-      XPIStates.save();
+      if (save) {
+        XPIStates.save();
+      }
     }
   }
 
@@ -932,27 +1047,136 @@ class XPIStateLocation extends Map {
    *        The JSON metadata of the parsed install, to be used during
    *        the next startup.
    */
-  stageAddon(addonId, metadata) {
-    this.staged[addonId] = metadata;
+  stageAddon(addonId, metadata, oldAddon = null, newAddon = null) {
+    const record = normalizeStagedRecord({
+      type: "install",
+      metadata,
+      oldAddon: getStagedAddonIdentity(oldAddon),
+      newAddon: getStagedAddonIdentity(newAddon) ?? {
+        location: this.name,
+        version: metadata.version,
+      },
+    });
+    this.staged[addonId] = record;
     XPIStates.save();
+    return record;
   }
 
   /**
-   * Removes staged install metadata for the given add-on ID.
+   * Stages an uninstall for the next restart.
    *
    * @param {string} addonId
-   *        The ID of the staged install.
+   *        The ID of the add-on to uninstall.
+   * @param {boolean} [removeStateOnly]
+   *        Whether to keep the package in a locked location.
    */
-  unstageAddon(addonId) {
-    if (addonId in this.staged) {
+  stageUninstall(
+    addonId,
+    removeStateOnly = false,
+    oldAddon = null,
+    newAddon = null
+  ) {
+    const record = normalizeStagedRecord({
+      type: "uninstall",
+      removeStateOnly,
+      oldAddon: getStagedAddonIdentity(oldAddon ?? this.get(addonId)),
+      newAddon: getStagedAddonIdentity(newAddon),
+    });
+    this.staged[addonId] = record;
+    XPIStates.save();
+    return record;
+  }
+
+  setStagedLifecycleStarted(addonId, type, phase) {
+    let record = this.staged[addonId];
+    if (!record) {
+      return false;
+    }
+    record = this.staged[addonId] = normalizeStagedRecord(record);
+    if (record.type !== type || !STAGED_LIFECYCLE_PHASES.includes(phase)) {
+      return false;
+    }
+
+    record.lifecycle[phase] = { started: true };
+    XPIStates.save();
+    return true;
+  }
+
+  setStagedLifecycleComplete(addonId, type, phase, skipped = false) {
+    let record = this.staged[addonId];
+    if (!record) {
+      return false;
+    }
+    record = this.staged[addonId] = normalizeStagedRecord(record);
+    if (record.type !== type || !STAGED_LIFECYCLE_PHASES.includes(phase)) {
+      return false;
+    }
+
+    record.lifecycle[phase] = {
+      started: true,
+      complete: true,
+      ...(skipped ? { skipped: true } : {}),
+    };
+    XPIStates.save();
+    return true;
+  }
+
+  setStagedFilesComplete(addonId, type) {
+    let record = this.staged[addonId];
+    if (!record) {
+      return false;
+    }
+    record = this.staged[addonId] = normalizeStagedRecord(record);
+    if (record.type !== type) {
+      return false;
+    }
+
+    record.filesComplete = true;
+    XPIStates.save();
+    return true;
+  }
+
+  setStagedDatabaseComplete(addonId, type) {
+    let record = this.staged[addonId];
+    if (!record) {
+      return false;
+    }
+    record = this.staged[addonId] = normalizeStagedRecord(record);
+    if (record.type !== type || !record.filesComplete) {
+      return false;
+    }
+
+    record.databaseComplete = true;
+    XPIStates.save();
+    return true;
+  }
+
+  /**
+   * Removes a staged operation for an add-on.
+   *
+   * @param {string} addonId
+   *        The add-on ID.
+   * @param {string} [type]
+   *        The operation type to match.
+   */
+  unstageAddon(addonId, type) {
+    let record = this.staged[addonId];
+    if (!record) {
+      return false;
+    }
+
+    record = this.staged[addonId] = normalizeStagedRecord(record);
+    if (!type || type == record.type) {
       delete this.staged[addonId];
       XPIStates.save();
+      return true;
     }
+    return false;
   }
 
   *getStagedAddons() {
-    for (let [id, metadata] of Object.entries(this.staged)) {
-      yield [id, metadata];
+    for (let [id, record] of Object.entries(this.staged)) {
+      yield [id, record];
     }
   }
 
@@ -1851,6 +2075,42 @@ var XPIStates = {
     return undefined;
   },
 
+  findStagedAddon(aId, generation = null) {
+    for (let location of this.locations()) {
+      const saved = location.staged[aId];
+      if (!saved) {
+        continue;
+      }
+      const record = (location.staged[aId] = normalizeStagedRecord(saved));
+      if (!generation || record.generation === generation) {
+        return { location, id: aId, record };
+      }
+    }
+    return null;
+  },
+
+  findStagedAddonForPackage(addon, role = "newAddon") {
+    for (let location of this.locations()) {
+      const saved = location.staged[addon.id];
+      if (!saved) {
+        continue;
+      }
+      const record = (location.staged[addon.id] = normalizeStagedRecord(saved));
+      if (stagedIdentityMatches(addon, record[role], true)) {
+        return { location, id: addon.id, record };
+      }
+    }
+    return null;
+  },
+
+  getStagedAddonState(identity, addonId, checkPackage = false) {
+    if (!identity) {
+      return null;
+    }
+    const addon = this.getAddon(identity.location, addonId);
+    return stagedIdentityMatches(addon, identity, checkPackage) ? addon : null;
+  },
+
   /**
    * Iterates over the list of all enabled add-ons in any location.
    */
@@ -1874,10 +2134,7 @@ var XPIStates = {
     aAddon.location.addAddon(aAddon);
   },
 
-  /**
-   * Save the current state of installed add-ons.
-   */
-  save() {
+  _ensureJSONFile() {
     if (!this._jsonFile) {
       this._jsonFile = new lazy.JSONFile({
         path: PathUtils.join(
@@ -1916,8 +2173,23 @@ var XPIStates = {
       });
       this._jsonFile.data = this;
     }
+    return this._jsonFile;
+  },
 
-    this._jsonFile.saveSoon();
+  /**
+   * Save the current state of installed add-ons.
+   */
+  save() {
+    this._ensureJSONFile().saveSoon();
+  },
+
+  async saveImmediately() {
+    const jsonFile = this._ensureJSONFile();
+    jsonFile._saver.disarm();
+    if (jsonFile._saver.isRunning) {
+      await jsonFile._saver._runningPromise;
+    }
+    return jsonFile._save();
   },
 
   toJSON() {
@@ -2007,6 +2279,9 @@ class BootstrapScope {
   }
 
   get runInSafeMode() {
+    if (this.addon.startupData?.legacyMode === "xul") {
+      return false;
+    }
     return "runInSafeMode" in this.addon
       ? this.addon.runInSafeMode
       : canRunInSafeMode(this.addon);
@@ -2415,6 +2690,42 @@ class BootstrapScope {
    *        Resolves when all required bootstrap callbacks have
    *        completed.
    */
+  async prepareStagedUpdate(reason, extraArgs) {
+    if (
+      this.addon.startupData?.legacyManifest &&
+      this.addon.startupData.legacyMode === "bootstrap" &&
+      this.hasBootstrapMethod("prepareUpdate", reason)
+    ) {
+      await this.callBootstrapMethod("prepareUpdate", reason, extraArgs);
+    } else if (requiresEarlyLifecycleUninstall(this.addon)) {
+      await this.callBootstrapMethod("uninstall", reason, extraArgs);
+    }
+    this.unloadBootstrapScope();
+  }
+
+  async installStagedUpdate(previousAddon, startup = false) {
+    const reason = XPIExports.XPIInstall.newVersionReason(
+      previousAddon.version,
+      this.addon.version
+    );
+    const extraArgs = {
+      oldVersion: previousAddon.version,
+      newVersion: this.addon.version,
+      oldPackageGeneration: getAddonPackageGeneration(previousAddon),
+    };
+    const callUpdate =
+      previousAddon.isWebExtension && this.addon.isWebExtension;
+    if (callUpdate && this.addon.type === "extension") {
+      Object.assign(extraArgs, {
+        userPermissions: this.addon.userPermissions,
+        optionalPermissions: this.addon.optionalPermissions,
+        oldPermissions: previousAddon.userPermissions,
+        oldOptionalPermissions: previousAddon.optionalPermissions,
+      });
+    }
+    return this._install(reason, callUpdate, startup, extraArgs);
+  }
+
   async update(newAddon, startup = false, updateCallback) {
     let reason = XPIExports.XPIInstall.newVersionReason(
       this.addon.version,
@@ -2487,6 +2798,7 @@ export var XPIProvider = {
 
   // A Map of active addons to their bootstrapScope by ID
   activeAddons: new Map(),
+  extensionsActive: false,
   // Per-addon telemetry information
   _telemetryDetails: {},
   // Have we started shutting down bootstrap add-ons?
@@ -2536,6 +2848,48 @@ export var XPIProvider = {
   addonIsActive(addonId) {
     let state = XPIStates.findAddon(addonId);
     return state && state.enabled;
+  },
+
+  enableRequiresRestart(addon) {
+    if (!this.extensionsActive || Services.appinfo.inSafeMode || addon.active) {
+      return false;
+    }
+    return addon.bootstrap === false;
+  },
+
+  disableRequiresRestart(addon) {
+    if (
+      !this.extensionsActive ||
+      Services.appinfo.inSafeMode ||
+      !addon.active
+    ) {
+      return false;
+    }
+    return addon.bootstrap === false;
+  },
+
+  installRequiresRestart(addon) {
+    if (
+      !this.extensionsActive ||
+      Services.appinfo.inSafeMode ||
+      addon.inDatabase
+    ) {
+      return false;
+    }
+
+    let existingAddon = addon._install?.existingAddon;
+    if (existingAddon && this.uninstallRequiresRestart(existingAddon)) {
+      return true;
+    }
+
+    return !addon.disabled && addon.bootstrap === false;
+  },
+
+  uninstallRequiresRestart(addon) {
+    if (!this.extensionsActive || Services.appinfo.inSafeMode) {
+      return false;
+    }
+    return this.disableRequiresRestart(addon);
   },
 
   /**
@@ -2903,7 +3257,20 @@ export var XPIProvider = {
           // The startup update check above may have already started some
           // extensions, make sure not to try to start them twice.
           let activeAddon = this.activeAddons.get(addon.id);
+          const stagedJournal = XPIStates.findStagedAddonForPackage(addon);
+          if (
+            stagedJournal &&
+            (!stagedJournal.record.databaseComplete ||
+              !isStagedLifecycleComplete(stagedJournal.record, "newInstall"))
+          ) {
+            continue;
+          }
           if (activeAddon && activeAddon.started) {
+            if (stagedJournal) {
+              awaitPromise(
+                this.runStagedLifecycle(stagedJournal, "newStartup")
+              );
+            }
             continue;
           }
           try {
@@ -2924,8 +3291,40 @@ export var XPIProvider = {
               reason = BOOTSTRAP_REASONS.ADDON_ENABLE;
             }
             let scope = BootstrapScope.get(addon);
-            let promise = scope.startup(reason);
-            if (addon.startupData?.legacyManifest) {
+            let promise;
+            if (stagedJournal) {
+              const oldVersion = stagedJournal.record.oldAddon?.version;
+              if (oldVersion) {
+                reason = XPIExports.XPIInstall.newVersionReason(
+                  oldVersion,
+                  addon.version
+                );
+              }
+              const previousAbort = scope.abortOnLifecycleError;
+              scope.abortOnLifecycleError = true;
+              let outcome;
+              try {
+                outcome = awaitPromise(
+                  this.runStagedLifecycle(stagedJournal, "newStartup", () =>
+                    scope.startup(
+                      reason,
+                      oldVersion
+                        ? { oldVersion, newVersion: addon.version }
+                        : undefined
+                    )
+                  )
+                );
+              } finally {
+                scope.abortOnLifecycleError = previousAbort;
+              }
+              promise =
+                outcome === "executed"
+                  ? Promise.resolve()
+                  : scope.startup(BOOTSTRAP_REASONS.APP_STARTUP);
+            } else {
+              promise = scope.startup(reason);
+            }
+            if (addon.startupData?.legacyManifest || stagedJournal) {
               awaitPromise(promise);
             }
             this.enabledAddonsStartupPromises.push(promise);
@@ -2944,6 +3343,29 @@ export var XPIProvider = {
             );
           }
         }
+
+        for (const loc of XPIStates.locations()) {
+          for (const [id, record] of loc.getStagedAddons()) {
+            if (
+              !record.filesComplete ||
+              !record.databaseComplete ||
+              !isStagedLifecycleComplete(record, "newInstall") ||
+              isStagedLifecycleComplete(record, "newStartup")
+            ) {
+              continue;
+            }
+            const addon = XPIStates.getStagedAddonState(record.newAddon, id);
+            if (!addon?.enabled) {
+              awaitPromise(
+                this.runStagedLifecycle(
+                  { location: loc, id, record },
+                  "newStartup"
+                )
+              );
+            }
+          }
+        }
+        this.finalizePendingFileChanges();
         Glean.addonsManager.startupTimeline.XPI_bootstrap_addons_end.set(
           Services.telemetry.msSinceProcessStart()
         );
@@ -2955,6 +3377,8 @@ export var XPIProvider = {
           e
         );
       }
+
+      this.extensionsActive = true;
 
       let xpiProviderShutdownState = "(shutdown not started)";
       // Let these shutdown a little earlier when they still have access to most
@@ -3116,6 +3540,7 @@ export var XPIProvider = {
   async shutdown() {
     logger.debug("shutdown");
 
+    this.extensionsActive = false;
     await Promise.all(
       [...AddonManagerPrivate.externalExtensionLoaders.values()].map(loader =>
         loader.onProviderShutdown?.(this._generation)
@@ -3203,6 +3628,248 @@ export var XPIProvider = {
     lazy.TelemetrySession.setAddOns(data);
   },
 
+  resolveStagedJournal(journal) {
+    if (!journal) {
+      return null;
+    }
+    return XPIStates.findStagedAddon(journal.id, journal.record.generation);
+  },
+
+  async callStagedLifecycleTestHook(point, phase, journal) {
+    try {
+      await this._stagedLifecycleTestHook?.({ point, phase, journal });
+    } catch (error) {
+      error._stagedLifecycleTestHookError = true;
+      throw error;
+    }
+  },
+
+  async ensureStagedLifecycleIdentities(journal, oldAddon, newAddon) {
+    journal = this.resolveStagedJournal(journal);
+    if (!journal) {
+      throw new Error("Unable to resolve staged lifecycle journal identities");
+    }
+
+    let changed = false;
+    for (const [role, addon] of [
+      ["oldAddon", oldAddon],
+      ["newAddon", newAddon],
+    ]) {
+      const identity = getStagedAddonIdentity(addon);
+      const current = journal.record[role];
+      if (
+        identity &&
+        (!current ||
+          (!current.packageGeneration && stagedIdentityMatches(addon, current)))
+      ) {
+        journal.record[role] = identity;
+        changed = true;
+      }
+    }
+    if (changed) {
+      await XPIStates.saveImmediately();
+    }
+    return journal;
+  },
+
+  async runStagedLifecycle(journal, phase, callback = null) {
+    journal = this.resolveStagedJournal(journal);
+    if (!journal) {
+      throw new Error(
+        `Unable to resolve staged lifecycle journal for ${phase}`
+      );
+    }
+
+    const { location, id, record } = journal;
+
+    if (isStagedLifecycleComplete(record, phase)) {
+      return getStagedLifecycle(record, phase).skipped ? "skipped" : "complete";
+    }
+    if (isStagedLifecycleInterrupted(record, phase)) {
+      if (!location.setStagedLifecycleComplete(id, record.type, phase)) {
+        throw new Error(`Unable to finalize interrupted ${phase} for ${id}`);
+      }
+      await XPIStates.saveImmediately();
+      return "interrupted";
+    }
+    if (!callback) {
+      if (!location.setStagedLifecycleComplete(id, record.type, phase, true)) {
+        throw new Error(`Unable to skip staged ${phase} for ${id}`);
+      }
+      await XPIStates.saveImmediately();
+      return "skipped";
+    }
+
+    await this.callStagedLifecycleTestHook(
+      "before-started-marker",
+      phase,
+      journal
+    );
+    if (!location.setStagedLifecycleStarted(id, record.type, phase)) {
+      throw new Error(`Unable to record started staged ${phase} for ${id}`);
+    }
+    await XPIStates.saveImmediately();
+    await this.callStagedLifecycleTestHook(
+      "after-started-marker",
+      phase,
+      journal
+    );
+    await callback();
+    await this.callStagedLifecycleTestHook("after-callback", phase, journal);
+    if (!location.setStagedLifecycleComplete(id, record.type, phase)) {
+      throw new Error(`Unable to record completed staged ${phase} for ${id}`);
+    }
+    await XPIStates.saveImmediately();
+    await this.callStagedLifecycleTestHook(
+      "after-complete-marker",
+      phase,
+      journal
+    );
+    return "executed";
+  },
+
+  async shutdownPendingUpdate(scope, pending) {
+    let firstError;
+    const previousAbort = scope.abortOnLifecycleError;
+    scope.abortOnLifecycleError = true;
+    try {
+      try {
+        await this.runStagedLifecycle(pending.journal, "oldShutdown", () =>
+          scope.shutdown(pending.reason, pending.params)
+        );
+      } catch (error) {
+        firstError = error;
+      }
+
+      try {
+        await this.runStagedLifecycle(pending.journal, "oldUninstall", () =>
+          scope.prepareStagedUpdate(pending.reason, pending.params)
+        );
+      } catch (error) {
+        firstError ??= error;
+      }
+    } finally {
+      scope.abortOnLifecycleError = previousAbort;
+      scope.clearPendingUpdate();
+    }
+    if (firstError) {
+      throw firstError;
+    }
+  },
+
+  hasCompletedStagedFileChanges() {
+    for (let loc of XPIStates.locations()) {
+      for (let [, record] of loc.getStagedAddons()) {
+        if (record?.filesComplete) {
+          return true;
+        }
+      }
+    }
+    return false;
+  },
+
+  finalizePendingFileChanges() {
+    let completed = [];
+    let cleanupByLocation = new Map();
+    const revalidateCompleted = ({ loc, id, record, generation }) => {
+      const current = loc.staged[id];
+      if (
+        current !== record ||
+        current?.generation !== generation ||
+        !isStagedJournalComplete(current)
+      ) {
+        throw new Error(
+          `Staged journal changed during finalization for ${id} in ${loc.name}`
+        );
+      }
+    };
+
+    for (let loc of XPIStates.locations()) {
+      for (let [id, record] of loc.getStagedAddons()) {
+        if (!isStagedJournalComplete(record)) {
+          continue;
+        }
+
+        completed.push({
+          loc,
+          id,
+          record,
+          generation: record.generation,
+        });
+        let names = cleanupByLocation.get(loc);
+        if (!names) {
+          names = [];
+          cleanupByLocation.set(loc, names);
+        }
+        names.push(`${id}.xpi`);
+      }
+    }
+
+    if (!completed.length) {
+      return;
+    }
+
+    for (let { loc, id, record } of completed) {
+      awaitPromise(
+        this.callStagedLifecycleTestHook(
+          "before-finalization",
+          "finalization",
+          {
+            location: loc,
+            id,
+            record,
+          }
+        )
+      );
+    }
+
+    for (const entry of completed) {
+      revalidateCompleted(entry);
+    }
+
+    // Clean named staging entries before deleting their journals.
+    for (let [loc, names] of cleanupByLocation) {
+      loc.installer?.cleanStagingDir?.(names);
+    }
+
+    for (let { loc, id, record } of completed) {
+      awaitPromise(
+        this.callStagedLifecycleTestHook(
+          "after-staging-cleanup",
+          "finalization",
+          { location: loc, id, record }
+        )
+      );
+    }
+
+    for (const entry of completed) {
+      revalidateCompleted(entry);
+    }
+    for (let { loc, id } of completed) {
+      delete loc.staged[id];
+    }
+
+    try {
+      awaitPromise(XPIStates.saveImmediately());
+    } catch (error) {
+      for (let { loc, id, record } of completed) {
+        loc.staged[id] ??= record;
+      }
+      XPIStates.save();
+      throw error;
+    }
+
+    for (let { loc, id, record } of completed) {
+      awaitPromise(
+        this.callStagedLifecycleTestHook("after-finalization", "finalization", {
+          location: loc,
+          id,
+          record,
+        })
+      );
+    }
+  },
+
   /**
    * Check the staging directories of install locations for any add-ons to be
    * installed or add-ons to be uninstalled.
@@ -3215,42 +3882,275 @@ export var XPIProvider = {
    */
   processPendingFileChanges(aManifests) {
     let changed = false;
+    const noteJournal = journal => {
+      (aManifests.__stagedLifecycleJournals ??= new Map()).set(
+        journal.record.generation,
+        journal
+      );
+    };
+
     for (let loc of XPIStates.locations()) {
       aManifests[loc.name] = {};
-      // We can't install or uninstall anything in locked locations
-      if (loc.locked) {
-        continue;
-      }
 
       logger.debug(`Processing staged addons in ${loc.name}`);
-      // Collect any install errors for specific removal from the staged directory
-      // during cleanStagingDir.  Successful installs remove the files.
-      let locationChanged = false;
-      let stagedFailureNames = [];
+      let stagedCleanupNames = [];
       let promises = [];
-      for (let [id, metadata] of loc.getStagedAddons()) {
-        logger.debug(
-          `Installing staged addon ${id} version ${metadata.version} in ${loc.name}`
+      let fatalError = null;
+      for (let [id, savedRecord] of loc.getStagedAddons()) {
+        let record = (loc.staged[id] = normalizeStagedRecord(savedRecord));
+        const journal = { location: loc, id, record };
+        const metadata = record.type === "install" ? record.metadata : null;
+
+        record.newAddon ??=
+          record.type === "install"
+            ? { location: loc.name, version: metadata?.version }
+            : null;
+        let oldAddon = XPIStates.getStagedAddonState(record.oldAddon, id, true);
+        if (!record.oldAddon) {
+          oldAddon =
+            record.type === "uninstall"
+              ? loc.get(id)
+              : (XPIStates.findAddon(id, location => location !== loc) ??
+                loc.get(id));
+          record.oldAddon = getStagedAddonIdentity(oldAddon);
+        } else if (
+          !oldAddon &&
+          !record.filesComplete &&
+          !isStagedLifecycleComplete(record, "oldUninstall")
+        ) {
+          fatalError = new Error(
+            `Staged replacement package changed for ${id} in ${record.oldAddon.location}`
+          );
+          break;
+        }
+
+        let replacement = XPIStates.getStagedAddonState(
+          record.newAddon,
+          id,
+          true
         );
-        loc.unstageAddon(id);
+        if (record.filesComplete && record.newAddon && !replacement) {
+          fatalError = new Error(
+            `Completed staged ${record.type} package changed for ${id} in ${record.newAddon.location}`
+          );
+          break;
+        }
+        if (record.type === "uninstall" && !record.newAddon) {
+          replacement = XPIStates.findAddon(id, location => location !== loc);
+          record.newAddon = getStagedAddonIdentity(replacement);
+        }
+
+        try {
+          awaitPromise(this.runStagedLifecycle(journal, "oldShutdown"));
+
+          if (
+            oldAddon &&
+            requiresEarlyLifecycleUninstall(oldAddon) &&
+            !isStagedLifecycleComplete(record, "oldUninstall")
+          ) {
+            const replacementVersion =
+              replacement?.version ?? metadata?.version;
+            const reason = replacementVersion
+              ? XPIExports.XPIInstall.newVersionReason(
+                  oldAddon.version,
+                  replacementVersion
+                )
+              : BOOTSTRAP_REASONS.ADDON_UNINSTALL;
+            const extraArgs = replacementVersion
+              ? { newVersion: replacementVersion }
+              : undefined;
+            const scope = BootstrapScope.get(oldAddon);
+            scope.abortOnLifecycleError = true;
+            awaitPromise(
+              this.runStagedLifecycle(journal, "oldUninstall", () =>
+                scope.prepareStagedUpdate(reason, extraArgs)
+              )
+            );
+          } else {
+            awaitPromise(this.runStagedLifecycle(journal, "oldUninstall"));
+          }
+        } catch (error) {
+          logger.warn(
+            `Failed to complete old lifecycle for staged add-on ${id}`,
+            error
+          );
+          fatalError = error;
+          break;
+        }
+
+        if (record.filesComplete) {
+          logger.debug(
+            `Resuming completed staged ${record.type} for ${id} in ${loc.name}`
+          );
+          try {
+            for (const phase of ["newInstall", "newStartup"]) {
+              if (isStagedLifecycleInterrupted(record, phase)) {
+                awaitPromise(this.runStagedLifecycle(journal, phase));
+              }
+            }
+            if (!record.newAddon) {
+              awaitPromise(this.runStagedLifecycle(journal, "newInstall"));
+              awaitPromise(this.runStagedLifecycle(journal, "newStartup"));
+            }
+          } catch (error) {
+            fatalError = error;
+            break;
+          }
+          noteJournal(journal);
+          changed = true;
+          continue;
+        }
+
+        if (record.type === "uninstall") {
+          logger.debug(`Uninstalling staged addon ${id} from ${loc.name}`);
+          if (loc.locked && !record.removeStateOnly) {
+            fatalError = new Error(
+              `Unable to finish lifecycle-handled uninstall for ${id} in locked location ${loc.name}`
+            );
+            break;
+          }
+
+          try {
+            awaitPromise(
+              this.callStagedLifecycleTestHook(
+                "before-file-operation",
+                "files",
+                journal
+              )
+            );
+            if (record.removeStateOnly) {
+              loc.removeAddon(id, false);
+            } else {
+              let installer = loc.installer;
+              if (!installer) {
+                throw new Error(`No installer available for ${loc.name}`);
+              }
+              installer.uninstallAddon(id, false);
+            }
+            awaitPromise(
+              this.callStagedLifecycleTestHook(
+                "after-file-operation",
+                "files",
+                journal
+              )
+            );
+            awaitPromise(
+              this.callStagedLifecycleTestHook(
+                "before-xpi-state-save",
+                "files",
+                journal
+              )
+            );
+            if (!loc.setStagedFilesComplete(id, "uninstall")) {
+              throw new Error(
+                `Unable to record completed staged uninstall for ${id}`
+              );
+            }
+            awaitPromise(XPIStates.saveImmediately());
+            awaitPromise(
+              this.callStagedLifecycleTestHook(
+                "after-xpi-state-save",
+                "files",
+                journal
+              )
+            );
+          } catch (error) {
+            logger.error(
+              `Failed to uninstall staged add-on ${id} from ${loc.name}`,
+              error
+            );
+            fatalError = error;
+            break;
+          }
+
+          if (!record.newAddon) {
+            try {
+              awaitPromise(this.runStagedLifecycle(journal, "newInstall"));
+              awaitPromise(this.runStagedLifecycle(journal, "newStartup"));
+            } catch (error) {
+              fatalError = error;
+              break;
+            }
+          }
+          noteJournal(journal);
+          changed = true;
+          continue;
+        }
+
+        if (loc.locked) {
+          fatalError = new Error(
+            `Unable to finish lifecycle-handled install for ${id} in locked location ${loc.name}`
+          );
+          break;
+        }
+
+        logger.debug(
+          `Installing staged addon ${id} version ${metadata?.version} in ${loc.name}`
+        );
+
+        try {
+          awaitPromise(
+            this.callStagedLifecycleTestHook(
+              "before-file-operation",
+              "files",
+              journal
+            )
+          );
+        } catch (error) {
+          fatalError = error;
+          break;
+        }
 
         aManifests[loc.name][id] = null;
         promises.push(
-          XPIExports.XPIInstall.installStagedAddon(id, metadata, loc).then(
-            addon => {
+          XPIExports.XPIInstall.installStagedAddon(
+            id,
+            metadata,
+            loc,
+            record
+          ).then(
+            async addon => {
+              await this.callStagedLifecycleTestHook(
+                "after-file-operation",
+                "files",
+                journal
+              );
+              await this.callStagedLifecycleTestHook(
+                "before-xpi-state-save",
+                "files",
+                journal
+              );
+              record.newAddon = getStagedAddonIdentity(addon);
+              if (!loc.setStagedFilesComplete(id, "install")) {
+                throw new Error(
+                  `Unable to record completed staged install for ${id}`
+                );
+              }
+              await XPIStates.saveImmediately();
+              await this.callStagedLifecycleTestHook(
+                "after-xpi-state-save",
+                "files",
+                journal
+              );
+              noteJournal(journal);
               logger.debug(
-                `Successfully installed staged addon ${id} version ${metadata.version} in ${loc.name}`
+                `Successfully installed staged addon ${id} version ${metadata?.version} in ${loc.name}`
               );
               aManifests[loc.name][id] = addon;
             },
             error => {
-              delete aManifests[loc.name][id];
-              stagedFailureNames.push(`${id}.xpi`);
-
+              const currentRecord = loc.staged[id];
               logger.error(
                 `Failed to install staged add-on ${id} in ${loc.name}`,
                 error
               );
+              if (isStagedFileOperationHandled(currentRecord)) {
+                throw error;
+              }
+
+              loc.unstageAddon(id, "install");
+              delete aManifests[loc.name][id];
+              stagedCleanupNames.push(`${id}.xpi`);
             }
           )
         );
@@ -3258,20 +4158,25 @@ export var XPIProvider = {
 
       if (promises.length) {
         changed = true;
-        locationChanged = true;
-        awaitPromise(Promise.all(promises));
+        let results = awaitPromise(Promise.allSettled(promises));
+        fatalError ??= results.find(
+          result => result.status === "rejected"
+        )?.reason;
       }
 
       try {
-        if (locationChanged || stagedFailureNames.length) {
+        if (loc.installer?.cleanStagingDir && stagedCleanupNames.length) {
           logger.debug(
             `Cleaning staged addon directory for location ${loc.name}`
           );
-          loc.installer.cleanStagingDir(stagedFailureNames);
+          loc.installer.cleanStagingDir(stagedCleanupNames);
         }
       } catch (e) {
-        // Non-critical, just saves some perf on startup if we clean this up.
         logger.debug("Error cleaning staging dir", e);
+      }
+
+      if (fatalError) {
+        throw fatalError;
       }
     }
     return changed;
@@ -3448,8 +4353,9 @@ export var XPIProvider = {
     // changes then we must update the database with the information in the
     // install locations
     let manifests = {};
-    let updated = this.processPendingFileChanges(manifests);
-    if (updated) {
+    let pendingFileChanges = this.processPendingFileChanges(manifests);
+    let completedStagedFileChanges = this.hasCompletedStagedFileChanges();
+    if (pendingFileChanges) {
       updateReasons.push("pendingFileChanges");
     }
 
@@ -3466,7 +4372,7 @@ export var XPIProvider = {
 
     // If the application has changed then check for new distribution add-ons
     if (Services.prefs.getBoolPref(PREF_INSTALL_DISTRO_ADDONS, true)) {
-      updated = this.installDistributionAddons(manifests, aAppChanged);
+      let updated = this.installDistributionAddons(manifests, aAppChanged);
       if (updated) {
         updateReasons.push("installDistributionAddons");
       }
@@ -3490,39 +4396,142 @@ export var XPIProvider = {
     // Catch and log any errors during the main startup
     try {
       let extensionListChanged = false;
-      // If the database needs to be updated then open it and then update it
-      // from the filesystem
-      if (updateReasons.length) {
-        AddonManagerPrivate.recordSimpleMeasure(
-          "XPIDB_startup_load_reasons",
-          updateReasons
-        );
-        Glean.xpiDatabase.startupLoadReasons.set(updateReasons);
-        XPIExports.XPIDatabase.syncLoadDB(false);
-        try {
-          extensionListChanged =
-            XPIExports.XPIDatabaseReconcile.processFileChanges(
-              manifests,
-              aAppChanged,
-              aOldAppVersion,
-              aOldPlatformVersion,
-              updateReasons.includes("schemaChanged")
+      let reconciledStagedFileChanges = false;
+      let reconciledStagedJournals = [];
+      let startupChangesApplied = false;
+      let stagedReconciliationBatch = false;
+      let databaseCheckpointCompleted = false;
+      try {
+        // If the database needs to be updated then open it and then update it
+        // from the filesystem
+        if (updateReasons.length) {
+          AddonManagerPrivate.recordSimpleMeasure(
+            "XPIDB_startup_load_reasons",
+            updateReasons
+          );
+          Glean.xpiDatabase.startupLoadReasons.set(updateReasons);
+          XPIExports.XPIDatabase.syncLoadDB(false);
+          if (completedStagedFileChanges) {
+            awaitPromise(XPIExports.XPIDatabase.saveChangesImmediately());
+            XPIExports.XPIDatabase._beginSaveChangesBatch();
+            stagedReconciliationBatch = true;
+          }
+          try {
+            extensionListChanged =
+              XPIExports.XPIDatabaseReconcile.processFileChanges(
+                manifests,
+                aAppChanged,
+                aOldAppVersion,
+                aOldPlatformVersion,
+                updateReasons.includes("schemaChanged")
+              );
+            reconciledStagedFileChanges = completedStagedFileChanges;
+            if (reconciledStagedFileChanges) {
+              reconciledStagedJournals = [
+                ...(manifests.__stagedLifecycleJournals?.values() ?? []),
+              ];
+            }
+          } catch (e) {
+            logger.error("Failed to process extension changes at startup", e);
+          }
+        }
+
+        // If the application crashed before completing any pending operations then
+        // we should perform them now.
+        startupChangesApplied = extensionListChanged || hasPendingChanges;
+        if (startupChangesApplied) {
+          XPIExports.XPIDatabase.updateActiveAddons();
+        }
+
+        if (reconciledStagedFileChanges) {
+          for (const journal of reconciledStagedJournals) {
+            awaitPromise(
+              this.callStagedLifecycleTestHook(
+                "before-database-save",
+                "database",
+                journal
+              )
             );
-        } catch (e) {
-          logger.error("Failed to process extension changes at startup", e);
+          }
+          // Checkpoint the database after filesComplete is durable but before
+          // recording databaseComplete.
+          awaitPromise(XPIExports.XPIDatabase.saveChangesImmediately());
+          databaseCheckpointCompleted = true;
+          for (const journal of reconciledStagedJournals) {
+            awaitPromise(
+              this.callStagedLifecycleTestHook(
+                "after-database-save",
+                "database",
+                journal
+              )
+            );
+            awaitPromise(
+              this.callStagedLifecycleTestHook(
+                "before-xpi-state-save",
+                "database",
+                journal
+              )
+            );
+          }
+
+          const markedJournals = [];
+          const rollbackJournals = [];
+          try {
+            for (const candidate of reconciledStagedJournals) {
+              const journal = this.resolveStagedJournal(candidate);
+              const wasDatabaseComplete = journal?.record.databaseComplete;
+              if (
+                !journal?.location.setStagedDatabaseComplete(
+                  journal.id,
+                  journal.record.type
+                )
+              ) {
+                throw new Error(
+                  `Unable to record completed staged database update for ${candidate.id}`
+                );
+              }
+              markedJournals.push(journal);
+              if (!wasDatabaseComplete) {
+                rollbackJournals.push(journal);
+              }
+            }
+            awaitPromise(XPIStates.saveImmediately());
+          } catch (error) {
+            for (const { record } of rollbackJournals) {
+              delete record.databaseComplete;
+            }
+            XPIStates.save();
+            throw error;
+          }
+
+          for (const journal of markedJournals) {
+            awaitPromise(
+              this.callStagedLifecycleTestHook(
+                "after-xpi-state-save",
+                "database",
+                journal
+              )
+            );
+          }
+        }
+      } finally {
+        if (stagedReconciliationBatch) {
+          XPIExports.XPIDatabase._endSaveChangesBatch(
+            databaseCheckpointCompleted
+          );
         }
       }
 
-      // If the application crashed before completing any pending operations then
-      // we should perform them now.
-      if (extensionListChanged || hasPendingChanges) {
-        XPIExports.XPIDatabase.updateActiveAddons();
+      if (startupChangesApplied) {
         return;
       }
 
       logger.debug("No changes found");
     } catch (e) {
       logger.error("Error during startup file checks", e);
+      if (e?._stagedLifecycleTestHookError) {
+        throw e;
+      }
     }
   },
 
