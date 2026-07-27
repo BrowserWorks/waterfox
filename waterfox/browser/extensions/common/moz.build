@@ -5,10 +5,12 @@
 XPCSHELL_TESTS_MANIFESTS += ["test/xpcshell/xpcshell.toml"]
 
 EXTRA_JS_MODULES += [
+    "BootstrapLoader.sys.mjs",
     "ChromeManifest.sys.mjs",
     "ExtensionSupport.sys.mjs",
     "iteratorUtils.sys.mjs",
     "LegacyAddonRuntime.sys.mjs",
+    "LegacyBootstrapScope.sys.mjs",
     "LegacyChromeManifest.sys.mjs",
     "LegacyComponentRegistry.sys.mjs",
     "LegacyXULOverlay.sys.mjs",
