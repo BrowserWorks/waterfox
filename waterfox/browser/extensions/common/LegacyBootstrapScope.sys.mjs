@@ -7,9 +7,95 @@ import { ExtensionSupport } from "resource:///modules/ExtensionSupport.sys.mjs";
 import { LegacyAddonRuntime } from "resource:///modules/LegacyAddonRuntime.sys.mjs";
 
 const STARTUP_CACHE_INVALIDATE = "startupcache-invalidate";
+const retainedBootstrapUpdates = new Map();
+let providerGeneration = 0;
+
+function getPackageGeneration(addon) {
+  if (!addon?.id || !addon.location?.name || !addon.version) {
+    return null;
+  }
+  return JSON.stringify([
+    addon.location.name,
+    addon.id,
+    addon.version,
+    addon.rootURI ?? null,
+    addon.path ?? addon.file?.path ?? addon._sourceBundle?.path ?? null,
+  ]);
+}
+
+function destroyRetainedUpdate(retained) {
+  try {
+    retained?.scope.destroy();
+  } catch (error) {
+    retained?.scope.logger?.warn?.(
+      `Unable to destroy retained bootstrap scope for ${retained.scope.id}`,
+      error
+    );
+  }
+}
+
+function clearRetainedBootstrapUpdates() {
+  const retained = [...retainedBootstrapUpdates.values()];
+  retainedBootstrapUpdates.clear();
+  for (const update of retained) {
+    destroyRetainedUpdate(update);
+  }
+}
+
+function findRetainedBootstrapUpdate(addonId) {
+  return [...retainedBootstrapUpdates.values()].find(
+    retained => retained.id === addonId
+  );
+}
+
+function takeRetainedBootstrapUpdate(owner, data, exactPackage = false) {
+  const expectedPackageGeneration = exactPackage
+    ? owner.packageGeneration
+    : data?.oldPackageGeneration;
+  const retained = expectedPackageGeneration
+    ? retainedBootstrapUpdates.get(expectedPackageGeneration)
+    : null;
+  if (retained) {
+    retainedBootstrapUpdates.delete(expectedPackageGeneration);
+  }
+
+  for (const [generation, stale] of retainedBootstrapUpdates) {
+    if (stale.id === owner.id) {
+      retainedBootstrapUpdates.delete(generation);
+      destroyRetainedUpdate(stale);
+    }
+  }
+
+  if (
+    !retained ||
+    retained.id !== owner.id ||
+    retained.providerGeneration !== providerGeneration ||
+    (data?.oldVersion && retained.version !== data.oldVersion)
+  ) {
+    destroyRetainedUpdate(retained);
+    return null;
+  }
+  return retained;
+}
+
+export function beginLegacyBootstrapProviderGeneration(generation) {
+  clearRetainedBootstrapUpdates();
+  providerGeneration = generation;
+}
+
+export function endLegacyBootstrapProviderGeneration(generation) {
+  if (generation === providerGeneration) {
+    clearRetainedBootstrapUpdates();
+  }
+}
 
 function createLogger(addonId) {
   return console.createInstance({ prefix: `Legacy add-on ${addonId}` });
+}
+
+function isUpdateReason(reason) {
+  const reasons = AddonManagerPrivate.BOOTSTRAP_REASONS;
+  return [reasons.ADDON_UPGRADE, reasons.ADDON_DOWNGRADE].includes(reason);
 }
 
 function getBootstrapMethod(sandbox, name) {
@@ -211,4 +297,256 @@ export class LegacyBootstrapScriptScope {
     this.sandbox = null;
     this.methods = null;
   }
+}
+
+class LegacyWebExtensionScope {
+  constructor(addon, genericScope) {
+    if (!addon?.id) {
+      throw new TypeError("Legacy WebExtensions must include an id");
+    }
+    if (!genericScope || typeof genericScope !== "object") {
+      throw new TypeError("A generic WebExtension scope is required");
+    }
+
+    const legacyMode = addon.startupData?.legacyMode;
+    if (!new Set(["bootstrap", "xul"]).has(legacyMode)) {
+      throw new Error(`Unknown legacy mode for ${addon.id}: ${legacyMode}`);
+    }
+
+    this.addon = addon;
+    this.id = addon.id;
+    this.packageGeneration = getPackageGeneration(addon);
+    this.isBootstrap = legacyMode === "bootstrap";
+    this.genericScope = genericScope;
+    this.fatalLifecycleErrors = true;
+    this.logger = createLogger(this.id);
+    this.legacyScope = this.isBootstrap
+      ? new LegacyBootstrapScriptScope(addon, this.logger)
+      : new LegacyAddonRuntime(addon, this.logger);
+  }
+
+  fetchState() {
+    return this._callGeneric("fetchState");
+  }
+
+  async install(data, reason) {
+    if (this.isBootstrap) {
+      await this.legacyScope.install(data, reason);
+    }
+    return this._callGeneric("install", data, reason);
+  }
+
+  async startup(data, reason) {
+    const disableReason = AddonManagerPrivate.BOOTSTRAP_REASONS.ADDON_DISABLE;
+    if (this.isBootstrap) {
+      await this.legacyScope.startup(data, reason);
+      try {
+        return await this._callGeneric("startup", data, reason);
+      } catch (error) {
+        try {
+          await this.legacyScope.shutdown(data, disableReason);
+        } catch (cleanupError) {
+          this.logger.warn(
+            `Unable to roll back legacy startup for ${this.id}`,
+            cleanupError
+          );
+        }
+        throw error;
+      }
+    }
+
+    const result = await this._callGeneric("startup", data, reason);
+    try {
+      await this.legacyScope.start();
+      return result;
+    } catch (error) {
+      try {
+        await this._callGeneric("shutdown", data, disableReason);
+      } catch (cleanupError) {
+        this.logger.warn(
+          `Unable to roll back WebExtension startup for ${this.id}`,
+          cleanupError
+        );
+      }
+      throw error;
+    }
+  }
+
+  async shutdown(data, reason) {
+    let result;
+    let genericError;
+    let legacyError;
+
+    try {
+      result = await this._callGeneric("shutdown", data, reason);
+    } catch (error) {
+      genericError = error;
+    } finally {
+      try {
+        if (this.isBootstrap) {
+          await this.legacyScope.shutdown(data, reason);
+        } else {
+          await this.legacyScope.stop(reason);
+        }
+      } catch (error) {
+        legacyError = error;
+      }
+    }
+
+    if (
+      this.isBootstrap &&
+      isUpdateReason(reason) &&
+      !genericError &&
+      !legacyError
+    ) {
+      await this._retainBootstrapUpdate(data, reason);
+    }
+
+    if (genericError) {
+      if (legacyError) {
+        this.logger.warn(
+          `Legacy shutdown also failed for ${this.id}`,
+          legacyError
+        );
+      }
+      throw genericError;
+    }
+    if (legacyError) {
+      throw legacyError;
+    }
+    return result;
+  }
+
+  async uninstall(data, reason) {
+    let legacyError;
+    const retained = takeRetainedBootstrapUpdate(this, data, true);
+
+    if (this.isBootstrap) {
+      const scope = retained?.scope ?? this.legacyScope;
+      const uninstallData = retained?.data ?? data;
+      try {
+        await scope.uninstall(uninstallData, reason);
+      } catch (error) {
+        legacyError = error;
+      }
+    }
+
+    const result = await this._callGeneric("uninstall", data, reason);
+    if (legacyError) {
+      throw legacyError;
+    }
+    return result;
+  }
+
+  async prepareUpdate(data, reason) {
+    const retained = takeRetainedBootstrapUpdate(this, data, true);
+    if (this.isBootstrap) {
+      await (retained?.scope ?? this.legacyScope).uninstall(data, reason);
+    }
+  }
+
+  async update(data, reason) {
+    const retained = takeRetainedBootstrapUpdate(this, data);
+    let legacyError;
+    let genericError;
+    let result;
+
+    if (retained) {
+      const oldData = {
+        ...retained.data,
+        oldVersion: retained.data.oldVersion ?? retained.scope.addon.version,
+        newVersion: data.newVersion ?? data.version,
+      };
+      try {
+        await retained.scope.uninstall(oldData, reason);
+      } catch (error) {
+        legacyError = error;
+      }
+    }
+
+    try {
+      result = await this._callGeneric("update", data, reason);
+    } catch (error) {
+      genericError = error;
+    }
+
+    if (this.isBootstrap) {
+      const newData = {
+        ...data,
+        oldVersion: data.oldVersion ?? retained?.scope.addon.version,
+        newVersion: data.newVersion ?? data.version,
+      };
+      try {
+        await this.legacyScope.install(newData, reason);
+      } catch (error) {
+        legacyError ??= error;
+      }
+    }
+
+    if (genericError) {
+      if (legacyError) {
+        this.logger.warn(
+          `Legacy update also failed for ${this.id}`,
+          legacyError
+        );
+      }
+      throw genericError;
+    }
+    if (legacyError) {
+      throw legacyError;
+    }
+    return result;
+  }
+
+  destroy() {
+    const retained = retainedBootstrapUpdates.get(this.packageGeneration);
+    if (
+      this.isBootstrap &&
+      (retained?.scope !== this.legacyScope ||
+        retained.providerGeneration !== providerGeneration ||
+        retained.packageGeneration !== this.packageGeneration)
+    ) {
+      this.legacyScope.destroy();
+    }
+  }
+
+  _callGeneric(name, ...args) {
+    const method = this.genericScope[name];
+    if (typeof method !== "function") {
+      return undefined;
+    }
+    return Reflect.apply(method, this.genericScope, args);
+  }
+
+  async _retainBootstrapUpdate(data, reason) {
+    const retained = findRetainedBootstrapUpdate(this.id);
+    if (retained && retained.scope !== this.legacyScope) {
+      retainedBootstrapUpdates.delete(retained.packageGeneration);
+      this.logger.warn(
+        `Replacing an unfinished legacy bootstrap update for ${this.id}`
+      );
+      try {
+        await retained.scope.uninstall(retained.data, retained.reason);
+      } catch (error) {
+        this.logger.warn(
+          `Unable to finalize the previous bootstrap scope for ${this.id}`,
+          error
+        );
+      }
+    }
+
+    retainedBootstrapUpdates.set(this.packageGeneration, {
+      id: this.id,
+      providerGeneration,
+      packageGeneration: this.packageGeneration,
+      version: this.addon.version,
+      scope: this.legacyScope,
+      data: { ...data },
+      reason,
+    });
+  }
+}
+
+export function createLegacyWebExtensionScope(addon, genericScope) {
+  return new LegacyWebExtensionScope(addon, genericScope);
 }
