@@ -1,0 +1,7 @@
+[DEFAULT]
+firefox-appdir = "browser"
+
+tags = "addons waterfox_extensions"
+
+["test_bug564667.js"]
+head = ""
