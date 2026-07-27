@@ -508,7 +508,7 @@ function waitForAllPromises(promises) {
  * @param {XPIStateLocation} aLocation
  *        The install location the add-on is installed in, or will be
  *        installed to.
- * @returns {{ addon: AddonInternal, verifiedSignedState: object}}
+ * @returns {{ addon: AddonInternal, verifiedSignedState: object, hasLegacyManifest: boolean}}
  * @throws if the install manifest in the stream is corrupt or could not
  *         be read
  */
@@ -565,6 +565,26 @@ async function loadManifestFromWebManifest(aPackage, aLocation) {
   addon.name = manifest.name;
   addon.type = extension.type;
   addon.loader = null;
+  if (manifest.legacy && addon.type !== "extension") {
+    throw new Error(
+      `The legacy manifest key is only available to extensions, not ${addon.type}s`
+    );
+  }
+  let legacyMode;
+  let legacyOptions;
+  if (manifest.legacy) {
+    legacyMode =
+      typeof manifest.legacy === "object" &&
+      manifest.legacy.type === "bootstrap"
+        ? "bootstrap"
+        : "xul";
+    legacyOptions =
+      typeof manifest.legacy === "object" ? manifest.legacy.options : null;
+    addon.bootstrap = legacyMode === "bootstrap";
+    if (addon.bootstrap && !(await aPackage.hasResource("bootstrap.js"))) {
+      throw new Error("Legacy bootstrap extension is missing bootstrap.js");
+    }
+  }
   addon.strictCompatibility = true;
   addon.internalName = null;
   addon.updateURL = bss.update_url;
@@ -574,7 +594,13 @@ async function loadManifestFromWebManifest(aPackage, aLocation) {
   addon.optionsType = null;
   addon.aboutURL = null;
   addon.dependencies = Object.freeze(Array.from(extension.dependencies));
-  addon.startupData = extension.startupData;
+  addon.startupData = legacyMode
+    ? {
+        ...(extension.startupData || {}),
+        legacyLoader: "bootstrap",
+        legacyMode,
+      }
+    : extension.startupData;
   addon.hidden = extension.isPrivileged && manifest.hidden;
   addon.incognito = manifest.incognito;
 
@@ -594,6 +620,14 @@ async function loadManifestFromWebManifest(aPackage, aLocation) {
     }
 
     addon.optionsBrowserStyle = optionsPageProperties.browser_style;
+  }
+
+  if (legacyOptions?.page) {
+    addon.optionsURL = legacyOptions.page;
+    addon.optionsType = legacyOptions.open_in_tab
+      ? AddonManager.OPTIONS_TYPE_TAB
+      : AddonManager.OPTIONS_TYPE_DIALOG;
+    addon.optionsBrowserStyle = false;
   }
 
   // WebExtensions don't use iconURLs
@@ -668,7 +702,11 @@ async function loadManifestFromWebManifest(aPackage, aLocation) {
   addon.softDisabled =
     addon.blocklistState == nsIBlocklistService.STATE_SOFTBLOCKED;
 
-  return { addon, verifiedSignedState };
+  return {
+    addon,
+    verifiedSignedState,
+    hasLegacyManifest: !!legacyMode,
+  };
 }
 
 async function readRecommendationStates(aPackage, aAddonID) {
@@ -728,6 +766,55 @@ function defineSyncGUID(aAddon) {
   });
 }
 
+async function migrateInstalledLegacyJSONAddon(addon) {
+  if (
+    !addon ||
+    addon.startupData?.legacyMode ||
+    addon.startupData?.legacyManifest === "rdf" ||
+    addon.loader === "bootstrap"
+  ) {
+    return addon;
+  }
+
+  const file = addon.file || addon._sourceBundle;
+  if (!file) {
+    return addon;
+  }
+
+  let pkg;
+  try {
+    pkg = Package.get(file);
+    if (!(await pkg.hasResource("manifest.json"))) {
+      return addon;
+    }
+    const manifest = JSON.parse(await pkg.readString("manifest.json"));
+    const id =
+      manifest.browser_specific_settings?.gecko?.id ??
+      manifest.applications?.gecko?.id;
+    if (!manifest.legacy || id !== addon.id) {
+      return addon;
+    }
+
+    const legacyMode =
+      typeof manifest.legacy === "object" &&
+      manifest.legacy.type === "bootstrap"
+        ? "bootstrap"
+        : "xul";
+    addon.loader = null;
+    addon.bootstrap = legacyMode === "bootstrap";
+    addon.startupData = {
+      ...(addon.startupData || {}),
+      legacyLoader: "bootstrap",
+      legacyMode,
+    };
+  } catch (error) {
+    logger.warn(`Unable to migrate installed legacy add-on ${addon.id}`, error);
+  } finally {
+    pkg?.close();
+  }
+  return addon;
+}
+
 // Generate a unique ID based on the path to this temporary add-on location.
 function generateTemporaryInstallID(aFile) {
   const hasher = CryptoHash("sha1");
@@ -753,10 +840,8 @@ var loadManifest = async function (
   let verifiedSignedState;
   let hasLegacyManifest = false;
   if (await aPackage.hasResource("manifest.json")) {
-    ({ addon, verifiedSignedState } = await loadManifestFromWebManifest(
-      aPackage,
-      aLocation
-    ));
+    ({ addon, verifiedSignedState, hasLegacyManifest } =
+      await loadManifestFromWebManifest(aPackage, aLocation));
   } else {
     // TODO bug 1674799: Remove this unused branch.
     for (let loader of AddonManagerPrivate.externalExtensionLoaders.values()) {
@@ -818,6 +903,7 @@ var loadManifest = async function (
     typeof aLegacyAddon === "function"
       ? await aLegacyAddon(addon)
       : aLegacyAddon;
+  await migrateInstalledLegacyJSONAddon(resolvedLegacyAddon);
   const legacyAddonWasLegacy = Boolean(
     resolvedLegacyAddon?.startupData?.legacyMode ||
     resolvedLegacyAddon?.startupData?.legacyManifest === "rdf" ||

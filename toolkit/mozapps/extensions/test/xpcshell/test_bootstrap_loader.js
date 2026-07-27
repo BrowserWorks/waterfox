@@ -12,7 +12,9 @@ const RAW_PACKED_ID = "raw-packed-xul@tests.mozilla.org";
 const RAW_UNPACKED_ID = "raw-unpacked-xul@tests.mozilla.org";
 const LOCKED_SIDELOAD_ID = "locked-sideload-xul@tests.mozilla.org";
 const SIGNED_RDF_ID = "ordinary-signed-rdf@tests.mozilla.org";
+const GRANDFATHERED_HYBRID_ID = "grandfathered-hybrid@tests.waterfox.net";
 const TEMP_RAW_FAILURE_ID = "temporary-raw-failure@tests.waterfox.net";
+const TEMP_REPLACEMENT_ID = "temporary-replacement@tests.waterfox.net";
 const CROSS_LOCATION_ID = "cross-location-classic@tests.waterfox.net";
 const CROSS_LOCATION_CRASH_ID = "cross-location-crash@tests.waterfox.net";
 const PERSISTENCE_CRASH_ID = "persistence-crash@tests.waterfox.net";
@@ -20,7 +22,12 @@ const ACTUAL_CLASSIC_UPDATE_ID = "actual-classic-update@tests.waterfox.net";
 const RETAINED_SCOPE_ID = "retained-scope@tests.waterfox.net";
 const APP_SHUTDOWN_ID = "app-shutdown-classic@tests.waterfox.net";
 const SIGNING_MATRIX_IDS = {
+  unsigned: "legacy-unsigned@tests.waterfox.net",
+  ordinary: "legacy-ordinary@tests.waterfox.net",
+  privileged: "legacy-privileged@tests.waterfox.net",
+  system: "legacy-system@tests.waterfox.net",
   temporary: "legacy-temporary@tests.waterfox.net",
+  builtin: "legacy-builtin@tests.waterfox.net",
 };
 const EVENTS_PREF = "test.bootstrap-loader.events";
 const P0_EVENTS_PREF = "test.bootstrap-loader.p0-events";
@@ -54,7 +61,6 @@ Services.prefs.unlockPref(PREF_XPI_SIGNATURES_REQUIRED);
 Services.prefs.setBoolPref(PREF_XPI_SIGNATURES_REQUIRED, false);
 Services.prefs.setBoolPref("extensions.blocklist.enabled", false);
 Services.prefs.setBoolPref("extensions.skipInstallDefaultThemeForTests", true);
-
 
 const { BootstrapLoader } = ChromeUtils.importESModule(
   "resource:///modules/BootstrapLoader.sys.mjs"
@@ -331,6 +337,46 @@ function createLifecycleBootstrapXPI(version) {
   return AddonTestUtils.createTempXPIFile(createBootstrapFiles(version));
 }
 
+function createHybridXPI(
+  id,
+  legacyType,
+  includeBootstrap = false,
+  legacyOptions = null
+) {
+  const legacy = { type: legacyType };
+  if (legacyOptions) {
+    legacy.options = legacyOptions;
+  }
+  const files = {
+    "manifest.json": JSON.stringify({
+      manifest_version: 2,
+      name: `JSON ${legacyType} hybrid`,
+      version: "2.0",
+      browser_specific_settings: { gecko: { id } },
+      legacy,
+    }),
+    "install.rdf": createInstallRDF(`
+    <em:id>rdf-${id}</em:id>
+    <em:type>2</em:type>
+    <em:name>RDF hybrid</em:name>
+    <em:version>1.0</em:version>
+    <em:bootstrap>${legacyType === "xul"}</em:bootstrap>
+    `),
+  };
+  if (legacyOptions?.page) {
+    files[legacyOptions.page] = "<window/>";
+  }
+  if (includeBootstrap) {
+    files["bootstrap.js"] = `
+function install() {}
+function uninstall() {}
+function startup() {}
+function shutdown() {}
+`;
+  }
+  return AddonTestUtils.createTempXPIFile(files);
+}
+
 function createP0BootstrapScript(
   id,
   version,
@@ -385,6 +431,19 @@ function createRawBootstrapXPI(id, version, options = {}) {
       </Description>
     </em:targetApplication>
     `),
+    "bootstrap.js": createP0BootstrapScript(id, version, options),
+  });
+}
+
+function createHybridBootstrapXPI(id, version, options = {}) {
+  return AddonTestUtils.createTempXPIFile({
+    "manifest.json": JSON.stringify({
+      manifest_version: 2,
+      name: `Hybrid bootstrap ${version}`,
+      version,
+      browser_specific_settings: { gecko: { id } },
+      legacy: { type: "bootstrap" },
+    }),
     "bootstrap.js": createP0BootstrapScript(id, version, options),
   });
 }
@@ -447,6 +506,14 @@ async function removeAddonFromStateSnapshot(id) {
   }
   await writeAddonStateSnapshot(snapshot);
   Services.prefs.setBoolPref("extensions.pendingOperations", false);
+}
+
+async function copyNamedXPI(source, id) {
+  const target = do_get_tempdir();
+  target.append(`${id}.xpi`);
+  await IOUtils.remove(target.path, { ignoreAbsent: true });
+  await IOUtils.copy(source.path, target.path);
+  return target;
 }
 
 function getAppExtensionsDir() {
@@ -953,7 +1020,6 @@ add_task(async function test_load_manifest_metadata() {
       "sr-Latn-RS": "dictionaries/sr_Latn_RS.dic",
     },
   });
-
 });
 
 add_task(async function test_install_rdf_graph_references() {
@@ -1485,7 +1551,9 @@ registerCleanupFunction(async () => {
     RAW_PACKED_ID,
     RAW_UNPACKED_ID,
     LOCKED_SIDELOAD_ID,
+    GRANDFATHERED_HYBRID_ID,
     TEMP_RAW_FAILURE_ID,
+    TEMP_REPLACEMENT_ID,
     CROSS_LOCATION_ID,
     CROSS_LOCATION_CRASH_ID,
     ACTUAL_CLASSIC_UPDATE_ID,
@@ -1800,6 +1868,188 @@ add_task(async function test_ordinary_signed_rdf_is_rejected() {
   }
 });
 
+add_task(async function test_current_hybrid_grandfathering() {
+  const previousRealCertChecks = gUseRealCertChecks;
+  const previousPrivilegedSignatures = AddonTestUtils.usePrivilegedSignatures;
+  let managerRunning = true;
+  try {
+    gUseRealCertChecks = true;
+    let addon = (
+      await promiseInstallFile(
+        createHybridBootstrapXPI(GRANDFATHERED_HYBRID_ID, "1.0")
+      )
+    ).addon;
+    Assert.ok(addon.isActive);
+
+    await promiseShutdownManager();
+    managerRunning = false;
+    const snapshot = await readAddonStateSnapshot();
+    const databaseAddon = snapshot.database.addons.find(
+      candidate => candidate.id === GRANDFATHERED_HYBRID_ID
+    );
+    const startupAddon =
+      snapshot.startup["app-profile"].addons[GRANDFATHERED_HYBRID_ID];
+    Assert.ok(databaseAddon);
+    Assert.ok(startupAddon);
+    for (const field of ["bootstrap", "unpack", "startupData"]) {
+      delete databaseAddon[field];
+      delete startupAddon[field];
+    }
+    databaseAddon.signedState = AddonManager.SIGNEDSTATE_SIGNED;
+    startupAddon.signedState = AddonManager.SIGNEDSTATE_SIGNED;
+    snapshot.database.schemaVersion = 37;
+    Services.prefs.setIntPref("extensions.databaseSchema", 37);
+    await writeAddonStateSnapshot(snapshot);
+
+    gUseRealCertChecks = false;
+    AddonTestUtils.usePrivilegedSignatures = false;
+    await promiseStartupManager();
+    managerRunning = true;
+
+    addon = await AddonManager.getAddonByID(GRANDFATHERED_HYBRID_ID);
+    Assert.ok(addon?.isActive, "The installed hybrid remains active");
+    Assert.equal(addon.signedState, AddonManager.SIGNEDSTATE_SIGNED);
+    Assert.deepEqual(addon.__AddonInternal__.startupData, {
+      legacyLoader: "bootstrap",
+      legacyMode: "bootstrap",
+    });
+    await addon.uninstall();
+  } finally {
+    gUseRealCertChecks = previousRealCertChecks;
+    AddonTestUtils.usePrivilegedSignatures = previousPrivilegedSignatures;
+    if (!managerRunning) {
+      await promiseStartupManager();
+    }
+  }
+});
+
+add_task(async function test_waterfox_legacy_signing_state_matrix() {
+  const previousRealCertChecks = gUseRealCertChecks;
+  const previousPrivilegedSignatures = AddonTestUtils.usePrivilegedSignatures;
+  const previousSigningRequired = Services.prefs.getBoolPref(
+    PREF_XPI_SIGNATURES_REQUIRED
+  );
+  const blocklistPref = "extensions.blocklist.enabled";
+  const hadBlocklistUserValue = Services.prefs.prefHasUserValue(blocklistPref);
+  const previousBlocklistEnabled = Services.prefs.getBoolPref(
+    blocklistPref,
+    true
+  );
+  const namedXPIs = [];
+  try {
+    Services.prefs.setBoolPref(blocklistPref, false);
+    gUseRealCertChecks = true;
+    let addon = (
+      await promiseInstallFile(
+        createHybridBootstrapXPI(SIGNING_MATRIX_IDS.unsigned, "1.0")
+      )
+    ).addon;
+    Assert.equal(addon.signedState, AddonManager.SIGNEDSTATE_MISSING);
+    await addon.uninstall();
+
+    gUseRealCertChecks = false;
+    AddonTestUtils.usePrivilegedSignatures = false;
+    const ordinaryBaseline = AddonTestUtils.createTempWebExtensionFile({
+      manifest: {
+        manifest_version: 2,
+        name: "Ordinary signed baseline",
+        version: "1.0",
+        browser_specific_settings: {
+          gecko: { id: SIGNING_MATRIX_IDS.ordinary },
+        },
+      },
+    });
+    addon = (await promiseInstallFile(ordinaryBaseline)).addon;
+    Assert.equal(addon.signedState, AddonManager.SIGNEDSTATE_SIGNED);
+
+    let namedXPI = await copyNamedXPI(
+      createHybridBootstrapXPI(SIGNING_MATRIX_IDS.ordinary, "2.0"),
+      SIGNING_MATRIX_IDS.ordinary
+    );
+    namedXPIs.push(namedXPI);
+    let install = await AddonManager.getInstallForFile(namedXPI);
+    Assert.equal(install.state, AddonManager.STATE_DOWNLOAD_FAILED);
+    Assert.equal(install.error, AddonManager.ERROR_CORRUPT_FILE);
+    Assert.equal(
+      (await AddonManager.getAddonByID(SIGNING_MATRIX_IDS.ordinary)).version,
+      "1.0"
+    );
+    await addon.uninstall();
+
+    AddonTestUtils.usePrivilegedSignatures = true;
+    namedXPI = await copyNamedXPI(
+      createHybridBootstrapXPI(SIGNING_MATRIX_IDS.privileged, "1.0"),
+      SIGNING_MATRIX_IDS.privileged
+    );
+    namedXPIs.push(namedXPI);
+    addon = (await promiseInstallFile(namedXPI)).addon;
+    Assert.equal(addon.signedState, AddonManager.SIGNEDSTATE_PRIVILEGED);
+    Assert.ok(addon.isActive);
+    await addon.uninstall();
+
+    AddonTestUtils.usePrivilegedSignatures = "system";
+    namedXPI = await copyNamedXPI(
+      createHybridBootstrapXPI(SIGNING_MATRIX_IDS.system, "1.0"),
+      SIGNING_MATRIX_IDS.system
+    );
+    namedXPIs.push(namedXPI);
+    addon = (await promiseInstallFile(namedXPI)).addon;
+    Assert.equal(addon.signedState, AddonManager.SIGNEDSTATE_SYSTEM);
+    Assert.ok(addon.isPrivileged);
+    Assert.ok(addon.isActive);
+    await addon.uninstall();
+
+    AddonTestUtils.usePrivilegedSignatures = false;
+    await setupBuiltinExtension(
+      {
+        manifest: {
+          manifest_version: 2,
+          name: "Built-in legacy extension",
+          version: "1.0",
+          browser_specific_settings: {
+            gecko: { id: SIGNING_MATRIX_IDS.builtin },
+          },
+          legacy: { type: "bootstrap" },
+        },
+        files: {
+          "bootstrap.js": createP0BootstrapScript(
+            SIGNING_MATRIX_IDS.builtin,
+            "1.0"
+          ),
+        },
+      },
+      "legacy-matrix-builtin"
+    );
+    addon = await AddonManager.installBuiltinAddon(
+      "resource://legacy-matrix-builtin/"
+    );
+    Assert.equal(addon.signedState, AddonManager.SIGNEDSTATE_NOT_REQUIRED);
+    Assert.ok(addon.isBuiltin);
+    Assert.ok(addon.isActive);
+    await addon.uninstall();
+
+  } finally {
+    Services.io
+      .getProtocolHandler("resource")
+      .QueryInterface(Ci.nsIResProtocolHandler)
+      .setSubstitution("legacy-matrix-builtin", null);
+    for (const xpi of namedXPIs) {
+      await IOUtils.remove(xpi.path, { ignoreAbsent: true });
+    }
+    gUseRealCertChecks = previousRealCertChecks;
+    AddonTestUtils.usePrivilegedSignatures = previousPrivilegedSignatures;
+    Services.prefs.setBoolPref(
+      PREF_XPI_SIGNATURES_REQUIRED,
+      previousSigningRequired
+    );
+    if (hadBlocklistUserValue) {
+      Services.prefs.setBoolPref(blocklistPref, previousBlocklistEnabled);
+    } else {
+      Services.prefs.clearUserPref(blocklistPref);
+    }
+  }
+});
+
 add_task(async function test_temporary_raw_rdf_startup_failure_rollback() {
   clearP0Events();
   let addon = await AddonManager.installTemporaryAddon(
@@ -1824,6 +2074,39 @@ add_task(async function test_temporary_raw_rdf_startup_failure_rollback() {
     getP0Events(TEMP_RAW_FAILURE_ID).includes(
       `${TEMP_RAW_FAILURE_ID}:1.0:startup:${BOOTSTRAP_REASONS.ADDON_DOWNGRADE}`
     )
+  );
+  await addon.uninstall();
+  clearP0Events();
+});
+
+add_task(async function test_temporary_replacement_startup_failure_rollback() {
+  clearP0Events();
+  let addon = (
+    await promiseInstallFile(
+      createHybridBootstrapXPI(TEMP_REPLACEMENT_ID, "1.0")
+    )
+  ).addon;
+  Assert.ok(addon.isActive);
+  clearP0Events();
+
+  await Assert.rejects(
+    AddonManager.installTemporaryAddon(
+      createHybridBootstrapXPI(TEMP_REPLACEMENT_ID, "2.0", {
+        failStartup: true,
+      })
+    ),
+    /intentional startup failure/
+  );
+
+  addon = await AddonManager.getAddonByID(TEMP_REPLACEMENT_ID);
+  Assert.equal(addon?.version, "1.0");
+  Assert.ok(addon.isActive, "The replaced permanent add-on is restored");
+  Assert.ok(!addon.temporarilyInstalled);
+  Assert.ok(
+    getP0Events(TEMP_REPLACEMENT_ID).includes(
+      `${TEMP_REPLACEMENT_ID}:1.0:startup:${BOOTSTRAP_REASONS.ADDON_DOWNGRADE}`
+    ),
+    "Rollback restarts the previous package"
   );
   await addon.uninstall();
   clearP0Events();
@@ -2059,6 +2342,84 @@ add_task(async function test_staged_lifecycle_journal_recovery() {
   Assert.deepEqual(getBootstrapEvents(), []);
   await assertFinalized();
   clearBootstrapEvents();
+});
+
+add_task(async function test_hybrid_manifest_json_precedence() {
+  let invalidInstall;
+  const { messages } = await promiseConsoleOutput(async () => {
+    invalidInstall = await AddonManager.getInstallForFile(
+      createHybridXPI(HYBRID_BOOTSTRAP_ID, "bootstrap")
+    );
+  });
+  Assert.equal(invalidInstall.state, AddonManager.STATE_DOWNLOAD_FAILED);
+  Assert.equal(invalidInstall.error, AddonManager.ERROR_CORRUPT_FILE);
+  Assert.equal(invalidInstall.addon, null);
+  Assert.ok(
+    messages.some(({ message }) =>
+      /Legacy bootstrap extension is missing bootstrap\.js/.test(message)
+    )
+  );
+
+  let install = await promiseInstallFile(
+    createHybridXPI(HYBRID_BOOTSTRAP_ID, "bootstrap", true, {
+      page: "options.xhtml",
+      open_in_tab: true,
+    })
+  );
+  let addon = install.addon;
+  let internalAddon = addon.__AddonInternal__;
+  Assert.equal(addon.id, HYBRID_BOOTSTRAP_ID);
+  Assert.equal(addon.name, "JSON bootstrap hybrid");
+  Assert.equal(addon.version, "2.0");
+  Assert.ok(addon.isWebExtension);
+  Assert.ok(addon.isActive);
+  Assert.equal(internalAddon.loader, null);
+  Assert.ok(internalAddon.bootstrap);
+  Assert.equal(internalAddon.optionsURL, "options.xhtml");
+  Assert.equal(internalAddon.optionsType, AddonManager.OPTIONS_TYPE_TAB);
+  Assert.equal(internalAddon.startupData.legacyLoader, "bootstrap");
+  Assert.equal(internalAddon.startupData.legacyMode, "bootstrap");
+  Assert.equal(
+    await AddonManager.getAddonByID(`rdf-${HYBRID_BOOTSTRAP_ID}`),
+    null
+  );
+  await addon.uninstall();
+
+  install = await promiseInstallFile(
+    createHybridXPI(HYBRID_XUL_ID, "xul", false, {
+      page: "options.xhtml",
+    })
+  );
+  addon = install.addon;
+  internalAddon = addon.__AddonInternal__;
+  Assert.equal(addon.id, HYBRID_XUL_ID);
+  Assert.equal(addon.name, "JSON xul hybrid");
+  Assert.equal(addon.version, "2.0");
+  Assert.ok(addon.isWebExtension);
+  Assert.ok(!addon.isActive);
+  Assert.equal(internalAddon.loader, null);
+  Assert.ok(!internalAddon.bootstrap);
+  Assert.equal(internalAddon.optionsURL, "options.xhtml");
+  Assert.equal(internalAddon.optionsType, AddonManager.OPTIONS_TYPE_DIALOG);
+  Assert.equal(internalAddon.startupData.legacyLoader, "bootstrap");
+  Assert.equal(internalAddon.startupData.legacyMode, "xul");
+  Assert.ok(!internalAddon.unpack);
+  Assert.ok(
+    hasFlag(
+      addon.operationsRequiringRestart,
+      AddonManager.OP_NEEDS_RESTART_INSTALL
+    )
+  );
+  Assert.equal(await AddonManager.getAddonByID(`rdf-${HYBRID_XUL_ID}`), null);
+
+  await promiseRestartManager();
+  addon = await AddonManager.getAddonByID(HYBRID_XUL_ID);
+  Assert.ok(addon?.isActive);
+  await addon.uninstall();
+  Assert.equal(addon.pendingOperations, AddonManager.PENDING_UNINSTALL);
+  Assert.ok(addon.isActive);
+  await promiseRestartManager();
+  Assert.equal(await AddonManager.getAddonByID(HYBRID_XUL_ID), null);
 });
 
 add_task(async function test_dictionary_uses_generic_scope() {
@@ -3070,6 +3431,63 @@ add_task(async function test_actual_classic_staged_update_and_cancel() {
       enabledScopes,
       sideloadScopes
     );
+  }
+});
+
+add_task(async function test_retained_scope_cleared_on_manager_restart() {
+  clearP0Events();
+  let managerRunning = true;
+  try {
+    let addon = (
+      await promiseInstallFile(
+        createHybridBootstrapXPI(RETAINED_SCOPE_ID, "1.0")
+      )
+    ).addon;
+    Assert.ok(addon.isActive);
+
+    const { XPIExports } = ChromeUtils.importESModule(
+      "resource://gre/modules/addons/XPIExports.sys.mjs"
+    );
+    const activeScope =
+      XPIExports.XPIProvider.activeAddons.get(RETAINED_SCOPE_ID);
+    await activeScope.shutdown(
+      AddonManagerPrivate.BOOTSTRAP_REASONS.ADDON_UPGRADE,
+      { oldVersion: "1.0", newVersion: "2.0" }
+    );
+    Assert.ok(!activeScope.started);
+
+    await promiseShutdownManager();
+    managerRunning = false;
+    await promiseStartupManager();
+    managerRunning = true;
+    addon = await AddonManager.getAddonByID(RETAINED_SCOPE_ID);
+    Assert.equal(addon?.version, "1.0");
+    Assert.ok(addon.isActive);
+
+    clearP0Events();
+    addon = (
+      await promiseInstallFile(
+        createHybridBootstrapXPI(RETAINED_SCOPE_ID, "3.0")
+      )
+    ).addon;
+    Assert.equal(addon.version, "3.0");
+    Assert.equal(
+      getP0Events(RETAINED_SCOPE_ID).filter(event =>
+        event.includes(":1.0:uninstall:")
+      ).length,
+      1,
+      "A stale retained package scope is not replayed"
+    );
+    await addon.uninstall();
+  } finally {
+    if (!managerRunning) {
+      await promiseStartupManager();
+    }
+    const addon = await AddonManager.getAddonByID(RETAINED_SCOPE_ID);
+    if (addon) {
+      await addon.uninstall();
+    }
+    clearP0Events();
   }
 });
 
