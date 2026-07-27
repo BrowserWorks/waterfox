@@ -138,7 +138,7 @@ const XPI_SIGNATURE_CHECKPOINT = 1;
 
 const XPI_SIGNATURE_CHECK_PERIOD = 24 * 60 * 60;
 
-const DB_SCHEMA = 37;
+const DB_SCHEMA = 38;
 
 XPCOMUtils.defineLazyPreferenceGetter(
   lazy,
@@ -369,8 +369,7 @@ function hasLifecycleScope(addon) {
 
 function requiresEarlyLifecycleUninstall(addon) {
   return (
-    addon?.loader != null ||
-    addon?.startupData?.legacyMode === "bootstrap"
+    addon?.loader != null || addon?.startupData?.legacyMode === "bootstrap"
   );
 }
 
@@ -723,6 +722,8 @@ class XPIState {
 
     if (aDBAddon.startupData) {
       this.startupData = aDBAddon.startupData;
+    } else {
+      delete this.startupData;
     }
 
     this.telemetryKey = this.getTelemetryKey();
@@ -2287,6 +2288,58 @@ class BootstrapScope {
       : canRunInSafeMode(this.addon);
   }
 
+  setPendingUpdate(journal, reason, params) {
+    this._pendingUpdate = {
+      providerGeneration: XPIProvider._generation,
+      packageGeneration: getAddonPackageGeneration(this.addon),
+      location: journal.location.name,
+      generation: journal.record.generation,
+      reason,
+      params: params ?? {},
+    };
+  }
+
+  getPendingUpdate() {
+    const pending = this._pendingUpdate;
+    if (
+      !pending ||
+      pending.providerGeneration !== XPIProvider._generation ||
+      pending.packageGeneration !== getAddonPackageGeneration(this.addon)
+    ) {
+      this.clearPendingUpdate();
+      return null;
+    }
+
+    const journal = XPIStates.findStagedAddon(
+      this.addon.id,
+      pending.generation
+    );
+    if (
+      !journal ||
+      journal.location.name !== pending.location ||
+      !stagedIdentityMatches(this.addon, journal.record.oldAddon, true)
+    ) {
+      this.clearPendingUpdate();
+      return null;
+    }
+    return { ...pending, journal };
+  }
+
+  clearPendingUpdate() {
+    this._pendingUpdate = null;
+  }
+
+  hasBootstrapMethod(name, reason) {
+    if (!this.scope) {
+      this.loadBootstrapScope(reason);
+    }
+    try {
+      return typeof this.scope[name] === "function";
+    } catch {
+      return false;
+    }
+  }
+
   /**
    * Returns state information for use by an AsyncShutdown blocker. If
    * the wrapped bootstrap scope has a fetchState method, it is called,
@@ -2469,6 +2522,16 @@ class BootstrapScope {
 
         default:
           throw new Error(`Unknown webextension type ${this.addon.type}`);
+      }
+
+      if (this.addon.startupData?.legacyLoader) {
+        const loaderName = this.addon.startupData.legacyLoader;
+        const loader =
+          AddonManagerPrivate.externalExtensionLoaders.get(loaderName);
+        if (!loader) {
+          throw new Error(`Cannot find loader for ${loaderName}`);
+        }
+        this.scope = loader.wrapWebExtensionScope(this.addon, this.scope);
       }
     } else {
       const loader = AddonManagerPrivate.externalExtensionLoaders.get(
@@ -2742,6 +2805,7 @@ class BootstrapScope {
     let extraArgs = {
       oldVersion: existingAddon.version,
       newVersion: newAddon.version,
+      oldPackageGeneration: getAddonPackageGeneration(this.addon),
     };
 
     // If we're updating an extension, we may need to read data to
@@ -2767,6 +2831,18 @@ class BootstrapScope {
         oldPermissions: existingAddon.userPermissions,
         oldOptionalPermissions: existingAddon.optionalPermissions,
       });
+    }
+
+    if (
+      callUpdate &&
+      this.addon.startupData?.legacyManifest &&
+      this.addon.startupData.legacyMode === "bootstrap" &&
+      this.hasBootstrapMethod("prepareUpdate", reason)
+    ) {
+      if (this.started) {
+        await this.shutdown(reason, extraArgs);
+      }
+      await this.callBootstrapMethod("prepareUpdate", reason, extraArgs);
     }
 
     await this._uninstall(reason, callUpdate, extraArgs);
@@ -2897,13 +2973,15 @@ export var XPIProvider = {
    * sorted so that all of an add-on's dependencies appear in the array
    * before itself.
    *
+   * @param {Iterable<object>} [addonStates]
+   *        The add-on states to sort.
    * @returns {Array<object>}
    *   A sorted array of add-on objects. Each value is a copy of the
    *   corresponding value in the `enabledAddons` object, with an
    *   additional `id` property, which corresponds to the key in that
    *   object, which is the same as the add-ons ID.
    */
-  sortBootstrappedAddons() {
+  sortBootstrappedAddons(addonStates = XPIStates.enabledAddons()) {
     function compare(a, b) {
       if (a === b) {
         return 0;
@@ -2912,7 +2990,7 @@ export var XPIProvider = {
     }
 
     // Sort the list so that ordering is deterministic.
-    let list = Array.from(XPIStates.enabledAddons()).filter(hasLifecycleScope);
+    let list = Array.from(addonStates).filter(hasLifecycleScope);
     list.sort((a, b) => compare(a.id, b.id));
 
     let addons = {};
@@ -3399,7 +3477,16 @@ export var XPIProvider = {
           xpiProviderShutdownState = "cleanupTemporaryAddons";
           await XPIProvider.cleanupTemporaryAddons();
           xpiProviderShutdownState = "Shutting down addons";
-          for (let addon of XPIProvider.sortBootstrappedAddons().reverse()) {
+          let shutdownAddons = new Map(
+            Array.from(XPIStates.enabledAddons(), addon => [addon.id, addon])
+          );
+          const stagedShutdownPromises = [];
+          for (let scope of XPIProvider.activeAddons.values()) {
+            shutdownAddons.set(scope.addon.id, scope.addon);
+          }
+          for (let addon of XPIProvider.sortBootstrappedAddons(
+            shutdownAddons.values()
+          ).reverse()) {
             // If no scope has been loaded for this add-on then there is no need
             // to shut it down (should only happen when a bootstrapped add-on is
             // pending enable)
@@ -3408,12 +3495,14 @@ export var XPIProvider = {
               continue;
             }
 
-            // If the add-on was pending disable then shut it down and remove it
-            // from the persisted data.
             let reason = BOOTSTRAP_REASONS.APP_SHUTDOWN;
-            if (addon._pendingDisable) {
+            const pendingUpdate = activeAddon.getPendingUpdate();
+            if (!pendingUpdate && activeAddon._pendingDisable) {
               reason = BOOTSTRAP_REASONS.ADDON_DISABLE;
-            } else if (addon.location.name == KEY_APP_TEMPORARY) {
+            } else if (
+              !pendingUpdate &&
+              addon.location.name == KEY_APP_TEMPORARY
+            ) {
               reason = BOOTSTRAP_REASONS.ADDON_UNINSTALL;
               let existing = XPIStates.findAddon(
                 addon.id,
@@ -3428,7 +3517,12 @@ export var XPIProvider = {
             }
 
             let scope = BootstrapScope.get(addon);
-            let promise = scope.shutdown(reason);
+            let promise = pendingUpdate
+              ? XPIProvider.shutdownPendingUpdate(scope, pendingUpdate)
+              : scope.shutdown(reason);
+            if (pendingUpdate) {
+              stagedShutdownPromises.push(promise);
+            }
             lazy.AsyncShutdown.profileChangeTeardown.addBlocker(
               `Extension shutdown: ${addon.id}`,
               promise,
@@ -3437,6 +3531,7 @@ export var XPIProvider = {
               }
             );
           }
+          await Promise.allSettled(stagedShutdownPromises);
         },
         { fetchState: () => xpiProviderShutdownState }
       );
@@ -3546,6 +3641,9 @@ export var XPIProvider = {
         loader.onProviderShutdown?.(this._generation)
       )
     );
+    for (const scope of this.activeAddons.values()) {
+      scope.clearPendingUpdate();
+    }
     this.activeAddons.clear();
     this.allAppGlobal = true;
 
