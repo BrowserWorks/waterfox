@@ -159,6 +159,29 @@ add_task(async function unsigned_not_blocked() {
   await addon.uninstall();
 });
 
+add_task(async function unsigned_legacy_addon_blocked() {
+  const id = "unsigned-legacy@tests.mozilla.org";
+  const version = "1.0";
+  mockMLBF({
+    blocked: [`${id}:${version}`],
+    notblocked: [],
+    generationTime: SIGNED_ADDON_SIGN_TIME + 1,
+  });
+  await ExtensionBlocklistMLBF._onUpdate();
+
+  const addon = {
+    id,
+    isWebExtension: false,
+    signedDate: null,
+    signedState: AddonManager.SIGNEDSTATE_MISSING,
+    version,
+  };
+  Assert.deepEqual(await Blocklist.getAddonBlocklistEntry(addon), {
+    state: Ci.nsIBlocklistService.STATE_BLOCKED,
+    url: `https://addons.mozilla.org/en-US/firefox/blocked-addon/${id}/${version}/`,
+  });
+});
+
 // To make sure that unsigned_not_blocked did not trivially pass, we also check
 // that add-ons can actually be blocked when installed as a temporary add-on.
 add_task(async function signed_temporary() {
