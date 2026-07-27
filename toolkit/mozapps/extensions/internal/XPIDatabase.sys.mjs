@@ -1798,6 +1798,10 @@ export const XPIDatabase = {
   blocklistAttentionAddonIdsSet: new Set(),
 
   _saveTask: null,
+  _saveImmediatelyPromise: Promise.resolve(),
+  _saveImmediatelyPending: 0,
+  _saveChangesBatchDepth: 0,
+  _saveAfterImmediate: false,
 
   // Saved error object if we fail to read an existing database
   _loadError: null,
@@ -1838,6 +1842,7 @@ export const XPIDatabase = {
         // Reading the DB worked once, so we don't need the load error
         this._loadError = null;
       }
+      this._saveError = null;
     } catch (error) {
       logger.warn("Failed to save XPI database", error);
       this._saveError = error;
@@ -1845,6 +1850,38 @@ export const XPIDatabase = {
       if (!DOMException.isInstance(error) || error.name !== "AbortError") {
         throw error;
       }
+    }
+  },
+
+  _armDeferredSaveIfNeeded() {
+    if (
+      !this._saveImmediatelyPending &&
+      !this._saveChangesBatchDepth &&
+      this._saveAfterImmediate
+    ) {
+      this._saveAfterImmediate = false;
+      this.saveChanges();
+    }
+  },
+
+  _beginSaveChangesBatch() {
+    this._saveChangesBatchDepth++;
+    if (this._saveTask?.isArmed) {
+      this._saveAfterImmediate = true;
+      this._saveTask.disarm();
+    }
+  },
+
+  _endSaveChangesBatch(scheduleDeferredSave = true) {
+    if (!this._saveChangesBatchDepth) {
+      throw new Error("No XPI database save changes batch is active");
+    }
+    this._saveChangesBatchDepth--;
+    if (!scheduleDeferredSave) {
+      this._saveAfterImmediate = false;
+      this._saveTask?.disarm();
+    } else {
+      this._armDeferredSaveIfNeeded();
     }
   },
 
@@ -1865,6 +1902,11 @@ export const XPIDatabase = {
       Glean.xpiDatabase.lateStack.set(stack);
     }
 
+    if (this._saveImmediatelyPending || this._saveChangesBatchDepth) {
+      this._saveAfterImmediate = true;
+      return;
+    }
+
     if (!this._saveTask) {
       this._saveTask = new lazy.DeferredTask(
         () => this._saveNow(),
@@ -1875,7 +1917,31 @@ export const XPIDatabase = {
     this._saveTask.arm();
   },
 
+  saveChangesImmediately() {
+    this._saveImmediatelyPending++;
+    let savePromise = this._saveImmediatelyPromise.then(async () => {
+      this._saveTask?.disarm();
+      if (this._saveTask?._runningPromise) {
+        await this._saveTask._runningPromise;
+      }
+      this._saveAfterImmediate = false;
+      await this._saveNow();
+      if (this._saveError) {
+        throw this._saveError;
+      }
+    });
+    this._saveImmediatelyPromise = savePromise.catch(() => {});
+    return savePromise.finally(() => {
+      this._saveImmediatelyPending--;
+      this._armDeferredSaveIfNeeded();
+    });
+  },
+
   async finalize() {
+    while (this._saveImmediatelyPending) {
+      await this._saveImmediatelyPromise;
+    }
+
     // handle the "in memory only" and "saveChanges never called" cases
     if (!this._saveTask) {
       return;
@@ -2191,6 +2257,10 @@ export const XPIDatabase = {
       delete this._dbPromise;
       // same for the deferred save
       delete this._saveTask;
+      this._saveImmediatelyPromise = Promise.resolve();
+      this._saveImmediatelyPending = 0;
+      this._saveChangesBatchDepth = 0;
+      this._saveAfterImmediate = false;
       // re-enable the schema version setter
       delete this._schemaVersionSet;
     }
