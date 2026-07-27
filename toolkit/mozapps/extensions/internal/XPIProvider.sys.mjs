@@ -138,7 +138,7 @@ const XPI_SIGNATURE_CHECKPOINT = 1;
 
 const XPI_SIGNATURE_CHECK_PERIOD = 24 * 60 * 60;
 
-const DB_SCHEMA = 37;
+const DB_SCHEMA = 38;
 
 XPCOMUtils.defineLazyPreferenceGetter(
   lazy,
@@ -370,8 +370,7 @@ function hasLifecycleScope(addon) {
 
 function requiresEarlyLifecycleUninstall(addon) {
   return (
-    addon?.loader != null ||
-    addon?.startupData?.legacyMode === "bootstrap"
+    addon?.loader != null || addon?.startupData?.legacyMode === "bootstrap"
   );
 }
 
@@ -724,6 +723,8 @@ class XPIState {
 
     if (aDBAddon.startupData) {
       this.startupData = aDBAddon.startupData;
+    } else {
+      delete this.startupData;
     }
 
     this.telemetryKey = this.getTelemetryKey();
@@ -2523,6 +2524,16 @@ class BootstrapScope {
         default:
           throw new Error(`Unknown webextension type ${this.addon.type}`);
       }
+
+      if (this.addon.startupData?.legacyLoader) {
+        const loaderName = this.addon.startupData.legacyLoader;
+        const loader =
+          AddonManagerPrivate.externalExtensionLoaders.get(loaderName);
+        if (!loader) {
+          throw new Error(`Cannot find loader for ${loaderName}`);
+        }
+        this.scope = loader.wrapWebExtensionScope(this.addon, this.scope);
+      }
     } else {
       const loader = AddonManagerPrivate.externalExtensionLoaders.get(
         this.addon.loader
@@ -2795,6 +2806,7 @@ class BootstrapScope {
     let extraArgs = {
       oldVersion: existingAddon.version,
       newVersion: newAddon.version,
+      oldPackageGeneration: getAddonPackageGeneration(this.addon),
     };
 
     // If we're updating an extension, we may need to read data to
@@ -2820,6 +2832,18 @@ class BootstrapScope {
         oldPermissions: existingAddon.userPermissions,
         oldOptionalPermissions: existingAddon.optionalPermissions,
       });
+    }
+
+    if (
+      callUpdate &&
+      this.addon.startupData?.legacyManifest &&
+      this.addon.startupData.legacyMode === "bootstrap" &&
+      this.hasBootstrapMethod("prepareUpdate", reason)
+    ) {
+      if (this.started) {
+        await this.shutdown(reason, extraArgs);
+      }
+      await this.callBootstrapMethod("prepareUpdate", reason, extraArgs);
     }
 
     await this._uninstall(reason, callUpdate, extraArgs);
