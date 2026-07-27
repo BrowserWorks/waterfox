@@ -1,0 +1,12 @@
+# Locally defined URLs
+content test1 test/
+locale test1 en-US test/
+skin test1 test test/
+
+# Test override
+content testoverride test/
+override chrome://testoverride/content file:///test1/override
+
+# Load nested manifests using native process conditions
+manifest loaded.manifest process=main
+manifest ignored.manifest process=content

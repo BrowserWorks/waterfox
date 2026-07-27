@@ -8,10 +8,11 @@
 
 #include "nsISupports.idl"
 
+interface nsIFile;
 interface nsIArray;
 interface nsIUTF8StringEnumerator;
 
-[scriptable, builtinclass, uuid(d604ffc3-1ba3-4f6c-b65f-1ed4199364c3)]
+[scriptable, builtinclass, uuid(18d064ab-63a7-427f-ac60-fb4132bf5b5f)]
 interface nsIComponentManager : nsISupports
 {
     /**
@@ -65,6 +66,30 @@ interface nsIComponentManager : nsISupports
     void createInstanceByContractID(in string aContractID,
                                     in nsIIDRef aIID,
                                     [iid_is(aIID),retval] out nsQIResult result);
+
+    /**
+     * Adds a bootstrapped chrome manifest location at runtime.
+     *
+     * Calls for the same location are reference counted and must be balanced by
+     * matching calls to removeBootstrappedManifestLocation. This method must be
+     * called on the main thread.
+     *
+     * @param aLocation A directory containing chrome.manifest, or an XPI with
+     *                  chrome.manifest at its root.
+     */
+    [can_run_script]
+    void addBootstrappedManifestLocation(in nsIFile aLocation);
+
+    /**
+     * Removes a bootstrapped chrome manifest location at runtime. This method
+     * must be called on the main thread. Once application shutdown is confirmed,
+     * removal is ignored and registrations are retained until XPCOM teardown.
+     *
+     * @param aLocation A directory containing chrome.manifest, or an XPI with
+     *                  chrome.manifest at its root.
+     */
+    [can_run_script]
+    void removeBootstrappedManifestLocation(in nsIFile aLocation);
 
     /**
      * getManifestLocations
