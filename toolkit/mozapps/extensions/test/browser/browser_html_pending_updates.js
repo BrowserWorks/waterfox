@@ -443,17 +443,10 @@ add_task(async function test_pending_update_ignored_manual_install() {
   await closeView(win);
   await extension.unload();
 
-  // We do currently not clean up stale AddonInstall instances when another
-  // one is created and completed (bug 2007749), so we have to manually cancel
-  // the remaining install. Not doing so would cause a test-only check in
-  // registerCleanupFunction at toolkit/mozapps/extensions/test/browser/head.js
-  // to fail with "Should not have seen an install of <url to XPI> in state 7".
-  const unwantedInstalls = (await AddonManager.getAllInstalls()).filter(
+  const remainingInstalls = (await AddonManager.getAllInstalls()).filter(
     install => install.addon?.id === id || install.existingAddon?.id === id
   );
-  is(unwantedInstalls.length, 1, "Found unwanted remaining install");
-  is(unwantedInstalls[0].state, AddonManager.STATE_POSTPONED, "Got state");
-  unwantedInstalls[0].cancel();
+  is(remainingInstalls.length, 0, "No stale install remains");
 });
 
 add_task(async function test_pending_update_with_prompted_data_permission() {
