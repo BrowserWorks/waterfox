@@ -5122,18 +5122,96 @@ export var XPIInstall = {
       );
 
       addon.installDate = oldAddon.installDate;
+      const oldPath = oldAddon.path;
+      const oldVisible = oldAddon.visible;
+      const oldActive = oldAddon.active;
+      const replacementAddon = addon;
+      const scope = XPIExports.XPIInternal.BootstrapScope.get(oldAddon);
+      scope.abortOnLifecycleError = addon.location.isTemporary;
+      let stateRestored = false;
 
-      await XPIExports.XPIInternal.BootstrapScope.get(oldAddon).update(
-        addon,
-        true,
-        install
-      );
+      const restore = async () => {
+        if (!stateRestored) {
+          if (replacementAddon.inDatabase) {
+            XPIExports.XPIDatabase.removeAddonMetadata(replacementAddon);
+          }
+          replacementAddon.location.removeAddon(replacementAddon.id);
+
+          oldAddon.visible = oldVisible;
+          oldAddon.active = oldActive;
+          if (XPIExports.XPIDatabase.addonDB.get(oldAddon._key) !== oldAddon) {
+            XPIExports.XPIDatabase.addToDatabase(oldAddon, oldPath);
+          } else {
+            XPIExports.XPIDatabase.makeAddonVisible(oldAddon);
+          }
+          oldAddon.location.addAddon(oldAddon);
+          stateRestored = true;
+        }
+        await Promise.all([
+          XPIExports.XPIDatabase.saveChangesImmediately(),
+          XPIExports.XPIInternal.XPIStates.saveImmediately(),
+        ]);
+      };
+
+      try {
+        await scope.update(addon, true, install);
+      } catch (error) {
+        try {
+          if (scope.addon === replacementAddon) {
+            await scope.update(oldAddon, oldActive, restore);
+          } else {
+            await restore();
+            const rollbackScope =
+              XPIExports.XPIInternal.BootstrapScope.get(oldAddon);
+            rollbackScope.abortOnLifecycleError = true;
+            await rollbackScope.install(
+              newVersionReason(replacementAddon.version, oldAddon.version),
+              oldActive,
+              { oldVersion: replacementAddon.version }
+            );
+          }
+        } catch (rollbackError) {
+          try {
+            await restore();
+          } catch (restoreError) {
+            logger.error(
+              `Failed to restore temporary replacement state for ${oldAddon.id}`,
+              restoreError
+            );
+          }
+          logger.error(
+            `Failed to roll back temporary replacement of ${oldAddon.id}`,
+            rollbackError
+          );
+        }
+        AddonManagerPrivate.callAddonListeners(
+          "onOperationCancelled",
+          replacementAddon.wrapper
+        );
+        throw error;
+      }
     } else {
       addon.installDate = Date.now();
 
       install();
       let bootstrap = XPIExports.XPIInternal.BootstrapScope.get(addon);
-      await bootstrap.install(undefined, true, extraParams);
+      bootstrap.abortOnLifecycleError = addon.location.isTemporary;
+      try {
+        await bootstrap.install(undefined, true, extraParams);
+      } catch (error) {
+        bootstrap.unloadBootstrapScope();
+        XPIExports.XPIDatabase.removeAddonMetadata(addon);
+        addon.location.removeAddon(addon.id);
+        await Promise.all([
+          XPIExports.XPIDatabase.saveChangesImmediately(),
+          XPIExports.XPIInternal.XPIStates.saveImmediately(),
+        ]);
+        AddonManagerPrivate.callAddonListeners(
+          "onOperationCancelled",
+          addon.wrapper
+        );
+        throw error;
+      }
     }
 
     AddonManagerPrivate.callInstallListeners(
