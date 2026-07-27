@@ -123,6 +123,8 @@ skip-if = [
 
 ["browser_html_options_ui_dark_theme.js"]
 
+["browser_html_options_ui_in_dialog.js"]
+
 ["browser_html_options_ui_in_tab.js"]
 
 ["browser_html_pending_updates.js"]
@@ -131,6 +133,8 @@ skip-if = [
 
 ["browser_html_recommendations.js"]
 https_first_disabled = true
+
+["browser_html_restart_required_operations.js"]
 
 ["browser_html_scroll_restoration.js"]
 

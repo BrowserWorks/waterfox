@@ -749,6 +749,9 @@ MockProvider.prototype = {
         addon.optionsType = AddonManager.OPTIONS_TYPE_DIALOG;
       }
 
+      addon.pendingOperations =
+        addonProp.pendingOperations ?? AddonManager.PENDING_NONE;
+
       // Make sure the active state matches the passed in properties
       addon.isActive = addon.shouldBeActive;
 
@@ -1310,6 +1313,14 @@ MockInstall.prototype = {
       case AddonManager.STATE_INSTALLED:
         this.state = AddonManager.STATE_CANCELLED;
         this._provider.removeInstall(this);
+        if (this.existingAddon?.pendingUpgrade === this.addon) {
+          delete this.existingAddon.pendingUpgrade;
+          this.existingAddon.pendingOperations &= ~AddonManager.PENDING_UPGRADE;
+          AddonManagerPrivate.callAddonListeners(
+            "onOperationCancelled",
+            this.existingAddon
+          );
+        }
         this.callListeners("onInstallCancelled");
         break;
       default:
