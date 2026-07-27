@@ -7,7 +7,10 @@ import {
   hasPermission,
   isAbuseReportSupported,
   getOptionsType,
+  getUpdateInstall,
   isAddonOptionsUIAllowed,
+  isInState,
+  isPendingRestartInstall,
 } from "../aboutaddons-utils.mjs";
 
 export class AddonOptions extends AboutAddonsHTMLElement {
@@ -96,6 +99,11 @@ export class AddonOptions extends AboutAddonsHTMLElement {
   }
 
   setElementState(el, card, addon, updateInstall) {
+    if (isPendingRestartInstall(addon.install)) {
+      el.hidden = true;
+      return;
+    }
+
     switch (el.getAttribute("action")) {
       case "remove":
         if (hasPermission(addon, "uninstall")) {
@@ -129,22 +137,31 @@ export class AddonOptions extends AboutAddonsHTMLElement {
       case "expand":
         el.hidden = card.expanded;
         break;
-      case "preferences":
+      case "preferences": {
+        const optionsType = getOptionsType(addon);
         el.hidden =
-          getOptionsType(addon) !== "tab" &&
-          (getOptionsType(addon) !== "inline" || card.expanded);
+          optionsType !== "dialog" &&
+          optionsType !== "tab" &&
+          (optionsType !== "inline" || card.expanded);
         if (!el.hidden) {
           isAddonOptionsUIAllowed(addon).then(allowed => {
             el.hidden = !allowed;
           });
         }
         break;
+      }
     }
   }
 
   update(card, addon, updateInstall) {
+    const candidate = updateInstall || getUpdateInstall(addon);
+    const effectiveUpdateInstall =
+      candidate &&
+      (isInState(candidate, "available") || isInState(candidate, "postponed"))
+        ? candidate
+        : null;
     for (let el of this.items) {
-      this.setElementState(el, card, addon, updateInstall);
+      this.setElementState(el, card, addon, effectiveUpdateInstall);
     }
 
     // Update the separators visibility based on the updated visibility

@@ -443,8 +443,27 @@ addon-detail-reviews-link =
        *[other] { $numberOfReviews } reviews
     }
 
-## Pending uninstall message bar
-
+# Variables:
+#   $addon (string) - Name of the add-on
+pending-restart-install-description =
+    .message = { $addon } will be installed when { -brand-short-name } restarts.
+pending-restart-install-cancel-button = Cancel
+# Variables:
+#   $addon (string) - Name of the add-on
+pending-restart-enable-description =
+    .message = { $addon } will be enabled when { -brand-short-name } restarts.
+# Variables:
+#   $addon (string) - Name of the add-on
+pending-restart-disable-description =
+    .message = { $addon } will be disabled when { -brand-short-name } restarts.
+# Variables:
+#   $addon (string) - Name of the add-on
+pending-restart-update-description =
+    .message = { $addon } will be updated when { -brand-short-name } restarts.
+# Variables:
+#   $addon (string) - Name of the add-on
+pending-uninstall-restart-description =
+    .message = { $addon } will be removed when { -brand-short-name } restarts.
 # Variables:
 #   $addon (string) - Name of the add-on
 pending-uninstall-description2 =
