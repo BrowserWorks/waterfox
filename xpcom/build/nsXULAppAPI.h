@@ -219,8 +219,10 @@ nsresult XRE_GetBinaryPath(nsIFile** aResult);
 
 /**
  * Register XPCOM components found in an array of files/directories.
- * This method may be called at any time before or after XRE_main or
- * XRE_InitEmbedding.
+ * NS_APP_LOCATION and NS_EXTENSION_LOCATION may be registered before or after
+ * XRE_main or XRE_InitEmbedding. NS_BOOTSTRAPPED_LOCATION registration requires
+ * the parent-process main thread after XPCOM initialisation and before
+ * shutdown.
  *
  * @param aFiles An array of files or directories.
  * @param aFileCount the number of items in the aFiles array.
@@ -231,10 +233,14 @@ nsresult XRE_GetBinaryPath(nsIFile** aResult);
  *
  * NS_EXTENSION_LOCATION excludes binary XPCOM components but allows other
  * manifest instructions.
+ *
+ * NS_BOOTSTRAPPED_LOCATION accepts only manifest, content, locale, skin and
+ * override directives.
  */
 enum NSLocationType {
   NS_APP_LOCATION,
   NS_EXTENSION_LOCATION,
+  NS_BOOTSTRAPPED_LOCATION = 3,
 };
 
 nsresult XRE_AddManifestLocation(NSLocationType aType, nsIFile* aLocation);
