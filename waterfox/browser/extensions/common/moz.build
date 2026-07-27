@@ -5,6 +5,14 @@
 XPCSHELL_TESTS_MANIFESTS += ["test/xpcshell/xpcshell.toml"]
 
 EXTRA_JS_MODULES += [
+    "ChromeManifest.sys.mjs",
+    "ExtensionSupport.sys.mjs",
+    "iteratorUtils.sys.mjs",
+    "LegacyAddonRuntime.sys.mjs",
+    "LegacyChromeManifest.sys.mjs",
+    "LegacyComponentRegistry.sys.mjs",
+    "LegacyXULOverlay.sys.mjs",
+    "Overlays.sys.mjs",
     "RDFDataSource.sys.mjs",
     "RDFManifestConverter.sys.mjs",
 ]

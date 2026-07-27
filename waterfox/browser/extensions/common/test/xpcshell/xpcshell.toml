@@ -6,3 +6,7 @@ support-files = ["data/**"]
 
 ["test_bug564667.js"]
 head = ""
+
+["test_extension_support.js"]
+head = ""
+
