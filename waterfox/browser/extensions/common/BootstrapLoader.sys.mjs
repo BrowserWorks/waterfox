@@ -8,7 +8,12 @@ import {
   cleanupAppShutdownLegacyRuntimes,
   LegacyAddonRuntime,
 } from "resource:///modules/LegacyAddonRuntime.sys.mjs";
-import { LegacyBootstrapScriptScope } from "resource:///modules/LegacyBootstrapScope.sys.mjs";
+import {
+  beginLegacyBootstrapProviderGeneration,
+  createLegacyWebExtensionScope,
+  endLegacyBootstrapProviderGeneration,
+  LegacyBootstrapScriptScope,
+} from "resource:///modules/LegacyBootstrapScope.sys.mjs";
 
 const lazy = {};
 
@@ -143,8 +148,13 @@ export const BootstrapLoader = {
   name: "bootstrap",
   manifestFile: "install.rdf",
 
-  onProviderStartup() {
+  onProviderStartup(generation) {
+    beginLegacyBootstrapProviderGeneration(generation);
     return cleanupAppShutdownLegacyRuntimes();
+  },
+
+  onProviderShutdown(generation) {
+    endLegacyBootstrapProviderGeneration(generation);
   },
 
   async loadManifest(pkg) {
@@ -236,6 +246,11 @@ export const BootstrapLoader = {
 
     return addon;
   },
+
+  wrapWebExtensionScope(addon, genericScope) {
+    return createLegacyWebExtensionScope(addon, genericScope);
+  },
+
   loadScope(addon) {
     switch (addon.startupData?.legacyMode) {
       case "bootstrap":
