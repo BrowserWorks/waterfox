@@ -26,6 +26,7 @@
 #include "nsWeakReference.h"
 #include "nsCOMArray.h"
 #include "nsTHashMap.h"
+#include "nsTHashSet.h"
 #include "nsInterfaceHashtable.h"
 #include "nsClassHashtable.h"
 #include "nsTArray.h"
@@ -121,24 +122,34 @@ class nsComponentManagerImpl final : public nsIComponentManager,
   struct ComponentLocation {
     NSLocationType type;
     mozilla::FileLocation location;
+    nsCOMPtr<nsIFile> bootstrappedRoot;
+    uint32_t registrationCount = 1;
   };
 
   static nsTArray<ComponentLocation>* sModuleLocations;
 
+  using ManifestLocationSet = nsTHashSet<nsCStringHashKey>;
+
   // Mutex not held
-  void RegisterManifest(NSLocationType aType, mozilla::FileLocation& aFile,
-                        bool aChromeOnly);
+  nsresult RegisterManifest(NSLocationType aType, mozilla::FileLocation& aFile,
+                            bool aChromeOnly,
+                            ManifestLocationSet* aVisited = nullptr);
 
   struct ManifestProcessingContext {
     ManifestProcessingContext(NSLocationType aType,
-                              mozilla::FileLocation& aFile, bool aChromeOnly)
-        : mType(aType), mFile(aFile), mChromeOnly(aChromeOnly) {}
+                              mozilla::FileLocation& aFile, bool aChromeOnly,
+                              ManifestLocationSet* aVisited)
+        : mType(aType),
+          mFile(aFile),
+          mChromeOnly(aChromeOnly),
+          mVisited(aVisited) {}
 
     ~ManifestProcessingContext() = default;
 
     NSLocationType mType;
     mozilla::FileLocation mFile;
     bool mChromeOnly;
+    ManifestLocationSet* mVisited;
   };
 
   void ManifestManifest(ManifestProcessingContext& aCx, int aLineNo,

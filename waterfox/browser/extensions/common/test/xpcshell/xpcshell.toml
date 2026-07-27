@@ -2,6 +2,7 @@
 firefox-appdir = "browser"
 
 tags = "addons waterfox_extensions"
+support-files = ["data/**"]
 
 ["test_bug564667.js"]
 head = ""
