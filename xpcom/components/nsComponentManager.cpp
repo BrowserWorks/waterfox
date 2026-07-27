@@ -41,6 +41,7 @@
 #include "nsSupportsPrimitives.h"
 #include "nsArray.h"
 #include "nsIMutableArray.h"
+#include "mozilla/AppShutdown.h"
 #include "mozilla/DebugOnly.h"
 #include "mozilla/FileUtils.h"
 #include "mozilla/ProfilerLabels.h"
@@ -499,30 +500,65 @@ static void AssertNotStackAllocated(T* aPtr) {
 #endif
 }
 
-static void DoRegisterManifest(NSLocationType aType, FileLocation& aFile,
-                               bool aChromeOnly) {
-  auto result = URLPreloader::Read(aFile);
-  if (result.isOk()) {
-    nsCString buf(result.unwrap());
-    ParseManifest(aType, aFile, buf.BeginWriting(), aChromeOnly);
-  } else {
-    nsCString uri;
-    aFile.GetURIString(uri);
-    LogMessage("Could not read chrome manifest '%s'.", uri.get());
-  }
+static nsresult ReadBootstrappedManifest(FileLocation& aFile,
+                                         nsCString& aResult) {
+  FileLocation::Data data;
+  nsresult rv = aFile.GetData(data);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  uint32_t size;
+  rv = data.GetSize(&size);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  aResult.SetLength(size);
+  return data.Copy(aResult.BeginWriting(), size);
 }
 
-void nsComponentManagerImpl::RegisterManifest(NSLocationType aType,
-                                              FileLocation& aFile,
-                                              bool aChromeOnly) {
-  DoRegisterManifest(aType, aFile, aChromeOnly);
+static nsresult DoRegisterManifest(
+    NSLocationType aType, FileLocation& aFile, bool aChromeOnly,
+    nsComponentManagerImpl::ManifestLocationSet* aVisited) {
+  nsCString buf;
+  if (aType == NS_BOOTSTRAPPED_LOCATION) {
+    nsresult rv = ReadBootstrappedManifest(aFile, buf);
+    NS_ENSURE_SUCCESS(rv, rv);
+  } else {
+    auto result = URLPreloader::Read(aFile);
+    if (result.isErr()) {
+      nsCString uri;
+      aFile.GetURIString(uri);
+      LogMessage("Could not read chrome manifest '%s'.", uri.get());
+      return result.unwrapErr();
+    }
+    buf = result.unwrap();
+  }
+
+  ParseManifest(aType, aFile, buf.BeginWriting(), aChromeOnly, aVisited);
+  return NS_OK;
+}
+
+nsresult nsComponentManagerImpl::RegisterManifest(
+    NSLocationType aType, FileLocation& aFile, bool aChromeOnly,
+    ManifestLocationSet* aVisited) {
+  ManifestLocationSet visited;
+  if (aType == NS_BOOTSTRAPPED_LOCATION) {
+    if (!aVisited) {
+      aVisited = &visited;
+    }
+
+    nsCString uri;
+    aFile.GetURIString(uri);
+    if (!aVisited->EnsureInserted(uri)) {
+      return NS_OK;
+    }
+  }
+  return DoRegisterManifest(aType, aFile, aChromeOnly, aVisited);
 }
 
 void nsComponentManagerImpl::ManifestManifest(ManifestProcessingContext& aCx,
                                               int aLineNo, char* const* aArgv) {
   char* file = aArgv[0];
   FileLocation f(aCx.mFile, nsDependentCString(file));
-  RegisterManifest(aCx.mType, f, aCx.mChromeOnly);
+  RegisterManifest(aCx.mType, f, aCx.mChromeOnly, aCx.mVisited);
 }
 
 void nsComponentManagerImpl::ManifestCategory(ManifestProcessingContext& aCx,
@@ -566,6 +602,7 @@ nsresult nsComponentManagerImpl::Shutdown(void) {
   StaticComponents::Shutdown();
 
   delete sModuleLocations;
+  sModuleLocations = nullptr;
 
   mStatus = SHUTDOWN_COMPLETE;
 
@@ -1418,6 +1455,184 @@ nsresult NS_GetComponentRegistrar(nsIComponentRegistrar** aResult) {
   return NS_OK;
 }
 
+static nsresult CheckBootstrappedManifestRegistrationState() {
+  NS_ENSURE_TRUE(NS_IsMainThread(), NS_ERROR_NOT_SAME_THREAD);
+  NS_ENSURE_TRUE(XRE_IsParentProcess(), NS_ERROR_NOT_AVAILABLE);
+  NS_ENSURE_TRUE(nsComponentManagerImpl::gComponentManager,
+                 NS_ERROR_NOT_INITIALIZED);
+  NS_ENSURE_TRUE(nsComponentManagerImpl::NORMAL ==
+                     nsComponentManagerImpl::gComponentManager->mStatus,
+                 NS_ERROR_NOT_INITIALIZED);
+  return NS_OK;
+}
+
+static nsresult BootstrappedManifestRootsEqual(nsIFile* aFirst,
+                                               nsIFile* aSecond,
+                                               bool* aResult) {
+  return aFirst->Equals(aSecond, aResult);
+}
+
+static MOZ_CAN_RUN_SCRIPT nsresult
+AddManifestLocation(NSLocationType aType, const FileLocation& aLocation,
+                    nsIFile* aBootstrappedRoot) {
+  if (aType == NS_BOOTSTRAPPED_LOCATION) {
+    nsresult rv = CheckBootstrappedManifestRegistrationState();
+    NS_ENSURE_SUCCESS(rv, rv);
+    NS_ENSURE_ARG_POINTER(aBootstrappedRoot);
+  }
+
+  nsComponentManagerImpl::InitializeModuleLocations();
+
+  if (aType == NS_BOOTSTRAPPED_LOCATION) {
+    FileLocation location(aLocation);
+    nsCString manifest;
+    nsresult rv = ReadBootstrappedManifest(location, manifest);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    nsCOMPtr<nsIChromeRegistry> cr = mozilla::services::GetChromeRegistry();
+    NS_ENSURE_TRUE(cr, NS_ERROR_FAILURE);
+
+    for (auto& registered : *nsComponentManagerImpl::sModuleLocations) {
+      if (registered.type != aType || !registered.bootstrappedRoot) {
+        continue;
+      }
+
+      bool equals = false;
+      rv = BootstrappedManifestRootsEqual(registered.bootstrappedRoot,
+                                          aBootstrappedRoot, &equals);
+      NS_ENSURE_SUCCESS(rv, rv);
+      if (equals) {
+        FileLocation previousLocation(registered.location);
+        registered.location = location;
+        ++registered.registrationCount;
+        rv = cr->CheckForNewChrome();
+        if (NS_FAILED(rv)) {
+          --registered.registrationCount;
+          registered.location = previousLocation;
+        }
+        return rv;
+      }
+    }
+
+    nsCOMPtr<nsIFile> root;
+    rv = aBootstrappedRoot->Clone(getter_AddRefs(root));
+    NS_ENSURE_SUCCESS(rv, rv);
+    NS_ENSURE_TRUE(root, NS_ERROR_FAILURE);
+
+    uint32_t locationIndex = nsComponentManagerImpl::sModuleLocations->Length();
+    nsComponentManagerImpl::ComponentLocation* c =
+        nsComponentManagerImpl::sModuleLocations->AppendElement();
+    c->type = aType;
+    c->location = location;
+    c->bootstrappedRoot = root;
+
+    rv = cr->CheckForNewChrome();
+    if (NS_FAILED(rv)) {
+      nsComponentManagerImpl::sModuleLocations->RemoveElementAt(locationIndex);
+    }
+    return rv;
+  }
+
+  nsComponentManagerImpl::ComponentLocation* c =
+      nsComponentManagerImpl::sModuleLocations->AppendElement();
+  c->type = aType;
+  c->location = aLocation;
+
+  if (nsComponentManagerImpl::gComponentManager &&
+      nsComponentManagerImpl::NORMAL ==
+          nsComponentManagerImpl::gComponentManager->mStatus) {
+    nsComponentManagerImpl::gComponentManager->RegisterManifest(
+        aType, c->location, false);
+  }
+
+  return NS_OK;
+}
+
+static nsresult GetBootstrappedManifestLocation(
+    nsIFile* aLocation, FileLocation& aManifestLocation) {
+  bool isDirectory;
+  nsresult rv = aLocation->IsDirectory(&isDirectory);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  if (isDirectory) {
+    nsCOMPtr<nsIFile> manifest =
+        CloneAndAppend(aLocation, "chrome.manifest"_ns);
+    NS_ENSURE_TRUE(manifest, NS_ERROR_FAILURE);
+    aManifestLocation.Init(manifest);
+  } else {
+    aManifestLocation.Init(aLocation, "chrome.manifest"_ns);
+  }
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsComponentManagerImpl::AddBootstrappedManifestLocation(nsIFile* aLocation) {
+  NS_ENSURE_ARG_POINTER(aLocation);
+
+  nsresult rv = CheckBootstrappedManifestRegistrationState();
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  FileLocation location;
+  rv = GetBootstrappedManifestLocation(aLocation, location);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  return AddManifestLocation(NS_BOOTSTRAPPED_LOCATION, location, aLocation);
+}
+
+NS_IMETHODIMP
+nsComponentManagerImpl::RemoveBootstrappedManifestLocation(nsIFile* aLocation) {
+  NS_ENSURE_ARG_POINTER(aLocation);
+
+  nsresult rv = CheckBootstrappedManifestRegistrationState();
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  if (AppShutdown::IsInOrBeyond(ShutdownPhase::AppShutdownConfirmed)) {
+    return NS_OK;
+  }
+
+  NS_ENSURE_TRUE(sModuleLocations, NS_ERROR_NOT_INITIALIZED);
+
+  for (uint32_t i = 0; i < sModuleLocations->Length(); ++i) {
+    ComponentLocation& registered = sModuleLocations->ElementAt(i);
+    if (registered.type != NS_BOOTSTRAPPED_LOCATION ||
+        !registered.bootstrappedRoot) {
+      continue;
+    }
+
+    bool equals = false;
+    rv = BootstrappedManifestRootsEqual(registered.bootstrappedRoot, aLocation,
+                                        &equals);
+    NS_ENSURE_SUCCESS(rv, rv);
+    if (!equals) {
+      continue;
+    }
+
+    if (registered.registrationCount > 1) {
+      --registered.registrationCount;
+      return NS_OK;
+    }
+
+    nsCOMPtr<nsIChromeRegistry> cr = mozilla::services::GetChromeRegistry();
+    if (!cr) {
+      return NS_ERROR_FAILURE;
+    }
+
+    ComponentLocation removed = registered;
+    sModuleLocations->RemoveElementAt(i);
+    rv = cr->CheckForNewChrome();
+    if (NS_FAILED(rv)) {
+      sModuleLocations->InsertElementAt(i, removed);
+      if (AppShutdown::IsInOrBeyond(ShutdownPhase::AppShutdownConfirmed)) {
+        return NS_OK;
+      }
+    }
+    return rv;
+  }
+
+  return NS_OK;
+}
+
 NS_IMETHODIMP
 nsComponentManagerImpl::GetComponentESModules(
     nsIUTF8StringEnumerator** aESModules) {
@@ -1456,20 +1671,10 @@ nsComponentManagerImpl::GetManifestLocations(nsIArray** aLocations) {
 
 EXPORT_XPCOM_API(nsresult)
 XRE_AddManifestLocation(NSLocationType aType, nsIFile* aLocation) {
-  nsComponentManagerImpl::InitializeModuleLocations();
-  nsComponentManagerImpl::ComponentLocation* c =
-      nsComponentManagerImpl::sModuleLocations->AppendElement();
-  c->type = aType;
-  c->location.Init(aLocation);
+  NS_ENSURE_ARG_POINTER(aLocation);
 
-  if (nsComponentManagerImpl::gComponentManager &&
-      nsComponentManagerImpl::NORMAL ==
-          nsComponentManagerImpl::gComponentManager->mStatus) {
-    nsComponentManagerImpl::gComponentManager->RegisterManifest(
-        aType, c->location, false);
-  }
-
-  return NS_OK;
+  FileLocation location(aLocation);
+  return AddManifestLocation(aType, location, aLocation);
 }
 
 // Expose some important global interfaces to rust for the rust xpcom API. These
