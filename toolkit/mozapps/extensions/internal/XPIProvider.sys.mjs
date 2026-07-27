@@ -336,6 +336,17 @@ function canRunInSafeMode(aAddon) {
   return location.isTemporary || location.isSystem || location.isBuiltin;
 }
 
+function hasLifecycleScope(addon) {
+  return addon && (addon.isWebExtension || addon.loader != null);
+}
+
+function requiresEarlyLifecycleUninstall(addon) {
+  return (
+    addon?.loader != null ||
+    addon?.startupData?.legacyMode === "bootstrap"
+  );
+}
+
 /**
  * Gets an nsIURI for a file within another file, either a directory or an XPI
  * file. If aFile is a directory then this will return a file: URI, if it is an
@@ -1999,6 +2010,7 @@ class BootstrapScope {
    *        The return value of the bootstrap method.
    */
   async callBootstrapMethod(aMethod, aReason, aExtraParams = {}) {
+    aExtraParams ??= {};
     let { addon, runInSafeMode } = this;
     if (
       Services.appinfo.inSafeMode &&
@@ -2147,14 +2159,19 @@ class BootstrapScope {
           throw new Error(`Unknown webextension type ${this.addon.type}`);
       }
     } else {
-      let loader = AddonManagerPrivate.externalExtensionLoaders.get(
+      const loader = AddonManagerPrivate.externalExtensionLoaders.get(
         this.addon.loader
       );
       if (!loader) {
         throw new Error(`Cannot find loader for ${this.addon.loader}`);
       }
-
       this.scope = loader.loadScope(this.addon);
+    }
+
+    if (!this.scope || typeof this.scope !== "object") {
+      throw new TypeError(
+        `Loader returned an invalid scope for ${this.addon.id}`
+      );
     }
   }
 
@@ -2166,6 +2183,11 @@ class BootstrapScope {
     XPIProvider.activeAddons.delete(this.addon.id);
     XPIProvider.addAddonsToCrashReporter();
 
+    try {
+      this.scope?.destroy?.();
+    } catch (error) {
+      logger.warn(`Unable to destroy add-on scope for ${this.addon.id}`, error);
+    }
     this.scope = null;
     this.startupPromise = null;
     this.instanceID = null;
@@ -2274,7 +2296,7 @@ class BootstrapScope {
     if (callUpdate) {
       await this.callBootstrapMethod("update", reason, extraArgs);
     } else {
-      this.callBootstrapMethod("install", reason, extraArgs);
+      await this.callBootstrapMethod("install", reason, extraArgs);
     }
 
     if (startup && this.addon.active) {
@@ -2307,7 +2329,14 @@ class BootstrapScope {
       await this.shutdown(reason, extraArgs);
     }
     if (!callUpdate) {
-      this.callBootstrapMethod("uninstall", reason, extraArgs);
+      const uninstallPromise = this.callBootstrapMethod(
+        "uninstall",
+        reason,
+        extraArgs
+      );
+      if (requiresEarlyLifecycleUninstall(this.addon)) {
+        await uninstallPromise;
+      }
     }
     this.unloadBootstrapScope();
 
@@ -2413,6 +2442,8 @@ export var XPIProvider = {
   _telemetryDetails: {},
   // Have we started shutting down bootstrap add-ons?
   _closing: false,
+  _generation: 0,
+  _stagedLifecycleTestHook: null,
 
   // Promises awaited by the XPIProvider before resolving providerReadyPromise,
   // (pushed into the array by XPIProvider maybeInstallBuiltinAddon and startup
@@ -2478,7 +2509,7 @@ export var XPIProvider = {
     }
 
     // Sort the list so that ordering is deterministic.
-    let list = Array.from(XPIStates.enabledAddons());
+    let list = Array.from(XPIStates.enabledAddons()).filter(hasLifecycleScope);
     list.sort((a, b) => compare(a.id, b.id));
 
     let addons = {};
@@ -2719,6 +2750,14 @@ export var XPIProvider = {
 
       logger.debug("startup");
 
+      this._generation++;
+      awaitPromise(
+        Promise.all(
+          [...AddonManagerPrivate.externalExtensionLoaders.values()].map(
+            loader => loader.onProviderStartup?.(this._generation)
+          )
+        )
+      );
       this.builtInAddons = {};
       try {
         let url = Services.io.newURI(BUILT_IN_ADDONS_URI);
@@ -2837,6 +2876,9 @@ export var XPIProvider = {
             }
             let scope = BootstrapScope.get(addon);
             let promise = scope.startup(reason);
+            if (addon.startupData?.legacyManifest) {
+              awaitPromise(promise);
+            }
             this.enabledAddonsStartupPromises.push(promise);
             lazy.AsyncShutdown.appShutdownConfirmed.addBlocker(
               `Extension startup: ${addon.id}`,
@@ -3009,6 +3051,8 @@ export var XPIProvider = {
         XPI_SIGNATURE_CHECK_PERIOD
       );
     } catch (e) {
+      this.extensionsActive = true;
+      resolveProviderReady(Promise.all(this.startupPromises));
       logger.error("startup failed", e);
       AddonManagerPrivate.recordException("XPI", "startup failed", e);
     }
@@ -3023,6 +3067,11 @@ export var XPIProvider = {
   async shutdown() {
     logger.debug("shutdown");
 
+    await Promise.all(
+      [...AddonManagerPrivate.externalExtensionLoaders.values()].map(loader =>
+        loader.onProviderShutdown?.(this._generation)
+      )
+    );
     this.activeAddons.clear();
     this.allAppGlobal = true;
 
@@ -3690,10 +3739,12 @@ export var XPIInternal = {
   awaitPromise,
   canRunInSafeMode,
   getURIForResourceInFile,
+  hasLifecycleScope,
   isXPI,
   iterDirectory,
   maybeResolveURI,
   migrateAddonLoader,
+  requiresEarlyLifecycleUninstall,
   resolveDBReady,
 
   // Used by tests to shut down AddonManager.

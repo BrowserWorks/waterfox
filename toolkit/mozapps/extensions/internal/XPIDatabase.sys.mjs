@@ -105,6 +105,8 @@ const PROP_JSON_FIELDS = [
   "version",
   "type",
   "loader",
+  "bootstrap",
+  "unpack",
   "updateURL",
   "installOrigins",
   "manifestVersion",
@@ -256,6 +258,7 @@ export class AddonInternal {
     this._wrapper = null;
     this._selectedLocale = null;
     this.active = false;
+    this.bootstrap = true;
     this.visible = false;
     this.userDisabled = false;
     this.appDisabled = false;
@@ -991,6 +994,7 @@ export class AddonWrapper {
 
     if (addon.optionsType) {
       switch (parseInt(addon.optionsType, 10)) {
+        case lazy.AddonManager.OPTIONS_TYPE_DIALOG:
         case lazy.AddonManager.OPTIONS_TYPE_TAB:
         case lazy.AddonManager.OPTIONS_TYPE_INLINE_BROWSER:
           return hasOptionsURL ? addon.optionsType : null;
@@ -1225,7 +1229,7 @@ export class AddonWrapper {
   }
 
   get isDebuggable() {
-    return this.isActive;
+    return this.isActive && addonFor(this).bootstrap;
   }
 
   get permissions() {
@@ -1240,12 +1244,12 @@ export class AddonWrapper {
     if (!Services.appinfo.inSafeMode) {
       return true;
     }
-    return XPIExports.XPIInternal.canRunInSafeMode(addon);
+    return addon.bootstrap && XPIExports.XPIInternal.canRunInSafeMode(addon);
   }
 
   get startupPromise() {
     let addon = addonFor(this);
-    if (!this.isActive) {
+    if (!XPIExports.XPIInternal.hasLifecycleScope(addon) || !this.isActive) {
       return null;
     }
 
@@ -2652,6 +2656,10 @@ export const XPIDatabase = {
    * @returns {boolean} Whether the addon should be disabled for being legacy
    */
   isDisabledLegacy(addon) {
+    if (!addon.isWebExtension && addon.loader === "bootstrap") {
+      return false;
+    }
+
     // We still have tests that use a legacy addon type, allow them
     // if we're in automation.  Otherwise, disable if not a webextension.
     if (!Cu.isInAutomation) {
@@ -3552,7 +3560,8 @@ export const XPIDatabaseReconcile = {
       try {
         manifest = XPIExports.XPIInstall.syncLoadManifest(
           aAddonState,
-          aLocation
+          aLocation,
+          aOldAddon
         );
       } catch (err) {
         // If we can no longer read the manifest, it is no longer compatible.
