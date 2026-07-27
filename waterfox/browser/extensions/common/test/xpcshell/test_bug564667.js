@@ -519,3 +519,195 @@ add_task(function test_rdf_reference_api_and_graph_parity() {
     /only one object form/
   );
 });
+
+add_task(async function test_multiple_skin_providers() {
+  const { ChromeManifest } = ChromeUtils.importESModule(
+    "resource:///modules/ChromeManifest.sys.mjs"
+  );
+  const { LegacyChromeManifest } = ChromeUtils.importESModule(
+    "resource:///modules/LegacyChromeManifest.sys.mjs"
+  );
+  const root = makeTestDirectory("test_multiple_skin_providers");
+
+  try {
+    const classicFile = await writeTestFile(
+      root,
+      "classic/shared.css",
+      "classic"
+    );
+    await writeTestFile(root, "alternate/shared.css", "alternate");
+    const firstFile = await writeTestFile(root, "first/shared.css", "first");
+    await writeTestFile(root, "second/shared.css", "second");
+    const source = [
+      "skin multiprovider classic/1.0 classic/",
+      "skin multiprovider alternate/1.0 alternate/",
+      "skin fallbackprovider first/1.0 first/",
+      "skin fallbackprovider second/1.0 second/",
+      "",
+    ].join("\n");
+    await writeTestFile(root, "chrome.manifest", source);
+
+    const generic = new ChromeManifest(null);
+    await generic.parseString(source);
+    Assert.equal(generic.skin.get("multiprovider"), "classic/");
+    Assert.equal(generic.skin.get("fallbackprovider"), "first/");
+
+    const parsed = await new LegacyChromeManifest(
+      {
+        id: "multiple-skin-providers@test.invalid",
+        rootURI: Services.io.newFileURI(root),
+      },
+      console
+    ).parse();
+    Assert.equal(
+      parsed.override.get("chrome://multiprovider/skin/shared.css"),
+      Services.io.newFileURI(classicFile).spec
+    );
+    Assert.equal(
+      parsed.override.get("chrome://fallbackprovider/skin/shared.css"),
+      Services.io.newFileURI(firstFile).spec
+    );
+  } finally {
+    root.remove(true);
+  }
+});
+
+add_task(async function test_js_native_manifest_condition_consistency() {
+  const { ChromeManifest } = ChromeUtils.importESModule(
+    "resource:///modules/ChromeManifest.sys.mjs"
+  );
+  const root = makeTestDirectory("test_manifest_condition_consistency");
+  ensureTestDirectory(root, "content");
+  const os = Services.appinfo.OS.toLowerCase();
+  const abi =
+    `${Services.appinfo.OS}_${Services.appinfo.XPCOMABI}`.toLowerCase();
+  const application = Services.appinfo.ID.toLowerCase();
+  const appVersion = Services.appinfo.version.toLowerCase();
+  const platformVersion = Services.appinfo.platformVersion.toLowerCase();
+  const cases = [
+    ["condition-application", `application=${application}`],
+    ["condition-application-not", `application!=${application}`],
+    ["condition-os", `os=${os}`],
+    ["condition-os-alias", "os=likeunix"],
+    ["condition-os-not", `os!=${os}`],
+    ["condition-os-or", `os=not-${os} os=${os}`],
+    ["condition-abi", `abi=${abi}`],
+    ["condition-process", "process=main"],
+    ["condition-process-not", "process=content"],
+    ["condition-background-false", "backgroundtask=false"],
+    ["condition-background-true", "backgroundtask=true"],
+    ["condition-tablet-false", "tablet=false"],
+    ["condition-tablet-true", "tablet=true"],
+    ["condition-app-version", `appversion<0 appversion=${appVersion}`],
+    ["condition-platform-version", `platformversion=${platformVersion}`],
+  ];
+  const source = `${cases
+    .map(([name, modifiers]) => `content ${name} content/ ${modifiers}`)
+    .join("\n")}\n`;
+  const manifest = root.clone();
+  manifest.append("chrome.manifest");
+  let registered = false;
+
+  try {
+    await IOUtils.writeUTF8(manifest.path, source);
+    const parsed = new ChromeManifest(null);
+    await parsed.parseString(source, Services.io.newFileURI(root).spec);
+
+    Components.manager.addBootstrappedManifestLocation(root);
+    registered = true;
+    for (const [name] of cases) {
+      let nativeMatch = true;
+      try {
+        gChromeRegistry.convertChromeURL(
+          Services.io.newURI(`chrome://${name}/content/value`)
+        );
+      } catch {
+        nativeMatch = false;
+      }
+      Assert.equal(
+        parsed.content.has(name),
+        nativeMatch,
+        `${name} should have the same JavaScript and native result`
+      );
+    }
+  } finally {
+    if (registered) {
+      Components.manager.removeBootstrappedManifestLocation(root);
+    }
+    root.remove(true);
+  }
+});
+
+add_task(async function test_nested_manifest_cycles() {
+  const { ChromeManifest } = ChromeUtils.importESModule(
+    "resource:///modules/ChromeManifest.sys.mjs"
+  );
+  const { LegacyChromeManifest } = ChromeUtils.importESModule(
+    "resource:///modules/LegacyChromeManifest.sys.mjs"
+  );
+  const sources = new Map([
+    [
+      "chrome.manifest",
+      "content cycle-root root/\nmanifest nested/one.manifest\n",
+    ],
+    [
+      "nested/one.manifest",
+      "content cycle-one one/\nmanifest ../two.manifest\n",
+    ],
+    ["two.manifest", "content cycle-two two/\nmanifest nested/one.manifest\n"],
+  ]);
+  const loadCounts = new Map();
+  const parsed = new ChromeManifest(async location => {
+    loadCounts.set(location, (loadCounts.get(location) ?? 0) + 1);
+    if (!sources.has(location)) {
+      throw new Error(`Missing ${location}`);
+    }
+    return sources.get(location);
+  });
+  await parsed.parse();
+  Assert.deepEqual(
+    [...parsed.content.keys()],
+    ["cycle-root", "cycle-one", "cycle-two"]
+  );
+  Assert.deepEqual([...loadCounts.values()], [1, 1, 1]);
+
+  const root = makeTestDirectory("test_nested_manifest_cycles");
+  let nativeRegistered = false;
+  try {
+    ensureTestDirectory(root, "root");
+    ensureTestDirectory(root, "nested/content");
+    await writeTestFile(
+      root,
+      "chrome.manifest",
+      "content legacy-cycle-root root/\nmanifest nested/one.manifest\n"
+    );
+    await writeTestFile(
+      root,
+      "nested/one.manifest",
+      "content legacy-cycle-nested content/\nmanifest ../chrome.manifest\n"
+    );
+    const legacy = await new LegacyChromeManifest(
+      {
+        id: "nested-manifest-cycle@test.invalid",
+        rootURI: Services.io.newFileURI(root),
+      },
+      console
+    ).parse();
+    Assert.ok(legacy.content.has("legacy-cycle-root"));
+    Assert.ok(legacy.content.has("legacy-cycle-nested"));
+
+    Components.manager.addBootstrappedManifestLocation(root);
+    nativeRegistered = true;
+    for (const packageName of ["legacy-cycle-root", "legacy-cycle-nested"]) {
+      const resolved = gChromeRegistry.convertChromeURL(
+        Services.io.newURI(`chrome://${packageName}/content/value`)
+      );
+      Assert.ok(resolved instanceof Ci.nsIFileURL);
+    }
+  } finally {
+    if (nativeRegistered) {
+      Components.manager.removeBootstrappedManifestLocation(root);
+    }
+    root.remove(true);
+  }
+});
