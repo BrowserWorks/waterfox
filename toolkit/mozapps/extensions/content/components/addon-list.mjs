@@ -5,6 +5,7 @@
 import {
   AddonManagerListenerHandler,
   isPending,
+  isPendingRestartInstall,
   shouldSkipAnimations,
 } from "../aboutaddons-utils.mjs";
 
@@ -60,8 +61,14 @@ export class AddonList extends HTMLElement {
 
     // Process any pending uninstall related to this list.
     for (const addon of this.pendingUninstallAddons) {
-      if (isPending(addon, "uninstall")) {
-        addon.uninstall();
+      if (
+        isPending(addon, "uninstall") &&
+        !(
+          addon.operationsRequiringRestart &
+          AddonManager.OP_NEEDS_RESTART_UNINSTALL
+        )
+      ) {
+        Promise.resolve(addon.uninstall()).catch(Cu.reportError);
       }
     }
     this.pendingUninstallAddons.clear();
@@ -125,7 +132,15 @@ export class AddonList extends HTMLElement {
 
     // Find everything matching our type, null will find all types.
     let type = this.type == "all" ? null : [this.type];
-    let addons = await AddonManager.getAddonsByTypes(type);
+    let [addons, installs] = await Promise.all([
+      AddonManager.getAddonsByTypes(type),
+      AddonManager.getInstallsByTypes(type),
+    ]);
+    for (const install of installs) {
+      if (isPendingRestartInstall(install)) {
+        addons.push(install.addon);
+      }
+    }
 
     if (type == "theme") {
       await lazy.BuiltInThemes.ensureBuiltInThemes();
@@ -176,11 +191,15 @@ export class AddonList extends HTMLElement {
     const undo = document.createElement("button");
     undo.setAttribute("action", "undo");
     undo.addEventListener("click", () => {
-      addon.cancelUninstall();
+      Promise.resolve(addon.cancelUninstall()).catch(Cu.reportError);
     });
     undo.setAttribute("slot", "actions");
 
-    document.l10n.setAttributes(mb, "pending-uninstall-description2", {
+    const messageId =
+      addon.operationsRequiringRestart & AddonManager.OP_NEEDS_RESTART_UNINSTALL
+        ? "pending-uninstall-restart-description"
+        : "pending-uninstall-description2";
+    document.l10n.setAttributes(mb, messageId, {
       addon: addon.name,
     });
     mb.setAttribute("data-l10n-attrs", "message");
@@ -545,6 +564,14 @@ export class AddonList extends HTMLElement {
     this.updateAddon(addon);
   }
 
+  onEnabling(addon) {
+    this.updateAddon(addon);
+  }
+
+  onDisabling(addon) {
+    this.updateAddon(addon);
+  }
+
   onEnabled(addon) {
     this.updateAddon(addon);
   }
@@ -566,6 +593,21 @@ export class AddonList extends HTMLElement {
 
   onInstalled(addon) {
     this.updateAddon(addon);
+  }
+
+  onInstallEnded(install) {
+    if (isPendingRestartInstall(install)) {
+      this.updateAddon(install.addon);
+    }
+  }
+
+  onInstallCancelled(install) {
+    if (!install.existingAddon && install.addon) {
+      const card = this.getCard(install.addon);
+      if (card?.addon === install.addon) {
+        this.removeAddon(install.addon);
+      }
+    }
   }
 
   onUninstalled(addon) {
