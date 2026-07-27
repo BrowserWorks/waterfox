@@ -1343,7 +1343,15 @@ const ExtensionBlocklistMLBF = {
     // undefined if it's an addon update descriptor instead of an addon wrapper.
     let { signedDate } = addon;
     if (!signedDate) {
-      // The MLBF does not apply to unsigned add-ons.
+      // Keep hard MLBF checks for unsigned legacy add-ons.
+      if (
+        signedDate === null &&
+        addon.isWebExtension === false &&
+        mlbfData === this._mlbfData
+      ) {
+        return mlbfData?.cascadeFilter.has(`${addon.id}:${addon.version}`);
+      }
+
       return false;
     }
 

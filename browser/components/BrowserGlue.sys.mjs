@@ -16,6 +16,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   ASRouterNewTabHook: "resource:///modules/asrouter/ASRouterNewTabHook.sys.mjs",
   AddonManager: "resource://gre/modules/AddonManager.sys.mjs",
   BackupService: "resource:///modules/backup/BackupService.sys.mjs",
+  BootstrapLoader: "resource:///modules/BootstrapLoader.sys.mjs",
   BrowserSearchTelemetry:
     "moz-src:///browser/components/search/BrowserSearchTelemetry.sys.mjs",
   BrowserUtils: "resource://gre/modules/BrowserUtils.sys.mjs",
@@ -316,6 +317,7 @@ BrowserGlue.prototype = {
 
         break;
       case "app-startup": {
+        lazy.AddonManager.addExternalExtensionLoader(lazy.BootstrapLoader);
         this._earlyBlankFirstPaint(subject);
         // The "taskbar-tab" flag and its param will be handled in
         // TaskbarTabCmd.sys.mjs
