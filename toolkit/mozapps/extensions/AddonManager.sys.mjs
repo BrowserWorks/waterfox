@@ -4248,6 +4248,7 @@ export var AddonManager = {
   AUTOUPDATE_ENABLE: 2,
 
   // Constants for how Addon options should be shown.
+  OPTIONS_TYPE_DIALOG: 1,
   // Options will be displayed in a new tab, if possible
   OPTIONS_TYPE_TAB: 3,
   // Similar to OPTIONS_TYPE_INLINE, but rather than generating inline
