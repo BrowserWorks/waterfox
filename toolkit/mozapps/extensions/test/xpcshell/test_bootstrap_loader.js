@@ -365,6 +365,14 @@ function createRawBootstrapXPI(id, version, options = {}) {
   });
 }
 
+function getP0Events(id = null) {
+  const events = Services.prefs
+    .getStringPref(P0_EVENTS_PREF, "")
+    .split(",")
+    .filter(Boolean);
+  return id ? events.filter(event => event.startsWith(`${id}:`)) : events;
+}
+
 function clearP0Events() {
   Services.prefs.clearUserPref(P0_EVENTS_PREF);
 }
@@ -1668,6 +1676,35 @@ add_task(async function test_ordinary_signed_rdf_is_rejected() {
     AddonTestUtils.usePrivilegedSignatures = previousPrivilegedSignatures;
     await IOUtils.remove(signedXPI.path, { ignoreAbsent: true });
   }
+});
+
+add_task(async function test_temporary_raw_rdf_startup_failure_rollback() {
+  clearP0Events();
+  let addon = await AddonManager.installTemporaryAddon(
+    createRawBootstrapXPI(TEMP_RAW_FAILURE_ID, "1.0")
+  );
+  Assert.ok(addon.isActive);
+  clearP0Events();
+
+  await Assert.rejects(
+    AddonManager.installTemporaryAddon(
+      createRawBootstrapXPI(TEMP_RAW_FAILURE_ID, "2.0", {
+        failStartup: true,
+      })
+    ),
+    /intentional startup failure/
+  );
+
+  addon = await AddonManager.getAddonByID(TEMP_RAW_FAILURE_ID);
+  Assert.equal(addon?.version, "1.0");
+  Assert.ok(addon.isActive);
+  Assert.ok(
+    getP0Events(TEMP_RAW_FAILURE_ID).includes(
+      `${TEMP_RAW_FAILURE_ID}:1.0:startup:${BOOTSTRAP_REASONS.ADDON_DOWNGRADE}`
+    )
+  );
+  await addon.uninstall();
+  clearP0Events();
 });
 
 add_task(async function test_temporary_raw_rdf_signing_exemption() {
