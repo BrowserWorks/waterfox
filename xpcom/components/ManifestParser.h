@@ -11,7 +11,8 @@
 #include "mozilla/FileLocation.h"
 
 void ParseManifest(NSLocationType aType, mozilla::FileLocation& aFile,
-                   char* aBuf, bool aChromeOnly);
+                   char* aBuf, bool aChromeOnly,
+                   nsComponentManagerImpl::ManifestLocationSet* aVisited);
 
 void LogMessage(const char* aMsg, ...) MOZ_FORMAT_PRINTF(1, 2);
 
