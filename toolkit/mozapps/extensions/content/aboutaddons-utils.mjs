@@ -74,6 +74,7 @@ export const INLINE_OPTIONS_ENABLED = Services.prefs.getBoolPref(
   "extensions.htmlaboutaddons.inline-options.enabled"
 );
 export const OPTIONS_TYPE_MAP = {
+  [AddonManager.OPTIONS_TYPE_DIALOG]: "dialog",
   [AddonManager.OPTIONS_TYPE_TAB]: "tab",
   [AddonManager.OPTIONS_TYPE_INLINE_BROWSER]: INLINE_OPTIONS_ENABLED
     ? "inline"
@@ -202,6 +203,25 @@ export async function loadReleaseNotes(uri) {
   // Sanitize and parse the content to a fragment.
   const context = document.createElementNS(HTML_NS, "div");
   return ParserUtils.parseFragment(text, flags, false, uri, context);
+}
+
+export function openOptionsInDialog(addon) {
+  let windows = Services.wm.getEnumerator(null);
+  while (windows.hasMoreElements()) {
+    let win = windows.getNext();
+    if (!win.closed && win.document.documentURI == addon.optionsURL) {
+      win.focus();
+      return;
+    }
+  }
+
+  let features = "chrome,titlebar,toolbar,centerscreen";
+  if (Services.prefs.getBoolPref("browser.preferences.instantApply", false)) {
+    features += ",dialog=no";
+  } else {
+    features += ",modal";
+  }
+  window.windowRoot.window.openDialog(addon.optionsURL, addon.id, features);
 }
 
 export function openOptionsInTab(optionsURL) {
@@ -536,11 +556,23 @@ export function isInState(install, state) {
   return install.state == AddonManager["STATE_" + state.toUpperCase()];
 }
 
+export function isPendingRestartInstall(install) {
+  const addon = install?.addon;
+  return !!(
+    addon &&
+    !install.existingAddon &&
+    isInState(install, "installed") &&
+    addon.pendingOperations & AddonManager.PENDING_INSTALL &&
+    addon.operationsRequiringRestart & AddonManager.OP_NEEDS_RESTART_INSTALL
+  );
+}
+
 export async function getAddonMessageInfo(
   addon,
   { isCardExpanded, isInDisabledSection }
 ) {
   const { name } = addon;
+  const updateInstall = getUpdateInstall(addon);
   const { STATE_BLOCKED, STATE_SOFTBLOCKED } = Ci.nsIBlocklistService;
 
   if (addon.blocklistState === STATE_BLOCKED) {
@@ -570,6 +602,14 @@ export async function getAddonMessageInfo(
       messageId: "details-notification-incompatible2",
       messageArgs: { name, version: Services.appinfo.version },
       type: "error",
+    };
+  } else if (isPendingRestartInstall(addon.install)) {
+    return {
+      action: "cancel-install",
+      actionId: "pending-restart-install-cancel-button",
+      messageId: "pending-restart-install-description",
+      messageArgs: { addon: name },
+      type: "warning",
     };
   } else if (
     !isCorrectlySigned(addon) &&
@@ -610,6 +650,36 @@ export async function getAddonMessageInfo(
       linkUrl: await addon.getBlocklistURL(),
       linkId: "details-notification-softblocked-link2",
       messageId,
+      type: "warning",
+    };
+  } else if (
+    addon.pendingOperations & AddonManager.PENDING_ENABLE &&
+    addon.operationsRequiringRestart & AddonManager.OP_NEEDS_RESTART_ENABLE
+  ) {
+    return {
+      messageId: "pending-restart-enable-description",
+      messageArgs: { addon: name },
+      type: "warning",
+    };
+  } else if (
+    addon.pendingOperations & AddonManager.PENDING_DISABLE &&
+    addon.operationsRequiringRestart & AddonManager.OP_NEEDS_RESTART_DISABLE
+  ) {
+    return {
+      messageId: "pending-restart-disable-description",
+      messageArgs: { addon: name },
+      type: "warning",
+    };
+  } else if (
+    addon.pendingOperations & AddonManager.PENDING_UPGRADE &&
+    updateInstall &&
+    isInState(updateInstall, "installed")
+  ) {
+    return {
+      action: "cancel-update",
+      actionId: "pending-uninstall-undo-button",
+      messageId: "pending-restart-update-description",
+      messageArgs: { addon: name },
       type: "warning",
     };
   } else if (addon.isGMPlugin && !addon.isInstalled && addon.isActive) {
@@ -688,10 +758,13 @@ export function getOptionsType(addon) {
 
 // Check whether the options page can be loaded in the current browser window.
 export async function isAddonOptionsUIAllowed(addon) {
-  if (addon.type !== "extension" || !getOptionsType(addon)) {
-    // Themes never have options pages.
-    // Some plugins have preference pages, and they can always be shown.
-    // Extensions do not need to be checked if they do not have options pages.
+  if (
+    addon.type !== "extension" ||
+    getOptionsType(addon) === "dialog" ||
+    !addon.isWebExtension ||
+    !getOptionsType(addon)
+  ) {
+    // Check private browsing only for tab and inline WebExtension options.
     return true;
   }
   if (!lazy.PrivateBrowsingUtils.isContentWindowPrivate(window)) {
