@@ -75,7 +75,10 @@ pref("browser.search.param.waterfox_ai_google", "14");
 pref("browser.search.param.waterfox_ai_bing", "0");
 pref("browser.search.param.waterfox_ai_qwant", "0");
 
+// Tab features.
 pref("browser.closeShortcut.disabled", false);
+pref("browser.tabs.closeButtons", false);
+pref("browser.tabs.pinnedIconOnly", true);
 
 pref("browser.download.always_ask_before_handling_new_types", true);
 pref("browser.download.manager.addToRecentDocs", false);

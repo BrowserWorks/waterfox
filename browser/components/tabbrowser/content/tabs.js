@@ -1085,7 +1085,8 @@
         tab.pinned &&
         this.verticalMode &&
         this.hasAttribute("expanded") &&
-        !this.expandOnHover
+        !this.expandOnHover &&
+        Services.prefs.getBoolPref("browser.tabs.pinnedIconOnly", true)
       );
     }
 
