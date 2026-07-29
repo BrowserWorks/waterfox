@@ -66,6 +66,12 @@
                           command="cmd_toggleOfflineStatus"
                           observes="cmd_toggleOfflineStatus"
                           data-l10n-id="menu-file-go-offline"/>
+#ifdef XP_MACOSX
+                <menuitem id="app_restartBrowser" class="tabFeature"
+                          data-l10n-id="appmenuitem-restart-browser"
+                          preference="browser.restart_menu.showpanelmenubtn"
+                          hidden="true"/>
+#endif
                 <menuitem id="menu_FileQuitItem"
 #ifdef XP_MACOSX
                           data-l10n-id="menu-quit-mac"
