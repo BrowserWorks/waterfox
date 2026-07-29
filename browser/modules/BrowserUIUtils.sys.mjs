@@ -173,3 +173,10 @@ XPCOMUtils.defineLazyPreferenceGetter(
   "browser.quitShortcut.disabled",
   false
 );
+
+XPCOMUtils.defineLazyPreferenceGetter(
+  BrowserUIUtils,
+  "closeShortcutDisabled",
+  "browser.closeShortcut.disabled",
+  false
+);
