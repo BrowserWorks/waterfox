@@ -1794,6 +1794,7 @@
       if (!this.#previewMode) {
         newTab.recordTimeFromUnloadToReload();
         newTab.updateLastAccessed();
+        newTab.removeAttribute("unread");
         oldTab.updateLastAccessed();
         // if this is the foreground window, update the last-seen timestamps.
         if (this.documentGlobal == BrowserWindowTracker.getTopWindow()) {
