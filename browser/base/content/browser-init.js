@@ -458,6 +458,13 @@ var gBrowserInit = {
       )?.removeAttribute("key");
     }
 
+    if (BrowserUIUtils.closeShortcutDisabled) {
+      document.getElementById("key_close").remove();
+      document.getElementById("menu_close").removeAttribute("key");
+      document.getElementById("key_closeWindow").remove();
+      document.getElementById("menu_closeWindow").removeAttribute("key");
+    }
+
     if (window.browsingContext.isDocumentPiP) {
       for (const cmd of ["Browser:AddBookmarkAs", "Browser:Reload"]) {
         document.getElementById(cmd).setAttribute("disabled", "true");
