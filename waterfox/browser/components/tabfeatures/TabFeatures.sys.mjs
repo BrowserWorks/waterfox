@@ -7,9 +7,11 @@ import { AppConstants } from "resource://gre/modules/AppConstants.sys.mjs";
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  AboutNewTab: "resource:///modules/AboutNewTab.sys.mjs",
   StyleSheetUtils: "resource:///modules/StyleSheetUtils.sys.mjs",
 });
 
+const NEWTAB_PREF = "browser.newtab.url";
 const ACTIVETAB_PREF = "browser.tabs.copyurl.activetab";
 const SHORTCUT_PREF = "browser.tabs.copyurl.shortcut";
 
@@ -29,6 +31,18 @@ export const TabFeatures = {
       CSS_URI,
       Ci.nsIStyleSheetService.AUTHOR_SHEET
     );
+
+    this._applyNewTabURL();
+    Services.prefs.addObserver(NEWTAB_PREF, () => this._applyNewTabURL());
+  },
+
+  _applyNewTabURL() {
+    const url = Services.prefs.getStringPref(NEWTAB_PREF, "");
+    if (url) {
+      lazy.AboutNewTab.newTabURL = url;
+    } else if (lazy.AboutNewTab.newTabURLOverridden) {
+      lazy.AboutNewTab.resetNewTabURL();
+    }
   },
 
   onWindowOpened(win) {
@@ -58,6 +72,7 @@ export const TabFeatures = {
       .getElementById("context_copyAllTabUrls")
       .addEventListener("command", () => this.copyAllTabUrls(win));
 
+    this._initNewTabFocus(win);
     this._initCopyShortcut(win);
   },
 
@@ -90,6 +105,19 @@ export const TabFeatures = {
       .map(browser => browser.currentURI.spec)
       .filter(spec => !/^about:/i.test(spec));
     clipboard.copyString(urls.join("\n").trim());
+  },
+
+  _initNewTabFocus(win) {
+    win.gBrowser.tabContainer.addEventListener("TabOpen", event => {
+      const browser = win.gBrowser.getBrowserForTab(event.target);
+      browser.addEventListener(
+        "load",
+        () => {
+          win.setTimeout(() => browser.contentWindow?.focus(), 0);
+        },
+        { once: true }
+      );
+    });
   },
 
   _initCopyShortcut(win) {
