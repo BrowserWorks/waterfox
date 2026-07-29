@@ -1007,7 +1007,10 @@ nsBrowserContentHandler.prototype = {
             // easily made asynchronous, having too many synchronous callers. Additionally
             // we must know the value of `updateInstalledAtStartup` immediately,
             // in order to properly enable `lazy.LaterRun`, that will be invoked shortly after this.
-            let updateInstalledAtStartup = spinForUpdateInstalledAtStartup();
+            let updateInstalledAtStartup = false;
+            try {
+              updateInstalledAtStartup = spinForUpdateInstalledAtStartup();
+            } catch {}
 
             if (updateInstalledAtStartup) {
               let handleUpdateSuccessTask = lazy.UpdatePing.handleUpdateSuccess(
@@ -1024,6 +1027,18 @@ nsBrowserContentHandler.prototype = {
 
               lazy.LaterRun.enable(lazy.LaterRun.ENABLE_REASON_UPDATE_APPLIED);
             }
+
+            let defaultOverridePage = Services.urlFormatter.formatURLPref(
+              "startup.homepage_override_url"
+            );
+            try {
+              overridePage = getPostUpdateOverridePage(
+                spinForLastUpdateInstalled(),
+                defaultOverridePage
+              );
+            } catch {}
+            overridePage ||= defaultOverridePage;
+            overridePage = overridePage.replace("%OLD_VERSION%", old_mstone);
             break;
           }
         }
