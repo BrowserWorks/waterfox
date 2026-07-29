@@ -75,4 +75,12 @@ if (Services.prefs.getBoolPref("browser.settings-redesign.enabled", false)) {
     "chrome://browser/content/waterfox/settings/waterfoxAppearanceOptions.mjs",
     { global: "current" }
   );
+
+  // The Home pane's groups are registered by AboutPreferences.observe(); the
+  // custom new tab URL control attaches to them at runtime, so this module only
+  // needs to load before the home pane registers.
+  ChromeUtils.importESModule(
+    "chrome://browser/content/waterfox/settings/waterfoxHome.mjs",
+    { global: "current" }
+  );
 }
