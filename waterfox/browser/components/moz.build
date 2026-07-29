@@ -9,6 +9,7 @@ DIRS += [
     "search",
     "settings",
     "statusbar",
+    "tabfeatures",
     "theme",
     "uicustomizations",
     "utils",
