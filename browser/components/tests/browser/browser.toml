@@ -26,6 +26,8 @@ run-if = [
 ]
 reason = "test depends on update channel"
 
+["browser_close_disabled.js"]
+
 ["browser_contentpermissionprompt.js"]
 
 ["browser_csp_baseline.js"]
