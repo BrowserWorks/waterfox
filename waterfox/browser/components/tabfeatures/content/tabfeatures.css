@@ -68,3 +68,9 @@
     display: none !important;
   }
 }
+
+@media -moz-pref("browser.tabs.italicizeUnread") {
+  .tabbrowser-tab[unread]:not([selected], [pending]) .tab-label {
+    font-style: italic;
+  }
+}
