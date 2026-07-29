@@ -37,3 +37,7 @@
     display: none !important;
   }
 }
+
+.tabbrowser-tab[unread]:not([selected]) .tab-label {
+  font-style: italic;
+}
