@@ -3,6 +3,7 @@
  */
 
 const PREF_MSTONE = "browser.startup.homepage_override.mstone";
+const PREF_BUILD_ID = "browser.startup.homepage_override.buildID";
 const PREF_OVERRIDE_URL = "startup.homepage_override_url";
 
 const DEFAULT_PREF_URL = "http://pref.example.com/";
@@ -161,6 +162,26 @@ add_task(async function test_bug538331() {
       );
     }
   }
+});
+
+add_task(async function test_build_id_change_shows_release_notes() {
+  await SpecialPowers.pushPrefEnv({
+    set: [
+      [PREF_MSTONE, Services.appinfo.platformVersion],
+      [PREF_BUILD_ID, "20000101000000"],
+      [PREF_OVERRIDE_URL, DEFAULT_PREF_URL],
+    ],
+  });
+
+  let defaultArgs = Cc["@mozilla.org/browser/clh;1"]
+    .getService(Ci.nsIBrowserHandler)
+    .getFirstWindowArgs();
+  ok(
+    defaultArgs.split("|").includes(DEFAULT_PREF_URL),
+    "Build ID changes show the release notes page"
+  );
+
+  await SpecialPowers.popPrefEnv();
 });
 
 /**
