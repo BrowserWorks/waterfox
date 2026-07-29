@@ -76,6 +76,14 @@ if (Services.prefs.getBoolPref("browser.settings-redesign.enabled", false)) {
     { global: "current" }
   );
 
+  // The Home pane's groups are registered by AboutPreferences.observe(); the
+  // custom new tab URL control attaches to them at runtime, so this module only
+  // needs to load before the home pane registers.
+  ChromeUtils.importESModule(
+    "chrome://browser/content/waterfox/settings/waterfoxHome.mjs",
+    { global: "current" }
+  );
+
   // The search pane keeps its Mozilla module; waterfoxSearch amends its
   // defaultEngine and searchSuggestions groups at runtime, so it only needs
   // to load before that pane.
