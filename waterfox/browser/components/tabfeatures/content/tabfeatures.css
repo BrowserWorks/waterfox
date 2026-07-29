@@ -1,0 +1,70 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+/* Keep pinned tabs full width unless the user wants icon only. The
+   metrics follow the native tab strip geometry, not the design tokens. */
+@media not -moz-pref("browser.tabs.pinnedIconOnly") {
+  #tabbrowser-tabs[orient="horizontal"] .tabbrowser-tab[pinned] {
+    flex: 100 100;
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
+    max-width: 225px;
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
+    min-width: var(--tab-min-width);
+    width: 0;
+    transition:
+      min-width 100ms ease-out,
+      max-width 100ms ease-out;
+  }
+
+  #tabbrowser-tabs[orient="horizontal"] .tabbrowser-tab[pinned]:not([fadein]) {
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
+    max-width: 0.1px;
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
+    min-width: 0.1px;
+    visibility: hidden;
+  }
+
+  #tabbrowser-tabs[orient="horizontal"]
+    .tabbrowser-tab[pinned]
+    :is(.tab-throbber, .tab-icon-pending, .tab-icon-image, .tab-sharing-icon-overlay, .tab-icon-overlay) {
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
+    margin-inline-end: 5.5px;
+  }
+
+  #tabbrowser-tabs[orient="vertical"][expanded] > #pinned-tabs-container {
+    --tab-inline-padding: calc((var(--tab-collapsed-width) - var(--icon-size)) / 2);
+
+    &::part(items-wrapper) {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      grid-auto-rows: var(--tab-height-with-margin-padding);
+      padding-inline: 0;
+    }
+
+    .tab-background {
+      margin-inline: var(--tab-inner-inline-margin);
+    }
+
+    .tab-content {
+      justify-content: start;
+      padding-inline: var(--tab-inline-padding);
+    }
+
+    .tab-label-container {
+      display: flex;
+      width: auto;
+    }
+
+    :is(.tab-throbber, .tab-icon-pending, .tab-icon-image, .tab-sharing-icon-overlay, .tab-icon-overlay) {
+      margin-inline-end: var(--tab-icon-end-margin);
+    }
+  }
+}
+
+/* Keep the Waterfox 140 pref shape: true means hidden. */
+@media -moz-pref("browser.tabs.closeButtons") {
+  .tab-close-button {
+    display: none !important;
+  }
+}
