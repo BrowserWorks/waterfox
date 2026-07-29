@@ -67,6 +67,7 @@ pref("browser.search.param.waterfox_attribution_ecosia", "57226k1p");
 pref("browser.search.param.waterfox_attribution_qwant", "brz-waterfox");
 
 // Tab features.
+pref("browser.newtab.url", "");
 pref("browser.closeShortcut.disabled", false);
 pref("browser.tabs.closeButtons", false);
 pref("browser.tabs.copyallurls", false);
