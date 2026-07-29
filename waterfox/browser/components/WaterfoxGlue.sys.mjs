@@ -93,6 +93,7 @@ export const WaterfoxGlue = {
     switch (topic) {
       case "browser-delayed-startup-finished":
         lazy.StatusBar.onWindowOpened(subject);
+        lazy.TabFeatures.onWindowOpened(subject);
         lazy.UICustomizations.onWindowOpened(subject);
         break;
     }

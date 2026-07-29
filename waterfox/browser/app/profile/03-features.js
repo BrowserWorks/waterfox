@@ -69,6 +69,11 @@ pref("browser.search.param.waterfox_attribution_qwant", "brz-waterfox");
 // Tab features.
 pref("browser.closeShortcut.disabled", false);
 pref("browser.tabs.closeButtons", false);
+pref("browser.tabs.copyallurls", false);
+pref("browser.tabs.copyurl", true);
+pref("browser.tabs.copyurl.activetab", false);
+pref("browser.tabs.copyurl.shortcut", true);
+pref("browser.tabs.duplicateTab", true);
 pref("browser.tabs.pinnedIconOnly", true);
 
 pref("browser.download.always_ask_before_handling_new_types", true);
