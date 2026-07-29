@@ -77,6 +77,9 @@ pref("browser.search.param.waterfox_ai_qwant", "0");
 
 // Tab features.
 pref("browser.newtab.url", "");
+pref("browser.restart_menu.purgecache", false);
+pref("browser.restart_menu.requireconfirm", true);
+pref("browser.restart_menu.showpanelmenubtn", true);
 pref("browser.closeShortcut.disabled", false);
 pref("browser.tabs.closeButtons", false);
 pref("browser.tabs.copyallurls", false);
