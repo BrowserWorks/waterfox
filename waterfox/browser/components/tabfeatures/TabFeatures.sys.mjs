@@ -14,6 +14,8 @@ ChromeUtils.defineESModuleGetters(lazy, {
 const NEWTAB_PREF = "browser.newtab.url";
 const ACTIVETAB_PREF = "browser.tabs.copyurl.activetab";
 const SHORTCUT_PREF = "browser.tabs.copyurl.shortcut";
+const CONFIRM_PREF = "browser.restart_menu.requireconfirm";
+const PURGECACHE_PREF = "browser.restart_menu.purgecache";
 
 const CSS_URI = "chrome://browser/content/waterfox/tabfeatures/tabfeatures.css";
 
@@ -72,18 +74,44 @@ export const TabFeatures = {
       .getElementById("context_copyAllTabUrls")
       .addEventListener("command", () => this.copyAllTabUrls(win));
 
+    if (AppConstants.platform == "macosx") {
+      const restartItem = doc.getElementById("app_restartBrowser");
+      restartItem.hidden = !Services.prefs.getBoolPref(
+        "browser.restart_menu.showpanelmenubtn",
+        true
+      );
+      restartItem.addEventListener("command", () => this.restartBrowser(win));
+    } else {
+      // The app menu instantiates from a template, so the button only
+      // exists, and needs its listener again, once the menu first opens.
+      doc
+        .getElementById("appMenu-popup")
+        .addEventListener("popupshowing", event => this.onMenuShowing(event));
+    }
+
     this._initNewTabFocus(win);
     this._initCopyShortcut(win);
   },
 
   onMenuShowing(event) {
-    const doc = event.target.ownerDocument;
+    // event.view can be null for popups driven by the native macOS menus.
+    const win = event.target.documentGlobal;
+    const doc = win.document;
 
     for (const el of doc.getElementsByClassName("tabFeature")) {
       const pref = el.getAttribute("preference");
       if (pref) {
         el.hidden = !Services.prefs.getBoolPref(pref, false);
       }
+    }
+
+    const restartButton = doc.getElementById("appMenu-restart-button");
+    if (
+      restartButton &&
+      !restartButton.hasAttribute("data-restart-handler-attached")
+    ) {
+      restartButton.addEventListener("command", () => this.restartBrowser(win));
+      restartButton.setAttribute("data-restart-handler-attached", "true");
     }
   },
 
@@ -162,5 +190,30 @@ export const TabFeatures = {
           "tabfeatures-copyurl"
         );
     } catch (_e) {}
+  },
+
+  async restartBrowser(win) {
+    if (Services.prefs.getBoolPref(CONFIRM_PREF, true)) {
+      const l10n = new Localization([
+        "branding/brand.ftl",
+        "browser/waterfox/tabs.ftl",
+      ]);
+      const [title, question] = (
+        await l10n.formatMessages([
+          { id: "restart-prompt-title" },
+          { id: "restart-prompt-question" },
+        ])
+      ).map(message => message.value);
+      if (!Services.prompt.confirm(win, title, question)) {
+        return;
+      }
+    }
+
+    if (Services.prefs.getBoolPref(PURGECACHE_PREF, false)) {
+      Services.appinfo.invalidateCachesOnRestart();
+    }
+    Services.startup.quit(
+      Services.startup.eRestart | Services.startup.eAttemptQuit
+    );
   },
 };
