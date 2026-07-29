@@ -60,8 +60,18 @@
     <menuitem id="context_unloadTab"
               data-lazy-l10n-id="tab-context-unload-n-tabs"
               data-l10n-args='{"tabCount": 1}'/>
-    <menuitem id="context_duplicateTab" data-lazy-l10n-id="duplicate-tab"/>
-    <menuitem id="context_duplicateTabs" data-lazy-l10n-id="duplicate-tabs"/>
+    <menuitem id="context_duplicateTab" class="tabFeature"
+              data-lazy-l10n-id="duplicate-tab"
+              preference="browser.tabs.duplicateTab"/>
+    <menuitem id="context_duplicateTabs" class="tabFeature"
+              data-lazy-l10n-id="duplicate-tabs"
+              preference="browser.tabs.duplicateTab"/>
+    <menuitem id="context_copyTabUrl" class="tabFeature"
+              data-lazy-l10n-id="copy-tab-link"
+              preference="browser.tabs.copyurl"/>
+    <menuitem id="context_copyAllTabUrls" class="tabFeature"
+              data-lazy-l10n-id="copy-all-urls"
+              preference="browser.tabs.copyallurls"/>
     <menuseparator/>
     <menu id="context_askChat"/>
     <menuseparator/>
