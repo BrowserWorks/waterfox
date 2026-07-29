@@ -11,30 +11,24 @@ ChromeUtils.defineLazyGetter(lazy, "styleSheetService", () =>
 );
 
 export const StyleSheetUtils = {
-  registerStylesheet(uri) {
-    if (this.sheetRegistered(uri)) {
+  registerStylesheet(uri, type = Ci.nsIStyleSheetService.USER_SHEET) {
+    if (this.sheetRegistered(uri, type)) {
       return;
     }
-    lazy.styleSheetService.loadAndRegisterSheet(
-      Services.io.newURI(uri),
-      Ci.nsIStyleSheetService.USER_SHEET
-    );
+    lazy.styleSheetService.loadAndRegisterSheet(Services.io.newURI(uri), type);
   },
 
-  unregisterStylesheet(uri) {
-    if (!this.sheetRegistered(uri)) {
+  unregisterStylesheet(uri, type = Ci.nsIStyleSheetService.USER_SHEET) {
+    if (!this.sheetRegistered(uri, type)) {
       return;
     }
-    lazy.styleSheetService.unregisterSheet(
-      Services.io.newURI(uri),
-      Ci.nsIStyleSheetService.USER_SHEET
-    );
+    lazy.styleSheetService.unregisterSheet(Services.io.newURI(uri), type);
   },
 
-  sheetRegistered(uri) {
+  sheetRegistered(uri, type = Ci.nsIStyleSheetService.USER_SHEET) {
     return lazy.styleSheetService.sheetRegistered(
       Services.io.newURI(uri),
-      Ci.nsIStyleSheetService.USER_SHEET
+      type
     );
   },
 };
