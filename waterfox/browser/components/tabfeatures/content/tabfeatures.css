@@ -1,0 +1,39 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+/* Keep pinned tabs full width unless the user wants icon only. The
+   metrics follow the native tab strip geometry, not the design tokens. */
+@media not -moz-pref("browser.tabs.pinnedIconOnly") {
+  .tabbrowser-tab[pinned] {
+    flex: 100 100;
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
+    max-width: 225px;
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
+    min-width: var(--tab-min-width);
+    width: 0;
+    transition:
+      min-width 100ms ease-out,
+      max-width 100ms ease-out;
+  }
+
+  .tabbrowser-tab[pinned]:not([fadein]) {
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
+    max-width: 0.1px;
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
+    min-width: 0.1px;
+    visibility: hidden;
+  }
+
+  .tabbrowser-tab[pinned] :is(.tab-throbber, .tab-icon-pending, .tab-icon-image, .tab-sharing-icon-overlay, .tab-icon-overlay) {
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens */
+    margin-inline-end: 5.5px;
+  }
+}
+
+/* Keep the Waterfox 140 pref shape: true means hidden. */
+@media -moz-pref("browser.tabs.closeButtons") {
+  .tab-close-button {
+    display: none !important;
+  }
+}
