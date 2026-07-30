@@ -1,0 +1,173 @@
+<?xml version="1.0"?>
+
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+<?csp default-src chrome: resource:; object-src 'none'; ?>
+
+<window xmlns:html="http://www.w3.org/1999/xhtml"
+        xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+        id="aboutDialog"
+        windowtype="Browser:About"
+        customtitlebar="true"
+#ifndef XP_MACOSX
+        data-l10n-id="aboutDialog-title"
+#endif
+        role="dialog"
+        aria-describedby="version distribution distributionId communityDesc contributeDesc trademark"
+        >
+#ifdef XP_MACOSX
+#include ../../../../browser/base/content/macWindow.inc.xhtml
+#else
+  <script src="chrome://browser/content/utilityOverlay.js"/>
+#endif
+
+  <linkset>
+    <html:link rel="stylesheet" href="chrome://global/skin/global.css" />
+    <html:link
+      rel="stylesheet"
+      href="chrome://browser/content/aboutDialog.css"
+    />
+
+    <html:link rel="localization" href="branding/brand.ftl"/>
+    <html:link rel="localization" href="browser/aboutDialog.ftl"/>
+    <html:link rel="localization" href="browser/waterfox/aboutDialog.ftl"/>
+  </linkset>
+
+  <html:div id="aboutDialogContainer">
+    <html:div id="aboutDialogTitlebar">
+      <html:button id="aboutDialogCloseButton"
+                   type="button"
+                   data-l10n-id="aboutdialog-close-button">
+        <html:img src="chrome://global/skin/icons/close.svg"
+                  alt=""
+                  draggable="false"/>
+      </html:button>
+    </html:div>
+
+    <hbox id="clientBox">
+      <vbox id="leftBox">
+        <html:div id="logoTile">
+          <html:img id="aboutLogo"
+                    src="chrome://branding/content/about-logo.svg"
+                    role="presentation"/>
+        </html:div>
+        <vbox id="brandDetails">
+          <label id="brandName" data-l10n-id="aboutdialog-brand-name"/>
+          <label id="version"/>
+          <label id="release" hidden="true">
+          <!-- This string is explicitly not translated -->
+            Extended Support Release
+          </label>
+          <label id="distribution" class="text-blurb"/>
+          <label id="distributionId" class="text-blurb"/>
+        </vbox>
+      </vbox>
+
+      <vbox id="rightBox">
+        <vbox id="detailsBox">
+          <hbox id="updateBox" align="center">
+#ifdef MOZ_UPDATER
+            <html:img id="updateIcon" role="presentation"/>
+            <deck id="updateDeck" orient="vertical">
+              <description id="checkForUpdates">
+                <button id="checkForUpdatesButton"
+                        data-l10n-id="update-checkForUpdatesButton"/>
+              </description>
+              <description id="downloadAndInstall">
+                <button id="downloadAndInstallButton"/>
+              </description>
+              <description id="apply">
+                <button id="updateButton"
+                        data-l10n-id="update-updateButton"/>
+              </description>
+              <description id="checkingForUpdates" data-l10n-id="update-checkingForUpdates"/>
+              <description id="downloading" data-l10n-id="aboutdialog-update-downloading" data-l10n-args='{"transfer":""}'>
+                <label data-l10n-name="download-status"/>
+              </description>
+              <description id="applying" data-l10n-id="update-applying"/>
+              <description id="downloadFailed" data-l10n-id="update-failed">
+                <label id="failedLink" is="text-link" data-l10n-name="failed-link"/>
+              </description>
+              <description id="policyDisabled" data-l10n-id="update-policy-disabled"/>
+              <description id="noUpdatesFound" data-l10n-id="update-noUpdatesFound"/>
+              <description id="checkingFailed" data-l10n-id="aboutdialog-update-checking-failed"/>
+              <description id="otherInstanceHandlingUpdates" data-l10n-id="update-otherInstanceHandlingUpdates"/>
+              <description id="manualUpdate" data-l10n-id="aboutdialog-update-manual-with-link" data-l10n-args='{"displayUrl":""}'>
+                <label class="manualLink" is="text-link" data-l10n-name="manual-link"/>
+              </description>
+              <description id="unsupportedSystem" data-l10n-id="update-unsupported">
+                <label id="unsupportedLink" is="text-link" data-l10n-name="unsupported-link"/>
+              </description>
+              <description id="restarting" data-l10n-id="update-restarting"/>
+              <description id="internalError" data-l10n-id="update-internal-error2" data-l10n-args='{"displayUrl":""}'>
+                <label class="manualLink" is="text-link" data-l10n-name="manual-link"/>
+              </description>
+              <description id="noUpdater"/>
+            </deck>
+#else
+            <html:img id="updateIcon" class="updatesDisabled" role="presentation"/>
+            <description id="updatesDisabled" data-l10n-id="aboutdialog-updates-disabled"/>
+#endif
+            <label id="releasenotes"
+                   is="text-link"
+                   hidden="true"
+                   data-l10n-id="releaseNotes-link"/>
+          </hbox>
+
+          <vbox id="detailRows">
+#ifdef MOZ_UPDATER
+            <hbox id="currentChannelText" class="detail-row" align="center">
+              <label class="detail-label" data-l10n-id="aboutdialog-update-channel"/>
+              <label id="currentChannel"/>
+            </hbox>
+#endif
+            <hbox id="helpRow" class="detail-row" align="center">
+              <label class="detail-label" data-l10n-id="aboutdialog-help-label"/>
+              <hbox id="helpLinks">
+                <label id="aboutDialogHelpLink" is="text-link" data-l10n-id="aboutdialog-support-docs"/>
+              </hbox>
+            </hbox>
+          </vbox>
+
+          <vbox id="experimental" hidden="true">
+            <description class="text-blurb" id="warningDesc" data-l10n-id="warningDesc-version"/>
+            <description class="text-blurb" id="communityExperimentalDesc" data-l10n-id="community-exp">
+              <label is="text-link" href="https://browser.works" data-l10n-name="community-exp-mozillaLink"/>
+              <label is="text-link" useoriginprincipal="true" href="about:credits" data-l10n-name="community-exp-creditsLink"/>
+            </description>
+          </vbox>
+          <description class="text-blurb" id="communityDesc" data-l10n-id="aboutdialog-community">
+            <label is="text-link" href="https://browser.works" data-l10n-name="vendor-link"/>
+          </description>
+          <hbox id="contributeDesc">
+            <label is="text-link"
+                   class="action-link primary-action"
+                   href="https://buymeacoffee.com/waterfox"
+                   data-l10n-id="aboutdialog-donate-link"/>
+            <label is="text-link"
+                   class="action-link secondary-action"
+                   href="https://github.com/BrowserWorks/waterfox/"
+                   data-l10n-id="aboutdialog-get-involved-link"/>
+          </hbox>
+        </vbox>
+      </vbox>
+    </hbox>
+
+    <hbox id="bottomBox" align="center">
+      <description id="trademark" data-l10n-id="trademarkInfo"/>
+      <hbox id="bottomLinks">
+        <label is="text-link" class="bottom-link" useoriginprincipal="true" href="about:license" data-l10n-id="aboutdialog-license-link"/>
+        <label is="text-link" class="bottom-link" href="https://www.waterfox.com/docs/policies/terms/" data-l10n-id="bottom-links-terms"/>
+        <label is="text-link" class="bottom-link" href="https://www.waterfox.com/docs/policies/privacy/" data-l10n-id="bottom-links-privacy"/>
+      </hbox>
+    </hbox>
+  </html:div>
+
+  <keyset>
+    <key id="aboutDialogEscapeKey" keycode="VK_ESCAPE"/>
+  </keyset>
+
+  <script src="chrome://browser/content/aboutDialog.js"/>
+</window>
