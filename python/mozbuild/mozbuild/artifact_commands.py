@@ -459,7 +459,25 @@ def artifact_toolchain(
                 },
                 "Searching for {name} in {index}",
             )
-            task_id = find_task_from_index(optimization.get("index-search", []))
+            indexes = optimization.get("index-search", [])
+            task_id = find_task_from_index(indexes)
+            if not task_id and artifact_name:
+                latest_indexes = []
+                for index in indexes:
+                    prefix, sep, _ = index.rpartition(".hash.")
+                    if sep:
+                        latest_index = f"{prefix}.latest"
+                        if latest_index not in latest_indexes:
+                            latest_indexes.append(latest_index)
+                if latest_indexes:
+                    command_context.log(
+                        logging.WARN,
+                        "artifact",
+                        {"build": user_value},
+                        "Could not find exact toolchain artifact for `{build}`; trying latest indexed artifact.",
+                    )
+                    task_id = find_task_from_index(latest_indexes)
+
             if not task_id or not artifact_name:
                 command_context.log(
                     logging.ERROR,
