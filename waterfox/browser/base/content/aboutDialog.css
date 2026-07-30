@@ -1,0 +1,487 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+/* stylelint-disable stylelint-plugin-mozilla/use-design-tokens */
+@import url("chrome://global/skin/design-system/tokens-brand.css");
+@namespace html "http://www.w3.org/1999/xhtml";
+
+#aboutDialog {
+  --about-split-background: var(
+    --waterfox-onboarding-split-background,
+    linear-gradient(135deg, color-mix(in srgb, var(--button-background-color-primary) 14%, var(--background-color-canvas)), var(--background-color-canvas))
+  );
+  --about-dialog-titlebar-height: calc(var(--size-item-large) + 2 * var(--space-small));
+  width: 720px;
+  color: var(--text-color);
+  color-scheme: light dark;
+  font-size: var(--font-size-root);
+  line-height: 1.5;
+  text-shadow: none;
+}
+
+#aboutDialogContainer {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  min-width: 720px;
+  height: 100%;
+  flex-direction: column;
+  border: 1px solid var(--border-color-deemphasized);
+  border-radius: var(--border-radius-medium);
+  background: var(--background-color-box);
+  box-shadow: var(--box-shadow-level-2);
+}
+
+#aboutDialogTitlebar {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: var(--about-dialog-titlebar-height);
+  -moz-window-dragging: drag;
+}
+
+#aboutDialogCloseButton {
+  position: absolute;
+  top: var(--space-small);
+  right: var(--space-small);
+  box-sizing: border-box;
+  display: flex;
+  width: var(--size-item-large);
+  min-width: var(--size-item-large);
+  height: var(--size-item-large);
+  min-height: var(--size-item-large);
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--border-radius-circle);
+  appearance: none;
+  background-color: transparent;
+  color: var(--button-text-color);
+  -moz-window-dragging: no-drag;
+}
+
+#aboutDialogCloseButton:hover {
+  background-color: var(--button-background-color-hover);
+  color: var(--button-text-color-hover);
+}
+
+#aboutDialogCloseButton:hover:active {
+  background-color: var(--button-background-color-active);
+  color: var(--button-text-color-active);
+}
+
+#aboutDialogCloseButton > img {
+  width: var(--size-item-small);
+  height: var(--size-item-small);
+  pointer-events: none;
+  -moz-context-properties: fill;
+  fill: currentColor;
+}
+
+#clientBox {
+  display: flex;
+  min-height: 360px;
+  flex: 1 0 auto;
+  align-items: stretch;
+  padding: 0;
+}
+
+#leftBox {
+  box-sizing: border-box;
+  display: flex;
+  width: 240px;
+  min-width: 240px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-large);
+  margin: 0;
+  padding: var(--space-xxlarge) var(--space-xlarge);
+  background-color: var(--background-color-canvas);
+  background-image: var(--about-split-background);
+  text-align: center;
+}
+
+#logoTile {
+  box-sizing: border-box;
+  display: flex;
+  width: 120px;
+  height: 120px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color-deemphasized);
+  border-radius: var(--border-radius-large);
+  background: var(--background-color-box);
+  box-shadow: var(--box-shadow-level-2);
+}
+
+#aboutLogo {
+  width: 90px;
+  height: 90px;
+}
+
+#brandDetails {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xsmall);
+}
+
+#brandName {
+  margin: 0;
+  font-size: var(--font-size-xlarge);
+  font-weight: var(--font-weight-semibold);
+}
+
+#version,
+#release,
+#distribution,
+#distributionId {
+  margin: 0;
+  color: var(--text-color-deemphasized);
+  font-size: var(--font-size-small);
+}
+
+#version {
+  user-select: text;
+  -moz-user-focus: normal;
+  cursor: text;
+}
+
+#release {
+  font-weight: var(--font-weight-semibold);
+}
+
+#distribution,
+#distributionId {
+  display: none;
+  white-space: normal;
+}
+
+#rightBox {
+  box-sizing: border-box;
+  display: flex;
+  width: 480px;
+  max-width: none;
+  flex: 1 1 auto;
+  margin: 0;
+  padding: var(--space-xxlarge);
+  background: none;
+}
+
+#leftBox,
+#rightBox {
+  padding-top: var(--about-dialog-titlebar-height);
+}
+
+#detailsBox {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xlarge);
+}
+
+#updateBox {
+  box-sizing: border-box;
+  display: flex;
+  min-height: var(--size-item-xlarge);
+  align-items: center;
+  gap: var(--space-small);
+  padding: var(--space-small) var(--space-large);
+  border-radius: var(--border-radius-medium);
+  background: var(--background-color-box-info);
+  line-height: normal;
+}
+
+#updateBox:has(#updateIcon.noUpdatesFound) {
+  background: var(--background-color-success);
+}
+
+#updateBox:has(#updateIcon:is(.apply, .downloadAndInstall)) {
+  background: var(--background-color-information);
+}
+
+#updateBox:has(#updateIcon:is(.checkingFailed, .downloadFailed, .internalError, .manualUpdate, .unsupportedSystem)) {
+  background: var(--background-color-critical);
+}
+
+#updateDeck {
+  min-width: 0;
+  flex: 1 1 auto;
+  align-items: center;
+}
+
+#updateDeck description,
+#updatesDisabled {
+  margin: 0;
+  font-weight: var(--font-weight-semibold);
+}
+
+#updatesDisabled {
+  min-width: 0;
+  flex: 1 1 auto;
+  color: var(--text-color-deemphasized);
+}
+
+#updateDeck description > label {
+  margin: 0;
+  padding: 0;
+}
+
+#updateDeck button {
+  min-height: var(--size-item-large);
+  margin: 0;
+  padding: 0 var(--space-large);
+  border: 0;
+  border-radius: var(--border-radius-circle);
+  appearance: none;
+  background: var(--button-background-color-primary);
+  color: var(--button-text-color-primary);
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+}
+
+#updateDeck button:hover {
+  background: var(--button-background-color-primary-hover);
+}
+
+#updateDeck button:hover:active {
+  background: var(--button-background-color-primary-active);
+}
+
+#updateIcon {
+  display: none;
+  width: var(--size-item-small);
+  height: var(--size-item-small);
+  flex: 0 0 auto;
+  align-self: center;
+  margin: 0;
+  -moz-context-properties: fill;
+  fill: currentColor;
+}
+
+#updateIcon.noUpdatesFound {
+  display: block;
+  content: url("chrome://global/skin/icons/check.svg");
+  color: var(--icon-color-success);
+}
+
+#updateIcon.apply {
+  display: block;
+  content: url("chrome://global/skin/icons/reload.svg");
+  color: var(--icon-color-information);
+}
+
+#updateIcon:is(.checkingForUpdates, .downloading, .applying, .restarting) {
+  display: block;
+  content: url("chrome://global/skin/icons/loading.svg");
+}
+
+#updateIcon:is(.checkingFailed, .downloadFailed, .internalError, .manualUpdate, .unsupportedSystem) {
+  display: block;
+  content: url("chrome://global/skin/icons/warning.svg");
+  color: var(--icon-color-critical);
+}
+
+#updateIcon.updatesDisabled {
+  display: block;
+  content: url("chrome://global/skin/icons/info.svg");
+  color: var(--text-color-deemphasized);
+}
+
+#releasenotes {
+  flex: 0 0 auto;
+  margin: 0;
+  font-size: var(--font-size-small);
+  white-space: nowrap;
+}
+
+#detailRows {
+  display: flex;
+  gap: var(--space-small);
+}
+
+.detail-row {
+  display: flex;
+  min-height: var(--size-item-medium);
+  justify-content: space-between;
+  gap: var(--space-large);
+  padding-bottom: var(--space-small);
+  border-bottom: 1px solid var(--border-color-deemphasized);
+}
+
+.detail-label {
+  margin: 0;
+  color: var(--text-color-deemphasized);
+}
+
+#currentChannel {
+  margin: 0;
+  padding: var(--space-xxsmall) var(--space-small);
+  border: 1px solid var(--border-color-deemphasized);
+  border-radius: var(--border-radius-circle);
+  font-size: var(--font-size-small);
+}
+
+#helpLinks {
+  gap: var(--space-large);
+}
+
+#aboutDialogHelpLink {
+  margin: 0;
+  font-size: var(--font-size-small);
+}
+
+#experimental {
+  gap: var(--space-small);
+}
+
+.text-blurb,
+.text-blurb label {
+  margin: 0;
+  padding: 0;
+  white-space: normal;
+}
+
+#warningDesc,
+#communityExperimentalDesc,
+#communityDesc {
+  color: var(--text-color-deemphasized);
+  font-size: var(--font-size-small);
+}
+
+#contributeDesc {
+  gap: var(--space-small);
+}
+
+#aboutDialog .text-link {
+  text-decoration-thickness: from-font;
+  text-underline-offset: 2px;
+}
+
+#aboutDialog .action-link {
+  box-sizing: border-box;
+  display: flex;
+  min-height: var(--size-item-large);
+  align-items: center;
+  margin: 0;
+  padding: 0 var(--space-large);
+  border-radius: var(--border-radius-circle);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+
+#aboutDialog .action-link:hover,
+#aboutDialog .action-link:hover:active {
+  text-decoration: none;
+}
+
+#aboutDialog .primary-action {
+  background: var(--button-background-color-primary);
+  color: var(--button-text-color-primary);
+}
+
+#aboutDialog .primary-action:hover,
+#aboutDialog .primary-action:hover:active {
+  color: var(--button-text-color-primary);
+}
+
+#aboutDialog .primary-action:hover {
+  background: var(--button-background-color-primary-hover);
+}
+
+#aboutDialog .primary-action:hover:active {
+  background: var(--button-background-color-primary-active);
+}
+
+#aboutDialog .secondary-action,
+#aboutDialog .secondary-action:hover,
+#aboutDialog .secondary-action:hover:active {
+  color: var(--text-color);
+}
+
+#aboutDialog .secondary-action:hover {
+  background: var(--button-background-color-hover);
+}
+
+#aboutDialog .secondary-action:hover:active {
+  background: var(--button-background-color-active);
+}
+
+#bottomBox {
+  box-sizing: border-box;
+  display: flex;
+  min-height: var(--size-item-xlarge);
+  justify-content: space-between;
+  gap: var(--space-large);
+  padding: var(--space-medium) var(--space-xxlarge);
+  border-top: 1px solid var(--border-color-deemphasized);
+  color: var(--text-color-deemphasized);
+  font-size: var(--font-size-xsmall);
+}
+
+#trademark {
+  margin: 0;
+  white-space: normal;
+}
+
+#bottomLinks {
+  flex: 0 0 auto;
+  gap: var(--space-large);
+}
+
+#aboutDialog .bottom-link {
+  margin: 0;
+  color: inherit;
+  text-align: center;
+}
+
+#aboutDialog .bottom-link:hover:active {
+  color: var(--link-color-active);
+}
+
+#aboutDialog .bottom-link:hover {
+  color: var(--link-color-hover);
+}
+
+#aboutDialog :is(.text-link, button):focus-visible,
+#aboutDialog :is(.text-link, button):-moz-focusring {
+  outline: var(--focus-outline);
+  outline-offset: var(--focus-outline-offset);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  #updateBox,
+  #updateDeck {
+    transition: 150ms ease-in-out;
+    transition-property: background-color, opacity;
+  }
+}
+
+@media (prefers-contrast) {
+  #aboutDialogContainer,
+  #logoTile,
+  #updateBox,
+  .detail-row,
+  #bottomBox {
+    border-color: currentColor;
+  }
+}
+
+@media (-moz-platform: macos), (-moz-gtk-csd-reversed-placement) {
+  #aboutDialogCloseButton {
+    right: auto;
+    left: var(--space-small);
+  }
+}
+
+@media (-moz-platform: macos) {
+  #aboutDialogContainer {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
