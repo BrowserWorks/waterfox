@@ -65,6 +65,7 @@ toolkit/components/formautofill/shared/CreditCardRuleset.sys.mjs
 
 # Ignore preprocessed xhtml/html files
 browser/base/content/aboutDialog.xhtml
+waterfox/browser/base/content/aboutDialog.xhtml
 browser/base/content/browser.xhtml
 browser/base/content/default-bookmarks.html
 browser/base/content/hiddenWindowMac.xhtml

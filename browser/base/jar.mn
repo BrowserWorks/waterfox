@@ -5,9 +5,9 @@ browser.jar:
 %  content browser %content/browser/ contentaccessible=yes
 
         content/browser/aboutDialog-appUpdater.js     (content/aboutDialog-appUpdater.js)
-*       content/browser/aboutDialog.xhtml                    (content/aboutDialog.xhtml)
-        content/browser/aboutDialog.js                (content/aboutDialog.js)
-        content/browser/aboutDialog.css               (content/aboutDialog.css)
+*       content/browser/aboutDialog.xhtml                    (../../waterfox/browser/base/content/aboutDialog.xhtml)
+        content/browser/aboutDialog.js                (../../waterfox/browser/base/content/aboutDialog.js)
+        content/browser/aboutDialog.css               (../../waterfox/browser/base/content/aboutDialog.css)
         content/browser/aboutRestartRequired.js       (content/aboutRestartRequired.js)
         content/browser/aboutRestartRequired.xhtml    (content/aboutRestartRequired.xhtml)
         content/browser/aboutRobots.xhtml             (content/aboutRobots.xhtml)
