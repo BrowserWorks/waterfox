@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-remove" ]; then
+    update-alternatives --install /usr/bin/x-www-browser x-www-browser /usr/bin/waterfox 100
+    update-alternatives --install /usr/bin/gnome-www-browser gnome-www-browser /usr/bin/waterfox 100
+
+    if command -v apparmor_parser >/dev/null 2>&1 && [ -f /etc/apparmor.d/usr.bin.waterfox ]; then
+        apparmor_parser -r -T -W /etc/apparmor.d/usr.bin.waterfox 2>/dev/null || true
+    fi
+fi
+
+#DEBHELPER#
+
+exit 0
