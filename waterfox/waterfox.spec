@@ -11,7 +11,7 @@
 %global __strip /bin/true
 
 %global mozappdir /usr/lib/waterfox
-%global upstream_version 6.7.0-beta.2
+%global upstream_version 6.7.0-beta.3
 
 # Waterfox bundles its own NSS, NSPR, sqlite and so on. Let the package both
 # provide and require those internal sonames so they satisfy each other; only
@@ -19,7 +19,7 @@
 %global __requires_exclude_from ^%{mozappdir}/.*/libonnxruntime\\.so$
 
 Name:           waterfox
-Version:        6.7.0~beta.2
+Version:        6.7.0~beta.3
 Release:        0%{?dist}
 Summary:        Waterfox, a privacy conscious web browser
 License:        MPL-2.0
@@ -76,5 +76,5 @@ done
 %{_datadir}/icons/hicolor/*/apps/waterfox.png
 
 %changelog
-* Wed Jun 17 2026 BrowserWorks <MrAlex94@users.noreply.github.com> - 6.7.0~beta.2-0
+* Wed Jun 17 2026 BrowserWorks <MrAlex94@users.noreply.github.com> - 6.7.0~beta.3-0
 - Packaged release.
