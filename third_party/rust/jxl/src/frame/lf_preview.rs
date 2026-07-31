@@ -3,35 +3,35 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::{
-    api::{JxlColorProfile, JxlColorType, JxlDataFormat, JxlOutputBuffer, JxlPixelFormat},
-    error::Result,
-    frame::Frame,
-    headers::{Orientation, frame_header::FrameType},
-    image::{DataTypeTag, Rect},
-    render::{
-        Channels, ChannelsMut, RenderPipelineInOutStage, RenderPipelineInPlaceStage,
-        buffer_splitter::{BufferSplitter, SaveStageBufferInfo},
-        low_memory_pipeline::row_buffers::RowBuffer,
-        save::SaveStage,
-        stages::{
-            ConvertF32ToF16Stage, ConvertF32ToU8Stage, ConvertF32ToU16Stage, FromLinearStage,
-            OutputColorInfo, TransferFunction, Upsample8x, XybStage,
-        },
-    },
-    util::{f16, mirror},
+use crate::api::{
+    JxlColorProfile, JxlColorType, JxlDataFormat, JxlOutputBuffer, JxlParallelRunner,
+    JxlPixelFormat,
 };
+use crate::error::Result;
+use crate::frame::Frame;
+use crate::headers::Orientation;
+use crate::headers::frame_header::FrameType;
+use crate::image::{DataTypeTag, Rect};
+use crate::render::buffer_splitter::{BufferSplitter, OutputChannelRef, SaveStageBufferInfo};
+use crate::render::low_memory_pipeline::row_buffers::RowBuffer;
+use crate::render::save::SaveStage;
+use crate::render::stages::{
+    ConvertF32ToF16Stage, ConvertF32ToU8Stage, ConvertF32ToU16Stage, FromLinearStage,
+    OutputColorInfo, TransferFunction, Upsample8x, XybStage,
+};
+use crate::render::{Channels, ChannelsMut, RenderPipelineInOutStage, RenderPipelineInPlaceStage};
+use crate::util::{SmallVec, f16, mirror};
 
 impl Frame {
     #[allow(clippy::too_many_arguments)]
     fn render_lf_frame_rect(
-        &mut self,
+        &self,
         color_type: JxlColorType,
         data_format: JxlDataFormat,
         rect: Rect,
         upsampled_rect: Rect,
         orientation: Orientation,
-        output_buffers: &mut [Option<JxlOutputBuffer<'_>>],
+        output_buffers: &mut [Option<OutputChannelRef>],
         full_size: (usize, usize),
         output_color_info: &OutputColorInfo,
         output_tf: &TransferFunction,
@@ -86,7 +86,7 @@ impl Frame {
         };
 
         let upsample_stage = Upsample8x::new(&self.decoder_state.file_header.transform_data, 0);
-        let mut upsample_state = upsample_stage.init_local_state(0)?.unwrap();
+        let mut upsample_state = upsample_stage.init_local_state()?.unwrap();
 
         let xyb_stage = XybStage::new(0, output_color_info.clone());
 
@@ -111,6 +111,7 @@ impl Frame {
             RowBuffer::new(data_format.data_type(), 0, 0, 0, ulen)?,
         ];
 
+        // At this point, we already verified that lf_frame or lf_frame_data are present.
         let src = if self.header.frame_type == FrameType::RegularFrame {
             self.decoder_state.lf_frames[0].as_ref().unwrap()
         } else {
@@ -163,8 +164,12 @@ impl Frame {
                 .collect();
                 let input_channels = Channels::new(input_rows_refs, 1, 5);
 
-                let output_rows_refs =
-                    upsampled_rows[c].get_rows_mut(y * 8..y * 8 + 8, RowBuffer::x0_offset::<f32>());
+                let mut output_rows_refs = SmallVec::new();
+                upsampled_rows[c].get_rows_mut(
+                    y * 8..y * 8 + 8,
+                    RowBuffer::x0_offset::<f32>(),
+                    &mut output_rows_refs,
+                );
                 let mut output_channels = ChannelsMut::new(output_rows_refs, 1, 8);
 
                 upsample_stage.process_row_chunk(
@@ -173,6 +178,7 @@ impl Frame {
                     &input_channels,
                     &mut output_channels,
                     Some(upsample_state.as_mut()),
+                    false,
                 );
             }
 
@@ -186,8 +192,8 @@ impl Frame {
                     &mut y.get_row_mut(uy)[off..],
                     &mut b.get_row_mut(uy)[off..],
                 ];
-                xyb_stage.process_row_chunk((0, 0), ulen, &mut rows, None);
-                from_linear_stage.process_row_chunk((0, 0), ulen, &mut rows, None);
+                xyb_stage.process_row_chunk((0, 0), ulen, &mut rows, None, false);
+                from_linear_stage.process_row_chunk((0, 0), ulen, &mut rows, None, false);
 
                 macro_rules! convert {
                     ($s: expr, $t: ty) => {
@@ -197,8 +203,12 @@ impl Frame {
                             )
                             .collect();
                             let input_channels = Channels::new(input_rows_refs, 1, 1);
-                            let output_rows_refs = output_rows[c]
-                                .get_rows_mut(uy..uy + 1, RowBuffer::x0_offset::<$t>());
+                            let mut output_rows_refs = SmallVec::new();
+                            output_rows[c].get_rows_mut(
+                                uy..uy + 1,
+                                RowBuffer::x0_offset::<$t>(),
+                                &mut output_rows_refs,
+                            );
                             let mut output_channels = ChannelsMut::new(output_rows_refs, 1, 1);
                             $s.process_row_chunk(
                                 (0, 0),
@@ -206,6 +216,7 @@ impl Frame {
                                 &input_channels,
                                 &mut output_channels,
                                 None,
+                                false,
                             );
                         }
                     };
@@ -272,8 +283,8 @@ impl Frame {
         &mut self,
         pixel_format: &JxlPixelFormat,
         output_buffers: &mut [JxlOutputBuffer<'_>],
-        changed_regions: Option<&[Rect]>,
         output_profile: &JxlColorProfile,
+        parallel_runner: &mut dyn JxlParallelRunner,
     ) -> Result<bool> {
         if self.header.needs_blending() {
             return Ok(false);
@@ -307,9 +318,10 @@ impl Frame {
             return Ok(false);
         }
         let color_type = pixel_format.color_type;
-        let data_format = pixel_format.color_data_format.unwrap();
-        if pixel_format.color_data_format.is_none()
-            || output_buffers.is_empty()
+        let Some(data_format) = pixel_format.color_data_format else {
+            return Ok(false);
+        };
+        if output_buffers.is_empty()
             || !matches!(
                 color_type,
                 JxlColorType::Rgb | JxlColorType::Rgba | JxlColorType::Bgr | JxlColorType::Bgra,
@@ -318,35 +330,20 @@ impl Frame {
             // We only render color data, and only to 3- or 4- channel output buffers.
             return Ok(false);
         }
-        // We already have a fully-rendered frame and we are not requesting to re-render
-        // specific regions.
-        if self.decoder_state.lf_frame_was_rendered && changed_regions.is_none() {
-            return Ok(false);
-        }
-        if changed_regions.is_none() {
-            self.decoder_state.lf_frame_was_rendered = true;
-        }
-
         let sz = &self.decoder_state.file_header.size;
         let xsize = sz.xsize() as usize;
         let ysize = sz.ysize() as usize;
 
-        let mut regions_storage;
-
-        let regions = if let Some(regions) = changed_regions {
-            regions
-        } else {
-            regions_storage = vec![];
-            for i in (0..xsize.div_ceil(8)).step_by(256) {
-                let x0 = i;
-                let x1 = (i + 256).min(xsize.div_ceil(8));
-                regions_storage.push(Rect {
-                    origin: (x0, 0),
-                    size: (x1 - x0, ysize.div_ceil(8)),
-                });
-            }
-            &regions_storage[..]
-        };
+        let groups = std::mem::take(&mut self.lf_preview_dirty_groups);
+        if groups.is_empty() {
+            return Ok(false);
+        }
+        self.decoder_state.lf_frame_was_rendered = true;
+        let regions_storage: Vec<Rect> = groups
+            .into_iter()
+            .map(|g| self.header.group_rect(g))
+            .collect();
+        let regions = &regions_storage[..];
 
         let orientation = image_metadata.orientation;
         let info = SaveStageBufferInfo {
@@ -357,8 +354,9 @@ impl Frame {
         };
         let info = [Some(info)];
         let mut bufs = [Some(JxlOutputBuffer::reborrow(&mut output_buffers[0]))];
-        let mut bufs = BufferSplitter::new(&mut bufs);
-        for r in regions {
+        let bufs = BufferSplitter::new(&mut bufs);
+        parallel_runner.run_ordered(regions.len(), None, &|i| {
+            let r = &regions[i];
             let upsampled_rect = Rect {
                 size: (r.size.0 * 8, r.size.1 * 8),
                 origin: (r.origin.0 * 8, r.origin.1 * 8),
@@ -382,8 +380,8 @@ impl Frame {
                 (xsize, ysize),
                 &output_color_info,
                 &output_tf,
-            )?;
-        }
+            )
+        })?;
 
         Ok(!regions.is_empty())
     }

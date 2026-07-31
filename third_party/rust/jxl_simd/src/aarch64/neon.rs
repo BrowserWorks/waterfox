@@ -3,18 +3,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use std::{
-    arch::aarch64::*,
-    mem::MaybeUninit,
-    ops::{
-        Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div,
-        DivAssign, Mul, MulAssign, Neg, Sub, SubAssign,
-    },
+use std::arch::aarch64::*;
+use std::ops::{
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
+    Mul, MulAssign, Neg, Sub, SubAssign,
 };
 
-use crate::U32SimdVec;
-
-use super::super::{F32SimdVec, I32SimdVec, SimdDescriptor, SimdMask, U8SimdVec, U16SimdVec};
+use super::super::{
+    F32SimdVec, I16SimdVec, I32SimdVec, SimdDescriptor, SimdMask, SimdMask16, U8SimdVec, U16SimdVec,
+};
+use crate::{U32SimdVec, U64SimdVec, impl_i16_array_interface};
 
 // Safety invariant: this type is only ever constructed if neon is available.
 #[derive(Clone, Copy, Debug)]
@@ -39,6 +37,10 @@ impl SimdDescriptor for NeonDescriptor {
 
     type I32Vec = I32VecNeon;
 
+    type I16Vec = I16VecNeon;
+
+    type U64Vec = U64VecNeon;
+
     type U32Vec = U32VecNeon;
 
     type U16Vec = U16VecNeon;
@@ -46,6 +48,7 @@ impl SimdDescriptor for NeonDescriptor {
     type U8Vec = U8VecNeon;
 
     type Mask = MaskNeon;
+    type Mask16 = Mask16Neon;
     type Bf16Table8 = Bf16Table8Neon;
 
     type Descriptor256 = Self;
@@ -103,9 +106,7 @@ macro_rules! fn_neon {
 #[repr(transparent)]
 pub struct F32VecNeon(float32x4_t, NeonDescriptor);
 
-// SAFETY: The methods in this implementation that write to `MaybeUninit` (store_interleaved_*)
-// ensure that they write valid data to the output slice without reading uninitialized memory.
-unsafe impl F32SimdVec for F32VecNeon {
+impl F32SimdVec for F32VecNeon {
     type Descriptor = NeonDescriptor;
 
     const LEN: usize = 4;
@@ -139,39 +140,33 @@ unsafe impl F32SimdVec for F32VecNeon {
     }
 
     #[inline(always)]
-    fn store_interleaved_2_uninit(a: Self, b: Self, dest: &mut [MaybeUninit<f32>]) {
+    fn store_interleaved_2(a: Self, b: Self, dest: &mut [f32]) {
         assert!(dest.len() >= 2 * Self::LEN);
         // SAFETY: we just checked that `dest` has enough space, and neon is available
         // from the safety invariant on the descriptor stored in `a`. vst2q_f32 supports unaligned stores.
         unsafe {
-            let dest_ptr = dest.as_mut_ptr().cast::<f32>();
+            let dest_ptr = dest.as_mut_ptr();
             vst2q_f32(dest_ptr, float32x4x2_t(a.0, b.0));
         }
     }
 
     #[inline(always)]
-    fn store_interleaved_3_uninit(a: Self, b: Self, c: Self, dest: &mut [MaybeUninit<f32>]) {
+    fn store_interleaved_3(a: Self, b: Self, c: Self, dest: &mut [f32]) {
         assert!(dest.len() >= 3 * Self::LEN);
-        // SAFETY: `dest` has enough space and writing to `MaybeUninit<f32>` through `*mut f32` is valid. vst3q_f32 supports unaligned stores.
+        // SAFETY: `dest` has enough space and vst3q_f32 supports unaligned stores.
         unsafe {
-            let dest_ptr = dest.as_mut_ptr().cast::<f32>();
+            let dest_ptr = dest.as_mut_ptr();
             vst3q_f32(dest_ptr, float32x4x3_t(a.0, b.0, c.0));
         }
     }
 
     #[inline(always)]
-    fn store_interleaved_4_uninit(
-        a: Self,
-        b: Self,
-        c: Self,
-        d: Self,
-        dest: &mut [MaybeUninit<f32>],
-    ) {
+    fn store_interleaved_4(a: Self, b: Self, c: Self, d: Self, dest: &mut [f32]) {
         assert!(dest.len() >= 4 * Self::LEN);
         // SAFETY: we just checked that `dest` has enough space, and neon is available
         // from the safety invariant on the descriptor stored in `a`. vst4q_f32 supports unaligned stores.
         unsafe {
-            let dest_ptr = dest.as_mut_ptr().cast::<f32>();
+            let dest_ptr = dest.as_mut_ptr();
             vst4q_f32(dest_ptr, float32x4x4_t(a.0, b.0, c.0, d.0));
         }
     }
@@ -636,6 +631,25 @@ impl I32SimdVec for I32VecNeon {
     }
 
     #[inline(always)]
+    fn load_from_i16(d: Self::Descriptor, mem: &[i16]) -> Self {
+        assert!(mem.len() >= Self::LEN);
+        // SAFETY: we just checked that `mem` has enough space. Moreover, we know neon is available
+        // from the safety invariant on `d`.
+        Self(unsafe { vmovl_s16(vld1_s16(mem.as_ptr())) }, d)
+    }
+
+    #[inline(always)]
+    fn load_from_u16(d: Self::Descriptor, mem: &[u16]) -> Self {
+        assert!(mem.len() >= Self::LEN);
+        // SAFETY: we just checked that `mem` has enough space. Moreover, we know neon is available
+        // from the safety invariant on `d`.
+        Self(
+            unsafe { vreinterpretq_s32_u32(vmovl_u16(vld1_u16(mem.as_ptr()))) },
+            d,
+        )
+    }
+
+    #[inline(always)]
     fn store(&self, mem: &mut [i32]) {
         assert!(mem.len() >= Self::LEN);
         // SAFETY: we just checked that `mem` has enough space. Moreover, we know neon is available
@@ -838,6 +852,326 @@ impl BitXorAssign<I32VecNeon> for I32VecNeon {
 
 #[derive(Clone, Copy, Debug)]
 #[repr(transparent)]
+pub struct I16VecNeon(int16x8_t, NeonDescriptor);
+
+impl I16SimdVec for I16VecNeon {
+    type Descriptor = NeonDescriptor;
+
+    const LEN: usize = 8;
+
+    #[inline(always)]
+    fn load(d: Self::Descriptor, mem: &[i16]) -> Self {
+        assert!(mem.len() >= Self::LEN);
+        // SAFETY: We know neon is available from the safety invariant on `d`,
+        // and we just checked that `mem` has enough space. vld1q_s16 supports unaligned loads.
+        Self(unsafe { vld1q_s16(mem.as_ptr()) }, d)
+    }
+
+    #[inline(always)]
+    fn store(&self, mem: &mut [i16]) {
+        assert!(mem.len() >= Self::LEN);
+        // SAFETY: We know neon is available from the safety invariant on `self.1`,
+        // and we just checked that `mem` has enough space. vst1q_s16 supports unaligned stores.
+        unsafe { vst1q_s16(mem.as_mut_ptr(), self.0) }
+    }
+
+    #[inline(always)]
+    fn splat(d: Self::Descriptor, v: i16) -> Self {
+        // SAFETY: We know neon is available from the safety invariant on `d`.
+        Self(unsafe { vdupq_n_s16(v) }, d)
+    }
+
+    #[inline(always)]
+    fn zero(d: Self::Descriptor) -> Self {
+        // SAFETY: We know neon is available from the safety invariant on `d`.
+        Self(unsafe { vdupq_n_s16(0) }, d)
+    }
+
+    fn_neon! {
+        fn abs(this: I16VecNeon) -> I16VecNeon {
+            I16VecNeon(vabsq_s16(this.0), this.1)
+        }
+
+        fn gt(this: I16VecNeon, other: I16VecNeon) -> Mask16Neon {
+            Mask16Neon(vcgtq_s16(this.0, other.0), this.1)
+        }
+
+        fn lt_zero(this: I16VecNeon) -> Mask16Neon {
+            Mask16Neon(vcltq_s16(this.0, vdupq_n_s16(0)), this.1)
+        }
+
+        fn eq(this: I16VecNeon, other: I16VecNeon) -> Mask16Neon {
+            Mask16Neon(vceqq_s16(this.0, other.0), this.1)
+        }
+
+        fn eq_zero(this: I16VecNeon) -> Mask16Neon {
+            Mask16Neon(vceqzq_s16(this.0), this.1)
+        }
+
+        fn mul_wide_take_high(this: I16VecNeon, rhs: I16VecNeon) -> I16VecNeon {
+            let l = vmull_s16(vget_low_s16(this.0), vget_low_s16(rhs.0));
+            let l = vreinterpretq_s16_s32(l);
+            let h = vmull_high_s16(this.0, rhs.0);
+            let h = vreinterpretq_s16_s32(h);
+            I16VecNeon(vuzp2q_s16(l, h), this.1)
+        }
+    }
+
+    #[inline(always)]
+    fn shl<const AMOUNT_U: u32, const AMOUNT_I: i32>(self) -> Self {
+        // SAFETY: We know neon is available from the safety invariant on `self.1`.
+        unsafe { Self(vshlq_n_s16::<AMOUNT_I>(self.0), self.1) }
+    }
+
+    #[inline(always)]
+    fn shr<const AMOUNT_U: u32, const AMOUNT_I: i32>(self) -> Self {
+        // SAFETY: We know neon is available from the safety invariant on `self.1`.
+        unsafe { Self(vshrq_n_s16::<AMOUNT_I>(self.0), self.1) }
+    }
+
+    #[inline(always)]
+    fn bitcast_u16(self) -> U16VecNeon {
+        // SAFETY: We know neon is available from the safety invariant on `self.1`.
+        U16VecNeon(unsafe { vreinterpretq_u16_s16(self.0) }, self.1)
+    }
+
+    impl_i16_array_interface!();
+
+    #[inline(always)]
+    fn transpose_square(d: Self::Descriptor, data: &mut [Self::UnderlyingArray], stride: usize) {
+        #[target_feature(enable = "neon")]
+        #[inline]
+        fn transpose8x8i16(d: NeonDescriptor, data: &mut [[i16; 8]], stride: usize) {
+            assert!(data.len() > stride * 7);
+
+            let r0 = I16VecNeon::load_array(d, &data[0]).0;
+            let r1 = I16VecNeon::load_array(d, &data[1 * stride]).0;
+            let r2 = I16VecNeon::load_array(d, &data[2 * stride]).0;
+            let r3 = I16VecNeon::load_array(d, &data[3 * stride]).0;
+            let r4 = I16VecNeon::load_array(d, &data[4 * stride]).0;
+            let r5 = I16VecNeon::load_array(d, &data[5 * stride]).0;
+            let r6 = I16VecNeon::load_array(d, &data[6 * stride]).0;
+            let r7 = I16VecNeon::load_array(d, &data[7 * stride]).0;
+
+            // Stage 1: 16-bit zip
+            let t0 = vzip1q_s16(r0, r1);
+            let t1 = vzip2q_s16(r0, r1);
+            let t2 = vzip1q_s16(r2, r3);
+            let t3 = vzip2q_s16(r2, r3);
+            let t4 = vzip1q_s16(r4, r5);
+            let t5 = vzip2q_s16(r4, r5);
+            let t6 = vzip1q_s16(r6, r7);
+            let t7 = vzip2q_s16(r6, r7);
+
+            // Stage 2: 32-bit zip
+            let u0 = vreinterpretq_s16_s32(vzip1q_s32(
+                vreinterpretq_s32_s16(t0),
+                vreinterpretq_s32_s16(t2),
+            ));
+            let u1 = vreinterpretq_s16_s32(vzip2q_s32(
+                vreinterpretq_s32_s16(t0),
+                vreinterpretq_s32_s16(t2),
+            ));
+            let u2 = vreinterpretq_s16_s32(vzip1q_s32(
+                vreinterpretq_s32_s16(t1),
+                vreinterpretq_s32_s16(t3),
+            ));
+            let u3 = vreinterpretq_s16_s32(vzip2q_s32(
+                vreinterpretq_s32_s16(t1),
+                vreinterpretq_s32_s16(t3),
+            ));
+            let u4 = vreinterpretq_s16_s32(vzip1q_s32(
+                vreinterpretq_s32_s16(t4),
+                vreinterpretq_s32_s16(t6),
+            ));
+            let u5 = vreinterpretq_s16_s32(vzip2q_s32(
+                vreinterpretq_s32_s16(t4),
+                vreinterpretq_s32_s16(t6),
+            ));
+            let u6 = vreinterpretq_s16_s32(vzip1q_s32(
+                vreinterpretq_s32_s16(t5),
+                vreinterpretq_s32_s16(t7),
+            ));
+            let u7 = vreinterpretq_s16_s32(vzip2q_s32(
+                vreinterpretq_s32_s16(t5),
+                vreinterpretq_s32_s16(t7),
+            ));
+
+            // Stage 3: 64-bit zip
+            let out0 = vreinterpretq_s16_s64(vzip1q_s64(
+                vreinterpretq_s64_s16(u0),
+                vreinterpretq_s64_s16(u4),
+            ));
+            let out1 = vreinterpretq_s16_s64(vzip2q_s64(
+                vreinterpretq_s64_s16(u0),
+                vreinterpretq_s64_s16(u4),
+            ));
+            let out2 = vreinterpretq_s16_s64(vzip1q_s64(
+                vreinterpretq_s64_s16(u1),
+                vreinterpretq_s64_s16(u5),
+            ));
+            let out3 = vreinterpretq_s16_s64(vzip2q_s64(
+                vreinterpretq_s64_s16(u1),
+                vreinterpretq_s64_s16(u5),
+            ));
+            let out4 = vreinterpretq_s16_s64(vzip1q_s64(
+                vreinterpretq_s64_s16(u2),
+                vreinterpretq_s64_s16(u6),
+            ));
+            let out5 = vreinterpretq_s16_s64(vzip2q_s64(
+                vreinterpretq_s64_s16(u2),
+                vreinterpretq_s64_s16(u6),
+            ));
+            let out6 = vreinterpretq_s16_s64(vzip1q_s64(
+                vreinterpretq_s64_s16(u3),
+                vreinterpretq_s64_s16(u7),
+            ));
+            let out7 = vreinterpretq_s16_s64(vzip2q_s64(
+                vreinterpretq_s64_s16(u3),
+                vreinterpretq_s64_s16(u7),
+            ));
+
+            I16VecNeon(out0, d).store_array(&mut data[0]);
+            I16VecNeon(out1, d).store_array(&mut data[1 * stride]);
+            I16VecNeon(out2, d).store_array(&mut data[2 * stride]);
+            I16VecNeon(out3, d).store_array(&mut data[3 * stride]);
+            I16VecNeon(out4, d).store_array(&mut data[4 * stride]);
+            I16VecNeon(out5, d).store_array(&mut data[5 * stride]);
+            I16VecNeon(out6, d).store_array(&mut data[6 * stride]);
+            I16VecNeon(out7, d).store_array(&mut data[7 * stride]);
+        }
+
+        // SAFETY: the safety invariant on `d` guarantees neon
+        unsafe {
+            transpose8x8i16(d, data, stride);
+        }
+    }
+
+    #[inline(always)]
+    fn store_u8(self, dest: &mut [u8]) {
+        assert!(dest.len() >= Self::LEN);
+        // SAFETY: We know neon is available from the safety invariant on self.1,
+        // and we just checked dest has enough space.
+        unsafe {
+            let narrowed_i8 = vmovn_s16(self.0);
+            vst1_u8(dest.as_mut_ptr(), vreinterpret_u8_s8(narrowed_i8));
+        }
+    }
+}
+
+impl Add<I16VecNeon> for I16VecNeon {
+    type Output = I16VecNeon;
+    fn_neon! {
+        fn add(this: I16VecNeon, rhs: I16VecNeon) -> I16VecNeon {
+            I16VecNeon(vaddq_s16(this.0, rhs.0), this.1)
+        }
+    }
+}
+
+impl Sub<I16VecNeon> for I16VecNeon {
+    type Output = I16VecNeon;
+    fn_neon! {
+        fn sub(this: I16VecNeon, rhs: I16VecNeon) -> I16VecNeon {
+            I16VecNeon(vsubq_s16(this.0, rhs.0), this.1)
+        }
+    }
+}
+
+impl Neg for I16VecNeon {
+    type Output = I16VecNeon;
+    fn_neon! {
+        fn neg(this: I16VecNeon) -> I16VecNeon {
+            I16VecNeon(vnegq_s16(this.0), this.1)
+        }
+    }
+}
+
+impl BitAnd<I16VecNeon> for I16VecNeon {
+    type Output = I16VecNeon;
+    fn_neon! {
+        fn bitand(this: I16VecNeon, rhs: I16VecNeon) -> I16VecNeon {
+            I16VecNeon(vandq_s16(this.0, rhs.0), this.1)
+        }
+    }
+}
+
+impl BitOr<I16VecNeon> for I16VecNeon {
+    type Output = I16VecNeon;
+    fn_neon! {
+        fn bitor(this: I16VecNeon, rhs: I16VecNeon) -> I16VecNeon {
+            I16VecNeon(vorrq_s16(this.0, rhs.0), this.1)
+        }
+    }
+}
+
+impl BitXor<I16VecNeon> for I16VecNeon {
+    type Output = I16VecNeon;
+    fn_neon! {
+        fn bitxor(this: I16VecNeon, rhs: I16VecNeon) -> I16VecNeon {
+            I16VecNeon(veorq_s16(this.0, rhs.0), this.1)
+        }
+    }
+}
+
+impl AddAssign<I16VecNeon> for I16VecNeon {
+    fn_neon! {
+        fn add_assign(this: &mut I16VecNeon, rhs: I16VecNeon) {
+            this.0 = vaddq_s16(this.0, rhs.0);
+        }
+    }
+}
+
+impl SubAssign<I16VecNeon> for I16VecNeon {
+    fn_neon! {
+        fn sub_assign(this: &mut I16VecNeon, rhs: I16VecNeon) {
+            this.0 = vsubq_s16(this.0, rhs.0);
+        }
+    }
+}
+
+impl BitAndAssign<I16VecNeon> for I16VecNeon {
+    fn_neon! {
+        fn bitand_assign(this: &mut I16VecNeon, rhs: I16VecNeon) {
+            this.0 = vandq_s16(this.0, rhs.0);
+        }
+    }
+}
+
+impl BitOrAssign<I16VecNeon> for I16VecNeon {
+    fn_neon! {
+        fn bitor_assign(this: &mut I16VecNeon, rhs: I16VecNeon) {
+            this.0 = vorrq_s16(this.0, rhs.0);
+        }
+    }
+}
+
+impl BitXorAssign<I16VecNeon> for I16VecNeon {
+    fn_neon! {
+        fn bitxor_assign(this: &mut I16VecNeon, rhs: I16VecNeon) {
+            this.0 = veorq_s16(this.0, rhs.0);
+        }
+    }
+}
+
+impl Mul<I16VecNeon> for I16VecNeon {
+    type Output = I16VecNeon;
+    fn_neon! {
+        fn mul(this: I16VecNeon, rhs: I16VecNeon) -> I16VecNeon {
+            I16VecNeon(vmulq_s16(this.0, rhs.0), this.1)
+        }
+    }
+}
+
+impl MulAssign<I16VecNeon> for I16VecNeon {
+    fn_neon! {
+        fn mul_assign(this: &mut I16VecNeon, rhs: I16VecNeon) {
+            this.0 = vmulq_s16(this.0, rhs.0);
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(transparent)]
 pub struct U32VecNeon(uint32x4_t, NeonDescriptor);
 
 impl U32SimdVec for U32VecNeon {
@@ -860,11 +1194,127 @@ impl U32SimdVec for U32VecNeon {
 
 #[derive(Clone, Copy, Debug)]
 #[repr(transparent)]
+pub struct U64VecNeon(uint64x2_t, NeonDescriptor);
+
+impl U64SimdVec for U64VecNeon {
+    type Descriptor = NeonDescriptor;
+
+    const LEN: usize = 2;
+
+    #[inline(always)]
+    fn splat(d: Self::Descriptor, v: u64) -> Self {
+        // SAFETY: We know neon is available from the safety invariant on `d`.
+        unsafe { Self(vdupq_n_u64(v), d) }
+    }
+
+    #[inline(always)]
+    fn load(d: Self::Descriptor, mem: &[u64]) -> Self {
+        assert!(mem.len() >= Self::LEN);
+        // SAFETY: we just checked that `mem` has enough space. Moreover, we know neon is available
+        // from the safety invariant on `d`.
+        unsafe { Self(vld1q_u64(mem.as_ptr()), d) }
+    }
+
+    #[inline(always)]
+    fn store(&self, mem: &mut [u64]) {
+        assert!(mem.len() >= Self::LEN);
+        // SAFETY: we just checked that `mem` has enough space. Moreover, we know neon is available
+        // from the safety invariant on `self.1`.
+        unsafe { vst1q_u64(mem.as_mut_ptr(), self.0) }
+    }
+
+    #[inline(always)]
+    fn shl<const AMOUNT_U: u32, const AMOUNT_I: i32>(self) -> Self {
+        // SAFETY: We know neon is available from the safety invariant on `self.1`.
+        unsafe { Self(vshlq_n_u64::<AMOUNT_I>(self.0), self.1) }
+    }
+
+    #[inline(always)]
+    fn shr<const AMOUNT_U: u32, const AMOUNT_I: i32>(self) -> Self {
+        // SAFETY: We know neon is available from the safety invariant on `self.1`.
+        unsafe { Self(vshrq_n_u64::<AMOUNT_I>(self.0), self.1) }
+    }
+
+    fn_neon! {
+        fn bitcast_to_u32(this: U64VecNeon) -> U32VecNeon {
+            U32VecNeon(vreinterpretq_u32_u64(this.0), this.1)
+        }
+    }
+}
+
+impl Add<U64VecNeon> for U64VecNeon {
+    type Output = U64VecNeon;
+    fn_neon! {
+        fn add(this: U64VecNeon, rhs: U64VecNeon) -> U64VecNeon {
+            U64VecNeon(vaddq_u64(this.0, rhs.0), this.1)
+        }
+    }
+}
+
+impl AddAssign<U64VecNeon> for U64VecNeon {
+    fn_neon! {
+        fn add_assign(this: &mut U64VecNeon, rhs: U64VecNeon) {
+            this.0 = vaddq_u64(this.0, rhs.0);
+        }
+    }
+}
+
+impl BitAnd<U64VecNeon> for U64VecNeon {
+    type Output = U64VecNeon;
+    fn_neon! {
+        fn bitand(this: U64VecNeon, rhs: U64VecNeon) -> U64VecNeon {
+            U64VecNeon(vandq_u64(this.0, rhs.0), this.1)
+        }
+    }
+}
+
+impl BitAndAssign<U64VecNeon> for U64VecNeon {
+    fn_neon! {
+        fn bitand_assign(this: &mut U64VecNeon, rhs: U64VecNeon) {
+            this.0 = vandq_u64(this.0, rhs.0);
+        }
+    }
+}
+
+impl BitOr<U64VecNeon> for U64VecNeon {
+    type Output = U64VecNeon;
+    fn_neon! {
+        fn bitor(this: U64VecNeon, rhs: U64VecNeon) -> U64VecNeon {
+            U64VecNeon(vorrq_u64(this.0, rhs.0), this.1)
+        }
+    }
+}
+
+impl BitOrAssign<U64VecNeon> for U64VecNeon {
+    fn_neon! {
+        fn bitor_assign(this: &mut U64VecNeon, rhs: U64VecNeon) {
+            this.0 = vorrq_u64(this.0, rhs.0);
+        }
+    }
+}
+
+impl BitXor<U64VecNeon> for U64VecNeon {
+    type Output = U64VecNeon;
+    fn_neon! {
+        fn bitxor(this: U64VecNeon, rhs: U64VecNeon) -> U64VecNeon {
+            U64VecNeon(veorq_u64(this.0, rhs.0), this.1)
+        }
+    }
+}
+
+impl BitXorAssign<U64VecNeon> for U64VecNeon {
+    fn_neon! {
+        fn bitxor_assign(this: &mut U64VecNeon, rhs: U64VecNeon) {
+            this.0 = veorq_u64(this.0, rhs.0);
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(transparent)]
 pub struct U8VecNeon(uint8x16_t, NeonDescriptor);
 
-// SAFETY: The methods in this implementation that write to `MaybeUninit` (store_interleaved_*)
-// ensure that they write valid data to the output slice without reading uninitialized memory.
-unsafe impl U8SimdVec for U8VecNeon {
+impl U8SimdVec for U8VecNeon {
     type Descriptor = NeonDescriptor;
     const LEN: usize = 16;
 
@@ -891,40 +1341,34 @@ unsafe impl U8SimdVec for U8VecNeon {
     }
 
     #[inline(always)]
-    fn store_interleaved_2_uninit(a: Self, b: Self, dest: &mut [MaybeUninit<u8>]) {
+    fn store_interleaved_2(a: Self, b: Self, dest: &mut [u8]) {
         assert!(dest.len() >= 2 * Self::LEN);
         // SAFETY: we just checked that `dest` has enough space, and neon is available
         // from the safety invariant on the descriptor stored in `a`. vst2q_u8 supports unaligned stores.
         unsafe {
-            let dest_ptr = dest.as_mut_ptr().cast::<u8>();
+            let dest_ptr = dest.as_mut_ptr();
             vst2q_u8(dest_ptr, uint8x16x2_t(a.0, b.0));
         }
     }
 
     #[inline(always)]
-    fn store_interleaved_3_uninit(a: Self, b: Self, c: Self, dest: &mut [MaybeUninit<u8>]) {
+    fn store_interleaved_3(a: Self, b: Self, c: Self, dest: &mut [u8]) {
         assert!(dest.len() >= 3 * Self::LEN);
         // SAFETY: we just checked that `dest` has enough space, and neon is available
         // from the safety invariant on the descriptor stored in `a`. vst3q_u8 supports unaligned stores.
         unsafe {
-            let dest_ptr = dest.as_mut_ptr().cast::<u8>();
+            let dest_ptr = dest.as_mut_ptr();
             vst3q_u8(dest_ptr, uint8x16x3_t(a.0, b.0, c.0));
         }
     }
 
     #[inline(always)]
-    fn store_interleaved_4_uninit(
-        a: Self,
-        b: Self,
-        c: Self,
-        d: Self,
-        dest: &mut [MaybeUninit<u8>],
-    ) {
+    fn store_interleaved_4(a: Self, b: Self, c: Self, d: Self, dest: &mut [u8]) {
         assert!(dest.len() >= 4 * Self::LEN);
         // SAFETY: we just checked that `dest` has enough space, and neon is available
         // from the safety invariant on the descriptor stored in `a`. vst4q_u8 supports unaligned stores.
         unsafe {
-            let dest_ptr = dest.as_mut_ptr().cast::<u8>();
+            let dest_ptr = dest.as_mut_ptr();
             vst4q_u8(dest_ptr, uint8x16x4_t(a.0, b.0, c.0, d.0));
         }
     }
@@ -934,9 +1378,7 @@ unsafe impl U8SimdVec for U8VecNeon {
 #[repr(transparent)]
 pub struct U16VecNeon(uint16x8_t, NeonDescriptor);
 
-// SAFETY: The methods in this implementation that write to `MaybeUninit` (store_interleaved_*)
-// ensure that they write valid data to the output slice without reading uninitialized memory.
-unsafe impl U16SimdVec for U16VecNeon {
+impl U16SimdVec for U16VecNeon {
     type Descriptor = NeonDescriptor;
     const LEN: usize = 8;
 
@@ -963,42 +1405,42 @@ unsafe impl U16SimdVec for U16VecNeon {
     }
 
     #[inline(always)]
-    fn store_interleaved_2_uninit(a: Self, b: Self, dest: &mut [MaybeUninit<u16>]) {
+    fn store_interleaved_2(a: Self, b: Self, dest: &mut [u16]) {
         assert!(dest.len() >= 2 * Self::LEN);
         // SAFETY: we just checked that `dest` has enough space, and neon is available
         // from the safety invariant on the descriptor stored in `a`. vst2q_u16 supports unaligned stores.
         unsafe {
-            let dest_ptr = dest.as_mut_ptr().cast::<u16>();
+            let dest_ptr = dest.as_mut_ptr();
             vst2q_u16(dest_ptr, uint16x8x2_t(a.0, b.0));
         }
     }
 
     #[inline(always)]
-    fn store_interleaved_3_uninit(a: Self, b: Self, c: Self, dest: &mut [MaybeUninit<u16>]) {
+    fn store_interleaved_3(a: Self, b: Self, c: Self, dest: &mut [u16]) {
         assert!(dest.len() >= 3 * Self::LEN);
         // SAFETY: we just checked that `dest` has enough space, and neon is available
         // from the safety invariant on the descriptor stored in `a`. vst3q_u16 supports unaligned stores.
         unsafe {
-            let dest_ptr = dest.as_mut_ptr().cast::<u16>();
+            let dest_ptr = dest.as_mut_ptr();
             vst3q_u16(dest_ptr, uint16x8x3_t(a.0, b.0, c.0));
         }
     }
 
     #[inline(always)]
-    fn store_interleaved_4_uninit(
-        a: Self,
-        b: Self,
-        c: Self,
-        d: Self,
-        dest: &mut [MaybeUninit<u16>],
-    ) {
+    fn store_interleaved_4(a: Self, b: Self, c: Self, d: Self, dest: &mut [u16]) {
         assert!(dest.len() >= 4 * Self::LEN);
         // SAFETY: we just checked that `dest` has enough space, and neon is available
         // from the safety invariant on the descriptor stored in `a`. vst4q_u16 supports unaligned stores.
         unsafe {
-            let dest_ptr = dest.as_mut_ptr().cast::<u16>();
+            let dest_ptr = dest.as_mut_ptr();
             vst4q_u16(dest_ptr, uint16x8x4_t(a.0, b.0, c.0, d.0));
         }
+    }
+
+    #[inline(always)]
+    fn bitcast_i16(self) -> I16VecNeon {
+        // SAFETY: We know neon is available from the safety invariant on `self.1`.
+        I16VecNeon(unsafe { vreinterpretq_s16_u16(self.0) }, self.1)
     }
 }
 
@@ -1054,6 +1496,54 @@ impl BitOr<MaskNeon> for MaskNeon {
     fn_neon! {
         fn bitor(this: MaskNeon, rhs: MaskNeon) -> MaskNeon {
             MaskNeon(vorrq_u32(this.0, rhs.0), this.1)
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(transparent)]
+pub struct Mask16Neon(uint16x8_t, NeonDescriptor);
+
+impl SimdMask16 for Mask16Neon {
+    type Descriptor = NeonDescriptor;
+
+    fn_neon! {
+        fn if_then_else_i16(
+            this: Mask16Neon,
+            if_true: I16VecNeon,
+            if_false: I16VecNeon,
+        ) -> I16VecNeon {
+            I16VecNeon(vbslq_s16(this.0, if_true.0, if_false.0), this.1)
+        }
+
+        fn maskz_i16(this: Mask16Neon, v: I16VecNeon) -> I16VecNeon {
+            I16VecNeon(vbicq_s16(v.0, vreinterpretq_s16_u16(this.0)), this.1)
+        }
+
+        fn andnot(this: Mask16Neon, rhs: Mask16Neon) -> Mask16Neon {
+            Mask16Neon(vbicq_u16(rhs.0, this.0), this.1)
+        }
+
+        fn all(this: Mask16Neon) -> bool {
+            vminvq_u16(this.0) == u16::MAX
+        }
+    }
+}
+
+impl BitAnd<Mask16Neon> for Mask16Neon {
+    type Output = Mask16Neon;
+    fn_neon! {
+        fn bitand(this: Mask16Neon, rhs: Mask16Neon) -> Mask16Neon {
+            Mask16Neon(vandq_u16(this.0, rhs.0), this.1)
+        }
+    }
+}
+
+impl BitOr<Mask16Neon> for Mask16Neon {
+    type Output = Mask16Neon;
+    fn_neon! {
+        fn bitor(this: Mask16Neon, rhs: Mask16Neon) -> Mask16Neon {
+            Mask16Neon(vorrq_u16(this.0, rhs.0), this.1)
         }
     }
 }

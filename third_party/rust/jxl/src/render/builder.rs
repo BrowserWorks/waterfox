@@ -3,18 +3,22 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::api::{JxlColorType, JxlDataFormat};
-use crate::error::{Error, Result};
-use crate::headers::Orientation;
-use crate::render::StageSpecialCase;
-use crate::render::internal::ChannelInfo;
-use crate::render::save::SaveStage;
-use crate::render::stages::ConvertI32ToU8Stage;
-use crate::util::{ShiftRightCeil, tracing_wrappers::*};
+use std::sync::Arc;
 
 use super::internal::{RenderPipelineShared, Stage};
 use super::stages::ExtendToImageDimensionsStage;
 use super::{RenderPipeline, RenderPipelineInOutStage, RenderPipelineInPlaceStage};
+use crate::api::{JxlColorType, JxlDataFormat};
+use crate::error::{Error, Result};
+use crate::headers::Orientation;
+use crate::image::BufferRecycler;
+use crate::render::StageSpecialCase;
+use crate::render::internal::ChannelInfo;
+use crate::render::save::SaveStage;
+use crate::render::stages::{ConvertI16ToU8Stage, ConvertI32ToU8Stage};
+use crate::util::ShiftRightCeil;
+use crate::util::sync::atomic::{AtomicBool, Ordering};
+use crate::util::tracing_wrappers::*;
 
 pub(crate) struct RenderPipelineBuilder<Pipeline: RenderPipeline> {
     shared: RenderPipelineShared<Pipeline::Buffer>,
@@ -28,6 +32,7 @@ impl<Pipeline: RenderPipeline> RenderPipelineBuilder<Pipeline> {
         downsampling_shift: usize,
         mut log_group_size: usize,
         chunk_size: usize,
+        buffer_recycler: Arc<BufferRecycler>,
     ) -> Self {
         info!("creating render pipeline");
         assert!(chunk_size <= u16::MAX as usize);
@@ -48,13 +53,14 @@ impl<Pipeline: RenderPipeline> RenderPipelineBuilder<Pipeline> {
                 log_group_size,
                 group_count: (size.0.shrc(log_group_size), size.1.shrc(log_group_size)),
                 stages: vec![],
-                group_chan_complete: vec![
-                    vec![false; num_channels];
-                    size.0.shrc(log_group_size) * size.1.shrc(log_group_size)
-                ],
+                group_chan_complete: (0..(size.0.shrc(log_group_size)
+                    * size.1.shrc(log_group_size)))
+                    .map(|_| (0..num_channels).map(|_| AtomicBool::new(false)).collect())
+                    .collect(),
                 chunk_size,
                 extend_stage_index: None,
                 channel_is_used: vec![false; num_channels],
+                buffer_recycler,
             },
         }
     }
@@ -69,6 +75,7 @@ impl<Pipeline: RenderPipeline> RenderPipelineBuilder<Pipeline> {
         size: (usize, usize),
         downsampling_shift: usize,
         log_group_size: usize,
+        buffer_recycler: Arc<BufferRecycler>,
     ) -> Self {
         Self::new_with_chunk_size(
             num_channels,
@@ -76,6 +83,7 @@ impl<Pipeline: RenderPipeline> RenderPipelineBuilder<Pipeline> {
             downsampling_shift,
             log_group_size,
             1 << (log_group_size + downsampling_shift),
+            buffer_recycler,
         )
     }
 
@@ -154,11 +162,30 @@ impl<Pipeline: RenderPipeline> RenderPipelineBuilder<Pipeline> {
                             assert_eq!(c, channel);
                             if b % bit_depth == 0 {
                                 let mult = ((1 << b) - 1) / ((1 << bit_depth) - 1);
-                                // Remove the next stage, and replace the current stage with I32 -> I8
+                                // Remove the next stage, and replace the current stage with I32 -> U8
                                 // conversion.
                                 stage_is_used[n] = false;
                                 self.shared.stages[i] = Stage::InOut(Pipeline::box_inout_stage(
                                     ConvertI32ToU8Stage::new(c, mult, (1 << b) - 1),
+                                ));
+                            }
+                        }
+                    }
+                    Some(StageSpecialCase::Modular16ToF32 { channel, bit_depth }) => {
+                        let n = channel_next_use[channel].unwrap();
+                        if let Some(StageSpecialCase::F32ToU8 {
+                            channel: c,
+                            bit_depth: b,
+                        }) = self.shared.stages[n].is_special_case()
+                        {
+                            assert_eq!(c, channel);
+                            if b % bit_depth == 0 {
+                                let mult = ((1 << b) - 1) / ((1 << bit_depth) - 1);
+                                // Remove the next stage, and replace the current stage with I16 -> U8
+                                // conversion.
+                                stage_is_used[n] = false;
+                                self.shared.stages[i] = Stage::InOut(Pipeline::box_inout_stage(
+                                    ConvertI16ToU8Stage::new(c, mult, (1 << b) - 1),
                                 ));
                             }
                         }
@@ -254,14 +281,16 @@ impl<Pipeline: RenderPipeline> RenderPipelineBuilder<Pipeline> {
                 // Arithmetic overflows here should be very uncommon, so custom error variants
                 // are probably unwarranted.
                 let cur_downsample = &mut cur_downsamples[chan];
-                if matches!(stage, Stage::Save(_))
-                    && save_downsample.is_some_and(|x| x != *cur_downsample)
-                {
-                    save_downsample = Some(*cur_downsample);
-                    return Err(Error::SaveDifferentDownsample(
-                        save_downsample.unwrap(),
-                        *cur_downsample,
-                    ));
+                if matches!(stage, Stage::Save(_)) && uses_channel {
+                    if save_downsample.is_none() {
+                        save_downsample = Some(*cur_downsample);
+                    }
+                    if save_downsample != Some(*cur_downsample) {
+                        return Err(Error::SaveDifferentDownsample(
+                            save_downsample.unwrap(),
+                            *cur_downsample,
+                        ));
+                    }
                 }
                 let next_downsample = &mut next_chan.downsample;
                 let next_total_downsample = *cur_downsample;
@@ -298,7 +327,7 @@ impl<Pipeline: RenderPipeline> RenderPipelineBuilder<Pipeline> {
             if chinfo.ty.is_none() {
                 assert!(!self.shared.channel_is_used[c]);
                 for g in self.shared.group_chan_complete.iter_mut() {
-                    g[c] = true;
+                    g[c].store(true, Ordering::Relaxed);
                 }
             }
         }

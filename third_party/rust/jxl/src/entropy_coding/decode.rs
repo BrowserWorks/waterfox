@@ -32,8 +32,8 @@ pub fn unpack_signed(unsigned: u32) -> i32 {
     ((unsigned >> 1) ^ ((!unsigned) & 1).wrapping_sub(1)) as i32
 }
 
-#[derive(UnconditionalCoder, Debug)]
-struct Lz77Params {
+#[derive(UnconditionalCoder, Debug, Clone, Copy)]
+pub(crate) struct Lz77Params {
     pub enabled: bool,
     #[condition(enabled)]
     #[coder(u2S(224, 512, 4096, Bits(15) + 8))]
@@ -44,7 +44,7 @@ struct Lz77Params {
 }
 
 #[derive(Debug)]
-enum Codes {
+pub(crate) enum Codes {
     Huffman(HuffmanCodes),
     Ans(AnsCodes),
 }
@@ -56,6 +56,13 @@ impl Codes {
             Self::Ans(ans) => ans.single_symbol(ctx),
         }
     }
+
+    fn max_symbol_for_cluster(&self, cluster: usize) -> u32 {
+        match self {
+            Self::Huffman(hc) => hc.max_symbol_for_cluster(cluster),
+            Self::Ans(ans) => ans.max_symbol_for_cluster(cluster),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -63,6 +70,8 @@ pub struct Histograms {
     lz77_params: Lz77Params,
     lz77_length_uint: Option<HybridUint>,
     context_map: Vec<u8>,
+    /// Explicitly stored: context_map can get padded so we cannot use .last()
+    lz_dist_cluster: u8,
     // TODO(veluca): figure out why this is unused.
     #[allow(dead_code)]
     log_alpha_size: usize,
@@ -109,7 +118,10 @@ impl Lz77State {
             distance
         } else {
             let (offset, dist) = Lz77State::SPECIAL_DISTANCES[distance_sym as usize];
-            let dist = (self.dist_multiplier * dist as u32).checked_add_signed(offset as i32 - 1);
+            let dist = self
+                .dist_multiplier
+                .checked_mul(dist as u32)
+                .and_then(|d| d.checked_add_signed(offset as i32 - 1));
             dist.unwrap_or(0)
         };
 
@@ -144,51 +156,9 @@ impl Lz77State {
 }
 
 #[derive(Debug)]
-struct RleState {
-    min_symbol: u32,
-    min_length: u32,
-    last_sym: Option<u32>,
-    repeat_count: u32,
-}
-
-impl RleState {
-    #[inline]
-    fn push_token(
-        &mut self,
-        token: u32,
-        histograms: &Histograms,
-        br: &mut BitReader,
-        cluster: usize,
-    ) {
-        if let Some(token) = token.checked_sub(self.min_symbol) {
-            let lz_length_conf = histograms.lz77_length_uint.as_ref().unwrap();
-            let count = lz_length_conf.read(token, br);
-            // If this calculation overflows, the bitstream is invalid (it would be rejected
-            // on the LZ77 path), but we don't report an error.
-            self.repeat_count = count.wrapping_add(self.min_length);
-        } else {
-            let sym = histograms.uint_configs[cluster].read(token, br);
-            self.last_sym = Some(sym);
-            self.repeat_count = 1;
-        }
-    }
-
-    #[inline]
-    fn pull_symbol(&mut self) -> Option<u32> {
-        if self.repeat_count > 0 {
-            self.repeat_count -= 1;
-            self.last_sym
-        } else {
-            None
-        }
-    }
-}
-
-#[derive(Debug)]
 enum SymbolReaderState {
     None,
     Lz77(Lz77State),
-    Rle(RleState),
 }
 
 #[derive(Debug, Clone, Default)]
@@ -243,29 +213,15 @@ impl SymbolReader {
             let min_length = min_length.unwrap();
             let dist_multiplier = image_width.unwrap_or(0) as u32;
 
-            let lz_dist_cluster = *histograms.context_map.last().unwrap() as usize;
-            let lz_conf = &histograms.uint_configs[lz_dist_cluster];
-            let is_rle = histograms.codes.single_symbol(lz_dist_cluster) == Some(1)
-                && lz_conf.is_split_exponent_zero();
-
-            if is_rle {
-                SymbolReaderState::Rle(RleState {
-                    min_symbol,
-                    min_length,
-                    last_sym: None,
-                    repeat_count: 0,
-                })
-            } else {
-                SymbolReaderState::Lz77(Lz77State {
-                    min_symbol,
-                    min_length,
-                    dist_multiplier,
-                    window: Vec::new_with_capacity(1 << Lz77State::LOG_WINDOW_SIZE)?,
-                    num_to_copy: 0,
-                    copy_pos: 0,
-                    num_decoded: 0,
-                })
-            }
+            SymbolReaderState::Lz77(Lz77State {
+                min_symbol,
+                min_length,
+                dist_multiplier,
+                window: Vec::new_with_capacity(1 << Lz77State::LOG_WINDOW_SIZE)?,
+                num_to_copy: 0,
+                copy_pos: 0,
+                num_decoded: 0,
+            })
         } else {
             SymbolReaderState::None
         };
@@ -370,7 +326,7 @@ impl SymbolReader {
                     return 0;
                 };
 
-                let lz_dist_cluster = *histograms.context_map.last().unwrap() as usize;
+                let lz_dist_cluster = histograms.lz_dist_cluster as usize;
                 let distance_sym = match &histograms.codes {
                     Codes::Huffman(hc) => hc.read(br, lz_dist_cluster),
                     Codes::Ans(ans) => self.ans_reader.read(ans, br, lz_dist_cluster),
@@ -381,24 +337,6 @@ impl SymbolReader {
                 let sym = lz77_state.pull_symbol().unwrap();
                 lz77_state.push_decoded_symbol(sym);
                 sym
-            }
-
-            SymbolReaderState::Rle(rle_state) => {
-                if let Some(sym) = rle_state.pull_symbol() {
-                    return sym;
-                }
-
-                let token = match &histograms.codes {
-                    Codes::Huffman(hc) => hc.read(br, cluster),
-                    Codes::Ans(ans) => self.ans_reader.read(ans, br, cluster),
-                };
-                rle_state.push_token(token, histograms, br, cluster);
-                if let Some(sym) = rle_state.pull_symbol() {
-                    sym
-                } else {
-                    self.errors.lz77_repeat = true;
-                    0
-                }
             }
         }
     }
@@ -504,10 +442,6 @@ impl SymbolReader {
                     window,
                 }
             }
-            SymbolReaderState::Rle(rle_state) => StateCheckpoint::Rle {
-                last_sym: rle_state.last_sym,
-                repeat_count: rle_state.repeat_count,
-            },
         };
 
         Checkpoint {
@@ -552,17 +486,6 @@ impl SymbolReader {
                 lz77_state.copy_pos = copy_pos;
                 lz77_state.num_decoded = num_decoded;
             }
-            StateCheckpoint::Rle {
-                last_sym,
-                repeat_count,
-            } => {
-                let SymbolReaderState::Rle(rle_state) = &mut self.state else {
-                    panic!("checkpoint type mismatch");
-                };
-
-                rle_state.last_sym = last_sym;
-                rle_state.repeat_count = repeat_count;
-            }
         }
 
         self.ans_reader = checkpoint.ans_reader;
@@ -592,30 +515,37 @@ impl Histograms {
         };
         assert_eq!(context_map.len(), num_contexts);
 
+        // Capture the LZ77 distance cluster BEFORE any later resize() can pad
+        // context_map with zeros (see Histograms::resize and Frame::decode).
+        let lz_dist_cluster = if lz77_params.enabled {
+            *context_map.last().unwrap()
+        } else {
+            0
+        };
+
         let use_prefix_code = br.read(1)? != 0;
         let log_alpha_size = if use_prefix_code {
             HUFFMAN_MAX_BITS
         } else {
             br.read(2)? as usize + 5
         };
-        let num_histograms = *context_map.iter().max().unwrap() + 1;
+        // Note: cluster indices are u8, so a context map that uses cluster 255
+        // yields 256 histograms; compute the count in usize to avoid overflow.
+        let num_histograms = *context_map.iter().max().unwrap() as usize + 1;
         let uint_configs = ((0..num_histograms).map(|_| HybridUint::decode(log_alpha_size, br)))
             .collect::<Result<_>>()?;
 
         let codes = if use_prefix_code {
-            Codes::Huffman(HuffmanCodes::decode(num_histograms as usize, br)?)
+            Codes::Huffman(HuffmanCodes::decode(num_histograms, br)?)
         } else {
-            Codes::Ans(AnsCodes::decode(
-                num_histograms as usize,
-                log_alpha_size,
-                br,
-            )?)
+            Codes::Ans(AnsCodes::decode(num_histograms, log_alpha_size, br)?)
         };
 
         Ok(Histograms {
             lz77_params,
             lz77_length_uint,
             context_map,
+            lz_dist_cluster,
             log_alpha_size,
             uint_configs,
             codes,
@@ -640,47 +570,57 @@ impl Histograms {
     pub fn can_use_config_420_fast_path(&self) -> bool {
         !self.lz77_params.enabled && self.uint_configs.iter().all(|cfg| cfg.is_config_420())
     }
-}
 
-#[cfg(test)]
-impl Histograms {
-    /// Builds a decoder that reads an octet at a time and emits its bit-reversed value.
-    pub fn reverse_octet(num_contexts: usize) -> Self {
-        let d = HuffmanCodes::byte_histogram();
-        let codes = Codes::Huffman(d);
-        let uint_configs = vec![HybridUint::new(8, 0, 0)];
-        Self {
-            lz77_params: Lz77Params {
-                enabled: false,
-                min_symbol: None,
-                min_length: None,
-            },
-            lz77_length_uint: None,
-            uint_configs,
-            log_alpha_size: 15,
-            context_map: vec![0u8; num_contexts],
-            codes,
+    pub fn max_num_bits(&self) -> usize {
+        let mut max_bits = 0;
+        let lz_min_sym = if self.lz77_params.enabled {
+            self.lz77_params.min_symbol.unwrap()
+        } else {
+            u32::MAX
+        };
+        for cluster in 0..self.uint_configs.len() {
+            if self.lz77_params.enabled && cluster as u8 == self.lz_dist_cluster {
+                continue;
+            }
+            let uint = &self.uint_configs[cluster];
+            let mut max_symbol = self.codes.max_symbol_for_cluster(cluster);
+            if self.lz77_params.enabled {
+                max_symbol = max_symbol.min(lz_min_sym.saturating_sub(1));
+            }
+            max_bits = max_bits.max(uint.max_bits_for_symbol(max_symbol));
         }
+        max_bits
     }
 
-    pub fn rle(num_contexts: usize, min_symbol: u32, min_length: u32) -> Self {
-        let d = HuffmanCodes::byte_histogram_rle();
-        let codes = Codes::Huffman(d);
-        let uint_configs = vec![HybridUint::new(8, 0, 0), HybridUint::new(0, 0, 0)];
-        let mut context_map = vec![0u8; num_contexts + 1];
-        *context_map.last_mut().unwrap() = 1;
-        Self {
-            lz77_params: Lz77Params {
-                enabled: true,
-                min_symbol: Some(min_symbol),
-                min_length: Some(min_length),
-            },
-            lz77_length_uint: Some(HybridUint::new(8, 0, 0)),
-            uint_configs,
-            log_alpha_size: 15,
-            context_map,
-            codes,
+    pub fn single_symbol(&self, ctx: usize) -> Option<u32> {
+        self.codes.single_symbol(ctx)
+    }
+
+    pub(crate) fn codes(&self) -> &Codes {
+        &self.codes
+    }
+
+    /// Whether every LZ77 copy has distance 1, i.e. the stream is a plain run-length
+    /// encoding. False without LZ77: there is no distance cluster then (`lz_dist_cluster`
+    /// falls back to cluster 0, which holds real data), and the parameters an RLE decoder
+    /// needs (`min_symbol`, `min_length`, `lz77_length_uint`) are `None`.
+    pub fn is_rle(&self) -> bool {
+        if !self.lz77_params.enabled {
+            return false;
         }
+        let lz_dist_cluster = self.lz_dist_cluster as usize;
+        let lz_conf = &self.uint_configs[lz_dist_cluster];
+        self.codes.single_symbol(lz_dist_cluster) == Some(1) && lz_conf.is_split_exponent_zero()
+    }
+
+    pub(crate) fn lz77_params(&self) -> Lz77Params {
+        self.lz77_params
+    }
+    pub(crate) fn lz77_length_uint(&self) -> HybridUint {
+        self.lz77_length_uint.unwrap()
+    }
+    pub(crate) fn uint(&self, cluster: usize) -> HybridUint {
+        self.uint_configs[cluster]
     }
 }
 
@@ -693,10 +633,6 @@ enum StateCheckpoint<const N: usize> {
         num_decoded: u32,
         window: [u32; N],
     },
-    Rle {
-        last_sym: Option<u32>,
-        repeat_count: u32,
-    },
 }
 
 #[derive(Debug)]
@@ -704,68 +640,4 @@ pub struct Checkpoint<const N: usize> {
     state: StateCheckpoint<N>,
     ans_reader: AnsReader,
     errors: ErrorState,
-}
-
-#[cfg(test)]
-mod test {
-    use std::ops::ControlFlow;
-
-    use test_log::test;
-
-    use super::*;
-
-    #[test]
-    fn rle_arb() {
-        let histograms = Histograms::rle(1, 240, 3);
-
-        arbtest::arbtest(|u| {
-            let width = u.int_in_range(1usize..=256)?;
-
-            let mut bitstream = Vec::new();
-            let mut expected_bytes = Vec::new();
-            u.arbitrary_loop(None, None, |u| {
-                let do_repeat = !expected_bytes.is_empty() && u.ratio(1, 4)?;
-                let range = if do_repeat { 240u8..=255 } else { 0u8..=239 };
-                let byte = u.int_in_range(range)?;
-                bitstream.push(byte);
-
-                if do_repeat {
-                    let count = byte as usize - 237;
-                    let sym = *expected_bytes.last().unwrap();
-                    for _ in 0..count {
-                        expected_bytes.push(sym);
-                    }
-                } else {
-                    expected_bytes.push(byte);
-                }
-
-                Ok(if expected_bytes.len() >= 256 {
-                    ControlFlow::Break(())
-                } else {
-                    ControlFlow::Continue(())
-                })
-            })?;
-            for b in &mut bitstream {
-                *b = b.reverse_bits();
-            }
-
-            // Read RLE
-            let mut br = BitReader::new(&bitstream);
-            let mut reader = SymbolReader::new(&histograms, &mut br, Some(width)).unwrap();
-
-            for expected in expected_bytes {
-                let actual = reader.read_unsigned_clustered(&histograms, &mut br, 0);
-                assert_eq!(actual, expected as u32);
-            }
-
-            let SymbolReaderState::Rle(rle_state) = &reader.state else {
-                panic!()
-            };
-            assert_eq!(rle_state.repeat_count, 0);
-            assert!(reader.check_final_state(&histograms, &mut br).is_ok());
-            assert_eq!(br.total_bits_available(), 0);
-
-            Ok(())
-        });
-    }
 }

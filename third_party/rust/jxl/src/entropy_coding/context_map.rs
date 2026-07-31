@@ -3,11 +3,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::bit_reader::BitReader;
-use crate::error::Error;
 use std::collections::HashSet;
 
+use crate::bit_reader::BitReader;
 use crate::entropy_coding::decode::*;
+use crate::error::Error;
 
 fn move_to_front(v: &mut [u8], index: u8) {
     let value = v[index as usize];
@@ -44,13 +44,17 @@ pub fn decode_context_map(num_contexts: usize, br: &mut BitReader) -> Result<Vec
     let is_simple = br.read(1)? != 0;
     if is_simple {
         let bits_per_entry = br.read(2)? as usize;
-        if bits_per_entry != 0 {
-            (0..num_contexts)
-                .map(|_| Ok(br.read(bits_per_entry)? as u8))
-                .collect()
+        let ctx_map: Vec<u8> = if bits_per_entry != 0 {
+            let mut map = Vec::with_capacity(num_contexts);
+            for _ in 0..num_contexts {
+                map.push(br.read(bits_per_entry)? as u8);
+            }
+            map
         } else {
-            Ok(vec![0u8; num_contexts])
-        }
+            vec![0u8; num_contexts]
+        };
+        verify_context_map(&ctx_map[..])?;
+        Ok(ctx_map)
     } else {
         let use_mtf = br.read(1)? != 0;
         let histograms = Histograms::decode(1, br, /*allow_lz77=*/ num_contexts > 2)?;

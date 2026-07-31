@@ -3,10 +3,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+use jxl_simd::{F32SimdVec, I32SimdVec, SimdDescriptor, SimdMask};
+
 use crate::BLOCK_DIM;
 use crate::features::epf::SigmaSource;
-
-use jxl_simd::{F32SimdVec, I32SimdVec, SimdDescriptor, SimdMask};
 
 /// Sigma row source for EPF processing.
 /// Either a slice from the variable sigma image, or a constant value.

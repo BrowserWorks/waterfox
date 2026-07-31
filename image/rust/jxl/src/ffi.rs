@@ -321,13 +321,3 @@ pub unsafe extern "C" fn jxl_decoder_flush_pixels(
         Err(_) => JxlDecoderStatus::Error,
     }
 }
-
-/// # Safety
-/// `decoder` must be a valid pointer returned by `jxl_decoder_new`.
-#[no_mangle]
-pub unsafe extern "C" fn jxl_decoder_num_completed_passes(decoder: *const JxlApiDecoder) -> u32 {
-    debug_assert!(!decoder.is_null());
-    // SAFETY: Caller guarantees valid pointer.
-    let decoder = unsafe { &*decoder };
-    decoder.num_completed_passes() as u32
-}

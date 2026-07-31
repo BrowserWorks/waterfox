@@ -5,19 +5,17 @@
 
 use jxl_macros::UnconditionalCoder;
 
-use crate::{
-    bit_reader::BitReader,
-    error::{Error, Result},
-    headers::{encodings::*, frame_header::PermutationNonserialized},
-};
-
 use super::permutation::Permutation;
+use crate::bit_reader::BitReader;
+use crate::error::{Error, Result};
+use crate::headers::encodings::*;
+use crate::headers::frame_header::PermutationNonserialized;
 
 pub struct TocNonserialized {
     pub num_entries: u32,
 }
 
-#[derive(UnconditionalCoder, Debug, PartialEq)]
+#[derive(UnconditionalCoder, Debug, PartialEq, Clone)]
 #[nonserialized(TocNonserialized)]
 pub struct Toc {
     #[default(false)]
@@ -45,7 +43,7 @@ impl IncrementalTocReader {
     pub fn new(num_entries: u32, br: &mut BitReader) -> Result<Self> {
         let permuted = bool::read_unconditional(&(), br, &Empty {})?;
         let mut entries = Vec::new();
-        entries.try_reserve(num_entries as usize)?;
+        entries.try_reserve(num_entries.min(4096) as usize)?;
         Ok(Self {
             num_entries,
             permuted,
@@ -81,8 +79,9 @@ impl IncrementalTocReader {
             },
         );
         let entry = u32::read_unconditional(&entry_coder, br, &Empty {})?;
+        self.entries.try_reserve(1)?;
         self.entries.push(entry);
-        Ok(())
+        br.check_for_error()
     }
 
     fn read_permutation(&mut self, br: &mut BitReader) -> Result<()> {
@@ -95,7 +94,7 @@ impl IncrementalTocReader {
             },
         )?;
         self.permutation = Some(permutation);
-        Ok(())
+        br.check_for_error()
     }
 
     pub fn finalize(self) -> Toc {

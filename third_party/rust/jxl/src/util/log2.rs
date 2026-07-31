@@ -3,6 +3,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+use std::fmt::Debug;
+
 pub trait FloorLog2 {
     fn floor_log2(&self) -> Self;
 }
@@ -41,8 +43,10 @@ where
     T: std::cmp::PartialEq,
     T: From<u8>,
     T: Copy,
+    T: Debug,
 {
     fn ceil_log2(&self) -> Self {
+        debug_assert_ne!(*self, 0.into());
         if (*self & (*self - 1.into())) != 0.into() {
             self.floor_log2() + 1.into()
         } else {

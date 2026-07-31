@@ -5,9 +5,11 @@
 
 #![allow(clippy::excessive_precision)]
 
-use super::{eval_rational_poly, eval_rational_poly_simd};
-use jxl_simd::{F32SimdVec, I32SimdVec, SimdDescriptor, shl, shr};
 use std::f32::consts::{PI, SQRT_2};
+
+use jxl_simd::{F32SimdVec, I32SimdVec, ScalarDescriptor, SimdDescriptor, SimdMask, shl, shr};
+
+use super::{eval_rational_poly, eval_rational_poly_simd};
 
 const POW2F_NUMER_COEFFS: [f32; 3] = [1.01749063e1, 4.88687798e1, 9.85506591e1];
 const POW2F_DENOM_COEFFS: [f32; 4] = [2.10242958e-1, -2.22328856e-2, -1.94414990e1, 9.85506633e1];
@@ -77,7 +79,7 @@ pub fn fast_erff_simd<D: SimdDescriptor>(d: D, x: D::F32Vec) -> D::F32Vec {
 #[inline(always)]
 pub fn fast_pow2f(x: f32) -> f32 {
     let x_floor = x.floor();
-    let exp = f32::from_bits(((x_floor as i32 + 127) as u32) << 23);
+    let exp = f32::from_bits((((x_floor as i32).wrapping_add(127)) as u32) << 23);
     let frac = x - x_floor;
 
     let num = frac + POW2F_NUMER_COEFFS[0];
@@ -162,11 +164,42 @@ pub fn floor_log2_nonzero(x: u64) -> u32 {
     (u64::BITS as usize - 1) as u32 ^ x.leading_zeros()
 }
 
+const JINC_WINDOWED_SQ_P: [f32; 6] = [
+    1.0,
+    -9.49473905e-01,
+    3.03599826e-01,
+    -4.37817437e-02,
+    2.93920389e-03,
+    -7.56152766e-05,
+];
+const JINC_WINDOWED_SQ_Q: [f32; 5] = [
+    1.0,
+    2.35513458e-01,
+    2.73748942e-02,
+    1.99519538e-03,
+    9.81907926e-05,
+];
+
+/// Rational approximation of f(x) = jinc(pi * sqrt(x) * 0.85) * jinc(j_{1,1} * sqrt(x) / 2.5)
+/// for x = r^2 in [0, 6.25]. Returns 0.0 for x >= 6.25.
+/// Max absolute error < 6e-8.
+#[inline(always)]
+pub fn fast_jinc_windowed_sq(r2: f32) -> f32 {
+    fast_jinc_windowed_sq_simd(ScalarDescriptor::new().unwrap(), r2)
+}
+
+#[inline(always)]
+pub fn fast_jinc_windowed_sq_simd<D: SimdDescriptor>(d: D, r2: D::F32Vec) -> D::F32Vec {
+    let poly = eval_rational_poly_simd(d, r2, JINC_WINDOWED_SQ_P, JINC_WINDOWED_SQ_Q);
+    let mask = D::F32Vec::splat(d, 6.25).gt(r2);
+    mask.if_then_else_f32(poly, D::F32Vec::zero(d))
+}
+
 #[cfg(test)]
 mod test {
     use test_log::test;
 
-    use crate::util::test::assert_almost_abs_eq;
+    use crate::tests::assert_close;
 
     use super::*;
 
@@ -208,8 +241,8 @@ mod test {
             (3.5, 0.999999257),
         ];
         for (x, erf_x) in golden {
-            assert_almost_abs_eq(fast_erff(x), erf_x, 6e-4);
-            assert_almost_abs_eq(fast_erff(-x), -erf_x, 6e-4);
+            assert_close!(fast_erff(x), erf_x, 6e-4);
+            assert_close!(fast_erff(-x), -erf_x, 6e-4);
         }
     }
 
@@ -217,7 +250,7 @@ mod test {
     fn test_fast_cos() {
         for i in 0..100 {
             let x = i as f32 / 100.0 * (5.0 * PI) - (2.5 * PI);
-            assert_almost_abs_eq(fast_cos(x), x.cos(), 1e-4);
+            assert_close!(fast_cos(x), x.cos(), 1e-4);
         }
     }
 

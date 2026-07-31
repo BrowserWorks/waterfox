@@ -25,6 +25,7 @@ struct AnsHistogram {
     bucket_mask: u32,
     // For optimizing fast-lossless case.
     single_symbol: Option<u32>,
+    alphabet_size: usize,
 }
 
 // log_alphabet_size <= 8 and log_bucket_size <= 7, so u8 is sufficient for symbols and cutoffs.
@@ -310,6 +311,7 @@ impl AnsHistogram {
             log_bucket_size,
             bucket_mask,
             single_symbol,
+            alphabet_size,
         })
     }
 
@@ -414,6 +416,10 @@ impl AnsCodes {
 
     pub fn single_symbol(&self, ctx: usize) -> Option<u32> {
         self.histograms[ctx].single_symbol()
+    }
+
+    pub fn max_symbol_for_cluster(&self, cluster: usize) -> u32 {
+        self.histograms[cluster].alphabet_size.saturating_sub(1) as u32
     }
 }
 

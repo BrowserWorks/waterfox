@@ -11,5 +11,8 @@ edition = "2021"
 license = "MPL-2.0"
 
 [dependencies]
-jxl = { git = "https://github.com/libjxl/jxl-rs", rev = "c41cbfaf34c2c8ebc3fb6655c885fe427ab9542a"}
+jxl = "0.7.3"
 log = "0.4"
+moz_task = { path = "../../../xpcom/rust/moz_task" }
+static_prefs = { path = "../../../modules/libpref/init/static_prefs" }
+xpcom = { path = "../../../xpcom/rust/xpcom" }
