@@ -3,20 +3,20 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use jxl::api::{
-    Endianness, JxlBitstreamInput, JxlColorEncoding, JxlColorProfile, JxlColorType, JxlDataFormat,
-    JxlDecoderInner, JxlDecoderOptions, JxlOutputBuffer, JxlPixelFormat, ProcessingResult,
+    Endianness, Event, ExtraChannel, JxlBitstreamInput, JxlColorEncoding, JxlColorProfile,
+    JxlColorType, JxlDataFormat, JxlDecoder, JxlDecoderOptions, JxlOutputBuffer, JxlPixelFormat,
     VisibleFrameInfo,
 };
-use jxl::headers::extra_channels::ExtraChannel;
 
 pub struct JxlApiDecoder {
-    pub inner: JxlDecoderInner,
+    pub inner: JxlDecoder,
     metadata_only: bool,
     pixel_format_set: bool,
     has_cms: bool,
     pub use_f16: bool,
     pub frame_ready: bool,
     pub frame_duration: Option<f64>,
+    pub has_more_frames: bool,
     icc_profile_cache: Vec<u8>,
     has_black_channel: bool,
 }
@@ -68,7 +68,7 @@ enum BufMode<'a> {
 impl JxlApiDecoder {
     pub fn new(metadata_only: bool, has_cms: bool) -> Self {
         let options = JxlDecoderOptions::default();
-        let inner = JxlDecoderInner::new(options);
+        let inner = JxlDecoder::new(options);
 
         Self {
             inner,
@@ -78,6 +78,7 @@ impl JxlApiDecoder {
             use_f16: false,
             frame_ready: false,
             frame_duration: None,
+            has_more_frames: true,
             icc_profile_cache: Vec::new(),
             has_black_channel: false,
         }
@@ -87,7 +88,7 @@ impl JxlApiDecoder {
         let mut options = JxlDecoderOptions::default();
         options.scan_frames_only = true;
 
-        let inner = JxlDecoderInner::new(options);
+        let inner = JxlDecoder::new(options);
 
         Self {
             inner,
@@ -97,6 +98,7 @@ impl JxlApiDecoder {
             use_f16: false,
             frame_ready: false,
             frame_duration: None,
+            has_more_frames: true,
             icc_profile_cache: Vec::new(),
             has_black_channel: false,
         }
@@ -162,19 +164,17 @@ impl JxlApiDecoder {
                     JxlOutputBuffer::new(output_buffer, height, bytes_per_row),
                     JxlOutputBuffer::new(k, height, width),
                 ];
-                self.inner.flush_pixels(&mut bufs).map_err(Error::from)
+                self.inner
+                    .flush_pixels(&mut bufs, None)
+                    .map_err(Error::from)
             }
             _ => {
                 let mut buf = JxlOutputBuffer::new(output_buffer, height, bytes_per_row);
                 self.inner
-                    .flush_pixels(std::slice::from_mut(&mut buf))
+                    .flush_pixels(std::slice::from_mut(&mut buf), None)
                     .map_err(Error::from)
             }
         }
-    }
-
-    pub fn num_completed_passes(&self) -> usize {
-        self.inner.num_completed_passes().unwrap_or(0)
     }
 
     pub fn get_basic_info(&self) -> Option<BasicInfo> {
@@ -201,7 +201,7 @@ impl JxlApiDecoder {
         })
     }
 
-    fn set_pixel_format(&mut self) {
+    fn set_pixel_format(&mut self) -> Result<(), Error> {
         debug_assert!(self.inner.basic_info().is_some());
         let basic_info = self.inner.basic_info().unwrap();
 
@@ -259,8 +259,9 @@ impl JxlApiDecoder {
             }),
             extra_channel_format,
         };
-        self.inner.set_pixel_format(pixel_format);
+        self.inner.set_pixel_format(pixel_format)?;
         self.pixel_format_set = true;
+        Ok(())
     }
 
     /// Process JXL data. Pass output_buffer once frame_ready is true.
@@ -301,57 +302,46 @@ impl JxlApiDecoder {
                 BufMode::Single(buf) => Some(std::slice::from_mut(buf)),
                 BufMode::None => None,
             };
-            let result = self.inner.process(data, bufs);
-
-            let need_more = match result {
-                Err(e) => return Err(e.into()),
-                Ok(ProcessingResult::Complete { .. }) => false,
-                Ok(ProcessingResult::NeedsMoreInput { .. }) => true,
-            };
-
-            // For metadata-only decode of non-animated images, return once
-            // we have basic_info. For animated images, continue until frame
-            // header is available to get the first frame's duration.
-            if self.metadata_only {
-                if let Some(basic_info) = self.inner.basic_info() {
-                    if basic_info.animation.is_none() {
+            match self.inner.process(data, bufs, None)? {
+                Event::NeedMoreInput { .. } => return Ok(false),
+                Event::BasicInfo => {
+                    // For metadata-only decode of non-animated images, return once
+                    // we have basic_info. For animated images, continue until frame
+                    // header is available to get the first frame's duration.
+                    if self.metadata_only
+                        && self
+                            .inner
+                            .basic_info()
+                            .is_some_and(|bi| bi.animation.is_none())
+                    {
                         return Ok(true);
                     }
+
+                    // BasicInfo guarantees the embedded color profile is available.
+                    // The pixel format must be set before the first frame header.
+                    debug_assert!(self.inner.embedded_color_profile().is_some());
+                    self.set_pixel_format()?;
+                    debug_assert!(self.inner.current_pixel_format().is_some());
+                }
+                Event::FrameHeader => {
+                    self.frame_duration = self
+                        .inner
+                        .frame_header()
+                        .and_then(|fh| fh.duration)
+                        .or(Some(0.0));
+                    self.frame_ready = true;
+                    return Ok(true);
+                }
+                Event::FrameComplete { has_more_frames } => {
+                    self.frame_ready = false;
+                    self.has_more_frames = has_more_frames;
+                    return Ok(true);
+                }
+                Event::Complete => {
+                    self.has_more_frames = false;
+                    return Ok(true);
                 }
             }
-
-            // jxl-rs guarantees that once basic_info() returns Some, the
-            // embedded color profile has also been parsed; set_pixel_format
-            // relies on the latter (update_default_output_color_profile
-            // unwraps it).
-            if !self.pixel_format_set && self.inner.basic_info().is_some() {
-                debug_assert!(self.inner.embedded_color_profile().is_some());
-                self.set_pixel_format();
-                debug_assert!(self.pixel_format_set);
-                debug_assert!(self.inner.current_pixel_format().is_some());
-                if !need_more {
-                    // Re-enter to let jxl-rs make further progress now that the
-                    // pixel format is configured if we don't need more input.
-                    continue;
-                }
-            }
-
-            if need_more {
-                return Ok(false);
-            }
-
-            let frame_header = self.inner.frame_header();
-            if let Some(frame_header) = frame_header {
-                self.frame_duration = frame_header.duration.or(Some(0.0));
-                self.frame_ready = true;
-                return Ok(true);
-            } else if self.frame_ready {
-                // Frame was rendered
-                self.frame_ready = false;
-                return Ok(true);
-            }
-            // No frame yet, need more data
-            return Ok(false);
         }
     }
 }

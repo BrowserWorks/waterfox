@@ -14,21 +14,14 @@ const SUM_PROBS: u16 = 1 << LOG_SUM_PROBS;
 const RLE_MARKER_SYM: u16 = LOG_SUM_PROBS as u16 + 1;
 
 #[derive(Debug)]
-struct AnsHistogram {
-    // Safety invariant:
-    // - log_bucket_size <= LOG_SUM_PROBS
-    // - buckets.len() = 2^(LOG_SUM_PROBS - log_bucket_size)
-    // This relationship ensures that for any ANS state (12 bits), the bucket index
-    // computed as (state & 0xfff) >> log_bucket_size is always < buckets.len()
-    buckets: Vec<Bucket>,
-    log_bucket_size: usize,
-    bucket_mask: u32,
-    // For optimizing fast-lossless case.
-    single_symbol: Option<u32>,
+struct AnsHistogramInfo {
+    single_symbol: Option<u8>,
+    // 0..=256
+    alphabet_size: u16,
 }
 
 // log_alphabet_size <= 8 and log_bucket_size <= 7, so u8 is sufficient for symbols and cutoffs.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 #[repr(C)]
 struct Bucket {
     alias_symbol: u8,
@@ -38,7 +31,15 @@ struct Bucket {
     alias_dist_xor: u16,
 }
 
-impl AnsHistogram {
+#[derive(Debug, Copy, Clone, Default)]
+struct WorkingBucket {
+    dist: u16,
+    alias_symbol: u16,
+    alias_offset: u16,
+    alias_cutoff: u16,
+}
+
+impl AnsHistogramInfo {
     fn decode_dist_two_symbols(br: &mut BitReader, dist: &mut [u16]) -> Result<usize> {
         let table_size = dist.len();
 
@@ -112,9 +113,8 @@ impl AnsHistogram {
             return Err(Error::InvalidAnsHistogram);
         }
 
-        // TODO(tirr-c): This could be an array of length `SUM_PROB / 4` (4 is from the minimum
-        // value of `repeat_count`). Change if using array is faster.
-        let mut repeat_ranges = Vec::new();
+        let mut repeat_ranges = [(0usize, 0usize); 64];
+        let mut num_repeat_ranges = 0;
         let mut omit_data = None;
         let mut idx = 0;
         while idx < alphabet_size {
@@ -124,7 +124,8 @@ impl AnsHistogram {
                 if idx + repeat_count > alphabet_size {
                     return Err(Error::InvalidAnsHistogram);
                 }
-                repeat_ranges.push(idx..(idx + repeat_count));
+                repeat_ranges[num_repeat_ranges] = (idx, idx + repeat_count);
+                num_repeat_ranges += 1;
                 idx += repeat_count;
                 continue;
             }
@@ -152,10 +153,8 @@ impl AnsHistogram {
         let mut acc = 0;
         let mut prev_dist = 0u16;
         for (idx, code) in dist.iter_mut().enumerate() {
-            if repeat_range_idx < repeat_ranges.len()
-                && repeat_ranges[repeat_range_idx].start <= idx
-            {
-                if repeat_ranges[repeat_range_idx].end == idx {
+            if repeat_range_idx < num_repeat_ranges && repeat_ranges[repeat_range_idx].0 <= idx {
+                if repeat_ranges[repeat_range_idx].1 == idx {
                     repeat_range_idx += 1;
                 } else {
                     *code = prev_dist;
@@ -194,122 +193,144 @@ impl AnsHistogram {
         Ok(alphabet_size)
     }
 
-    fn build_alias_map(alphabet_size: usize, log_bucket_size: usize, dist: &[u16]) -> Vec<Bucket> {
-        #[derive(Debug)]
-        struct WorkingBucket {
-            dist: u16,
-            alias_symbol: u16,
-            alias_offset: u16,
-            alias_cutoff: u16,
-        }
+    fn build_alias_map(
+        alphabet_size: usize,
+        log_bucket_size: usize,
+        dist: &[u16],
+        buckets: &mut [WorkingBucket; 256],
+        out: &mut [Bucket],
+    ) {
+        let table_size = dist.len();
+        debug_assert_eq!(out.len(), table_size);
+        debug_assert!(table_size <= 256);
 
         let bucket_size = 1u16 << log_bucket_size;
-        let mut buckets: Vec<_> = dist
-            .iter()
-            .enumerate()
-            .map(|(i, &dist)| WorkingBucket {
+        for (i, &dist) in dist.iter().enumerate() {
+            buckets[i] = WorkingBucket {
                 dist,
                 alias_symbol: if i < alphabet_size { i as u16 } else { 0 },
                 alias_offset: 0,
                 alias_cutoff: dist,
-            })
-            .collect();
+            };
+        }
 
-        let mut underfull = Vec::new();
-        let mut overfull = Vec::new();
-        for (idx, &WorkingBucket { dist, .. }) in buckets.iter().enumerate() {
+        let mut underfull = [0u8; 256];
+        let mut underfull_len = 0;
+        let mut overfull = [0u8; 256];
+        let mut overfull_len = 0;
+        for (idx, &WorkingBucket { dist, .. }) in buckets[..table_size].iter().enumerate() {
             match dist.cmp(&bucket_size) {
-                std::cmp::Ordering::Less => underfull.push(idx),
+                std::cmp::Ordering::Less => {
+                    underfull[underfull_len] = idx as u8;
+                    underfull_len += 1;
+                }
                 std::cmp::Ordering::Equal => {}
-                std::cmp::Ordering::Greater => overfull.push(idx),
+                std::cmp::Ordering::Greater => {
+                    overfull[overfull_len] = idx as u8;
+                    overfull_len += 1;
+                }
             }
         }
-        while let (Some(o), Some(u)) = (overfull.pop(), underfull.pop()) {
+        while underfull_len > 0 && overfull_len > 0 {
+            overfull_len -= 1;
+            let o = overfull[overfull_len] as usize;
+            underfull_len -= 1;
+            let u = underfull[underfull_len] as usize;
             let by = bucket_size - buckets[u].alias_cutoff;
             buckets[o].alias_cutoff -= by;
             buckets[u].alias_symbol = o as u16;
             buckets[u].alias_offset = buckets[o].alias_cutoff;
             match buckets[o].alias_cutoff.cmp(&bucket_size) {
-                std::cmp::Ordering::Less => underfull.push(o),
+                std::cmp::Ordering::Less => {
+                    underfull[underfull_len] = o as u8;
+                    underfull_len += 1;
+                }
                 std::cmp::Ordering::Equal => {}
-                std::cmp::Ordering::Greater => overfull.push(o),
+                std::cmp::Ordering::Greater => {
+                    overfull[overfull_len] = o as u8;
+                    overfull_len += 1;
+                }
             }
         }
 
         // Assertion failure happens only if `dist` doesn't sum to `SUM_PROB`, which is checked
         // before building alias map.
-        assert!(overfull.is_empty() && underfull.is_empty());
+        assert!(overfull_len == 0 && underfull_len == 0);
 
-        buckets
-            .iter()
-            .enumerate()
-            .map(|(idx, bucket)| {
-                if bucket.alias_cutoff == bucket_size {
-                    Bucket {
-                        dist: bucket.dist,
-                        alias_symbol: idx as u8,
-                        alias_offset: 0,
-                        alias_cutoff: 0,
-                        alias_dist_xor: 0,
-                    }
-                } else {
-                    Bucket {
-                        dist: bucket.dist,
-                        alias_symbol: bucket.alias_symbol as u8,
-                        alias_offset: bucket.alias_offset - bucket.alias_cutoff,
-                        alias_cutoff: bucket.alias_cutoff as u8,
-                        alias_dist_xor: bucket.dist ^ buckets[bucket.alias_symbol as usize].dist,
-                    }
+        for (idx, (bucket, out_slot)) in
+            buckets[..table_size].iter().zip(out.iter_mut()).enumerate()
+        {
+            *out_slot = if bucket.alias_cutoff == bucket_size {
+                Bucket {
+                    dist: bucket.dist,
+                    alias_symbol: idx as u8,
+                    alias_offset: 0,
+                    alias_cutoff: 0,
+                    alias_dist_xor: 0,
                 }
-            })
-            .collect()
+            } else {
+                Bucket {
+                    dist: bucket.dist,
+                    alias_symbol: bucket.alias_symbol as u8,
+                    alias_offset: bucket.alias_offset - bucket.alias_cutoff,
+                    alias_cutoff: bucket.alias_cutoff as u8,
+                    alias_dist_xor: bucket.dist ^ buckets[bucket.alias_symbol as usize].dist,
+                }
+            };
+        }
     }
 
     // log_alphabet_size: 5 + u(2)
-    pub fn decode(br: &mut BitReader, log_alpha_size: usize) -> Result<Self> {
+    fn decode_histogram(
+        br: &mut BitReader,
+        log_alpha_size: usize,
+        working_buckets: &mut [WorkingBucket; 256],
+        buckets_out: &mut [Bucket],
+    ) -> Result<AnsHistogramInfo> {
         debug_assert!((5..=8).contains(&log_alpha_size));
         let table_size = (1u16 << log_alpha_size) as usize;
+        debug_assert_eq!(buckets_out.len(), table_size);
         // 4 <= log_bucket_size <= 7
         let log_bucket_size = LOG_SUM_PROBS.checked_sub(log_alpha_size).unwrap();
         let bucket_size = 1u16 << log_bucket_size;
-        let bucket_mask = bucket_size as u32 - 1;
 
-        let mut dist = vec![0u16; table_size];
+        let mut dist = [0u16; 256];
+        let dist = &mut dist[..table_size];
         let alphabet_size = if br.read(1)? != 0 {
             if br.read(1)? != 0 {
-                Self::decode_dist_two_symbols(br, &mut dist)?
+                Self::decode_dist_two_symbols(br, dist)?
             } else {
-                Self::decode_dist_single_symbol(br, &mut dist)?
+                Self::decode_dist_single_symbol(br, dist)?
             }
         } else if br.read(1)? != 0 {
-            Self::decode_dist_evenly_distributed(br, &mut dist)?
+            Self::decode_dist_evenly_distributed(br, dist)?
         } else {
-            Self::decode_dist_complex(br, &mut dist)?
+            Self::decode_dist_complex(br, dist)?
         };
         let single_symbol = dist.iter().position(|&d| d == SUM_PROBS).map(|x| x as u32);
-        let buckets = if let Some(single_sym_idx) = single_symbol {
-            dist.into_iter()
-                .enumerate()
-                .map(|(i, dist)| Bucket {
+        if let Some(single_sym_idx) = single_symbol {
+            for (i, (&dist, out_slot)) in dist.iter().zip(buckets_out.iter_mut()).enumerate() {
+                *out_slot = Bucket {
                     dist,
                     alias_symbol: single_sym_idx as u8,
                     alias_offset: bucket_size * i as u16,
                     alias_cutoff: 0,
                     alias_dist_xor: dist ^ SUM_PROBS,
-                })
-                .collect()
+                };
+            }
         } else {
-            Self::build_alias_map(alphabet_size, log_bucket_size, &dist)
-        };
+            Self::build_alias_map(
+                alphabet_size,
+                log_bucket_size,
+                dist,
+                working_buckets,
+                buckets_out,
+            );
+        }
 
-        assert_eq!(buckets.len(), 1 << (LOG_SUM_PROBS - log_bucket_size));
-        // Safety note: log_bucket_size <= LOG_SUM_PROBS by construction, and we
-        // just checked that buckets.len() = 2^(LOG_SUM_PROBS - log_bucket_size)
-        Ok(Self {
-            buckets,
-            log_bucket_size,
-            bucket_mask,
-            single_symbol,
+        Ok(AnsHistogramInfo {
+            single_symbol: single_symbol.map(|x| x as u8),
+            alphabet_size: alphabet_size as u16,
         })
     }
 
@@ -351,27 +372,53 @@ impl AnsHistogram {
     }
 }
 
-impl AnsHistogram {
-    #[inline]
-    pub fn read(&self, br: &mut BitReader, state: &mut u32) -> u32 {
+#[derive(Debug)]
+pub struct AnsCodes {
+    buckets: Vec<Bucket>,
+    histogram_info: Vec<AnsHistogramInfo>,
+    log_alpha_size: usize,
+    log_bucket_size: usize,
+    bucket_mask: u32,
+}
+
+impl AnsCodes {
+    pub fn decode(num: usize, log_alpha_size: usize, br: &mut BitReader) -> Result<AnsCodes> {
+        debug_assert!((5..=8).contains(&log_alpha_size));
+        let log_bucket_size = LOG_SUM_PROBS.checked_sub(log_alpha_size).unwrap();
+        let bucket_mask = (1u32 << log_bucket_size) - 1;
+        let table_size = 1usize << log_alpha_size;
+        let mut buckets = vec![Bucket::default(); num * table_size];
+        let mut working_buckets = Box::new([WorkingBucket::default(); 256]);
+        let mut histograms = Vec::with_capacity(num);
+        for bkt in buckets.chunks_exact_mut(table_size) {
+            let info =
+                AnsHistogramInfo::decode_histogram(br, log_alpha_size, &mut working_buckets, bkt)?;
+            histograms.push(info);
+        }
+        Ok(Self {
+            buckets,
+            histogram_info: histograms,
+            log_alpha_size,
+            log_bucket_size,
+            bucket_mask,
+        })
+    }
+
+    pub fn single_symbol(&self, ctx: usize) -> Option<u32> {
+        self.histogram_info[ctx].single_symbol.map(|x| x as u32)
+    }
+
+    pub fn max_symbol_for_cluster(&self, cluster: usize) -> u32 {
+        self.histogram_info[cluster].alphabet_size.saturating_sub(1) as u32
+    }
+
+    #[inline(always)]
+    pub fn read(&self, br: &mut BitReader, state: &mut u32, ctx: usize) -> u32 {
         let idx = *state & 0xfff;
         let i = (idx >> self.log_bucket_size) as usize;
         let pos = idx & self.bucket_mask;
 
-        debug_assert!(self.buckets.len().is_power_of_two());
-        debug_assert!(
-            i < self.buckets.len(),
-            "bucket index {} out of bounds (len = {})",
-            i,
-            self.buckets.len()
-        );
-        // SAFETY: The struct-level safety invariant (see AnsHistogram::buckets) ensures that
-        // buckets.len() = 2^(LOG_SUM_PROBS - log_bucket_size). Since idx = state & 0xfff
-        // (12 bits) and i = idx >> log_bucket_size, we have i < buckets.len() always.
-        #[allow(unsafe_code)]
-        let bucket = unsafe { *self.buckets.get_unchecked(i) };
-        // Safe version: (~3% slower for e2 lossless decoding)
-        // let bucket = self.buckets[i & (self.buckets.len() - 1)];
+        let bucket = self.buckets[(ctx << self.log_alpha_size) | i];
         let alias_symbol = bucket.alias_symbol as u32;
         let alias_cutoff = bucket.alias_cutoff as u32;
         let dist = bucket.dist as u32;
@@ -391,30 +438,6 @@ impl AnsHistogram {
         br.consume_optimistic((16 * select_appended) as usize);
         symbol
     }
-
-    // For optimizing fast-lossless case.
-    #[inline]
-    pub fn single_symbol(&self) -> Option<u32> {
-        self.single_symbol
-    }
-}
-
-#[derive(Debug)]
-pub struct AnsCodes {
-    histograms: Vec<AnsHistogram>,
-}
-
-impl AnsCodes {
-    pub fn decode(num: usize, log_alpha_size: usize, br: &mut BitReader) -> Result<AnsCodes> {
-        let histograms = (0..num)
-            .map(|_| AnsHistogram::decode(br, log_alpha_size))
-            .collect::<Result<_>>()?;
-        Ok(Self { histograms })
-    }
-
-    pub fn single_symbol(&self, ctx: usize) -> Option<u32> {
-        self.histograms[ctx].single_symbol()
-    }
 }
 
 #[derive(Debug)]
@@ -433,9 +456,9 @@ impl AnsReader {
         Ok(Self(initial_state))
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read(&mut self, codes: &AnsCodes, br: &mut BitReader, ctx: usize) -> u32 {
-        codes.histograms[ctx].read(br, &mut self.0)
+        codes.read(br, &mut self.0, ctx)
     }
 
     pub fn check_final_state(self) -> Result<()> {
@@ -464,24 +487,24 @@ mod test {
     fn single_symbol() {
         // Single symbol of 20
         let mut br = BitReader::new(&[0b00100101, 0b01]);
-        let histogram = AnsHistogram::decode(&mut br, 5).unwrap();
-        validate_buckets(&histogram.buckets);
-        assert_eq!(histogram.buckets[20].dist, SUM_PROBS);
-        assert_eq!(histogram.single_symbol, Some(20));
+        let codes = AnsCodes::decode(1, 5, &mut br).unwrap();
+        validate_buckets(&codes.buckets);
+        assert_eq!(codes.buckets[20].dist, SUM_PROBS);
+        assert_eq!(codes.single_symbol(0), Some(20));
 
         // Single symbol of 32 (invalid)
         let mut br = BitReader::new(&[0b00101101, 0b000]);
-        assert!(AnsHistogram::decode(&mut br, 5).is_err());
+        assert!(AnsCodes::decode(1, 5, &mut br).is_err());
     }
 
     #[test]
     fn two_symbols() {
         // two symbols of 10 and 20, where the prob of symbol 10 is 256
         let mut br = BitReader::new(&[0b10011111, 0b10010010, 0b00000000, 0b00010]);
-        let histogram = AnsHistogram::decode(&mut br, 5).unwrap();
-        validate_buckets(&histogram.buckets);
-        assert_eq!(histogram.buckets[10].dist, 256);
-        assert_eq!(histogram.buckets[20].dist, SUM_PROBS - 256);
+        let codes = AnsCodes::decode(1, 5, &mut br).unwrap();
+        validate_buckets(&codes.buckets);
+        assert_eq!(codes.buckets[10].dist, 256);
+        assert_eq!(codes.buckets[20].dist, SUM_PROBS - 256);
     }
 
     #[test]
@@ -493,8 +516,8 @@ mod test {
             let mut br = BitReader::new(&buf);
 
             loop {
-                match AnsHistogram::decode(&mut br, 8) {
-                    Ok(histogram) => validate_buckets(&histogram.buckets),
+                match AnsCodes::decode(1, 8, &mut br) {
+                    Ok(codes) => validate_buckets(&codes.buckets),
                     Err(Error::OutOfBounds(_)) => break,
                     Err(_) => {}
                 }

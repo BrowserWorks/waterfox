@@ -3,16 +3,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use std::sync::Arc;
-
-use crate::{
-    error::{Error, Result},
-    frame::{HfMetadata, LfGlobalState},
-    headers::frame_header::{Encoding, FrameHeader},
-    image::Image,
-};
-
 use jxl_transforms::transform_map::*;
+
+use crate::error::{Error, Result};
+use crate::frame::{HfMetadata, LfGlobalState};
+use crate::headers::frame_header::{Encoding, FrameHeader};
+use crate::image::Image;
+use crate::util::sync::Arc;
 
 /// Source of sigma values for EPF (Edge Preserving Filter).
 /// For VarDCT encoding, sigma varies per-block based on quantization.

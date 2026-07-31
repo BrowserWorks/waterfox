@@ -99,13 +99,22 @@ impl f16 {
         } else {
             let unbiased = exp - 127;
 
-            if unbiased < -24 {
+            if unbiased < -25 {
                 // Too small, underflow to zero
                 sign << 15
             } else if unbiased < -14 {
                 // Denormal f16
-                let shift = (-14 - unbiased) as u32;
-                let m = ((mant | 0x0080_0000) >> (shift + 14)) as u16;
+                let shift = (-14 - unbiased + 13) as u32;
+                let full = mant | 0x0080_0000;
+                let m = (full >> shift) as u16;
+                // Round to nearest, ties to even
+                let round_bit = (full >> (shift - 1)) & 1;
+                let sticky = full & ((1 << (shift - 1)) - 1);
+                let m = if round_bit == 1 && (sticky != 0 || (m & 1) == 1) {
+                    m + 1
+                } else {
+                    m
+                };
                 (sign << 15) | m
             } else if unbiased > 15 {
                 // Overflow to infinity
@@ -308,5 +317,13 @@ mod tests {
         let h = f16::from_bits(0x1234);
         assert_eq!(h.to_le_bytes(), [0x34, 0x12]);
         assert_eq!(h.to_be_bytes(), [0x12, 0x34]);
+    }
+
+    #[test]
+    fn test_subnormal_rounding_near_smallest() {
+        // 2^-25 + 1 ULP should round to the smallest subnormal, not flush to zero.
+        let v = f32::from_bits(0x33000001);
+        assert_eq!(f16::from_f32(v).to_bits(), 0x0001);
+        assert_eq!(f16::from_f32(-v).to_bits(), 0x8001);
     }
 }

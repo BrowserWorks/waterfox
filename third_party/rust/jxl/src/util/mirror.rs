@@ -6,6 +6,7 @@
 /// Mirror-reflects a value v to fit in a [0; s) range.
 #[inline(always)]
 pub fn mirror(mut v: isize, s: usize) -> usize {
+    debug_assert_ne!(s, 0, "mirror size must be greater than 0");
     // TODO(veluca): consider speeding this up if needed.
     loop {
         if v < 0 {

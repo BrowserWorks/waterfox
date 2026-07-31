@@ -6,8 +6,10 @@
 #![allow(clippy::excessive_precision)]
 #![allow(clippy::approx_constant)]
 
-use crate::{transform_map::HfTransformType, *};
 use jxl_simd::{simd_function, SimdDescriptor};
+
+use crate::transform_map::HfTransformType;
+use crate::*;
 
 fn idct2_top_block(s: usize, block_in: &[f32], block_out: &mut [f32]) {
     let num_2x2 = s / 2;
@@ -318,7 +320,7 @@ fn afv_transform_to_pixels<D: SimdDescriptor>(
         block00 - block10,
     ];
     // IAFV: (even, even) positions.
-    let mut coeff: Vec<f32> = vec![0.0; 4 * 4];
+    let mut coeff = [0.0f32; 4 * 4];
     for iy in 0..4 {
         for ix in 0..4 {
             coeff[iy * 4 + ix] = if ix == 0 && iy == 0 {
@@ -328,7 +330,7 @@ fn afv_transform_to_pixels<D: SimdDescriptor>(
             };
         }
     }
-    let mut block: Vec<f32> = vec![0.0; 4 * 8];
+    let mut block = [0.0f32; 4 * 8];
     avfidct4x4(&coeff, &mut block);
     for iy in 0..4 {
         let block_y = if afv_y == 1 { 3 - iy } else { iy };
@@ -507,22 +509,22 @@ pub fn transform_to_pixels_impl<D: SimdDescriptor>(
         ),
         HfTransformType::AFV0 => {
             transform_buffer[0] = lf[0];
-            let block: Vec<f32> = transform_buffer[0..64].to_vec();
+            let block: [f32; 64] = transform_buffer[0..64].try_into().unwrap();
             afv_transform_to_pixels::<D>(d, 0, &block, &mut transform_buffer[0..64]);
         }
         HfTransformType::AFV1 => {
             transform_buffer[0] = lf[0];
-            let block: Vec<f32> = transform_buffer[0..64].to_vec();
+            let block: [f32; 64] = transform_buffer[0..64].try_into().unwrap();
             afv_transform_to_pixels::<D>(d, 1, &block, &mut transform_buffer[0..64]);
         }
         HfTransformType::AFV2 => {
             transform_buffer[0] = lf[0];
-            let block: Vec<f32> = transform_buffer[0..64].to_vec();
+            let block: [f32; 64] = transform_buffer[0..64].try_into().unwrap();
             afv_transform_to_pixels::<D>(d, 2, &block, &mut transform_buffer[0..64]);
         }
         HfTransformType::AFV3 => {
             transform_buffer[0] = lf[0];
-            let block: Vec<f32> = transform_buffer[0..64].to_vec();
+            let block: [f32; 64] = transform_buffer[0..64].try_into().unwrap();
             afv_transform_to_pixels::<D>(d, 3, &block, &mut transform_buffer[0..64]);
         }
         HfTransformType::IDENTITY => {

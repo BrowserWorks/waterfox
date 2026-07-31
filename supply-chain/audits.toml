@@ -3972,11 +3972,15 @@ delta = "0.4.1 -> 0.4.3"
 notes = "A small number of smaller misc changes. No unsafe changed, added, or removed."
 
 [[audits.jxl]]
-who = "Timothy Nikkel <tnikkel@gmail.com>"
+who = "Ben Saunders <bsaunders@google.com>"
 criteria = "safe-to-deploy"
-delta = "0.4.3 -> 0.4.3@git:c41cbfaf34c2c8ebc3fb6655c885fe427ab9542a"
-importable = false
-notes = "A small number of smaller misc changes. No unsafe changed, added, or removed."
+version = "0.8.0"
+notes = """
+Delta review from v0.7.4.
+Copied from Google's additional-audits.toml as recorded in upstream commit
+4ca6aedd9dbd063c7086f147fd9018f4776a4da8:
+https://raw.githubusercontent.com/google/rust-crate-audits/main/manual-sources/additional-audits.toml
+"""
 
 [[audits.jxl_macros]]
 who = "Timothy Nikkel <tnikkel@gmail.com>"
@@ -3985,11 +3989,15 @@ delta = "0.4.1 -> 0.4.3"
 notes = "A small number of smaller misc changes. No unsafe changed, added, or removed."
 
 [[audits.jxl_macros]]
-who = "Timothy Nikkel <tnikkel@gmail.com>"
+who = "Luca Versari <veluca@chromium.org>"
 criteria = "safe-to-deploy"
-delta = "0.4.3 -> 0.4.3@git:c41cbfaf34c2c8ebc3fb6655c885fe427ab9542a"
-importable = false
-notes = "A small number of smaller misc changes. No unsafe changed, added, or removed."
+version = "0.8.0"
+notes = """
+No unsafe code, no fs access.
+Copied from Google's additional-audits.toml as recorded in upstream commit
+4ca6aedd9dbd063c7086f147fd9018f4776a4da8:
+https://raw.githubusercontent.com/google/rust-crate-audits/main/manual-sources/additional-audits.toml
+"""
 
 [[audits.jxl_simd]]
 who = "Timothy Nikkel <tnikkel@gmail.com>"
@@ -4004,6 +4012,17 @@ delta = "0.4.3 -> 0.4.3@git:c41cbfaf34c2c8ebc3fb6655c885fe427ab9542a"
 importable = false
 notes = "A small number of smaller misc changes. No unsafe changed, added, or removed."
 
+[[audits.jxl_simd]]
+who = "Luca Versari <veluca@chromium.org>"
+criteria = "safe-to-deploy"
+version = "0.8.0"
+notes = """
+Delta review from v0.7.4: no unsafe-relevant changes.
+Copied from Google's additional-audits.toml as recorded in upstream commit
+4ca6aedd9dbd063c7086f147fd9018f4776a4da8:
+https://raw.githubusercontent.com/google/rust-crate-audits/main/manual-sources/additional-audits.toml
+"""
+
 [[audits.jxl_transforms]]
 who = "Timothy Nikkel <tnikkel@gmail.com>"
 criteria = "safe-to-deploy"
@@ -4011,11 +4030,15 @@ delta = "0.4.1 -> 0.4.3"
 notes = "A small number of smaller misc changes. No unsafe changed, added, or removed."
 
 [[audits.jxl_transforms]]
-who = "Timothy Nikkel <tnikkel@gmail.com>"
+who = "Luca Versari <veluca@chromium.org>"
 criteria = "safe-to-deploy"
-delta = "0.4.3 -> 0.4.3@git:c41cbfaf34c2c8ebc3fb6655c885fe427ab9542a"
-importable = false
-notes = "A small number of smaller misc changes. No unsafe changed, added, or removed."
+version = "0.8.0"
+notes = """
+No unsafe code, no fs access.
+Copied from Google's additional-audits.toml as recorded in upstream commit
+4ca6aedd9dbd063c7086f147fd9018f4776a4da8:
+https://raw.githubusercontent.com/google/rust-crate-audits/main/manual-sources/additional-audits.toml
+"""
 
 [[audits.keccak]]
 who = "Simon Friedberger <simon@mozilla.com>"
@@ -5470,18 +5493,6 @@ notes = "The crate does not use any unsafe code or ambient capabilities and thus
 who = "Simon Friedberger <simon@mozilla.com>"
 criteria = "safe-to-deploy"
 version = "0.9.1"
-
-[[audits.proc-macro-error-attr2]]
-who = "Kagami Sascha Rosylight <saschanaz@outlook.com>"
-criteria = "safe-to-deploy"
-version = "2.0.0"
-notes = "No unsafe block."
-
-[[audits.proc-macro-error2]]
-who = "Kagami Sascha Rosylight <saschanaz@outlook.com>"
-criteria = "safe-to-deploy"
-version = "2.0.1"
-notes = "No unsafe block with a lovely `#![forbid(unsafe_code)]`."
 
 [[audits.proc-macro-hack]]
 who = "Mike Hommey <mh+mozilla@glandium.org>"

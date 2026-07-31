@@ -3,16 +3,21 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use std::{borrow::Cow, fmt};
+use std::borrow::Cow;
+use std::fmt;
 
-use crate::{
-    color::tf::{hlg_to_scene, linear_to_pq_precise, pq_to_linear_precise},
-    error::{Error, Result},
-    headers::color_encoding::{
-        ColorEncoding, ColorSpace, Primaries, RenderingIntent, TransferFunction, WhitePoint,
-    },
-    util::{Matrix3x3, Vector3, inv_3x3_matrix, mul_3x3_matrix, mul_3x3_vector},
+use crate::bit_reader::BitReader;
+use crate::color::tf::{
+    hlg_system_gamma, hlg_to_scene, linear_to_pq_simd_vec, pq_to_linear_precise,
 };
+use crate::error::{Error, Result};
+pub use crate::headers::color_encoding::RenderingIntent;
+use crate::headers::color_encoding::{
+    ColorEncoding, ColorSpace, Primaries, TransferFunction, WhitePoint,
+};
+use crate::headers::encodings::{Empty, UnconditionalCoder};
+use crate::icc::IncrementalIccReader;
+use crate::util::{Matrix3x3, Vector3, inv_3x3_matrix, mul_3x3_matrix, mul_3x3_vector};
 
 // Bradford matrices for chromatic adaptation
 const K_BRADFORD: Matrix3x3<f64> = [
@@ -765,6 +770,50 @@ impl JxlColorEncoding {
         Ok(header_data)
     }
 
+    /// Validates that custom color primaries and white points produce a well-conditioned
+    /// RGB-to-XYZ matrix and chromatic adaptation matrix that fit within ICC s15Fixed16 format.
+    pub fn validate_icc_matrix(&self) -> Result<(), Error> {
+        let is_s15_fixed_16 = |value: f32| (-32767.995..=32767.995).contains(&value);
+
+        match self {
+            JxlColorEncoding::GrayscaleColorSpace { white_point, .. } => {
+                let (wx, wy) = white_point.to_xy_coords();
+                let xyz = cie_xyz_from_white_cie_xy(wx, wy)?;
+                for val in xyz {
+                    if !is_s15_fixed_16(val) {
+                        return Err(Error::IccValueOutOfRangeS15Fixed16(val));
+                    }
+                }
+            }
+            JxlColorEncoding::RgbColorSpace {
+                white_point,
+                primaries,
+                ..
+            } => {
+                let (wx, wy) = white_point.to_xy_coords();
+                let chad = adapt_to_xyz_d50(wx, wy)?;
+                for row in &chad {
+                    for &val in row {
+                        if !is_s15_fixed_16(val as f32) {
+                            return Err(Error::IccValueOutOfRangeS15Fixed16(val as f32));
+                        }
+                    }
+                }
+                let [r, g, b] = primaries.to_xy_coords();
+                let m = create_icc_rgb_matrix(r.0, r.1, g.0, g.1, b.0, b.1, wx, wy)?;
+                for row in &m {
+                    for &val in row {
+                        if !is_s15_fixed_16(val) {
+                            return Err(Error::IccValueOutOfRangeS15Fixed16(val));
+                        }
+                    }
+                }
+            }
+            JxlColorEncoding::XYB { .. } => {}
+        }
+        Ok(())
+    }
+
     pub fn maybe_create_profile(&self) -> Result<Option<Vec<u8>>, Error> {
         if let JxlColorEncoding::XYB { rendering_intent } = self
             && *rendering_intent != RenderingIntent::Perceptual
@@ -996,7 +1045,7 @@ impl JxlColorEncoding {
                             create_icc_curv_para_tag(&mut tags_data, &PARAMS, 3)?
                         }
                         JxlTransferFunction::HLG | JxlTransferFunction::PQ => {
-                            let params = create_table_curve(64, transfer_function, false)?;
+                            let params = create_table_curve(64, transfer_function)?;
                             create_icc_curv_para_tag(&mut tags_data, params.as_slice(), 3)?
                         }
                     };
@@ -1063,17 +1112,6 @@ impl JxlColorEncoding {
             // let padded_size = tag_info.size_unpadded.next_multiple_of(4);
             // tag_table_bytes.extend_from_slice(&padded_size.to_be_bytes());
         }
-
-        // Assemble the final ICC profile parts: header + tag_table + tags_data
-        let mut final_icc_profile_data: Vec<u8> =
-            Vec::with_capacity(header.len() + tag_table_bytes.len() + tags_data.len());
-        final_icc_profile_data.extend_from_slice(&header);
-        final_icc_profile_data.extend_from_slice(&tag_table_bytes);
-        final_icc_profile_data.extend_from_slice(&tags_data);
-
-        // Update the profile size in the header (at offset 0)
-        let total_profile_size = final_icc_profile_data.len() as u32;
-        write_u32_be(&mut final_icc_profile_data, 0, total_profile_size)?;
 
         // Assemble the final ICC profile parts: header + tag_table + tags_data
         let mut final_icc_profile_data: Vec<u8> =
@@ -1186,13 +1224,52 @@ impl JxlColorEncoding {
     }
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum JxlColorProfile {
     Icc(Vec<u8>),
     Simple(JxlColorEncoding),
 }
 
 impl JxlColorProfile {
+    /// Decodes the color encoding and compressed ICC field.
+    ///
+    /// This is mainly used to decode an HDR gain map data.
+    pub fn from_raw_bytes(color_encoding: &[u8], encoded_icc: &[u8]) -> Result<Self> {
+        if color_encoding.is_empty() && encoded_icc.is_empty() {
+            return Err(Error::ApiUsageError(
+                "color_encoding and encoded_icc cannot be both empty",
+            ));
+        }
+
+        if !color_encoding.is_empty() {
+            let mut reader = BitReader::new(color_encoding);
+            let encoding = ColorEncoding::read_unconditional(&(), &mut reader, &Empty {})?;
+            reader.jump_to_byte_boundary()?;
+            if reader.total_bits_available() != 0 {
+                return Err(Error::InvalidColorEncoding);
+            }
+
+            if !encoding.want_icc {
+                if !encoded_icc.is_empty() {
+                    return Err(Error::InvalidColorEncoding);
+                }
+                return Ok(Self::Simple(JxlColorEncoding::from_internal(&encoding)?));
+            }
+        }
+
+        let mut reader = BitReader::new(encoded_icc);
+        let mut icc = IncrementalIccReader::new(&mut reader)?;
+        while icc.remaining() != 0 {
+            icc.read_one(&mut reader)?;
+        }
+        let profile = icc.finalize(&mut reader)?;
+        reader.jump_to_byte_boundary()?;
+        if reader.total_bits_available() != 0 {
+            return Err(Error::InvalidIccStream);
+        }
+        Ok(Self::Icc(profile))
+    }
+
     /// Returns the ICC profile, panicking if unavailable.
     ///
     /// # Panics
@@ -1223,7 +1300,7 @@ impl JxlColorProfile {
     ///
     /// Two profiles are the same if they are both simple color encodings
     /// with matching color space (primaries, white point) and transfer function.
-    /// ICC profiles are never considered the same (even if identical bytes).
+    /// ICC profiles are considered the same if they have identical bytes.
     pub fn same_color_encoding(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Simple(a), Self::Simple(b)) => {
@@ -1302,7 +1379,7 @@ impl JxlColorProfile {
 
     /// Returns a copy of this profile with linear transfer function.
     /// For ICC profiles, returns None since we can't modify embedded ICC profiles.
-    /// This is used to create the CMS input profile for XYB images where XybStage
+    /// This is used to create the CMS input profile for XYB images where XybColorConvertStage
     /// outputs linear data.
     pub fn with_linear_tf(&self) -> Option<Self> {
         match self {
@@ -1360,36 +1437,6 @@ impl fmt::Display for JxlColorProfile {
             Self::Simple(enc) => write!(f, "{}", enc),
         }
     }
-}
-
-pub trait JxlCmsTransformer {
-    /// Runs a single transform. The buffers each contain `num_pixels` x `num_channels` interleaved
-    /// floating point (0..1) samples, where `num_channels` is the number of color channels of
-    /// their respective color profiles. For CMYK data, 0 represents the maximum amount of ink
-    /// while 1 represents no ink.
-    fn do_transform(&mut self, input: &[f32], output: &mut [f32]) -> Result<()>;
-
-    /// Runs a single transform in-place. The buffer contains `num_pixels` x `num_channels`
-    /// interleaved floating point (0..1) samples, where `num_channels` is the number of color
-    /// channels of the input and output color profiles. For CMYK data, 0 represents the maximum
-    /// amount of ink while 1 represents no ink.
-    fn do_transform_inplace(&mut self, inout: &mut [f32]) -> Result<()>;
-}
-
-pub trait JxlCms {
-    /// Initializes `n` transforms (different transforms might be used in parallel) to
-    /// convert from color space `input` to colorspace `output`, assuming an intensity of 1.0 for
-    /// non-absolute luminance colorspaces of `intensity_target`.
-    /// It is an error to not return `n` transforms.
-    /// Returns the number of channels the ICC outputs, and the transforms.
-    fn initialize_transforms(
-        &self,
-        n: usize,
-        max_pixels_per_transform: usize,
-        input: JxlColorProfile,
-        output: JxlColorProfile,
-        intensity_target: f32,
-    ) -> Result<(usize, Vec<Box<dyn JxlCmsTransformer + Send>>)>;
 }
 
 /// Writes a u32 value in big-endian format to the slice at the given position.
@@ -1578,503 +1625,28 @@ fn create_icc_curv_para_tag(
     Ok((tags_data.len() - start_offset) as u32)
 }
 
-fn display_from_encoded_pq(display_intensity_target: f32, mut e: f64) -> f64 {
-    const M1: f64 = 2610.0 / 16384.0;
-    const M2: f64 = (2523.0 / 4096.0) * 128.0;
-    const C1: f64 = 3424.0 / 4096.0;
-    const C2: f64 = (2413.0 / 4096.0) * 32.0;
-    const C3: f64 = (2392.0 / 4096.0) * 32.0;
-    // Handle the zero case directly.
-    if e == 0.0 {
-        return 0.0;
-    }
-
-    // Handle negative inputs by using their absolute
-    // value for the calculation and reapplying the sign at the end.
-    let original_sign = e.signum();
-    e = e.abs();
-
-    // Core PQ EOTF formula from ST 2084.
-    let xp = e.powf(1.0 / M2);
-    let num = (xp - C1).max(0.0);
-    let den = C2 - C3 * xp;
-
-    // In release builds, a zero denominator would lead to `inf` or `NaN`,
-    // which is handled by the assertion below. For valid inputs (e in [0,1]),
-    // the denominator is always positive.
-    debug_assert!(den != 0.0, "PQ transfer function denominator is zero.");
-
-    let d = (num / den).powf(1.0 / M1);
-
-    // The result `d` should always be non-negative for non-negative inputs.
-    debug_assert!(
-        d >= 0.0,
-        "PQ intermediate value `d` should not be negative."
-    );
-
-    // The libjxl implementation includes a scaling factor. Note that `d` represents
-    // a value normalized to a 10,000 nit peak.
-    let scaled_d = d * (10000.0 / display_intensity_target as f64);
-
-    // Re-apply the original sign.
-    scaled_d.copysign(original_sign)
-}
-
-/// TF_HLG_Base class for BT.2100 HLG.
-///
-/// This struct provides methods to convert between non-linear encoded HLG signals
-/// and linear display-referred light, following the definitions in BT.2100-2.
-///
-/// - **"display"**: linear light, normalized to [0, 1].
-/// - **"encoded"**: a non-linear HLG signal, nominally in [0, 1].
-/// - **"scene"**: scene-referred linear light, normalized to [0, 1].
-///
-/// The functions are designed to be unbounded to handle inputs outside the
-/// nominal [0, 1] range, which can occur during color space conversions. Negative
-/// inputs are handled by mirroring the function (`f(-x) = -f(x)`).
-#[allow(non_camel_case_types)]
-struct TF_HLG;
-
-impl TF_HLG {
-    // Constants for the HLG formula, as defined in BT.2100.
-    const A: f64 = 0.17883277;
-    const RA: f64 = 1.0 / Self::A;
-    const B: f64 = 1.0 - 4.0 * Self::A;
-    const C: f64 = 0.5599107295;
-    const INV_12: f64 = 1.0 / 12.0;
-
-    /// Converts a non-linear encoded signal to a linear display value (EOTF).
-    ///
-    /// This corresponds to `DisplayFromEncoded(e) = OOTF(InvOETF(e))`.
-    /// Since the OOTF is simplified to an identity function, this is equivalent
-    /// to calling `inv_oetf(e)`.
-    #[inline]
-    fn display_from_encoded(e: f64) -> f64 {
-        Self::inv_oetf(e)
-    }
-
-    /// Converts a linear display value to a non-linear encoded signal (inverse EOTF).
-    ///
-    /// This corresponds to `EncodedFromDisplay(d) = OETF(InvOOTF(d))`.
-    /// Since the InvOOTF is an identity function, this is equivalent to `oetf(d)`.
-    #[inline]
-    #[allow(dead_code)]
-    fn encoded_from_display(d: f64) -> f64 {
-        Self::oetf(d)
-    }
-
-    /// The private HLG OETF, converting scene-referred light to a non-linear signal.
-    fn oetf(mut s: f64) -> f64 {
-        if s == 0.0 {
-            return 0.0;
-        }
-        let original_sign = s.signum();
-        s = s.abs();
-
-        let e = if s <= Self::INV_12 {
-            (3.0 * s).sqrt()
-        } else {
-            Self::A * (12.0 * s - Self::B).ln() + Self::C
-        };
-
-        // The result should be positive for positive inputs.
-        debug_assert!(e > 0.0);
-
-        e.copysign(original_sign)
-    }
-
-    /// The private HLG inverse OETF, converting a non-linear signal back to scene-referred light.
-    fn inv_oetf(mut e: f64) -> f64 {
-        if e == 0.0 {
-            return 0.0;
-        }
-        let original_sign = e.signum();
-        e = e.abs();
-
-        let s = if e <= 0.5 {
-            // The `* (1.0 / 3.0)` is slightly more efficient than `/ 3.0`.
-            e * e * (1.0 / 3.0)
-        } else {
-            (((e - Self::C) * Self::RA).exp() + Self::B) * Self::INV_12
-        };
-
-        // The result should be non-negative for non-negative inputs.
-        debug_assert!(s >= 0.0);
-
-        s.copysign(original_sign)
-    }
-}
-
-/// Creates a lookup table for an ICC `curv` tag from a transfer function.
-///
-/// This function generates a vector of 16-bit integers representing the response
-/// of the HLG or PQ electro-optical transfer functions (EOTF).
-///
-/// ### Arguments
-/// * `n` - The number of entries in the lookup table. Must not exceed 4096.
-/// * `tf` - The transfer function to model, either `TransferFunction::HLG` or `TransferFunction::PQ`.
-/// * `tone_map` - A boolean to enable tone mapping for PQ curves. Currently a stub.
-///
-/// ### Returns
-/// A `Result` containing the `Vec<f32>` lookup table or an `Error`.
-fn create_table_curve(
-    n: usize,
-    tf: &JxlTransferFunction,
-    tone_map: bool,
-) -> Result<Vec<f32>, Error> {
-    // ICC Specification (v4.4, section 10.6) for `curveType` with `curv`
-    // processing elements states the table can have at most 4096 entries.
+/// Creates a lookup table for an ICC curve tag from a transfer function.
+fn create_table_curve(n: usize, tf: &JxlTransferFunction) -> Result<Vec<f32>, Error> {
     if n > 4096 {
         return Err(Error::IccTableSizeExceeded(n));
     }
-
-    if !matches!(tf, JxlTransferFunction::PQ | JxlTransferFunction::HLG) {
-        return Err(Error::IccUnsupportedTransferFunction);
-    }
-
-    // The peak luminance for PQ decoding, as specified in the original C++ code.
-    const PQ_INTENSITY_TARGET: f64 = 10000.0;
-    // The target peak luminance for SDR, used if tone mapping is applied.
-    const DEFAULT_INTENSITY_TARGET: f64 = 255.0; // Placeholder value
-
-    let mut table = Vec::with_capacity(n);
-    for i in 0..n {
-        // `x` represents the normalized input signal, from 0.0 to 1.0.
-        let x = i as f64 / (n - 1) as f64;
-
-        // Apply the specified EOTF to get the linear light value `y`.
-        // The output `y` is normalized to the range [0.0, 1.0].
-        let y = match tf {
-            JxlTransferFunction::HLG => TF_HLG::display_from_encoded(x),
-            JxlTransferFunction::PQ => {
-                // For PQ, the output of the EOTF is absolute luminance, so we
-                // normalize it back to [0, 1] relative to the peak luminance.
-                display_from_encoded_pq(PQ_INTENSITY_TARGET as f32, x) / PQ_INTENSITY_TARGET
-            }
-            _ => unreachable!(), // Already checked above.
-        };
-
-        // Apply tone mapping if requested.
-        if tone_map
-            && *tf == JxlTransferFunction::PQ
-            && PQ_INTENSITY_TARGET > DEFAULT_INTENSITY_TARGET
-        {
-            // TODO(firsching): add tone mapping here. (make y mutable for this)
-            // let linear_luminance = y * PQ_INTENSITY_TARGET;
-            // let tone_mapped_luminance = rec2408_tone_map(linear_luminance)?;
-            // y = tone_mapped_luminance / DEFAULT_INTENSITY_TARGET;
-        }
-
-        // Clamp the final value to the valid range [0.0, 1.0]. This is
-        // particularly important for HLG, which can exceed 1.0.
-        let y_clamped = y.clamp(0.0, 1.0);
-
-        // table.push((y_clamped * 65535.0).round() as u16);
-        table.push(y_clamped as f32);
-    }
-
-    Ok(table)
-}
-
-// ============================================================================
-// HDR Tone Mapping Implementation
-// ============================================================================
-
-/// BT.2408 HDR to SDR tone mapper.
-/// Maps PQ content from source range (e.g., 0-10000 nits) to target range (e.g., 0-250 nits).
-struct Rec2408ToneMapper {
-    source_range: (f32, f32), // (min, max) in nits
-    target_range: (f32, f32),
-    luminances: [f32; 3], // RGB luminance coefficients (Y values)
-
-    // Precomputed values
-    pq_mastering_min: f32,
-    #[allow(dead_code)] // Stored for potential future use / debugging
-    pq_mastering_max: f32,
-    pq_mastering_range: f32,
-    inv_pq_mastering_range: f32,
-    min_lum: f32,
-    max_lum: f32,
-    ks: f32,
-    inv_one_minus_ks: f32,
-    normalizer: f32,
-    inv_target_peak: f32,
-}
-
-impl Rec2408ToneMapper {
-    fn new(source_range: (f32, f32), target_range: (f32, f32), luminances: [f32; 3]) -> Self {
-        let pq_mastering_min = Self::linear_to_pq(source_range.0);
-        let pq_mastering_max = Self::linear_to_pq(source_range.1);
-        let pq_mastering_range = pq_mastering_max - pq_mastering_min;
-        let inv_pq_mastering_range = 1.0 / pq_mastering_range;
-
-        let min_lum =
-            (Self::linear_to_pq(target_range.0) - pq_mastering_min) * inv_pq_mastering_range;
-        let max_lum =
-            (Self::linear_to_pq(target_range.1) - pq_mastering_min) * inv_pq_mastering_range;
-        let ks = 1.5 * max_lum - 0.5;
-
-        Self {
-            source_range,
-            target_range,
-            luminances,
-            pq_mastering_min,
-            pq_mastering_max,
-            pq_mastering_range,
-            inv_pq_mastering_range,
-            min_lum,
-            max_lum,
-            ks,
-            inv_one_minus_ks: 1.0 / (1.0 - ks).max(1e-6),
-            normalizer: source_range.1 / target_range.1,
-            inv_target_peak: 1.0 / target_range.1,
-        }
-    }
-
-    /// PQ inverse EOTF - converts luminance (nits) to PQ encoded value.
-    /// Uses the existing `linear_to_pq_precise` from color::tf.
-    fn linear_to_pq(luminance: f32) -> f32 {
-        let mut val = [luminance / 10000.0]; // Normalize to 0-1 for 10000 nits
-        linear_to_pq_precise(10000.0, &mut val);
-        val[0]
-    }
-
-    /// PQ EOTF - converts PQ encoded value to luminance (nits).
-    /// Uses the existing `pq_to_linear_precise` from color::tf.
-    fn pq_to_linear(encoded: f32) -> f32 {
-        let mut val = [encoded];
-        pq_to_linear_precise(10000.0, &mut val);
-        val[0] * 10000.0
-    }
-
-    fn t(&self, a: f32) -> f32 {
-        (a - self.ks) * self.inv_one_minus_ks
-    }
-
-    fn p(&self, b: f32) -> f32 {
-        let t_b = self.t(b);
-        let t_b_2 = t_b * t_b;
-        let t_b_3 = t_b_2 * t_b;
-        (2.0 * t_b_3 - 3.0 * t_b_2 + 1.0) * self.ks
-            + (t_b_3 - 2.0 * t_b_2 + t_b) * (1.0 - self.ks)
-            + (-2.0 * t_b_3 + 3.0 * t_b_2) * self.max_lum
-    }
-
-    /// Apply tone mapping to RGB values (in-place)
-    fn tone_map(&self, rgb: &mut [f32; 3]) {
-        let luminance = self.source_range.1
-            * (self.luminances[0] * rgb[0]
-                + self.luminances[1] * rgb[1]
-                + self.luminances[2] * rgb[2]);
-
-        let normalized_pq = ((Self::linear_to_pq(luminance) - self.pq_mastering_min)
-            * self.inv_pq_mastering_range)
-            .min(1.0);
-
-        let e2 = if normalized_pq < self.ks {
-            normalized_pq
-        } else {
-            self.p(normalized_pq)
-        };
-
-        let one_minus_e2 = 1.0 - e2;
-        let one_minus_e2_2 = one_minus_e2 * one_minus_e2;
-        let one_minus_e2_4 = one_minus_e2_2 * one_minus_e2_2;
-        let e3 = self.min_lum * one_minus_e2_4 + e2;
-        let e4 = e3 * self.pq_mastering_range + self.pq_mastering_min;
-        let d4 = Self::pq_to_linear(e4);
-        let new_luminance = d4.clamp(0.0, self.target_range.1);
-
-        let min_luminance = 1e-6;
-        let use_cap = luminance <= min_luminance;
-        let ratio = new_luminance / luminance.max(min_luminance);
-        let cap = new_luminance * self.inv_target_peak;
-        let multiplier = ratio * self.normalizer;
-
-        for c in rgb.iter_mut() {
-            *c = if use_cap { cap } else { *c * multiplier };
-        }
-    }
-}
-
-/// Apply HLG OOTF for tone mapping HLG content to SDR.
-/// This implements the HLG OOTF inline for a single pixel, based on the same math
-/// as `color::tf::hlg_scene_to_display` but avoiding the bulk-processing API.
-fn apply_hlg_ootf(rgb: &mut [f32; 3], target_luminance: f32, luminances: [f32; 3]) {
-    // HLG OOTF: scene-referred to display-referred conversion
-    // system_gamma = 1.2 * 1.111^log2(intensity_display / 1000)
-    let system_gamma = 1.2_f32 * 1.111_f32.powf((target_luminance / 1e3).log2());
-    let exp = system_gamma - 1.0;
-
-    if exp.abs() < 0.1 {
-        return;
-    }
-
-    // Compute luminance and apply OOTF
-    let mixed = rgb[0] * luminances[0] + rgb[1] * luminances[1] + rgb[2] * luminances[2];
-    let mult = crate::util::fast_powf(mixed, exp);
-    rgb[0] *= mult;
-    rgb[1] *= mult;
-    rgb[2] *= mult;
-}
-
-/// Desaturate out-of-gamut pixels while preserving luminance.
-fn gamut_map(rgb: &mut [f32; 3], luminances: &[f32; 3], preserve_saturation: f32) {
-    let luminance = luminances[0] * rgb[0] + luminances[1] * rgb[1] + luminances[2] * rgb[2];
-
-    let mut gray_mix_saturation = 0.0_f32;
-    let mut gray_mix_luminance = 0.0_f32;
-
-    for &val in rgb.iter() {
-        let val_minus_gray = val - luminance;
-        let inv_val_minus_gray = if val_minus_gray == 0.0 {
-            1.0
-        } else {
-            1.0 / val_minus_gray
-        };
-        let val_over_val_minus_gray = val * inv_val_minus_gray;
-
-        if val_minus_gray < 0.0 {
-            gray_mix_saturation = gray_mix_saturation.max(val_over_val_minus_gray);
-        }
-
-        gray_mix_luminance = gray_mix_luminance.max(if val_minus_gray <= 0.0 {
-            gray_mix_saturation
-        } else {
-            val_over_val_minus_gray - inv_val_minus_gray
-        });
-    }
-
-    let gray_mix = (preserve_saturation * (gray_mix_saturation - gray_mix_luminance)
-        + gray_mix_luminance)
-        .clamp(0.0, 1.0);
-
-    for val in rgb.iter_mut() {
-        *val = gray_mix * (luminance - *val) + *val;
-    }
-
-    let max_clr = rgb[0].max(rgb[1]).max(rgb[2]).max(1.0);
-    let normalizer = 1.0 / max_clr;
-    for v in rgb.iter_mut() {
-        *v *= normalizer;
-    }
-}
-
-/// Tone map a single pixel and convert to PCS Lab for ICC profile.
-fn tone_map_pixel(
-    transfer_function: &JxlTransferFunction,
-    primaries: &JxlPrimaries,
-    white_point: &JxlWhitePoint,
-    input: [f32; 3],
-) -> Result<[u8; 3], Error> {
-    // Get primaries coordinates
-    let primaries_coords = primaries.to_xy_coords();
-    let (rx, ry) = primaries_coords[0];
-    let (gx, gy) = primaries_coords[1];
-    let (bx, by) = primaries_coords[2];
-    let (wx, wy) = white_point.to_xy_coords();
-
-    // Get the RGB to XYZ matrix (not adapted to D50 yet)
-    let primaries_xyz = primaries_to_xyz(rx, ry, gx, gy, bx, by, wx, wy)?;
-
-    // Extract luminances from Y row of the matrix
-    let luminances = [
-        primaries_xyz[1][0] as f32,
-        primaries_xyz[1][1] as f32,
-        primaries_xyz[1][2] as f32,
-    ];
-
-    // Apply EOTF to get linear values
-    let mut linear = match transfer_function {
-        JxlTransferFunction::PQ => {
-            // PQ EOTF - convert from encoded to linear (normalized to 0-1 range for 10000 nits)
-            [
-                Rec2408ToneMapper::pq_to_linear(input[0]) / 10000.0,
-                Rec2408ToneMapper::pq_to_linear(input[1]) / 10000.0,
-                Rec2408ToneMapper::pq_to_linear(input[2]) / 10000.0,
-            ]
-        }
-        JxlTransferFunction::HLG => {
-            // Use existing hlg_to_scene from color::tf
-            let mut vals = [input[0], input[1], input[2]];
-            hlg_to_scene(&mut vals);
-            vals
-        }
+    let mut table: Vec<f32> = (0..n).map(|i| i as f32 / (n - 1) as f32).collect();
+    match tf {
+        JxlTransferFunction::HLG => hlg_to_scene(&mut table),
+        JxlTransferFunction::PQ => pq_to_linear_precise(10000.0, &mut table),
         _ => return Err(Error::IccUnsupportedTransferFunction),
-    };
-
-    // Apply tone mapping
-    match transfer_function {
-        JxlTransferFunction::PQ => {
-            let tone_mapper = Rec2408ToneMapper::new(
-                (0.0, 10000.0), // PQ source range
-                (0.0, 250.0),   // SDR target range
-                luminances,
-            );
-            tone_mapper.tone_map(&mut linear);
-        }
-        JxlTransferFunction::HLG => {
-            // Apply HLG OOTF (80 nit SDR target)
-            apply_hlg_ootf(&mut linear, 80.0, luminances);
-        }
-        _ => {}
     }
-
-    // Gamut map
-    gamut_map(&mut linear, &luminances, 0.3);
-
-    // Get chromatic adaptation matrix
-    let chad = adapt_to_xyz_d50(wx, wy)?;
-
-    // Combine matrices: to_xyzd50 = chad * primaries_xyz
-    // Use mul_3x3_matrix from util which works with f64
-    let to_xyzd50_f64 = mul_3x3_matrix(&chad, &primaries_xyz);
-
-    // Convert to f32 for the final calculation
-    let to_xyzd50: [[f32; 3]; 3] =
-        std::array::from_fn(|r| std::array::from_fn(|c| to_xyzd50_f64[r][c] as f32));
-
-    // Apply matrix to get XYZ D50
-    let xyz = [
-        linear[0] * to_xyzd50[0][0] + linear[1] * to_xyzd50[0][1] + linear[2] * to_xyzd50[0][2],
-        linear[0] * to_xyzd50[1][0] + linear[1] * to_xyzd50[1][1] + linear[2] * to_xyzd50[1][2],
-        linear[0] * to_xyzd50[2][0] + linear[1] * to_xyzd50[2][1] + linear[2] * to_xyzd50[2][2],
-    ];
-
-    // Convert XYZ to Lab
-    // D50 reference white
-    const XN: f32 = 0.964212;
-    const YN: f32 = 1.0;
-    const ZN: f32 = 0.825188;
-    const DELTA: f32 = 6.0 / 29.0;
-
-    let lab_f = |x: f32| -> f32 {
-        if x <= DELTA * DELTA * DELTA {
-            x * (1.0 / (3.0 * DELTA * DELTA)) + 4.0 / 29.0
-        } else {
-            x.cbrt()
-        }
-    };
-
-    let f_x = lab_f(xyz[0] / XN);
-    let f_y = lab_f(xyz[1] / YN);
-    let f_z = lab_f(xyz[2] / ZN);
-
-    // Convert to ICC PCS Lab encoding (8-bit)
-    // L* = 116 * f(Y/Yn) - 16, encoded as L* / 100 * 255
-    // a* = 500 * (f(X/Xn) - f(Y/Yn)), encoded as (a* + 128) for 8-bit
-    // b* = 200 * (f(Y/Yn) - f(Z/Zn)), encoded as (b* + 128) for 8-bit
-    Ok([
-        (255.0 * (1.16 * f_y - 0.16).clamp(0.0, 1.0)).round() as u8,
-        (128.0 + (500.0 * (f_x - f_y)).clamp(-128.0, 127.0)).round() as u8,
-        (128.0 + (200.0 * (f_y - f_z)).clamp(-128.0, 127.0)).round() as u8,
-    ])
+    for v in &mut table {
+        *v = v.clamp(0.0, 1.0);
+    }
+    Ok(table)
 }
 
 /// Create mAB A2B0 tag for XYB color space.
 fn create_icc_lut_atob_tag_for_xyb(tags: &mut Vec<u8>) -> Result<(), Error> {
-    use super::xyb_constants::*;
     use byteorder::{BigEndian, WriteBytesExt};
+
+    use super::xyb_constants::*;
 
     // Tag signature: 'mAB '
     tags.extend_from_slice(b"mAB ");
@@ -2186,50 +1758,119 @@ fn create_icc_lut_atob_tag_for_hdr(
     tags.extend_from_slice(b"mft1");
     // Reserved
     tags.extend_from_slice(&0u32.to_be_bytes());
-    // Number of input channels
-    tags.push(3);
-    // Number of output channels
-    tags.push(3);
-    // Number of CLUT grid points
-    tags.push(LUT_DIM as u8);
-    // Padding
-    tags.push(0);
+    // Number of input channels, output channels, CLUT grid points, padding
+    tags.extend_from_slice(&[3, 3, LUT_DIM as u8, 0]);
 
     // Identity matrix (3x3, s15Fixed16)
     for i in 0..3 {
         for j in 0..3 {
-            let val: f32 = if i == j { 1.0 } else { 0.0 };
-            append_s15_fixed_16(tags, val)?;
+            append_s15_fixed_16(tags, if i == j { 1.0 } else { 0.0 })?;
         }
     }
 
     // Input tables (identity, 256 entries per channel)
     for _ in 0..3 {
-        for i in 0..256 {
-            tags.push(i as u8);
-        }
+        tags.extend(0..=255u8);
     }
 
+    let [(rx, ry), (gx, gy), (bx, by)] = primaries.to_xy_coords();
+    let (wx, wy) = white_point.to_xy_coords();
+    let primaries_xyz = primaries_to_xyz(rx, ry, gx, gy, bx, by, wx, wy)?;
+    let luminances = [
+        primaries_xyz[1][0] as f32,
+        primaries_xyz[1][1] as f32,
+        primaries_xyz[1][2] as f32,
+    ];
+    let chad = adapt_to_xyz_d50(wx, wy)?;
+    let to_xyzd50 = mul_3x3_matrix(&chad, &primaries_xyz);
+    let to_xyzd50: [[f32; 3]; 3] =
+        std::array::from_fn(|r| std::array::from_fn(|c| to_xyzd50[r][c] as f32));
+
+    // Precompute 1D EOTF on the 9 grid coordinates.
+    let mut eotf_lut: [f32; LUT_DIM] = std::array::from_fn(|i| i as f32 / (LUT_DIM - 1) as f32);
+    match transfer_function {
+        JxlTransferFunction::PQ => pq_to_linear_precise(10000.0, &mut eotf_lut),
+        JxlTransferFunction::HLG => hlg_to_scene(&mut eotf_lut),
+        _ => return Err(Error::IccUnsupportedTransferFunction),
+    }
+
+    let hlg_exp = hlg_system_gamma(80.0) - 1.0;
+
     // 3D CLUT
-    for ix in 0..LUT_DIM {
-        for iy in 0..LUT_DIM {
-            for ib in 0..LUT_DIM {
-                let input = [
-                    ix as f32 / (LUT_DIM - 1) as f32,
-                    iy as f32 / (LUT_DIM - 1) as f32,
-                    ib as f32 / (LUT_DIM - 1) as f32,
-                ];
-                let pcslab = tone_map_pixel(transfer_function, primaries, white_point, input)?;
-                tags.extend_from_slice(&pcslab);
+    for &r in &eotf_lut {
+        for &g in &eotf_lut {
+            for &b in &eotf_lut {
+                let mut rgb = [r, g, b];
+                let y = luminances[0] * r + luminances[1] * g + luminances[2] * b;
+
+                // Tone map (BT.2408 10000 -> 250 nits for PQ, 80-nit OOTF for HLG)
+                let mult = match transfer_function {
+                    JxlTransferFunction::PQ if y > 1e-10 => {
+                        // PQ(250 nits) = 0.5991247
+                        const MAX_LUM: f32 = 0.599_124_7;
+                        const KS: f32 = 1.5 * MAX_LUM - 0.5;
+                        let mut q = linear_to_pq_simd_vec(jxl_simd::ScalarDescriptor, 1.0, 1e-4, y)
+                            .min(1.0);
+                        if q >= KS {
+                            let t = (q - KS) / (1.0 - KS);
+                            let t2 = t * t;
+                            let t3 = t2 * t;
+                            q = (2.0 * t3 - 3.0 * t2 + 1.0) * KS
+                                + (t3 - 2.0 * t2 + t) * (1.0 - KS)
+                                + (-2.0 * t3 + 3.0 * t2) * MAX_LUM;
+                        }
+                        let mut lin = [q];
+                        pq_to_linear_precise(250.0, &mut lin);
+                        lin[0].clamp(0.0, 1.0) / y
+                    }
+                    JxlTransferFunction::PQ => 0.0,
+                    JxlTransferFunction::HLG => crate::util::fast_powf(y, hlg_exp),
+                    _ => unreachable!(),
+                };
+                for v in &mut rgb {
+                    *v *= mult;
+                }
+
+                // Gamut map (desaturate out-of-gamut > 1.0 channels with preserve_saturation = 0.3)
+                let lum = y * mult;
+                let max_clr = rgb[0].max(rgb[1]).max(rgb[2]);
+                if max_clr > 1.0 {
+                    let gray_mix = (0.7 * (max_clr - 1.0) / (max_clr - lum)).clamp(0.0, 1.0);
+                    for v in &mut rgb {
+                        *v += gray_mix * (lum - *v);
+                    }
+                    let norm = 1.0 / rgb[0].max(rgb[1]).max(rgb[2]).max(1.0);
+                    for v in &mut rgb {
+                        *v *= norm;
+                    }
+                }
+
+                // Convert linear RGB -> XYZ D50 -> 8-bit PCS Lab
+                const WHITE_D50: [f32; 3] = [0.964212, 1.0, 0.825188];
+                const DELTA: f32 = 6.0 / 29.0;
+                let [f_x, f_y, f_z] = std::array::from_fn(|c| {
+                    let v = (rgb[0] * to_xyzd50[c][0]
+                        + rgb[1] * to_xyzd50[c][1]
+                        + rgb[2] * to_xyzd50[c][2])
+                        / WHITE_D50[c];
+                    if v <= DELTA * DELTA * DELTA {
+                        v * (1.0 / (3.0 * DELTA * DELTA)) + 4.0 / 29.0
+                    } else {
+                        v.cbrt()
+                    }
+                });
+                tags.extend_from_slice(&[
+                    (255.0 * (1.16 * f_y - 0.16).clamp(0.0, 1.0)).round() as u8,
+                    (128.0 + (500.0 * (f_x - f_y)).clamp(-128.0, 127.0)).round() as u8,
+                    (128.0 + (200.0 * (f_y - f_z)).clamp(-128.0, 127.0)).round() as u8,
+                ]);
             }
         }
     }
 
     // Output tables (identity, 256 entries per channel)
     for _ in 0..3 {
-        for i in 0..256 {
-            tags.push(i as u8);
-        }
+        tags.extend(0..=255u8);
     }
 
     Ok(())
@@ -2332,108 +1973,6 @@ mod test {
     }
 
     #[test]
-    fn test_rec2408_tone_mapper() {
-        // Test the Rec2408ToneMapper with BT.2100 luminances
-        let luminances = [0.2627, 0.6780, 0.0593]; // BT.2100/BT.2020
-        let tone_mapper = Rec2408ToneMapper::new((0.0, 10000.0), (0.0, 250.0), luminances);
-
-        // Test with a bright HDR pixel (should be compressed)
-        let mut rgb = [0.8, 0.8, 0.8]; // High values in PQ space = very bright
-        tone_mapper.tone_map(&mut rgb);
-        // Result should be within valid range
-        assert!(rgb[0] >= 0.0 && rgb[0] <= 1.0, "R out of range: {}", rgb[0]);
-        assert!(rgb[1] >= 0.0 && rgb[1] <= 1.0, "G out of range: {}", rgb[1]);
-        assert!(rgb[2] >= 0.0 && rgb[2] <= 1.0, "B out of range: {}", rgb[2]);
-
-        // Test with a dark pixel (should not be affected much)
-        let mut rgb_dark = [0.1, 0.1, 0.1];
-        tone_mapper.tone_map(&mut rgb_dark);
-        assert!(
-            rgb_dark[0] >= 0.0 && rgb_dark[0] <= 1.0,
-            "R out of range: {}",
-            rgb_dark[0]
-        );
-    }
-
-    #[test]
-    fn test_hlg_ootf() {
-        let luminances = [0.2627, 0.6780, 0.0593];
-
-        let mut rgb = [0.5, 0.5, 0.5];
-        apply_hlg_ootf(&mut rgb, 80.0, luminances);
-        // Result should be in valid range
-        assert!(rgb[0] >= 0.0, "R should be non-negative");
-        assert!(rgb[1] >= 0.0, "G should be non-negative");
-        assert!(rgb[2] >= 0.0, "B should be non-negative");
-    }
-
-    #[test]
-    fn test_gamut_map() {
-        let luminances = [0.2627, 0.6780, 0.0593];
-
-        // Test out-of-gamut pixel (negative value)
-        let mut rgb = [-0.1, 0.5, 0.5];
-        gamut_map(&mut rgb, &luminances, 0.3);
-        // All values should be non-negative after gamut mapping
-        assert!(rgb[0] >= 0.0, "R should be non-negative after gamut map");
-        assert!(rgb[1] >= 0.0, "G should be non-negative after gamut map");
-        assert!(rgb[2] >= 0.0, "B should be non-negative after gamut map");
-
-        // Test in-gamut pixel (should not change much)
-        let mut rgb_valid = [0.5, 0.3, 0.2];
-        gamut_map(&mut rgb_valid, &luminances, 0.3);
-        assert!(rgb_valid[0] >= 0.0 && rgb_valid[0] <= 1.0);
-        assert!(rgb_valid[1] >= 0.0 && rgb_valid[1] <= 1.0);
-        assert!(rgb_valid[2] >= 0.0 && rgb_valid[2] <= 1.0);
-    }
-
-    #[test]
-    fn test_tone_map_pixel_pq() {
-        let result = tone_map_pixel(
-            &JxlTransferFunction::PQ,
-            &JxlPrimaries::BT2100,
-            &JxlWhitePoint::D65,
-            [0.5, 0.5, 0.5],
-        );
-        assert!(result.is_ok());
-        let lab = result.unwrap();
-        // Lab L* should be in reasonable range for mid-gray after tone mapping
-        assert!(lab[0] > 0, "L* should be positive for non-black input");
-        // a* and b* should be near neutral (128) for achromatic input
-        assert!(
-            (lab[1] as i32 - 128).abs() < 10,
-            "a* should be near neutral"
-        );
-        assert!(
-            (lab[2] as i32 - 128).abs() < 10,
-            "b* should be near neutral"
-        );
-    }
-
-    #[test]
-    fn test_tone_map_pixel_hlg() {
-        let result = tone_map_pixel(
-            &JxlTransferFunction::HLG,
-            &JxlPrimaries::BT2100,
-            &JxlWhitePoint::D65,
-            [0.5, 0.5, 0.5],
-        );
-        assert!(result.is_ok());
-        let lab = result.unwrap();
-        // Lab L* should be in reasonable range
-        assert!(lab[0] > 0, "L* should be positive for non-black input");
-        // a* and b* should be near neutral (128) for achromatic input
-        assert!(
-            (lab[1] as i32 - 128).abs() < 10,
-            "a* should be near neutral"
-        );
-        assert!(
-            (lab[2] as i32 - 128).abs() < 10,
-            "b* should be near neutral"
-        );
-    }
-
-    #[test]
     fn test_hdr_icc_profile_generation_pq() {
         // Test that PQ HDR color encoding generates an ICC profile with A2B0/B2A0 tags.
         // This tests the complete HDR tone mapping pipeline without needing an actual
@@ -2502,24 +2041,6 @@ mod test {
     }
 
     #[test]
-    fn test_pq_eotf_inv_eotf_roundtrip() {
-        // Test that linear_to_pq and pq_to_linear are inverses
-        let test_values: [f32; 5] = [0.0, 100.0, 1000.0, 5000.0, 10000.0];
-        for &luminance in &test_values {
-            let encoded = Rec2408ToneMapper::linear_to_pq(luminance);
-            let decoded = Rec2408ToneMapper::pq_to_linear(encoded);
-            let diff = (luminance - decoded).abs();
-            assert!(
-                diff < 1.0,
-                "Roundtrip failed for {}: got {}, diff {}",
-                luminance,
-                decoded,
-                diff
-            );
-        }
-    }
-
-    #[test]
     fn test_can_tone_map_for_icc() {
         // PQ with D65 and standard primaries should be able to tone map
         let pq_bt2100 = JxlColorEncoding::RgbColorSpace {
@@ -2563,22 +2084,22 @@ mod test {
     /// Integration test: decode actual HDR PQ test file and verify ICC profile
     #[test]
     fn test_hdr_pq_file_icc_profile() {
-        use crate::api::{JxlDecoder, JxlDecoderOptions, ProcessingResult};
+        use crate::api::{Event, JxlDecoder, JxlDecoderOptions};
 
         let data = std::fs::read("resources/test/hdr_pq_test.jxl")
             .expect("Failed to read hdr_pq_test.jxl - run from jxl crate directory");
 
         let options = JxlDecoderOptions::default();
-        let decoder = JxlDecoder::new(options);
+        let mut decoder = JxlDecoder::new(options);
         let mut input: &[u8] = &data;
 
-        let decoder_info = match decoder.process(&mut input).unwrap() {
-            ProcessingResult::Complete { result } => result,
-            _ => panic!("Expected complete decoding"),
-        };
+        assert_eq!(
+            decoder.process(&mut input, None, None).unwrap(),
+            Event::BasicInfo
+        );
 
         // Get the color profile
-        let color_profile = decoder_info.output_color_profile();
+        let color_profile = decoder.output_color_profile().unwrap();
 
         // For HDR PQ content, we should be able to generate an ICC profile
         let icc = color_profile.try_as_icc();
@@ -2605,22 +2126,22 @@ mod test {
     /// Integration test: decode actual HDR HLG test file and verify ICC profile
     #[test]
     fn test_hdr_hlg_file_icc_profile() {
-        use crate::api::{JxlDecoder, JxlDecoderOptions, ProcessingResult};
+        use crate::api::{Event, JxlDecoder, JxlDecoderOptions};
 
         let data = std::fs::read("resources/test/hdr_hlg_test.jxl")
             .expect("Failed to read hdr_hlg_test.jxl - run from jxl crate directory");
 
         let options = JxlDecoderOptions::default();
-        let decoder = JxlDecoder::new(options);
+        let mut decoder = JxlDecoder::new(options);
         let mut input: &[u8] = &data;
 
-        let decoder_info = match decoder.process(&mut input).unwrap() {
-            ProcessingResult::Complete { result } => result,
-            _ => panic!("Expected complete decoding"),
-        };
+        assert_eq!(
+            decoder.process(&mut input, None, None).unwrap(),
+            Event::BasicInfo
+        );
 
         // Get the color profile
-        let color_profile = decoder_info.output_color_profile();
+        let color_profile = decoder.output_color_profile().unwrap();
 
         // For HDR HLG content, we should be able to generate an ICC profile
         let icc = color_profile.try_as_icc();

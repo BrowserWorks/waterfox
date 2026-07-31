@@ -5,9 +5,8 @@
 
 use arbtest::arbitrary::Arbitrary;
 
-use crate::error::Result;
-
 use super::{Image, ImageDataType, Rect};
+use crate::error::Result;
 
 impl<T: ImageDataType> Image<T> {
     #[cfg(test)]
@@ -68,15 +67,29 @@ fn rect_basic() -> Result<()> {
 }
 
 #[test]
-#[should_panic(expected = "image byte offset must be aligned to element size")]
-fn image_from_raw_rejects_misaligned_offset() {
-    use super::OwnedRawImage;
-    // Regression test: Image<T>::from_raw used to check the base RawImageBuffer alignment but not
-    // OwnedRawImage's byte offset. This safe construction leaves the allocation itself 4-byte
-    // aligned while making row(0) start one byte later; accepting it would let Image::<u32>::row
-    // create a misaligned &[u32], which is UB.
-    let raw = OwnedRawImage::new_zeroed_with_padding((4, 1), (1, 0), (1, 0)).unwrap();
-    let _ = Image::<u32>::from_raw(raw);
+fn rect_intersects() {
+    let r1 = Rect {
+        origin: (0, 0),
+        size: (10, 10),
+    };
+    let r2 = Rect {
+        origin: (5, 5),
+        size: (10, 10),
+    };
+    let r3 = Rect {
+        origin: (10, 0),
+        size: (10, 10),
+    };
+    let r4 = Rect {
+        origin: (20, 20),
+        size: (10, 10),
+    };
+
+    assert!(r1.intersects(&r2));
+    assert!(r2.intersects(&r1));
+    assert!(!r1.intersects(&r3)); // touch at boundary
+    assert!(!r3.intersects(&r1));
+    assert!(!r1.intersects(&r4));
 }
 
 fn f64_conversions<T: ImageDataType + Eq + for<'a> Arbitrary<'a>>() {
