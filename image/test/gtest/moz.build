@@ -97,6 +97,7 @@ TEST_HARNESS_FILES.gtest += [
     "green.webp",
     "hdlr-nonzero-reserved-bug-1727033.avif",
     "invalid-truncated-metadata.bmp",
+    "large-jxl-reference.webp",
     "large.avif",
     "large.jxl",
     "large.webp",

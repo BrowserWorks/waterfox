@@ -8,6 +8,8 @@ use jxl::api::{
     VisibleFrameInfo,
 };
 
+use crate::runner::{as_dyn, PoolRunner};
+
 pub struct JxlApiDecoder {
     pub inner: JxlDecoder,
     metadata_only: bool,
@@ -158,6 +160,7 @@ impl JxlApiDecoder {
             .checked_mul(self.bytes_per_pixel())
             .ok_or(Error::Overflow)?;
 
+        let mut runner = PoolRunner::new();
         match k_buffer {
             Some(k) if self.has_black_channel => {
                 let mut bufs = [
@@ -165,13 +168,13 @@ impl JxlApiDecoder {
                     JxlOutputBuffer::new(k, height, width),
                 ];
                 self.inner
-                    .flush_pixels(&mut bufs, None)
+                    .flush_pixels(&mut bufs, as_dyn(&mut runner))
                     .map_err(Error::from)
             }
             _ => {
                 let mut buf = JxlOutputBuffer::new(output_buffer, height, bytes_per_row);
                 self.inner
-                    .flush_pixels(std::slice::from_mut(&mut buf), None)
+                    .flush_pixels(std::slice::from_mut(&mut buf), as_dyn(&mut runner))
                     .map_err(Error::from)
             }
         }
@@ -296,13 +299,15 @@ impl JxlApiDecoder {
             _ => BufMode::None,
         };
 
+        let mut runner = PoolRunner::new();
+
         loop {
             let bufs: Option<&mut [JxlOutputBuffer]> = match &mut buf_mode {
                 BufMode::Two(arr) => Some(arr.as_mut_slice()),
                 BufMode::Single(buf) => Some(std::slice::from_mut(buf)),
                 BufMode::None => None,
             };
-            match self.inner.process(data, bufs, None)? {
+            match self.inner.process(data, bufs, as_dyn(&mut runner))? {
                 Event::NeedMoreInput { .. } => return Ok(false),
                 Event::BasicInfo => {
                     // For metadata-only decode of non-animated images, return once

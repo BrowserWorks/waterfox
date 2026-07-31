@@ -5,10 +5,35 @@ and uses its event-based decoder API through `image/rust/jxl`
 ([Firefox bug 2083544](https://bugzilla.mozilla.org/show_bug.cgi?id=2083544)).
 The vendored crates are `jxl`, `jxl_macros`, `jxl_simd`, and `jxl_transforms`.
 
+## Parallel decoding
+
+A dedicated Gecko thread pool handles parallel decoding
+([bug 2065753](https://bugzilla.mozilla.org/show_bug.cgi?id=2065753)).
+Parallel decoding is enabled by default
+([bug 2069326](https://bugzilla.mozilla.org/show_bug.cgi?id=2069326)).
+
+`image.jxl.decode_participants` controls how many threads may work on one image,
+including the calling thread:
+
+- `0` (default): use the CPU count, clamped to between 2 and 8 participants.
+- `1`: decode on the calling thread without helpers.
+- Higher values: use the specified participant limit.
+
+The first parallel decode fixes the pool's thread limit for the process. Lowering
+this preference uses fewer helpers; raising it does not enlarge the pool.
+
 ## Local differences and test coverage
 
+- The pool snapshots the participant count so a preference change cannot create
+  a zero-thread pool. The C++ pool accessor also rejects a zero thread limit.
 - `jxl_simd` uses the upstream macOS x86_64 implementation without Firefox's
   SIMD workaround.
+- The gtests from [bug 2065753](https://bugzilla.mozilla.org/show_bug.cgi?id=2065753)
+  require exact pixel matches between serial and parallel decoding across
+  participant counts, including concurrent decodes. The reference image and
+  platform-specific tolerances come from
+  [bug 2069212](https://bugzilla.mozilla.org/show_bug.cgi?id=2069212);
+  macOS requires an exact match.
 - Web-platform references and tolerances include upstream's 0.8.0 updates and
   fixes from [bug 2071453](https://bugzilla.mozilla.org/show_bug.cgi?id=2071453),
   [bug 2053983](https://bugzilla.mozilla.org/show_bug.cgi?id=2053983), and

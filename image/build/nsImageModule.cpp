@@ -19,6 +19,13 @@
 
 using namespace mozilla::image;
 
+#ifdef MOZ_JXL
+namespace mozilla::image {
+// Defined in image/decoders/JxlDecodePool.cpp.
+void ClearJxlDecodePoolOnShutdown();
+}  // namespace mozilla::image
+#endif
+
 struct ImageEnablementCookie {
   bool (*mIsEnabled)();
   const nsLiteralCString mMimeType;
@@ -62,6 +69,7 @@ nsresult mozilla::image::EnsureModuleInitialized() {
       mozilla::StaticPrefs::image_jxl_enabled, "image/jxl"_ns};
   Preferences::RegisterCallbackAndCall(UpdateDocumentViewerRegistration,
                                        "image.jxl.enabled", &kJXLCookie);
+  ClearJxlDecodePoolOnShutdown();
 #endif
 
   mozilla::image::ShutdownTracker::Initialize();
