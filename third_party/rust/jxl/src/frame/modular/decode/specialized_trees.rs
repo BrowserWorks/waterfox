@@ -7,7 +7,7 @@ use std::{collections::VecDeque, ops::Range};
 
 use crate::{
     bit_reader::BitReader,
-    entropy_coding::decode::{Histograms, SymbolReader},
+    entropy_coding::decode::{Histograms, SymbolReader, unpack_signed},
     error::Result,
     frame::modular::{
         ModularChannel, Predictor, Tree,
@@ -15,22 +15,117 @@ use crate::{
             channel::ModularChannelDecoder,
             common::{make_pixel, precompute_references},
         },
+        flat_tree::{FlatTreeNode, predict_flat},
         predict::{PredictionData, WeightedPredictorState, clamped_gradient},
-        tree::{
-            FlatTreeNode, NUM_NONREF_PROPERTIES, PROPERTIES_PER_PREVCHAN, TreeNode, predict_flat,
-        },
+        tree::{NUM_NONREF_PROPERTIES, PROPERTIES_PER_PREVCHAN, PredictionResult, TreeNode},
     },
     headers::modular::GroupHeader,
     image::Image,
 };
 
-pub struct NoWpTree {
-    flat_nodes: Vec<FlatTreeNode>,
-    references: Image<i32>,
-    property_buffer: Vec<i32>,
+trait MaybeWeightedPredictor: Sized {
+    fn predict(
+        &mut self,
+        nodes: &[FlatTreeNode],
+        prediction_data: PredictionData,
+        pos: (usize, usize),
+        references: &Image<i32>,
+        prop_buffer: &mut [i32; 256],
+    ) -> PredictionResult;
+    fn update_errors(&mut self, _val: i32, _pos: (usize, usize)) {}
 }
 
-impl NoWpTree {
+impl MaybeWeightedPredictor for () {
+    #[inline(always)]
+    fn predict(
+        &mut self,
+        nodes: &[FlatTreeNode],
+        prediction_data: PredictionData,
+        pos: (usize, usize),
+        references: &Image<i32>,
+        prop_buffer: &mut [i32; 256],
+    ) -> PredictionResult {
+        predict_flat(nodes, prediction_data, None, pos, references, prop_buffer)
+    }
+}
+
+impl MaybeWeightedPredictor for WeightedPredictorState {
+    #[inline(always)]
+    fn predict(
+        &mut self,
+        nodes: &[FlatTreeNode],
+        prediction_data: PredictionData,
+        pos: (usize, usize),
+        references: &Image<i32>,
+        prop_buffer: &mut [i32; 256],
+    ) -> PredictionResult {
+        predict_flat(
+            nodes,
+            prediction_data,
+            Some(self),
+            pos,
+            references,
+            prop_buffer,
+        )
+    }
+    #[inline(always)]
+    fn update_errors(&mut self, val: i32, pos: (usize, usize)) {
+        self.update_errors(val, pos);
+    }
+}
+
+trait Reader: Sized {
+    fn read(
+        &self,
+        reader: &mut SymbolReader,
+        histograms: &Histograms,
+        br: &mut BitReader,
+        cluster: usize,
+    ) -> i32;
+}
+
+impl Reader for i32 {
+    #[inline(always)]
+    fn read(&self, _: &mut SymbolReader, _: &Histograms, _: &mut BitReader, _: usize) -> i32 {
+        *self
+    }
+}
+
+struct Reader420NoLz;
+impl Reader for Reader420NoLz {
+    #[inline(always)]
+    fn read(
+        &self,
+        reader: &mut SymbolReader,
+        histograms: &Histograms,
+        br: &mut BitReader,
+        cluster: usize,
+    ) -> i32 {
+        reader.read_signed_clustered_config_420(histograms, br, cluster)
+    }
+}
+
+struct ReaderGeneric;
+impl Reader for ReaderGeneric {
+    #[inline(always)]
+    fn read(
+        &self,
+        reader: &mut SymbolReader,
+        histograms: &Histograms,
+        br: &mut BitReader,
+        cluster: usize,
+    ) -> i32 {
+        reader.read_signed_clustered_inline(histograms, br, cluster)
+    }
+}
+
+struct FlatTreeInner {
+    nodes: Vec<FlatTreeNode>,
+    references: Image<i32>,
+    property_buffer: Box<[i32; 256]>,
+}
+
+impl FlatTreeInner {
     fn new(
         nodes: Vec<TreeNode>,
         max_property_count: usize,
@@ -42,107 +137,62 @@ impl NoWpTree {
             .saturating_sub(NUM_NONREF_PROPERTIES)
             .next_multiple_of(PROPERTIES_PER_PREVCHAN);
         let references = Image::<i32>::new((num_ref_props, xsize))?;
-        let num_properties = NUM_NONREF_PROPERTIES + num_ref_props;
-        let mut property_buffer: Vec<i32> = vec![0; num_properties];
+        let mut property_buffer = Box::new([0; 256]);
 
         property_buffer[0] = channel as i32;
         property_buffer[1] = stream as i32;
 
-        let flat_nodes = Tree::build_flat_tree(&nodes)?;
-
         Ok(Self {
-            flat_nodes,
+            nodes: Tree::build_flat_tree(&nodes)?,
             references,
             property_buffer,
         })
     }
 }
 
-impl ModularChannelDecoder for NoWpTree {
-    const NEEDS_TOP: bool = true;
-    const NEEDS_TOPTOP: bool = true;
-
-    fn init_row(&mut self, buffers: &mut [&mut ModularChannel], chan: usize, y: usize) {
-        precompute_references(buffers, chan, y, &mut self.references);
-        self.property_buffer[9] = 0;
-    }
-
-    fn decode_one(
-        &mut self,
-        prediction_data: PredictionData,
-        pos: (usize, usize),
-        xsize: usize,
-        reader: &mut SymbolReader,
-        br: &mut BitReader,
-        histograms: &Histograms,
-    ) -> i32 {
-        let prediction_result = predict_flat(
-            &self.flat_nodes,
-            prediction_data,
-            xsize,
-            None,
-            pos.0,
-            pos.1,
-            &self.references,
-            &mut self.property_buffer,
-        );
-        let dec = reader.read_signed_clustered(histograms, br, prediction_result.context as usize);
-        make_pixel(dec, prediction_result.multiplier, prediction_result.guess)
-    }
+struct FlatTree<WP, R> {
+    inner: FlatTreeInner,
+    reader: R,
+    wp_state: WP,
 }
 
-pub struct GeneralTree {
-    no_wp_tree: NoWpTree,
-    wp_state: WeightedPredictorState,
-}
-
-impl GeneralTree {
-    fn new(
-        nodes: Vec<TreeNode>,
-        max_property_count: usize,
-        header: &GroupHeader,
-        channel: usize,
-        stream: usize,
-        xsize: usize,
-    ) -> Result<Self> {
-        let wp_state = WeightedPredictorState::new(&header.wp_header, xsize);
-        Ok(Self {
-            no_wp_tree: NoWpTree::new(nodes, max_property_count, channel, stream, xsize)?,
+impl<WP: MaybeWeightedPredictor, R: Reader> FlatTree<WP, R> {
+    fn new(inner: FlatTreeInner, reader: R, wp_state: WP) -> Self {
+        Self {
+            inner,
+            reader,
             wp_state,
-        })
+        }
     }
 }
 
-impl ModularChannelDecoder for GeneralTree {
-    const NEEDS_TOP: bool = true;
-    const NEEDS_TOPTOP: bool = true;
-
+impl<WP: MaybeWeightedPredictor, R: Reader> ModularChannelDecoder for FlatTree<WP, R> {
     fn init_row(&mut self, buffers: &mut [&mut ModularChannel], chan: usize, y: usize) {
-        self.no_wp_tree.init_row(buffers, chan, y);
+        precompute_references(buffers, chan, y, &mut self.inner.references);
+        self.inner.property_buffer[GRADIENT_PROPERTY as usize] = 0;
     }
 
+    #[inline(always)]
     fn decode_one(
         &mut self,
         prediction_data: PredictionData,
         pos: (usize, usize),
-        xsize: usize,
         reader: &mut SymbolReader,
         br: &mut BitReader,
         histograms: &Histograms,
     ) -> i32 {
-        let prediction_result = predict_flat(
-            &self.no_wp_tree.flat_nodes,
+        let prediction_result = self.wp_state.predict(
+            &self.inner.nodes,
             prediction_data,
-            xsize,
-            Some(&mut self.wp_state),
-            pos.0,
-            pos.1,
-            &self.no_wp_tree.references,
-            &mut self.no_wp_tree.property_buffer,
+            pos,
+            &self.inner.references,
+            &mut self.inner.property_buffer,
         );
-        let dec = reader.read_signed_clustered(histograms, br, prediction_result.context as usize);
+        let dec = self
+            .reader
+            .read(reader, histograms, br, prediction_result.context as usize);
         let val = make_pixel(dec, prediction_result.multiplier, prediction_result.guess);
-        self.wp_state.update_errors(val, pos, xsize);
+        self.wp_state.update_errors(val, pos);
         val
     }
 }
@@ -201,108 +251,71 @@ fn make_lut(tree: &[TreeNode]) -> Option<[u8; LUT_TABLE_SIZE]> {
     Some(ans)
 }
 
-/// Specialized WpOnlyLookup for when all HybridUint configs are 420
-/// This allows using the fast-path entropy decoder
-pub struct WpOnlyLookupConfig420 {
+struct WpOnly<R> {
     lut: [u8; LUT_TABLE_SIZE],
     wp_state: WeightedPredictorState,
+    reader: R,
 }
 
-impl WpOnlyLookupConfig420 {
-    fn new(
-        tree: &[TreeNode],
-        histograms: &Histograms,
-        header: &GroupHeader,
-        xsize: usize,
-    ) -> Option<Self> {
-        if !histograms.can_use_config_420_fast_path() {
-            return None;
-        }
+impl<R: Reader> WpOnly<R> {
+    fn new(tree: &[TreeNode], header: &GroupHeader, xsize: usize, reader: R) -> Option<Self> {
         let wp_state = WeightedPredictorState::new(&header.wp_header, xsize);
         let lut = make_lut(tree)?;
-        Some(Self { lut, wp_state })
+        Some(Self {
+            lut,
+            wp_state,
+            reader,
+        })
     }
 }
 
-impl ModularChannelDecoder for WpOnlyLookupConfig420 {
-    const NEEDS_TOP: bool = true;
-    const NEEDS_TOPTOP: bool = true;
-
-    fn init_row(&mut self, _buffers: &mut [&mut ModularChannel], _chan: usize, _y: usize) {
-        // nothing to do
-    }
-
+impl<R: Reader> ModularChannelDecoder for WpOnly<R> {
     #[inline(always)]
     fn decode_one(
         &mut self,
         prediction_data: PredictionData,
         pos: (usize, usize),
-        xsize: usize,
         reader: &mut SymbolReader,
         br: &mut BitReader,
         histograms: &Histograms,
     ) -> i32 {
-        let (wp_pred, property) = self
-            .wp_state
-            .predict_and_property(pos, xsize, &prediction_data);
+        let (wp_pred, property) = self.wp_state.predict_and_property(pos, &prediction_data);
         let ctx = self.lut[(property as i64 - LUT_MIN_SPLITVAL as i64)
             .clamp(0, LUT_TABLE_SIZE as i64 - 1) as usize];
-        // Use the specialized 420 fast path
-        let dec = reader.read_signed_clustered_config_420(histograms, br, ctx as usize);
+        let dec = self.reader.read(reader, histograms, br, ctx as usize);
         let val = dec.wrapping_add(wp_pred as i32);
-        self.wp_state.update_errors(val, pos, xsize);
+        self.wp_state.update_errors(val, pos);
         val
     }
 }
 
 /// Property 9 is the "gradient property": left + top - topleft
 const GRADIENT_PROPERTY: u8 = 9;
+const WEIGHTED_PROPERTY: u8 = 15;
 
-/// Config 420 specialized version of gradient lookup for trees that split only on property 9.
-/// This uses the specialized entropy decoder for config 420 + no LZ77.
-pub struct GradientLookupConfig420 {
+struct GradientOnly<R> {
     lut: [u8; LUT_TABLE_SIZE],
+    reader: R,
 }
 
-fn make_gradient_lut_config_420(
-    tree: &[TreeNode],
-    histograms: &Histograms,
-) -> Option<GradientLookupConfig420> {
-    if !histograms.can_use_config_420_fast_path() {
-        return None;
+impl<R: Reader> GradientOnly<R> {
+    fn new(tree: &[TreeNode], reader: R) -> Option<Self> {
+        let lut = make_lut(tree)?;
+        Some(Self { lut, reader })
     }
-    // Verify all splits are on property 9 and all leaves have Gradient predictor
-    for node in tree {
-        match node {
-            TreeNode::Split { property, .. } => {
-                if *property != GRADIENT_PROPERTY {
-                    return None;
-                }
-            }
-            TreeNode::Leaf { predictor, .. } => {
-                if *predictor != Predictor::Gradient {
-                    return None;
-                }
-            }
-        }
-    }
-
-    let lut = make_lut(tree)?;
-    Some(GradientLookupConfig420 { lut })
 }
 
-impl ModularChannelDecoder for GradientLookupConfig420 {
-    const NEEDS_TOP: bool = true;
-    const NEEDS_TOPTOP: bool = false;
-
-    fn init_row(&mut self, _: &mut [&mut ModularChannel], _: usize, _: usize) {}
+impl<R: Reader> ModularChannelDecoder for GradientOnly<R> {
+    #[inline(always)]
+    fn needs_toptop(&self) -> bool {
+        false
+    }
 
     #[inline(always)]
     fn decode_one(
         &mut self,
         prediction_data: PredictionData,
         _: (usize, usize),
-        _: usize,
         reader: &mut SymbolReader,
         br: &mut BitReader,
         histograms: &Histograms,
@@ -322,28 +335,27 @@ impl ModularChannelDecoder for GradientLookupConfig420 {
             prediction_data.topleft as i64,
         );
 
-        // Use the specialized config 420 fast path
-        let dec = reader.read_signed_clustered_config_420(histograms, br, cluster as usize);
+        let dec = self.reader.read(reader, histograms, br, cluster as usize);
         dec.wrapping_add(pred as i32)
     }
 }
 
-pub struct SingleGradientOnly {
+struct SingleGradientOnly<R> {
     clustered_ctx: usize,
+    reader: R,
 }
 
-impl ModularChannelDecoder for SingleGradientOnly {
-    const NEEDS_TOP: bool = true;
-    const NEEDS_TOPTOP: bool = false;
-
-    fn init_row(&mut self, _: &mut [&mut ModularChannel], _: usize, _: usize) {}
+impl<R: Reader> ModularChannelDecoder for SingleGradientOnly<R> {
+    #[inline(always)]
+    fn needs_toptop(&self) -> bool {
+        false
+    }
 
     #[inline(always)]
     fn decode_one(
         &mut self,
         prediction_data: PredictionData,
         _: (usize, usize),
-        _: usize,
         reader: &mut SymbolReader,
         br: &mut BitReader,
         histograms: &Histograms,
@@ -353,53 +365,59 @@ impl ModularChannelDecoder for SingleGradientOnly {
             prediction_data.top as i64,
             prediction_data.topleft as i64,
         );
-        let dec = reader.read_signed_clustered_inline(histograms, br, self.clustered_ctx);
+        let dec = self.reader.read(reader, histograms, br, self.clustered_ctx);
         dec.wrapping_add(pred as i32)
     }
 }
 
-pub struct NoTree {
+struct NoTreeZero {
     clustered_ctx: usize,
+    single_value: Option<i32>,
 }
 
-impl ModularChannelDecoder for NoTree {
-    const NEEDS_TOP: bool = false;
-    const NEEDS_TOPTOP: bool = false;
-
-    fn init_row(&mut self, _: &mut [&mut ModularChannel], _: usize, _: usize) {}
-
-    #[inline(always)]
+impl ModularChannelDecoder for NoTreeZero {
+    #[inline(never)]
     fn decode_one(
         &mut self,
-        _: PredictionData,
-        _: (usize, usize),
-        _: usize,
+        _prediction_data: PredictionData,
+        _pos: (usize, usize),
+        _reader: &mut SymbolReader,
+        _br: &mut BitReader,
+        _histograms: &Histograms,
+    ) -> i32 {
+        unreachable!()
+    }
+    #[inline(never)]
+    fn decode_row(
+        &mut self,
+        buffers: &mut [&mut ModularChannel],
+        chan: usize,
+        histograms: &Histograms,
         reader: &mut SymbolReader,
         br: &mut BitReader,
-        histograms: &Histograms,
-    ) -> i32 {
-        let dec = reader.read_signed_clustered_inline(histograms, br, self.clustered_ctx);
-        make_pixel(dec, 1, 0)
+        y: usize,
+        xsize: usize,
+    ) {
+        let row = buffers[chan].data.row_mut(y);
+        debug_assert_eq!(row.len(), xsize);
+        if let Some(sym) = self.single_value {
+            row.fill(sym);
+        } else {
+            for r in row.iter_mut() {
+                *r = reader.read_signed_clustered_inline(histograms, br, self.clustered_ctx);
+            }
+        }
     }
 }
 
-#[allow(clippy::large_enum_variant)]
-pub enum TreeSpecialCase {
-    NoTree(NoTree),
-    NoWp(NoWpTree),
-    WpOnlyConfig420(WpOnlyLookupConfig420),
-    GradientLookupConfig420(GradientLookupConfig420),
-    SingleGradientOnly(SingleGradientOnly),
-    General(GeneralTree),
-}
-
-pub fn specialize_tree(
+pub fn run_on_specialized_tree<F: FnOnce(&mut dyn ModularChannelDecoder) -> Result<()>>(
     tree: &Tree,
     channel: usize,
     stream: usize,
     xsize: usize,
     header: &GroupHeader,
-) -> Result<TreeSpecialCase> {
+    run: F,
+) -> Result<()> {
     // TODO(veluca): consider skipping the pruning if header.uses_global_tree is true.
     let mut pruned_tree = Vec::new();
     let mut queue = VecDeque::new();
@@ -409,6 +427,15 @@ pub fn specialize_tree(
 
     let mut uses_wp = false;
     let mut uses_non_wp = false;
+    let mut max_property_count = 0;
+    let mut uses_non_gradient = false;
+
+    // If, after pruning the tree, `is_single_symbol` is true, then `single_symbol` is the
+    // only symbol that could possibly be decoded by this tree.
+    // TODO(veluca): The single-symbol special case corrupts the lz77 window, so it is
+    // disabled for now if lz77 is enabled. Figure out how to make them work together.
+    let mut is_single_symbol = !tree.histograms.lz77_params().enabled;
+    let mut single_symbol = None;
 
     // Obtain a pruned tree without nodes that are not relevant in the current channel and stream.
     // Proceed in BFS order, so that we know that the children of a node will be adjacent.
@@ -433,9 +460,10 @@ pub fn specialize_tree(
                 left,
                 right,
             } => {
-                // WeightedPredictor property.
-                uses_wp |= property == 15;
-                uses_non_wp |= property != 15;
+                uses_wp |= property == WEIGHTED_PROPERTY;
+                uses_non_wp |= property != WEIGHTED_PROPERTY;
+                uses_non_gradient |= property != GRADIENT_PROPERTY;
+                max_property_count = max_property_count.max(property as usize + 1);
                 let base = (queue.len() + pruned_tree.len() + 1) as u32;
                 pruned_tree.push(TreeNode::Split {
                     property,
@@ -449,13 +477,35 @@ pub fn specialize_tree(
             TreeNode::Leaf { predictor, .. } => {
                 uses_wp |= predictor == Predictor::Weighted;
                 uses_non_wp |= predictor != Predictor::Weighted;
+                uses_non_gradient |= predictor != Predictor::Gradient;
                 let TreeNode::Leaf { id, .. } = &mut node else {
                     unreachable!()
                 };
                 *id = tree.histograms.map_context_to_cluster(*id as usize) as u32;
+                if is_single_symbol {
+                    if let Some(sym) = tree.histograms.single_symbol(*id as usize) {
+                        if sym >= tree.histograms.uint(*id as usize).split_token() {
+                            // This symbol would need extra bits. This is rare enough, so disable
+                            // the optimization.
+                            is_single_symbol = false;
+                        }
+                        if single_symbol.is_none() {
+                            single_symbol = Some(sym);
+                        }
+                        if single_symbol != Some(sym) {
+                            is_single_symbol = false;
+                        }
+                    } else {
+                        is_single_symbol = false;
+                    }
+                }
                 pruned_tree.push(node);
             }
         }
+    }
+
+    if !is_single_symbol {
+        single_symbol = None;
     }
 
     if let [
@@ -467,9 +517,10 @@ pub fn specialize_tree(
         },
     ] = &*pruned_tree
     {
-        return Ok(TreeSpecialCase::NoTree(NoTree {
+        return run(&mut NoTreeZero {
             clustered_ctx: *id as usize,
-        }));
+            single_value: single_symbol.map(unpack_signed),
+        });
     }
 
     if let [
@@ -481,40 +532,50 @@ pub fn specialize_tree(
         },
     ] = &*pruned_tree
     {
-        return Ok(TreeSpecialCase::SingleGradientOnly(SingleGradientOnly {
+        return run(&mut SingleGradientOnly {
             clustered_ctx: *id as usize,
-        }));
+            reader: ReaderGeneric,
+        });
     }
 
-    if !uses_non_wp {
-        // Try the specialized 420 config version (fast path for effort 3 encoded images)
-        if let Some(wp) = WpOnlyLookupConfig420::new(&pruned_tree, &tree.histograms, header, xsize)
-        {
-            return Ok(TreeSpecialCase::WpOnlyConfig420(wp));
-        }
+    let uses_non420 = !tree.histograms.can_use_config_420_fast_path();
+
+    if !uses_non_wp
+        && !uses_non420
+        && let Some(mut wp) = WpOnly::new(&pruned_tree, header, xsize, Reader420NoLz)
+    {
+        return run(&mut wp);
     }
+
+    if !uses_non_gradient
+        && !uses_non420
+        && let Some(mut grad) = GradientOnly::new(&pruned_tree, Reader420NoLz)
+    {
+        return run(&mut grad);
+    }
+
+    let single_symbol = single_symbol.map(unpack_signed);
+
+    let inner = FlatTreeInner::new(pruned_tree, max_property_count, channel, stream, xsize)?;
 
     // Non-WP trees (includes effort 2 encoding and some groups in effort > 3)
     if !uses_wp {
-        // Try config 420 specialized gradient LUT version (fast path for effort 2 encoded images)
-        if let Some(gl) = make_gradient_lut_config_420(&pruned_tree, &tree.histograms) {
-            return Ok(TreeSpecialCase::GradientLookupConfig420(gl));
+        if let Some(ss) = single_symbol {
+            return run(&mut FlatTree::new(inner, ss, ()));
         }
-        return Ok(TreeSpecialCase::NoWp(NoWpTree::new(
-            pruned_tree,
-            tree.max_property_count(),
-            channel,
-            stream,
-            xsize,
-        )?));
+        if !uses_non420 {
+            return run(&mut FlatTree::new(inner, Reader420NoLz, ()));
+        }
+        return run(&mut FlatTree::new(inner, ReaderGeneric, ()));
     }
 
-    Ok(TreeSpecialCase::General(GeneralTree::new(
-        pruned_tree,
-        tree.max_property_count(),
-        header,
-        channel,
-        stream,
-        xsize,
-    )?))
+    let wp_state = WeightedPredictorState::new(&header.wp_header, xsize);
+
+    if let Some(ss) = single_symbol {
+        return run(&mut FlatTree::new(inner, ss, wp_state));
+    }
+    if !uses_non420 {
+        return run(&mut FlatTree::new(inner, Reader420NoLz, wp_state));
+    }
+    run(&mut FlatTree::new(inner, ReaderGeneric, wp_state))
 }

@@ -173,10 +173,6 @@ impl JxlApiDecoder {
         }
     }
 
-    pub fn num_completed_passes(&self) -> usize {
-        self.inner.num_completed_passes().unwrap_or(0)
-    }
-
     pub fn get_basic_info(&self) -> Option<BasicInfo> {
         let basic_info = self.inner.basic_info()?;
 

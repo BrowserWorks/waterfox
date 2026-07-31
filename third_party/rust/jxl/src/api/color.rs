@@ -1223,7 +1223,7 @@ impl JxlColorProfile {
     ///
     /// Two profiles are the same if they are both simple color encodings
     /// with matching color space (primaries, white point) and transfer function.
-    /// ICC profiles are never considered the same (even if identical bytes).
+    /// ICC profiles are considered the same if they have identical bytes.
     pub fn same_color_encoding(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Simple(a), Self::Simple(b)) => {
@@ -1360,36 +1360,6 @@ impl fmt::Display for JxlColorProfile {
             Self::Simple(enc) => write!(f, "{}", enc),
         }
     }
-}
-
-pub trait JxlCmsTransformer {
-    /// Runs a single transform. The buffers each contain `num_pixels` x `num_channels` interleaved
-    /// floating point (0..1) samples, where `num_channels` is the number of color channels of
-    /// their respective color profiles. For CMYK data, 0 represents the maximum amount of ink
-    /// while 1 represents no ink.
-    fn do_transform(&mut self, input: &[f32], output: &mut [f32]) -> Result<()>;
-
-    /// Runs a single transform in-place. The buffer contains `num_pixels` x `num_channels`
-    /// interleaved floating point (0..1) samples, where `num_channels` is the number of color
-    /// channels of the input and output color profiles. For CMYK data, 0 represents the maximum
-    /// amount of ink while 1 represents no ink.
-    fn do_transform_inplace(&mut self, inout: &mut [f32]) -> Result<()>;
-}
-
-pub trait JxlCms {
-    /// Initializes `n` transforms (different transforms might be used in parallel) to
-    /// convert from color space `input` to colorspace `output`, assuming an intensity of 1.0 for
-    /// non-absolute luminance colorspaces of `intensity_target`.
-    /// It is an error to not return `n` transforms.
-    /// Returns the number of channels the ICC outputs, and the transforms.
-    fn initialize_transforms(
-        &self,
-        n: usize,
-        max_pixels_per_transform: usize,
-        input: JxlColorProfile,
-        output: JxlColorProfile,
-        intensity_target: f32,
-    ) -> Result<(usize, Vec<Box<dyn JxlCmsTransformer + Send>>)>;
 }
 
 /// Writes a u32 value in big-endian format to the slice at the given position.

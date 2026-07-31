@@ -6,7 +6,6 @@
 use std::{
     alloc::{Layout, alloc, alloc_zeroed, dealloc},
     fmt::Debug,
-    mem::MaybeUninit,
     ptr::null_mut,
 };
 
@@ -20,10 +19,9 @@ use super::Rect;
 #[derive(Debug, Clone, Copy)]
 pub(super) struct RawImageBuffer {
     // Safety invariant:
-    //  - uninit data is never written to `buf`.
     //  - `buf` is valid for reads for all bytes in the ranges
     //    `buf[i*bytes_between_rows..i*bytes_between_rows+bytes_per_row]` for all values of `i`
-    //    from `0` to `num_rows-1`.
+    //    from `0` to `num_rows-1`. All such readable bytes are guaranteed to be initialized.
     //  - all the bytes in those ranges (and in between) are part of the same allocated object.
     //  - if `num_rows > 0`, then `bytes_per_row > 0`, `bytes_per_row <= bytes_between_rows`.
     //  - The computation `E = bytes_between_rows * (num_rows-1) + bytes_per_row` does not
@@ -32,7 +30,7 @@ pub(super) struct RawImageBuffer {
     // Note that wrapper structs around RawImageBuffer might have a safety invariant that declares
     // that the struct has write access to the accessible bytes of a RawImageBuffer; in that case,
     // that is equivalent to saying that `buf` is *also* valid for *writes*.
-    buf: *mut MaybeUninit<u8>,
+    buf: *mut u8,
     bytes_per_row: usize,
     num_rows: usize,
     bytes_between_rows: usize,
@@ -73,19 +71,17 @@ impl RawImageBuffer {
     }
 
     /// Creates a new RawImageBuffer from raw pointers.
-    /// It is guaranteed that `buf` will never be used to write uninitialized data.
     ///
     /// # Safety
-    /// - `buf` must be valid for reads for all bytes in the range
-    ///   `buf[i*bytes_between_rows..i*bytes_between_rows+bytes_per_row]` for all values of `i`
-    ///   from `0` to `num_rows-1`.
+    /// - the accessible bytes of `buf` must be initialized.
+    /// - `buf` must be valid for reads for all accessible bytes.
     /// - The bytes in these ranges must not be accessed as long as the returned `Self` is in scope.
     /// - All the bytes in those ranges (and in between) must be part of the same allocated object.
     ///
     /// Note: these safety requirements match those of JxlOutputBuffer::new_from_ptr, except we
     /// only request validity for reads.
     pub(super) unsafe fn new_from_ptr(
-        buf: *mut MaybeUninit<u8>,
+        buf: *mut u8,
         num_rows: usize,
         bytes_per_row: usize,
         bytes_between_rows: usize,
@@ -128,25 +124,23 @@ impl RawImageBuffer {
     }
 
     /// # Safety
-    /// - No uninit data must be written to the returned slice.
     /// - The caller must ensure that ownership rules are respected (for example, because they
     ///   have exclusive access to the data).
     #[inline(always)]
-    pub(super) unsafe fn row_mut(&mut self, row: usize) -> &mut [MaybeUninit<u8>] {
+    pub(super) unsafe fn row_mut(&mut self, row: usize) -> &mut [u8] {
         // SAFETY: The safety requirements for distinct_rows_mut match the ones for row_mut.
         unsafe { self.distinct_rows_mut([row])[0] }
     }
 
     /// Note: this is quadratic in the number of rows.
     /// # Safety
-    /// - No uninit data must be written to the returned slice.
     /// - The caller must ensure that ownership rules are respected (for example, because they
     ///   have exclusive access to the data).
     #[inline(always)]
     pub(super) unsafe fn distinct_rows_mut<I: DistinctRowsIndexes>(
         &mut self,
         rows: I,
-    ) -> I::Output<'_, MaybeUninit<u8>> {
+    ) -> I::Output<'_, u8> {
         // SAFETY: the safety requirements of `get_rows_mut` are the same as the ones for
         // `distinct_rows_mut`.
         unsafe { rows.get_rows_mut(self) }
@@ -156,7 +150,7 @@ impl RawImageBuffer {
     /// The caller must ensure that ownership and lifetime rules are respected (for example,
     /// because they have shared access to the data).
     #[inline(always)]
-    pub(super) unsafe fn row(&self, row: usize) -> &[MaybeUninit<u8>] {
+    pub(super) unsafe fn row(&self, row: usize) -> &[u8] {
         assert!(row < self.num_rows);
         let start = row * self.bytes_between_rows;
         // SAFETY: `start` is guaranteed to be <= isize::MAX, and `self.buf + start` is guaranteed
@@ -197,11 +191,19 @@ impl RawImageBuffer {
         unsafe { Self::new_from_ptr(start_ptr, rect.size.1, rect.size.0, self.bytes_between_rows) }
     }
 
-    /// Returns zeroed memory if `uninit` is `false`, otherwise it returns uninitialized
-    /// memory. The returned buffer is aligned to CACHE_LINE_BYTE_SIZE bytes.
+    /// Returns zeroed memory if `copy_from` is `None`, otherwise it returns memory initialized
+    /// with the contents of `copy_from`. The returned buffer is aligned to CACHE_LINE_BYTE_SIZE bytes.
     /// The returned RawImageBuffer owns the memory it references, which belongs to a single
     /// allocation of size minimum_allocation_size().
-    pub(super) fn try_allocate(byte_size: (usize, usize), uninit: bool) -> Result<RawImageBuffer> {
+    ///
+    /// # Safety
+    /// If `copy_from` is not None, the caller must ensure that the data it
+    /// references -- *all* minimum_allocation_size() bytes starting from buf,
+    /// not just the accessible bytes -- can be read.
+    pub(super) unsafe fn try_allocate(
+        byte_size: (usize, usize),
+        copy_from: Option<&RawImageBuffer>,
+    ) -> Result<RawImageBuffer> {
         let (bytes_per_row, num_rows) = byte_size;
         // To simplify modular transform logic, we allow empty images, because some modular
         // meta-images can have 0 bytes_per_row or num_rows (e.g. delta-palette, reference property image).
@@ -223,26 +225,34 @@ impl RawImageBuffer {
             .unwrap();
         assert_ne!(allocation_len, 0);
         let layout = Layout::from_size_align(allocation_len, CACHE_LINE_BYTE_SIZE).unwrap();
-        // SAFETY: we just checked that allocation_len is not 0.
-        let memory = unsafe {
-            if uninit {
-                alloc(layout)
-            } else {
-                alloc_zeroed(layout)
+        let memory = if let Some(src) = copy_from {
+            // SAFETY: we just checked that allocation_len is not 0.
+            let memory = unsafe { alloc(layout) };
+            if memory.is_null() {
+                return Err(Error::ImageOutOfMemory(bytes_per_row, num_rows));
             }
+            assert_eq!(src.byte_size(), byte_size);
+            assert_eq!(src.bytes_per_row, bytes_per_row);
+            assert_eq!(src.bytes_between_rows, bytes_between_rows);
+            assert_eq!(src.num_rows, num_rows);
+            let data_len = src.minimum_allocation_size();
+            // SAFETY: both `src` and `memory` have at least `data_len` bytes, and they are
+            // non-overlapping because `memory` was just allocated.
+            // The caller ensures that `src` is valid for reads of `data_len` bytes.
+            unsafe { std::ptr::copy_nonoverlapping(src.buf, memory, data_len) };
+            memory
+        } else {
+            // SAFETY: we just checked that allocation_len is not 0.
+            let memory = unsafe { alloc_zeroed(layout) };
+            if memory.is_null() {
+                return Err(Error::ImageOutOfMemory(bytes_per_row, num_rows));
+            }
+            memory
         };
-        if memory.is_null() {
-            return Err(Error::ImageOutOfMemory(bytes_per_row, num_rows));
-        }
-        // SAFETY: `memory` points to a contiguous array of size minimum_allocation_size(), and we
-        // transfer ownership so the validity requirements are satisfied.
+        // SAFETY: `memory` points to a contiguous array of size minimum_allocation_size() which
+        // was just initialized, and we transfer ownership so the validity requirements are satisfied.
         Ok(unsafe {
-            RawImageBuffer::new_from_ptr(
-                memory as *mut MaybeUninit<u8>,
-                num_rows,
-                bytes_per_row,
-                bytes_between_rows,
-            )
+            RawImageBuffer::new_from_ptr(memory, num_rows, bytes_per_row, bytes_between_rows)
         })
     }
 
@@ -258,23 +268,9 @@ impl RawImageBuffer {
     /// self.minimum_allocation_size() bytes starting from self.buf, not just the accessible bytes
     /// -- can be read.
     pub(super) unsafe fn try_clone(&self) -> Result<Self> {
-        let out = RawImageBuffer::try_allocate(self.byte_size(), true)?;
-        assert_eq!(self.bytes_per_row, out.bytes_per_row);
-        assert_eq!(self.bytes_between_rows, out.bytes_between_rows);
-        assert_eq!(self.num_rows, out.num_rows);
-        let data_len = self.minimum_allocation_size();
-        assert_eq!(
-            self.minimum_allocation_size(),
-            out.minimum_allocation_size()
-        );
-        if data_len != 0 {
-            // SAFETY: since both `self` and `out` own the allocation, which has size `data_len`, this copy
-            // is safe.
-            unsafe {
-                std::ptr::copy_nonoverlapping(self.buf, out.buf, data_len);
-            }
-        }
-        Ok(out)
+        // SAFETY: the safety requirement of this method matches the safety requirement
+        // of `try_allocate`.
+        unsafe { RawImageBuffer::try_allocate(self.byte_size(), Some(self)) }
     }
 
     /// Deallocates an owning buffer that was allocated by try_allocate.
@@ -287,7 +283,7 @@ impl RawImageBuffer {
             let layout = Layout::from_size_align(allocation_len, CACHE_LINE_BYTE_SIZE).unwrap();
             // SAFETY: the buffer was allocated in `try_allocate` with the same layout.
             unsafe {
-                dealloc(self.buf as *mut u8, layout);
+                dealloc(self.buf, layout);
             }
         }
     }
@@ -298,20 +294,14 @@ pub trait DistinctRowsIndexes {
     type Output<'a, T: 'static>;
 
     /// # Safety
-    /// - No uninit data must be written to the returned slice.
     /// - The caller must ensure that ownership rules are respected (for example, because they
     ///   have exclusive access to the data).
-    unsafe fn get_rows_mut<'a>(
-        &self,
-        image: &'a mut RawImageBuffer,
-    ) -> Self::Output<'a, MaybeUninit<u8>>;
+    unsafe fn get_rows_mut<'a>(&self, image: &'a mut RawImageBuffer) -> Self::Output<'a, u8>;
 
     /// # Safety
     /// - The rows are properly aligned
     /// - The rows contain data that is valid for type T (and thus initialized).
-    unsafe fn transmute_rows<'a, T: 'static>(
-        rows: Self::Output<'a, MaybeUninit<u8>>,
-    ) -> Self::Output<'a, T>;
+    unsafe fn transmute_rows<'a, T: 'static>(rows: Self::Output<'a, u8>) -> Self::Output<'a, T>;
 }
 
 #[allow(private_interfaces)]
@@ -319,10 +309,7 @@ impl<const S: usize> DistinctRowsIndexes for [usize; S] {
     type Output<'a, T: 'static> = [&'a mut [T]; S];
 
     #[inline(always)]
-    unsafe fn get_rows_mut<'a>(
-        &self,
-        image: &'a mut RawImageBuffer,
-    ) -> Self::Output<'a, MaybeUninit<u8>> {
+    unsafe fn get_rows_mut<'a>(&self, image: &'a mut RawImageBuffer) -> Self::Output<'a, u8> {
         for i in 0..S {
             assert!(self[i] < image.num_rows);
             for j in i + 1..S {
@@ -338,18 +325,16 @@ impl<const S: usize> DistinctRowsIndexes for [usize; S] {
         });
         start.map(|start| {
             // SAFETY: due to the struct safety invariant, we know the entire slice is in a range of
-            // memory valid for writes. Moreover, the caller promises not to write uninitialized
-            // data in the returned slice. Finally, the caller guarantees aliasing rules will not
+            // memory valid for writes. Finally, the caller guarantees aliasing rules will not
             // be violated outside of this struct, and since we checked that all the values of
             // `self` are distinct they are also not violated across the various slices returned by
+            // this function.
             unsafe { std::slice::from_raw_parts_mut(start, image.bytes_per_row) }
         })
     }
 
     #[inline(always)]
-    unsafe fn transmute_rows<'a, T: 'static>(
-        rows: Self::Output<'a, MaybeUninit<u8>>,
-    ) -> Self::Output<'a, T> {
+    unsafe fn transmute_rows<'a, T: 'static>(rows: Self::Output<'a, u8>) -> Self::Output<'a, T> {
         rows.map(|row| {
             // SAFETY: The caller guarantees the transmute is safe and proper alignment.
             unsafe {

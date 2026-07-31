@@ -55,11 +55,6 @@ git = "https://github.com/jfkthame/mapped_hyph.git"
 rev = "eff105f6ad7ec9b79816cfc1985a28e5340ad14b"
 replace-with = "vendored-sources"
 
-[source."git+https://github.com/libjxl/jxl-rs?rev=c41cbfaf34c2c8ebc3fb6655c885fe427ab9542a"]
-git = "https://github.com/libjxl/jxl-rs"
-rev = "c41cbfaf34c2c8ebc3fb6655c885fe427ab9542a"
-replace-with = "vendored-sources"
-
 [source."git+https://github.com/martinthomson/ohttp"]
 git = "https://github.com/martinthomson/ohttp"
 replace-with = "vendored-sources"

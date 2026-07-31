@@ -44,7 +44,7 @@ impl Flags {
     pub const SKIP_ADAPTIVE_LF_SMOOTHING: u64 = 0x80;
 }
 
-#[derive(UnconditionalCoder, Debug, PartialEq)]
+#[derive(UnconditionalCoder, Debug, PartialEq, Clone)]
 pub struct Passes {
     #[coder(u2S(1, 2, 3, Bits(3) + 4))]
     #[default(1)]
@@ -141,7 +141,7 @@ pub struct RestorationFilterNonserialized {
     encoding: Encoding,
 }
 
-#[derive(UnconditionalCoder, Debug, PartialEq)]
+#[derive(UnconditionalCoder, Debug, PartialEq, Clone)]
 #[nonserialized(RestorationFilterNonserialized)]
 pub struct RestorationFilter {
     #[all_default]
@@ -260,7 +260,7 @@ fn compute_jpeg_shift(jpeg_upsampling: &[u32], shift_table: &[usize]) -> u32 {
         .unwrap_or(0) as u32
 }
 
-#[derive(UnconditionalCoder, Debug, PartialEq)]
+#[derive(UnconditionalCoder, Debug, PartialEq, Clone)]
 #[nonserialized(FrameHeaderNonserialized)]
 #[aligned]
 #[validate]
@@ -774,7 +774,7 @@ mod test_frame_header {
     use super::super::permutation::Permutation;
     use super::super::toc::Toc;
     use super::*;
-    use crate::util::test::read_headers_and_toc;
+    use crate::tests::decode::read_headers_and_toc;
     use test_log::test;
 
     #[test]
@@ -812,9 +812,7 @@ mod test_frame_header {
         assert_eq!(frame_header.flags, 0);
         assert_eq!(frame_header.upsampling, 1);
         assert_eq!(frame_header.ec_upsampling, vec![1]);
-        // libjxl x_qm_scale = 2, but condition is false (should be 3 according to the draft)
-        // Doesn't actually matter since this is modular mode and the value doesn't get used.
-        assert_eq!(frame_header.x_qm_scale, 3);
+        assert_eq!(frame_header.x_qm_scale, 2);
         assert_eq!(frame_header.b_qm_scale, 2);
         assert!(!frame_header.have_crop);
         assert!(!frame_header.save_before_ct);

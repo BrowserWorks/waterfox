@@ -201,7 +201,8 @@ mod test {
             stages::noise::{AddNoiseStage, ConvolveNoiseStage},
             test::make_and_run_simple_pipeline,
         },
-        util::{AtomicRefCell, test::assert_almost_abs_eq},
+        tests::assert_close,
+        util::AtomicRefCell,
     };
     use test_log::test;
 
@@ -213,10 +214,10 @@ mod test {
         let stage = ConvolveNoiseStage::new(0);
         let output: Vec<Image<f32>> =
             make_and_run_simple_pipeline(stage, &[input], (2, 2), 0, 256)?;
-        assert_almost_abs_eq(output[0].row(0)[0], 7.2, 1e-6);
-        assert_almost_abs_eq(output[0].row(0)[1], 2.4, 1e-6);
-        assert_almost_abs_eq(output[0].row(1)[0], -2.4, 1e-6);
-        assert_almost_abs_eq(output[0].row(1)[1], -7.2, 1e-6);
+        assert_close!(output[0].row(0)[0], 7.2, 1e-6);
+        assert_close!(output[0].row(0)[1], 2.4, 1e-6);
+        assert_close!(output[0].row(1)[0], -2.4, 1e-6);
+        assert_close!(output[0].row(1)[1], -7.2, 1e-6);
         Ok(())
     }
 
@@ -323,7 +324,7 @@ mod test {
         for c in 0..3 {
             for y in 0..output[c].size().1 {
                 for x in 0..output[c].size().0 {
-                    assert_almost_abs_eq(output[c].row(y)[x], want_out[c][y][x], 1e-5);
+                    assert_close!(output[c].row(y)[x], want_out[c][y][x], 1e-5);
                 }
             }
         }

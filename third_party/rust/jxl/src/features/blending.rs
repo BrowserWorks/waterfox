@@ -5,132 +5,365 @@
 
 #![allow(clippy::needless_range_loop)]
 
+use jxl_simd::{F32SimdVec, SimdDescriptor, SimdMask, simd_function};
+
 use crate::headers::extra_channels::{ExtraChannel, ExtraChannelInfo};
 
 use super::patches::{PatchBlendMode, PatchBlending};
 
-#[inline]
+const MAX_F32_LANES: usize = 16;
+
+#[inline(always)]
 fn maybe_clamp(v: f32, clamp: bool) -> f32 {
     if clamp { v.clamp(0.0, 1.0) } else { v }
 }
 
-pub fn perform_blending<T: AsRef<[f32]>, V: AsMut<[f32]>>(
-    bg: &mut [V],
-    fg: &[T],
+/// Which layer is placed on top: `Above` blends fg over bg, `Below` blends bg
+/// over fg. The top layer's alpha is the one that is clamped and drives the blend.
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum BlendOrder {
+    Above,
+    Below,
+}
+
+#[derive(Copy, Clone)]
+struct BlendConfig {
+    clamp: bool,
+    alpha_associated: bool,
+    order: BlendOrder,
+}
+
+#[inline(always)]
+fn load_vec<D: SimdDescriptor>(d: D, s: &[f32], x: usize) -> D::F32Vec {
+    let lanes = D::F32Vec::LEN;
+    if x + lanes <= s.len() {
+        D::F32Vec::load(d, &s[x..x + lanes])
+    } else {
+        let mut buf = [0.0; MAX_F32_LANES];
+        buf[..s.len() - x].copy_from_slice(&s[x..]);
+        D::F32Vec::load(d, &buf[..lanes])
+    }
+}
+
+#[inline(always)]
+fn store_vec<D: SimdDescriptor>(_d: D, v: D::F32Vec, s: &mut [f32], x: usize) {
+    let lanes = D::F32Vec::LEN;
+    if x + lanes <= s.len() {
+        v.store(&mut s[x..x + lanes]);
+    } else {
+        let mut buf = [0.0; MAX_F32_LANES];
+        v.store(&mut buf[..lanes]);
+        let rem = s.len() - x;
+        s[x..].copy_from_slice(&buf[..rem]);
+    }
+}
+
+simd_function!(
+    blend,
+    d: D,
+    #[allow(clippy::too_many_arguments)]
+    fn blend_impl(
+        bg_color: &mut [&mut [f32]],
+        bg_alpha: &mut [f32],
+        bg_alpha_old: &[f32],
+        fg_color: &[&[f32]],
+        fg_alpha: &[f32],
+        xsize: usize,
+        cfg: BlendConfig,
+    ) {
+        let BlendConfig { clamp, alpha_associated, order } = cfg;
+        let fg_on_top = order == BlendOrder::Above;
+
+        let lanes = D::F32Vec::LEN;
+        let one = D::F32Vec::splat(d, 1.0);
+        let zero = D::F32Vec::zero(d);
+
+        let [bg_c0, bg_c1, bg_c2] = bg_color else { unreachable!() };
+        let bg_c = [&mut bg_c0[..xsize], &mut bg_c1[..xsize], &mut bg_c2[..xsize]];
+        let bg_alpha = &mut bg_alpha[..xsize];
+        let fg_c = [&fg_color[0][..xsize], &fg_color[1][..xsize], &fg_color[2][..xsize]];
+
+        let (top_alpha, bottom_alpha) = if fg_on_top {
+            (&fg_alpha[..xsize], &bg_alpha_old[..xsize])
+        } else {
+            (&bg_alpha_old[..xsize], &fg_alpha[..xsize])
+        };
+        let maybe_clamp_vec = |v: D::F32Vec| if clamp { v.max(zero).min(one) } else { v };
+
+        for k in 0..xsize.div_ceil(lanes) {
+            let x = k * lanes;
+            let top_a = maybe_clamp_vec(load_vec(d, top_alpha, x));
+            let bottom_a = load_vec(d, bottom_alpha, x);
+            let one_minus_top_a = one - top_a;
+            let new_a = one - one_minus_top_a * (one - bottom_a);
+            let reciprocal_a = new_a.gt(zero).if_then_else_f32(one / new_a, zero);
+            for c in 0..3 {
+                let bg_v = load_vec(d, bg_c[c], x);
+                let fg_v = load_vec(d, fg_c[c], x);
+                let (top_c, bottom_c) = if fg_on_top { (fg_v, bg_v) } else { (bg_v, fg_v) };
+                let out = if alpha_associated {
+                    top_c + bottom_c * one_minus_top_a
+                } else {
+                    (top_c * top_a + bottom_c * bottom_a * one_minus_top_a) * reciprocal_a
+                };
+                store_vec(d, out, bg_c[c], x);
+            }
+            store_vec(d, new_a, bg_alpha, x);
+        }
+    }
+);
+
+simd_function!(
+    blend_alpha,
+    d: D,
+    fn blend_alpha_impl(bg_alpha: &mut [f32], fg_alpha: &[f32], xsize: usize, cfg: BlendConfig) {
+        let clamp = cfg.clamp;
+        let fg_on_top = cfg.order == BlendOrder::Above;
+        let lanes = D::F32Vec::LEN;
+        let one = D::F32Vec::splat(d, 1.0);
+        let zero = D::F32Vec::zero(d);
+
+        let bg_alpha = &mut bg_alpha[..xsize];
+        let fg_alpha = &fg_alpha[..xsize];
+        let maybe_clamp_vec = |v: D::F32Vec| if clamp { v.max(zero).min(one) } else { v };
+
+        for k in 0..xsize.div_ceil(lanes) {
+            let x = k * lanes;
+            let fg_a = load_vec(d, fg_alpha, x);
+            let bg_a = load_vec(d, bg_alpha, x);
+            let (top_a, bottom_a) = if fg_on_top { (fg_a, bg_a) } else { (bg_a, fg_a) };
+            let top_a = maybe_clamp_vec(top_a);
+            store_vec(d, one - (one - top_a) * (one - bottom_a), bg_alpha, x);
+        }
+    }
+);
+
+simd_function!(
+    add,
+    d: D,
+    fn add_impl(dst: &mut [f32], src: &[f32], xsize: usize) {
+        let lanes = D::F32Vec::LEN;
+        let dst = &mut dst[..xsize];
+        let src = &src[..xsize];
+        for k in 0..xsize.div_ceil(lanes) {
+            let x = k * lanes;
+            store_vec(d, load_vec(d, dst, x) + load_vec(d, src, x), dst, x);
+        }
+    }
+);
+
+simd_function!(
+    mul,
+    d: D,
+    fn mul_impl(dst: &mut [f32], src: &[f32], xsize: usize, clamp: bool) {
+        let lanes = D::F32Vec::LEN;
+        let one = D::F32Vec::splat(d, 1.0);
+        let zero = D::F32Vec::zero(d);
+        let dst = &mut dst[..xsize];
+        let src = &src[..xsize];
+        let maybe_clamp_vec = |v: D::F32Vec| if clamp { v.max(zero).min(one) } else { v };
+        for k in 0..xsize.div_ceil(lanes) {
+            let x = k * lanes;
+            let s = maybe_clamp_vec(load_vec(d, src, x));
+            store_vec(d, load_vec(d, dst, x) * s, dst, x);
+        }
+    }
+);
+
+// Above: dst = dst + src * weight (weight is the newly composited layer's own alpha).
+// Below: dst = src + dst * weight (weight is the old background's alpha).
+simd_function!(
+    alpha_weighted_add,
+    d: D,
+    fn alpha_weighted_add_impl(dst: &mut [f32], src: &[f32], weight: &[f32], xsize: usize, cfg: BlendConfig) {
+        let clamp = cfg.clamp;
+        let fg_on_top = cfg.order == BlendOrder::Above;
+        let lanes = D::F32Vec::LEN;
+        let one = D::F32Vec::splat(d, 1.0);
+        let zero = D::F32Vec::zero(d);
+        let dst = &mut dst[..xsize];
+        let src = &src[..xsize];
+        let weight = &weight[..xsize];
+        let maybe_clamp_vec = |v: D::F32Vec| if clamp { v.max(zero).min(one) } else { v };
+        for k in 0..xsize.div_ceil(lanes) {
+            let x = k * lanes;
+            let w = maybe_clamp_vec(load_vec(d, weight, x));
+            let dst_v = load_vec(d, dst, x);
+            let src_v = load_vec(d, src, x);
+            let (unweighted, weighted) = if fg_on_top { (dst_v, src_v) } else { (src_v, dst_v) };
+            store_vec(d, unweighted + weighted * w, dst, x);
+        }
+    }
+);
+
+/// Blend `fg` onto `bg` in place.
+pub fn perform_blending(
+    bg: &mut [&mut [f32]],
+    fg: &[&[f32]],
     color_blending: &PatchBlending,
     ec_blending: &[PatchBlending],
     extra_channel_info: &[ExtraChannelInfo],
+    tmp: &mut Vec<f32>,
 ) {
+    // TODO(veluca): in many cases, the copy to temporary space seems redundant. Investigate more.
+    let num_ec = extra_channel_info.len();
+    let xsize = bg[0].len();
+
+    // Fast path: if color is None (keep bg) and all ec are None, nothing to do.
+    if color_blending.mode == PatchBlendMode::None
+        && ec_blending.iter().all(|b| b.mode == PatchBlendMode::None)
+    {
+        return;
+    }
+
+    // Fast path: Replace color + Replace/None ec -> copy fg directly to bg, no tmp needed.
+    if color_blending.mode == PatchBlendMode::Replace {
+        let all_simple = ec_blending[..num_ec]
+            .iter()
+            .all(|b| b.mode == PatchBlendMode::Replace || b.mode == PatchBlendMode::None);
+        if all_simple {
+            for c in 0..3 {
+                bg[c].copy_from_slice(fg[c]);
+            }
+            for i in 0..num_ec {
+                match ec_blending[i].mode {
+                    PatchBlendMode::Replace => {
+                        bg[3 + i].copy_from_slice(fg[3 + i]);
+                    }
+                    PatchBlendMode::None => {} // keep bg
+                    _ => unreachable!(),
+                }
+            }
+            return;
+        }
+    }
+
     let has_alpha = extra_channel_info
         .iter()
         .any(|info| info.ec_type == ExtraChannel::Alpha);
-    let num_ec = extra_channel_info.len();
-    let xsize = bg[0].as_mut().len();
 
-    let mut tmp = vec![vec![0.0f32; xsize]; 3 + num_ec];
+    let needed_scratch = num_ec * xsize;
+
+    if tmp.len() < needed_scratch {
+        tmp.resize(needed_scratch, 0.0);
+    }
+
+    for i in 0..num_ec {
+        tmp[i * xsize..][..xsize].copy_from_slice(&bg[3 + i][..xsize]);
+    }
+    let old_ec: &[f32] = tmp;
+    let old_alpha = |a: usize| &old_ec[a * xsize..][..xsize];
 
     for i in 0..num_ec {
         let alpha = ec_blending[i].alpha_channel;
         let clamp = ec_blending[i].clamp;
         let alpha_associated = extra_channel_info[alpha].alpha_associated();
 
+        let (_bg_color, bg_ec) = bg.split_at_mut(3);
+        let ec_out = &mut bg_ec[i][..xsize];
+
         match ec_blending[i].mode {
             PatchBlendMode::Add => {
-                for x in 0..xsize {
-                    tmp[3 + i][x] = bg[3 + i].as_mut()[x] + fg[3 + i].as_ref()[x];
-                }
+                add(ec_out, &fg[3 + i][..xsize], xsize);
             }
             PatchBlendMode::BlendAbove => {
                 if i == alpha {
-                    for x in 0..xsize {
-                        let fa = maybe_clamp(fg[3 + alpha].as_ref()[x], clamp);
-                        tmp[3 + i][x] = 1.0 - (1.0 - fa) * (1.0 - bg[3 + i].as_mut()[x]);
-                    }
+                    blend_alpha(
+                        ec_out,
+                        &fg[3 + alpha][..xsize],
+                        xsize,
+                        BlendConfig {
+                            clamp,
+                            alpha_associated,
+                            order: BlendOrder::Above,
+                        },
+                    );
                 } else if alpha_associated {
                     for x in 0..xsize {
-                        let fa = maybe_clamp(fg[3 + alpha].as_ref()[x], clamp);
-                        tmp[3 + i][x] = fg[3 + i].as_ref()[x] + bg[3 + i].as_mut()[x] * (1.0 - fa);
+                        let fa = maybe_clamp(fg[3 + alpha][x], clamp);
+                        ec_out[x] = fg[3 + i][x] + ec_out[x] * (1.0 - fa);
                     }
                 } else {
                     for x in 0..xsize {
-                        let fa = maybe_clamp(fg[3 + alpha].as_ref()[x], clamp);
-                        let new_a = 1.0 - (1.0 - fa) * (1.0 - bg[3 + alpha].as_mut()[x]);
+                        let fa = maybe_clamp(fg[3 + alpha][x], clamp);
+                        let oa = old_alpha(alpha)[x];
+                        let new_a = 1.0 - (1.0 - fa) * (1.0 - oa);
                         let rnew_a = if new_a > 0.0 { 1.0 / new_a } else { 0.0 };
-                        tmp[3 + i][x] = (fg[3 + i].as_ref()[x] * fa
-                            + bg[3 + i].as_mut()[x] * bg[3 + alpha].as_mut()[x] * (1.0 - fa))
-                            * rnew_a;
+                        ec_out[x] = (fg[3 + i][x] * fa + ec_out[x] * oa * (1.0 - fa)) * rnew_a;
                     }
                 }
             }
             PatchBlendMode::BlendBelow => {
                 if i == alpha {
-                    for x in 0..xsize {
-                        let ba = maybe_clamp(bg[3 + alpha].as_mut()[x], clamp);
-                        tmp[3 + i][x] = 1.0 - (1.0 - ba) * (1.0 - fg[3 + i].as_ref()[x]);
-                    }
+                    blend_alpha(
+                        ec_out,
+                        &fg[3 + i][..xsize],
+                        xsize,
+                        BlendConfig {
+                            clamp,
+                            alpha_associated,
+                            order: BlendOrder::Below,
+                        },
+                    );
                 } else if alpha_associated {
                     for x in 0..xsize {
-                        let ba = maybe_clamp(bg[3 + alpha].as_mut()[x], clamp);
-                        tmp[3 + i][x] = bg[3 + i].as_mut()[x] + fg[3 + i].as_ref()[x] * (1.0 - ba);
+                        let oa = old_alpha(alpha)[x];
+                        let ba = maybe_clamp(oa, clamp);
+                        ec_out[x] += fg[3 + i][x] * (1.0 - ba);
                     }
                 } else {
                     for x in 0..xsize {
-                        let ba = maybe_clamp(bg[3 + alpha].as_mut()[x], clamp);
-                        let new_a = 1.0 - (1.0 - ba) * (1.0 - fg[3 + alpha].as_ref()[x]);
+                        let oa = old_alpha(alpha)[x];
+                        let ba = maybe_clamp(oa, clamp);
+                        let new_a = 1.0 - (1.0 - ba) * (1.0 - fg[3 + alpha][x]);
                         let rnew_a = if new_a > 0.0 { 1.0 / new_a } else { 0.0 };
-                        tmp[3 + i][x] = (bg[3 + i].as_mut()[x] * ba
-                            + fg[3 + i].as_ref()[x] * fg[3 + alpha].as_ref()[x] * (1.0 - ba))
+                        ec_out[x] = (ec_out[x] * ba + fg[3 + i][x] * fg[3 + alpha][x] * (1.0 - ba))
                             * rnew_a;
                     }
                 }
             }
             PatchBlendMode::AlphaWeightedAddAbove => {
                 if i == alpha {
-                    tmp[3 + i].copy_from_slice(bg[3 + i].as_mut());
-                } else if clamp {
-                    for x in 0..xsize {
-                        tmp[3 + i][x] = bg[3 + i].as_mut()[x]
-                            + fg[3 + i].as_ref()[x] * fg[3 + alpha].as_ref()[x].clamp(0.0, 1.0);
-                    }
+                    // ec_out is already bg[3 + i]
                 } else {
-                    for x in 0..xsize {
-                        tmp[3 + i][x] = bg[3 + i].as_mut()[x]
-                            + fg[3 + i].as_ref()[x] * fg[3 + alpha].as_ref()[x];
-                    }
+                    alpha_weighted_add(
+                        ec_out,
+                        &fg[3 + i][..xsize],
+                        &fg[3 + alpha][..xsize],
+                        xsize,
+                        BlendConfig {
+                            clamp,
+                            alpha_associated: false,
+                            order: BlendOrder::Above,
+                        },
+                    );
                 }
             }
             PatchBlendMode::AlphaWeightedAddBelow => {
                 if i == alpha {
-                    tmp[3 + i].copy_from_slice(fg[3 + i].as_ref());
-                } else if clamp {
-                    for x in 0..xsize {
-                        tmp[3 + i][x] = fg[3 + i].as_ref()[x]
-                            + bg[3 + i].as_mut()[x] * bg[3 + alpha].as_mut()[x].clamp(0.0, 1.0);
-                    }
+                    ec_out.copy_from_slice(&fg[3 + i][..xsize]);
                 } else {
-                    for x in 0..xsize {
-                        tmp[3 + i][x] = fg[3 + i].as_ref()[x]
-                            + bg[3 + i].as_mut()[x] * bg[3 + alpha].as_mut()[x];
-                    }
+                    alpha_weighted_add(
+                        ec_out,
+                        &fg[3 + i][..xsize],
+                        old_alpha(alpha),
+                        xsize,
+                        BlendConfig {
+                            clamp,
+                            alpha_associated: false,
+                            order: BlendOrder::Below,
+                        },
+                    );
                 }
             }
             PatchBlendMode::Mul => {
-                if clamp {
-                    for x in 0..xsize {
-                        tmp[3 + i][x] =
-                            bg[3 + i].as_mut()[x] * fg[3 + i].as_ref()[x].clamp(0.0, 1.0);
-                    }
-                } else {
-                    for x in 0..xsize {
-                        tmp[3 + i][x] = bg[3 + i].as_mut()[x] * fg[3 + i].as_ref()[x];
-                    }
-                }
+                mul(ec_out, &fg[3 + i][..xsize], xsize, clamp);
             }
             PatchBlendMode::Replace => {
-                tmp[3 + i].copy_from_slice(fg[3 + i].as_ref());
+                ec_out.copy_from_slice(&fg[3 + i][..xsize]);
             }
             PatchBlendMode::None => {
-                tmp[3 + i].copy_from_slice(bg[3 + i].as_mut());
+                // ec_out is already bg[3 + i]
             }
         }
     }
@@ -138,126 +371,105 @@ pub fn perform_blending<T: AsRef<[f32]>, V: AsMut<[f32]>>(
     let alpha = color_blending.alpha_channel;
     let clamp = color_blending.clamp;
 
+    let (bg_color, bg_ec) = bg.split_at_mut(3);
+
     match color_blending.mode {
         PatchBlendMode::Add => {
             for c in 0..3 {
-                for x in 0..xsize {
-                    tmp[c][x] = bg[c].as_mut()[x] + fg[c].as_ref()[x];
-                }
+                add(bg_color[c], &fg[c][..xsize], xsize);
             }
         }
         PatchBlendMode::AlphaWeightedAddAbove => {
             for c in 0..3 {
                 if !has_alpha {
-                    for x in 0..xsize {
-                        tmp[c][x] = bg[c].as_mut()[x] + fg[c].as_ref()[x];
-                    }
-                } else if clamp {
-                    for x in 0..xsize {
-                        tmp[c][x] = bg[c].as_mut()[x]
-                            + fg[c].as_ref()[x] * fg[3 + alpha].as_ref()[x].clamp(0.0, 1.0);
-                    }
+                    add(bg_color[c], &fg[c][..xsize], xsize);
                 } else {
-                    for x in 0..xsize {
-                        tmp[c][x] =
-                            bg[c].as_mut()[x] + fg[c].as_ref()[x] * fg[3 + alpha].as_ref()[x];
-                    }
+                    alpha_weighted_add(
+                        bg_color[c],
+                        &fg[c][..xsize],
+                        &fg[3 + alpha][..xsize],
+                        xsize,
+                        BlendConfig {
+                            clamp,
+                            alpha_associated: false,
+                            order: BlendOrder::Above,
+                        },
+                    );
                 }
             }
         }
         PatchBlendMode::AlphaWeightedAddBelow => {
             for c in 0..3 {
                 if !has_alpha {
-                    for x in 0..xsize {
-                        tmp[c][x] = bg[c].as_mut()[x] + fg[c].as_ref()[x];
-                    }
-                } else if clamp {
-                    for x in 0..xsize {
-                        tmp[c][x] = fg[c].as_ref()[x]
-                            + bg[c].as_mut()[x] * bg[3 + alpha].as_mut()[x].clamp(0.0, 1.0);
-                    }
+                    add(bg_color[c], &fg[c][..xsize], xsize);
                 } else {
-                    for x in 0..xsize {
-                        tmp[c][x] =
-                            fg[c].as_ref()[x] + bg[c].as_mut()[x] * bg[3 + alpha].as_mut()[x];
-                    }
+                    alpha_weighted_add(
+                        bg_color[c],
+                        &fg[c][..xsize],
+                        old_alpha(alpha),
+                        xsize,
+                        BlendConfig {
+                            clamp,
+                            alpha_associated: false,
+                            order: BlendOrder::Below,
+                        },
+                    );
                 }
             }
         }
         PatchBlendMode::BlendAbove => {
             if !has_alpha {
                 for c in 0..3 {
-                    tmp[c].copy_from_slice(fg[c].as_ref());
-                }
-            } else if extra_channel_info[alpha].alpha_associated() {
-                for x in 0..xsize {
-                    let fa = maybe_clamp(fg[3 + alpha].as_ref()[x], clamp);
-                    for c in 0..3 {
-                        tmp[c][x] = fg[c].as_ref()[x] + bg[c].as_mut()[x] * (1.0 - fa);
-                    }
-                    tmp[3 + alpha][x] = 1.0 - (1.0 - fa) * (1.0 - bg[3 + alpha].as_mut()[x]);
+                    bg_color[c][..xsize].copy_from_slice(&fg[c][..xsize]);
                 }
             } else {
-                for x in 0..xsize {
-                    let fa = maybe_clamp(fg[3 + alpha].as_ref()[x], clamp);
-                    let new_a = 1.0 - (1.0 - fa) * (1.0 - bg[3 + alpha].as_mut()[x]);
-                    let rnew_a = if new_a > 0.0 { 1.0 / new_a } else { 0.0 };
-                    for c in 0..3 {
-                        tmp[c][x] = (fg[c].as_ref()[x] * fa
-                            + bg[c].as_mut()[x] * bg[3 + alpha].as_mut()[x] * (1.0 - fa))
-                            * rnew_a;
-                    }
-                    tmp[3 + alpha][x] = new_a;
-                }
+                blend(
+                    bg_color,
+                    bg_ec[alpha],
+                    old_alpha(alpha),
+                    &fg[..3],
+                    fg[3 + alpha],
+                    xsize,
+                    BlendConfig {
+                        clamp,
+                        alpha_associated: extra_channel_info[alpha].alpha_associated(),
+                        order: BlendOrder::Above,
+                    },
+                );
             }
         }
         PatchBlendMode::BlendBelow => {
             if !has_alpha {
-                for c in 0..3 {
-                    tmp[c].copy_from_slice(bg[c].as_mut());
-                }
-            } else if extra_channel_info[alpha].alpha_associated() {
-                for x in 0..xsize {
-                    let ba = maybe_clamp(bg[3 + alpha].as_mut()[x], clamp);
-                    for c in 0..3 {
-                        tmp[c][x] = bg[c].as_mut()[x] + fg[c].as_ref()[x] * (1.0 - ba);
-                    }
-                    tmp[3 + alpha][x] = 1.0 - (1.0 - ba) * (1.0 - fg[3 + alpha].as_ref()[x]);
-                }
+                // already bg[c]
             } else {
-                for x in 0..xsize {
-                    let ba = maybe_clamp(bg[3 + alpha].as_mut()[x], clamp);
-                    let new_a = 1.0 - (1.0 - ba) * (1.0 - fg[3 + alpha].as_ref()[x]);
-                    let rnew_a = if new_a > 0.0 { 1.0 / new_a } else { 0.0 };
-                    for c in 0..3 {
-                        tmp[c][x] = (bg[c].as_mut()[x] * ba
-                            + fg[c].as_ref()[x] * fg[3 + alpha].as_ref()[x] * (1.0 - ba))
-                            * rnew_a;
-                    }
-                    tmp[3 + alpha][x] = new_a;
-                }
+                blend(
+                    bg_color,
+                    bg_ec[alpha],
+                    old_alpha(alpha),
+                    &fg[..3],
+                    fg[3 + alpha],
+                    xsize,
+                    BlendConfig {
+                        clamp,
+                        alpha_associated: extra_channel_info[alpha].alpha_associated(),
+                        order: BlendOrder::Below,
+                    },
+                );
             }
         }
         PatchBlendMode::Mul => {
             for c in 0..3 {
-                for x in 0..xsize {
-                    tmp[c][x] = bg[c].as_mut()[x] * maybe_clamp(fg[c].as_ref()[x], clamp);
-                }
+                mul(bg_color[c], &fg[c][..xsize], xsize, clamp);
             }
         }
         PatchBlendMode::Replace => {
             for c in 0..3 {
-                tmp[c].copy_from_slice(fg[c].as_ref());
+                bg_color[c][..xsize].copy_from_slice(&fg[c][..xsize]);
             }
         }
         PatchBlendMode::None => {
-            for c in 0..3 {
-                tmp[c].copy_from_slice(bg[c].as_mut());
-            }
+            // already bg_color[c]
         }
-    }
-    for i in 0..(3 + num_ec) {
-        bg[i].as_mut().copy_from_slice(&tmp[i]);
     }
 }
 
@@ -269,10 +481,29 @@ mod tests {
 
     mod perform_blending_tests {
         use super::{super::*, *};
-        use crate::{headers::bit_depth::BitDepth, util::test::assert_all_almost_abs_eq};
+        use crate::{headers::bit_depth::BitDepth, tests::assert_close};
         use test_log::test;
 
         const ABS_DELTA: f32 = 1e-6;
+
+        /// Test-only wrapper that allocates a tmp scratch buffer per call. Production
+        /// callers are expected to supply their own (reusable) tmp.
+        fn blend(
+            bg: &mut [&mut [f32]],
+            fg: &[&[f32]],
+            color_blending: &PatchBlending,
+            ec_blending: &[PatchBlending],
+            extra_channel_info: &[ExtraChannelInfo],
+        ) {
+            perform_blending(
+                bg,
+                fg,
+                color_blending,
+                ec_blending,
+                extra_channel_info,
+                &mut vec![],
+            );
+        }
 
         // Helper for expected value calculations based on C++ logic
 
@@ -334,7 +565,7 @@ mod tests {
             let ec_blending: [PatchBlending; 0] = [];
             let extra_channel_info: [ExtraChannelInfo; 0] = [];
 
-            perform_blending(
+            blend(
                 &mut bg_channels,
                 &fg_channels,
                 &color_blending,
@@ -343,9 +574,9 @@ mod tests {
             );
 
             // Expected: output color is fg color
-            assert_all_almost_abs_eq(&bg_r, &fg_r, ABS_DELTA);
-            assert_all_almost_abs_eq(&bg_g, &fg_g, ABS_DELTA);
-            assert_all_almost_abs_eq(&bg_b, &fg_b, ABS_DELTA);
+            assert_close!(all, &bg_r, &fg_r, ABS_DELTA);
+            assert_close!(all, &bg_g, &fg_g, ABS_DELTA);
+            assert_close!(all, &bg_b, &fg_b, ABS_DELTA);
         }
 
         #[test]
@@ -371,7 +602,7 @@ mod tests {
             let ec_blending: [PatchBlending; 0] = [];
             let extra_channel_info: [ExtraChannelInfo; 0] = [];
 
-            perform_blending(
+            blend(
                 &mut bg_channels,
                 &fg_channels,
                 &color_blending,
@@ -379,9 +610,9 @@ mod tests {
                 &extra_channel_info,
             );
 
-            assert_all_almost_abs_eq(&bg_r, &expected_r, ABS_DELTA);
-            assert_all_almost_abs_eq(&bg_g, &expected_g, ABS_DELTA);
-            assert_all_almost_abs_eq(&bg_b, &expected_b, ABS_DELTA);
+            assert_close!(all, &bg_r, &expected_r, ABS_DELTA);
+            assert_close!(all, &bg_g, &expected_g, ABS_DELTA);
+            assert_close!(all, &bg_b, &expected_b, ABS_DELTA);
         }
 
         #[test]
@@ -433,7 +664,7 @@ mod tests {
                 None,
             )];
 
-            perform_blending(
+            blend(
                 &mut bg_channels,
                 &fg_channels,
                 &color_blending,
@@ -441,10 +672,10 @@ mod tests {
                 &extra_channel_info,
             );
 
-            assert_all_almost_abs_eq(&bg_a, &[expected_a_val], ABS_DELTA);
-            assert_all_almost_abs_eq(&bg_r, &[expected_r_val], ABS_DELTA);
-            assert_all_almost_abs_eq(&bg_g, &[expected_g_val], ABS_DELTA);
-            assert_all_almost_abs_eq(&bg_b, &[expected_b_val], ABS_DELTA);
+            assert_close!(all, &bg_a, &[expected_a_val], ABS_DELTA);
+            assert_close!(all, &bg_r, &[expected_r_val], ABS_DELTA);
+            assert_close!(all, &bg_g, &[expected_g_val], ABS_DELTA);
+            assert_close!(all, &bg_b, &[expected_b_val], ABS_DELTA);
         }
 
         #[test]
@@ -497,7 +728,7 @@ mod tests {
                 None,
             )];
 
-            perform_blending(
+            blend(
                 &mut bg_channels,
                 &fg_channels,
                 &color_blending,
@@ -505,10 +736,10 @@ mod tests {
                 &extra_channel_info,
             );
 
-            assert_all_almost_abs_eq(&bg_a, &[expected_a_val], ABS_DELTA);
-            assert_all_almost_abs_eq(&bg_r, &[expected_r_val], ABS_DELTA);
-            assert_all_almost_abs_eq(&bg_g, &[expected_g_val], ABS_DELTA);
-            assert_all_almost_abs_eq(&bg_b, &[expected_b_val], ABS_DELTA);
+            assert_close!(all, &bg_a, &[expected_a_val], ABS_DELTA);
+            assert_close!(all, &bg_r, &[expected_r_val], ABS_DELTA);
+            assert_close!(all, &bg_g, &[expected_g_val], ABS_DELTA);
+            assert_close!(all, &bg_b, &[expected_b_val], ABS_DELTA);
         }
 
         #[test]
@@ -561,7 +792,7 @@ mod tests {
                 None,
             )];
 
-            perform_blending(
+            blend(
                 &mut bg_channels,
                 &fg_channels,
                 &color_blending,
@@ -569,10 +800,10 @@ mod tests {
                 &extra_channel_info,
             );
 
-            assert_all_almost_abs_eq(&bg_r, &[expected_r_val], ABS_DELTA);
-            assert_all_almost_abs_eq(&bg_g, &[expected_g_val], ABS_DELTA);
-            assert_all_almost_abs_eq(&bg_b, &[expected_b_val], ABS_DELTA);
-            assert_all_almost_abs_eq(&bg_a, &[expected_a_val], ABS_DELTA);
+            assert_close!(all, &bg_r, &[expected_r_val], ABS_DELTA);
+            assert_close!(all, &bg_g, &[expected_g_val], ABS_DELTA);
+            assert_close!(all, &bg_b, &[expected_b_val], ABS_DELTA);
+            assert_close!(all, &bg_a, &[expected_a_val], ABS_DELTA);
         }
 
         #[test]
@@ -598,7 +829,7 @@ mod tests {
             let ec_blending: [PatchBlending; 0] = [];
             let extra_channel_info: [ExtraChannelInfo; 0] = [];
 
-            perform_blending(
+            blend(
                 &mut bg_channels,
                 &fg_channels,
                 &color_blending,
@@ -606,9 +837,9 @@ mod tests {
                 &extra_channel_info,
             );
 
-            assert_all_almost_abs_eq(&bg_r, &expected_r, ABS_DELTA);
-            assert_all_almost_abs_eq(&bg_g, &expected_g, ABS_DELTA);
-            assert_all_almost_abs_eq(&bg_b, &expected_b, ABS_DELTA);
+            assert_close!(all, &bg_r, &expected_r, ABS_DELTA);
+            assert_close!(all, &bg_g, &expected_g, ABS_DELTA);
+            assert_close!(all, &bg_b, &expected_b, ABS_DELTA);
         }
 
         #[test]
@@ -692,7 +923,7 @@ mod tests {
                 ), // EC1 alpha
             ];
 
-            perform_blending(
+            blend(
                 &mut bg_channels,
                 &fg_channels,
                 &color_blending,
@@ -701,13 +932,11 @@ mod tests {
             );
 
             // Expected Color (Replace)
-            assert_all_almost_abs_eq(&bg_r, &fg_r, ABS_DELTA);
-            assert_all_almost_abs_eq(&bg_g, &fg_g, ABS_DELTA);
-            assert_all_almost_abs_eq(&bg_b, &fg_b, ABS_DELTA);
-
-            assert_all_almost_abs_eq(&bg_ec1_alpha, &[expected_out_ec1_alpha], ABS_DELTA);
-
-            assert_all_almost_abs_eq(&bg_ec0, &[expected_out_ec0], ABS_DELTA);
+            assert_close!(all, &bg_r, &fg_r, ABS_DELTA);
+            assert_close!(all, &bg_g, &fg_g, ABS_DELTA);
+            assert_close!(all, &bg_b, &fg_b, ABS_DELTA);
+            assert_close!(all, &bg_ec1_alpha, &[expected_out_ec1_alpha], ABS_DELTA);
+            assert_close!(all, &bg_ec0, &[expected_out_ec0], ABS_DELTA);
         }
 
         #[test]
@@ -732,7 +961,7 @@ mod tests {
             // No ExtraChannelInfo means has_alpha will be false.
             let extra_channel_info: [ExtraChannelInfo; 0] = [];
 
-            perform_blending(
+            blend(
                 &mut bg_channels,
                 &fg_channels,
                 &color_blending,
@@ -741,9 +970,9 @@ mod tests {
             );
 
             // Expected: output color is fg color due to fallback
-            assert_all_almost_abs_eq(&bg_r, &fg_r, ABS_DELTA);
-            assert_all_almost_abs_eq(&bg_g, &fg_g, ABS_DELTA);
-            assert_all_almost_abs_eq(&bg_b, &fg_b, ABS_DELTA);
+            assert_close!(all, &bg_r, &fg_r, ABS_DELTA);
+            assert_close!(all, &bg_g, &fg_g, ABS_DELTA);
+            assert_close!(all, &bg_b, &fg_b, ABS_DELTA);
         }
 
         #[test]
@@ -766,7 +995,7 @@ mod tests {
             let ec_blending: [PatchBlending; 0] = [];
             let extra_channel_info: [ExtraChannelInfo; 0] = [];
 
-            perform_blending(
+            blend(
                 &mut bg_channels,
                 &fg_channels,
                 &color_blending,

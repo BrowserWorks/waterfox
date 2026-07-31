@@ -3,7 +3,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use std::collections::BTreeSet;
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use super::render::pipeline;
@@ -19,6 +19,7 @@ use super::{
 use crate::error::Error;
 use crate::features::epf::SigmaSource;
 use crate::frame::block_context_map::{ZERO_DENSITY_CONTEXT_COUNT, ZERO_DENSITY_CONTEXT_LIMIT};
+use crate::frame::{DataStatus, GroupStatus};
 use crate::headers::frame_header::FrameType;
 #[cfg(test)]
 use crate::render::SimpleRenderPipeline;
@@ -173,12 +174,11 @@ impl Frame {
         let size_blocks = frame_header.size_blocks();
         let lf_image = if frame_header.encoding == Encoding::VarDCT {
             if frame_header.has_lf_frame() {
-                decoder_state.lf_frames[frame_header.lf_level as usize]
-                    .as_ref()
-                    .map(|[a, b, c]| {
-                        Ok::<_, Error>([a.try_clone()?, b.try_clone()?, c.try_clone()?])
-                    })
-                    .transpose()?
+                if decoder_state.lf_frames[frame_header.lf_level as usize].is_none() {
+                    return Err(Error::NoLfFrame(frame_header.lf_level));
+                } else {
+                    None
+                }
             } else {
                 Some([
                     Image::new(size_blocks)?,
@@ -243,8 +243,7 @@ impl Frame {
         Ok(Self {
             #[cfg(test)]
             use_simple_pipeline: decoder_state.use_simple_pipeline,
-            last_rendered_pass: vec![None; frame_header.num_groups()],
-            incomplete_groups: frame_header.num_groups(),
+            group_status: GroupStatus::new(&frame_header),
             header: frame_header,
             color_channels,
             toc,
@@ -257,10 +256,8 @@ impl Frame {
             render_pipeline: None,
             reference_frame_data,
             lf_frame_data,
-            was_flushed_once: false,
+            section0_render_up_to_date: false,
             vardct_buffers: None,
-            groups_to_flush: BTreeSet::new(),
-            changed_since_last_flush: BTreeSet::new(),
             patches: Arc::new(AtomicRefCell::new(PatchesDictionary::new(
                 num_extra_channels,
             ))),
@@ -271,6 +268,7 @@ impl Frame {
                 ColorCorrelationParams::default(),
             )),
             epf_sigma: Arc::new(AtomicRefCell::new(SigmaSource::default())),
+            dirty_lf_groups: HashSet::new(),
         })
     }
 
@@ -377,6 +375,17 @@ impl Frame {
             };
             debug!(?color_correlation_params);
 
+            // Validate spline parameters
+            if self.header.has_splines() {
+                let color_correlation_params = self.color_correlation_params.borrow();
+                self.splines.borrow_mut().initialize_draw_cache(
+                    self.header.size().0 as u64,
+                    self.header.size().1 as u64,
+                    &color_correlation_params,
+                    self.decoder_state.high_precision,
+                )?;
+            }
+
             let tree = if br.read(1)? == 1 {
                 let size_limit = (1024
                     + self.header.width as usize
@@ -413,15 +422,22 @@ impl Frame {
 
         let lf_global = self.lf_global.as_mut().unwrap();
 
-        lf_global
-            .modular_global
-            .read_section0(&self.header, &lf_global.tree, br, allow_partial)?;
+        if lf_global.modular_global.read_section0(
+            &self.header,
+            &lf_global.tree,
+            br,
+            allow_partial,
+        )? {
+            // Request a global re-render.
+            self.section0_render_up_to_date = false;
+        }
 
         Ok(())
     }
 
     #[instrument(level = "debug", skip(self, br))]
     pub fn decode_lf_group(&mut self, group: usize, br: &mut BitReader) -> Result<()> {
+        self.dirty_lf_groups.insert(group);
         debug!(section_size = br.total_bits_available());
         let lf_global = self.lf_global.as_mut().unwrap();
         if self.header.encoding == Encoding::VarDCT && !self.header.has_lf_frame() {
@@ -441,13 +457,14 @@ impl Frame {
             )?;
         }
 
-        lf_global.modular_global.mark_group_to_be_read(1, group);
+        lf_global.modular_global.mark_final(1, group);
 
         lf_global.modular_global.read_stream(
             ModularStreamId::ModularLF(group),
             &self.header,
             &lf_global.tree,
             br,
+            None,
         )?;
         if self.header.encoding == Encoding::VarDCT {
             info!("decoding HF metadata with group id {}", group);
@@ -504,20 +521,9 @@ impl Frame {
                     histograms,
                 });
             }
-            // Note that, if we have extra channels that can be rendered progressively,
-            // we might end up re-drawing some VarDCT groups. In that case, we need to
-            // keep around the coefficients, so allocate coefficients under those conditions
-            // too.
-            // TODO(veluca): evaluate whether we can make this check more precise.
-            let hf_coefficients = if passes.len() <= 1
-                && !(self
-                    .lf_global
-                    .as_mut()
-                    .unwrap()
-                    .modular_global
-                    .can_do_partial_render()
-                    && self.header.num_extra_channels > 0)
-            {
+            // Since the render pipeline keeps finalized channels, we don't need to store
+            // HF coefficients if there is a single pass.
+            let hf_coefficients = if passes.len() <= 1 {
                 None
             } else {
                 let xs = GROUP_DIM * GROUP_DIM;
@@ -659,7 +665,113 @@ impl Frame {
         Ok(())
     }
 
-    // Returns `true` if VarDCT and noise data were effectively rendered.
+    #[instrument(level = "debug", skip(self, passes, buffer_splitter))]
+    pub fn decode_and_render_varct_and_noise(
+        &mut self,
+        group: usize,
+        passes: &mut [(usize, BitReader)],
+        buffer_splitter: &mut BufferSplitter,
+        force_render: bool,
+    ) -> Result<()> {
+        // Group was fully rendered already, nothing to do.
+        if self.group_status.final_vardct_render_done.contains(&group) {
+            return Ok(());
+        }
+
+        let complete = self.group_status.colour_complete(group);
+
+        // Render VarDCT if we are decoding the last pass, or if we are requesting an eager
+        // render.
+        let render_vardct = complete || force_render;
+
+        if render_vardct && !complete {
+            assert!(self.allow_rendering_before_last_pass());
+        }
+
+        if render_vardct {
+            self.group_status.need_vardct_flush.remove(&group);
+        }
+
+        if complete {
+            self.group_status.final_vardct_render_done.insert(group);
+        }
+
+        if !render_vardct && passes.is_empty() {
+            return Ok(());
+        }
+
+        if self.header.has_noise() && render_vardct {
+            self.render_noise_for_group(group, complete, buffer_splitter)?;
+        }
+
+        if self.header.encoding != Encoding::VarDCT {
+            return Ok(());
+        }
+
+        let lf_global = self.lf_global.as_mut().unwrap();
+        let mut pixels = if render_vardct {
+            Some([
+                pipeline!(self, p, p.get_buffer(0))?,
+                pipeline!(self, p, p.get_buffer(1))?,
+                pipeline!(self, p, p.get_buffer(2))?,
+            ])
+        } else {
+            None
+        };
+        let lf_image = if self.header.has_lf_frame() {
+            // We already checked that the LF image is present
+            self.decoder_state.lf_frames[self.header.lf_level as usize]
+                .as_ref()
+                .unwrap()
+        } else {
+            self.lf_image.as_ref().unwrap()
+        };
+        if self.group_status.channel_status[group][0] == DataStatus::Zero && render_vardct {
+            info!("Upsampling LF for group {group}");
+            upsample_lf_group(
+                group,
+                pixels.as_mut().unwrap(),
+                lf_image,
+                &self.header,
+                &self.decoder_state.file_header.transform_data,
+            )?;
+        } else {
+            info!("Decoding VarDCT group {group}");
+            let hf_global = self.hf_global.as_mut().unwrap();
+            let hf_meta = self.hf_meta.as_mut().unwrap();
+            let buffers = self.vardct_buffers.get_or_insert_with(VarDctBuffers::new);
+            decode_vardct_group(
+                group,
+                passes,
+                &self.header,
+                lf_global,
+                hf_global,
+                hf_meta,
+                lf_image,
+                &self.quant_lf,
+                &self
+                    .decoder_state
+                    .file_header
+                    .transform_data
+                    .opsin_inverse_matrix
+                    .quant_biases,
+                &mut pixels,
+                buffers,
+            )?;
+        }
+        if let Some(pixels) = pixels {
+            for (c, img) in pixels.into_iter().enumerate() {
+                pipeline!(
+                    self,
+                    p,
+                    p.set_buffer_for_group(c, group, complete, img, buffer_splitter)?
+                );
+            }
+        }
+
+        Ok(())
+    }
+
     #[instrument(level = "debug", skip(self, passes, buffer_splitter))]
     pub fn decode_hf_group(
         &mut self,
@@ -667,105 +779,33 @@ impl Frame {
         passes: &mut [(usize, BitReader)],
         buffer_splitter: &mut BufferSplitter,
         force_render: bool,
-    ) -> Result<bool> {
+    ) -> Result<()> {
         if passes.is_empty() {
             assert!(force_render);
         }
 
-        let last_pass_in_file = self.header.passes.num_passes as usize - 1;
-        let was_complete = self.last_rendered_pass[group].is_some_and(|p| p >= last_pass_in_file);
+        self.decode_and_render_varct_and_noise(group, passes, buffer_splitter, force_render)?;
 
-        if let Some((p, _)) = passes.last() {
-            self.last_rendered_pass[group] = Some(*p);
+        let mut pass_to_pipeline = |chan, group, complete, image: Image<i32>| {
+            pipeline!(
+                self,
+                p,
+                p.set_buffer_for_group(chan, group, complete, image, &mut *buffer_splitter)?
+            );
+            Ok(())
         };
-        let pass_to_render = self.last_rendered_pass[group];
-        let complete = pass_to_render.is_some_and(|p| p >= last_pass_in_file);
-
-        if complete && !was_complete {
-            self.incomplete_groups = self.incomplete_groups.checked_sub(1).unwrap();
-        }
-
-        // Render if we are decoding the last pass, or if we are requesting an eager render and
-        // we can handle this case of eager renders.
-        let do_render = if complete {
-            true
-        } else if force_render {
-            self.allow_rendering_before_last_pass()
-        } else {
-            false
-        };
-
-        if !do_render && passes.is_empty() {
-            return Ok(false);
-        }
-
-        if self.header.has_noise() && do_render {
-            self.render_noise_for_group(group, complete, buffer_splitter)?;
-        }
 
         let lf_global = self.lf_global.as_mut().unwrap();
-        if self.header.encoding == Encoding::VarDCT {
-            let mut pixels = if do_render {
-                Some([
-                    pipeline!(self, p, p.get_buffer(0))?,
-                    pipeline!(self, p, p.get_buffer(1))?,
-                    pipeline!(self, p, p.get_buffer(2))?,
-                ])
-            } else {
-                None
-            };
-            if pass_to_render.is_none() && do_render {
-                info!("Upsampling LF for group {group}");
-                upsample_lf_group(
-                    group,
-                    pixels.as_mut().unwrap(),
-                    self.lf_image.as_ref().unwrap(),
-                    &self.header,
-                    &self.decoder_state.file_header.transform_data,
-                )?;
-            } else {
-                info!("Decoding VarDCT group {group}");
-                let hf_global = self.hf_global.as_mut().unwrap();
-                let hf_meta = self.hf_meta.as_mut().unwrap();
-                let buffers = self.vardct_buffers.get_or_insert_with(VarDctBuffers::new);
-                decode_vardct_group(
-                    group,
-                    passes,
-                    &self.header,
-                    lf_global,
-                    hf_global,
-                    hf_meta,
-                    &self.lf_image,
-                    &self.quant_lf,
-                    &self
-                        .decoder_state
-                        .file_header
-                        .transform_data
-                        .opsin_inverse_matrix
-                        .quant_biases,
-                    &mut pixels,
-                    buffers,
-                )?;
-            }
-            if let Some(pixels) = pixels {
-                for (c, img) in pixels.into_iter().enumerate() {
-                    pipeline!(
-                        self,
-                        p,
-                        p.set_buffer_for_group(c, group, complete, img, buffer_splitter)?
-                    );
-                }
-            }
-        }
-
         for (pass, br) in passes.iter_mut() {
             lf_global.modular_global.read_stream(
                 ModularStreamId::ModularHF { group, pass: *pass },
                 &self.header,
                 &lf_global.tree,
                 br,
+                Some(&mut pass_to_pipeline),
             )?;
         }
-        Ok(do_render)
+
+        Ok(())
     }
 }

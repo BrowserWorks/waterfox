@@ -16,7 +16,7 @@ use crate::{
     frame::color_correlation_map::ColorCorrelationParams,
     util::{CeilLog2, NewWithCapacity, fast_cos, fast_erff_simd, tracing_wrappers::*},
 };
-use jxl_simd::{F32SimdVec, ScalarDescriptor, SimdDescriptor, simd_function};
+use jxl_simd::{F32SimdVec, SimdDescriptor, simd_function};
 const MAX_NUM_CONTROL_POINTS: u32 = 1 << 20;
 const MAX_NUM_CONTROL_POINTS_PER_PIXEL_RATIO: u32 = 2;
 const DELTA_LIMIT: i64 = 1 << 30;
@@ -528,13 +528,10 @@ fn draw_segment_inner<D: SimdDescriptor>(
     row_pos: (usize, usize),
     x_range: (usize, usize),
     segment: &SplineSegment,
-) -> usize {
+) {
     let (x_start, x_end) = x_range;
     let (row_x0, y) = row_pos;
     let len = D::F32Vec::LEN;
-    if x_start + len > x_end {
-        return x_start;
-    }
 
     let inv_sigma = D::F32Vec::splat(d, segment.inv_sigma);
     let half = D::F32Vec::splat(d, 0.5);
@@ -566,7 +563,8 @@ fn draw_segment_inner<D: SimdDescriptor>(
 
     let num_chunks = (end_offset - start_offset) / len;
     let mut x = x_start;
-    for _ in 0..num_chunks {
+    // chunks + remainder
+    for iter in 0..=num_chunks {
         let vx = D::F32Vec::splat(d, x as f32) + vx_base;
         let dx = vx - center_x;
         let sqd = dx.mul_add(dx, dy2);
@@ -578,19 +576,30 @@ fn draw_segment_inner<D: SimdDescriptor>(
         let local_intensity =
             sigma_over_4_times_intensity * one_dimensional_factor * one_dimensional_factor;
 
-        let c0 = it0.next().unwrap();
-        cm0.mul_add(local_intensity, D::F32Vec::load(d, c0))
-            .store(c0);
-        let c1 = it1.next().unwrap();
-        cm1.mul_add(local_intensity, D::F32Vec::load(d, c1))
-            .store(c1);
-        let c2 = it2.next().unwrap();
-        cm2.mul_add(local_intensity, D::F32Vec::load(d, c2))
-            .store(c2);
+        if iter < num_chunks {
+            let mul_accum = |cm: D::F32Vec, data: &mut [f32]| {
+                cm.mul_add(local_intensity, D::F32Vec::load(d, data))
+                    .store(data)
+            };
+            mul_accum(cm0, it0.next().unwrap());
+            mul_accum(cm1, it1.next().unwrap());
+            mul_accum(cm2, it2.next().unwrap());
+        } else {
+            let mul_accum = |cm: D::F32Vec, data: &mut [f32]| {
+                let mut full_data = [0.0; 16];
+                full_data[..data.len()].copy_from_slice(data);
+                cm.mul_add(local_intensity, D::F32Vec::load(d, &full_data))
+                    .store(&mut full_data);
+                data.copy_from_slice(&full_data[..data.len()]);
+            };
+            mul_accum(cm0, it0.into_remainder());
+            mul_accum(cm1, it1.into_remainder());
+            mul_accum(cm2, it2.into_remainder());
+            break;
+        }
 
         x += len;
     }
-    x
 }
 
 simd_function!(
@@ -611,13 +620,7 @@ simd_function!(
             return;
         }
 
-        let x = clamped_x0;
-        let x = draw_segment_inner(d, row, (x0, y), (x, clamped_x1), segment);
-        let d = d.maybe_downgrade_256bit();
-        let x = draw_segment_inner(d, row, (x0, y), (x, clamped_x1), segment);
-        let d = d.maybe_downgrade_128bit();
-        let x = draw_segment_inner(d, row, (x0, y), (x, clamped_x1), segment);
-        draw_segment_inner(ScalarDescriptor, row, (x0, y), (x, clamped_x1), segment);
+        draw_segment_inner(d, row, (x0, y), (clamped_x0, clamped_x1), segment);
     }
 );
 
@@ -902,7 +905,7 @@ mod test_splines {
         error::{Error, Result},
         features::spline::SplineSegment,
         frame::color_correlation_map::ColorCorrelationParams,
-        util::test::{assert_all_almost_abs_eq, assert_almost_abs_eq, assert_almost_eq},
+        tests::assert_close,
     };
 
     use super::{
@@ -1494,7 +1497,8 @@ mod test_splines {
                 got_dequantized.control_points.len(),
                 want_dequantized.control_points.len()
             );
-            assert_all_almost_abs_eq(
+            assert_close!(
+                all,
                 got_dequantized
                     .control_points
                     .iter()
@@ -1507,7 +1511,8 @@ mod test_splines {
                     .collect::<Vec<f32>>(),
                 1e-6,
             );
-            assert_all_almost_abs_eq(
+            assert_close!(
+                all,
                 got_dequantized
                     .control_points
                     .iter()
@@ -1521,13 +1526,15 @@ mod test_splines {
                 1e-6,
             );
             for index in 0..got_dequantized.color_dct.len() {
-                assert_all_almost_abs_eq(
+                assert_close!(
+                    all,
                     got_dequantized.color_dct[index].0,
                     want_dequantized.color_dct[index].0,
                     1e-4,
                 );
             }
-            assert_all_almost_abs_eq(
+            assert_close!(
+                all,
                 got_dequantized.sigma_dct.0,
                 want_dequantized.sigma_dct.0,
                 1e-4,
@@ -1599,7 +1606,8 @@ mod test_splines {
             Point { x: 4.0, y: 3.0 },
         ];
         let got_result = draw_centripetal_catmull_rom_spline(&control_points)?;
-        assert_all_almost_abs_eq(
+        assert_close!(
+            all,
             got_result.iter().map(|p| p.x).collect::<Vec<f32>>(),
             want_result.iter().map(|p| p.x).collect::<Vec<f32>>(),
             1e-10,
@@ -1628,17 +1636,20 @@ mod test_splines {
         for_each_equally_spaced_point(&segments, desired_rendering_distance, |p, d| {
             got_results.push((p, d))
         });
-        assert_all_almost_abs_eq(
+        assert_close!(
+            all,
             got_results.iter().map(|(p, _)| p.x).collect::<Vec<f32>>(),
             want_results.iter().map(|(p, _)| p.x).collect::<Vec<f32>>(),
             1e-9,
         );
-        assert_all_almost_abs_eq(
+        assert_close!(
+            all,
             got_results.iter().map(|(p, _)| p.y).collect::<Vec<f32>>(),
             want_results.iter().map(|(p, _)| p.y).collect::<Vec<f32>>(),
             1e-9,
         );
-        assert_all_almost_abs_eq(
+        assert_close!(
+            all,
             got_results.iter().map(|(_, d)| *d).collect::<Vec<f32>>(),
             want_results.iter().map(|(_, d)| *d).collect::<Vec<f32>>(),
             1e-9,
@@ -1689,7 +1700,7 @@ mod test_splines {
         ];
         for (t, want) in want_out.iter().enumerate() {
             let got_out = dct.continuous_idct(t as f32);
-            assert_almost_abs_eq(got_out, *want, 1e-4);
+            assert_close!(got_out, *want, 1e-4);
         }
         Ok(())
     }
@@ -1707,23 +1718,23 @@ mod test_splines {
             let original = dct.continuous_idct(t_val);
             let precomputed = PrecomputedCosines::new(t_val);
             let fast = dct.continuous_idct_fast(&precomputed);
-            assert_almost_abs_eq(fast, original, 1e-5);
+            assert_close!(fast, original, 1e-5);
         }
     }
 
     fn verify_segment_almost_equal(seg1: &SplineSegment, seg2: &SplineSegment) {
-        assert_almost_eq(seg1.center_x, seg2.center_x, 1e-2, 1e-4);
-        assert_almost_eq(seg1.center_y, seg2.center_y, 1e-2, 1e-4);
+        assert_close!(seg1.center_x, seg2.center_x, 1e-2, rel: 1e-4);
+        assert_close!(seg1.center_y, seg2.center_y, 1e-2, rel: 1e-4);
         for (got, want) in zip(seg1.color.iter(), seg2.color.iter()) {
-            assert_almost_eq(*got, *want, 1e-2, 1e-4);
+            assert_close!(*got, *want, 1e-2, rel: 1e-4);
         }
-        assert_almost_eq(seg1.inv_sigma, seg2.inv_sigma, 1e-2, 1e-4);
-        assert_almost_eq(seg1.maximum_distance, seg2.maximum_distance, 1e-2, 1e-4);
-        assert_almost_eq(
+        assert_close!(seg1.inv_sigma, seg2.inv_sigma, 1e-2, rel: 1e-4);
+        assert_close!(seg1.maximum_distance, seg2.maximum_distance, 1e-2, rel: 1e-4);
+        assert_close!(
             seg1.sigma_over_4_times_intensity,
             seg2.sigma_over_4_times_intensity,
             1e-2,
-            1e-4,
+            rel: 1e-4,
         );
     }
 

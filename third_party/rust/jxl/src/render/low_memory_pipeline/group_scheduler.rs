@@ -27,7 +27,7 @@ pub(super) struct InputBuffer {
 
 impl InputBuffer {
     pub(super) fn set_buffer(&mut self, chan: usize, buf: OwnedRawImage) {
-        assert!(self.data[chan].is_none());
+        assert!(self.data[chan].is_none(), "chan: {chan}");
         self.data[chan] = Some(buf);
         self.ready_channels += 1;
     }
@@ -113,6 +113,14 @@ impl LowMemoryRenderPipeline {
     }
 
     fn store_scratch_buffer(&mut self, channel: usize, kind: usize, image: OwnedRawImage) {
+        if kind == 0
+            && let Some(s) = self.group_scratch_buffers_limit
+            && self.scratch_channel_buffers[channel * 3].len() >= s
+        {
+            // We are going over the limit of group-sized scratch buffers for
+            // this channel - avoid storing the buffer.
+            return;
+        }
         self.scratch_channel_buffers[channel * 3 + kind].push(image)
     }
 
@@ -126,7 +134,6 @@ impl LowMemoryRenderPipeline {
         if buf.ready_channels != self.shared.num_used_channels() {
             return Ok(());
         }
-        buf.ready_channels = 0;
         let (gx, gy) = self.shared.group_position(g);
         debug!("new data ready for group {gx},{gy}");
 
@@ -261,6 +268,10 @@ impl LowMemoryRenderPipeline {
                 _ => group_rect.origin.0 + self.border_size.0,
             };
 
+            if x1 < x0 || y1 < y0 {
+                return Ok(());
+            }
+
             let image_area = Rect {
                 origin: (x0, y0),
                 size: (x1 - x0, y1 - y0),
@@ -279,11 +290,26 @@ impl LowMemoryRenderPipeline {
             Ok(())
         })?;
 
+        let all_finalized = (0..self.shared.num_channels())
+            .filter(|&c| self.shared.channel_is_used[c])
+            .all(|c| self.shared.group_chan_complete[g][c]);
+
+        let mut preserved_count = 0;
         for c in 0..self.input_buffers[g].data.len() {
-            if let Some(b) = std::mem::take(&mut self.input_buffers[g].data[c]) {
-                self.store_scratch_buffer(c, 0, b);
+            if !self.shared.channel_is_used[c] {
+                continue;
+            }
+            let is_finalized = self.shared.group_chan_complete[g][c];
+            let preserve = is_finalized && !all_finalized;
+            if !preserve {
+                if let Some(b) = std::mem::take(&mut self.input_buffers[g].data[c]) {
+                    self.store_scratch_buffer(c, 0, b);
+                }
+            } else {
+                preserved_count += 1;
             }
         }
+        self.input_buffers[g].ready_channels = preserved_count;
 
         // Clear border buffers that will not be used again.
         // This is certainly the case if *all* the groups in the 3x3 group area around

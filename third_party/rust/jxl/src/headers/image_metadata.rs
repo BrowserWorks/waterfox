@@ -65,6 +65,20 @@ impl Orientation {
         }
     }
 
+    /// Returns the per-pixel step in display coordinates when iterating along
+    /// the frame's x axis. Equivalent to
+    /// `display_pixel((1, y), size) - display_pixel((0, y), size)` but works
+    /// for any non-empty `size` (the latter form would underflow when
+    /// `size.0 == 1` and the orientation flips x).
+    pub fn display_row_step(&self) -> (isize, isize) {
+        match self {
+            Orientation::Identity | Orientation::FlipVertical => (1, 0),
+            Orientation::FlipHorizontal | Orientation::Rotate180 => (-1, 0),
+            Orientation::Transpose | Orientation::Rotate90Cw => (0, 1),
+            Orientation::AntiTranspose | Orientation::Rotate90Ccw => (0, -1),
+        }
+    }
+
     pub fn display_pixel(&self, (x, y): (usize, usize), size: (usize, usize)) -> (usize, usize) {
         match self {
             Orientation::Identity => (x, y),

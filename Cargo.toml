@@ -416,3 +416,8 @@ zip = { path = "third_party/rust/zip" }
 
 # Patch libcrux-traits to avoid unnecessary unused dependencies and conflicts.
 libcrux-traits = { path = "build/rust/libcrux-traits" }
+
+# Redirect jxl_simd to the in-tree vendored copy so we can carry a patch that
+# works around a rust/LLVM issue on macOS/x86_64 that makes jxl-rs decode ~3x
+# slower on PGO builds. See bug 2043090.
+jxl_simd = { path = "third_party/rust/jxl_simd" }

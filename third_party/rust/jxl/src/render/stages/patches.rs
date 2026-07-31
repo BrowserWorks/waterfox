@@ -19,6 +19,11 @@ pub struct PatchesStage {
     decoder_state: Arc<[Option<ReferenceFrame>; 4]>,
 }
 
+struct PatchesState {
+    patches_for_row_result: Vec<usize>,
+    blending_scratch: Vec<f32>,
+}
+
 impl PatchesStage {
     pub fn new(
         patches: Arc<AtomicRefCell<PatchesDictionary>>,
@@ -57,9 +62,11 @@ impl RenderPipelineInPlaceStage for PatchesStage {
         if patches.positions.is_empty() {
             return;
         }
-        let state: &mut Vec<usize> = state.unwrap().downcast_mut().unwrap();
-        if state.capacity() < patches.positions.len() {
-            state.reserve(patches.positions.len() - state.len());
+        let state: &mut PatchesState = state.unwrap().downcast_mut().unwrap();
+        if state.patches_for_row_result.capacity() < patches.positions.len() {
+            state
+                .patches_for_row_result
+                .reserve(patches.positions.len() - state.patches_for_row_result.len());
         }
         patches.add_one_row(
             row,
@@ -67,7 +74,8 @@ impl RenderPipelineInPlaceStage for PatchesStage {
             xsize,
             &self.extra_channels,
             &self.decoder_state[..],
-            state,
+            &mut state.patches_for_row_result,
+            &mut state.blending_scratch,
         );
     }
 
@@ -76,7 +84,10 @@ impl RenderPipelineInPlaceStage for PatchesStage {
         let patches = self.patches.borrow();
         let len = patches.positions.len();
         let patches_for_row_result = Vec::<usize>::new_with_capacity(len)?;
-        Ok(Some(Box::new(patches_for_row_result) as Box<dyn Any>))
+        Ok(Some(Box::new(PatchesState {
+            patches_for_row_result,
+            blending_scratch: Vec::new(),
+        }) as Box<dyn Any>))
     }
 }
 
@@ -89,7 +100,7 @@ mod test {
 
     use super::*;
     use crate::error::Result;
-    use crate::util::test::read_headers_and_toc;
+    use crate::tests::decode::read_headers_and_toc;
 
     #[test]
     fn patches_consistency() -> Result<()> {

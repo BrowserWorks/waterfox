@@ -118,7 +118,7 @@ pub struct IncrementalIccReader {
 impl IncrementalIccReader {
     pub fn new(br: &mut BitReader) -> Result<Self> {
         let len = u64::read_unconditional(&(), br, &Empty {})?;
-        if len > 1u64 << 20 {
+        if len > 1u64 << 24 {
             return Err(Error::IccTooLarge);
         }
 

@@ -17,7 +17,7 @@ pub struct TocNonserialized {
     pub num_entries: u32,
 }
 
-#[derive(UnconditionalCoder, Debug, PartialEq)]
+#[derive(UnconditionalCoder, Debug, PartialEq, Clone)]
 #[nonserialized(TocNonserialized)]
 pub struct Toc {
     #[default(false)]
@@ -82,7 +82,7 @@ impl IncrementalTocReader {
         );
         let entry = u32::read_unconditional(&entry_coder, br, &Empty {})?;
         self.entries.push(entry);
-        Ok(())
+        br.check_for_error()
     }
 
     fn read_permutation(&mut self, br: &mut BitReader) -> Result<()> {
@@ -95,7 +95,7 @@ impl IncrementalTocReader {
             },
         )?;
         self.permutation = Some(permutation);
-        Ok(())
+        br.check_for_error()
     }
 
     pub fn finalize(self) -> Toc {

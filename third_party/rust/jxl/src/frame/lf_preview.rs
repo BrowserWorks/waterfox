@@ -19,7 +19,7 @@ use crate::{
             OutputColorInfo, TransferFunction, Upsample8x, XybStage,
         },
     },
-    util::{f16, mirror},
+    util::{SmallVec, f16, mirror},
 };
 
 impl Frame {
@@ -163,8 +163,12 @@ impl Frame {
                 .collect();
                 let input_channels = Channels::new(input_rows_refs, 1, 5);
 
-                let output_rows_refs =
-                    upsampled_rows[c].get_rows_mut(y * 8..y * 8 + 8, RowBuffer::x0_offset::<f32>());
+                let mut output_rows_refs = SmallVec::new();
+                upsampled_rows[c].get_rows_mut(
+                    y * 8..y * 8 + 8,
+                    RowBuffer::x0_offset::<f32>(),
+                    &mut output_rows_refs,
+                );
                 let mut output_channels = ChannelsMut::new(output_rows_refs, 1, 8);
 
                 upsample_stage.process_row_chunk(
@@ -197,8 +201,12 @@ impl Frame {
                             )
                             .collect();
                             let input_channels = Channels::new(input_rows_refs, 1, 1);
-                            let output_rows_refs = output_rows[c]
-                                .get_rows_mut(uy..uy + 1, RowBuffer::x0_offset::<$t>());
+                            let mut output_rows_refs = SmallVec::new();
+                            output_rows[c].get_rows_mut(
+                                uy..uy + 1,
+                                RowBuffer::x0_offset::<$t>(),
+                                &mut output_rows_refs,
+                            );
                             let mut output_channels = ChannelsMut::new(output_rows_refs, 1, 1);
                             $s.process_row_chunk(
                                 (0, 0),
@@ -272,7 +280,7 @@ impl Frame {
         &mut self,
         pixel_format: &JxlPixelFormat,
         output_buffers: &mut [JxlOutputBuffer<'_>],
-        changed_regions: Option<&[Rect]>,
+        changed_regions: &[Rect],
         output_profile: &JxlColorProfile,
     ) -> Result<bool> {
         if self.header.needs_blending() {
@@ -318,24 +326,16 @@ impl Frame {
             // We only render color data, and only to 3- or 4- channel output buffers.
             return Ok(false);
         }
-        // We already have a fully-rendered frame and we are not requesting to re-render
-        // specific regions.
-        if self.decoder_state.lf_frame_was_rendered && changed_regions.is_none() {
-            return Ok(false);
-        }
-        if changed_regions.is_none() {
-            self.decoder_state.lf_frame_was_rendered = true;
-        }
-
         let sz = &self.decoder_state.file_header.size;
         let xsize = sz.xsize() as usize;
         let ysize = sz.ysize() as usize;
 
+        // Render the whole image the first time, then only the changed regions.
         let mut regions_storage;
-
-        let regions = if let Some(regions) = changed_regions {
-            regions
+        let regions = if self.decoder_state.lf_frame_was_rendered {
+            changed_regions
         } else {
+            self.decoder_state.lf_frame_was_rendered = true;
             regions_storage = vec![];
             for i in (0..xsize.div_ceil(8)).step_by(256) {
                 let x0 = i;

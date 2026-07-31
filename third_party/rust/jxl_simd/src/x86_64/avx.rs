@@ -8,7 +8,6 @@ use crate::{U32SimdVec, impl_f32_array_interface, x86_64::sse42::Sse42Descriptor
 use super::super::{F32SimdVec, I32SimdVec, SimdDescriptor, SimdMask, U8SimdVec, U16SimdVec};
 use std::{
     arch::x86_64::*,
-    mem::MaybeUninit,
     ops::{
         Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div,
         DivAssign, Mul, MulAssign, Neg, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
@@ -189,9 +188,7 @@ pub struct F32VecAvx(__m256, AvxDescriptor);
 #[repr(transparent)]
 pub struct MaskAvx(__m256, AvxDescriptor);
 
-// SAFETY: The methods in this implementation that write to `MaybeUninit` (store_interleaved_*)
-// ensure that they write valid data to the output slice without reading uninitialized memory.
-unsafe impl F32SimdVec for F32VecAvx {
+impl F32SimdVec for F32VecAvx {
     type Descriptor = AvxDescriptor;
 
     const LEN: usize = 8;
@@ -213,10 +210,10 @@ unsafe impl F32SimdVec for F32VecAvx {
     }
 
     #[inline(always)]
-    fn store_interleaved_2_uninit(a: Self, b: Self, dest: &mut [MaybeUninit<f32>]) {
+    fn store_interleaved_2(a: Self, b: Self, dest: &mut [f32]) {
         #[target_feature(enable = "avx2")]
         #[inline]
-        fn store_interleaved_2_impl(a: __m256, b: __m256, dest: &mut [MaybeUninit<f32>]) {
+        fn store_interleaved_2_impl(a: __m256, b: __m256, dest: &mut [f32]) {
             assert!(dest.len() >= 2 * F32VecAvx::LEN);
             // a = [a0, a1, a2, a3, a4, a5, a6, a7], b = [b0, b1, b2, b3, b4, b5, b6, b7]
             // Output: [a0, b0, a1, b1, a2, b2, a3, b3, a4, b4, a5, b5, a6, b6, a7, b7]
@@ -225,9 +222,9 @@ unsafe impl F32SimdVec for F32VecAvx {
             // Need to permute to get correct order
             let out0 = _mm256_permute2f128_ps::<0x20>(lo, hi); // lower halves: [a0,b0,a1,b1, a2,b2,a3,b3]
             let out1 = _mm256_permute2f128_ps::<0x31>(lo, hi); // upper halves: [a4,b4,a5,b5, a6,b6,a7,b7]
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<f32>` through `*mut f32` is valid. _mm256_storeu_ps supports unaligned stores.
+            // SAFETY: `dest` has enough space and writing to `f32` through `*mut f32` is valid. _mm256_storeu_ps supports unaligned stores.
             unsafe {
-                let dest_ptr = dest.as_mut_ptr().cast::<f32>();
+                let dest_ptr = dest.as_mut_ptr();
                 _mm256_storeu_ps(dest_ptr, out0);
                 _mm256_storeu_ps(dest_ptr.add(8), out1);
             }
@@ -238,15 +235,10 @@ unsafe impl F32SimdVec for F32VecAvx {
     }
 
     #[inline(always)]
-    fn store_interleaved_3_uninit(a: Self, b: Self, c: Self, dest: &mut [MaybeUninit<f32>]) {
+    fn store_interleaved_3(a: Self, b: Self, c: Self, dest: &mut [f32]) {
         #[target_feature(enable = "avx2")]
         #[inline]
-        fn store_interleaved_3_impl(
-            a: __m256,
-            b: __m256,
-            c: __m256,
-            dest: &mut [MaybeUninit<f32>],
-        ) {
+        fn store_interleaved_3_impl(a: __m256, b: __m256, c: __m256, dest: &mut [f32]) {
             assert!(dest.len() >= 3 * F32VecAvx::LEN);
 
             let idx_a0 = _mm256_setr_epi32(0, 0, 0, 1, 0, 0, 2, 0);
@@ -276,9 +268,9 @@ unsafe impl F32SimdVec for F32VecAvx {
             let out2 = _mm256_blend_ps::<0b01001001>(a2, b2);
             let out2 = _mm256_blend_ps::<0b10010010>(out2, c2);
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<f32>` through `*mut f32` is valid. _mm256_storeu_ps supports unaligned stores.
+            // SAFETY: `dest` has enough space and writing to `f32` through `*mut f32` is valid. _mm256_storeu_ps supports unaligned stores.
             unsafe {
-                let dest_ptr = dest.as_mut_ptr().cast::<f32>();
+                let dest_ptr = dest.as_mut_ptr();
                 _mm256_storeu_ps(dest_ptr, out0);
                 _mm256_storeu_ps(dest_ptr.add(8), out1);
                 _mm256_storeu_ps(dest_ptr.add(16), out2);
@@ -290,22 +282,10 @@ unsafe impl F32SimdVec for F32VecAvx {
     }
 
     #[inline(always)]
-    fn store_interleaved_4_uninit(
-        a: Self,
-        b: Self,
-        c: Self,
-        d: Self,
-        dest: &mut [MaybeUninit<f32>],
-    ) {
+    fn store_interleaved_4(a: Self, b: Self, c: Self, d: Self, dest: &mut [f32]) {
         #[target_feature(enable = "avx2")]
         #[inline]
-        fn store_interleaved_4_impl(
-            a: __m256,
-            b: __m256,
-            c: __m256,
-            d: __m256,
-            dest: &mut [MaybeUninit<f32>],
-        ) {
+        fn store_interleaved_4_impl(a: __m256, b: __m256, c: __m256, d: __m256, dest: &mut [f32]) {
             assert!(dest.len() >= 4 * F32VecAvx::LEN);
             // First interleave pairs
             let ab_lo = _mm256_unpacklo_ps(a, b);
@@ -337,9 +317,9 @@ unsafe impl F32SimdVec for F32VecAvx {
             let out2 = _mm256_permute2f128_ps::<0x31>(abcd_0, abcd_1);
             let out3 = _mm256_permute2f128_ps::<0x31>(abcd_2, abcd_3);
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<f32>` through `*mut f32` is valid. _mm256_storeu_ps supports unaligned stores.
+            // SAFETY: `dest` has enough space and writing to `f32` through `*mut f32` is valid. _mm256_storeu_ps supports unaligned stores.
             unsafe {
-                let dest_ptr = dest.as_mut_ptr().cast::<f32>();
+                let dest_ptr = dest.as_mut_ptr();
                 _mm256_storeu_ps(dest_ptr, out0);
                 _mm256_storeu_ps(dest_ptr.add(8), out1);
                 _mm256_storeu_ps(dest_ptr.add(16), out2);
@@ -547,6 +527,47 @@ unsafe impl F32SimdVec for F32VecAvx {
         F32VecAvx(_mm256_fnmadd_ps(this.0, mul.0, add.0), this.1)
     });
 
+    // splat / abs / neg / copysign below have a Mac-only variant that
+    // works around a rust/LLVM issue making jxl-rs decode ~3x slower on
+    // macOS x86_64 PGO builds (bug 2043090).
+    //
+    // What goes wrong: jxl-rs uses _mm256_set1_ps a lot — for example
+    // F32Vec::abs() masks the sign bit with _mm256_set1_ps(-0.0). In
+    // rust < 1.95 the way _mm256_set1_ps is implemented makes LLVM see
+    // a "fill a buffer with this constant value" pattern in the IR
+    // after a few optimization passes. On macOS, an LLVM pass
+    // (LoopIdiomRecognize) converts that pattern into a call to libc's
+    // memset_pattern16. The call is correct but much slower than the
+    // single AVX broadcast instruction the source was really asking
+    // for, because the macOS ABI marks all AVX registers as caller-
+    // saved — so the surrounding code (with ~10-12 AVX values live in
+    // the EPF inner loop) has to spill them all to the stack around
+    // each call. In a PGO build with aggressive inlining this fires
+    // thousands of times.
+    //
+    // Rust 1.95 changed _mm256_set1_ps to use a different LLVM
+    // intrinsic that doesn't produce the buffer-fill pattern, so the
+    // workaround is gated to (target_os = "macos") AND (rust < 1.95).
+    // Other targets and newer rust use the original upstream code.
+    // The whole block (and the rustversion dependency) can be removed
+    // once Firefox's MSRV reaches 1.95 (tracking bug 2039416).
+    //
+    // Each Mac-only variant below takes a different path that avoids
+    // producing the buffer-fill pattern in the first place — see the
+    // per-function comments.
+
+    #[rustversion::before(1.95)]
+    #[cfg(target_os = "macos")]
+    #[inline(always)]
+    fn splat(d: Self::Descriptor, v: f32) -> Self {
+        // _mm_set_ss(v) builds [v, 0, 0, 0] — values aren't all the same, so
+        // LLVM doesn't recognize this as a buffer-fill. _mm256_broadcastss_ps
+        // then broadcasts lane 0 to all 8 lanes via a single `vbroadcastss
+        // %xmm, %ymm`. SAFETY: avx2 from `d`.
+        unsafe { Self(_mm256_broadcastss_ps(_mm_set_ss(v)), d) }
+    }
+
+    #[rustversion::attr(before(1.95), cfg(not(target_os = "macos")))]
     #[inline(always)]
     fn splat(d: Self::Descriptor, v: f32) -> Self {
         // SAFETY: We know avx is available from the safety invariant on `d`.
@@ -559,6 +580,23 @@ unsafe impl F32SimdVec for F32VecAvx {
         unsafe { Self(_mm256_setzero_ps(), d) }
     }
 
+    #[rustversion::before(1.95)]
+    #[cfg(target_os = "macos")]
+    fn_avx!(this: F32VecAvx, fn abs() -> F32VecAvx {
+        // Load the sign-mask directly from .rodata instead of constructing it
+        // with _mm256_set1_ps(-0.0). The static array becomes a 32-byte
+        // constant the linker puts in .rodata, so this is just a single load.
+        static SIGN_MASK: [u32; 8] = [0x80000000; 8];
+        // SAFETY: avx2 is available from the safety invariant on `this.1`.
+        let mask = unsafe {
+            _mm256_castsi256_ps(_mm256_loadu_si256(
+                SIGN_MASK.as_ptr() as *const __m256i,
+            ))
+        };
+        F32VecAvx(_mm256_andnot_ps(mask, this.0), this.1)
+    });
+
+    #[rustversion::attr(before(1.95), cfg(not(target_os = "macos")))]
     fn_avx!(this: F32VecAvx, fn abs() -> F32VecAvx {
         F32VecAvx(_mm256_andnot_ps(_mm256_set1_ps(-0.0), this.0), this.1)
     });
@@ -571,10 +609,47 @@ unsafe impl F32SimdVec for F32VecAvx {
         F32VecAvx(_mm256_sqrt_ps(this.0), this.1)
     });
 
+    #[rustversion::before(1.95)]
+    #[cfg(target_os = "macos")]
+    fn_avx!(this: F32VecAvx, fn neg() -> F32VecAvx {
+        // Same technique as abs(): load the sign-mask from .rodata.
+        static SIGN_MASK: [u32; 8] = [0x80000000; 8];
+        // SAFETY: avx2 is available from the safety invariant on `this.1`.
+        let mask = unsafe {
+            _mm256_castsi256_ps(_mm256_loadu_si256(
+                SIGN_MASK.as_ptr() as *const __m256i,
+            ))
+        };
+        F32VecAvx(_mm256_xor_ps(mask, this.0), this.1)
+    });
+
+    #[rustversion::attr(before(1.95), cfg(not(target_os = "macos")))]
     fn_avx!(this: F32VecAvx, fn neg() -> F32VecAvx {
         F32VecAvx(_mm256_xor_ps(_mm256_set1_ps(-0.0), this.0), this.1)
     });
 
+    #[rustversion::before(1.95)]
+    #[cfg(target_os = "macos")]
+    fn_avx!(this: F32VecAvx, fn copysign(sign: F32VecAvx) -> F32VecAvx {
+        // Same technique as abs(): load the sign-mask from .rodata (originally
+        // _mm256_set1_epi32(i32::MIN), which has the same bit pattern).
+        static SIGN_MASK: [u32; 8] = [0x80000000; 8];
+        // SAFETY: avx2 is available from the safety invariant on `this.1`.
+        let sign_mask = unsafe {
+            _mm256_castsi256_ps(_mm256_loadu_si256(
+                SIGN_MASK.as_ptr() as *const __m256i,
+            ))
+        };
+        F32VecAvx(
+            _mm256_or_ps(
+                _mm256_andnot_ps(sign_mask, this.0),
+                _mm256_and_ps(sign_mask, sign.0),
+            ),
+            this.1,
+        )
+    });
+
+    #[rustversion::attr(before(1.95), cfg(not(target_os = "macos")))]
     fn_avx!(this: F32VecAvx, fn copysign(sign: F32VecAvx) -> F32VecAvx {
         let sign_mask = _mm256_castsi256_ps(_mm256_set1_epi32(i32::MIN));
         F32VecAvx(
@@ -700,7 +775,7 @@ unsafe impl F32SimdVec for F32VecAvx {
         #[inline]
         fn store_f16_bits_impl(v: __m256, dest: &mut [u16]) {
             assert!(dest.len() >= F32VecAvx::LEN);
-            let bits = _mm256_cvtps_ph::<{ _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC }>(v);
+            let bits = _mm256_cvtps_ph::<{ _MM_FROUND_TO_NEAREST_INT }>(v);
             // SAFETY: dest.len() >= 8 is checked above. _mm_storeu_si128 supports unaligned stores.
             unsafe { _mm_storeu_si128(dest.as_mut_ptr().cast(), bits) };
         }
@@ -1079,9 +1154,7 @@ impl U32SimdVec for U32VecAvx {
 #[repr(transparent)]
 pub struct U8VecAvx(__m256i, AvxDescriptor);
 
-// SAFETY: The methods in this implementation that write to `MaybeUninit` (store_interleaved_*)
-// ensure that they write valid data to the output slice without reading uninitialized memory.
-unsafe impl U8SimdVec for U8VecAvx {
+impl U8SimdVec for U8VecAvx {
     type Descriptor = AvxDescriptor;
     const LEN: usize = 32;
 
@@ -1108,10 +1181,10 @@ unsafe impl U8SimdVec for U8VecAvx {
     }
 
     #[inline(always)]
-    fn store_interleaved_2_uninit(a: Self, b: Self, dest: &mut [MaybeUninit<u8>]) {
+    fn store_interleaved_2(a: Self, b: Self, dest: &mut [u8]) {
         #[target_feature(enable = "avx2")]
         #[inline]
-        fn store_interleaved_2_impl(a: __m256i, b: __m256i, dest: &mut [MaybeUninit<u8>]) {
+        fn store_interleaved_2_impl(a: __m256i, b: __m256i, dest: &mut [u8]) {
             assert!(dest.len() >= 2 * U8VecAvx::LEN);
             // a = [A0..A15 | A16..A31]
             // b = [B0..B15 | B16..B31]
@@ -1123,7 +1196,7 @@ unsafe impl U8SimdVec for U8VecAvx {
             // R1 = [A16 B16..A23 B23 | A24 B24..A31 B31]
             let out1 = _mm256_permute2x128_si256::<0x31>(lo, hi);
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<u8>` through `*mut __m256i` is valid. _mm256_storeu_si256 supports unaligned stores.
+            // SAFETY: `dest` has enough space and writing to `u8` through `*mut __m256i` is valid. _mm256_storeu_si256 supports unaligned stores.
             unsafe {
                 let dest_ptr = dest.as_mut_ptr().cast::<__m256i>();
                 _mm256_storeu_si256(dest_ptr, out0);
@@ -1135,15 +1208,10 @@ unsafe impl U8SimdVec for U8VecAvx {
     }
 
     #[inline(always)]
-    fn store_interleaved_3_uninit(a: Self, b: Self, c: Self, dest: &mut [MaybeUninit<u8>]) {
+    fn store_interleaved_3(a: Self, b: Self, c: Self, dest: &mut [u8]) {
         #[target_feature(enable = "avx2")]
         #[inline]
-        fn store_interleaved_3_impl(
-            a: __m256i,
-            b: __m256i,
-            c: __m256i,
-            dest: &mut [MaybeUninit<u8>],
-        ) {
+        fn store_interleaved_3_impl(a: __m256i, b: __m256i, c: __m256i, dest: &mut [u8]) {
             assert!(dest.len() >= 3 * U8VecAvx::LEN);
 
             // U8 Masks
@@ -1217,7 +1285,7 @@ unsafe impl U8SimdVec for U8VecAvx {
                 _mm256_shuffle_epi8(c_dup_hi, mask_c2),
             );
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<u8>` through `*mut __m256i` is valid. _mm256_storeu_si256 supports unaligned stores.
+            // SAFETY: `dest` has enough space and writing to `u8` through `*mut __m256i` is valid. _mm256_storeu_si256 supports unaligned stores.
             unsafe {
                 let dest_ptr = dest.as_mut_ptr().cast::<__m256i>();
                 _mm256_storeu_si256(dest_ptr, out0);
@@ -1230,13 +1298,7 @@ unsafe impl U8SimdVec for U8VecAvx {
     }
 
     #[inline(always)]
-    fn store_interleaved_4_uninit(
-        a: Self,
-        b: Self,
-        c: Self,
-        d: Self,
-        dest: &mut [MaybeUninit<u8>],
-    ) {
+    fn store_interleaved_4(a: Self, b: Self, c: Self, d: Self, dest: &mut [u8]) {
         #[target_feature(enable = "avx2")]
         #[inline]
         fn store_interleaved_4_impl(
@@ -1244,7 +1306,7 @@ unsafe impl U8SimdVec for U8VecAvx {
             b: __m256i,
             c: __m256i,
             d: __m256i,
-            dest: &mut [MaybeUninit<u8>],
+            dest: &mut [u8],
         ) {
             assert!(dest.len() >= 4 * U8VecAvx::LEN);
             // First interleave pairs: ab and cd
@@ -1265,7 +1327,7 @@ unsafe impl U8SimdVec for U8VecAvx {
             let out2 = _mm256_permute2x128_si256::<0x31>(out0_p, out1_p);
             let out3 = _mm256_permute2x128_si256::<0x31>(out2_p, out3_p);
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<u8>` through `*mut __m256i` is valid. _mm256_storeu_si256 supports unaligned stores.
+            // SAFETY: `dest` has enough space and writing to `u8` through `*mut __m256i` is valid. _mm256_storeu_si256 supports unaligned stores.
             unsafe {
                 let dest_ptr = dest.as_mut_ptr().cast::<__m256i>();
                 _mm256_storeu_si256(dest_ptr, out0);
@@ -1283,9 +1345,7 @@ unsafe impl U8SimdVec for U8VecAvx {
 #[repr(transparent)]
 pub struct U16VecAvx(__m256i, AvxDescriptor);
 
-// SAFETY: The methods in this implementation that write to `MaybeUninit` (store_interleaved_*)
-// ensure that they write valid data to the output slice without reading uninitialized memory.
-unsafe impl U16SimdVec for U16VecAvx {
+impl U16SimdVec for U16VecAvx {
     type Descriptor = AvxDescriptor;
     const LEN: usize = 16;
 
@@ -1312,10 +1372,10 @@ unsafe impl U16SimdVec for U16VecAvx {
     }
 
     #[inline(always)]
-    fn store_interleaved_2_uninit(a: Self, b: Self, dest: &mut [MaybeUninit<u16>]) {
+    fn store_interleaved_2(a: Self, b: Self, dest: &mut [u16]) {
         #[target_feature(enable = "avx2")]
         #[inline]
-        fn store_interleaved_2_impl(a: __m256i, b: __m256i, dest: &mut [MaybeUninit<u16>]) {
+        fn store_interleaved_2_impl(a: __m256i, b: __m256i, dest: &mut [u16]) {
             assert!(dest.len() >= 2 * U16VecAvx::LEN);
             // a = [A0..A7 | A8..A15]
             // b = [B0..B7 | B8..B15]
@@ -1327,7 +1387,7 @@ unsafe impl U16SimdVec for U16VecAvx {
             // R1 = [A8 B8..A15 B15]
             let out1 = _mm256_permute2x128_si256::<0x31>(lo, hi);
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<u16>` through `*mut __m256i` is valid. _mm256_storeu_si256 supports unaligned stores.
+            // SAFETY: `dest` has enough space and writing to `u16` through `*mut __m256i` is valid. _mm256_storeu_si256 supports unaligned stores.
             unsafe {
                 let dest_ptr = dest.as_mut_ptr().cast::<__m256i>();
                 _mm256_storeu_si256(dest_ptr, out0);
@@ -1339,15 +1399,10 @@ unsafe impl U16SimdVec for U16VecAvx {
     }
 
     #[inline(always)]
-    fn store_interleaved_3_uninit(a: Self, b: Self, c: Self, dest: &mut [MaybeUninit<u16>]) {
+    fn store_interleaved_3(a: Self, b: Self, c: Self, dest: &mut [u16]) {
         #[target_feature(enable = "avx2")]
         #[inline]
-        fn store_interleaved_3_impl(
-            a: __m256i,
-            b: __m256i,
-            c: __m256i,
-            dest: &mut [MaybeUninit<u16>],
-        ) {
+        fn store_interleaved_3_impl(a: __m256i, b: __m256i, c: __m256i, dest: &mut [u16]) {
             assert!(dest.len() >= 3 * U16VecAvx::LEN);
 
             // U16 Masks
@@ -1421,7 +1476,7 @@ unsafe impl U16SimdVec for U16VecAvx {
                 _mm256_shuffle_epi8(c_dup_hi, mask_c2),
             );
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<u16>` through `*mut __m256i` is valid. _mm256_storeu_si256 supports unaligned stores.
+            // SAFETY: `dest` has enough space and writing to `u16` through `*mut __m256i` is valid. _mm256_storeu_si256 supports unaligned stores.
             unsafe {
                 let dest_ptr = dest.as_mut_ptr().cast::<__m256i>();
                 _mm256_storeu_si256(dest_ptr, out0);
@@ -1434,13 +1489,7 @@ unsafe impl U16SimdVec for U16VecAvx {
     }
 
     #[inline(always)]
-    fn store_interleaved_4_uninit(
-        a: Self,
-        b: Self,
-        c: Self,
-        d: Self,
-        dest: &mut [MaybeUninit<u16>],
-    ) {
+    fn store_interleaved_4(a: Self, b: Self, c: Self, d: Self, dest: &mut [u16]) {
         #[target_feature(enable = "avx2")]
         #[inline]
         fn store_interleaved_4_impl(
@@ -1448,7 +1497,7 @@ unsafe impl U16SimdVec for U16VecAvx {
             b: __m256i,
             c: __m256i,
             d: __m256i,
-            dest: &mut [MaybeUninit<u16>],
+            dest: &mut [u16],
         ) {
             assert!(dest.len() >= 4 * U16VecAvx::LEN);
             // First interleave pairs: ab and cd
@@ -1469,7 +1518,7 @@ unsafe impl U16SimdVec for U16VecAvx {
             let out2 = _mm256_permute2x128_si256::<0x31>(out0_p, out1_p);
             let out3 = _mm256_permute2x128_si256::<0x31>(out2_p, out3_p);
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<u16>` through `*mut __m256i` is valid. _mm256_storeu_si256 supports unaligned stores.
+            // SAFETY: `dest` has enough space and writing to `u16` through `*mut __m256i` is valid. _mm256_storeu_si256 supports unaligned stores.
             unsafe {
                 let dest_ptr = dest.as_mut_ptr().cast::<__m256i>();
                 _mm256_storeu_si256(dest_ptr, out0);

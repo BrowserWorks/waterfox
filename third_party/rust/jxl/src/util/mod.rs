@@ -3,9 +3,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#[cfg(test)]
-pub mod test;
-
 mod atomic_refcell;
 mod bits;
 mod cacheline;

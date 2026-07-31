@@ -474,7 +474,7 @@ mod test {
     use super::*;
     use crate::{
         error::Result, headers::CustomTransformDataNonserialized, image::Image,
-        render::test::make_and_run_simple_pipeline, util::test::assert_almost_abs_eq,
+        render::test::make_and_run_simple_pipeline, tests::assert_close,
     };
     use test_log::test;
 
@@ -520,7 +520,7 @@ mod test {
             make_and_run_simple_pipeline(stage, &[input], image_size, 0, 123)?;
         for x in 0..image_size.0 {
             for y in 0..image_size.1 {
-                assert_almost_abs_eq(output[0].row(y)[x], val, 0.0000001);
+                assert_close!(output[0].row(y)[x], val, 0.0000001);
             }
         }
         Ok(())
@@ -537,7 +537,7 @@ mod test {
             make_and_run_simple_pipeline(stage, &[input], image_size, 0, 123)?;
         for x in 0..image_size.0 {
             for y in 0..image_size.1 {
-                assert_almost_abs_eq(output[0].row(y)[x], val, 0.00001);
+                assert_close!(output[0].row(y)[x], val, 0.00001);
             }
         }
         Ok(())
@@ -554,7 +554,7 @@ mod test {
             make_and_run_simple_pipeline(stage, &[input], image_size, 0, 123)?;
         for x in 0..image_size.0 {
             for y in 0..image_size.1 {
-                assert_almost_abs_eq(output[0].row(y)[x], val, 0.00001);
+                assert_close!(output[0].row(y)[x], val, 0.00001);
             }
         }
         Ok(())
@@ -574,10 +574,10 @@ mod test {
         // Check we have a border with zeros
         for i in 0..14 {
             for j in 0..2 {
-                assert_almost_abs_eq(output[0].row(j)[i], 0.0, eps);
-                assert_almost_abs_eq(output[0].row(i)[j], 0.0, eps);
-                assert_almost_abs_eq(output[0].row(13 - j)[i], 0.0, eps);
-                assert_almost_abs_eq(output[0].row(i)[13 - j], 0.0, eps);
+                assert_close!(output[0].row(j)[i], 0.0, eps);
+                assert_close!(output[0].row(i)[j], 0.0, eps);
+                assert_close!(output[0].row(13 - j)[i], 0.0, eps);
+                assert_close!(output[0].row(i)[13 - j], 0.0, eps);
             }
         }
         // Define the mapping for the symmetric top-left kernel
@@ -602,11 +602,7 @@ mod test {
                         let mapped_i = if di == 0 { kernel_size - 1 - i } else { i };
                         let mapped_j = if dj == 0 { kernel_size - 1 - j } else { j };
                         let weight_index = index_map[mapped_i][mapped_j];
-                        assert_almost_abs_eq(
-                            output_value,
-                            weights[weight_index].clamp(0.0, 1.0),
-                            eps,
-                        );
+                        assert_close!(output_value, weights[weight_index].clamp(0.0, 1.0), eps,);
                     }
                 }
             }
@@ -631,10 +627,10 @@ mod test {
         // Check we have a border with zeros
         for i in 0..28 {
             for j in 0..4 {
-                assert_almost_abs_eq(output[0].row(j)[i], 0.0, eps);
-                assert_almost_abs_eq(output[0].row(i)[j], 0.0, eps);
-                assert_almost_abs_eq(output[0].row(27 - j)[i], 0.0, eps);
-                assert_almost_abs_eq(output[0].row(i)[27 - j], 0.0, eps);
+                assert_close!(output[0].row(j)[i], 0.0, eps);
+                assert_close!(output[0].row(i)[j], 0.0, eps);
+                assert_close!(output[0].row(27 - j)[i], 0.0, eps);
+                assert_close!(output[0].row(i)[27 - j], 0.0, eps);
             }
         }
 
@@ -675,9 +671,9 @@ mod test {
                         let output_value_mirrored_down_right =
                             output[0].row(row_size - offset_i - 1)[column_size - offset_j - 1];
 
-                        assert_almost_abs_eq(output_value, output_value_mirrored_right, eps);
-                        assert_almost_abs_eq(output_value, output_value_mirrored_down, eps);
-                        assert_almost_abs_eq(output_value, output_value_mirrored_down_right, eps);
+                        assert_close!(output_value, output_value_mirrored_right, eps);
+                        assert_close!(output_value, output_value_mirrored_down, eps);
+                        assert_close!(output_value, output_value_mirrored_down_right, eps);
 
                         // Testing if we get the expected weights, appropriately mapped.
                         let mapped_i = if (i % 4) < 2 {
@@ -691,11 +687,7 @@ mod test {
                             j / 4 + (1 - (j % 2)) * 5
                         };
                         let weight_index = index_map[mapped_i][mapped_j];
-                        assert_almost_abs_eq(
-                            output_value,
-                            weights[weight_index].clamp(0.0, 1.0),
-                            eps,
-                        );
+                        assert_close!(output_value, weights[weight_index].clamp(0.0, 1.0), eps,);
                     }
                 }
             }
@@ -720,10 +712,10 @@ mod test {
         // Check we have a border with zeros
         for i in 0..56 {
             for j in 0..8 {
-                assert_almost_abs_eq(output[0].row(j)[i], 0.0, eps);
-                assert_almost_abs_eq(output[0].row(i)[j], 0.0, eps);
-                assert_almost_abs_eq(output[0].row(55 - j)[i], 0.0, eps);
-                assert_almost_abs_eq(output[0].row(i)[55 - j], 0.0, eps);
+                assert_close!(output[0].row(j)[i], 0.0, eps);
+                assert_close!(output[0].row(i)[j], 0.0, eps);
+                assert_close!(output[0].row(55 - j)[i], 0.0, eps);
+                assert_close!(output[0].row(i)[55 - j], 0.0, eps);
             }
         }
 
@@ -834,9 +826,9 @@ mod test {
                         let output_value_mirrored_down_right =
                             output[0].row(row_size - offset_i - 1)[column_size - offset_j - 1];
 
-                        assert_almost_abs_eq(output_value, output_value_mirrored_right, eps);
-                        assert_almost_abs_eq(output_value, output_value_mirrored_down, eps);
-                        assert_almost_abs_eq(output_value, output_value_mirrored_down_right, eps);
+                        assert_close!(output_value, output_value_mirrored_right, eps);
+                        assert_close!(output_value, output_value_mirrored_down, eps);
+                        assert_close!(output_value, output_value_mirrored_down_right, eps);
 
                         // Testing if we get the expected weights, appropriately mapped.
                         let mapped_i = if (i % 8) < 4 {
@@ -850,11 +842,7 @@ mod test {
                             j / 8 + (3 - (j % 4)) * 5
                         };
                         let weight_index = index_map[mapped_i][mapped_j];
-                        assert_almost_abs_eq(
-                            output_value,
-                            weights[weight_index].clamp(0.0, 1.0),
-                            eps,
-                        );
+                        assert_close!(output_value, weights[weight_index].clamp(0.0, 1.0), eps,);
                     }
                 }
             }

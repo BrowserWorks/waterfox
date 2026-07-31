@@ -120,21 +120,9 @@ notes = "Patched version of upstream"
 audit-as-crates-io = true
 notes = "Patched version of upstream"
 
-[policy.jxl]
-audit-as-crates-io = true
-notes = "Vendored from libjxl/jxl-rs git, a few commits past the 0.4.3 tag."
-
-[policy.jxl_macros]
-audit-as-crates-io = true
-notes = "Vendored from libjxl/jxl-rs git, a few commits past the 0.4.3 tag."
-
 [policy.jxl_simd]
 audit-as-crates-io = true
-notes = "Vendored from libjxl/jxl-rs git, a few commits past the 0.4.3 tag."
-
-[policy.jxl_transforms]
-audit-as-crates-io = true
-notes = "Vendored from libjxl/jxl-rs git, a few commits past the 0.4.3 tag."
+notes = "Upstream 0.5.1 with a local Mac/x86_64 workaround patched in (see bug 2043090) and path-sourced via a [patch.crates-io] entry in the root Cargo.toml."
 
 [policy.l10nregistry]
 dependency-criteria = { fluent-testing = "safe-to-run", tokio = "safe-to-run" }

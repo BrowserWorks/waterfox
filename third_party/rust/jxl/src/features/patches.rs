@@ -680,6 +680,7 @@ impl PatchesDictionary {
     }
 
     #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
     pub fn add_one_row(
         &self,
         row: &mut [&mut [f32]],
@@ -688,6 +689,7 @@ impl PatchesDictionary {
         extra_channel_info: &[ExtraChannelInfo],
         reference_frames: &[Option<ReferenceFrame>],
         patches_for_row_result: &mut Vec<usize>,
+        blending_scratch: &mut Vec<f32>,
     ) {
         // TODO(zond): Allocate a buffer for this when building the stage instead of when executing it.
         let mut out = row
@@ -754,6 +756,7 @@ impl PatchesDictionary {
                 &self.blendings[blending_idx],
                 &self.blendings[blending_idx + 1..],
                 extra_channel_info,
+                blending_scratch,
             );
         }
     }
@@ -1458,7 +1461,7 @@ mod tests {
         use crate::{
             headers::{bit_depth::BitDepth, extra_channels::ExtraChannel},
             image::Image,
-            util::test::assert_all_almost_abs_eq,
+            tests::assert_close,
         };
 
         const MAX_ABS_DELTA: f32 = 1e-6; // Adjusted for typical f32 comparisons
@@ -1544,11 +1547,12 @@ mod tests {
                 &extra_channel_info,
                 &ref_frames, // Pass the Vec<ReferenceFrame>
                 &mut vec![],
+                &mut vec![],
             );
 
-            assert_all_almost_abs_eq(&r_data, &expected_r, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&g_data, &expected_r, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&b_data, &expected_r, MAX_ABS_DELTA);
+            assert_close!(all, &r_data, &expected_r, MAX_ABS_DELTA);
+            assert_close!(all, &g_data, &expected_r, MAX_ABS_DELTA);
+            assert_close!(all, &b_data, &expected_r, MAX_ABS_DELTA);
             Ok(())
         }
 
@@ -1606,11 +1610,12 @@ mod tests {
                 &extra_channel_info,
                 &ref_frames,
                 &mut vec![],
+                &mut vec![],
             );
 
-            assert_all_almost_abs_eq(&r_data, &expected_r, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&g_data, &expected_r, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&b_data, &expected_r, MAX_ABS_DELTA);
+            assert_close!(all, &r_data, &expected_r, MAX_ABS_DELTA);
+            assert_close!(all, &g_data, &expected_r, MAX_ABS_DELTA);
+            assert_close!(all, &b_data, &expected_r, MAX_ABS_DELTA);
             Ok(())
         }
 
@@ -1691,11 +1696,12 @@ mod tests {
                 &extra_channel_info,
                 &ref_frames,
                 &mut vec![],
+                &mut vec![],
             );
 
-            assert_all_almost_abs_eq(&r_data, &expected_r, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&g_data, &expected_r, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&b_data, &expected_r, MAX_ABS_DELTA);
+            assert_close!(all, &r_data, &expected_r, MAX_ABS_DELTA);
+            assert_close!(all, &g_data, &expected_r, MAX_ABS_DELTA);
+            assert_close!(all, &b_data, &expected_r, MAX_ABS_DELTA);
             Ok(())
         }
 
@@ -1804,12 +1810,13 @@ mod tests {
                 &ec_info,
                 &ref_frames,
                 &mut vec![],
+                &mut vec![],
             );
 
-            assert_all_almost_abs_eq(&r_data, &vec![expected_color], MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&g_data, &vec![expected_color], MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&b_data, &vec![expected_color], MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&ec0_data, &vec![expected_ec0], MAX_ABS_DELTA);
+            assert_close!(all, &r_data, &vec![expected_color], MAX_ABS_DELTA);
+            assert_close!(all, &g_data, &vec![expected_color], MAX_ABS_DELTA);
+            assert_close!(all, &b_data, &vec![expected_color], MAX_ABS_DELTA);
+            assert_close!(all, &ec0_data, &vec![expected_ec0], MAX_ABS_DELTA);
             Ok(())
         }
 
@@ -1901,12 +1908,13 @@ mod tests {
                 &ec_info,
                 &ref_frames,
                 &mut vec![],
+                &mut vec![],
             );
 
-            assert_all_almost_abs_eq(&ec0_data, &vec![expected_ec0], MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&r_data, &vec![expected_color], MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&g_data, &vec![expected_color], MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&b_data, &vec![expected_color], MAX_ABS_DELTA);
+            assert_close!(all, &ec0_data, &vec![expected_ec0], MAX_ABS_DELTA);
+            assert_close!(all, &r_data, &vec![expected_color], MAX_ABS_DELTA);
+            assert_close!(all, &g_data, &vec![expected_color], MAX_ABS_DELTA);
+            assert_close!(all, &b_data, &vec![expected_color], MAX_ABS_DELTA);
             Ok(())
         }
 
@@ -1967,12 +1975,13 @@ mod tests {
                 &extra_channel_info,
                 &ref_frames,
                 &mut vec![],
+                &mut vec![],
             );
 
             let expected_vals = [0.5 * 0.8, 2.0 * 0.7]; // [0.4, 1.4]
-            assert_all_almost_abs_eq(&r_data, &expected_vals, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&g_data, &expected_vals, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&b_data, &expected_vals, MAX_ABS_DELTA);
+            assert_close!(all, &r_data, &expected_vals, MAX_ABS_DELTA);
+            assert_close!(all, &g_data, &expected_vals, MAX_ABS_DELTA);
+            assert_close!(all, &b_data, &expected_vals, MAX_ABS_DELTA);
 
             Ok(())
         }
@@ -2032,11 +2041,12 @@ mod tests {
                 &extra_channel_info,
                 &ref_frames,
                 &mut vec![],
+                &mut vec![],
             );
 
-            assert_all_almost_abs_eq(&r_data, &initial_data, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&g_data, &initial_data, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&b_data, &initial_data, MAX_ABS_DELTA);
+            assert_close!(all, &r_data, &initial_data, MAX_ABS_DELTA);
+            assert_close!(all, &g_data, &initial_data, MAX_ABS_DELTA);
+            assert_close!(all, &b_data, &initial_data, MAX_ABS_DELTA);
             Ok(())
         }
     }

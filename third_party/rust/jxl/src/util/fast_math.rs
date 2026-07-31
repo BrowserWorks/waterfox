@@ -166,7 +166,7 @@ pub fn floor_log2_nonzero(x: u64) -> u32 {
 mod test {
     use test_log::test;
 
-    use crate::util::test::assert_almost_abs_eq;
+    use crate::tests::assert_close;
 
     use super::*;
 
@@ -208,8 +208,8 @@ mod test {
             (3.5, 0.999999257),
         ];
         for (x, erf_x) in golden {
-            assert_almost_abs_eq(fast_erff(x), erf_x, 6e-4);
-            assert_almost_abs_eq(fast_erff(-x), -erf_x, 6e-4);
+            assert_close!(fast_erff(x), erf_x, 6e-4);
+            assert_close!(fast_erff(-x), -erf_x, 6e-4);
         }
     }
 
@@ -217,7 +217,7 @@ mod test {
     fn test_fast_cos() {
         for i in 0..100 {
             let x = i as f32 / 100.0 * (5.0 * PI) - (2.5 * PI);
-            assert_almost_abs_eq(fast_cos(x), x.cos(), 1e-4);
+            assert_close!(fast_cos(x), x.cos(), 1e-4);
         }
     }
 

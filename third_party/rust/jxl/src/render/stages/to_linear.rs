@@ -142,7 +142,7 @@ mod test {
     use crate::error::Result;
     use crate::image::Image;
     use crate::render::test::make_and_run_simple_pipeline;
-    use crate::util::test::assert_all_almost_abs_eq;
+    use crate::tests::assert_close;
 
     const LUMINANCE_BT2020: [f32; 3] = [0.2627, 0.678, 0.0593];
 
@@ -204,9 +204,9 @@ mod test {
         let output =
             make_and_run_simple_pipeline(stage, &[input_r, input_g, input_b], (1, 1), 0, 256)?;
 
-        assert_all_almost_abs_eq(output[0].row(0), &[0.203], 1e-3);
-        assert_all_almost_abs_eq(output[1].row(0), &[0.203], 1e-3);
-        assert_all_almost_abs_eq(output[2].row(0), &[0.203], 1e-3);
+        assert_close!(all, output[0].row(0), &[0.203], 1e-3);
+        assert_close!(all, output[1].row(0), &[0.203], 1e-3);
+        assert_close!(all, output[2].row(0), &[0.203], 1e-3);
 
         Ok(())
     }
@@ -224,9 +224,9 @@ mod test {
         let output =
             make_and_run_simple_pipeline(stage, &[input_r, input_g, input_b], (1, 1), 0, 256)?;
 
-        assert_all_almost_abs_eq(output[0].row(0), &[0.203], 1e-3);
-        assert_all_almost_abs_eq(output[1].row(0), &[0.203], 1e-3);
-        assert_all_almost_abs_eq(output[2].row(0), &[0.203], 1e-3);
+        assert_close!(all, output[0].row(0), &[0.203], 1e-3);
+        assert_close!(all, output[1].row(0), &[0.203], 1e-3);
+        assert_close!(all, output[2].row(0), &[0.203], 1e-3);
 
         Ok(())
     }

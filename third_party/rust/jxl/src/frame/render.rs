@@ -3,8 +3,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::api::JxlCms;
-use crate::api::JxlColorEncoding;
 use crate::api::JxlColorProfile;
 use crate::api::JxlColorType;
 use crate::api::JxlDataFormat;
@@ -15,7 +13,7 @@ use crate::features::epf::SigmaSource;
 use crate::features::noise::Noise;
 use crate::features::patches::PatchesDictionary;
 use crate::features::spline::Splines;
-use crate::frame::RenderUnit;
+use crate::frame::DataStatus;
 use crate::frame::color_correlation_map::ColorCorrelationParams;
 use crate::frame::quantizer::LfQuantFactors;
 use crate::headers::frame_header::Encoding;
@@ -109,32 +107,6 @@ impl Frame {
         pipeline
     }
 
-    /// Check if CMS will consume a black channel that the user requested in the output.
-    fn check_cms_consumed_black_channel(
-        black_channel: Option<usize>,
-        in_channels: usize,
-        out_channels: usize,
-        pixel_format: &JxlPixelFormat,
-    ) -> Result<()> {
-        if let Some(k_pipeline_idx) = black_channel
-            && out_channels < in_channels
-        {
-            // K channel is consumed (4->3 conversion)
-            let k_ec_idx = k_pipeline_idx - 3;
-            if pixel_format
-                .extra_channel_format
-                .get(k_ec_idx)
-                .is_some_and(|f| f.is_some())
-            {
-                return Err(Error::CmsConsumedChannelRequested {
-                    channel_index: k_ec_idx,
-                    channel_type: "Black".to_string(),
-                });
-            }
-        }
-        Ok(())
-    }
-
     /// Returns `true` if any pixels were written to the output buffers during
     /// this call, `false` if the call was a no-op for the buffers (e.g. no new
     /// HF groups, no flush work, or the render pipeline was not yet ready).
@@ -146,6 +118,11 @@ impl Frame {
         do_flush: bool,
         output_profile: &JxlColorProfile,
     ) -> Result<bool> {
+        if !do_flush && groups.is_empty() {
+            // Nothing to do.
+            return Ok(false);
+        }
+
         if self.render_pipeline.is_none() || self.lf_global.is_none() {
             assert_eq!(groups.iter().map(|x| x.1.len()).sum::<usize>(), 0);
             // We don't yet have any output ready (as the pipeline would be initialized otherwise),
@@ -213,104 +190,158 @@ impl Frame {
 
         pipeline!(self, p, p.render_outside_frame(&mut buffer_splitter)?);
 
+        let should_render_non_final = self.allow_rendering_before_last_pass() && do_flush;
+
         let modular_global = &mut self.lf_global.as_mut().unwrap().modular_global;
 
         modular_global.set_pipeline_used_channels(pipeline!(self, p, p.used_channel_mask()));
 
-        // STEP 1: if we are requesting a flush, and did not flush before, mark modular channels
-        // as having been decoded as 0.
-        if !self.was_flushed_once && do_flush {
-            self.was_flushed_once = true;
-            self.groups_to_flush.extend(0..self.header.num_groups());
-            modular_global.zero_fill_empty_channels(
-                self.header.passes.num_passes as usize,
-                self.header.num_groups(),
-                self.header.num_lf_groups(),
-            )?;
-        }
-
-        // STEP 2: ensure that groups that will be re-rendered are marked as such.
-        // VarDCT data to be rendered.
-        for (g, _) in groups.iter() {
-            self.groups_to_flush.insert(*g);
-            pipeline!(self, p, p.mark_group_to_rerender(*g));
-        }
-        // Modular data to be re-rendered.
-        {
-            let modular_global = &mut self.lf_global.as_mut().unwrap().modular_global;
-            for (group, passes) in groups.iter() {
-                for (pass, _) in passes.iter() {
-                    modular_global.mark_group_to_be_read(2 + *pass, *group);
-                }
-            }
-            let mut pass_to_pipeline = |_, group, _, _| {
-                self.groups_to_flush.insert(group);
-                pipeline!(self, p, p.mark_group_to_rerender(group));
-                Ok(())
-            };
-            modular_global.process_output(&self.header, true, &mut pass_to_pipeline)?;
-        }
-
-        // STEP 3: decode the groups, eagerly rendering VarDCT channels and noise.
-        for (group, mut passes) in groups {
-            if self.decode_hf_group(group, &mut passes, &mut buffer_splitter, do_flush)? {
-                self.changed_since_last_flush
-                    .insert((group, RenderUnit::VarDCT));
-            }
-        }
-
-        // STEP 4: process all modular transforms that can now be processed,
-        // flushing buffers that will not be used again, if either we are forcing a render now
-        // or we are done with the file.
-        if self.incomplete_groups == 0 || do_flush {
-            let modular_global = &mut self.lf_global.as_mut().unwrap().modular_global;
-            let mut pass_to_pipeline = |chan, group, complete, image: Option<Image<i32>>| {
-                self.changed_since_last_flush
-                    .insert((group, RenderUnit::Modular(chan)));
-                pipeline!(
-                    self,
-                    p,
-                    p.set_buffer_for_group(
-                        chan,
-                        group,
-                        complete,
-                        image.unwrap(),
-                        &mut buffer_splitter
-                    )?
-                );
-                Ok(())
-            };
-            modular_global.process_output(&self.header, false, &mut pass_to_pipeline)?;
-
-            // STEP 5: re-render VarDCT/noise data in rendered groups for which it was
-            // not rendered, or re-send to pipeline modular channels that were not
-            // updated in those groups.
-            for g in std::mem::take(&mut self.groups_to_flush) {
-                if self
-                    .changed_since_last_flush
-                    .take(&(g, RenderUnit::VarDCT))
-                    .is_none()
+        // STEP 1: figure out what modular buffers will be finalized during this decode, and mark them
+        // as such.
+        for (group, passes) in groups.iter() {
+            self.group_status.need_vardct_flush.insert(*group);
+            self.group_status.need_modular_flush.insert(*group);
+            if self.header.encoding == Encoding::VarDCT {
+                let status = if passes
+                    .last()
+                    .is_some_and(|x| x.0 + 1 >= self.header.passes.num_passes as usize)
                 {
-                    self.decode_hf_group(g, &mut [], &mut buffer_splitter, true)?;
-                }
-                let modular_global = &mut self.lf_global.as_mut().unwrap().modular_global;
-                let mut pass_to_pipeline = |chan, group, complete, image| {
-                    pipeline!(
-                        self,
-                        p,
-                        p.set_buffer_for_group(chan, group, complete, image, &mut buffer_splitter)?
-                    );
-                    Ok(())
+                    DataStatus::Final
+                } else {
+                    DataStatus::Partial
                 };
-                for c in modular_global.channel_range() {
-                    if self
-                        .changed_since_last_flush
-                        .take(&(g, RenderUnit::Modular(c)))
-                        .is_none()
-                    {
-                        modular_global.flush_output(g, c, &mut pass_to_pipeline)?;
+                for c in 0..3 {
+                    self.group_status.update_status(*group, c, status);
+                }
+            }
+            for (pass, _) in passes.iter() {
+                modular_global.mark_final(2 + *pass, *group);
+            }
+        }
+
+        // STEP 2: mark all the groups that will need a progressive re-render if
+        // we are flushing.
+
+        // Request re-renders in updated LF groups if those contain meaningful
+        // data and we are decoding a Modular image.
+        if modular_global.can_do_early_partial_render()
+            && self.section0_render_up_to_date
+            && self.header.encoding == Encoding::Modular
+        {
+            for lg in std::mem::take(&mut self.dirty_lf_groups) {
+                let lgx = lg % self.header.size_lf_groups().0;
+                let lgy = lg / self.header.size_lf_groups().0;
+                let (sgx, sgy) = self.header.size_groups();
+                for iy in 0..10 {
+                    let gy = (lgy * 8 + iy).saturating_sub(1);
+                    if gy >= sgy {
+                        continue;
+                    }
+                    for ix in 0..10 {
+                        let gx = (lgx * 8 + ix).saturating_sub(1);
+                        if gx >= sgx {
+                            continue;
+                        }
+                        self.group_status.need_modular_flush.insert(gy * sgx + gx);
                     }
                 }
+            }
+        }
+
+        let has_decoded_data = match self.header.encoding {
+            Encoding::VarDCT => self.hf_global.is_some() || self.header.has_lf_frame(),
+            Encoding::Modular => modular_global.has_decoded_data(),
+        };
+
+        // If section0 data is dirty, re-render everything.
+        if !self.section0_render_up_to_date && has_decoded_data {
+            self.section0_render_up_to_date = true;
+            for g in 0..self.header.num_groups() {
+                self.group_status.need_vardct_flush.insert(g);
+                self.group_status.need_modular_flush.insert(g);
+            }
+        }
+
+        if should_render_non_final {
+            if self.header.encoding == Encoding::VarDCT {
+                for group in self.group_status.need_vardct_flush.iter() {
+                    pipeline!(self, p, p.mark_group_to_rerender(*group));
+                    modular_global.request_rerender(&self.header, *group);
+                }
+            }
+            for group in std::mem::take(&mut self.group_status.need_modular_flush) {
+                if self.header.lf_level != 0 {
+                    let (gsx, gsy) = self.header.size_groups();
+                    let gx = group % gsx;
+                    let gy = group / gsx;
+                    let gxm = gx.saturating_sub(1);
+                    let gxp = (gx + 1).min(gsx - 1);
+                    let gym = gy.saturating_sub(1);
+                    let gyp = (gy + 1).min(gsy - 1);
+                    modular_global.request_rerender(&self.header, gym * gsx + gxm);
+                    modular_global.request_rerender(&self.header, gym * gsx + gx);
+                    modular_global.request_rerender(&self.header, gym * gsx + gxp);
+                    modular_global.request_rerender(&self.header, gy * gsx + gxm);
+                    modular_global.request_rerender(&self.header, gy * gsx + gx);
+                    modular_global.request_rerender(&self.header, gy * gsx + gxp);
+                    modular_global.request_rerender(&self.header, gyp * gsx + gxm);
+                    modular_global.request_rerender(&self.header, gyp * gsx + gx);
+                    modular_global.request_rerender(&self.header, gyp * gsx + gxp);
+                } else {
+                    modular_global.request_rerender(&self.header, group);
+                }
+            }
+        }
+
+        // STEP 3: Run all the transforms that could be run already.
+        // We do this because some modular images might not have coded channels in HF, so
+        // all the coded channels were already decoded and the modular decoder does not
+        // automatically call run_all_transforms unless a new channel is decoded.
+
+        // ... but first, make sure modular_global is ready to run.
+        modular_global.prepare_render(&self.header, |g, c, is_final| {
+            self.group_status.update_status(
+                g,
+                c,
+                if is_final {
+                    DataStatus::Final
+                } else {
+                    DataStatus::Partial
+                },
+            );
+            self.group_status.need_vardct_flush.insert(g);
+            if should_render_non_final {
+                pipeline!(self, p, p.mark_group_to_rerender(g));
+            }
+        });
+
+        let mut pass_to_pipeline = |chan, group, complete, image: Image<i32>| {
+            pipeline!(
+                self,
+                p,
+                p.set_buffer_for_group(chan, group, complete, image, &mut buffer_splitter)?
+            );
+            Ok(())
+        };
+
+        modular_global.run_all_transforms(&self.header, &mut pass_to_pipeline)?;
+
+        // STEP 4: decode the groups, eagerly decoding all the data.
+        for (group, mut passes) in groups {
+            self.decode_hf_group(group, &mut passes, &mut buffer_splitter, do_flush)?;
+        }
+
+        self.lf_global
+            .as_ref()
+            .unwrap()
+            .modular_global
+            .validate_state_after_transforms();
+
+        // STEP 5: re-render VarDCT/noise data in rendered groups for which it was
+        // not rendered.
+        if should_render_non_final || self.group_status.incomplete_groups == 0 {
+            for g in std::mem::take(&mut self.group_status.need_vardct_flush) {
+                self.decode_hf_group(g, &mut [], &mut buffer_splitter, true)?;
             }
         }
 
@@ -320,15 +351,18 @@ impl Frame {
         self.reference_frame_data = reference_frame_data;
         self.lf_frame_data = lf_frame_data;
 
-        if self.header.frame_type == FrameType::LFFrame && self.header.lf_level == 1 {
+        if self.header.frame_type == FrameType::LFFrame
+            && self.header.lf_level == 1
+            && has_decoded_data
+        {
             if do_flush && let Some(buffers) = api_buffers {
                 return self.maybe_preview_lf_frame(
                     pixel_format,
                     buffers,
-                    Some(&regions[..]),
+                    &regions[..],
                     output_profile,
                 );
-            } else if self.incomplete_groups == 0 {
+            } else if self.group_status.incomplete_groups == 0 {
                 // If we are not requesting another flush at the end of the LF frame, we
                 // probably have a partial render. Ensure we re-render the LF frame when
                 // decoding the actual frame.
@@ -350,8 +384,6 @@ impl Frame {
         color_correlation_params: Arc<AtomicRefCell<ColorCorrelationParams>>,
         epf_sigma: Arc<AtomicRefCell<SigmaSource>>,
         pixel_format: &JxlPixelFormat,
-        cms: Option<&dyn JxlCms>,
-        input_profile: &JxlColorProfile,
         output_profile: &JxlColorProfile,
     ) -> Result<Box<T>> {
         let num_channels = frame_header.num_extra_channels as usize + 3;
@@ -362,6 +394,12 @@ impl Frame {
             frame_header.size_upsampled(),
             frame_header.upsampling.ilog2() as usize,
             frame_header.log_group_dim(),
+            // TODO(veluca): we should instead have modular mode participate in buffer reuse.
+            if frame_header.encoding == Encoding::Modular {
+                Some(0)
+            } else {
+                None
+            },
         );
 
         if frame_header.encoding == Encoding::Modular {
@@ -463,12 +501,7 @@ impl Frame {
         }
 
         if frame_header.has_splines() {
-            pipeline = pipeline.add_inplace_stage(SplinesStage::new(
-                splines,
-                frame_header.size(),
-                color_correlation_params.clone(),
-                decoder_state.high_precision,
-            ))
+            pipeline = pipeline.add_inplace_stage(SplinesStage::new(splines))
         }
 
         if frame_header.upsampling > 1 {
@@ -567,18 +600,6 @@ impl Frame {
             _ => None,
         };
 
-        // Find the Black (K) extra channel if present.
-        // In JXL, CMYK is stored as 3 color channels (CMY) + K as extra channel.
-        // Pipeline index of K = extra_channel_index + 3
-        let black_channel: Option<usize> = decoder_state
-            .file_header
-            .image_metadata
-            .extra_channel_info
-            .iter()
-            .enumerate()
-            .find(|x| x.1.ec_type == ExtraChannel::Black)
-            .map(|(k_idx, _)| k_idx + 3);
-
         let xyb_encoded = decoder_state.file_header.image_metadata.xyb_encoded;
 
         if frame_header.do_ycbcr {
@@ -587,96 +608,8 @@ impl Frame {
             pipeline = pipeline.add_inplace_stage(XybStage::new(0, output_color_info.clone()));
         }
 
-        // Insert CMS stage if profiles differ.
-        // Following libjxl: use EITHER CMS OR FromLinearStage, never both.
-        // - If output matches original encoding: only FromLinearStage is needed
-        // - If output differs: CMS handles everything including TF conversion
-        //
-        // For XYB images, XybStage outputs LINEAR data in the embedded profile's primaries,
-        // so the CMS input should be the LINEAR version of the embedded profile.
-        // For ICC embedded profiles with XYB, XybStage outputs linear sRGB (see xyb.rs).
-        let cms_input_profile = if xyb_encoded {
-            // XYB outputs linear, so use linear version of input profile for CMS
-            input_profile.with_linear_tf().or_else(|| {
-                // For ICC profiles with XYB, XybStage outputs linear sRGB
-                Some(JxlColorProfile::Simple(JxlColorEncoding::linear_srgb(
-                    false,
-                )))
-            })
-        } else {
-            // Non-XYB: data is in the embedded profile's space including TF
-            Some(input_profile.clone())
-        };
-
-        // Compare ORIGINAL input profile (not linearized cms_input_profile) with output.
-        // This matches libjxl (53042ec5) dec_xyb.cc:184:
-        //   color_encoding_is_original = orig_color_encoding.SameColorEncoding(c_desired);
-        let color_encoding_is_original = input_profile.same_color_encoding(output_profile);
-        let mut cms_used = false;
-
-        // Skip CMS if channel counts differ (grayscale↔RGB) - like libjxl's not_mixing_color_and_grey.
-        // Exception: CMYK (4) → RGB (3) is allowed via CMS.
-        let src_channels = cms_input_profile
-            .as_ref()
-            .map(|p| p.channels())
-            .unwrap_or(3);
-        let dst_channels = output_profile.channels();
-        let channel_counts_compatible =
-            src_channels == dst_channels || (src_channels == 4 && dst_channels == 3);
-
-        if !color_encoding_is_original
-            && channel_counts_compatible
-            && let Some(cms) = cms
-            && let Some(cms_input) = cms_input_profile
-        {
-            // Use frame width as max_pixels since rows can be that wide
-            let max_pixels = frame_header.size_upsampled().0;
-            // Use CMS input profile's channel count, matching libjxl's c_src_.Channels()
-            // For CMYK, channels() returns 4; for RGB, 3; for grayscale, 1.
-            let in_channels = cms_input.channels();
-            let (out_channels, transformers) = cms.initialize_transforms(
-                1, // num transforms (1 for single-threaded)
-                max_pixels,
-                cms_input,
-                output_profile.clone(),
-                output_color_info.intensity_target,
-            )?;
-            // CMS cannot add channels - reject transforms that would
-            if out_channels > in_channels {
-                return Err(Error::CmsChannelCountIncrease {
-                    in_channels,
-                    out_channels,
-                });
-            }
-            // Only pass black_channel to CmsStage if CMS is actually processing CMYK input.
-            // For XYB images, even if original was CMYK, CMS input is linear RGB.
-            let cms_black_channel = if in_channels == 4 {
-                black_channel
-            } else {
-                None
-            };
-            Self::check_cms_consumed_black_channel(
-                cms_black_channel,
-                in_channels,
-                out_channels,
-                pixel_format,
-            )?;
-            if !transformers.is_empty() {
-                pipeline = pipeline.add_inplace_stage(CmsStage::new(
-                    transformers,
-                    in_channels,
-                    out_channels,
-                    cms_black_channel,
-                    max_pixels,
-                ));
-                cms_used = true;
-            }
-        }
-
-        // XYB output is linear, so apply transfer function:
-        // - Only if output is non-linear AND
-        // - CMS was not used (CMS already handles the full conversion including TF)
-        if xyb_encoded && !output_tf.is_linear() && !cms_used {
+        // XYB output is linear, so apply transfer function, but only if output is not linear itself
+        if xyb_encoded && !output_tf.is_linear() {
             pipeline = pipeline.add_inplace_stage(FromLinearStage::new(0, output_tf.clone()));
         }
 
@@ -825,8 +758,6 @@ impl Frame {
     pub fn prepare_render_pipeline(
         &mut self,
         pixel_format: &JxlPixelFormat,
-        cms: Option<&dyn JxlCms>,
-        input_profile: &JxlColorProfile,
         output_profile: &JxlColorProfile,
     ) -> Result<()> {
         #[cfg(test)]
@@ -841,8 +772,6 @@ impl Frame {
                 self.color_correlation_params.clone(),
                 self.epf_sigma.clone(),
                 pixel_format,
-                cms,
-                input_profile,
                 output_profile,
             )? as Box<dyn std::any::Any>
         } else {
@@ -856,8 +785,6 @@ impl Frame {
                 self.color_correlation_params.clone(),
                 self.epf_sigma.clone(),
                 pixel_format,
-                cms,
-                input_profile,
                 output_profile,
             )? as Box<dyn std::any::Any>
         };
@@ -872,12 +799,10 @@ impl Frame {
             self.color_correlation_params.clone(),
             self.epf_sigma.clone(),
             pixel_format,
-            cms,
-            input_profile,
             output_profile,
         )?;
         self.render_pipeline = Some(render_pipeline);
-        self.was_flushed_once = false;
+        self.section0_render_up_to_date = false;
         Ok(())
     }
 }

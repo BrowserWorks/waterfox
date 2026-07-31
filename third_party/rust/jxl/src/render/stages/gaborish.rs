@@ -117,7 +117,7 @@ mod test {
     use crate::error::Result;
     use crate::image::Image;
     use crate::render::test::make_and_run_simple_pipeline;
-    use crate::util::test::assert_all_almost_abs_eq;
+    use crate::tests::assert_close;
 
     #[test]
     fn consistency() -> Result<()> {
@@ -137,8 +137,8 @@ mod test {
         let stage = GaborishStage::new(0, 0.115169525, 0.061248592);
         let output = make_and_run_simple_pipeline(stage, &[image], (2, 2), 0, 256)?;
 
-        assert_all_almost_abs_eq(output[0].row(0), &[0.20686048, 0.7931395], 1e-6);
-        assert_all_almost_abs_eq(output[0].row(1), &[0.7931395, 0.20686048], 1e-6);
+        assert_close!(all, output[0].row(0), &[0.20686048, 0.7931395], 1e-6);
+        assert_close!(all, output[0].row(1), &[0.7931395, 0.20686048], 1e-6);
 
         Ok(())
     }

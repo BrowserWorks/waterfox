@@ -47,7 +47,8 @@ impl SaveStage {
                             } else {
                                 px.to_be_bytes()
                             };
-                            buf.write_bytes(dy, dx * bps, &px_bytes);
+                            buf.row_mut(dy)[dx * bps..][..px_bytes.len()]
+                                .copy_from_slice(&px_bytes);
                         };
                     }
 
@@ -80,7 +81,8 @@ impl SaveStage {
                     let (dx, dy) = self.orientation.display_pixel((x, y), size);
                     let dx = dx * output_channels + alpha_channel;
                     let bps = self.data_format.bytes_per_sample();
-                    buf.write_bytes(dy, dx * bps, &opaque_bytes);
+                    buf.row_mut(dy)[dx * bps..][..opaque_bytes.len()]
+                        .copy_from_slice(&opaque_bytes);
                 }
             }
         }
@@ -92,9 +94,7 @@ impl SaveStage {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{
-        api::JxlColorType, headers::Orientation, image::Rect, util::test::assert_almost_eq,
-    };
+    use crate::{api::JxlColorType, headers::Orientation, image::Rect, tests::assert_close};
     use rand::SeedableRng;
     use rand_xorshift::XorShiftRng;
     use test_log::test;
@@ -177,11 +177,11 @@ mod test {
             for x_dest in 0..ow {
                 // For each destination pixel, find its corresponding source pixel.
                 let (src_x, src_y) = transform(x_dest, y_dest, w, h);
-                assert_almost_eq(
+                assert_close!(
                     dst.row(y_dest)[x_dest],
                     src[0].row(src_y)[src_x] as f32,
                     1e-5,
-                    1e-5,
+                    rel: 1e-5,
                 );
             }
         }

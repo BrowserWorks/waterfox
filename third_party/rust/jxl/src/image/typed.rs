@@ -158,8 +158,7 @@ impl<T: ImageDataType> Image<T> {
     /// accessors.
     #[inline(always)]
     pub fn distinct_full_rows_mut<I: DistinctRowsIndexes>(&mut self, rows: I) -> I::Output<'_, T> {
-        // SAFETY: we don't write uninit data to the returned `rows`, and `self.raw` has ownership
-        // of the accessible bytes of `self.raw.data`.
+        // SAFETY: `self.raw` has ownership of the accessible bytes of `self.raw.data`.
         let rows = unsafe { self.raw.data.distinct_rows_mut(rows) };
         // SAFETY: Since self.raw.data.is_aligned(T::DATA_TYPE_ID.size()) by the safety invariant
         // on `self`, the returned slices are aligned to T::DATA_TYPE_ID.size(), and sizeof(T)

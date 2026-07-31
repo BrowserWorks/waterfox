@@ -95,18 +95,19 @@ impl SaveStage {
                 } else {
                     px.to_be_bytes()
                 };
-                buf.write_bytes($y, $x, &px_bytes);
+                buf.row_mut($y)[$x..][..px_bytes.len()].copy_from_slice(&px_bytes);
             };
         }
 
         for (c, d) in data.iter().enumerate() {
             let nc = self.output_channels();
             let (x0, y0) = self.orientation.display_pixel((0, relative_y), save_size);
-            let (x1, y1) = self.orientation.display_pixel((1, relative_y), save_size);
             let x0 = x0 as isize;
             let y0 = y0 as isize;
-            let dx = x1 as isize - x0;
-            let dy = y1 as isize - y0;
+            // Compute the per-pixel step directly from the orientation rather
+            // than via `display_pixel((1, ..))`, which would underflow when
+            // `save_size.0 == 1` and the orientation flips x.
+            let (dx, dy) = self.orientation.display_row_step();
             match self.data_format {
                 JxlDataFormat::U8 { .. } => {
                     let src_row = d.get_row::<u8>(frame_y);

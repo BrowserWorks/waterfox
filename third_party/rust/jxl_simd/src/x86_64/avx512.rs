@@ -9,7 +9,6 @@ use super::super::{
 use crate::{Sse42Descriptor, U32SimdVec, impl_f32_array_interface};
 use std::{
     arch::x86_64::*,
-    mem::MaybeUninit,
     ops::{
         Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div,
         DivAssign, Mul, MulAssign, Neg, Shl, ShlAssign, Shr, ShrAssign, Sub, SubAssign,
@@ -107,9 +106,7 @@ pub struct F32VecAvx512(__m512, Avx512Descriptor);
 #[repr(transparent)]
 pub struct MaskAvx512(__mmask16, Avx512Descriptor);
 
-// SAFETY: The methods in this implementation that write to `MaybeUninit` (store_interleaved_*)
-// ensure that they write valid data to the output slice without reading uninitialized memory.
-unsafe impl F32SimdVec for F32VecAvx512 {
+impl F32SimdVec for F32VecAvx512 {
     type Descriptor = Avx512Descriptor;
 
     const LEN: usize = 16;
@@ -131,10 +128,10 @@ unsafe impl F32SimdVec for F32VecAvx512 {
     }
 
     #[inline(always)]
-    fn store_interleaved_2_uninit(a: Self, b: Self, dest: &mut [MaybeUninit<f32>]) {
+    fn store_interleaved_2(a: Self, b: Self, dest: &mut [f32]) {
         #[target_feature(enable = "avx512f")]
         #[inline]
-        fn store_interleaved_2_impl(a: __m512, b: __m512, dest: &mut [MaybeUninit<f32>]) {
+        fn store_interleaved_2_impl(a: __m512, b: __m512, dest: &mut [f32]) {
             assert!(dest.len() >= 2 * F32VecAvx512::LEN);
             // a = [a0..a15], b = [b0..b15]
             // Output: [a0, b0, a1, b1, ..., a15, b15]
@@ -153,9 +150,9 @@ unsafe impl F32SimdVec for F32VecAvx512 {
             let out0 = _mm512_permutex2var_ps(lo, idx_lo, hi);
             let out1 = _mm512_permutex2var_ps(lo, idx_hi, hi);
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<f32>` through `*mut f32` is valid. _mm512_storeu_ps supports unaligned stores.
+            // SAFETY: `dest` has enough space and writing to `f32` through `*mut f32` is valid. _mm512_storeu_ps supports unaligned stores.
             unsafe {
-                let dest_ptr = dest.as_mut_ptr().cast::<f32>();
+                let dest_ptr = dest.as_mut_ptr();
                 _mm512_storeu_ps(dest_ptr, out0);
                 _mm512_storeu_ps(dest_ptr.add(16), out1);
             }
@@ -166,15 +163,10 @@ unsafe impl F32SimdVec for F32VecAvx512 {
     }
 
     #[inline(always)]
-    fn store_interleaved_3_uninit(a: Self, b: Self, c: Self, dest: &mut [MaybeUninit<f32>]) {
+    fn store_interleaved_3(a: Self, b: Self, c: Self, dest: &mut [f32]) {
         #[target_feature(enable = "avx512f")]
         #[inline]
-        fn store_interleaved_3_impl(
-            a: __m512,
-            b: __m512,
-            c: __m512,
-            dest: &mut [MaybeUninit<f32>],
-        ) {
+        fn store_interleaved_3_impl(a: __m512, b: __m512, c: __m512, dest: &mut [f32]) {
             assert!(dest.len() >= 3 * F32VecAvx512::LEN);
 
             let idx_ab0 = _mm512_setr_epi32(0, 16, 0, 1, 17, 0, 2, 18, 0, 3, 19, 0, 4, 20, 0, 5);
@@ -196,9 +188,9 @@ unsafe impl F32SimdVec for F32VecAvx512 {
             let out2 = _mm512_permutex2var_ps(a, idx_ab2, b);
             let out2 = _mm512_mask_permutexvar_ps(out2, 0b1001001001001001, idx_c2, c);
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<f32>` through `*mut f32` is valid. _mm512_storeu_ps supports unaligned stores.
+            // SAFETY: `dest` has enough space and writing to `f32` through `*mut f32` is valid. _mm512_storeu_ps supports unaligned stores.
             unsafe {
-                let dest_ptr = dest.as_mut_ptr().cast::<f32>();
+                let dest_ptr = dest.as_mut_ptr();
                 _mm512_storeu_ps(dest_ptr, out0);
                 _mm512_storeu_ps(dest_ptr.add(16), out1);
                 _mm512_storeu_ps(dest_ptr.add(32), out2);
@@ -210,22 +202,10 @@ unsafe impl F32SimdVec for F32VecAvx512 {
     }
 
     #[inline(always)]
-    fn store_interleaved_4_uninit(
-        a: Self,
-        b: Self,
-        c: Self,
-        d: Self,
-        dest: &mut [MaybeUninit<f32>],
-    ) {
+    fn store_interleaved_4(a: Self, b: Self, c: Self, d: Self, dest: &mut [f32]) {
         #[target_feature(enable = "avx512f")]
         #[inline]
-        fn store_interleaved_4_impl(
-            a: __m512,
-            b: __m512,
-            c: __m512,
-            d: __m512,
-            dest: &mut [MaybeUninit<f32>],
-        ) {
+        fn store_interleaved_4_impl(a: __m512, b: __m512, c: __m512, d: __m512, dest: &mut [f32]) {
             assert!(dest.len() >= 4 * F32VecAvx512::LEN);
             // a = [a0..a15], b = [b0..b15], c = [c0..c15], d = [d0..d15]
             // Output: [a0,b0,c0,d0, a1,b1,c1,d1, ..., a15,b15,c15,d15]
@@ -295,9 +275,9 @@ unsafe impl F32SimdVec for F32VecAvx512 {
             let out1 = _mm512_permutex2var_ps(pair01_13, idx_0, pair23_13);
             let out3 = _mm512_permutex2var_ps(pair01_13, idx_1, pair23_13);
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<f32>` through `*mut f32` is valid. _mm512_storeu_ps supports unaligned stores.
+            // SAFETY: `dest` has enough space and writing to `f32` through `*mut f32` is valid. _mm512_storeu_ps supports unaligned stores.
             unsafe {
-                let dest_ptr = dest.as_mut_ptr().cast::<f32>();
+                let dest_ptr = dest.as_mut_ptr();
                 _mm512_storeu_ps(dest_ptr, out0);
                 _mm512_storeu_ps(dest_ptr.add(16), out1);
                 _mm512_storeu_ps(dest_ptr.add(32), out2);
@@ -434,7 +414,7 @@ unsafe impl F32SimdVec for F32VecAvx512 {
 
             // SAFETY: we just checked that dest has enough space. _mm512_storeu_ps supports unaligned stores.
             unsafe {
-                let ptr = dest.as_mut_ptr().cast::<f32>();
+                let ptr = dest.as_mut_ptr();
                 _mm512_storeu_ps(ptr, out0);
                 _mm512_storeu_ps(ptr.add(16), out1);
                 _mm512_storeu_ps(ptr.add(32), out2);
@@ -599,6 +579,21 @@ unsafe impl F32SimdVec for F32VecAvx512 {
         F32VecAvx512(_mm512_fnmadd_ps(this.0, mul.0, add.0), this.1)
     });
 
+    // The Mac-only splat/neg/copysign variants below are the AVX-512
+    // equivalent of the workaround in avx.rs — see that file for the
+    // full explanation. F32VecAvx512::abs doesn't need the workaround
+    // because it uses _mm512_abs_ps (a dedicated abs intrinsic that
+    // doesn't go through _mm512_set1_ps).
+
+    #[rustversion::before(1.95)]
+    #[cfg(target_os = "macos")]
+    #[inline(always)]
+    fn splat(d: Self::Descriptor, v: f32) -> Self {
+        // SAFETY: avx512f is available from the safety invariant on `d`.
+        unsafe { Self(_mm512_broadcastss_ps(_mm_set_ss(v)), d) }
+    }
+
+    #[rustversion::attr(before(1.95), cfg(not(target_os = "macos")))]
     #[inline(always)]
     fn splat(d: Self::Descriptor, v: f32) -> Self {
         // SAFETY: We know avx512f is available from the safety invariant on `d`.
@@ -623,6 +618,21 @@ unsafe impl F32SimdVec for F32VecAvx512 {
         F32VecAvx512(_mm512_sqrt_ps(this.0), this.1)
     });
 
+    #[rustversion::before(1.95)]
+    #[cfg(target_os = "macos")]
+    fn_avx!(this: F32VecAvx512, fn neg() -> F32VecAvx512 {
+        static SIGN_MASK: [u32; 16] = [0x80000000; 16];
+        // SAFETY: avx512f is available from the safety invariant on `this.1`.
+        let mask = unsafe {
+            _mm512_loadu_si512(SIGN_MASK.as_ptr() as *const _)
+        };
+        F32VecAvx512(
+            _mm512_castsi512_ps(_mm512_xor_si512(mask, _mm512_castps_si512(this.0))),
+            this.1,
+        )
+    });
+
+    #[rustversion::attr(before(1.95), cfg(not(target_os = "macos")))]
     fn_avx!(this: F32VecAvx512, fn neg() -> F32VecAvx512 {
         F32VecAvx512(
             _mm512_castsi512_ps(_mm512_xor_si512(
@@ -633,6 +643,24 @@ unsafe impl F32SimdVec for F32VecAvx512 {
         )
     });
 
+    #[rustversion::before(1.95)]
+    #[cfg(target_os = "macos")]
+    fn_avx!(this: F32VecAvx512, fn copysign(sign: F32VecAvx512) -> F32VecAvx512 {
+        static SIGN_MASK: [u32; 16] = [0x80000000; 16];
+        // SAFETY: avx512f is available from the safety invariant on `this.1`.
+        let sign_mask = unsafe {
+            _mm512_loadu_si512(SIGN_MASK.as_ptr() as *const _)
+        };
+        F32VecAvx512(
+            _mm512_castsi512_ps(_mm512_or_si512(
+                _mm512_andnot_si512(sign_mask, _mm512_castps_si512(this.0)),
+                _mm512_and_si512(sign_mask, _mm512_castps_si512(sign.0)),
+            )),
+            this.1,
+        )
+    });
+
+    #[rustversion::attr(before(1.95), cfg(not(target_os = "macos")))]
     fn_avx!(this: F32VecAvx512, fn copysign(sign: F32VecAvx512) -> F32VecAvx512 {
         let sign_mask = _mm512_set1_epi32(i32::MIN);
         F32VecAvx512(
@@ -757,7 +785,7 @@ unsafe impl F32SimdVec for F32VecAvx512 {
         #[inline]
         fn store_f16_bits_impl(v: __m512, dest: &mut [u16]) {
             assert!(dest.len() >= F32VecAvx512::LEN);
-            let bits = _mm512_cvtps_ph::<{ _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC }>(v);
+            let bits = _mm512_cvtps_ph::<{ _MM_FROUND_TO_NEAREST_INT }>(v);
             // SAFETY: dest.len() >= 16 is checked above.
             unsafe { _mm256_storeu_si256(dest.as_mut_ptr().cast(), bits) };
         }
@@ -1228,9 +1256,7 @@ impl U32SimdVec for U32VecAvx512 {
 #[repr(transparent)]
 pub struct U8VecAvx512(__m512i, Avx512Descriptor);
 
-// SAFETY: The methods in this implementation that write to `MaybeUninit` (store_interleaved_*)
-// ensure that they write valid data to the output slice without reading uninitialized memory.
-unsafe impl U8SimdVec for U8VecAvx512 {
+impl U8SimdVec for U8VecAvx512 {
     type Descriptor = Avx512Descriptor;
     const LEN: usize = 64;
 
@@ -1257,10 +1283,10 @@ unsafe impl U8SimdVec for U8VecAvx512 {
     }
 
     #[inline(always)]
-    fn store_interleaved_2_uninit(a: Self, b: Self, dest: &mut [MaybeUninit<u8>]) {
+    fn store_interleaved_2(a: Self, b: Self, dest: &mut [u8]) {
         #[target_feature(enable = "avx512f,avx512bw")]
         #[inline]
-        fn impl_u8_2(a: __m512i, b: __m512i, dest: &mut [MaybeUninit<u8>]) {
+        fn impl_u8_2(a: __m512i, b: __m512i, dest: &mut [u8]) {
             assert!(dest.len() >= 2 * U8VecAvx512::LEN);
             let lo = _mm512_unpacklo_epi8(a, b);
             let hi = _mm512_unpackhi_epi8(a, b);
@@ -1269,7 +1295,7 @@ unsafe impl U8SimdVec for U8VecAvx512 {
             let out0 = _mm512_permutex2var_epi64(lo, idx0, hi);
             let out1 = _mm512_permutex2var_epi64(lo, idx1, hi);
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<u8>` through `*mut __m512i` is valid. _mm512_storeu_si512 supports unaligned stores.
+            // SAFETY: `dest` has enough space and writing to `u8` through `*mut __m512i` is valid. _mm512_storeu_si512 supports unaligned stores.
             unsafe {
                 let ptr = dest.as_mut_ptr().cast::<__m512i>();
                 _mm512_storeu_si512(ptr, out0);
@@ -1281,10 +1307,10 @@ unsafe impl U8SimdVec for U8VecAvx512 {
     }
 
     #[inline(always)]
-    fn store_interleaved_3_uninit(a: Self, b: Self, c: Self, dest: &mut [MaybeUninit<u8>]) {
+    fn store_interleaved_3(a: Self, b: Self, c: Self, dest: &mut [u8]) {
         #[target_feature(enable = "avx512f,avx512bw")]
         #[inline]
-        fn impl_u8_3(a: __m512i, b: __m512i, c: __m512i, dest: &mut [MaybeUninit<u8>]) {
+        fn impl_u8_3(a: __m512i, b: __m512i, c: __m512i, dest: &mut [u8]) {
             assert!(dest.len() >= 3 * U8VecAvx512::LEN);
 
             let mask_a0 = _mm512_broadcast_i32x4(_mm_setr_epi8(
@@ -1351,7 +1377,7 @@ unsafe impl U8SimdVec for U8VecAvx512 {
             let idx_f2 = _mm512_setr_epi64(0, 1, 2, 3, 14, 15, 4, 5);
             let final2 = _mm512_permutex2var_epi64(part_a2, idx_f2, res1);
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<u8>` through `*mut __m512i` is valid. _mm512_storeu_si512 supports unaligned stores.
+            // SAFETY: `dest` has enough space and writing to `u8` through `*mut __m512i` is valid. _mm512_storeu_si512 supports unaligned stores.
             unsafe {
                 let ptr = dest.as_mut_ptr().cast::<__m512i>();
                 _mm512_storeu_si512(ptr, final0);
@@ -1364,16 +1390,10 @@ unsafe impl U8SimdVec for U8VecAvx512 {
     }
 
     #[inline(always)]
-    fn store_interleaved_4_uninit(
-        a: Self,
-        b: Self,
-        c: Self,
-        d: Self,
-        dest: &mut [MaybeUninit<u8>],
-    ) {
+    fn store_interleaved_4(a: Self, b: Self, c: Self, d: Self, dest: &mut [u8]) {
         #[target_feature(enable = "avx512f,avx512bw")]
         #[inline]
-        fn impl_u8_4(a: __m512i, b: __m512i, c: __m512i, d: __m512i, dest: &mut [MaybeUninit<u8>]) {
+        fn impl_u8_4(a: __m512i, b: __m512i, c: __m512i, d: __m512i, dest: &mut [u8]) {
             assert!(dest.len() >= 4 * U8VecAvx512::LEN);
             let ab_lo = _mm512_unpacklo_epi8(a, b);
             let ab_hi = _mm512_unpackhi_epi8(a, b);
@@ -1401,7 +1421,7 @@ unsafe impl U8SimdVec for U8VecAvx512 {
             let out2 = _mm512_permutex2var_epi64(pair01_13, idx_0, pair23_13);
             let out3 = _mm512_permutex2var_epi64(pair01_13, idx_1, pair23_13);
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<u8>` through `*mut __m512i` is valid. _mm512_storeu_si512 supports unaligned stores.
+            // SAFETY: `dest` has enough space and writing to `u8` through `*mut __m512i` is valid. _mm512_storeu_si512 supports unaligned stores.
             unsafe {
                 let ptr = dest.as_mut_ptr().cast::<__m512i>();
                 _mm512_storeu_si512(ptr, out0);
@@ -1419,9 +1439,7 @@ unsafe impl U8SimdVec for U8VecAvx512 {
 #[repr(transparent)]
 pub struct U16VecAvx512(__m512i, Avx512Descriptor);
 
-// SAFETY: The methods in this implementation that write to `MaybeUninit` (store_interleaved_*)
-// ensure that they write valid data to the output slice without reading uninitialized memory.
-unsafe impl U16SimdVec for U16VecAvx512 {
+impl U16SimdVec for U16VecAvx512 {
     type Descriptor = Avx512Descriptor;
     const LEN: usize = 32;
 
@@ -1448,10 +1466,10 @@ unsafe impl U16SimdVec for U16VecAvx512 {
     }
 
     #[inline(always)]
-    fn store_interleaved_2_uninit(a: Self, b: Self, dest: &mut [MaybeUninit<u16>]) {
+    fn store_interleaved_2(a: Self, b: Self, dest: &mut [u16]) {
         #[target_feature(enable = "avx512f,avx512bw")]
         #[inline]
-        fn impl_u16_2(a: __m512i, b: __m512i, dest: &mut [MaybeUninit<u16>]) {
+        fn impl_u16_2(a: __m512i, b: __m512i, dest: &mut [u16]) {
             assert!(dest.len() >= 2 * U16VecAvx512::LEN);
             let lo = _mm512_unpacklo_epi16(a, b);
             let hi = _mm512_unpackhi_epi16(a, b);
@@ -1460,7 +1478,7 @@ unsafe impl U16SimdVec for U16VecAvx512 {
             let out0 = _mm512_permutex2var_epi64(lo, idx0, hi);
             let out1 = _mm512_permutex2var_epi64(lo, idx1, hi);
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<u16>` through `*mut __m512i` is valid. _mm512_storeu_si512 supports unaligned stores.
+            // SAFETY: `dest` has enough space and writing to `u16` through `*mut __m512i` is valid. _mm512_storeu_si512 supports unaligned stores.
             unsafe {
                 let ptr = dest.as_mut_ptr().cast::<__m512i>();
                 _mm512_storeu_si512(ptr, out0);
@@ -1472,10 +1490,10 @@ unsafe impl U16SimdVec for U16VecAvx512 {
     }
 
     #[inline(always)]
-    fn store_interleaved_3_uninit(a: Self, b: Self, c: Self, dest: &mut [MaybeUninit<u16>]) {
+    fn store_interleaved_3(a: Self, b: Self, c: Self, dest: &mut [u16]) {
         #[target_feature(enable = "avx512f,avx512bw")]
         #[inline]
-        fn impl_u16_3(a: __m512i, b: __m512i, c: __m512i, dest: &mut [MaybeUninit<u16>]) {
+        fn impl_u16_3(a: __m512i, b: __m512i, c: __m512i, dest: &mut [u16]) {
             assert!(dest.len() >= 3 * U16VecAvx512::LEN);
 
             let mask_a0 = _mm512_broadcast_i32x4(_mm_setr_epi8(
@@ -1545,7 +1563,7 @@ unsafe impl U16SimdVec for U16VecAvx512 {
             let idx_f2 = _mm512_setr_epi64(0, 1, 2, 3, 14, 15, 4, 5);
             let final2 = _mm512_permutex2var_epi64(part_a2, idx_f2, res1);
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<u16>` through `*mut __m512i` is valid. _mm512_storeu_si512 supports unaligned stores.
+            // SAFETY: `dest` has enough space and writing to `u16` through `*mut __m512i` is valid. _mm512_storeu_si512 supports unaligned stores.
             unsafe {
                 let ptr = dest.as_mut_ptr().cast::<__m512i>();
                 _mm512_storeu_si512(ptr, final0);
@@ -1558,22 +1576,10 @@ unsafe impl U16SimdVec for U16VecAvx512 {
     }
 
     #[inline(always)]
-    fn store_interleaved_4_uninit(
-        a: Self,
-        b: Self,
-        c: Self,
-        d: Self,
-        dest: &mut [MaybeUninit<u16>],
-    ) {
+    fn store_interleaved_4(a: Self, b: Self, c: Self, d: Self, dest: &mut [u16]) {
         #[target_feature(enable = "avx512f,avx512bw")]
         #[inline]
-        fn impl_u16_4(
-            a: __m512i,
-            b: __m512i,
-            c: __m512i,
-            d: __m512i,
-            dest: &mut [MaybeUninit<u16>],
-        ) {
+        fn impl_u16_4(a: __m512i, b: __m512i, c: __m512i, d: __m512i, dest: &mut [u16]) {
             assert!(dest.len() >= 4 * U16VecAvx512::LEN);
             let ab_lo = _mm512_unpacklo_epi16(a, b);
             let ab_hi = _mm512_unpackhi_epi16(a, b);
@@ -1602,7 +1608,7 @@ unsafe impl U16SimdVec for U16VecAvx512 {
             let out2 = _mm512_permutex2var_epi64(pair01_13, idx_0, pair23_13);
             let out3 = _mm512_permutex2var_epi64(pair01_13, idx_1, pair23_13);
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<u16>` through `*mut __m512i` is valid. _mm512_storeu_si512 supports unaligned stores.
+            // SAFETY: `dest` has enough space and writing to `u16` through `*mut __m512i` is valid. _mm512_storeu_si512 supports unaligned stores.
             unsafe {
                 let ptr = dest.as_mut_ptr().cast::<__m512i>();
                 _mm512_storeu_si512(ptr, out0);

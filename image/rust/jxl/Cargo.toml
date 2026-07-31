@@ -11,5 +11,5 @@ edition = "2021"
 license = "MPL-2.0"
 
 [dependencies]
-jxl = { git = "https://github.com/libjxl/jxl-rs", rev = "c41cbfaf34c2c8ebc3fb6655c885fe427ab9542a"}
+jxl = "0.5.1"
 log = "0.4"

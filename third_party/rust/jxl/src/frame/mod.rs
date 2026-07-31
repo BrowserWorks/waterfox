@@ -3,7 +3,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use std::{collections::BTreeSet, sync::Arc};
+use std::{collections::HashSet, sync::Arc};
 
 use crate::{
     api::JxlDecoderOptions,
@@ -175,12 +175,55 @@ pub struct HfMetadata {
     used_hf_types: u32,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum RenderUnit {
-    /// VarDCT data
-    VarDCT,
-    /// Modular channel with the given index
-    Modular(usize),
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum DataStatus {
+    Zero,
+    Partial,
+    Final,
+}
+
+// TODO(veluca): consider merging the modular rendering infra
+// with VarDCT rendering infra. That would likely remove the
+// need for this custom tracking.
+#[derive(Debug)]
+struct GroupStatus {
+    // Groups that should be rendered on the next call to flush().
+    need_vardct_flush: HashSet<usize>,
+    need_modular_flush: HashSet<usize>,
+    channel_status: Vec<Vec<DataStatus>>,
+    final_vardct_render_done: HashSet<usize>,
+    incomplete_groups: usize,
+}
+
+impl GroupStatus {
+    fn new(frame_header: &FrameHeader) -> Self {
+        let count = frame_header.num_groups();
+        let ecs = frame_header.num_extra_channels as usize;
+        // We don't track noise channels because we pretend they always
+        // have the same status as VarDCT channels.
+        GroupStatus {
+            need_vardct_flush: HashSet::new(),
+            need_modular_flush: HashSet::new(),
+            channel_status: vec![vec![DataStatus::Zero; 3 + ecs]; count],
+            final_vardct_render_done: HashSet::new(),
+            incomplete_groups: count,
+        }
+    }
+
+    fn update_status(&mut self, group: usize, channel: usize, status: DataStatus) {
+        let ss = &mut self.channel_status[group];
+        let all_complete = ss.iter().all(|x| *x == DataStatus::Final);
+        ss[channel] = status;
+        if !all_complete && ss.iter().all(|x| *x == DataStatus::Final) {
+            self.incomplete_groups = self.incomplete_groups.checked_sub(1).unwrap();
+        }
+    }
+
+    fn colour_complete(&self, group: usize) -> bool {
+        self.channel_status[group][..3]
+            .iter()
+            .all(|x| *x == DataStatus::Final)
+    }
 }
 
 pub struct Frame {
@@ -201,21 +244,19 @@ pub struct Frame {
     render_pipeline: Option<Box<crate::render::LowMemoryRenderPipeline>>,
     reference_frame_data: Option<Vec<Image<f32>>>,
     lf_frame_data: Option<[Image<f32>; 3]>,
-    was_flushed_once: bool,
+    section0_render_up_to_date: bool,
     /// Reusable buffers for VarDCT group decoding.
     vardct_buffers: Option<group::VarDctBuffers>,
-    // Last pass rendered so far for each HF group.
-    last_rendered_pass: Vec<Option<usize>>,
-    // Groups that should be rendered on the next call to flush().
-    groups_to_flush: BTreeSet<usize>,
-    changed_since_last_flush: BTreeSet<(usize, RenderUnit)>,
-    incomplete_groups: usize,
+    group_status: GroupStatus,
     patches: Arc<AtomicRefCell<PatchesDictionary>>,
     splines: Arc<AtomicRefCell<Splines>>,
     noise: Arc<AtomicRefCell<Noise>>,
     lf_quant: Arc<AtomicRefCell<LfQuantFactors>>,
     color_correlation_params: Arc<AtomicRefCell<ColorCorrelationParams>>,
     epf_sigma: Arc<AtomicRefCell<SigmaSource>>,
+    // LF groups that received data and thus should trigger a modular
+    // re-render of the corresponding groups.
+    dirty_lf_groups: HashSet<usize>,
 }
 
 impl Frame {
@@ -320,189 +361,5 @@ impl Frame {
         } else {
             self.color_channels
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use std::panic;
-
-    use crate::{
-        error::{Error, Result},
-        features::spline::Point,
-        util::test::assert_almost_abs_eq,
-    };
-    use test_log::test;
-
-    use super::Frame;
-
-    fn decode(
-        bytes: &[u8],
-        verify: impl Fn(&Frame, usize) -> Result<()> + 'static,
-    ) -> Result<usize> {
-        crate::api::tests::decode(bytes, usize::MAX, false, false, Some(Box::new(verify)))
-            .map(|x| x.0)
-    }
-
-    #[test]
-    fn splines() -> Result<(), Error> {
-        let verify_frame = move |frame: &Frame, _| {
-            let splines = frame.splines.borrow();
-            assert_eq!(splines.quantization_adjustment, 0);
-            let expected_starting_points = [Point { x: 9.0, y: 54.0 }].to_vec();
-            assert_eq!(splines.starting_points, expected_starting_points);
-            assert_eq!(splines.splines.len(), 1);
-            let spline = splines.splines[0].clone();
-            let expected_control_points = [
-                (109, 105),
-                (-130, -261),
-                (-66, 193),
-                (227, -52),
-                (-170, 290),
-            ]
-            .to_vec();
-            assert_eq!(spline.control_points.clone(), expected_control_points);
-
-            const EXPECTED_COLOR_DCT: [[i32; 32]; 3] = [
-                {
-                    let mut row = [0; 32];
-                    row[0] = 168;
-                    row[1] = 119;
-                    row
-                },
-                {
-                    let mut row = [0; 32];
-                    row[0] = 9;
-                    row[2] = 7;
-                    row
-                },
-                {
-                    let mut row = [0; 32];
-                    row[0] = -10;
-                    row[1] = 7;
-                    row
-                },
-            ];
-            assert_eq!(spline.color_dct, EXPECTED_COLOR_DCT);
-            const EXPECTED_SIGMA_DCT: [i32; 32] = {
-                let mut dct = [0; 32];
-                dct[0] = 4;
-                dct[7] = 2;
-                dct
-            };
-            assert_eq!(spline.sigma_dct, EXPECTED_SIGMA_DCT);
-            Ok(())
-        };
-        assert_eq!(
-            decode(
-                include_bytes!("../../resources/test/splines.jxl"),
-                verify_frame
-            )?,
-            1
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn noise() -> Result<(), Error> {
-        let verify_frame = |frame: &Frame, _| {
-            let noise = frame.noise.borrow();
-            let want_noise = [
-                0.000000, 0.000977, 0.002930, 0.003906, 0.005859, 0.006836, 0.008789, 0.010742,
-            ];
-            for (index, noise_param) in want_noise.iter().enumerate() {
-                assert_almost_abs_eq(noise.lut[index], *noise_param, 1e-6);
-            }
-            Ok(())
-        };
-        assert_eq!(
-            decode(
-                include_bytes!("../../resources/test/8x8_noise.jxl"),
-                verify_frame,
-            )?,
-            1
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn patches() -> Result<(), Error> {
-        let verify_frame = |frame: &Frame, frame_index| {
-            if frame_index == 0 {
-                assert!(!frame.header().has_patches());
-                assert!(frame.header().can_be_referenced);
-            } else if frame_index == 1 {
-                assert!(frame.header().has_patches());
-                assert!(!frame.header().can_be_referenced);
-            }
-            Ok(())
-        };
-        assert_eq!(
-            decode(
-                include_bytes!("../../resources/test/grayscale_patches_modular.jxl"),
-                verify_frame,
-            )?,
-            2
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn multiple_lf_420() -> Result<(), Error> {
-        let verify_frame = |frame: &Frame, _| {
-            assert!(frame.header().is420());
-            let Some(lf_image) = &frame.lf_image else {
-                panic!("no lf_image");
-            };
-            for y in 0..146 {
-                let sample_cb_row = lf_image[0].row(y);
-                let sample_cr_row = lf_image[2].row(y);
-                for x in 0..146 {
-                    let sample_cb = sample_cb_row[x];
-                    let sample_cr = sample_cr_row[x];
-                    let no_chroma = sample_cb == 0.0 && sample_cr == 0.0;
-                    if y < 128 || x < 128 {
-                        assert!(!no_chroma);
-                    } else {
-                        assert!(no_chroma);
-                    }
-                }
-            }
-            Ok(())
-        };
-        decode(
-            include_bytes!("../../resources/test/multiple_lf_420.jxl"),
-            verify_frame,
-        )?;
-        Ok(())
-    }
-
-    #[test]
-    fn xyb_grayscale_patches() -> Result<(), Error> {
-        let verify_frame = |frame: &Frame, frame_index| {
-            if frame_index == 0 {
-                assert_eq!(
-                    frame.header.frame_type,
-                    crate::headers::frame_header::FrameType::ReferenceOnly,
-                );
-                assert_eq!(
-                    frame.header.encoding,
-                    crate::headers::frame_header::Encoding::Modular,
-                );
-                assert_eq!(frame.modular_color_channels(), 3);
-            } else {
-                assert!(frame.header.has_patches());
-                assert_eq!(frame.modular_color_channels(), 0);
-            }
-            Ok(())
-        };
-        assert_eq!(
-            decode(
-                include_bytes!("../../resources/test/grayscale_patches_var_dct.jxl"),
-                verify_frame,
-            )?,
-            2
-        );
-        Ok(())
     }
 }

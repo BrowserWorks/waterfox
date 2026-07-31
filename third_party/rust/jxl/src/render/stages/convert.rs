@@ -71,10 +71,11 @@ impl RenderPipelineInOutStage for ConvertModularXYBToF32Stage {
         // Output channels: [X, Y, B] (standard XYB order)
         let (input_y, input_x, input_b) = (&input_rows[0], &input_rows[1], &input_rows[2]);
         let (output_x, output_y, output_b) = output_rows.split_first_3_mut();
+        // TODO(veluca): SIMD this
         for i in 0..xsize {
             output_x[0][i] = input_x[0][i] as f32 * scale_x;
             output_y[0][i] = input_y[0][i] as f32 * scale_y;
-            output_b[0][i] = (input_b[0][i] + input_y[0][i]) as f32 * scale_b;
+            output_b[0][i] = (input_b[0][i] as f32 + input_y[0][i] as f32) * scale_b;
         }
     }
 }

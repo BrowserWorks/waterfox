@@ -5,7 +5,6 @@
 
 use std::{
     arch::aarch64::*,
-    mem::MaybeUninit,
     ops::{
         Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div,
         DivAssign, Mul, MulAssign, Neg, Sub, SubAssign,
@@ -103,9 +102,7 @@ macro_rules! fn_neon {
 #[repr(transparent)]
 pub struct F32VecNeon(float32x4_t, NeonDescriptor);
 
-// SAFETY: The methods in this implementation that write to `MaybeUninit` (store_interleaved_*)
-// ensure that they write valid data to the output slice without reading uninitialized memory.
-unsafe impl F32SimdVec for F32VecNeon {
+impl F32SimdVec for F32VecNeon {
     type Descriptor = NeonDescriptor;
 
     const LEN: usize = 4;
@@ -139,39 +136,33 @@ unsafe impl F32SimdVec for F32VecNeon {
     }
 
     #[inline(always)]
-    fn store_interleaved_2_uninit(a: Self, b: Self, dest: &mut [MaybeUninit<f32>]) {
+    fn store_interleaved_2(a: Self, b: Self, dest: &mut [f32]) {
         assert!(dest.len() >= 2 * Self::LEN);
         // SAFETY: we just checked that `dest` has enough space, and neon is available
         // from the safety invariant on the descriptor stored in `a`. vst2q_f32 supports unaligned stores.
         unsafe {
-            let dest_ptr = dest.as_mut_ptr().cast::<f32>();
+            let dest_ptr = dest.as_mut_ptr();
             vst2q_f32(dest_ptr, float32x4x2_t(a.0, b.0));
         }
     }
 
     #[inline(always)]
-    fn store_interleaved_3_uninit(a: Self, b: Self, c: Self, dest: &mut [MaybeUninit<f32>]) {
+    fn store_interleaved_3(a: Self, b: Self, c: Self, dest: &mut [f32]) {
         assert!(dest.len() >= 3 * Self::LEN);
-        // SAFETY: `dest` has enough space and writing to `MaybeUninit<f32>` through `*mut f32` is valid. vst3q_f32 supports unaligned stores.
+        // SAFETY: `dest` has enough space and vst3q_f32 supports unaligned stores.
         unsafe {
-            let dest_ptr = dest.as_mut_ptr().cast::<f32>();
+            let dest_ptr = dest.as_mut_ptr();
             vst3q_f32(dest_ptr, float32x4x3_t(a.0, b.0, c.0));
         }
     }
 
     #[inline(always)]
-    fn store_interleaved_4_uninit(
-        a: Self,
-        b: Self,
-        c: Self,
-        d: Self,
-        dest: &mut [MaybeUninit<f32>],
-    ) {
+    fn store_interleaved_4(a: Self, b: Self, c: Self, d: Self, dest: &mut [f32]) {
         assert!(dest.len() >= 4 * Self::LEN);
         // SAFETY: we just checked that `dest` has enough space, and neon is available
         // from the safety invariant on the descriptor stored in `a`. vst4q_f32 supports unaligned stores.
         unsafe {
-            let dest_ptr = dest.as_mut_ptr().cast::<f32>();
+            let dest_ptr = dest.as_mut_ptr();
             vst4q_f32(dest_ptr, float32x4x4_t(a.0, b.0, c.0, d.0));
         }
     }
@@ -862,9 +853,7 @@ impl U32SimdVec for U32VecNeon {
 #[repr(transparent)]
 pub struct U8VecNeon(uint8x16_t, NeonDescriptor);
 
-// SAFETY: The methods in this implementation that write to `MaybeUninit` (store_interleaved_*)
-// ensure that they write valid data to the output slice without reading uninitialized memory.
-unsafe impl U8SimdVec for U8VecNeon {
+impl U8SimdVec for U8VecNeon {
     type Descriptor = NeonDescriptor;
     const LEN: usize = 16;
 
@@ -891,40 +880,34 @@ unsafe impl U8SimdVec for U8VecNeon {
     }
 
     #[inline(always)]
-    fn store_interleaved_2_uninit(a: Self, b: Self, dest: &mut [MaybeUninit<u8>]) {
+    fn store_interleaved_2(a: Self, b: Self, dest: &mut [u8]) {
         assert!(dest.len() >= 2 * Self::LEN);
         // SAFETY: we just checked that `dest` has enough space, and neon is available
         // from the safety invariant on the descriptor stored in `a`. vst2q_u8 supports unaligned stores.
         unsafe {
-            let dest_ptr = dest.as_mut_ptr().cast::<u8>();
+            let dest_ptr = dest.as_mut_ptr();
             vst2q_u8(dest_ptr, uint8x16x2_t(a.0, b.0));
         }
     }
 
     #[inline(always)]
-    fn store_interleaved_3_uninit(a: Self, b: Self, c: Self, dest: &mut [MaybeUninit<u8>]) {
+    fn store_interleaved_3(a: Self, b: Self, c: Self, dest: &mut [u8]) {
         assert!(dest.len() >= 3 * Self::LEN);
         // SAFETY: we just checked that `dest` has enough space, and neon is available
         // from the safety invariant on the descriptor stored in `a`. vst3q_u8 supports unaligned stores.
         unsafe {
-            let dest_ptr = dest.as_mut_ptr().cast::<u8>();
+            let dest_ptr = dest.as_mut_ptr();
             vst3q_u8(dest_ptr, uint8x16x3_t(a.0, b.0, c.0));
         }
     }
 
     #[inline(always)]
-    fn store_interleaved_4_uninit(
-        a: Self,
-        b: Self,
-        c: Self,
-        d: Self,
-        dest: &mut [MaybeUninit<u8>],
-    ) {
+    fn store_interleaved_4(a: Self, b: Self, c: Self, d: Self, dest: &mut [u8]) {
         assert!(dest.len() >= 4 * Self::LEN);
         // SAFETY: we just checked that `dest` has enough space, and neon is available
         // from the safety invariant on the descriptor stored in `a`. vst4q_u8 supports unaligned stores.
         unsafe {
-            let dest_ptr = dest.as_mut_ptr().cast::<u8>();
+            let dest_ptr = dest.as_mut_ptr();
             vst4q_u8(dest_ptr, uint8x16x4_t(a.0, b.0, c.0, d.0));
         }
     }
@@ -934,9 +917,7 @@ unsafe impl U8SimdVec for U8VecNeon {
 #[repr(transparent)]
 pub struct U16VecNeon(uint16x8_t, NeonDescriptor);
 
-// SAFETY: The methods in this implementation that write to `MaybeUninit` (store_interleaved_*)
-// ensure that they write valid data to the output slice without reading uninitialized memory.
-unsafe impl U16SimdVec for U16VecNeon {
+impl U16SimdVec for U16VecNeon {
     type Descriptor = NeonDescriptor;
     const LEN: usize = 8;
 
@@ -963,40 +944,34 @@ unsafe impl U16SimdVec for U16VecNeon {
     }
 
     #[inline(always)]
-    fn store_interleaved_2_uninit(a: Self, b: Self, dest: &mut [MaybeUninit<u16>]) {
+    fn store_interleaved_2(a: Self, b: Self, dest: &mut [u16]) {
         assert!(dest.len() >= 2 * Self::LEN);
         // SAFETY: we just checked that `dest` has enough space, and neon is available
         // from the safety invariant on the descriptor stored in `a`. vst2q_u16 supports unaligned stores.
         unsafe {
-            let dest_ptr = dest.as_mut_ptr().cast::<u16>();
+            let dest_ptr = dest.as_mut_ptr();
             vst2q_u16(dest_ptr, uint16x8x2_t(a.0, b.0));
         }
     }
 
     #[inline(always)]
-    fn store_interleaved_3_uninit(a: Self, b: Self, c: Self, dest: &mut [MaybeUninit<u16>]) {
+    fn store_interleaved_3(a: Self, b: Self, c: Self, dest: &mut [u16]) {
         assert!(dest.len() >= 3 * Self::LEN);
         // SAFETY: we just checked that `dest` has enough space, and neon is available
         // from the safety invariant on the descriptor stored in `a`. vst3q_u16 supports unaligned stores.
         unsafe {
-            let dest_ptr = dest.as_mut_ptr().cast::<u16>();
+            let dest_ptr = dest.as_mut_ptr();
             vst3q_u16(dest_ptr, uint16x8x3_t(a.0, b.0, c.0));
         }
     }
 
     #[inline(always)]
-    fn store_interleaved_4_uninit(
-        a: Self,
-        b: Self,
-        c: Self,
-        d: Self,
-        dest: &mut [MaybeUninit<u16>],
-    ) {
+    fn store_interleaved_4(a: Self, b: Self, c: Self, d: Self, dest: &mut [u16]) {
         assert!(dest.len() >= 4 * Self::LEN);
         // SAFETY: we just checked that `dest` has enough space, and neon is available
         // from the safety invariant on the descriptor stored in `a`. vst4q_u16 supports unaligned stores.
         unsafe {
-            let dest_ptr = dest.as_mut_ptr().cast::<u16>();
+            let dest_ptr = dest.as_mut_ptr();
             vst4q_u16(dest_ptr, uint16x8x4_t(a.0, b.0, c.0, d.0));
         }
     }

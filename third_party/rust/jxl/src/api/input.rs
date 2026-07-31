@@ -32,14 +32,6 @@ pub trait JxlBitstreamInput {
         }
         Ok(skipped)
     }
-
-    /// Un-consumes read bytes. This will only be called at the end of a file stream,
-    /// to un-read potentially over-read bytes. If ensuring that data is not read past
-    /// the file end is not required, this method can safely be implemented as a no-op.
-    /// The provided implementation does nothing.
-    fn unconsume(&mut self, _count: usize) -> Result<(), Error> {
-        Ok(())
-    }
 }
 
 impl JxlBitstreamInput for &[u8] {
@@ -74,9 +66,5 @@ impl<R: Read + Seek> JxlBitstreamInput for BufReader<R> {
         let cur = self.stream_position()?;
         self.seek(SeekFrom::Current(bytes as i64))
             .map(|x| x.saturating_sub(cur) as usize)
-    }
-
-    fn unconsume(&mut self, count: usize) -> Result<(), Error> {
-        self.seek_relative(-(count as i64))
     }
 }

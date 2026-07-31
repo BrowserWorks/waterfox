@@ -8,7 +8,7 @@ use crate::error::Error;
 
 use crate::util::CeilLog2;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct HybridUint {
     split_token: u32,
     split_exponent: u32,
@@ -19,6 +19,10 @@ pub struct HybridUint {
 impl HybridUint {
     pub(super) fn is_split_exponent_zero(&self) -> bool {
         self.split_exponent == 0
+    }
+
+    pub fn split_token(&self) -> u32 {
+        self.split_token
     }
 
     pub fn decode(log_alpha_size: usize, br: &mut BitReader) -> Result<HybridUint, Error> {

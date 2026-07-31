@@ -64,21 +64,6 @@ pub struct WeightedHeader {
     pub w3: u32,
 }
 
-impl WeightedHeader {
-    pub fn w(&self, i: usize) -> Result<u32> {
-        match i {
-            0 => Ok(self.w0),
-            1 => Ok(self.w1),
-            2 => Ok(self.w2),
-            3 => Ok(self.w3),
-            _ => unreachable!(
-            "WeightedHeader::w called with an out-of-bounds index: {}.
-            This indicates a logical error in the calling code, which should ensure 'i' is within 0..=3.",
-            i),
-        }
-    }
-}
-
 #[derive(UnconditionalCoder, Debug, PartialEq, Clone, Copy)]
 pub struct SqueezeParams {
     pub horizontal: bool,

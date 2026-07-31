@@ -30,7 +30,7 @@ impl Debug for TableEntry {
 }
 
 #[derive(Debug)]
-struct Table {
+pub(crate) struct Table {
     entries: Vec<TableEntry>,
 }
 
@@ -441,7 +441,7 @@ impl Table {
         Ok(Table { entries })
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read(&self, br: &mut BitReader) -> u32 {
         let mut pos = br.peek(TABLE_BITS) as usize;
         let mut n_bits = self.entries[pos].bits as usize;
@@ -451,8 +451,9 @@ impl Table {
             pos += self.entries[pos].value as usize;
             pos += br.peek(n_bits) as usize;
         }
-        br.consume_optimistic(self.entries[pos].bits as usize);
-        self.entries[pos].value as u32
+        let entry = self.entries[pos];
+        br.consume_optimistic(entry.bits as usize);
+        entry.value as u32
     }
 }
 
@@ -489,20 +490,9 @@ impl HuffmanCodes {
             None
         }
     }
-}
 
-#[cfg(test)]
-impl Table {
-    fn new_single_symbol(sym: u16) -> Table {
-        Table {
-            entries: vec![
-                TableEntry {
-                    bits: 0,
-                    value: sym
-                };
-                TABLE_SIZE
-            ],
-        }
+    pub(crate) fn table(&self, ctx: usize) -> &Table {
+        &self.tables[ctx]
     }
 }
 
@@ -512,12 +502,6 @@ impl HuffmanCodes {
     pub(super) fn byte_histogram() -> HuffmanCodes {
         let mut br = BitReader::new(&[0b11101111, 0b00111111, 0, 1, 0, 0b10100000, 0b0110]);
         HuffmanCodes::decode(1, &mut br).unwrap()
-    }
-
-    pub(super) fn byte_histogram_rle() -> HuffmanCodes {
-        let mut histogram = Self::byte_histogram();
-        histogram.tables.push(Table::new_single_symbol(1));
-        histogram
     }
 }
 

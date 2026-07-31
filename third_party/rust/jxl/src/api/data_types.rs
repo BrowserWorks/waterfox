@@ -163,10 +163,7 @@ impl JxlPixelFormat {
         Self {
             color_type: JxlColorType::Rgba,
             color_data_format: Some(JxlDataFormat::U8 { bit_depth: 8 }),
-            extra_channel_format: vec![
-                Some(JxlDataFormat::U8 { bit_depth: 8 });
-                num_extra_channels
-            ],
+            extra_channel_format: vec![None; num_extra_channels],
         }
     }
 
@@ -178,13 +175,7 @@ impl JxlPixelFormat {
                 endianness: Endianness::native(),
                 bit_depth: 16,
             }),
-            extra_channel_format: vec![
-                Some(JxlDataFormat::U16 {
-                    endianness: Endianness::native(),
-                    bit_depth: 16,
-                });
-                num_extra_channels
-            ],
+            extra_channel_format: vec![None; num_extra_channels],
         }
     }
 
@@ -195,12 +186,7 @@ impl JxlPixelFormat {
             color_data_format: Some(JxlDataFormat::F16 {
                 endianness: Endianness::native(),
             }),
-            extra_channel_format: vec![
-                Some(JxlDataFormat::F16 {
-                    endianness: Endianness::native(),
-                });
-                num_extra_channels
-            ],
+            extra_channel_format: vec![None; num_extra_channels],
         }
     }
 
@@ -211,12 +197,50 @@ impl JxlPixelFormat {
             color_data_format: Some(JxlDataFormat::F32 {
                 endianness: Endianness::native(),
             }),
-            extra_channel_format: vec![
-                Some(JxlDataFormat::F32 {
-                    endianness: Endianness::native(),
-                });
-                num_extra_channels
-            ],
+            extra_channel_format: vec![None; num_extra_channels],
+        }
+    }
+
+    /// Creates an RGB 8-bit pixel format.
+    pub fn rgb8(num_extra_channels: usize) -> Self {
+        Self {
+            color_type: JxlColorType::Rgb,
+            color_data_format: Some(JxlDataFormat::U8 { bit_depth: 8 }),
+            extra_channel_format: vec![None; num_extra_channels],
+        }
+    }
+
+    /// Creates an RGB 16-bit pixel format.
+    pub fn rgb16(num_extra_channels: usize) -> Self {
+        Self {
+            color_type: JxlColorType::Rgb,
+            color_data_format: Some(JxlDataFormat::U16 {
+                endianness: Endianness::native(),
+                bit_depth: 16,
+            }),
+            extra_channel_format: vec![None; num_extra_channels],
+        }
+    }
+
+    /// Creates an RGB f16 pixel format.
+    pub fn rgb_f16(num_extra_channels: usize) -> Self {
+        Self {
+            color_type: JxlColorType::Rgb,
+            color_data_format: Some(JxlDataFormat::F16 {
+                endianness: Endianness::native(),
+            }),
+            extra_channel_format: vec![None; num_extra_channels],
+        }
+    }
+
+    /// Creates an RGB f32 pixel format.
+    pub fn rgb_f32(num_extra_channels: usize) -> Self {
+        Self {
+            color_type: JxlColorType::Rgb,
+            color_data_format: Some(JxlDataFormat::F32 {
+                endianness: Endianness::native(),
+            }),
+            extra_channel_format: vec![None; num_extra_channels],
         }
     }
 }
