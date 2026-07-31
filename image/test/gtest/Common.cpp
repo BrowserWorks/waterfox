@@ -1058,6 +1058,16 @@ ImageTestCase LargeJXLTestCase() {
                        TEST_CASE_IGNORE_OUTPUT);
 }
 
+// The pixels of large.jxl, as a known good jxl-rs decodes them, in a lossless
+// format some other decoder can read back exactly. Matches libjxl's decode to
+// within 1 per channel, the two dithering 8-bit output differently. Regenerate
+// with `jxl_cli --data-type u8 large.jxl ref.png` and `cwebp -z 9 ref.png -o
+// large-jxl-reference.webp`.
+ImageTestCase LargeJXLReferenceWebPTestCase() {
+  return ImageTestCase("large-jxl-reference.webp", "image/webp",
+                       IntSize(1200, 660), TEST_CASE_IGNORE_OUTPUT);
+}
+
 ImageTestCase TransparentJXLTestCase() {
   auto testCase = ImageTestCase("transparent.jxl", "image/jxl",
                                 IntSize(100, 100), TEST_CASE_IS_TRANSPARENT);

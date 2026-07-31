@@ -2,6 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+#include <algorithm>
+
 #include "gtest/gtest.h"
 
 #include "Common.h"
@@ -18,6 +20,7 @@
 #include "ImageOps.h"
 #include "imgIContainer.h"
 #include "ImageFactory.h"
+#include "mozilla/Preferences.h"
 #include "mozilla/ScopeExit.h"
 #include "mozilla/gfx/2D.h"
 #include "nsComponentManagerUtils.h"
@@ -26,6 +29,7 @@
 #include "mozilla/RefPtr.h"
 #include "nsStreamUtils.h"
 #include "nsString.h"
+#include "nsTArray.h"
 #include "nsThreadUtils.h"
 #include "ProgressTracker.h"
 #include "SourceBuffer.h"
@@ -1032,7 +1036,175 @@ TEST_F(ImageDecoders, JXLLargeMultiChunkPipeWriteCount) {
                        });
 }
 #  endif /* DEBUG */
-#endif   /* MOZ_JXL */
+
+static already_AddRefed<SourceSurface> DecodeLargeJXL(uint32_t aParticipants,
+                                                      bool aUseDecodePool) {
+  uint32_t oldValue = Preferences::GetUint("image.jxl.decode_participants", 1);
+  auto restore = MakeScopeExit(
+      [&] { Preferences::SetUint("image.jxl.decode_participants", oldValue); });
+  Preferences::SetUint("image.jxl.decode_participants", aParticipants);
+
+  ImageTestCase testCase = LargeJXLTestCase();
+  RefPtr<SourceSurface> surface;
+  WithSingleChunkDecode(testCase, Nothing(), aUseDecodePool,
+                        [&](image::Decoder* aDecoder) {
+                          surface = CheckDecoderState(testCase, aDecoder);
+                        });
+  return surface.forget();
+}
+
+static void ExpectSurfacesSimilar(SourceSurface* aExpected,
+                                  SourceSurface* aActual, uint32_t aMaxPixels,
+                                  uint8_t aMaxChannelDiff) {
+  ASSERT_TRUE(aExpected && aActual);
+  ASSERT_EQ(aExpected->GetSize(), aActual->GetSize());
+  ASSERT_EQ(aExpected->GetFormat(), aActual->GetFormat());
+
+  RefPtr<DataSourceSurface> expected = aExpected->GetDataSurface();
+  RefPtr<DataSourceSurface> actual = aActual->GetDataSurface();
+  ASSERT_TRUE(expected && actual);
+
+  DataSourceSurface::ScopedMap expectedMap(expected, DataSourceSurface::READ);
+  DataSourceSurface::ScopedMap actualMap(actual, DataSourceSurface::READ);
+  ASSERT_TRUE(expectedMap.IsMapped() && actualMap.IsMapped());
+
+  const IntSize size = expected->GetSize();
+  const size_t bytesPerPixel = BytesPerPixel(expected->GetFormat());
+  // Ignore the unused fourth byte of opaque surfaces and each row's padding.
+  const size_t channels =
+      expected->GetFormat() == SurfaceFormat::OS_RGBX ? 3 : bytesPerPixel;
+
+  uint32_t differingPixels = 0;
+  uint32_t worstChannelDiff = 0;
+  for (int32_t row = 0; row < size.height; ++row) {
+    const uint8_t* expectedRow =
+        expectedMap.GetData() + row * expectedMap.GetStride();
+    const uint8_t* actualRow =
+        actualMap.GetData() + row * actualMap.GetStride();
+    for (int32_t col = 0; col < size.width; ++col) {
+      uint32_t pixelDiff = 0;
+      for (size_t channel = 0; channel < channels; ++channel) {
+        const size_t i = col * bytesPerPixel + channel;
+        const uint32_t diff = expectedRow[i] > actualRow[i]
+                                  ? expectedRow[i] - actualRow[i]
+                                  : actualRow[i] - expectedRow[i];
+        pixelDiff = std::max(pixelDiff, diff);
+      }
+      if (pixelDiff > 0) {
+        ++differingPixels;
+        worstChannelDiff = std::max(worstChannelDiff, pixelDiff);
+      }
+    }
+  }
+
+  EXPECT_LE(differingPixels, aMaxPixels)
+      << "worst channel difference " << worstChannelDiff;
+  EXPECT_LE(worstChannelDiff, uint32_t(aMaxChannelDiff))
+      << differingPixels << " pixels differ";
+}
+
+static void ExpectSurfacesIdentical(SourceSurface* aExpected,
+                                    SourceSurface* aActual) {
+  ExpectSurfacesSimilar(aExpected, aActual, /* aMaxPixels */ 0,
+                        /* aMaxChannelDiff */ 0);
+}
+
+TEST_F(ImageDecoders, JXLParallelDecodeMatchesSerial) {
+  // The first parallel decode fixes the shared pool's size for this process.
+  // Initialize it with the automatic limit before trying smaller counts.
+  RefPtr<SourceSurface> discarded =
+      DecodeLargeJXL(0, /* aUseDecodePool */ false);
+
+  RefPtr<SourceSurface> reference =
+      DecodeLargeJXL(1, /* aUseDecodePool */ false);
+
+  {
+#  if defined(XP_WIN) && !defined(HAVE_64BIT_BUILD)
+    const uint32_t kReferenceMaxDifferingPixels = 7;
+    const uint8_t kReferenceMaxChannelDiff = 1;
+#  elif defined(ANDROID)
+    const uint32_t kReferenceMaxDifferingPixels = 4;
+    const uint8_t kReferenceMaxChannelDiff = 1;
+#  else
+    const uint32_t kReferenceMaxDifferingPixels = 0;
+    const uint8_t kReferenceMaxChannelDiff = 0;
+#  endif
+    ImageTestCase referenceCase = LargeJXLReferenceWebPTestCase();
+    RefPtr<SourceSurface> webpReference;
+    WithSingleChunkDecode(referenceCase, Nothing(), /* aUseDecodePool */ false,
+                          [&](image::Decoder* aDecoder) {
+                            webpReference =
+                                CheckDecoderState(referenceCase, aDecoder);
+                          });
+    ExpectSurfacesSimilar(webpReference, reference,
+                          kReferenceMaxDifferingPixels,
+                          kReferenceMaxChannelDiff);
+  }
+
+  for (bool useDecodePool : {false, true}) {
+    for (uint32_t participants : {1u, 0u, 2u, 8u, 64u}) {
+      SCOPED_TRACE(testing::Message() << "participants=" << participants
+                                      << " useDecodePool=" << useDecodePool);
+      RefPtr<SourceSurface> surface =
+          DecodeLargeJXL(participants, useDecodePool);
+      ExpectSurfacesIdentical(reference, surface);
+    }
+  }
+}
+
+TEST_F(ImageDecoders, JXLConcurrentDecodes) {
+  uint32_t oldValue = Preferences::GetUint("image.jxl.decode_participants", 1);
+  auto restore = MakeScopeExit(
+      [&] { Preferences::SetUint("image.jxl.decode_participants", oldValue); });
+
+  RefPtr<SourceSurface> reference =
+      DecodeLargeJXL(1, /* aUseDecodePool */ false);
+
+  Preferences::SetUint("image.jxl.decode_participants", 0);
+
+  ImageTestCase testCase = LargeJXLTestCase();
+  nsTArray<RefPtr<image::Decoder>> decoders;
+  nsTArray<RefPtr<MonitorAnonymousDecodingTask>> tasks;
+
+  for (size_t i = 0; i < 16; ++i) {
+    nsCOMPtr<nsIInputStream> inputStream = LoadFile(testCase.mPath);
+    ASSERT_TRUE(inputStream != nullptr);
+
+    uint64_t length;
+    ASSERT_NS_SUCCEEDED(inputStream->Available(&length));
+
+    auto sourceBuffer = MakeNotNull<RefPtr<SourceBuffer>>();
+    sourceBuffer->ExpectLength(length);
+    ASSERT_NS_SUCCEEDED(
+        sourceBuffer->AppendFromInputStream(inputStream, length));
+    sourceBuffer->Complete(NS_OK);
+
+    RefPtr<image::Decoder> decoder = DecoderFactory::CreateAnonymousDecoder(
+        DecoderFactory::GetDecoderType(testCase.mMimeType), sourceBuffer,
+        Nothing(), DefaultDecoderFlags() | DecoderFlags::FIRST_FRAME_ONLY,
+        testCase.mSurfaceFlags);
+    ASSERT_TRUE(decoder != nullptr);
+
+    decoders.AppendElement(decoder);
+    tasks.AppendElement(MakeRefPtr<MonitorAnonymousDecodingTask>(
+        WrapNotNull(decoder.get()), /* aResumable */ false));
+  }
+
+  // Queue every decode before waiting so the shared JXL pool is contended.
+  for (auto& task : tasks) {
+    DecodePool::Singleton()->AsyncRun(task.get());
+  }
+  for (auto& task : tasks) {
+    task->WaitUntilFinished();
+  }
+
+  for (size_t i = 0; i < decoders.Length(); ++i) {
+    SCOPED_TRACE(testing::Message() << "decode=" << i);
+    RefPtr<SourceSurface> surface = CheckDecoderState(testCase, decoders[i]);
+    ExpectSurfacesIdentical(reference, surface);
+  }
+}
+#endif /* MOZ_JXL */
 
 TEST_F(ImageDecoders, AnimatedGIFSingleChunk) {
   CheckDecoderSingleChunk(GreenFirstFrameAnimatedGIFTestCase());
