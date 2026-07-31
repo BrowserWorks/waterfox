@@ -3,16 +3,14 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::{
-    bit_reader::BitReader,
-    error::{Error, Result},
-    frame::modular::Predictor,
-    headers::encodings::*,
-};
 use jxl_macros::UnconditionalCoder;
 use num_derive::FromPrimitive;
 
 use super::encodings;
+use crate::bit_reader::BitReader;
+use crate::error::{Error, Result};
+use crate::frame::modular::Predictor;
+use crate::headers::encodings::*;
 
 #[derive(UnconditionalCoder, Debug, PartialEq, Clone)]
 pub struct WeightedHeader {
@@ -62,21 +60,6 @@ pub struct WeightedHeader {
     #[coder(Bits(4))]
     #[default(0xc)]
     pub w3: u32,
-}
-
-impl WeightedHeader {
-    pub fn w(&self, i: usize) -> Result<u32> {
-        match i {
-            0 => Ok(self.w0),
-            1 => Ok(self.w1),
-            2 => Ok(self.w2),
-            3 => Ok(self.w3),
-            _ => unreachable!(
-            "WeightedHeader::w called with an out-of-bounds index: {}.
-            This indicates a logical error in the calling code, which should ensure 'i' is within 0..=3.",
-            i),
-        }
-    }
 }
 
 #[derive(UnconditionalCoder, Debug, PartialEq, Clone, Copy)]

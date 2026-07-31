@@ -3,12 +3,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use std::mem::MaybeUninit;
 use std::num::Wrapping;
 
-use crate::{U32SimdVec, f16, impl_f32_array_interface};
-
-use super::{F32SimdVec, I32SimdVec, SimdDescriptor, SimdMask, U8SimdVec, U16SimdVec};
+use super::{
+    F32SimdVec, I16SimdVec, I32SimdVec, SimdDescriptor, SimdMask, SimdMask16, U8SimdVec, U16SimdVec,
+};
+use crate::{U32SimdVec, U64SimdVec, f16, impl_f32_array_interface, impl_i16_array_interface};
 
 #[derive(Clone, Copy, Debug)]
 pub struct ScalarDescriptor;
@@ -16,10 +16,13 @@ pub struct ScalarDescriptor;
 impl SimdDescriptor for ScalarDescriptor {
     type F32Vec = f32;
     type I32Vec = Wrapping<i32>;
+    type I16Vec = Wrapping<i16>;
+    type U64Vec = Wrapping<u64>;
     type U32Vec = Wrapping<u32>;
     type U8Vec = u8;
     type U16Vec = u16;
     type Mask = bool;
+    type Mask16 = bool;
     type Bf16Table8 = [f32; 8];
 
     type Descriptor256 = Self;
@@ -43,9 +46,7 @@ impl SimdDescriptor for ScalarDescriptor {
     }
 }
 
-// SAFETY: This implementation only write initialized data in the
-// `&mut [MaybeUninit<f32>]` arguments to *_uninit methods.
-unsafe impl F32SimdVec for f32 {
+impl F32SimdVec for f32 {
     type Descriptor = ScalarDescriptor;
 
     const LEN: usize = 1;
@@ -61,30 +62,24 @@ unsafe impl F32SimdVec for f32 {
     }
 
     #[inline(always)]
-    fn store_interleaved_2_uninit(a: Self, b: Self, dest: &mut [MaybeUninit<f32>]) {
-        dest[0].write(a);
-        dest[1].write(b);
+    fn store_interleaved_2(a: Self, b: Self, dest: &mut [f32]) {
+        dest[0] = a;
+        dest[1] = b;
     }
 
     #[inline(always)]
-    fn store_interleaved_3_uninit(a: Self, b: Self, c: Self, dest: &mut [MaybeUninit<f32>]) {
-        dest[0].write(a);
-        dest[1].write(b);
-        dest[2].write(c);
+    fn store_interleaved_3(a: Self, b: Self, c: Self, dest: &mut [f32]) {
+        dest[0] = a;
+        dest[1] = b;
+        dest[2] = c;
     }
 
     #[inline(always)]
-    fn store_interleaved_4_uninit(
-        a: Self,
-        b: Self,
-        c: Self,
-        d: Self,
-        dest: &mut [MaybeUninit<f32>],
-    ) {
-        dest[0].write(a);
-        dest[1].write(b);
-        dest[2].write(c);
-        dest[3].write(d);
+    fn store_interleaved_4(a: Self, b: Self, c: Self, d: Self, dest: &mut [f32]) {
+        dest[0] = a;
+        dest[1] = b;
+        dest[2] = c;
+        dest[3] = d;
     }
 
     #[inline(always)]
@@ -249,6 +244,16 @@ impl I32SimdVec for Wrapping<i32> {
     }
 
     #[inline(always)]
+    fn load_from_i16(_d: Self::Descriptor, mem: &[i16]) -> Self {
+        Wrapping(mem[0] as i32)
+    }
+
+    #[inline(always)]
+    fn load_from_u16(_d: Self::Descriptor, mem: &[u16]) -> Self {
+        Wrapping(mem[0] as i32)
+    }
+
+    #[inline(always)]
     fn store(&self, mem: &mut [i32]) {
         mem[0] = self.0;
     }
@@ -319,6 +324,92 @@ impl I32SimdVec for Wrapping<i32> {
     }
 }
 
+impl I16SimdVec for Wrapping<i16> {
+    type Descriptor = ScalarDescriptor;
+
+    const LEN: usize = 1;
+
+    #[inline(always)]
+    fn splat(_d: Self::Descriptor, v: i16) -> Self {
+        Wrapping(v)
+    }
+
+    #[inline(always)]
+    fn zero(_d: Self::Descriptor) -> Self {
+        Wrapping(0)
+    }
+
+    #[inline(always)]
+    fn load(_d: Self::Descriptor, mem: &[i16]) -> Self {
+        assert!(!mem.is_empty());
+        Wrapping(mem[0])
+    }
+
+    #[inline(always)]
+    fn store(&self, mem: &mut [i16]) {
+        assert!(!mem.is_empty());
+        mem[0] = self.0;
+    }
+
+    #[inline(always)]
+    fn abs(self) -> Self {
+        Wrapping(self.0.wrapping_abs())
+    }
+
+    #[inline(always)]
+    fn gt(self, other: Self) -> bool {
+        self.0 > other.0
+    }
+
+    #[inline(always)]
+    fn lt_zero(self) -> bool {
+        self.0 < 0
+    }
+
+    #[inline(always)]
+    fn eq(self, other: Self) -> bool {
+        self.0 == other.0
+    }
+
+    #[inline(always)]
+    fn eq_zero(self) -> bool {
+        self.0 == 0
+    }
+
+    #[inline(always)]
+    fn shl<const AMOUNT_U: u32, const AMOUNT_I: i32>(self) -> Self {
+        Wrapping(self.0 << AMOUNT_U)
+    }
+
+    #[inline(always)]
+    fn shr<const AMOUNT_U: u32, const AMOUNT_I: i32>(self) -> Self {
+        Wrapping(self.0 >> AMOUNT_U)
+    }
+
+    #[inline(always)]
+    fn mul_wide_take_high(self, rhs: Self) -> Self {
+        Wrapping(((self.0 as i32 * rhs.0 as i32) >> 16) as i16)
+    }
+
+    #[inline(always)]
+    fn bitcast_u16(self) -> u16 {
+        self.0 as u16
+    }
+
+    impl_i16_array_interface!();
+
+    #[inline(always)]
+    fn transpose_square(_d: Self::Descriptor, _data: &mut [Self::UnderlyingArray], _stride: usize) {
+        // Nothing to do for 1x1 transpose.
+    }
+
+    #[inline(always)]
+    fn store_u8(self, dest: &mut [u8]) {
+        assert!(!dest.is_empty());
+        dest[0] = self.0 as u8;
+    }
+}
+
 impl U32SimdVec for Wrapping<u32> {
     type Descriptor = ScalarDescriptor;
 
@@ -335,9 +426,43 @@ impl U32SimdVec for Wrapping<u32> {
     }
 }
 
-// SAFETY: This implementation only write initialized data in the
-// `&mut [MaybeUninit<u8>]` arguments to *_uninit methods.
-unsafe impl U8SimdVec for u8 {
+impl U64SimdVec for Wrapping<u64> {
+    type Descriptor = ScalarDescriptor;
+
+    const LEN: usize = 1;
+
+    #[inline(always)]
+    fn splat(_d: Self::Descriptor, v: u64) -> Self {
+        Wrapping(v)
+    }
+
+    #[inline(always)]
+    fn load(_d: Self::Descriptor, mem: &[u64]) -> Self {
+        Wrapping(mem[0])
+    }
+
+    #[inline(always)]
+    fn store(&self, mem: &mut [u64]) {
+        mem[0] = self.0;
+    }
+
+    #[inline(always)]
+    fn shl<const AMOUNT_U: u32, const AMOUNT_I: i32>(self) -> Self {
+        Wrapping(self.0 << AMOUNT_U)
+    }
+
+    #[inline(always)]
+    fn shr<const AMOUNT_U: u32, const AMOUNT_I: i32>(self) -> Self {
+        Wrapping(self.0 >> AMOUNT_U)
+    }
+
+    #[inline(always)]
+    fn bitcast_to_u32(self) -> Wrapping<u32> {
+        Wrapping(self.0 as u32)
+    }
+}
+
+impl U8SimdVec for u8 {
     type Descriptor = ScalarDescriptor;
     const LEN: usize = 1;
 
@@ -357,36 +482,28 @@ unsafe impl U8SimdVec for u8 {
     }
 
     #[inline(always)]
-    fn store_interleaved_2_uninit(a: Self, b: Self, dest: &mut [MaybeUninit<u8>]) {
-        dest[0].write(a);
-        dest[1].write(b);
+    fn store_interleaved_2(a: Self, b: Self, dest: &mut [u8]) {
+        dest[0] = a;
+        dest[1] = b;
     }
 
     #[inline(always)]
-    fn store_interleaved_3_uninit(a: Self, b: Self, c: Self, dest: &mut [MaybeUninit<u8>]) {
-        dest[0].write(a);
-        dest[1].write(b);
-        dest[2].write(c);
+    fn store_interleaved_3(a: Self, b: Self, c: Self, dest: &mut [u8]) {
+        dest[0] = a;
+        dest[1] = b;
+        dest[2] = c;
     }
 
     #[inline(always)]
-    fn store_interleaved_4_uninit(
-        a: Self,
-        b: Self,
-        c: Self,
-        d: Self,
-        dest: &mut [MaybeUninit<u8>],
-    ) {
-        dest[0].write(a);
-        dest[1].write(b);
-        dest[2].write(c);
-        dest[3].write(d);
+    fn store_interleaved_4(a: Self, b: Self, c: Self, d: Self, dest: &mut [u8]) {
+        dest[0] = a;
+        dest[1] = b;
+        dest[2] = c;
+        dest[3] = d;
     }
 }
 
-// SAFETY: This implementation only write initialized data in the
-// `&mut [MaybeUninit<u16>]` arguments to *_uninit methods.
-unsafe impl U16SimdVec for u16 {
+impl U16SimdVec for u16 {
     type Descriptor = ScalarDescriptor;
     const LEN: usize = 1;
 
@@ -406,30 +523,29 @@ unsafe impl U16SimdVec for u16 {
     }
 
     #[inline(always)]
-    fn store_interleaved_2_uninit(a: Self, b: Self, dest: &mut [MaybeUninit<u16>]) {
-        dest[0].write(a);
-        dest[1].write(b);
+    fn store_interleaved_2(a: Self, b: Self, dest: &mut [u16]) {
+        dest[0] = a;
+        dest[1] = b;
     }
 
     #[inline(always)]
-    fn store_interleaved_3_uninit(a: Self, b: Self, c: Self, dest: &mut [MaybeUninit<u16>]) {
-        dest[0].write(a);
-        dest[1].write(b);
-        dest[2].write(c);
+    fn store_interleaved_3(a: Self, b: Self, c: Self, dest: &mut [u16]) {
+        dest[0] = a;
+        dest[1] = b;
+        dest[2] = c;
     }
 
     #[inline(always)]
-    fn store_interleaved_4_uninit(
-        a: Self,
-        b: Self,
-        c: Self,
-        d: Self,
-        dest: &mut [MaybeUninit<u16>],
-    ) {
-        dest[0].write(a);
-        dest[1].write(b);
-        dest[2].write(c);
-        dest[3].write(d);
+    fn store_interleaved_4(a: Self, b: Self, c: Self, d: Self, dest: &mut [u16]) {
+        dest[0] = a;
+        dest[1] = b;
+        dest[2] = c;
+        dest[3] = d;
+    }
+
+    #[inline(always)]
+    fn bitcast_i16(self) -> Wrapping<i16> {
+        Wrapping(self as i16)
     }
 }
 
@@ -462,7 +578,35 @@ impl SimdMask for bool {
     }
 }
 
-#[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+impl SimdMask16 for bool {
+    type Descriptor = ScalarDescriptor;
+
+    #[inline(always)]
+    fn if_then_else_i16(self, if_true: Wrapping<i16>, if_false: Wrapping<i16>) -> Wrapping<i16> {
+        if self { if_true } else { if_false }
+    }
+
+    #[inline(always)]
+    fn maskz_i16(self, v: Wrapping<i16>) -> Wrapping<i16> {
+        if self { Wrapping(0) } else { v }
+    }
+
+    #[inline(always)]
+    fn all(self) -> bool {
+        self
+    }
+
+    #[inline(always)]
+    fn andnot(self, rhs: Self) -> Self {
+        (!self) & rhs
+    }
+}
+
+#[cfg(not(any(
+    target_arch = "x86_64",
+    target_arch = "aarch64",
+    target_arch = "wasm32"
+)))]
 #[macro_export]
 macro_rules! simd_function {
     (
@@ -481,7 +625,11 @@ macro_rules! simd_function {
     };
 }
 
-#[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[cfg(not(any(
+    target_arch = "x86_64",
+    target_arch = "aarch64",
+    target_arch = "wasm32"
+)))]
 #[macro_export]
 macro_rules! test_all_instruction_sets {
     (
@@ -497,7 +645,11 @@ macro_rules! test_all_instruction_sets {
     };
 }
 
-#[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+#[cfg(not(any(
+    target_arch = "x86_64",
+    target_arch = "aarch64",
+    target_arch = "wasm32"
+)))]
 #[macro_export]
 macro_rules! bench_all_instruction_sets {
     (

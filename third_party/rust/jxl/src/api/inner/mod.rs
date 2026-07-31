@@ -3,21 +3,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#[cfg(test)]
-use crate::api::FrameCallback;
-use crate::{
-    api::{JxlFrameHeader, VisibleFrameInfo, VisibleFrameSeekTarget},
-    error::{Error, Result},
-};
-
-use super::{JxlBasicInfo, JxlColorProfile, JxlDecoderOptions, JxlPixelFormat};
-use crate::container::frame_index::FrameIndexBox;
 use box_parser::BoxParser;
 use codestream_parser::CodestreamParser;
 
+use super::{JxlBasicInfo, JxlColorProfile, JxlDecoderOptions, JxlPixelFormat};
+#[cfg(test)]
+use crate::api::FrameCallback;
+use crate::api::{JxlFrameHeader, VisibleFrameInfo, VisibleFrameSeekTarget};
+use crate::error::{Error, Result};
+
 mod box_parser;
 mod codestream_parser;
-mod process;
+pub(crate) mod process;
+
+pub use box_parser::{BoxParserCheckpoint, JxlAuxBox, JxlAuxBoxType};
 
 /// Low-level, less-type-safe API.
 pub struct JxlDecoderInner {
@@ -29,9 +28,10 @@ pub struct JxlDecoderInner {
 impl JxlDecoderInner {
     /// Creates a new decoder with the given options and, optionally, CMS.
     pub fn new(options: JxlDecoderOptions) -> Self {
+        let box_parser = BoxParser::with_aux_boxes(options.request_aux_boxes.iter().copied());
         JxlDecoderInner {
             options,
-            box_parser: BoxParser::new(),
+            box_parser,
             codestream_parser: CodestreamParser::new(),
         }
     }
@@ -41,23 +41,22 @@ impl JxlDecoderInner {
         self.codestream_parser.frame_callback = Some(callback);
     }
 
-    #[cfg(test)]
-    pub fn decoded_frames(&self) -> usize {
-        self.codestream_parser.decoded_frames
-    }
-
     /// Obtains the image's basic information, if available.
-    ///
-    /// Keep this aligned with typed `WithImageInfo` transitions: image info is
-    /// not observable until the embedded profile has been parsed.
     pub fn basic_info(&self) -> Option<&JxlBasicInfo> {
-        self.codestream_parser.embedded_color_profile.as_ref()?;
-        self.codestream_parser.basic_info.as_ref()
+        if self.codestream_parser.image_info.is_complete() {
+            Some(self.codestream_parser.image_info.basic_info())
+        } else {
+            None
+        }
     }
 
     /// Retrieves the file's color profile, if available.
     pub fn embedded_color_profile(&self) -> Option<&JxlColorProfile> {
-        self.codestream_parser.embedded_color_profile.as_ref()
+        if self.codestream_parser.image_info.is_complete() {
+            Some(self.codestream_parser.image_info.embedded_color_profile())
+        } else {
+            None
+        }
     }
 
     /// Retrieves the current output color profile, if available.
@@ -65,38 +64,49 @@ impl JxlDecoderInner {
         self.codestream_parser.output_color_profile.as_ref()
     }
 
-    /// Specifies the preferred color profile to be used for outputting data.
-    /// Same semantics as JxlDecoderSetOutputColorProfile.
-    pub fn set_output_color_profile(&mut self, profile: JxlColorProfile) -> Result<()> {
-        if let (JxlColorProfile::Icc(_), None) = (&profile, &self.options.cms) {
-            return Err(Error::ICCOutputNoCMS);
-        }
-        self.codestream_parser.output_color_profile = Some(profile);
-        self.codestream_parser.output_color_profile_set_by_user = true;
-        Ok(())
-    }
-
     pub fn current_pixel_format(&self) -> Option<&JxlPixelFormat> {
         self.codestream_parser.pixel_format.as_ref()
     }
 
-    pub fn set_pixel_format(&mut self, pixel_format: JxlPixelFormat) {
+    pub fn set_pixel_format(&mut self, pixel_format: JxlPixelFormat) -> Result<()> {
         // TODO(veluca): return an error if we are asking for both planar and
         // interleaved-in-color alpha.
+        // Frame render pipelines are built for the pixel format that is
+        // current when the frame's TOC is parsed, so the format can only be
+        // changed before the first frame header is decoded, i.e. right after
+        // basic info becomes available.
+        let frame_header_was_decoded = self
+            .codestream_parser
+            .frame_info
+            .current_frame_header()
+            .is_some()
+            || !self.codestream_parser.scanned_frames().is_empty();
+        if frame_header_was_decoded
+            && self.codestream_parser.pixel_format.as_ref() != Some(&pixel_format)
+        {
+            return Err(Error::PixelFormatChangedAfterFirstFrame);
+        }
         self.codestream_parser.pixel_format = Some(pixel_format);
-        self.codestream_parser.update_default_output_color_profile();
+        self.codestream_parser.update_default_output_options();
+        Ok(())
     }
 
     pub fn frame_header(&self) -> Option<JxlFrameHeader> {
-        let frame_header = self.codestream_parser.frame.as_ref()?.header();
+        if !self.codestream_parser.has_frame() {
+            return None;
+        }
+        let frame_header = self.codestream_parser.frame_info.current_frame_header()?;
         // The render pipeline always adds ExtendToImageDimensionsStage which extends
         // frames to the full image size. So the output size is always the image size,
         // not the frame's upsampled size.
-        let size = self.codestream_parser.basic_info.as_ref()?.size;
+        let size = self.codestream_parser.image_info.basic_info().size;
         Some(JxlFrameHeader {
             name: frame_header.name.clone(),
             duration: self
                 .codestream_parser
+                .image_info
+                .file_header()
+                .image_metadata
                 .animation
                 .as_ref()
                 .map(|anim| frame_header.duration(anim)),
@@ -104,77 +114,40 @@ impl JxlDecoderInner {
         })
     }
 
-    /// Number of passes we have full data for.
-    /// Returns the minimum number of passes completed across all groups.
-    pub fn num_completed_passes(&self) -> Option<usize> {
-        Some(self.codestream_parser.num_completed_passes())
-    }
-
-    /// Fully resets the decoder to its initial state.
-    ///
-    /// This clears all state including pixel_format. For animation loop playback,
-    /// consider using [`rewind`](Self::rewind) instead which preserves pixel_format.
-    ///
-    /// After calling this, the caller should provide input from the beginning of the file.
-    pub fn reset(&mut self) {
-        // TODO(veluca): keep track of frame offsets for skipping.
-        self.box_parser = BoxParser::new();
-        self.codestream_parser = CodestreamParser::new();
-    }
-
-    /// Rewinds for animation loop replay, keeping pixel_format setting.
-    ///
-    /// This resets the decoder but preserves the pixel_format configuration,
-    /// so the caller doesn't need to re-set it after rewinding.
-    ///
-    /// After calling this, the caller should provide input from the beginning of the file.
-    /// Headers will be re-parsed, then frames can be decoded again.
-    ///
-    /// Returns `true` if pixel_format was preserved, `false` if none was set.
-    pub fn rewind(&mut self) -> bool {
-        self.box_parser = BoxParser::new();
-        self.codestream_parser.rewind().is_some()
-    }
-
     pub fn has_more_frames(&self) -> bool {
-        self.codestream_parser.has_more_frames
-    }
-
-    /// Returns the parsed frame index box, if the file contained one.
-    pub fn frame_index(&self) -> Option<&FrameIndexBox> {
-        self.box_parser.frame_index.as_ref()
+        self.codestream_parser.has_more_frames()
     }
 
     /// Returns visible frame info entries collected during parsing.
     pub fn scanned_frames(&self) -> &[VisibleFrameInfo] {
-        &self.codestream_parser.scanned_frames
+        self.codestream_parser.scanned_frames()
     }
 
-    /// Resets frame-level state to prepare for decoding a new frame.
-    ///
-    /// Preserves image-level state (file header, decoder state including
-    /// reference frames, color profiles, pixel format). Clears frame header,
-    /// TOC, section buffers, and restores the box parser to the correct
-    /// state so the next `process()` call parses a new frame header.
-    ///
-    /// The `seek_target` comes from `VisibleFrameInfo::seek_target`. It tells
-    /// the decoder which container box position to seek to and how many visible
-    /// frames to skip before the target frame. The caller must provide raw file
-    /// input starting from `seek_target.decode_start_file_offset`.
-    ///
-    /// After seeking the first time, scanned frame information will no longer
-    /// be updated. If you seek before having completed decoding once, the scanned
-    /// frames might be incomplete.
+    pub(crate) fn trailing_box(&self) -> Option<&JxlAuxBox> {
+        self.box_parser.trailing_box()
+    }
+
     pub fn start_new_frame(&mut self, seek_target: VisibleFrameSeekTarget) {
         self.box_parser
-            .reset_for_codestream_seek(seek_target.remaining_in_box);
-        self.codestream_parser
-            .start_new_frame(seek_target.visible_frames_to_skip);
+            .reset_to_checkpoint(seek_target.box_parser_checkpoint);
+        self.codestream_parser.start_new_frame(
+            seek_target.visible_frames_to_skip,
+            seek_target.box_parser_checkpoint.consumed_codestream,
+        );
     }
 
     #[cfg(test)]
     pub(crate) fn set_use_simple_pipeline(&mut self, u: bool) {
         self.codestream_parser.set_use_simple_pipeline(u);
+    }
+
+
+    pub fn file_length(&self) -> Option<u64> {
+        self.codestream_parser.file_length
+    }
+
+    pub(crate) fn aux_boxes(&self, box_type: JxlAuxBoxType) -> &[JxlAuxBox] {
+        self.box_parser.aux_boxes(box_type)
     }
 }
 
@@ -190,7 +163,7 @@ mod tests {
 
         for chunk in data.chunks(64) {
             let mut input = chunk;
-            let _ = decoder.process(&mut input, None);
+            let _ = decoder.process(&mut input, None, None);
 
             if decoder.embedded_color_profile().is_none() {
                 assert!(decoder.basic_info().is_none());
@@ -203,5 +176,24 @@ mod tests {
         }
 
         panic!("failed to reach image-info state while parsing cmyk_layers.jxl");
+    }
+
+    /// Regression test: an out-of-order `jxlp` stream with trailing container
+    /// bytes used to spin forever when header parsing needed more codestream
+    /// than the boxes provided.
+    #[test]
+    fn ooo_jxlp_with_trailing_bytes_does_not_hang() {
+        let data = include_bytes!("../../../tests/testdata/ooo_jxlp_with_trailing_bytes.jxl");
+
+        let mut decoder = JxlDecoderInner::new(JxlDecoderOptions::default());
+        let mut input = data.as_slice();
+        let result = decoder.process(&mut input, None, None);
+        assert!(
+            matches!(
+                result,
+                Ok(crate::api::ProcessingResult::NeedsMoreInput { .. })
+            ),
+            "{result:?}"
+        );
     }
 }

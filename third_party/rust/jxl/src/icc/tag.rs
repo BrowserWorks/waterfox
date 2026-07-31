@@ -7,11 +7,10 @@ use std::io::{Cursor, Write};
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
+use super::{ICC_HEADER_SIZE, IccStream, read_varint_from_reader};
 use crate::error::{Error, Result};
 use crate::util::NewWithCapacity;
 use crate::util::tracing_wrappers::warn;
-
-use super::{ICC_HEADER_SIZE, IccStream, read_varint_from_reader};
 
 const COMMON_TAGS: [&[u8; 4]; 19] = [
     b"rTRC", b"rXYZ", b"cprt", b"wtpt", b"bkpt", b"rXYZ", b"gXYZ", b"bXYZ", b"kXYZ", b"rTRC",
@@ -29,7 +28,10 @@ pub(super) fn read_tag_list(
     num_tags: u32,
     output_size: u64,
 ) -> Result<()> {
-    let mut prev_tagstart = num_tags * 12 + ICC_HEADER_SIZE as u32;
+    let mut prev_tagstart = num_tags
+        .checked_mul(12)
+        .and_then(|v| v.checked_add(ICC_HEADER_SIZE as u32))
+        .ok_or(Error::InvalidIccStream)?;
     let mut prev_tagsize = 0u32;
 
     loop {
@@ -55,10 +57,12 @@ pub(super) fn read_tag_list(
                 .checked_add(prev_tagsize)
                 .ok_or(Error::InvalidIccStream)?
         } else {
-            read_varint_from_reader(commands_stream)? as u32
+            u32::try_from(read_varint_from_reader(commands_stream)?)
+                .map_err(|_| Error::InvalidIccStream)?
         };
         let tagsize = match &tag {
-            _ if command & 128 != 0 => read_varint_from_reader(commands_stream)? as u32,
+            _ if command & 128 != 0 => u32::try_from(read_varint_from_reader(commands_stream)?)
+                .map_err(|_| Error::InvalidIccStream)?,
             b"rXYZ" | b"gXYZ" | b"bXYZ" | b"kXYZ" | b"wtpt" | b"bkpt" | b"lumi" => 20,
             _ => prev_tagsize,
         };

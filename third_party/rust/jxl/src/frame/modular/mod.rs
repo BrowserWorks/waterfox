@@ -3,49 +3,44 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use std::{
-    cmp::min,
-    collections::{BTreeMap, BTreeSet},
-    fmt::Debug,
-    ops::Range,
-    sync::atomic::{AtomicUsize, Ordering},
-};
+use std::cmp::min;
+use std::collections::{BTreeSet, HashSet};
+use std::fmt::Debug;
+use std::sync::Arc;
 
-use crate::{
-    bit_reader::BitReader,
-    error::{Error, Result},
-    frame::{
-        ColorCorrelationParams, HfMetadata,
-        block_context_map::BlockContextMap,
-        quantizer::{self, LfQuantFactors, QuantizerParams},
-    },
-    headers::{
-        ImageMetadata, JxlHeader,
-        bit_depth::BitDepth,
-        frame_header::FrameHeader,
-        modular::{GroupHeader, TransformId},
-    },
-    image::{Image, Rect},
-    util::{AtomicRefCell, CeilLog2, SmallVec, tracing_wrappers::*},
-};
 use jxl_transforms::transform_map::*;
 
-mod borrowed_buffers;
-pub(crate) mod decode;
+use crate::bit_reader::BitReader;
+use crate::error::{Error, Result};
+use crate::frame::block_context_map::BlockContextMap;
+use crate::frame::modular::buffers::{ModularBuffer, ModularChannel};
+use crate::frame::modular::transforms::step::{TransformDependency, TransformStepChunk};
+use crate::frame::quantizer::{self, LfQuantFactors, QuantizerParams};
+use crate::frame::{ColorCorrelationParams, DataStatus, HfMetaViews};
+use crate::headers::bit_depth::BitDepth;
+use crate::headers::frame_header::FrameHeader;
+use crate::headers::modular::{GroupHeader, TransformId};
+use crate::headers::{ImageMetadata, JxlHeader};
+use crate::image::{BufferRecycler, ImageDataType, ImageRect, OwnedRawImage, RawImageRect, Rect};
+use crate::render::buffer_splitter::OutputChannelRef;
+use crate::util::sync::Mutex;
+use crate::util::sync::atomic::{AtomicBool, Ordering};
+use crate::util::tracing_wrappers::*;
+use crate::util::{CeilLog2, PerThreadStorage, PerThreadStorageRef};
+
+mod buffers;
+mod decode;
+mod flat_tree;
 mod predict;
 mod transforms;
 mod tree;
 
-use borrowed_buffers::with_buffers;
+pub use buffers::ModularStorage;
+use buffers::with_buffers;
 pub use decode::ModularStreamId;
 use decode::decode_modular_subbitstream;
 pub use predict::Predictor;
-use transforms::{TransformStepChunk, make_grids};
 pub use tree::Tree;
-
-// Two rows on top, two pixels to the left, two pixels to the right.
-const IMAGE_PADDING: (usize, usize) = (4, 2);
-const IMAGE_OFFSET: (usize, usize) = (2, 2);
 
 #[derive(Clone, PartialEq, Eq, Copy)]
 struct ChannelInfo {
@@ -55,6 +50,7 @@ struct ChannelInfo {
     size: (usize, usize),
     shift: Option<(usize, usize)>, // None for meta-channels
     bit_depth: BitDepth,
+    followed_by_palette: bool,
 }
 
 impl Debug for ChannelInfo {
@@ -68,6 +64,9 @@ impl Debug for ChannelInfo {
         write!(f, "{:?}", self.bit_depth)?;
         if let Some(oc) = self.output_channel_idx {
             write!(f, "(output channel {})", oc)?;
+        }
+        if self.followed_by_palette {
+            write!(f, "(palette)")?;
         }
         Ok(())
     }
@@ -93,6 +92,20 @@ impl ChannelInfo {
 
     fn is_equivalent(&self, other: &ChannelInfo) -> bool {
         self.size == other.size && self.shift == other.shift && self.bit_depth == other.bit_depth
+    }
+
+    /// Returns this channel info with the size it'll have once a `ModularChannel` is allocated for
+    /// it.
+    ///
+    /// `Image` does not allocate anything for a channel with a zero-sized dimension and reports
+    /// such a channel as `0x0`, so a channel that is declared as e.g. `0x1` (which happens for
+    /// the palette channel of a palette transform with no colors and no deltas) would otherwise
+    /// change size when it gets allocated.
+    fn as_allocated(mut self) -> ChannelInfo {
+        if self.size.0 == 0 || self.size.1 == 0 {
+            self.size = (0, 0);
+        }
+        self
     }
 }
 
@@ -124,149 +137,6 @@ impl ModularGridKind {
     }
 }
 
-// All the information on a specific buffer needed by Modular decoding.
-#[derive(Debug)]
-pub(crate) struct ModularChannel {
-    // Actual pixel buffer.
-    pub data: Image<i32>,
-    // Holds additional information such as the weighted predictor's error channel's last row for
-    // the transform chunk that produced this buffer.
-    auxiliary_data: Option<Image<i32>>,
-    // Shift of the channel (None if this is a meta-channel).
-    shift: Option<(usize, usize)>,
-    bit_depth: BitDepth,
-}
-
-impl ModularChannel {
-    pub fn new(size: (usize, usize), bit_depth: BitDepth) -> Result<Self> {
-        Self::new_with_shift(size, Some((0, 0)), bit_depth)
-    }
-
-    fn new_with_shift(
-        size: (usize, usize),
-        shift: Option<(usize, usize)>,
-        bit_depth: BitDepth,
-    ) -> Result<Self> {
-        Ok(ModularChannel {
-            data: Image::new_with_padding(size, IMAGE_OFFSET, IMAGE_PADDING)?,
-            auxiliary_data: None,
-            shift,
-            bit_depth,
-        })
-    }
-
-    fn try_clone(&self) -> Result<Self> {
-        Ok(ModularChannel {
-            data: self.data.try_clone()?,
-            auxiliary_data: self
-                .auxiliary_data
-                .as_ref()
-                .map(Image::try_clone)
-                .transpose()?,
-            shift: self.shift,
-            bit_depth: self.bit_depth,
-        })
-    }
-
-    fn channel_info(&self) -> ChannelInfo {
-        ChannelInfo {
-            output_channel_idx: None,
-            size: self.data.size(),
-            shift: self.shift,
-            bit_depth: self.bit_depth,
-        }
-    }
-}
-
-const BUFFER_STATUS_NOT_RENDERED: usize = 0;
-const BUFFER_STATUS_PARTIAL_RENDER: usize = 1;
-const BUFFER_STATUS_FINAL_RENDER: usize = 2;
-
-// Note: this type uses interior mutability to get mutable references to multiple buffers at once.
-// In principle, this is not needed, but the overhead should be minimal so using `unsafe` here is
-// probably not worth it.
-#[derive(Debug)]
-struct ModularBuffer {
-    data: AtomicRefCell<Option<ModularChannel>>,
-    // Number of times this buffer will be used, *including* when it is used for output.
-    remaining_uses: AtomicUsize,
-    // Transform steps that "strongly" or "weakly" use the image data in this buffer.
-    // A "strong" usage always triggers a re-render if the image data changes.
-    // A "weak" usage only triggers a re-render if the buffer is final, or if the
-    // current re-render was not only caused by weak re-renders.
-    used_by_transforms_strong: Vec<usize>,
-    used_by_transforms_weak: Vec<usize>,
-    size: (usize, usize),
-    status: AtomicUsize,
-}
-
-impl ModularBuffer {
-    fn get_status(&self) -> usize {
-        self.status.load(Ordering::Relaxed)
-    }
-
-    fn set_status(&self, val: usize) {
-        self.status.store(val, Ordering::Relaxed);
-    }
-
-    // Iterator over (transform_id, is_strong_use)
-    fn users(&self, include_weak: bool) -> impl Iterator<Item = (usize, bool)> {
-        let strong = self.used_by_transforms_strong.iter().map(|x| (*x, true));
-        let weak = if include_weak {
-            &self.used_by_transforms_weak[..]
-        } else {
-            &[]
-        }
-        .iter()
-        .map(|x| (*x, false));
-        strong.chain(weak)
-    }
-
-    // Gives out a copy of the buffer + auxiliary buffer, marking the buffer as used.
-    // If this was the last usage of the buffer, does not actually copy the buffer.
-    fn get_buffer(&self, can_consume: bool) -> Result<ModularChannel> {
-        if !can_consume {
-            return ModularChannel::try_clone(self.data.borrow().as_ref().unwrap());
-        }
-        let mut ret = None;
-        let _ = self.remaining_uses.fetch_update(
-            Ordering::Release,
-            Ordering::Acquire,
-            |remaining_pre| {
-                let remaining = remaining_pre.checked_sub(1).unwrap();
-                if ret.is_none() {
-                    if remaining == 0 {
-                        ret = Some(Ok(self.data.borrow_mut().take().unwrap()))
-                    } else {
-                        ret = self.data.borrow().as_ref().map(ModularChannel::try_clone);
-                    }
-                } else if remaining == 0 {
-                    *self.data.borrow_mut() = None;
-                }
-                Some(remaining)
-            },
-        );
-        Ok(ret.transpose()?.unwrap())
-    }
-
-    fn mark_used(&self, can_consume: bool) {
-        if !can_consume {
-            return;
-        }
-        let _ = self.remaining_uses.fetch_update(
-            Ordering::Release,
-            Ordering::Acquire,
-            |remaining_pre: usize| {
-                let remaining = remaining_pre.checked_sub(1).unwrap();
-                if remaining == 0 {
-                    *self.data.borrow_mut() = None;
-                }
-                Some(remaining)
-            },
-        );
-    }
-}
-
 #[derive(Debug)]
 struct ModularBufferInfo {
     info: ChannelInfo,
@@ -277,6 +147,7 @@ struct ModularBufferInfo {
     grid_kind: ModularGridKind,
     grid_shape: (usize, usize),
     buffer_grid: Vec<ModularBuffer>,
+    storage: ModularStorage,
 }
 
 impl ModularBufferInfo {
@@ -319,6 +190,12 @@ impl ModularBufferInfo {
             (chan_size.0 - bx).min(grid_dim.0),
             (chan_size.1 - by).min(grid_dim.1),
         );
+        if size.0 == 0 || size.1 == 0 {
+            return Rect {
+                origin: (0, 0),
+                size: (0, 0),
+            };
+        }
         let origin = match (output_grid_kind, self.grid_kind) {
             (ModularGridKind::Lf, ModularGridKind::Lf)
             | (ModularGridKind::Hf, ModularGridKind::Hf) => (0, 0),
@@ -329,13 +206,35 @@ impl ModularBufferInfo {
             }
             _ => unreachable!("invalid combination of output grid kind and buffer grid kind"),
         };
-        if size.0 == 0 || size.1 == 0 {
-            Rect {
-                origin: (0, 0),
-                size: (0, 0),
-            }
-        } else {
-            Rect { origin, size }
+        Rect { origin, size }
+    }
+}
+
+use crate::frame::modular::decode::specialized_trees::LUT_TABLE_SIZE;
+use crate::frame::modular::transforms::smooth_squeeze::SmoothUpsampleScratch;
+
+pub(super) struct ScratchSpace {
+    smooth_upsample_scratch: SmoothUpsampleScratch,
+    palette_row_scratch: [Vec<i32>; 4],
+    decode_row_scratch: [Vec<i32>; 3],
+    tree_lut_scratch: Box<[u8; LUT_TABLE_SIZE]>,
+    hsqueeze_i16_scratch: Box<[i16; 2048]>,
+}
+
+impl Debug for ScratchSpace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ScratchSpace")
+    }
+}
+
+impl ScratchSpace {
+    fn new() -> ScratchSpace {
+        ScratchSpace {
+            smooth_upsample_scratch: SmoothUpsampleScratch::default(),
+            palette_row_scratch: [vec![], vec![], vec![], vec![]],
+            decode_row_scratch: [vec![], vec![], vec![]],
+            tree_lut_scratch: crate::util::box_array(0u8),
+            hsqueeze_i16_scratch: crate::util::box_array(0i16),
         }
     }
 }
@@ -350,50 +249,68 @@ impl ModularBufferInfo {
 /// transforms to each of the groups in the input of the transforms.
 #[derive(Debug)]
 pub struct FullModularImage {
+    scratch_space: PerThreadStorage<ScratchSpace>,
     buffer_info: Vec<ModularBufferInfo>,
     transform_steps: Vec<TransformStepChunk>,
     // List of buffer indices of the channels of the modular image encoded in each kind of section.
     // In order, LfGlobal, LfGroup, HfGroup(pass 0), ..., HfGroup(last pass).
     section_buffer_indices: Vec<Vec<usize>>,
-    modular_color_channels: usize,
     can_do_partial_render: bool,
     can_do_early_partial_render: bool,
-    decoded_section0_channels: usize,
     needed_section0_channels_for_early_render: usize,
+    has_decoded_data: AtomicBool,
     global_header: Option<GroupHeader>,
-    buffers_for_channels: Vec<usize>,
-    // Buffers to _start rendering from_ on the next call to process_output.
-    // This is initially set to LF global and LF buffers, and populated with HF buffers
-    // just before we start decoding them.
-    ready_buffers_dry_run: BTreeSet<(usize, usize)>,
-    ready_buffers: BTreeSet<(usize, usize)>,
+    output_transforms_for_group: Vec<Vec<usize>>,
+    pending_transforms: BTreeSet<usize>,
+    rerendered_buffers: HashSet<(usize, usize)>,
+    delayed_ready_sections: Mutex<BTreeSet<(usize, usize)>>,
     // Whether each channel is used or not by the render pipeline.
     pipeline_used_channels: Vec<bool>,
-    log_group_dim: usize,
-    num_groups: (usize, usize),
+    // Stack of transforms that are ready to process
+    ready_transform_steps: Mutex<Vec<usize>>,
+    pub(super) recycler: Arc<BufferRecycler>,
+    storage: ModularStorage,
+    pub(super) force_level5: bool,
+}
+
+pub(super) fn max_channels(force_level5: bool) -> usize {
+    if force_level5 { 256 } else { 1 << 16 }
 }
 
 impl FullModularImage {
+    pub(super) fn get_scratch_space(&self) -> PerThreadStorageRef<'_, ScratchSpace> {
+        self.scratch_space.get()
+    }
+
+    #[inline(always)]
+    #[allow(dead_code)]
+    pub(crate) fn storage(&self) -> ModularStorage {
+        self.storage
+    }
+
     pub fn can_do_partial_render(&self) -> bool {
         self.can_do_partial_render
     }
 
     pub fn can_do_early_partial_render(&self) -> bool {
         self.can_do_early_partial_render
-            // Avoid green martians
-            && self.decoded_section0_channels >= self.needed_section0_channels_for_early_render
     }
 
     pub fn set_pipeline_used_channels(&mut self, used: &[bool]) {
         self.pipeline_used_channels = used.to_vec();
     }
 
+    #[allow(clippy::too_many_arguments)]
     #[instrument(level = "debug", skip_all)]
     pub fn read(
         frame_header: &FrameHeader,
         image_metadata: &ImageMetadata,
         modular_color_channels: usize,
         br: &mut BitReader,
+        recycler: Arc<BufferRecycler>,
+        sample_limit: Option<usize>,
+        storage: ModularStorage,
+        force_level5: bool,
     ) -> Result<Self> {
         let mut channels = vec![];
         for c in 0..modular_color_channels {
@@ -404,6 +321,7 @@ impl FullModularImage {
                 size: (size.0.div_ceil(1 << shift.0), size.1.div_ceil(1 << shift.1)),
                 shift: Some(shift),
                 bit_depth: image_metadata.bit_depth,
+                followed_by_palette: false,
             });
         }
 
@@ -424,8 +342,11 @@ impl FullModularImage {
                 size,
                 shift: Some((shift, shift)),
                 bit_depth: image_metadata.bit_depth,
+                followed_by_palette: false,
             });
         }
+
+        let num_channels = channels.len();
 
         #[cfg(feature = "tracing")]
         for (i, ch) in channels.iter().enumerate() {
@@ -434,21 +355,24 @@ impl FullModularImage {
 
         if channels.is_empty() {
             return Ok(Self {
+                scratch_space: PerThreadStorage::new(ScratchSpace::new),
                 buffer_info: vec![],
                 transform_steps: vec![],
                 section_buffer_indices: vec![vec![]; 2 + frame_header.passes.num_passes as usize],
-                modular_color_channels,
                 can_do_partial_render: true,
                 can_do_early_partial_render: false,
-                decoded_section0_channels: 0,
                 needed_section0_channels_for_early_render: 0,
+                has_decoded_data: AtomicBool::new(false),
                 global_header: None,
-                buffers_for_channels: vec![],
-                ready_buffers_dry_run: BTreeSet::new(),
-                ready_buffers: BTreeSet::new(),
                 pipeline_used_channels: vec![],
-                log_group_dim: frame_header.log_group_dim(),
-                num_groups: frame_header.size_groups(),
+                output_transforms_for_group: vec![vec![]; frame_header.num_groups()],
+                ready_transform_steps: Mutex::new(vec![]),
+                pending_transforms: BTreeSet::new(),
+                rerendered_buffers: HashSet::new(),
+                delayed_ready_sections: Mutex::new(BTreeSet::new()),
+                recycler,
+                storage,
+                force_level5,
             });
         }
 
@@ -467,8 +391,17 @@ impl FullModularImage {
             .iter()
             .any(|x| x.id == TransformId::Squeeze);
 
-        let (mut buffer_info, transform_steps) =
-            transforms::apply::meta_apply_transforms(&channels, &header)?;
+        let max_palette_samples = sample_limit.unwrap_or(usize::MAX);
+
+        let max_channels = max_channels(force_level5);
+
+        let (mut buffer_info, transform_steps) = transforms::meta_apply::meta_apply_transforms(
+            &channels,
+            &header,
+            max_palette_samples,
+            max_channels,
+            storage,
+        )?;
 
         // Assign each (channel, group) pair present in the bitstream to the section in which it
         // will be decoded.
@@ -486,7 +419,7 @@ impl FullModularImage {
             })
             .collect();
 
-        sorted_buffers.sort_by_key(|x| x.0);
+        sorted_buffers.sort_unstable_by_key(|x| x.0);
 
         section_buffer_indices.push(
             sorted_buffers
@@ -535,7 +468,7 @@ impl FullModularImage {
 
         // Ensure that the channel list in each group is sorted by actual channel ID.
         for list in section_buffer_indices.iter_mut() {
-            list.sort_by_key(|x| buffer_info[*x].coded_channel_id);
+            list.sort_unstable_by_key(|x| (buffer_info[*x].coded_channel_id, *x));
         }
 
         trace!(?section_buffer_indices);
@@ -556,11 +489,12 @@ impl FullModularImage {
             }
         }
 
-        let transform_steps = make_grids(
+        let transform_steps = transforms::meta_apply::make_grids(
             frame_header,
             transform_steps,
             &section_buffer_indices,
             &mut buffer_info,
+            modular_color_channels,
         );
 
         #[cfg(feature = "tracing")]
@@ -571,13 +505,13 @@ impl FullModularImage {
             );
             for (pos, buf) in bi.buffer_grid.iter().enumerate() {
                 trace!(
-                    "Channel {i} grid {pos} ({}, {})  size: {:?}, uses: {:?}, used_by: s {:?} w {:?}",
+                    "Channel {i} grid {pos} ({}, {})  size: {:?}, uses: {:?}, used_by: c {:?} f {:?}",
                     pos % bi.grid_shape.0,
                     pos / bi.grid_shape.0,
                     buf.size,
                     buf.remaining_uses,
-                    buf.used_by_transforms_strong,
-                    buf.used_by_transforms_weak,
+                    buf.used_by_transforms_current,
+                    buf.used_by_transforms_final,
                 );
             }
         }
@@ -587,14 +521,11 @@ impl FullModularImage {
             trace!("Transform {i}: {ts:?}");
         }
 
-        let mut buffers_for_channels = vec![];
+        let mut output_transforms_for_group = vec![vec![]; frame_header.num_groups()];
 
-        for (i, c) in buffer_info.iter().enumerate() {
-            if let Some(c) = c.info.output_channel_idx {
-                if buffers_for_channels.len() <= c {
-                    buffers_for_channels.resize(c + 1, 0);
-                }
-                buffers_for_channels[c] = i;
+        for (i, t) in transform_steps.iter().enumerate() {
+            if let Some((g, _)) = t.output_info() {
+                output_transforms_for_group[g].push(i);
             }
         }
 
@@ -604,98 +535,117 @@ impl FullModularImage {
             .count();
 
         Ok(FullModularImage {
+            scratch_space: PerThreadStorage::new(ScratchSpace::new),
             buffer_info,
             transform_steps,
             section_buffer_indices,
-            modular_color_channels,
             can_do_partial_render: !has_problematic_palette_transform,
             can_do_early_partial_render: !has_problematic_palette_transform
                 && has_squeeze_transform,
-            decoded_section0_channels: 0,
-            needed_section0_channels_for_early_render: buffers_for_channels.len()
-                + num_meta_channels,
+            needed_section0_channels_for_early_render: num_channels + num_meta_channels,
+            has_decoded_data: AtomicBool::new(false),
             global_header: Some(header),
-            buffers_for_channels,
-            ready_buffers_dry_run: BTreeSet::new(),
-            ready_buffers: BTreeSet::new(),
+            output_transforms_for_group,
             pipeline_used_channels: vec![],
-            log_group_dim: frame_header.log_group_dim(),
-            num_groups: frame_header.size_groups(),
+            ready_transform_steps: Mutex::new(vec![]),
+            pending_transforms: BTreeSet::new(),
+            rerendered_buffers: HashSet::new(),
+            delayed_ready_sections: Mutex::new(BTreeSet::new()),
+            recycler,
+            storage,
+            force_level5,
         })
     }
 
+    // Returns whether there is new data in this section and thus we should
+    // trigger a global re-render.
     pub fn read_section0(
         &mut self,
         frame_header: &FrameHeader,
         global_tree: &Option<Tree>,
         br: &mut BitReader,
         allow_partial: bool,
-    ) -> Result<()> {
+    ) -> Result<bool> {
+        let allow_partial = allow_partial && self.can_do_early_partial_render;
         let mut decoded_if_partial = 0;
+        let mut scratch = self.scratch_space.get();
         let ret = with_buffers(
             &self.buffer_info,
             &self.section_buffer_indices[0],
             0,
+            &self.recycler,
             |bufs| {
                 decode_modular_subbitstream(
                     bufs,
+                    self.storage,
                     ModularStreamId::GlobalData.get_id(frame_header),
                     self.global_header.clone(),
                     global_tree,
                     br,
                     Some(&mut decoded_if_partial),
+                    &mut scratch,
+                    self.force_level5,
                 )
             },
         );
+        drop(scratch);
 
-        match (ret, allow_partial) {
-            (Ok(_), _) => {
-                // Decoded section completely.
-                self.decoded_section0_channels = self.section_buffer_indices[0].len();
-            }
-            (Err(_), true) => {
-                self.decoded_section0_channels = decoded_if_partial;
-            }
+        let total_buffers = self.section_buffer_indices[0].len();
+
+        let num_decoded = match (ret, allow_partial) {
+            // Decoded section completely.
+            (Ok(_), _) => total_buffers,
+            (Err(_), true) => decoded_if_partial,
             (Err(e), false) => {
                 return Err(e);
             }
-        }
+        };
 
-        for b in self.section_buffer_indices[0]
-            .iter()
-            .take(self.decoded_section0_channels)
-        {
-            if self.buffer_info[*b].buffer_grid[0].get_status() == BUFFER_STATUS_FINAL_RENDER {
+        // Avoid green martians
+        self.has_decoded_data.fetch_or(
+            num_decoded >= self.needed_section0_channels_for_early_render && num_decoded > 0,
+            Ordering::Relaxed,
+        );
+
+        if num_decoded >= total_buffers {
+            self.mark_final(0, 0);
+            self.delayed_ready_sections
+                .try_lock()
+                .unwrap()
+                .insert((0, 0));
+            // We don't run transforms here - we ask the caller to call `run_all_transforms`
+            // at least once per decode.
+            return Ok(true);
+        }
+        let mut need_rerender = false;
+        for b in self.section_buffer_indices[0].iter().take(num_decoded) {
+            let bi = &mut self.buffer_info[*b];
+            let buf = &mut bi.buffer_grid[0];
+            buf.extract_needed_borders(self.storage, &self.recycler)?;
+            if buf.data_status == DataStatus::Final {
                 continue;
             }
+            need_rerender |= buf.data_status != DataStatus::Partial;
             // If we did a partial decode, we cannot be 100% sure of whether we correctly
             // decoded all the sections. Thus, mark the sections as partially decoded.
-            self.buffer_info[*b].buffer_grid[0].set_status(if allow_partial {
-                BUFFER_STATUS_PARTIAL_RENDER
-            } else {
-                BUFFER_STATUS_FINAL_RENDER
-            });
-            self.ready_buffers_dry_run.insert((*b, 0));
+            buf.data_status = DataStatus::Partial;
         }
-
-        Ok(())
-    }
-
-    pub fn mark_group_to_be_read(&mut self, section_id: usize, group: usize) {
-        for b in self.section_buffer_indices[section_id].iter() {
-            self.buffer_info[*b].buffer_grid[group].set_status(BUFFER_STATUS_FINAL_RENDER);
-            self.ready_buffers_dry_run.insert((*b, group));
-        }
+        Ok(need_rerender)
     }
 
     #[allow(clippy::type_complexity)]
-    #[instrument(level = "debug", skip(self, frame_header, global_tree, br), ret)]
+    #[instrument(
+        level = "debug",
+        skip(self, frame_header, global_tree, br, pass_to_pipeline),
+        ret
+    )]
     pub fn read_stream(
-        &mut self,
+        &self,
         stream: ModularStreamId,
         frame_header: &FrameHeader,
         global_tree: &Option<Tree>,
         br: &mut BitReader,
+        pass_to_pipeline: Option<&dyn Fn(usize, usize, bool, OwnedRawImage) -> Result<()>>,
     ) -> Result<()> {
         if self.buffer_info.is_empty() {
             info!("No modular channels to decode");
@@ -711,309 +661,317 @@ impl FullModularImage {
             }
         };
 
+        let mut scratch = self.scratch_space.get();
         with_buffers(
             &self.buffer_info,
             &self.section_buffer_indices[section_id],
             grid,
+            &self.recycler,
             |bufs| {
                 decode_modular_subbitstream(
                     bufs,
+                    self.storage,
                     stream.get_id(frame_header),
                     None,
                     global_tree,
                     br,
                     None,
+                    &mut scratch,
+                    self.force_level5,
                 )?;
                 Ok(())
             },
         )?;
+        drop(scratch);
 
-        Ok(())
-    }
-
-    fn maybe_output(
-        &self,
-        buf: usize,
-        grid: usize,
-        dry_run: bool,
-        pass_to_pipeline: &mut dyn FnMut(usize, usize, bool, Option<Image<i32>>) -> Result<()>,
-    ) -> Result<()> {
-        if let Some(chan) = self.buffer_info[buf].info.output_channel_idx {
-            let grid_is_none = self.buffer_info[buf].grid_kind == ModularGridKind::None;
-            let grid_idx = if grid_is_none { 0 } else { grid };
-            let is_final = self.buffer_info[buf].buffer_grid[grid_idx].get_status()
-                == BUFFER_STATUS_FINAL_RENDER;
-            let all_final = self.buffers_for_channels.iter().all(|x| {
-                self.buffer_info[*x].buffer_grid[grid_idx].get_status()
-                    == BUFFER_STATUS_FINAL_RENDER
-            });
-
-            let channels: SmallVec<usize, 3> = if chan == 0 && self.modular_color_channels == 1 {
-                (0..3).filter(|x| self.pipeline_used_channels[*x]).collect()
-            } else {
-                self.pipeline_used_channels[chan]
-                    .then_some(chan)
-                    .into_iter()
-                    .collect()
-            };
-            if channels.is_empty() {
-                return Ok(());
-            }
-            if dry_run {
-                for c in channels.iter() {
-                    pass_to_pipeline(*c, grid, is_final, None)?;
-                }
-            } else {
-                debug!("Rendering channel {chan:?}, grid position {grid}");
-
-                let modular_buf = self.buffer_info[buf].buffer_grid[grid_idx]
-                    .get_buffer(all_final && !grid_is_none)?;
-                let mut image = modular_buf.data;
-
-                if grid_is_none {
-                    let (shift_x, shift_y) = self.buffer_info[buf].info.shift.unwrap_or((0, 0));
-                    let log_group_dim = self.log_group_dim;
-                    let gx = grid % self.num_groups.0;
-                    let gy = grid / self.num_groups.0;
-
-                    let rect = Rect {
-                        origin: (gx << log_group_dim, gy << log_group_dim),
-                        size: (1 << log_group_dim, 1 << log_group_dim),
-                    };
-                    let rect = rect.downsample((shift_x as u8, shift_y as u8));
-                    let full_size = self.buffer_info[buf].buffer_grid[grid_idx].size;
-                    let rect = rect.clip(full_size);
-
-                    if rect.origin != (0, 0) || rect.size != full_size {
-                        let mut cropped = Image::new(rect.size)?;
-                        let src_view = image.get_rect(rect);
-                        for y in 0..rect.size.1 {
-                            cropped.row_mut(y).copy_from_slice(src_view.row(y));
-                        }
-                        image = cropped;
-                    }
-                }
-
-                for c in channels[1..].iter() {
-                    pass_to_pipeline(*c, grid, is_final, Some(image.try_clone()?))?;
-                }
-                pass_to_pipeline(channels[0], grid, is_final, Some(image))?;
-            }
+        for b in self.section_buffer_indices[section_id].iter().copied() {
+            self.buffer_info[b].buffer_grid[grid]
+                .extract_needed_borders(self.storage, &self.recycler)?;
         }
-        Ok(())
-    }
 
-    // If `dry_run` is true, this call does not modify any state, and the calls to `pass_to_pipeline`
-    // will have None as an image. Otherwise, the image will always be `Some(..)`.
-    // It is *required* to do a dry run before doing an actual run after any event that might have
-    // readied some buffers.
-    pub fn process_output(
-        &mut self,
-        frame_header: &FrameHeader,
-        dry_run: bool,
-        pass_to_pipeline: &mut dyn FnMut(usize, usize, bool, Option<Image<i32>>) -> Result<()>,
-    ) -> Result<()> {
-        // TODO(veluca): consider using `used_channel_mask` to avoid running transforms that produce
-        // channels that are not used.
+        self.has_decoded_data.fetch_or(
+            !self.section_buffer_indices[section_id].is_empty(),
+            Ordering::Relaxed,
+        );
 
-        // layer -> (transform -> is_strong)
-        let mut to_process_by_layer = BTreeMap::<usize, BTreeMap<usize, bool>>::new();
-        let mut buffers_to_output = vec![];
-
-        let ready_buffers = if dry_run {
-            std::mem::take(&mut self.ready_buffers_dry_run)
+        if section_id == 1 {
+            self.delayed_ready_sections
+                .lock()
+                .unwrap()
+                .insert((1, grid));
         } else {
-            assert!(self.ready_buffers_dry_run.is_empty());
-            std::mem::take(&mut self.ready_buffers)
-        };
-
-        for (buf, grid) in ready_buffers {
-            if self.buffer_info[buf].info.output_channel_idx.is_some() {
-                buffers_to_output.push((buf, grid));
-            }
-            for (t, is_strong_dep) in self.buffer_info[buf].buffer_grid[grid].users(true) {
-                let layer = self.transform_steps[t].layer;
-                let layer = to_process_by_layer.entry(layer).or_default();
-                let is_strong = layer.entry(t).or_default();
-                *is_strong |= is_strong_dep;
-            }
-            if dry_run {
-                self.ready_buffers.insert((buf, grid));
-            }
+            self.mark_section_ready(section_id, grid);
         }
 
-        // When doing a dry run, run the same logic as the real execution, but
-        // without modifying the actual buffer status -- instead, we use local
-        // overrides.
-        // This allows us to know what buffers will be produced before producing any.
-        let mut status_overrides = BTreeMap::new();
+        if let Some(pass_to_pipeline) = pass_to_pipeline {
+            self.run_transforms(frame_header, pass_to_pipeline)
+        } else {
+            Ok(())
+        }
+    }
 
-        let get_status =
-            |status_overrides: &mut BTreeMap<(usize, usize), usize>, b: usize, g: usize| {
-                if let Some(s) = status_overrides.get(&(b, g)) {
-                    *s
-                } else {
-                    self.buffer_info[b].buffer_grid[g].get_status()
-                }
-            };
+    fn update_deps(&self, buf: usize, grid: usize) {
+        for t in self.buffer_info[buf].buffer_grid[grid]
+            .used_by_transforms_current
+            .try_lock()
+            .unwrap()
+            .drain(..)
+        {
+            if self.transform_steps[t].current_dep_ready() {
+                self.ready_transform_steps.lock().unwrap().push(t);
+            }
+        }
+    }
 
-        let mut new_dirty_transforms = vec![];
-        while let Some((_, transforms)) = to_process_by_layer.pop_first() {
-            trace!("{transforms:?}");
-            for (t, is_strong) in transforms {
-                let tfm = &self.transform_steps[t];
-                trace!("{:?}", tfm);
+    fn mark_section_ready(&self, section_id: usize, grid: usize) {
+        for buf in self.section_buffer_indices[section_id].iter().copied() {
+            self.update_deps(buf, grid);
+        }
+    }
 
-                let dependency_status = tfm
-                    .deps
-                    .iter()
-                    .map(|(b, g)| get_status(&mut status_overrides, *b, *g))
-                    .min()
-                    .unwrap_or(BUFFER_STATUS_FINAL_RENDER);
-
-                if dependency_status == BUFFER_STATUS_NOT_RENDERED {
+    pub fn mark_final(&mut self, section_id: usize, grid: usize) {
+        let mut buffer_stack = vec![];
+        let mut stack = vec![];
+        for b in self.section_buffer_indices[section_id].iter() {
+            buffer_stack.push((*b, grid));
+        }
+        loop {
+            if let Some((b, g)) = buffer_stack.pop() {
+                let buf = &mut self.buffer_info[b];
+                let grid = &mut buf.buffer_grid[g];
+                if grid.data_status == DataStatus::Final {
                     continue;
                 }
-                let is_final = dependency_status == BUFFER_STATUS_FINAL_RENDER;
-
-                let mut previous_output_status = None;
-                for (b, g) in tfm.outputs(&self.buffer_info) {
-                    let status = get_status(&mut status_overrides, b, g);
-                    if previous_output_status.is_none() {
-                        previous_output_status = Some(status);
-                    }
-                    assert_eq!(Some(status), previous_output_status);
-                    if dry_run {
-                        status_overrides.insert((b, g), dependency_status);
-                    } else {
-                        self.buffer_info[b].buffer_grid[g].set_status(dependency_status);
-                    }
+                self.rerendered_buffers.insert((b, g));
+                for v in grid.used_by_transforms_final.iter() {
+                    stack.push(*v);
                 }
-                let previous_output_status = previous_output_status.unwrap();
-
-                if !dry_run {
-                    tfm.do_run(frame_header, &self.buffer_info, is_final)?;
+                grid.data_status = DataStatus::Final;
+                grid.remaining_uses
+                    .store(grid.full_uses_count_final, Ordering::Relaxed);
+            }
+            if let Some(v) = stack.pop() {
+                if !self.transform_steps[v].final_dep_ready() {
+                    continue;
                 }
-
-                // If this was the first _or_ the last render, trigger a re-render across weak edges
-                // even if the render was caused by a weak edge.
-                // This is necessary to finish drawing those renders correctly.
-                let is_strong = is_strong
-                    || (previous_output_status == BUFFER_STATUS_NOT_RENDERED
-                        || dependency_status == BUFFER_STATUS_FINAL_RENDER);
-                for (buf, grid) in self.transform_steps[t].outputs(&self.buffer_info) {
-                    if self.buffer_info[buf].info.output_channel_idx.is_some() {
-                        buffers_to_output.push((buf, grid));
-                    }
-                    for (t, is_strong_dep) in
-                        self.buffer_info[buf].buffer_grid[grid].users(is_strong)
-                    {
-                        new_dirty_transforms.push((t, is_strong_dep));
-                    }
+                self.pending_transforms.insert(v);
+                for &(b, g) in self.transform_steps[v].outputs(&self.buffer_info).iter() {
+                    buffer_stack.push((b, g));
                 }
             }
-
-            for (t, is_strong_dep) in new_dirty_transforms.drain(..) {
-                let layer = self.transform_steps[t].layer;
-                let layer = to_process_by_layer.entry(layer).or_default();
-                let is_strong = layer.entry(t).or_default();
-                *is_strong |= is_strong_dep;
+            if stack.is_empty() && buffer_stack.is_empty() {
+                break;
             }
-        }
-
-        // Pass all the output buffers to the render pipeline.
-        for (buf, grid) in buffers_to_output {
-            if self.buffer_info[buf].grid_kind == ModularGridKind::None {
-                for g in 0..self.num_groups.0 * self.num_groups.1 {
-                    self.maybe_output(buf, g, dry_run, pass_to_pipeline)?;
-                }
-            } else {
-                self.maybe_output(buf, grid, dry_run, pass_to_pipeline)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    pub fn channel_range(&self) -> Range<usize> {
-        if self.modular_color_channels != 0 {
-            0..self.buffers_for_channels.len()
-        } else {
-            // VarDCT image.
-            3..self.buffers_for_channels.len()
         }
     }
 
-    pub fn flush_output(
-        &mut self,
-        group: usize,
-        chan: usize,
-        pass_to_pipeline: &mut dyn FnMut(usize, usize, bool, Image<i32>) -> Result<()>,
-    ) -> Result<()> {
-        if !self.can_do_partial_render() {
-            return Ok(());
-        }
-        let buf_idx = self.buffers_for_channels[chan];
-        // Skip channels that don't have a real buffer assignment.
-        // buffers_for_channels is zero-filled on resize, so intermediate channels
-        // (e.g. G/B when modular_color_channels==1) may alias buffer 0 incorrectly.
-        if self.buffer_info[buf_idx].info.output_channel_idx != Some(chan) {
-            return Ok(());
-        }
-        self.maybe_output(buf_idx, group, false, &mut |chan, grid, complete, img| {
-            pass_to_pipeline(chan, grid, complete, img.unwrap())
-        })
-    }
+    // Should only be called after *all* calls to mark_final for this round of rendering are done.
+    pub fn request_rerender(&mut self, frame_header: &FrameHeader, group: usize) {
+        assert!(self.can_do_partial_render());
+        let mut stack = self.output_transforms_for_group[group].clone();
 
-    pub fn zero_fill_empty_channels(
-        &mut self,
-        num_passes: usize,
-        num_groups: usize,
-        num_lf_groups: usize,
-    ) -> Result<()> {
-        if !self.can_do_partial_render() {
-            return Ok(());
-        }
-        if self.buffer_info.is_empty() {
-            return Ok(());
-        }
-        let mut fill_buffer = |section: usize, grid| -> Result<()> {
-            // TODO(veluca): consider filling these buffers with placeholders instead of real images.
-            with_buffers(
-                &self.buffer_info,
-                &self.section_buffer_indices[section],
+        while let Some(t) = stack.pop() {
+            // If a transform is ready to run its final render, we either already enqueued it
+            // or we already ran it.
+            if self.transform_steps[t].ready_for_final_render() {
+                continue;
+            }
+            // Avoid visiting transforms potentially exponentially many times.
+            if !self.pending_transforms.insert(t) {
+                continue;
+            }
+            let upsample = self.compute_squeeze_upsample(t);
+            self.transform_steps[t].set_squeeze_upsample(upsample);
+            for TransformDependency {
+                buffer,
                 grid,
-                |_| Ok(()),
-            )?;
-            for b in self.section_buffer_indices[section].iter() {
-                if self.buffer_info[*b].buffer_grid[grid].get_status() == BUFFER_STATUS_NOT_RENDERED
+                order_only,
+            } in self.transform_steps[t]
+                .dependencies(&self.buffer_info, frame_header)
+                .iter()
+            {
+                let buf = &mut self.buffer_info[*buffer].buffer_grid[*grid];
+                // Force a re-render only of those buffers that we fully use.
+                if *order_only && (buf.has_buffer() || buf.has_borders()) {
+                    continue;
+                }
+                if let Some(b) = buf.produced_by_step
+                    && (!buf.has_buffer() || buf.data_status != DataStatus::Final)
                 {
-                    self.buffer_info[*b].buffer_grid[grid].set_status(BUFFER_STATUS_PARTIAL_RENDER);
-                    self.ready_buffers.insert((*b, grid));
+                    self.rerendered_buffers.insert((*buffer, *grid));
+                    // The data in this buffer is no longer guaranteed to be all-0.
+                    // In usual images, this is mostly only relevant in palette images,
+                    // but in principle one could apply transforms to Squeeze residuals.
+                    if buf.data_status != DataStatus::Final {
+                        buf.data_status = DataStatus::Partial;
+                    }
+                    stack.push(b);
                 }
             }
-            Ok(())
-        };
-        fill_buffer(0, 0)?;
-        for grid in 0..num_lf_groups {
-            fill_buffer(1, grid)?;
         }
-        for pass in 0..num_passes {
-            for grid in 0..num_groups {
-                fill_buffer(2 + pass, grid)?;
+    }
+
+    pub fn prepare_render(
+        &mut self,
+        frame_header: &FrameHeader,
+        mut group_callback: impl FnMut(usize, usize, bool),
+    ) {
+        for &(b, g) in &self.rerendered_buffers {
+            let buf = &mut self.buffer_info[b].buffer_grid[g];
+            if buf.can_consume(false) {
+                buf.remaining_uses.store(0, Ordering::Relaxed);
             }
         }
+        for t in self.pending_transforms.iter().cloned() {
+            if self.transform_steps[t].ready_for_final_render() {
+                self.transform_steps[t].set_squeeze_upsample(None);
+            }
+            // If this will produce output, tell the caller.
+            if let Some((g, c)) = self.transform_steps[t].output_info() {
+                group_callback(g, c, self.transform_steps[t].ready_for_final_render());
+            }
+            let mut has_current_deps = false;
+            // Add dependency edges from *all* the buffers that will be modified and that are used.
+            for TransformDependency {
+                buffer,
+                grid,
+                order_only,
+            } in self.transform_steps[t]
+                .dependencies(&self.buffer_info, frame_header)
+                .iter()
+            {
+                if self.rerendered_buffers.contains(&(*buffer, *grid)) {
+                    let buf = &mut self.buffer_info[*buffer].buffer_grid[*grid];
+                    if !order_only && buf.can_consume(false) {
+                        buf.remaining_uses.fetch_add(1, Ordering::Relaxed);
+                    }
+                    buf.used_by_transforms_current.try_lock().unwrap().push(t);
+                    self.transform_steps[t].add_current_dep();
+                    has_current_deps = true;
+                }
+            }
+            // Make sure that transforms that need to run, but don't need to wait for
+            // actual decoding, are actually run.
+            if !has_current_deps {
+                self.ready_transform_steps.try_lock().unwrap().push(t);
+            }
+        }
+        self.pending_transforms.clear();
+        self.rerendered_buffers.clear();
+        for (s, g) in std::mem::take(&mut *self.delayed_ready_sections.try_lock().unwrap()) {
+            self.mark_section_ready(s, g);
+        }
+    }
 
+    fn run_transform(
+        &self,
+        frame_header: &FrameHeader,
+        tfm: usize,
+        scratch_space: &mut ScratchSpace,
+        pass_to_pipeline: &dyn Fn(usize, usize, bool, OwnedRawImage) -> Result<()>,
+    ) -> Result<()> {
+        self.transform_steps[tfm].do_run(
+            frame_header,
+            &self.buffer_info,
+            scratch_space,
+            &self.recycler,
+            pass_to_pipeline,
+        )?;
+
+        for &(buf, grid) in self.transform_steps[tfm].outputs(&self.buffer_info).iter() {
+            self.update_deps(buf, grid);
+        }
         Ok(())
+    }
+
+    pub fn run_transforms(
+        &self,
+        frame_header: &FrameHeader,
+        pass_to_pipeline: &dyn Fn(usize, usize, bool, OwnedRawImage) -> Result<()>,
+    ) -> Result<()> {
+        let mut scratch_space = self.scratch_space.get();
+        loop {
+            let Some(t) = self.ready_transform_steps.lock().unwrap().pop() else {
+                return Ok(());
+            };
+            self.run_transform(frame_header, t, &mut scratch_space, pass_to_pipeline)?;
+        }
+    }
+
+    pub fn num_ready_steps(&mut self) -> usize {
+        self.ready_transform_steps.get_mut().unwrap().len()
+    }
+
+    pub fn validate_state_after_transforms(&self) {
+        for (i, t) in self.transform_steps.iter().enumerate() {
+            if !t.no_current_deps() {
+                panic!("Transform {i} did not run but was expected to: {t:?}")
+            }
+        }
+        for b in self.buffer_info.iter() {
+            for bg in b.buffer_grid.iter() {
+                debug_assert!(
+                    bg.used_by_transforms_current.try_lock().unwrap().is_empty(),
+                    "{b:?} {bg:?}"
+                );
+            }
+        }
+    }
+
+    pub fn has_decoded_data(&self) -> bool {
+        self.has_decoded_data.load(Ordering::Relaxed)
     }
 }
 
 #[allow(clippy::too_many_arguments)]
 fn dequant_lf(
     r: Rect,
-    lf: &mut [Image<f32>; 3],
-    quant_lf: &mut Image<u8>,
-    input: [&Image<i32>; 3],
+    lf: &mut [OutputChannelRef],
+    quant_lf: &mut OutputChannelRef,
+    input: [RawImageRect<'_>; 3],
+    storage: ModularStorage,
+    color_correlation_params: &ColorCorrelationParams,
+    quant_params: &QuantizerParams,
+    lf_quant: &LfQuantFactors,
+    mul: f32,
+    frame_header: &FrameHeader,
+    bctx: &BlockContextMap,
+) -> Result<()> {
+    if storage == ModularStorage::I16 {
+        dequant_lf_impl::<i16>(
+            r,
+            lf,
+            quant_lf,
+            input.map(ImageRect::<i16>::from_raw),
+            color_correlation_params,
+            quant_params,
+            lf_quant,
+            mul,
+            frame_header,
+            bctx,
+        )
+    } else {
+        dequant_lf_impl::<i32>(
+            r,
+            lf,
+            quant_lf,
+            input.map(ImageRect::<i32>::from_raw),
+            color_correlation_params,
+            quant_params,
+            lf_quant,
+            mul,
+            frame_header,
+            bctx,
+        )
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn dequant_lf_impl<T: ImageDataType + Into<i32> + Copy>(
+    r: Rect,
+    lf: &mut [OutputChannelRef],
+    quant_lf: &mut OutputChannelRef,
+    input: [ImageRect<'_, T>; 3],
     color_correlation_params: &ColorCorrelationParams,
     quant_params: &QuantizerParams,
     lf_quant: &LfQuantFactors,
@@ -1026,13 +984,9 @@ fn dequant_lf(
     let lf_factors = lf_quant.quant_factors.map(|factor| factor * inv_quant_lf);
 
     if frame_header.is444() {
-        let [lf0, lf1, lf2] = lf;
-        let mut lf_rects = (
-            lf0.get_rect_mut(r),
-            lf1.get_rect_mut(r),
-            lf2.get_rect_mut(r),
-        );
-
+        let [lf0, lf1, lf2] = lf else {
+            unreachable!();
+        };
         let fac_x = lf_factors[0] * mul;
         let fac_y = lf_factors[1] * mul;
         let fac_b = lf_factors[2] * mul;
@@ -1042,65 +996,57 @@ fn dequant_lf(
             let quant_row_x = input[1].row(y);
             let quant_row_y = input[0].row(y);
             let quant_row_b = input[2].row(y);
-            let dec_row_x = lf_rects.0.row(y);
-            let dec_row_y = lf_rects.1.row(y);
-            let dec_row_b = lf_rects.2.row(y);
+            let dec_row_x = lf0.typed_row_mut::<f32>(y);
+            let dec_row_y = lf1.typed_row_mut::<f32>(y);
+            let dec_row_b = lf2.typed_row_mut::<f32>(y);
             for x in 0..r.size.0 {
-                let in_x = quant_row_x[x] as f32 * fac_x;
-                let in_y = quant_row_y[x] as f32 * fac_y;
-                let in_b = quant_row_b[x] as f32 * fac_b;
+                let in_x = quant_row_x[x].into() as f32 * fac_x;
+                let in_y = quant_row_y[x].into() as f32 * fac_y;
+                let in_b = quant_row_b[x].into() as f32 * fac_b;
                 dec_row_y[x] = in_y;
                 dec_row_x[x] = in_y * cfl_fac_x + in_x;
                 dec_row_b[x] = in_y * cfl_fac_b + in_b;
             }
         }
     } else {
-        for (c, lf_rect) in lf.iter_mut().enumerate() {
-            let rect = Rect {
-                origin: (
-                    r.origin.0 >> frame_header.hshift(c),
-                    r.origin.1 >> frame_header.vshift(c),
-                ),
-                size: (
-                    r.size.0 >> frame_header.hshift(c),
-                    r.size.1 >> frame_header.vshift(c),
-                ),
-            };
-            let mut lf_rect = lf_rect.get_rect_mut(rect);
+        for c in 0..3 {
+            let rect_size = (
+                r.size.0 >> frame_header.hshift(c),
+                r.size.1 >> frame_header.vshift(c),
+            );
             let fac = lf_factors[c] * mul;
-            let ch = input[if c < 2 { c ^ 1 } else { c }];
-            for y in 0..rect.size.1 {
+            let ch = &input[if c < 2 { c ^ 1 } else { c }];
+            for y in 0..rect_size.1 {
                 let quant_row = ch.row(y);
-                let row = lf_rect.row(y);
-                for x in 0..rect.size.0 {
-                    row[x] = quant_row[x] as f32 * fac;
+                let row = lf[c].typed_row_mut::<f32>(y);
+                for (x, val) in quant_row.iter().enumerate() {
+                    row[x] = (*val).into() as f32 * fac;
                 }
             }
         }
     }
-    let mut quant_lf_rect = quant_lf.get_rect_mut(r);
     if bctx.num_lf_contexts <= 1 {
         for y in 0..r.size.1 {
-            quant_lf_rect.row(y).fill(0);
+            quant_lf.typed_row_mut::<u8>(y)[..r.size.0].fill(0);
         }
     } else {
         for y in 0..r.size.1 {
-            let qlf_row_val = quant_lf_rect.row(y);
+            let qlf_row_val = quant_lf.typed_row_mut::<u8>(y);
             let quant_row_x = input[1].row(y >> frame_header.vshift(0));
             let quant_row_y = input[0].row(y >> frame_header.vshift(1));
             let quant_row_b = input[2].row(y >> frame_header.vshift(2));
             for x in 0..r.size.0 {
                 let bucket_x = bctx.lf_thresholds[0]
                     .iter()
-                    .filter(|&t| quant_row_x[x >> frame_header.hshift(0)] > *t)
+                    .filter(|&t| quant_row_x[x >> frame_header.hshift(0)].into() > *t)
                     .count();
                 let bucket_y = bctx.lf_thresholds[1]
                     .iter()
-                    .filter(|&t| quant_row_y[x >> frame_header.hshift(1)] > *t)
+                    .filter(|&t| quant_row_y[x >> frame_header.hshift(1)].into() > *t)
                     .count();
                 let bucket_b = bctx.lf_thresholds[2]
                     .iter()
-                    .filter(|&t| quant_row_b[x >> frame_header.hshift(2)] > *t)
+                    .filter(|&t| quant_row_b[x >> frame_header.hshift(2)].into() > *t)
                     .count();
                 let mut bucket = bucket_x;
                 bucket *= bctx.lf_thresholds[2].len() + 1;
@@ -1115,7 +1061,7 @@ fn dequant_lf(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub fn decode_vardct_lf(
+pub(super) fn decode_vardct_lf(
     group: usize,
     frame_header: &FrameHeader,
     image_metadata: &ImageMetadata,
@@ -1124,9 +1070,12 @@ pub fn decode_vardct_lf(
     quant_params: &QuantizerParams,
     lf_quant: &LfQuantFactors,
     bctx: &BlockContextMap,
-    lf_image: &mut [Image<f32>; 3],
-    quant_lf: &mut Image<u8>,
+    lf: &mut [OutputChannelRef],
+    quant_lf: &mut OutputChannelRef,
     br: &mut BitReader,
+    storage: ModularStorage,
+    scratch_space: &mut ScratchSpace,
+    force_level5: bool,
 ) -> Result<()> {
     let extra_precision = br.read(2)?;
     debug!(?extra_precision);
@@ -1136,29 +1085,39 @@ pub fn decode_vardct_lf(
     let r = frame_header.lf_group_rect(group);
     debug!(?r);
     let shrink_rect = |size: (usize, usize), c| {
+        debug_assert!(size.0.is_multiple_of(1 << frame_header.hshift(c)));
+        debug_assert!(size.1.is_multiple_of(1 << frame_header.vshift(c)));
         (
             size.0 >> frame_header.hshift(c),
             size.1 >> frame_header.vshift(c),
         )
     };
     let mut buffers = [
-        ModularChannel::new(shrink_rect(r.size, 1), image_metadata.bit_depth)?,
-        ModularChannel::new(shrink_rect(r.size, 0), image_metadata.bit_depth)?,
-        ModularChannel::new(shrink_rect(r.size, 2), image_metadata.bit_depth)?,
+        ModularChannel::new(shrink_rect(r.size, 1), storage, image_metadata.bit_depth)?,
+        ModularChannel::new(shrink_rect(r.size, 0), storage, image_metadata.bit_depth)?,
+        ModularChannel::new(shrink_rect(r.size, 2), storage, image_metadata.bit_depth)?,
     ];
     decode_modular_subbitstream(
         buffers.iter_mut().collect(),
+        storage,
         stream_id,
         None,
         global_tree,
         br,
         None,
+        scratch_space,
+        force_level5,
     )?;
     dequant_lf(
         r,
-        lf_image,
+        lf,
         quant_lf,
-        [&buffers[0].data, &buffers[1].data, &buffers[2].data],
+        [
+            buffers[0].data.as_rect(),
+            buffers[1].data.as_rect(),
+            buffers[2].data.as_rect(),
+        ],
+        storage,
         color_correlation_params,
         quant_params,
         lf_quant,
@@ -1168,13 +1127,17 @@ pub fn decode_vardct_lf(
     )
 }
 
-pub fn decode_hf_metadata(
+#[allow(clippy::too_many_arguments)]
+pub(super) fn decode_hf_metadata(
     group: usize,
     frame_header: &FrameHeader,
     image_metadata: &ImageMetadata,
     global_tree: &Option<Tree>,
-    hf_meta: &mut HfMetadata,
+    hf_meta: &mut HfMetaViews,
     br: &mut BitReader,
+    storage: ModularStorage,
+    scratch_space: &mut ScratchSpace,
+    force_level5: bool,
 ) -> Result<()> {
     let stream_id = ModularStreamId::LFMeta(group).get_id(frame_header);
     debug!(?stream_id);
@@ -1189,62 +1152,75 @@ pub fn decode_hf_metadata(
         size: (r.size.0.div_ceil(8), r.size.1.div_ceil(8)),
     };
     let mut buffers = [
-        ModularChannel::new_with_shift(cr.size, Some((3, 3)), image_metadata.bit_depth)?,
-        ModularChannel::new_with_shift(cr.size, Some((3, 3)), image_metadata.bit_depth)?,
-        ModularChannel::new((count, 2), image_metadata.bit_depth)?,
-        ModularChannel::new(r.size, image_metadata.bit_depth)?,
+        ModularChannel::new_with_shift(cr.size, storage, Some((3, 3)), image_metadata.bit_depth)?,
+        ModularChannel::new_with_shift(cr.size, storage, Some((3, 3)), image_metadata.bit_depth)?,
+        ModularChannel::new((count, 2), storage, image_metadata.bit_depth)?,
+        ModularChannel::new(r.size, storage, image_metadata.bit_depth)?,
     ];
     decode_modular_subbitstream(
         buffers.iter_mut().collect(),
+        storage,
         stream_id,
         None,
         global_tree,
         br,
         None,
+        scratch_space,
+        force_level5,
     )?;
-    let ytox_image = &buffers[0].data;
-    let ytob_image = &buffers[1].data;
-    let mut ytox_map_rect = hf_meta.ytox_map.get_rect_mut(cr);
-    let mut ytob_map_rect = hf_meta.ytob_map.get_rect_mut(cr);
+    if storage == ModularStorage::I16 {
+        decode_hf_metadata_finish::<i16>(&buffers, hf_meta, cr, r, count, frame_header)
+    } else {
+        decode_hf_metadata_finish::<i32>(&buffers, hf_meta, cr, r, count, frame_header)
+    }
+}
+
+fn decode_hf_metadata_finish<T: ImageDataType + Into<i32> + Copy>(
+    buffers: &[ModularChannel; 4],
+    hf_meta: &mut HfMetaViews,
+    cr: Rect,
+    r: Rect,
+    count: usize,
+    frame_header: &FrameHeader,
+) -> Result<()> {
+    let ytox_rect = ImageRect::<T>::from_raw(buffers[0].data.as_rect());
+    let ytob_rect = ImageRect::<T>::from_raw(buffers[1].data.as_rect());
     let i8min: i32 = i8::MIN.into();
     let i8max: i32 = i8::MAX.into();
     for y in 0..cr.size.1 {
-        let row_in_x = ytox_image.row(y);
-        let row_in_b = ytob_image.row(y);
-        let row_out_x = ytox_map_rect.row(y);
-        let row_out_b = ytob_map_rect.row(y);
+        let row_in_x = ytox_rect.row(y);
+        let row_in_b = ytob_rect.row(y);
+        let row_out_x = hf_meta.ytox_map.typed_row_mut::<i8>(y);
+        let row_out_b = hf_meta.ytob_map.typed_row_mut::<i8>(y);
         for x in 0..cr.size.0 {
-            row_out_x[x] = row_in_x[x].clamp(i8min, i8max) as i8;
-            row_out_b[x] = row_in_b[x].clamp(i8min, i8max) as i8;
+            row_out_x[x] = (row_in_x[x].into()).clamp(i8min, i8max) as i8;
+            row_out_b[x] = (row_in_b[x].into()).clamp(i8min, i8max) as i8;
         }
     }
-    let transform_image = &buffers[2].data;
-    let epf_image = &buffers[3].data;
-    let mut transform_map_rect = hf_meta.transform_map.get_rect_mut(r);
-    let mut raw_quant_map_rect = hf_meta.raw_quant_map.get_rect_mut(r);
-    let mut epf_map_rect = hf_meta.epf_map.get_rect_mut(r);
+    let transform_rect = ImageRect::<T>::from_raw(buffers[2].data.as_rect());
+    let epf_rect = ImageRect::<T>::from_raw(buffers[3].data.as_rect());
     let mut num: usize = 0;
-    let mut used_hf_types: u32 = 0;
     for y in 0..r.size.1 {
-        let epf_row_in = epf_image.row(y);
-        let epf_row_out = epf_map_rect.row(y);
+        let epf_row_in = epf_rect.row(y);
+        let epf_row_out = hf_meta.epf_map.typed_row_mut::<u8>(y);
         for x in 0..r.size.0 {
-            let epf_val = epf_row_in[x];
+            let epf_val = epf_row_in[x].into();
             if !(0..8).contains(&epf_val) {
                 return Err(Error::InvalidEpfValue(epf_val));
             }
             epf_row_out[x] = epf_val as u8;
-            if transform_map_rect.row(y)[x] != HfTransformType::INVALID_TRANSFORM {
+            if hf_meta.transform_map.typed_row_mut::<u8>(y)[x] != HfTransformType::INVALID_TRANSFORM
+            {
                 continue;
             }
             if num >= count {
                 return Err(Error::InvalidVarDCTTransformMap);
             }
-            let raw_transform = transform_image.row(0)[num];
-            let raw_quant = 1 + transform_image.row(1)[num].clamp(0, 255);
+            let raw_transform = transform_rect.row(0)[num].into();
+            let raw_quant = 1 + (transform_rect.row(1)[num].into()).clamp(0, 255);
             let transform_type = HfTransformType::from_usize(raw_transform as usize)
                 .ok_or(Error::InvalidVarDCTTransform(raw_transform as usize))?;
-            used_hf_types |= 1 << raw_transform;
+
             let cx = covered_blocks_x(transform_type) as usize;
             let cy = covered_blocks_y(transform_type) as usize;
             if (cx > 1 || cy > 1) && !frame_header.is444() {
@@ -1254,20 +1230,92 @@ pub fn decode_hf_metadata(
             if x + cx > min(r.size.0, next_group.0) || y + cy > min(r.size.1, next_group.1) {
                 return Err(Error::HFBlockOutOfBounds);
             }
-            let transform_id = raw_transform as u8;
+            num += 1;
+
             for iy in 0..cy {
+                let trans_row = hf_meta.transform_map.typed_row_mut::<u8>(y + iy);
                 for ix in 0..cx {
-                    transform_map_rect.row(y + iy)[x + ix] = if iy == 0 && ix == 0 {
-                        transform_id + 128 // Set highest bit to signal first block.
-                    } else {
-                        transform_id
-                    };
-                    raw_quant_map_rect.row(y + iy)[x + ix] = raw_quant;
+                    if trans_row[x + ix] != HfTransformType::INVALID_TRANSFORM {
+                        return Err(Error::InvalidVarDCTTransformMap);
+                    }
                 }
             }
-            num += 1;
+
+            for iy in 0..cy {
+                let trans_row = hf_meta.transform_map.typed_row_mut::<u8>(y + iy);
+                let rq_row = hf_meta.raw_quant_map.typed_row_mut::<i32>(y + iy);
+                for ix in 0..cx {
+                    let is_first_block = iy == 0 && ix == 0;
+                    let transform_id =
+                        (raw_transform as u8) | (if is_first_block { 128 } else { 0 });
+                    trans_row[x + ix] = transform_id;
+                    rq_row[x + ix] = raw_quant;
+                }
+            }
         }
     }
-    hf_meta.used_hf_types |= used_hf_types;
     Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn decode_quant_table(
+    index: usize,
+    frame_header: &FrameHeader,
+    (required_size_x, required_size_y): (usize, usize),
+    global_tree: &Option<Tree>,
+    br: &mut BitReader,
+    scratch_space: &mut ScratchSpace,
+    storage: ModularStorage,
+    force_level5: bool,
+) -> Result<Vec<i32>> {
+    let bit_depth = BitDepth::integer_samples(8);
+    let mut image = [
+        ModularChannel::new((required_size_x, required_size_y), storage, bit_depth)?,
+        ModularChannel::new((required_size_x, required_size_y), storage, bit_depth)?,
+        ModularChannel::new((required_size_x, required_size_y), storage, bit_depth)?,
+    ];
+    let stream_id = ModularStreamId::QuantTable(index).get_id(frame_header);
+    decode_modular_subbitstream(
+        image.iter_mut().collect(),
+        storage,
+        stream_id,
+        None,
+        global_tree,
+        br,
+        None,
+        scratch_space,
+        force_level5,
+    )?;
+    let mut qtable = Vec::with_capacity(required_size_x * required_size_y * 3);
+    for channel in image.iter_mut() {
+        if storage == ModularStorage::I16 {
+            let rect = ImageRect::<i16>::from_raw(channel.data.as_rect()).rect(Rect {
+                size: (required_size_x, required_size_y),
+                origin: (0, 0),
+            });
+            for y in 0..required_size_y {
+                for &entry in rect.row(y) {
+                    let entry = entry as i32;
+                    if entry <= 0 {
+                        return Err(Error::InvalidRawQuantTable);
+                    }
+                    qtable.push(entry);
+                }
+            }
+        } else {
+            let rect = ImageRect::<i32>::from_raw(channel.data.as_rect()).rect(Rect {
+                size: (required_size_x, required_size_y),
+                origin: (0, 0),
+            });
+            for y in 0..required_size_y {
+                for &entry in rect.row(y) {
+                    if entry <= 0 {
+                        return Err(Error::InvalidRawQuantTable);
+                    }
+                    qtable.push(entry);
+                }
+            }
+        }
+    }
+    Ok(qtable)
 }

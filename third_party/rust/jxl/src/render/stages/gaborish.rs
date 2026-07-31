@@ -3,8 +3,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::render::{Channels, ChannelsMut, RenderPipelineInOutStage};
 use jxl_simd::{F32SimdVec, simd_function};
+
+use crate::render::{Channels, ChannelsMut, ErasedLocalState, RenderPipelineInOutStage};
 
 /// Apply Gabor-like filter to a channel.
 #[derive(Debug)]
@@ -103,7 +104,8 @@ impl RenderPipelineInOutStage for GaborishStage {
         xsize: usize,
         input_rows: &Channels<f32>,
         output_rows: &mut ChannelsMut<f32>,
-        _state: Option<&mut dyn std::any::Any>,
+        _state: Option<&mut ErasedLocalState>,
+        _previous_call_was_previous_row: bool,
     ) {
         gaborish_process_dispatch(self, xsize, input_rows, output_rows);
     }
@@ -117,7 +119,7 @@ mod test {
     use crate::error::Result;
     use crate::image::Image;
     use crate::render::test::make_and_run_simple_pipeline;
-    use crate::util::test::assert_all_almost_abs_eq;
+    use crate::tests::assert_close;
 
     #[test]
     fn consistency() -> Result<()> {
@@ -137,8 +139,8 @@ mod test {
         let stage = GaborishStage::new(0, 0.115169525, 0.061248592);
         let output = make_and_run_simple_pipeline(stage, &[image], (2, 2), 0, 256)?;
 
-        assert_all_almost_abs_eq(output[0].row(0), &[0.20686048, 0.7931395], 1e-6);
-        assert_all_almost_abs_eq(output[0].row(1), &[0.7931395, 0.20686048], 1e-6);
+        assert_close!(all, output[0].row(0), &[0.20686048, 0.7931395], 1e-6);
+        assert_close!(all, output[0].row(1), &[0.7931395, 0.20686048], 1e-6);
 
         Ok(())
     }

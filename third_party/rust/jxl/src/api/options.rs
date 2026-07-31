@@ -3,16 +3,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::api::JxlCms;
-
-pub enum JxlProgressiveMode {
-    /// Renders all pixels in every call to Process.
-    Eager,
-    /// Renders pixels once passes are completed.
-    Pass,
-    /// Renders pixels only once the final frame is ready.
-    FullFrame,
-}
+use crate::api::JxlAuxBoxType;
 
 #[non_exhaustive]
 pub struct JxlDecoderOptions {
@@ -21,8 +12,6 @@ pub struct JxlDecoderOptions {
     pub coalescing: bool,
     pub desired_intensity_target: Option<f32>,
     pub skip_preview: bool,
-    pub progressive_mode: JxlProgressiveMode,
-    pub cms: Option<Box<dyn JxlCms>>,
     /// Fail decoding images with more than this number of samples, or with frames with
     /// more than this number of samples. The limit counts the product of pixels and
     /// channels, so for example an image with 1 extra channel of size 1024x1024 has 4
@@ -44,6 +33,19 @@ pub struct JxlDecoderOptions {
     /// This is useful for collecting [`VisibleFrameInfo`](crate::api::VisibleFrameInfo)
     /// via the regular decoder API without producing pixels.
     pub scan_frames_only: bool,
+    pub request_aux_boxes: Vec<JxlAuxBoxType>,
+    /// Whether to force Level 5 limits for splines (default: true).
+    /// When true, limits total spline area to min(8 * image_size + 2^25, 2^30).
+    /// When false, allows Level 10 limits (min(1024 * image_size + 2^32, 2^42)).
+    pub force_level5_splines: bool,
+    /// Whether to force Level 5 limits for patches (default: true).
+    /// When true, limits total patch area to max(8 * num_pixels, 2^20).
+    /// When false, allows Level 10 limits (max(1024 * num_pixels, 2^20)).
+    pub force_level5_patches: bool,
+    /// Whether to force Level 5 limits for modular channels (default: true).
+    /// When true, limits the number of channels after transforms to 256.
+    /// When false, allows Level 10 limits (2^16).
+    pub force_level5_modular: bool,
 }
 
 impl Default for JxlDecoderOptions {
@@ -54,12 +56,14 @@ impl Default for JxlDecoderOptions {
             coalescing: true,
             skip_preview: true,
             desired_intensity_target: None,
-            progressive_mode: JxlProgressiveMode::Pass,
-            cms: None,
             sample_limit: None,
             high_precision: false,
             premultiply_output: false,
             scan_frames_only: false,
+            request_aux_boxes: Vec::new(),
+            force_level5_splines: true,
+            force_level5_patches: true,
+            force_level5_modular: true,
         }
     }
 }

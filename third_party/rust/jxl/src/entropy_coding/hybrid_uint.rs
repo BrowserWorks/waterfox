@@ -5,10 +5,9 @@
 
 use crate::bit_reader::BitReader;
 use crate::error::Error;
-
 use crate::util::CeilLog2;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct HybridUint {
     split_token: u32,
     split_exponent: u32,
@@ -19,6 +18,10 @@ pub struct HybridUint {
 impl HybridUint {
     pub(super) fn is_split_exponent_zero(&self) -> bool {
         self.split_exponent == 0
+    }
+
+    pub fn split_token(&self) -> u32 {
+        self.split_token
     }
 
     pub fn decode(log_alpha_size: usize, br: &mut BitReader) -> Result<HybridUint, Error> {
@@ -96,6 +99,22 @@ impl HybridUint {
         let bits = br.read_optimistic(nbits as usize) as u32;
         let hi = (symbol_nolow & ((1 << self.msb_in_token) - 1)) | (1 << self.msb_in_token);
         (((hi << nbits) | bits) << self.lsb_in_token) | low
+    }
+
+    pub fn max_bits_for_symbol(&self, symbol: u32) -> usize {
+        if symbol < self.split_token {
+            if symbol == 0 {
+                return 0;
+            }
+            return (symbol.ilog2() + 1) as usize;
+        }
+        let bits_in_token = self.lsb_in_token + self.msb_in_token;
+        let token_offset = (symbol - self.split_token) >> bits_in_token;
+        let nbits = self.split_exponent - bits_in_token + token_offset;
+        if nbits >= 32 {
+            return 32;
+        }
+        (self.split_exponent + token_offset + 1) as usize
     }
 }
 

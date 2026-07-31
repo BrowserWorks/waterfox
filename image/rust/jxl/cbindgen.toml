@@ -11,6 +11,9 @@ language = "C++"
 namespaces = ["mozilla", "image"]
 include_guard = "IMAGE_RUST_JXLDECODERFFI_H_"
 includes = ["cstdint", "cstddef"]
+after_includes = """
+class nsIThreadPool;
+"""
 
 [export]
 include = ["JxlDecoderStatus", "JxlBasicInfo", "JxlFrameInfo"]

@@ -3,11 +3,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use std::{fmt::Debug, marker::PhantomData};
+use std::fmt::Debug;
+use std::marker::PhantomData;
 
-use crate::{error::Result, util::CACHE_LINE_BYTE_SIZE};
-
-use super::{Rect, internal::RawImageBuffer};
+use super::Rect;
+use super::internal::RawImageBuffer;
+use crate::error::Result;
 
 pub struct OwnedRawImage {
     // Safety invariant: all the accessible bytes of `self.data` are initialized, and
@@ -15,38 +16,19 @@ pub struct OwnedRawImage {
     // The data referenced by self.data was allocated by RawImageBuffer::try_allocate.
     // `data.is_aligned(CACHE_LINE_BYTE_SIZE)` is true.
     pub(super) data: RawImageBuffer,
-    offset: (usize, usize),
-    padding: (usize, usize),
 }
 
 impl OwnedRawImage {
     pub fn new(byte_size: (usize, usize)) -> Result<Self> {
-        Self::new_zeroed_with_padding(byte_size, (0, 0), (0, 0))
-    }
-
-    pub fn new_zeroed_with_padding(
-        byte_size: (usize, usize),
-        offset: (usize, usize),
-        mut padding: (usize, usize),
-    ) -> Result<Self> {
-        // Since RawImageBuffer::try_allocate will round up the length of a row to a cache line,
-        // might as well declare that as available padding space.
-        if !(padding.0 + byte_size.0).is_multiple_of(CACHE_LINE_BYTE_SIZE) {
-            padding.0 += CACHE_LINE_BYTE_SIZE - (padding.0 + byte_size.0) % CACHE_LINE_BYTE_SIZE;
-        }
         Ok(Self {
             // Safety note: the returned memory is initialized and part of a single allocation of
             // the correct length.
-            data: RawImageBuffer::try_allocate(
-                (byte_size.0 + padding.0, byte_size.1 + padding.1),
-                false,
-            )?,
-            offset,
-            padding,
+            // SAFETY: `copy_from` is `None`.
+            data: unsafe { RawImageBuffer::try_allocate(byte_size, None)? },
         })
     }
 
-    pub fn get_rect_including_padding_mut(&mut self, rect: Rect) -> RawImageRectMut<'_> {
+    pub fn get_rect_mut(&mut self, rect: Rect) -> RawImageRectMut<'_> {
         RawImageRectMut {
             // Safety note: we are lending exclusive ownership to RawImageRectMut.
             data: self.data.rect(rect),
@@ -54,7 +36,7 @@ impl OwnedRawImage {
         }
     }
 
-    pub fn get_rect_including_padding(&'_ self, rect: Rect) -> RawImageRect<'_> {
+    pub fn get_rect(&'_ self, rect: Rect) -> RawImageRect<'_> {
         RawImageRect {
             // Safety note: correctness ensured by the return value borrowing from `self`.
             data: self.data.rect(rect),
@@ -62,59 +44,42 @@ impl OwnedRawImage {
         }
     }
 
-    fn shift_rect(&self, rect: Rect) -> Rect {
-        if cfg!(debug_assertions) {
-            // Check the original rect is within the content size (without padding)
-            rect.check_within(self.byte_size());
-        }
-        Rect {
-            origin: (rect.origin.0 + self.offset.0, rect.origin.1 + self.offset.1),
-            size: rect.size,
-        }
+    #[inline(always)]
+    pub fn as_rect(&self) -> RawImageRect<'_> {
+        self.get_rect(Rect {
+            origin: (0, 0),
+            size: self.byte_size(),
+        })
     }
 
-    pub fn get_rect_mut(&mut self, rect: Rect) -> RawImageRectMut<'_> {
-        self.get_rect_including_padding_mut(self.shift_rect(rect))
-    }
-
-    pub fn get_rect(&'_ self, rect: Rect) -> RawImageRect<'_> {
-        self.get_rect_including_padding(self.shift_rect(rect))
+    #[inline(always)]
+    pub fn as_rect_mut(&mut self) -> RawImageRectMut<'_> {
+        self.get_rect_mut(Rect {
+            origin: (0, 0),
+            size: self.byte_size(),
+        })
     }
 
     #[inline(always)]
     pub fn row_mut(&mut self, row: usize) -> &mut [u8] {
-        let offset = self.offset;
-        let end = offset.0 + self.byte_size().0;
-        // SAFETY: we don't write uninit data to `row`, and we have ownership of the accessible
-        // bytes of `self.data`.
-        let row = &mut unsafe { self.data.row_mut(row + offset.1) }[offset.0..end];
-        // SAFETY: MaybeUninit<u8> and u8 have the same size and layout, and our safety invariant
-        // guarantees the data is initialized.
-        unsafe { std::slice::from_raw_parts_mut(row.as_mut_ptr().cast::<u8>(), row.len()) }
+        // SAFETY: we have ownership of the accessible bytes of `self.data`.
+        unsafe { self.data.row_mut(row) }
     }
 
     #[inline(always)]
     pub fn row(&self, row: usize) -> &[u8] {
-        let offset = self.offset;
-        let end = offset.0 + self.byte_size().0;
         // SAFETY: we have shared access to the accessible bytes of `self.data`.
-        let row = &unsafe { self.data.row(row + offset.1) }[offset.0..end];
-        // SAFETY: MaybeUninit<u8> and u8 have the same size and layout, and our safety invariant
-        // guarantees the data is initialized.
-        unsafe { std::slice::from_raw_parts(row.as_ptr().cast::<u8>(), row.len()) }
+        unsafe { self.data.row(row) }
     }
 
     pub fn byte_size(&self) -> (usize, usize) {
-        let size = self.data.byte_size();
-        (size.0 - self.padding.0, size.1 - self.padding.1)
+        self.data.byte_size()
     }
 
-    pub fn byte_offset(&self) -> (usize, usize) {
-        self.offset
-    }
-
-    pub fn byte_padding(&self) -> (usize, usize) {
-        self.padding
+    pub fn fill_zero(&mut self) {
+        for r in 0..self.byte_size().1 {
+            self.row_mut(r).fill(0);
+        }
     }
 
     pub fn try_clone(&self) -> Result<OwnedRawImage> {
@@ -123,8 +88,6 @@ impl OwnedRawImage {
             // Moreover, it is initialized and try_clone creates a copy, so the resulting data is
             // owned and initialized.
             data: unsafe { self.data.try_clone()? },
-            offset: self.offset,
-            padding: self.padding,
         })
     }
 }
@@ -150,10 +113,7 @@ impl<'a> RawImageRect<'a> {
     #[inline(always)]
     pub fn row(&self, row: usize) -> &[u8] {
         // SAFETY: we have shared access to the accessible bytes of `self.data`.
-        let row = unsafe { self.data.row(row) };
-        // SAFETY: MaybeUninit<u8> and u8 have the same size and layout, and our safety invariant
-        // guarantees the data is initialized.
-        unsafe { std::slice::from_raw_parts(row.as_ptr().cast::<u8>(), row.len()) }
+        unsafe { self.data.row(row) }
     }
 
     pub fn rect(&self, rect: Rect) -> RawImageRect<'a> {
@@ -180,12 +140,8 @@ pub struct RawImageRectMut<'a> {
 impl<'a> RawImageRectMut<'a> {
     #[inline(always)]
     pub fn row(&mut self, row: usize) -> &mut [u8] {
-        // SAFETY: we don't write uninit data to `row`, and we have exclusive access to the accessible
-        // bytes of `self.data`.
-        let row = unsafe { self.data.row_mut(row) };
-        // SAFETY: MaybeUninit<u8> and u8 have the same size and layout, and our safety invariant
-        // guarantees the data is initialized.
-        unsafe { std::slice::from_raw_parts_mut(row.as_mut_ptr().cast::<u8>(), row.len()) }
+        // SAFETY: we have exclusive access to the accessible bytes of `self.data`.
+        unsafe { self.data.row_mut(row) }
     }
 
     pub fn rect_mut(&'_ mut self, rect: Rect) -> RawImageRectMut<'_> {

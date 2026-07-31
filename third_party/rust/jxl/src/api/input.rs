@@ -26,19 +26,14 @@ pub trait JxlBitstreamInput {
         let mut skipped = 0;
         while bytes > 0 {
             let num = bytes.min(BUF_SIZE);
-            self.read(&mut [IoSliceMut::new(&mut skip_buf[..num])])?;
-            bytes -= num;
-            skipped += num;
+            let n = self.read(&mut [IoSliceMut::new(&mut skip_buf[..num])])?;
+            if n == 0 {
+                break;
+            }
+            bytes -= n;
+            skipped += n;
         }
         Ok(skipped)
-    }
-
-    /// Un-consumes read bytes. This will only be called at the end of a file stream,
-    /// to un-read potentially over-read bytes. If ensuring that data is not read past
-    /// the file end is not required, this method can safely be implemented as a no-op.
-    /// The provided implementation does nothing.
-    fn unconsume(&mut self, _count: usize) -> Result<(), Error> {
-        Ok(())
     }
 }
 
@@ -72,11 +67,12 @@ impl<R: Read + Seek> JxlBitstreamInput for BufReader<R> {
 
     fn skip(&mut self, bytes: usize) -> Result<usize, Error> {
         let cur = self.stream_position()?;
-        self.seek(SeekFrom::Current(bytes as i64))
-            .map(|x| x.saturating_sub(cur) as usize)
-    }
-
-    fn unconsume(&mut self, count: usize) -> Result<(), Error> {
-        self.seek_relative(-(count as i64))
+        if let Ok(offset) = i64::try_from(bytes) {
+            self.seek(SeekFrom::Current(offset))
+                .map(|x| x.saturating_sub(cur) as usize)
+        } else {
+            self.seek(SeekFrom::End(0))
+                .map(|x| x.saturating_sub(cur) as usize)
+        }
     }
 }

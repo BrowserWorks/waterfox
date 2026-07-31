@@ -3,17 +3,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::{U32SimdVec, impl_f32_array_interface};
-
-use super::super::{F32SimdVec, I32SimdVec, SimdDescriptor, SimdMask, U8SimdVec, U16SimdVec};
-use std::{
-    arch::x86_64::*,
-    mem::MaybeUninit,
-    ops::{
-        Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div,
-        DivAssign, Mul, MulAssign, Neg, Sub, SubAssign,
-    },
+use std::arch::x86_64::*;
+use std::ops::{
+    Add, AddAssign, BitAnd, BitAndAssign, BitOr, BitOrAssign, BitXor, BitXorAssign, Div, DivAssign,
+    Mul, MulAssign, Neg, Sub, SubAssign,
 };
+
+use super::super::{
+    F32SimdVec, I16SimdVec, I32SimdVec, SimdDescriptor, SimdMask, SimdMask16, U8SimdVec, U16SimdVec,
+};
+use crate::{U32SimdVec, U64SimdVec, impl_f32_array_interface, impl_i16_array_interface};
 
 // Safety invariant: this type is only ever constructed if sse4.2 is available.
 #[derive(Clone, Copy, Debug)]
@@ -30,10 +29,13 @@ impl Sse42Descriptor {
 impl SimdDescriptor for Sse42Descriptor {
     type F32Vec = F32VecSse42;
     type I32Vec = I32VecSse42;
+    type I16Vec = I16VecSse42;
+    type U64Vec = U64VecSse42;
     type U32Vec = U32VecSse42;
     type U16Vec = U16VecSse42;
     type U8Vec = U8VecSse42;
     type Mask = MaskSse42;
+    type Mask16 = Mask16Sse42;
     type Bf16Table8 = Bf16Table8Sse42;
 
     type Descriptor256 = Self;
@@ -98,9 +100,11 @@ pub struct F32VecSse42(__m128, Sse42Descriptor);
 #[repr(transparent)]
 pub struct MaskSse42(__m128, Sse42Descriptor);
 
-// SAFETY: The methods in this implementation that write to `MaybeUninit` (store_interleaved_*)
-// ensure that they write valid data to the output slice without reading uninitialized memory.
-unsafe impl F32SimdVec for F32VecSse42 {
+#[derive(Clone, Copy, Debug)]
+#[repr(transparent)]
+pub struct Mask16Sse42(__m128i, Sse42Descriptor);
+
+impl F32SimdVec for F32VecSse42 {
     type Descriptor = Sse42Descriptor;
 
     const LEN: usize = 4;
@@ -122,18 +126,18 @@ unsafe impl F32SimdVec for F32VecSse42 {
     }
 
     #[inline(always)]
-    fn store_interleaved_2_uninit(a: Self, b: Self, dest: &mut [MaybeUninit<f32>]) {
+    fn store_interleaved_2(a: Self, b: Self, dest: &mut [f32]) {
         #[target_feature(enable = "sse4.2")]
         #[inline]
-        fn store_interleaved_2_impl(a: __m128, b: __m128, dest: &mut [MaybeUninit<f32>]) {
+        fn store_interleaved_2_impl(a: __m128, b: __m128, dest: &mut [f32]) {
             assert!(dest.len() >= 2 * F32VecSse42::LEN);
             // a = [a0, a1, a2, a3], b = [b0, b1, b2, b3]
             // lo = [a0, b0, a1, b1], hi = [a2, b2, a3, b3]
             let lo = _mm_unpacklo_ps(a, b);
             let hi = _mm_unpackhi_ps(a, b);
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<f32>` through `*mut f32` is valid.
+            // SAFETY: `dest` has enough space.
             unsafe {
-                let dest_ptr = dest.as_mut_ptr().cast::<f32>();
+                let dest_ptr = dest.as_mut_ptr();
                 _mm_storeu_ps(dest_ptr, lo);
                 _mm_storeu_ps(dest_ptr.add(4), hi);
             }
@@ -144,15 +148,10 @@ unsafe impl F32SimdVec for F32VecSse42 {
     }
 
     #[inline(always)]
-    fn store_interleaved_3_uninit(a: Self, b: Self, c: Self, dest: &mut [MaybeUninit<f32>]) {
+    fn store_interleaved_3(a: Self, b: Self, c: Self, dest: &mut [f32]) {
         #[target_feature(enable = "sse4.2")]
         #[inline]
-        fn store_interleaved_3_impl(
-            a: __m128,
-            b: __m128,
-            c: __m128,
-            dest: &mut [MaybeUninit<f32>],
-        ) {
+        fn store_interleaved_3_impl(a: __m128, b: __m128, c: __m128, dest: &mut [f32]) {
             assert!(dest.len() >= 3 * F32VecSse42::LEN);
             // Input vectors:
             // a = [a0, a1, a2, a3]
@@ -184,9 +183,9 @@ unsafe impl F32SimdVec for F32VecSse42 {
             let out2 = _mm_shuffle_ps::<0xEC>(p_ca_hi, p_bc_hi);
 
             // Store the results
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<f32>` through `*mut f32` is valid.
+            // SAFETY: `dest` has enough space.
             unsafe {
-                let dest_ptr = dest.as_mut_ptr().cast::<f32>();
+                let dest_ptr = dest.as_mut_ptr();
                 _mm_storeu_ps(dest_ptr, out0);
                 _mm_storeu_ps(dest_ptr.add(4), out1);
                 _mm_storeu_ps(dest_ptr.add(8), out2);
@@ -198,22 +197,10 @@ unsafe impl F32SimdVec for F32VecSse42 {
     }
 
     #[inline(always)]
-    fn store_interleaved_4_uninit(
-        a: Self,
-        b: Self,
-        c: Self,
-        d: Self,
-        dest: &mut [MaybeUninit<f32>],
-    ) {
+    fn store_interleaved_4(a: Self, b: Self, c: Self, d: Self, dest: &mut [f32]) {
         #[target_feature(enable = "sse4.2")]
         #[inline]
-        fn store_interleaved_4_impl(
-            a: __m128,
-            b: __m128,
-            c: __m128,
-            d: __m128,
-            dest: &mut [MaybeUninit<f32>],
-        ) {
+        fn store_interleaved_4_impl(a: __m128, b: __m128, c: __m128, d: __m128, dest: &mut [f32]) {
             assert!(dest.len() >= 4 * F32VecSse42::LEN);
             // First interleave pairs: ab and cd
             let ab_lo = _mm_unpacklo_ps(a, b); // [a0, b0, a1, b1]
@@ -227,9 +214,9 @@ unsafe impl F32SimdVec for F32VecSse42 {
             let out2 = _mm_castpd_ps(_mm_unpacklo_pd(_mm_castps_pd(ab_hi), _mm_castps_pd(cd_hi))); // [a2, b2, c2, d2]
             let out3 = _mm_castpd_ps(_mm_unpackhi_pd(_mm_castps_pd(ab_hi), _mm_castps_pd(cd_hi))); // [a3, b3, c3, d3]
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<f32>` through `*mut f32` is valid.
+            // SAFETY: `dest` has enough space.
             unsafe {
-                let dest_ptr = dest.as_mut_ptr().cast::<f32>();
+                let dest_ptr = dest.as_mut_ptr();
                 _mm_storeu_ps(dest_ptr, out0);
                 _mm_storeu_ps(dest_ptr.add(4), out1);
                 _mm_storeu_ps(dest_ptr.add(8), out2);
@@ -492,7 +479,7 @@ unsafe impl F32SimdVec for F32VecSse42 {
     });
 
     fn_sse42!(this: F32VecSse42, fn as_i32() -> I32VecSse42 {
-        I32VecSse42(_mm_cvtps_epi32(this.0), this.1)
+        I32VecSse42(_mm_cvttps_epi32(this.0), this.1)
     });
 
     fn_sse42!(this: F32VecSse42, fn bitcast_to_i32() -> I32VecSse42 {
@@ -625,7 +612,7 @@ unsafe impl F32SimdVec for F32VecSse42 {
     #[inline(always)]
     fn load_f16_bits(d: Self::Descriptor, mem: &[u16]) -> Self {
         assert!(mem.len() >= Self::LEN);
-        // SSE4.2 doesn't have F16C, use scalar conversion
+        // TODO: use SIMD bit manipulation instead of scalar loop (see wasm32/simd128.rs)
         let mut result = [0.0f32; 4];
         for i in 0..4 {
             result[i] = crate::f16::from_bits(mem[i]).to_f32();
@@ -636,7 +623,7 @@ unsafe impl F32SimdVec for F32VecSse42 {
     #[inline(always)]
     fn store_f16_bits(self, dest: &mut [u16]) {
         assert!(dest.len() >= Self::LEN);
-        // SSE4.2 doesn't have F16C, use scalar conversion
+        // TODO: use SIMD bit manipulation instead of scalar loop (see wasm32/simd128.rs)
         let mut tmp = [0.0f32; 4];
         self.store(&mut tmp);
         for i in 0..4 {
@@ -746,6 +733,28 @@ impl I32SimdVec for I32VecSse42 {
         // SAFETY: we just checked that `mem` has enough space. Moreover, we know sse4.2 is available
         // from the safety invariant on `d`.
         Self(unsafe { _mm_loadu_si128(mem.as_ptr().cast()) }, d)
+    }
+
+    #[inline(always)]
+    fn load_from_i16(d: Self::Descriptor, mem: &[i16]) -> Self {
+        assert!(mem.len() >= Self::LEN);
+        // SAFETY: we just checked that `mem` has enough space. Moreover, we know sse4.2 is available
+        // from the safety invariant on `d`.
+        Self(
+            unsafe { _mm_cvtepi16_epi32(_mm_loadl_epi64(mem.as_ptr().cast())) },
+            d,
+        )
+    }
+
+    #[inline(always)]
+    fn load_from_u16(d: Self::Descriptor, mem: &[u16]) -> Self {
+        assert!(mem.len() >= Self::LEN);
+        // SAFETY: we just checked that `mem` has enough space. Moreover, we know sse4.2 is available
+        // from the safety invariant on `d`.
+        Self(
+            unsafe { _mm_cvtepu16_epi32(_mm_loadl_epi64(mem.as_ptr().cast())) },
+            d,
+        )
     }
 
     #[inline(always)]
@@ -966,6 +975,250 @@ impl BitXorAssign<I32VecSse42> for I32VecSse42 {
 
 #[derive(Clone, Copy, Debug)]
 #[repr(transparent)]
+pub struct I16VecSse42(__m128i, Sse42Descriptor);
+
+impl I16SimdVec for I16VecSse42 {
+    type Descriptor = Sse42Descriptor;
+
+    const LEN: usize = 8;
+
+    #[inline(always)]
+    fn load(d: Self::Descriptor, mem: &[i16]) -> Self {
+        assert!(mem.len() >= Self::LEN);
+        // SAFETY: we just checked that `mem` has enough space. Moreover, we know sse4.2 is available
+        // from the safety invariant on `d`.
+        Self(unsafe { _mm_loadu_si128(mem.as_ptr().cast()) }, d)
+    }
+
+    #[inline(always)]
+    fn store(&self, mem: &mut [i16]) {
+        assert!(mem.len() >= Self::LEN);
+        // SAFETY: we just checked that `mem` has enough space. Moreover, we know sse4.2 is available
+        // from the safety invariant on `self.1`.
+        unsafe { _mm_storeu_si128(mem.as_mut_ptr().cast(), self.0) }
+    }
+
+    #[inline(always)]
+    fn splat(d: Self::Descriptor, v: i16) -> Self {
+        // SAFETY: We know sse4.2 is available from the safety invariant on `d`.
+        unsafe { Self(_mm_set1_epi16(v), d) }
+    }
+
+    #[inline(always)]
+    fn zero(d: Self::Descriptor) -> Self {
+        // SAFETY: We know sse4.2 is available from the safety invariant on `d`.
+        unsafe { Self(_mm_setzero_si128(), d) }
+    }
+
+    fn_sse42!(this: I16VecSse42, fn abs() -> I16VecSse42 {
+        I16VecSse42(_mm_abs_epi16(this.0), this.1)
+    });
+
+    fn_sse42!(this: I16VecSse42, fn gt(rhs: I16VecSse42) -> Mask16Sse42 {
+        Mask16Sse42(_mm_cmpgt_epi16(this.0, rhs.0), this.1)
+    });
+
+    fn_sse42!(this: I16VecSse42, fn lt_zero() -> Mask16Sse42 {
+        I16VecSse42(_mm_setzero_si128(), this.1).gt(this)
+    });
+
+    fn_sse42!(this: I16VecSse42, fn eq(rhs: I16VecSse42) -> Mask16Sse42 {
+        Mask16Sse42(_mm_cmpeq_epi16(this.0, rhs.0), this.1)
+    });
+
+    fn_sse42!(this: I16VecSse42, fn eq_zero() -> Mask16Sse42 {
+        this.eq(I16VecSse42(_mm_setzero_si128(), this.1))
+    });
+
+    #[inline(always)]
+    fn shl<const AMOUNT_U: u32, const AMOUNT_I: i32>(self) -> Self {
+        // SAFETY: We know sse4.2 is available from the safety invariant on `self.1`.
+        unsafe { Self(_mm_slli_epi16::<AMOUNT_I>(self.0), self.1) }
+    }
+
+    #[inline(always)]
+    fn shr<const AMOUNT_U: u32, const AMOUNT_I: i32>(self) -> Self {
+        // SAFETY: We know sse4.2 is available from the safety invariant on `self.1`.
+        unsafe { Self(_mm_srai_epi16::<AMOUNT_I>(self.0), self.1) }
+    }
+
+    fn_sse42!(this: I16VecSse42, fn mul_wide_take_high(rhs: I16VecSse42) -> I16VecSse42 {
+        I16VecSse42(_mm_mulhi_epi16(this.0, rhs.0), this.1)
+    });
+
+    #[inline(always)]
+    fn bitcast_u16(self) -> U16VecSse42 {
+        U16VecSse42(self.0, self.1)
+    }
+
+    impl_i16_array_interface!();
+
+    #[inline(always)]
+    fn transpose_square(d: Self::Descriptor, data: &mut [Self::UnderlyingArray], stride: usize) {
+        #[target_feature(enable = "sse4.2")]
+        #[inline]
+        fn transpose8x8i16(d: Sse42Descriptor, data: &mut [[i16; 8]], stride: usize) {
+            assert!(data.len() > stride * 7);
+
+            let r0 = I16VecSse42::load_array(d, &data[0]).0;
+            let r1 = I16VecSse42::load_array(d, &data[1 * stride]).0;
+            let r2 = I16VecSse42::load_array(d, &data[2 * stride]).0;
+            let r3 = I16VecSse42::load_array(d, &data[3 * stride]).0;
+            let r4 = I16VecSse42::load_array(d, &data[4 * stride]).0;
+            let r5 = I16VecSse42::load_array(d, &data[5 * stride]).0;
+            let r6 = I16VecSse42::load_array(d, &data[6 * stride]).0;
+            let r7 = I16VecSse42::load_array(d, &data[7 * stride]).0;
+
+            // Stage 1: 16-bit unpack
+            let t0 = _mm_unpacklo_epi16(r0, r1);
+            let t1 = _mm_unpackhi_epi16(r0, r1);
+            let t2 = _mm_unpacklo_epi16(r2, r3);
+            let t3 = _mm_unpackhi_epi16(r2, r3);
+            let t4 = _mm_unpacklo_epi16(r4, r5);
+            let t5 = _mm_unpackhi_epi16(r4, r5);
+            let t6 = _mm_unpacklo_epi16(r6, r7);
+            let t7 = _mm_unpackhi_epi16(r6, r7);
+
+            // Stage 2: 32-bit unpack
+            let u0 = _mm_unpacklo_epi32(t0, t2);
+            let u1 = _mm_unpackhi_epi32(t0, t2);
+            let u2 = _mm_unpacklo_epi32(t1, t3);
+            let u3 = _mm_unpackhi_epi32(t1, t3);
+            let u4 = _mm_unpacklo_epi32(t4, t6);
+            let u5 = _mm_unpackhi_epi32(t4, t6);
+            let u6 = _mm_unpacklo_epi32(t5, t7);
+            let u7 = _mm_unpackhi_epi32(t5, t7);
+
+            // Stage 3: 64-bit unpack
+            let out0 = _mm_unpacklo_epi64(u0, u4);
+            let out1 = _mm_unpackhi_epi64(u0, u4);
+            let out2 = _mm_unpacklo_epi64(u1, u5);
+            let out3 = _mm_unpackhi_epi64(u1, u5);
+            let out4 = _mm_unpacklo_epi64(u2, u6);
+            let out5 = _mm_unpackhi_epi64(u2, u6);
+            let out6 = _mm_unpacklo_epi64(u3, u7);
+            let out7 = _mm_unpackhi_epi64(u3, u7);
+
+            I16VecSse42(out0, d).store_array(&mut data[0]);
+            I16VecSse42(out1, d).store_array(&mut data[1 * stride]);
+            I16VecSse42(out2, d).store_array(&mut data[2 * stride]);
+            I16VecSse42(out3, d).store_array(&mut data[3 * stride]);
+            I16VecSse42(out4, d).store_array(&mut data[4 * stride]);
+            I16VecSse42(out5, d).store_array(&mut data[5 * stride]);
+            I16VecSse42(out6, d).store_array(&mut data[6 * stride]);
+            I16VecSse42(out7, d).store_array(&mut data[7 * stride]);
+        }
+
+        // SAFETY: the safety invariant on `d` guarantees sse42
+        unsafe {
+            transpose8x8i16(d, data, stride);
+        }
+    }
+
+    #[inline(always)]
+    fn store_u8(self, dest: &mut [u8]) {
+        assert!(dest.len() >= I16VecSse42::LEN);
+        #[target_feature(enable = "sse4.2")]
+        #[inline]
+        fn store_u8_impl(v: __m128i, dest: &mut [u8]) {
+            let mask = _mm_setr_epi8(0, 2, 4, 6, 8, 10, 12, 14, -1, -1, -1, -1, -1, -1, -1, -1);
+            let shuffled = _mm_shuffle_epi8(v, mask);
+            let val = _mm_cvtsi128_si64(shuffled);
+            let bytes = val.to_ne_bytes();
+            dest[..8].copy_from_slice(&bytes);
+        }
+        // SAFETY: sse4.2 is available from the safety invariant on the descriptor.
+        unsafe { store_u8_impl(self.0, dest) }
+    }
+}
+
+impl Add<I16VecSse42> for I16VecSse42 {
+    type Output = I16VecSse42;
+    fn_sse42!(this: I16VecSse42, fn add(rhs: I16VecSse42) -> I16VecSse42 {
+        I16VecSse42(_mm_add_epi16(this.0, rhs.0), this.1)
+    });
+}
+
+impl Sub<I16VecSse42> for I16VecSse42 {
+    type Output = I16VecSse42;
+    fn_sse42!(this: I16VecSse42, fn sub(rhs: I16VecSse42) -> I16VecSse42 {
+        I16VecSse42(_mm_sub_epi16(this.0, rhs.0), this.1)
+    });
+}
+
+impl Neg for I16VecSse42 {
+    type Output = I16VecSse42;
+    fn_sse42!(this: I16VecSse42, fn neg() -> I16VecSse42 {
+        I16VecSse42(_mm_sub_epi16(_mm_setzero_si128(), this.0), this.1)
+    });
+}
+
+impl BitAnd<I16VecSse42> for I16VecSse42 {
+    type Output = I16VecSse42;
+    fn_sse42!(this: I16VecSse42, fn bitand(rhs: I16VecSse42) -> I16VecSse42 {
+        I16VecSse42(_mm_and_si128(this.0, rhs.0), this.1)
+    });
+}
+
+impl BitOr<I16VecSse42> for I16VecSse42 {
+    type Output = I16VecSse42;
+    fn_sse42!(this: I16VecSse42, fn bitor(rhs: I16VecSse42) -> I16VecSse42 {
+        I16VecSse42(_mm_or_si128(this.0, rhs.0), this.1)
+    });
+}
+
+impl BitXor<I16VecSse42> for I16VecSse42 {
+    type Output = I16VecSse42;
+    fn_sse42!(this: I16VecSse42, fn bitxor(rhs: I16VecSse42) -> I16VecSse42 {
+        I16VecSse42(_mm_xor_si128(this.0, rhs.0), this.1)
+    });
+}
+
+impl AddAssign<I16VecSse42> for I16VecSse42 {
+    fn_sse42!(this: &mut I16VecSse42, fn add_assign(rhs: I16VecSse42) {
+        this.0 = _mm_add_epi16(this.0, rhs.0)
+    });
+}
+
+impl SubAssign<I16VecSse42> for I16VecSse42 {
+    fn_sse42!(this: &mut I16VecSse42, fn sub_assign(rhs: I16VecSse42) {
+        this.0 = _mm_sub_epi16(this.0, rhs.0)
+    });
+}
+
+impl BitAndAssign<I16VecSse42> for I16VecSse42 {
+    fn_sse42!(this: &mut I16VecSse42, fn bitand_assign(rhs: I16VecSse42) {
+        this.0 = _mm_and_si128(this.0, rhs.0)
+    });
+}
+
+impl BitOrAssign<I16VecSse42> for I16VecSse42 {
+    fn_sse42!(this: &mut I16VecSse42, fn bitor_assign(rhs: I16VecSse42) {
+        this.0 = _mm_or_si128(this.0, rhs.0)
+    });
+}
+
+impl BitXorAssign<I16VecSse42> for I16VecSse42 {
+    fn_sse42!(this: &mut I16VecSse42, fn bitxor_assign(rhs: I16VecSse42) {
+        this.0 = _mm_xor_si128(this.0, rhs.0)
+    });
+}
+
+impl Mul<I16VecSse42> for I16VecSse42 {
+    type Output = I16VecSse42;
+    fn_sse42!(this: I16VecSse42, fn mul(rhs: I16VecSse42) -> I16VecSse42 {
+        I16VecSse42(_mm_mullo_epi16(this.0, rhs.0), this.1)
+    });
+}
+
+impl MulAssign<I16VecSse42> for I16VecSse42 {
+    fn_sse42!(this: &mut I16VecSse42, fn mul_assign(rhs: I16VecSse42) {
+        this.0 = _mm_mullo_epi16(this.0, rhs.0);
+    });
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(transparent)]
 pub struct U32VecSse42(__m128i, Sse42Descriptor);
 
 impl U32SimdVec for U32VecSse42 {
@@ -987,11 +1240,110 @@ impl U32SimdVec for U32VecSse42 {
 
 #[derive(Clone, Copy, Debug)]
 #[repr(transparent)]
+pub struct U64VecSse42(pub(crate) __m128i, pub(crate) Sse42Descriptor);
+
+impl U64SimdVec for U64VecSse42 {
+    type Descriptor = Sse42Descriptor;
+
+    const LEN: usize = 2;
+
+    #[inline(always)]
+    fn splat(d: Self::Descriptor, v: u64) -> Self {
+        // SAFETY: We know sse2 is available from the safety invariant on `d`.
+        unsafe { Self(_mm_set1_epi64x(v as i64), d) }
+    }
+
+    #[inline(always)]
+    fn load(d: Self::Descriptor, mem: &[u64]) -> Self {
+        assert!(mem.len() >= Self::LEN);
+        // SAFETY: we just checked that `mem` has enough space. Moreover, we know sse2 is available
+        // from the safety invariant on `d`.
+        unsafe { Self(_mm_loadu_si128(mem.as_ptr().cast()), d) }
+    }
+
+    #[inline(always)]
+    fn store(&self, mem: &mut [u64]) {
+        assert!(mem.len() >= Self::LEN);
+        // SAFETY: we just checked that `mem` has enough space. Moreover, we know sse2 is available
+        // from the safety invariant on `self.1`.
+        unsafe { _mm_storeu_si128(mem.as_mut_ptr().cast(), self.0) }
+    }
+
+    #[inline(always)]
+    fn shl<const AMOUNT_U: u32, const AMOUNT_I: i32>(self) -> Self {
+        // SAFETY: We know sse2 is available from the safety invariant on `self.1`.
+        unsafe { Self(_mm_slli_epi64::<AMOUNT_I>(self.0), self.1) }
+    }
+
+    #[inline(always)]
+    fn shr<const AMOUNT_U: u32, const AMOUNT_I: i32>(self) -> Self {
+        // SAFETY: We know sse2 is available from the safety invariant on `self.1`.
+        unsafe { Self(_mm_srli_epi64::<AMOUNT_I>(self.0), self.1) }
+    }
+
+    #[inline(always)]
+    fn bitcast_to_u32(self) -> U32VecSse42 {
+        U32VecSse42(self.0, self.1)
+    }
+}
+
+impl Add<U64VecSse42> for U64VecSse42 {
+    type Output = U64VecSse42;
+    fn_sse42!(this: U64VecSse42, fn add(rhs: U64VecSse42) -> U64VecSse42 {
+        U64VecSse42(_mm_add_epi64(this.0, rhs.0), this.1)
+    });
+}
+
+impl AddAssign<U64VecSse42> for U64VecSse42 {
+    fn_sse42!(this: &mut U64VecSse42, fn add_assign(rhs: U64VecSse42) {
+        this.0 = _mm_add_epi64(this.0, rhs.0)
+    });
+}
+
+impl BitAnd<U64VecSse42> for U64VecSse42 {
+    type Output = U64VecSse42;
+    fn_sse42!(this: U64VecSse42, fn bitand(rhs: U64VecSse42) -> U64VecSse42 {
+        U64VecSse42(_mm_and_si128(this.0, rhs.0), this.1)
+    });
+}
+
+impl BitAndAssign<U64VecSse42> for U64VecSse42 {
+    fn_sse42!(this: &mut U64VecSse42, fn bitand_assign(rhs: U64VecSse42) {
+        this.0 = _mm_and_si128(this.0, rhs.0)
+    });
+}
+
+impl BitOr<U64VecSse42> for U64VecSse42 {
+    type Output = U64VecSse42;
+    fn_sse42!(this: U64VecSse42, fn bitor(rhs: U64VecSse42) -> U64VecSse42 {
+        U64VecSse42(_mm_or_si128(this.0, rhs.0), this.1)
+    });
+}
+
+impl BitOrAssign<U64VecSse42> for U64VecSse42 {
+    fn_sse42!(this: &mut U64VecSse42, fn bitor_assign(rhs: U64VecSse42) {
+        this.0 = _mm_or_si128(this.0, rhs.0)
+    });
+}
+
+impl BitXor<U64VecSse42> for U64VecSse42 {
+    type Output = U64VecSse42;
+    fn_sse42!(this: U64VecSse42, fn bitxor(rhs: U64VecSse42) -> U64VecSse42 {
+        U64VecSse42(_mm_xor_si128(this.0, rhs.0), this.1)
+    });
+}
+
+impl BitXorAssign<U64VecSse42> for U64VecSse42 {
+    fn_sse42!(this: &mut U64VecSse42, fn bitxor_assign(rhs: U64VecSse42) {
+        this.0 = _mm_xor_si128(this.0, rhs.0)
+    });
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(transparent)]
 pub struct U8VecSse42(__m128i, Sse42Descriptor);
 
-// SAFETY: The methods in this implementation that write to `MaybeUninit` (store_interleaved_*)
-// ensure that they write valid data to the output slice without reading uninitialized memory.
-unsafe impl U8SimdVec for U8VecSse42 {
+impl U8SimdVec for U8VecSse42 {
     type Descriptor = Sse42Descriptor;
     const LEN: usize = 16;
 
@@ -1018,14 +1370,14 @@ unsafe impl U8SimdVec for U8VecSse42 {
     }
 
     #[inline(always)]
-    fn store_interleaved_2_uninit(a: Self, b: Self, dest: &mut [MaybeUninit<u8>]) {
+    fn store_interleaved_2(a: Self, b: Self, dest: &mut [u8]) {
         #[target_feature(enable = "sse4.2")]
         #[inline]
-        fn store_interleaved_2_impl(a: __m128i, b: __m128i, dest: &mut [MaybeUninit<u8>]) {
+        fn store_interleaved_2_impl(a: __m128i, b: __m128i, dest: &mut [u8]) {
             assert!(dest.len() >= 2 * U8VecSse42::LEN);
             let lo = _mm_unpacklo_epi8(a, b);
             let hi = _mm_unpackhi_epi8(a, b);
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<u8>` through `*mut __m128i` is valid.
+            // SAFETY: `dest` has enough space and writing to `u8` through `*mut __m128i` is valid.
             unsafe {
                 let dest_ptr = dest.as_mut_ptr().cast::<__m128i>();
                 _mm_storeu_si128(dest_ptr, lo);
@@ -1037,15 +1389,10 @@ unsafe impl U8SimdVec for U8VecSse42 {
     }
 
     #[inline(always)]
-    fn store_interleaved_3_uninit(a: Self, b: Self, c: Self, dest: &mut [MaybeUninit<u8>]) {
+    fn store_interleaved_3(a: Self, b: Self, c: Self, dest: &mut [u8]) {
         #[target_feature(enable = "sse4.2")]
         #[inline]
-        fn store_interleaved_3_impl(
-            a: __m128i,
-            b: __m128i,
-            c: __m128i,
-            dest: &mut [MaybeUninit<u8>],
-        ) {
+        fn store_interleaved_3_impl(a: __m128i, b: __m128i, c: __m128i, dest: &mut [u8]) {
             assert!(dest.len() >= 3 * U8VecSse42::LEN);
 
             // Masks for out0
@@ -1082,7 +1429,7 @@ unsafe impl U8SimdVec for U8VecSse42 {
                 _mm_shuffle_epi8(c, mask_c2),
             );
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<u8>` through `*mut __m128i` is valid.
+            // SAFETY: `dest` has enough space and writing to `u8` through `*mut __m128i` is valid.
             unsafe {
                 let ptr = dest.as_mut_ptr().cast::<__m128i>();
                 _mm_storeu_si128(ptr, out0);
@@ -1095,13 +1442,7 @@ unsafe impl U8SimdVec for U8VecSse42 {
     }
 
     #[inline(always)]
-    fn store_interleaved_4_uninit(
-        a: Self,
-        b: Self,
-        c: Self,
-        d: Self,
-        dest: &mut [MaybeUninit<u8>],
-    ) {
+    fn store_interleaved_4(a: Self, b: Self, c: Self, d: Self, dest: &mut [u8]) {
         #[target_feature(enable = "sse4.2")]
         #[inline]
         fn store_interleaved_4_impl(
@@ -1109,7 +1450,7 @@ unsafe impl U8SimdVec for U8VecSse42 {
             b: __m128i,
             c: __m128i,
             d: __m128i,
-            dest: &mut [MaybeUninit<u8>],
+            dest: &mut [u8],
         ) {
             assert!(dest.len() >= 4 * U8VecSse42::LEN);
             // First interleave pairs: ab and cd
@@ -1124,7 +1465,7 @@ unsafe impl U8SimdVec for U8VecSse42 {
             let out2 = _mm_unpacklo_epi16(ab_hi, cd_hi);
             let out3 = _mm_unpackhi_epi16(ab_hi, cd_hi);
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<u8>` through `*mut __m128i` is valid.
+            // SAFETY: `dest` has enough space and writing to `u8` through `*mut __m128i` is valid.
             unsafe {
                 let dest_ptr = dest.as_mut_ptr().cast::<__m128i>();
                 _mm_storeu_si128(dest_ptr, out0);
@@ -1142,9 +1483,7 @@ unsafe impl U8SimdVec for U8VecSse42 {
 #[repr(transparent)]
 pub struct U16VecSse42(__m128i, Sse42Descriptor);
 
-// SAFETY: The methods in this implementation that write to `MaybeUninit` (store_interleaved_*)
-// ensure that they write valid data to the output slice without reading uninitialized memory.
-unsafe impl U16SimdVec for U16VecSse42 {
+impl U16SimdVec for U16VecSse42 {
     type Descriptor = Sse42Descriptor;
     const LEN: usize = 8;
 
@@ -1171,14 +1510,14 @@ unsafe impl U16SimdVec for U16VecSse42 {
     }
 
     #[inline(always)]
-    fn store_interleaved_2_uninit(a: Self, b: Self, dest: &mut [MaybeUninit<u16>]) {
+    fn store_interleaved_2(a: Self, b: Self, dest: &mut [u16]) {
         #[target_feature(enable = "sse4.2")]
         #[inline]
-        fn store_interleaved_2_impl(a: __m128i, b: __m128i, dest: &mut [MaybeUninit<u16>]) {
+        fn store_interleaved_2_impl(a: __m128i, b: __m128i, dest: &mut [u16]) {
             assert!(dest.len() >= 2 * U16VecSse42::LEN);
             let lo = _mm_unpacklo_epi16(a, b);
             let hi = _mm_unpackhi_epi16(a, b);
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<u16>` through `*mut __m128i` is valid.
+            // SAFETY: `dest` has enough space and writing to `u16` through `*mut __m128i` is valid.
             unsafe {
                 let dest_ptr = dest.as_mut_ptr().cast::<__m128i>();
                 _mm_storeu_si128(dest_ptr, lo);
@@ -1190,15 +1529,10 @@ unsafe impl U16SimdVec for U16VecSse42 {
     }
 
     #[inline(always)]
-    fn store_interleaved_3_uninit(a: Self, b: Self, c: Self, dest: &mut [MaybeUninit<u16>]) {
+    fn store_interleaved_3(a: Self, b: Self, c: Self, dest: &mut [u16]) {
         #[target_feature(enable = "sse4.2")]
         #[inline]
-        fn store_interleaved_3_impl(
-            a: __m128i,
-            b: __m128i,
-            c: __m128i,
-            dest: &mut [MaybeUninit<u16>],
-        ) {
+        fn store_interleaved_3_impl(a: __m128i, b: __m128i, c: __m128i, dest: &mut [u16]) {
             assert!(dest.len() >= 3 * U16VecSse42::LEN);
 
             // Masks for out0
@@ -1235,7 +1569,7 @@ unsafe impl U16SimdVec for U16VecSse42 {
                 _mm_shuffle_epi8(c, mask_c2),
             );
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<u16>` through `*mut __m128i` is valid.
+            // SAFETY: `dest` has enough space and writing to `u16` through `*mut __m128i` is valid.
             unsafe {
                 let ptr = dest.as_mut_ptr().cast::<__m128i>();
                 _mm_storeu_si128(ptr, out0);
@@ -1248,13 +1582,7 @@ unsafe impl U16SimdVec for U16VecSse42 {
     }
 
     #[inline(always)]
-    fn store_interleaved_4_uninit(
-        a: Self,
-        b: Self,
-        c: Self,
-        d: Self,
-        dest: &mut [MaybeUninit<u16>],
-    ) {
+    fn store_interleaved_4(a: Self, b: Self, c: Self, d: Self, dest: &mut [u16]) {
         #[target_feature(enable = "sse4.2")]
         #[inline]
         fn store_interleaved_4_impl(
@@ -1262,7 +1590,7 @@ unsafe impl U16SimdVec for U16VecSse42 {
             b: __m128i,
             c: __m128i,
             d: __m128i,
-            dest: &mut [MaybeUninit<u16>],
+            dest: &mut [u16],
         ) {
             assert!(dest.len() >= 4 * U16VecSse42::LEN);
             // First interleave pairs: ab and cd
@@ -1277,7 +1605,7 @@ unsafe impl U16SimdVec for U16VecSse42 {
             let out2 = _mm_unpacklo_epi32(ab_hi, cd_hi);
             let out3 = _mm_unpackhi_epi32(ab_hi, cd_hi);
 
-            // SAFETY: `dest` has enough space and writing to `MaybeUninit<u16>` through `*mut __m128i` is valid.
+            // SAFETY: `dest` has enough space and writing to `u16` through `*mut __m128i` is valid.
             unsafe {
                 let dest_ptr = dest.as_mut_ptr().cast::<__m128i>();
                 _mm_storeu_si128(dest_ptr, out0);
@@ -1288,6 +1616,11 @@ unsafe impl U16SimdVec for U16VecSse42 {
         }
         // SAFETY: sse4.2 is available from the safety invariant on the descriptor.
         unsafe { store_interleaved_4_impl(a.0, b.0, c.0, d.0, dest) }
+    }
+
+    #[inline(always)]
+    fn bitcast_i16(self) -> I16VecSse42 {
+        I16VecSse42(self.0, self.1)
     }
 }
 
@@ -1326,5 +1659,39 @@ impl BitOr<MaskSse42> for MaskSse42 {
     type Output = MaskSse42;
     fn_sse42!(this: MaskSse42, fn bitor(rhs: MaskSse42) -> MaskSse42 {
         MaskSse42(_mm_or_ps(this.0, rhs.0), this.1)
+    });
+}
+
+impl SimdMask16 for Mask16Sse42 {
+    type Descriptor = Sse42Descriptor;
+
+    fn_sse42!(this: Mask16Sse42, fn if_then_else_i16(if_true: I16VecSse42, if_false: I16VecSse42) -> I16VecSse42 {
+        I16VecSse42(_mm_blendv_epi8(if_false.0, if_true.0, this.0), this.1)
+    });
+
+    fn_sse42!(this: Mask16Sse42, fn maskz_i16(v: I16VecSse42) -> I16VecSse42 {
+        I16VecSse42(_mm_andnot_si128(this.0, v.0), this.1)
+    });
+
+    fn_sse42!(this: Mask16Sse42, fn all() -> bool {
+        _mm_movemask_epi8(this.0) == 0xFFFF
+    });
+
+    fn_sse42!(this: Mask16Sse42, fn andnot(rhs: Mask16Sse42) -> Mask16Sse42 {
+        Mask16Sse42(_mm_andnot_si128(this.0, rhs.0), this.1)
+    });
+}
+
+impl BitAnd<Mask16Sse42> for Mask16Sse42 {
+    type Output = Mask16Sse42;
+    fn_sse42!(this: Mask16Sse42, fn bitand(rhs: Mask16Sse42) -> Mask16Sse42 {
+        Mask16Sse42(_mm_and_si128(this.0, rhs.0), this.1)
+    });
+}
+
+impl BitOr<Mask16Sse42> for Mask16Sse42 {
+    type Output = Mask16Sse42;
+    fn_sse42!(this: Mask16Sse42, fn bitor(rhs: Mask16Sse42) -> Mask16Sse42 {
+        Mask16Sse42(_mm_or_si128(this.0, rhs.0), this.1)
     });
 }

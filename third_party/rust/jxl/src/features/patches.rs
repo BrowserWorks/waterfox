@@ -6,16 +6,14 @@
 use num_derive::FromPrimitive;
 use num_traits::FromPrimitive;
 
-use crate::{
-    bit_reader::BitReader,
-    entropy_coding::decode::Histograms,
-    entropy_coding::decode::SymbolReader,
-    error::{Error, Result},
-    features::blending::perform_blending,
-    frame::{DecoderState, ReferenceFrame},
-    headers::extra_channels::ExtraChannelInfo,
-    util::{NewWithCapacity, slice, tracing_wrappers::*},
-};
+use crate::bit_reader::BitReader;
+use crate::entropy_coding::decode::{Histograms, SymbolReader};
+use crate::error::{Error, Result};
+use crate::features::blending::perform_blending;
+use crate::frame::{DecoderState, ReferenceFrame};
+use crate::headers::extra_channels::ExtraChannelInfo;
+use crate::util::tracing_wrappers::*;
+use crate::util::{NewWithCapacity, slice};
 
 // Context numbers as specified in Section C.4.5, Listing C.2:
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -277,12 +275,19 @@ impl PatchesDictionary {
 
         // Count the number of patches for each row.
         sort_by_y1(&mut intervals, 0, intervals_len);
-        self.num_patches
-            .resize(intervals.last().map_or(0, |iv| iv.y1), 0); //Safe last()
+        let max_y1 = intervals.last().map_or(0, |iv| iv.y1);
+        self.num_patches.try_reserve(max_y1)?;
+        self.num_patches.resize(max_y1, 0);
+        let mut diff: Vec<isize> = Vec::new_with_capacity(max_y1 + 1)?;
+        diff.resize(max_y1 + 1, 0);
         for iv in &intervals {
-            for y in iv.y0..iv.y1 {
-                self.num_patches[y] += 1;
-            }
+            diff[iv.y0] += 1;
+            diff[iv.y1] -= 1;
+        }
+        let mut count = 0isize;
+        for (diff, num) in diff.iter().zip(self.num_patches.iter_mut()) {
+            count += *diff;
+            *num = count as usize;
         }
 
         let root = PatchTreeNode {
@@ -360,13 +365,30 @@ impl PatchesDictionary {
         Ok(())
     }
 
-    #[instrument(level = "debug", skip(br), ret, err)]
+    fn area_limit(num_pixels: usize, force_level5: bool) -> usize {
+        let mult: usize = if force_level5 { 8 } else { 1024 };
+        mult.saturating_mul(num_pixels).max(1 << 20)
+    }
+
+    // TODO(veluca): remove this in v0.8.0.
     pub fn read(
         br: &mut BitReader,
         xsize: usize,
         ysize: usize,
         num_extra_channels: usize,
         reference_frames: &[Option<ReferenceFrame>],
+    ) -> Result<PatchesDictionary> {
+        Self::read_internal(br, xsize, ysize, num_extra_channels, reference_frames, true)
+    }
+
+    #[instrument(level = "debug", skip(br), ret, err)]
+    pub(crate) fn read_internal(
+        br: &mut BitReader,
+        xsize: usize,
+        ysize: usize,
+        num_extra_channels: usize,
+        reference_frames: &[Option<ReferenceFrame>],
+        force_level5: bool,
     ) -> Result<PatchesDictionary> {
         let blendings_stride = num_extra_channels + 1;
         let patches_histograms = Histograms::decode(PatchContext::NUM, br, true)?;
@@ -392,6 +414,8 @@ impl PatchesDictionary {
         let mut positions: Vec<PatchPosition> = Vec::new();
         let mut blendings = Vec::new();
         let mut ref_positions = Vec::new_with_capacity(num_ref_patch)?;
+        let max_patch_area = Self::area_limit(num_pixels, force_level5);
+        let mut total_patch_area = 0usize;
         for _ in 0..num_ref_patch {
             let reference = patches_reader.read_unsigned(
                 &patches_histograms,
@@ -468,6 +492,15 @@ impl PatchesDictionary {
                 ));
             }
             total_patches += id_count;
+            let patch_area = id_count.saturating_mul(ref_pos_xsize.saturating_mul(ref_pos_ysize));
+            total_patch_area = total_patch_area.saturating_add(patch_area);
+            if total_patch_area > max_patch_area {
+                return Err(Error::PatchesTooMany(
+                    "patch area".to_string(),
+                    total_patch_area,
+                    max_patch_area,
+                ));
+            }
 
             if total_patches > max_patches {
                 return Err(Error::PatchesTooMany(
@@ -676,10 +709,11 @@ impl PatchesDictionary {
         }
 
         // Ensure that the relative order of patches is preserved.
-        patches_for_row_result.sort();
+        patches_for_row_result.sort_unstable();
     }
 
     #[inline(always)]
+    #[allow(clippy::too_many_arguments)]
     pub fn add_one_row(
         &self,
         row: &mut [&mut [f32]],
@@ -688,6 +722,7 @@ impl PatchesDictionary {
         extra_channel_info: &[ExtraChannelInfo],
         reference_frames: &[Option<ReferenceFrame>],
         patches_for_row_result: &mut Vec<usize>,
+        blending_scratch: &mut Vec<f32>,
     ) {
         // TODO(zond): Allocate a buffer for this when building the stage instead of when executing it.
         let mut out = row
@@ -754,6 +789,7 @@ impl PatchesDictionary {
                 &self.blendings[blending_idx],
                 &self.blendings[blending_idx + 1..],
                 extra_channel_info,
+                blending_scratch,
             );
         }
     }
@@ -1458,7 +1494,7 @@ mod tests {
         use crate::{
             headers::{bit_depth::BitDepth, extra_channels::ExtraChannel},
             image::Image,
-            util::test::assert_all_almost_abs_eq,
+            tests::assert_close,
         };
 
         const MAX_ABS_DELTA: f32 = 1e-6; // Adjusted for typical f32 comparisons
@@ -1544,11 +1580,12 @@ mod tests {
                 &extra_channel_info,
                 &ref_frames, // Pass the Vec<ReferenceFrame>
                 &mut vec![],
+                &mut vec![],
             );
 
-            assert_all_almost_abs_eq(&r_data, &expected_r, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&g_data, &expected_r, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&b_data, &expected_r, MAX_ABS_DELTA);
+            assert_close!(all, &r_data, &expected_r, MAX_ABS_DELTA);
+            assert_close!(all, &g_data, &expected_r, MAX_ABS_DELTA);
+            assert_close!(all, &b_data, &expected_r, MAX_ABS_DELTA);
             Ok(())
         }
 
@@ -1606,11 +1643,12 @@ mod tests {
                 &extra_channel_info,
                 &ref_frames,
                 &mut vec![],
+                &mut vec![],
             );
 
-            assert_all_almost_abs_eq(&r_data, &expected_r, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&g_data, &expected_r, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&b_data, &expected_r, MAX_ABS_DELTA);
+            assert_close!(all, &r_data, &expected_r, MAX_ABS_DELTA);
+            assert_close!(all, &g_data, &expected_r, MAX_ABS_DELTA);
+            assert_close!(all, &b_data, &expected_r, MAX_ABS_DELTA);
             Ok(())
         }
 
@@ -1691,11 +1729,12 @@ mod tests {
                 &extra_channel_info,
                 &ref_frames,
                 &mut vec![],
+                &mut vec![],
             );
 
-            assert_all_almost_abs_eq(&r_data, &expected_r, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&g_data, &expected_r, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&b_data, &expected_r, MAX_ABS_DELTA);
+            assert_close!(all, &r_data, &expected_r, MAX_ABS_DELTA);
+            assert_close!(all, &g_data, &expected_r, MAX_ABS_DELTA);
+            assert_close!(all, &b_data, &expected_r, MAX_ABS_DELTA);
             Ok(())
         }
 
@@ -1804,12 +1843,13 @@ mod tests {
                 &ec_info,
                 &ref_frames,
                 &mut vec![],
+                &mut vec![],
             );
 
-            assert_all_almost_abs_eq(&r_data, &vec![expected_color], MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&g_data, &vec![expected_color], MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&b_data, &vec![expected_color], MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&ec0_data, &vec![expected_ec0], MAX_ABS_DELTA);
+            assert_close!(all, &r_data, &vec![expected_color], MAX_ABS_DELTA);
+            assert_close!(all, &g_data, &vec![expected_color], MAX_ABS_DELTA);
+            assert_close!(all, &b_data, &vec![expected_color], MAX_ABS_DELTA);
+            assert_close!(all, &ec0_data, &vec![expected_ec0], MAX_ABS_DELTA);
             Ok(())
         }
 
@@ -1901,12 +1941,13 @@ mod tests {
                 &ec_info,
                 &ref_frames,
                 &mut vec![],
+                &mut vec![],
             );
 
-            assert_all_almost_abs_eq(&ec0_data, &vec![expected_ec0], MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&r_data, &vec![expected_color], MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&g_data, &vec![expected_color], MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&b_data, &vec![expected_color], MAX_ABS_DELTA);
+            assert_close!(all, &ec0_data, &vec![expected_ec0], MAX_ABS_DELTA);
+            assert_close!(all, &r_data, &vec![expected_color], MAX_ABS_DELTA);
+            assert_close!(all, &g_data, &vec![expected_color], MAX_ABS_DELTA);
+            assert_close!(all, &b_data, &vec![expected_color], MAX_ABS_DELTA);
             Ok(())
         }
 
@@ -1967,12 +2008,13 @@ mod tests {
                 &extra_channel_info,
                 &ref_frames,
                 &mut vec![],
+                &mut vec![],
             );
 
             let expected_vals = [0.5 * 0.8, 2.0 * 0.7]; // [0.4, 1.4]
-            assert_all_almost_abs_eq(&r_data, &expected_vals, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&g_data, &expected_vals, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&b_data, &expected_vals, MAX_ABS_DELTA);
+            assert_close!(all, &r_data, &expected_vals, MAX_ABS_DELTA);
+            assert_close!(all, &g_data, &expected_vals, MAX_ABS_DELTA);
+            assert_close!(all, &b_data, &expected_vals, MAX_ABS_DELTA);
 
             Ok(())
         }
@@ -2032,11 +2074,12 @@ mod tests {
                 &extra_channel_info,
                 &ref_frames,
                 &mut vec![],
+                &mut vec![],
             );
 
-            assert_all_almost_abs_eq(&r_data, &initial_data, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&g_data, &initial_data, MAX_ABS_DELTA);
-            assert_all_almost_abs_eq(&b_data, &initial_data, MAX_ABS_DELTA);
+            assert_close!(all, &r_data, &initial_data, MAX_ABS_DELTA);
+            assert_close!(all, &g_data, &initial_data, MAX_ABS_DELTA);
+            assert_close!(all, &b_data, &initial_data, MAX_ABS_DELTA);
             Ok(())
         }
     }

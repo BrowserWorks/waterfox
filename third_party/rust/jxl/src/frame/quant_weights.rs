@@ -3,28 +3,23 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use std::{borrow::Cow, f32::consts::SQRT_2, sync::OnceLock};
+use std::borrow::Cow;
+use std::f32::consts::SQRT_2;
+use std::sync::OnceLock;
 
-use crate::util::f16;
-
-use crate::{
-    BLOCK_DIM, BLOCK_SIZE,
-    bit_reader::BitReader,
-    error::{
-        Error::{
-            HfQuantFactorTooSmall, InvalidDistanceBand, InvalidQuantEncoding,
-            InvalidQuantEncodingMode, InvalidQuantizationTableWeight, InvalidRawQuantTable,
-        },
-        Result,
-    },
-    frame::{
-        LfGlobalState,
-        modular::{ModularChannel, ModularStreamId, decode::decode_modular_subbitstream},
-    },
-    headers::{bit_depth::BitDepth, frame_header::FrameHeader},
-    image::Rect,
-};
 use jxl_transforms::transform_map::*;
+
+use crate::bit_reader::BitReader;
+use crate::error::Error::{
+    HfQuantFactorTooSmall, InvalidDistanceBand, InvalidQuantEncoding, InvalidQuantEncodingMode,
+    InvalidQuantizationTableWeight, InvalidRawQuantTable,
+};
+use crate::error::Result;
+use crate::frame::LfGlobalState;
+use crate::frame::modular::decode_quant_table;
+use crate::headers::frame_header::FrameHeader;
+use crate::util::f16;
+use crate::{BLOCK_DIM, BLOCK_SIZE};
 
 pub const INV_LF_QUANT: [f32; 3] = [4096.0, 512.0, 256.0];
 
@@ -110,15 +105,6 @@ pub enum QuantEncoding {
 }
 
 impl QuantEncoding {
-    // TODO(veluca): figure out if this should actually be unused.
-    #[allow(dead_code)]
-    pub fn raw_from_qtable(qtable: Vec<i32>, shift: i32) -> Self {
-        Self::Raw {
-            qtable,
-            qtable_den: (1 << shift) as f32 * (1.0 / (8.0 * 255.0)),
-        }
-    }
-
     pub fn decode(
         mut required_size_x: usize,
         mut required_size_y: usize,
@@ -241,38 +227,20 @@ impl QuantEncoding {
                     // qtable[] values are already checked for <= 0 so the denominator may not be negative.
                     return Err(InvalidRawQuantTable);
                 }
-                let bit_depth = BitDepth::integer_samples(8);
-                let mut image = [
-                    ModularChannel::new((required_size_x, required_size_y), bit_depth)?,
-                    ModularChannel::new((required_size_x, required_size_y), bit_depth)?,
-                    ModularChannel::new((required_size_x, required_size_y), bit_depth)?,
-                ];
-                let stream_id = ModularStreamId::QuantTable(index).get_id(header);
-                decode_modular_subbitstream(
-                    image.iter_mut().collect(),
-                    stream_id,
-                    None,
-                    &lf_global.tree,
-                    br,
-                    None,
-                )?;
-                let mut qtable = Vec::with_capacity(required_size_x * required_size_y * 3);
-                for channel in image.iter_mut() {
-                    for entry in channel
-                        .data
-                        .get_rect(Rect {
-                            size: (required_size_x, required_size_y),
-                            origin: (0, 0),
-                        })
-                        .iter()
-                    {
-                        qtable.push(entry);
-                        if entry <= 0 {
-                            return Err(InvalidRawQuantTable);
-                        }
-                    }
-                }
-                Ok(Self::Raw { qtable, qtable_den })
+                let mut scratch = lf_global.modular_global.get_scratch_space();
+                Ok(Self::Raw {
+                    qtable: decode_quant_table(
+                        index,
+                        header,
+                        (required_size_x, required_size_y),
+                        &lf_global.tree,
+                        br,
+                        &mut scratch,
+                        lf_global.modular_global.storage(),
+                        lf_global.modular_global.force_level5,
+                    )?,
+                    qtable_den,
+                })
             }
             _ => Err(InvalidQuantEncoding {
                 mode,
@@ -1231,7 +1199,7 @@ mod test {
     use super::*;
     use crate::error::Result;
     use crate::frame::quant_weights::DequantMatrices;
-    use crate::util::test::assert_almost_abs_eq;
+    use crate::tests::assert_close;
 
     #[test]
     fn check_required_x_y() {
@@ -1241,7 +1209,7 @@ mod test {
                 .iter()
                 .zip(DequantMatrices::REQUIRED_SIZE_Y)
                 .map(|(&x, y)| x * y)
-                .sum()
+                .sum::<usize>()
         );
     }
 
@@ -2158,7 +2126,7 @@ mod test {
             for c in 0..3 {
                 let table = matrices.matrix(hf_type, c);
                 for j in (0..size).step_by(size / 10) {
-                    assert_almost_abs_eq(table[j], target_table[target_table_index], 1e-5);
+                    assert_close!(table[j], target_table[target_table_index], 1e-5);
                     target_table_index += 1;
                 }
             }

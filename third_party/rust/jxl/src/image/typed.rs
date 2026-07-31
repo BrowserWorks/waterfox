@@ -3,43 +3,28 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use std::{fmt::Debug, marker::PhantomData};
-
-use crate::{
-    error::Result,
-    image::internal::DistinctRowsIndexes,
-    util::{CACHE_LINE_BYTE_SIZE, tracing_wrappers::*},
-};
+use std::fmt::Debug;
+use std::marker::PhantomData;
 
 use super::{ImageDataType, OwnedRawImage, RawImageRect, RawImageRectMut, Rect};
+use crate::error::Result;
+use crate::image::internal::DistinctRowsIndexes;
+use crate::util::CACHE_LINE_BYTE_SIZE;
+use crate::util::tracing_wrappers::*;
 
 #[repr(transparent)]
 pub struct Image<T: ImageDataType> {
-    // Safety invariant: self.raw.data and self.raw.byte_offset().0 are aligned to
-    // T::DATA_TYPE_ID.size().
+    // Safety invariant: self.raw.data is aligned to T::DATA_TYPE_ID.size().
     raw: OwnedRawImage,
     _ph: PhantomData<T>,
 }
 
 impl<T: ImageDataType> Image<T> {
     #[instrument(ret, err)]
-    pub fn new_with_padding(
-        size: (usize, usize),
-        offset: (usize, usize),
-        padding: (usize, usize),
-    ) -> Result<Image<T>> {
-        let s = T::DATA_TYPE_ID.size();
-        let img = OwnedRawImage::new_zeroed_with_padding(
-            (size.0 * s, size.1),
-            (offset.0 * s, offset.1),
-            (padding.0 * s, padding.1),
-        )?;
-        Ok(Self::from_raw(img))
-    }
-
-    #[instrument(ret, err)]
     pub fn new(size: (usize, usize)) -> Result<Image<T>> {
-        Self::new_with_padding(size, (0, 0), (0, 0))
+        let s = T::DATA_TYPE_ID.size();
+        let img = OwnedRawImage::new((size.0 * s, size.1))?;
+        Ok(Self::from_raw(img))
     }
 
     pub fn new_with_value(size: (usize, usize), value: T) -> Result<Image<T>> {
@@ -57,20 +42,6 @@ impl<T: ImageDataType> Image<T> {
         )
     }
 
-    pub fn offset(&self) -> (usize, usize) {
-        (
-            self.raw.byte_offset().0 / T::DATA_TYPE_ID.size(),
-            self.raw.byte_offset().1,
-        )
-    }
-
-    pub fn padding(&self) -> (usize, usize) {
-        (
-            self.raw.byte_padding().0 / T::DATA_TYPE_ID.size(),
-            self.raw.byte_padding().1,
-        )
-    }
-
     pub fn fill(&mut self, v: T) {
         if self.size().0 == 0 {
             return;
@@ -78,20 +49,6 @@ impl<T: ImageDataType> Image<T> {
         for y in 0..self.size().1 {
             self.row_mut(y).fill(v);
         }
-    }
-
-    pub fn get_rect_including_padding_mut(&mut self, rect: Rect) -> ImageRectMut<'_, T> {
-        ImageRectMut::from_raw(
-            self.raw
-                .get_rect_including_padding_mut(rect.to_byte_rect(T::DATA_TYPE_ID)),
-        )
-    }
-
-    pub fn get_rect_including_padding(&mut self, rect: Rect) -> ImageRect<'_, T> {
-        ImageRect::from_raw(
-            self.raw
-                .get_rect_including_padding(rect.to_byte_rect(T::DATA_TYPE_ID)),
-        )
     }
 
     pub fn get_rect_mut(&mut self, rect: Rect) -> ImageRectMut<'_, T> {
@@ -113,10 +70,6 @@ impl<T: ImageDataType> Image<T> {
     pub fn from_raw(raw: OwnedRawImage) -> Self {
         const { assert!(CACHE_LINE_BYTE_SIZE.is_multiple_of(T::DATA_TYPE_ID.size())) };
         assert!(raw.data.is_aligned(T::DATA_TYPE_ID.size()));
-        assert!(
-            raw.byte_offset().0.is_multiple_of(T::DATA_TYPE_ID.size()),
-            "image byte offset must be aligned to element size"
-        );
         Image {
             // Safety note: we just checked alignment.
             raw,
@@ -127,7 +80,7 @@ impl<T: ImageDataType> Image<T> {
     #[inline(always)]
     pub fn row(&self, row: usize) -> &[T] {
         let row = self.raw.row(row);
-        // SAFETY: Since self.raw.data and the byte offset are aligned to T::DATA_TYPE_ID.size()
+        // SAFETY: Since self.raw.data is aligned to T::DATA_TYPE_ID.size()
         // by the safety invariant on `self`, the returned slice is aligned to
         // T::DATA_TYPE_ID.size(), and sizeof(T) == T::DATA_TYPE_ID.size() by the requirements of
         // ImageDataType; moreover, ImageDataType requires T to be a bag-of-bits type with no
@@ -140,7 +93,7 @@ impl<T: ImageDataType> Image<T> {
     #[inline(always)]
     pub fn row_mut(&mut self, row: usize) -> &mut [T] {
         let row = self.raw.row_mut(row);
-        // SAFETY: Since self.raw.data and the byte offset are aligned to T::DATA_TYPE_ID.size()
+        // SAFETY: Since self.raw.data is aligned to T::DATA_TYPE_ID.size()
         // by the safety invariant on `self`, the returned slice is aligned to
         // T::DATA_TYPE_ID.size(), and sizeof(T) == T::DATA_TYPE_ID.size() by the requirements of
         // ImageDataType; moreover, ImageDataType requires T to be a bag-of-bits type with no
@@ -153,13 +106,10 @@ impl<T: ImageDataType> Image<T> {
         }
     }
 
-    /// Note: this is quadratic in the number of rows. Indexing *ignores any padding rows*, i.e.
-    /// the row at index 0 will be the first row of the *padding*, unlike with all the other row
-    /// accessors.
+    /// Note: this is quadratic in the number of rows.
     #[inline(always)]
-    pub fn distinct_full_rows_mut<I: DistinctRowsIndexes>(&mut self, rows: I) -> I::Output<'_, T> {
-        // SAFETY: we don't write uninit data to the returned `rows`, and `self.raw` has ownership
-        // of the accessible bytes of `self.raw.data`.
+    pub fn distinct_rows_mut<I: DistinctRowsIndexes>(&mut self, rows: I) -> I::Output<'_, T> {
+        // SAFETY: `self.raw` has ownership of the accessible bytes of `self.raw.data`.
         let rows = unsafe { self.raw.data.distinct_rows_mut(rows) };
         // SAFETY: Since self.raw.data.is_aligned(T::DATA_TYPE_ID.size()) by the safety invariant
         // on `self`, the returned slices are aligned to T::DATA_TYPE_ID.size(), and sizeof(T)
@@ -253,6 +203,14 @@ impl<'a, T: ImageDataType> ImageRectMut<'a, T> {
                 row.len() / T::DATA_TYPE_ID.size(),
             )
         }
+    }
+
+    #[inline(always)]
+    pub fn distinct_rows_mut<I: DistinctRowsIndexes>(&mut self, rows: I) -> I::Output<'_, T> {
+        // SAFETY: self.raw.data distinct_rows_mut checks index uniqueness and in-bounds.
+        let rows = unsafe { self.raw.data.distinct_rows_mut(rows) };
+        // SAFETY: T is ImageDataType, so row contains valid initialized memory aligned for T.
+        unsafe { I::transmute_rows(rows) }
     }
 
     pub fn as_rect(&'a self) -> ImageRect<'a, T> {
