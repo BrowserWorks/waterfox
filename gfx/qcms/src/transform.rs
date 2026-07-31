@@ -709,29 +709,10 @@ unsafe extern "C" fn qcms_transform_data_tetra_clut_template<F: Format>(
     length: usize,
 ) {
     let components: u32 = if F::kAIndex == 0xff { 3 } else { 4 } as u32;
-
-    let xy_len: i32 = 1;
-    let x_len: i32 = transform.grid_size as i32;
-    let len: i32 = x_len * x_len;
     let table = transform.clut.as_ref().unwrap().as_ptr();
-    let r_table: *const f32 = table;
-    let g_table: *const f32 = table.offset(1);
-    let b_table: *const f32 = table.offset(2);
 
     let mut i: u32 = 0;
     while (i as usize) < length {
-        let c0_r: f32;
-        let c1_r: f32;
-        let c2_r: f32;
-        let c3_r: f32;
-        let c0_g: f32;
-        let c1_g: f32;
-        let c2_g: f32;
-        let c3_g: f32;
-        let c0_b: f32;
-        let c1_b: f32;
-        let c2_b: f32;
-        let c3_b: f32;
         let in_r: u8 = *src.add(F::kRIndex);
         let in_g: u8 = *src.add(F::kGIndex);
         let in_b: u8 = *src.add(F::kBIndex);
@@ -752,85 +733,8 @@ unsafe extern "C" fn qcms_transform_data_tetra_clut_template<F: Format>(
         let rx: f32 = linear_r * (transform.grid_size as i32 - 1) as f32 - x as f32;
         let ry: f32 = linear_g * (transform.grid_size as i32 - 1) as f32 - y as f32;
         let rz: f32 = linear_b * (transform.grid_size as i32 - 1) as f32 - z as f32;
-        let CLU = |table: *const f32, x, y, z| {
-            *table.offset(((x * len + y * x_len + z * xy_len) * 3) as isize)
-        };
-
-        c0_r = CLU(r_table, x, y, z);
-        c0_g = CLU(g_table, x, y, z);
-        c0_b = CLU(b_table, x, y, z);
-        if rx >= ry {
-            if ry >= rz {
-                //rx >= ry && ry >= rz
-                c1_r = CLU(r_table, x_n, y, z) - c0_r;
-                c2_r = CLU(r_table, x_n, y_n, z) - CLU(r_table, x_n, y, z);
-                c3_r = CLU(r_table, x_n, y_n, z_n) - CLU(r_table, x_n, y_n, z);
-                c1_g = CLU(g_table, x_n, y, z) - c0_g;
-                c2_g = CLU(g_table, x_n, y_n, z) - CLU(g_table, x_n, y, z);
-                c3_g = CLU(g_table, x_n, y_n, z_n) - CLU(g_table, x_n, y_n, z);
-                c1_b = CLU(b_table, x_n, y, z) - c0_b;
-                c2_b = CLU(b_table, x_n, y_n, z) - CLU(b_table, x_n, y, z);
-                c3_b = CLU(b_table, x_n, y_n, z_n) - CLU(b_table, x_n, y_n, z);
-            } else if rx >= rz {
-                //rx >= rz && rz >= ry
-                c1_r = CLU(r_table, x_n, y, z) - c0_r;
-                c2_r = CLU(r_table, x_n, y_n, z_n) - CLU(r_table, x_n, y, z_n);
-                c3_r = CLU(r_table, x_n, y, z_n) - CLU(r_table, x_n, y, z);
-                c1_g = CLU(g_table, x_n, y, z) - c0_g;
-                c2_g = CLU(g_table, x_n, y_n, z_n) - CLU(g_table, x_n, y, z_n);
-                c3_g = CLU(g_table, x_n, y, z_n) - CLU(g_table, x_n, y, z);
-                c1_b = CLU(b_table, x_n, y, z) - c0_b;
-                c2_b = CLU(b_table, x_n, y_n, z_n) - CLU(b_table, x_n, y, z_n);
-                c3_b = CLU(b_table, x_n, y, z_n) - CLU(b_table, x_n, y, z);
-            } else {
-                //rz > rx && rx >= ry
-                c1_r = CLU(r_table, x_n, y, z_n) - CLU(r_table, x, y, z_n);
-                c2_r = CLU(r_table, x_n, y_n, z_n) - CLU(r_table, x_n, y, z_n);
-                c3_r = CLU(r_table, x, y, z_n) - c0_r;
-                c1_g = CLU(g_table, x_n, y, z_n) - CLU(g_table, x, y, z_n);
-                c2_g = CLU(g_table, x_n, y_n, z_n) - CLU(g_table, x_n, y, z_n);
-                c3_g = CLU(g_table, x, y, z_n) - c0_g;
-                c1_b = CLU(b_table, x_n, y, z_n) - CLU(b_table, x, y, z_n);
-                c2_b = CLU(b_table, x_n, y_n, z_n) - CLU(b_table, x_n, y, z_n);
-                c3_b = CLU(b_table, x, y, z_n) - c0_b;
-            }
-        } else if rx >= rz {
-            //ry > rx && rx >= rz
-            c1_r = CLU(r_table, x_n, y_n, z) - CLU(r_table, x, y_n, z);
-            c2_r = CLU(r_table, x, y_n, z) - c0_r;
-            c3_r = CLU(r_table, x_n, y_n, z_n) - CLU(r_table, x_n, y_n, z);
-            c1_g = CLU(g_table, x_n, y_n, z) - CLU(g_table, x, y_n, z);
-            c2_g = CLU(g_table, x, y_n, z) - c0_g;
-            c3_g = CLU(g_table, x_n, y_n, z_n) - CLU(g_table, x_n, y_n, z);
-            c1_b = CLU(b_table, x_n, y_n, z) - CLU(b_table, x, y_n, z);
-            c2_b = CLU(b_table, x, y_n, z) - c0_b;
-            c3_b = CLU(b_table, x_n, y_n, z_n) - CLU(b_table, x_n, y_n, z);
-        } else if ry >= rz {
-            //ry >= rz && rz > rx
-            c1_r = CLU(r_table, x_n, y_n, z_n) - CLU(r_table, x, y_n, z_n);
-            c2_r = CLU(r_table, x, y_n, z) - c0_r;
-            c3_r = CLU(r_table, x, y_n, z_n) - CLU(r_table, x, y_n, z);
-            c1_g = CLU(g_table, x_n, y_n, z_n) - CLU(g_table, x, y_n, z_n);
-            c2_g = CLU(g_table, x, y_n, z) - c0_g;
-            c3_g = CLU(g_table, x, y_n, z_n) - CLU(g_table, x, y_n, z);
-            c1_b = CLU(b_table, x_n, y_n, z_n) - CLU(b_table, x, y_n, z_n);
-            c2_b = CLU(b_table, x, y_n, z) - c0_b;
-            c3_b = CLU(b_table, x, y_n, z_n) - CLU(b_table, x, y_n, z);
-        } else {
-            //rz > ry && ry > rx
-            c1_r = CLU(r_table, x_n, y_n, z_n) - CLU(r_table, x, y_n, z_n);
-            c2_r = CLU(r_table, x, y_n, z_n) - CLU(r_table, x, y, z_n);
-            c3_r = CLU(r_table, x, y, z_n) - c0_r;
-            c1_g = CLU(g_table, x_n, y_n, z_n) - CLU(g_table, x, y_n, z_n);
-            c2_g = CLU(g_table, x, y_n, z_n) - CLU(g_table, x, y, z_n);
-            c3_g = CLU(g_table, x, y, z_n) - c0_g;
-            c1_b = CLU(b_table, x_n, y_n, z_n) - CLU(b_table, x, y_n, z_n);
-            c2_b = CLU(b_table, x, y_n, z_n) - CLU(b_table, x, y, z_n);
-            c3_b = CLU(b_table, x, y, z_n) - c0_b;
-        }
-        let clut_r = c0_r + c1_r * rx + c2_r * ry + c3_r * rz;
-        let clut_g = c0_g + c1_g * rx + c2_g * ry + c3_g * rz;
-        let clut_b = c0_b + c1_b * rx + c2_b * ry + c3_b * rz;
+        let (clut_r, clut_g, clut_b) =
+            tetra_interp(transform, table, x, y, z, x_n, y_n, z_n, rx, ry, rz);
         *dest.add(F::kRIndex) = clamp_u8(clut_r * 255.0);
         *dest.add(F::kGIndex) = clamp_u8(clut_g * 255.0);
         *dest.add(F::kBIndex) = clamp_u8(clut_b * 255.0);
@@ -842,31 +746,31 @@ unsafe extern "C" fn qcms_transform_data_tetra_clut_template<F: Format>(
     }
 }
 
-unsafe fn tetra(
+// One 3-D tetrahedral CLUT lookup. Given the enclosing grid cell corners
+// (x,y,z)..(x_n,y_n,z_n) and the fractional position (rx,ry,rz) within it,
+// returns the interpolated 3 output components. Callers derive the grid
+// coordinates from whatever input they have (u8 or full-precision f32), so this
+// core is shared by the u8 RGB/CMYK paths and the f16 path.
+#[inline(always)]
+unsafe fn tetra_interp(
     transform: &qcms_transform,
     table: *const f32,
-    in_r: u8,
-    in_g: u8,
-    in_b: u8,
+    x: i32,
+    y: i32,
+    z: i32,
+    x_n: i32,
+    y_n: i32,
+    z_n: i32,
+    rx: f32,
+    ry: f32,
+    rz: f32,
 ) -> (f32, f32, f32) {
     let r_table: *const f32 = table;
     let g_table: *const f32 = table.offset(1);
     let b_table: *const f32 = table.offset(2);
-    let linear_r: f32 = in_r as i32 as f32 / 255.0;
-    let linear_g: f32 = in_g as i32 as f32 / 255.0;
-    let linear_b: f32 = in_b as i32 as f32 / 255.0;
     let xy_len: i32 = 1;
     let x_len: i32 = transform.grid_size as i32;
     let len: i32 = x_len * x_len;
-    let x: i32 = in_r as i32 * (transform.grid_size as i32 - 1) / 255;
-    let y: i32 = in_g as i32 * (transform.grid_size as i32 - 1) / 255;
-    let z: i32 = in_b as i32 * (transform.grid_size as i32 - 1) / 255;
-    let x_n: i32 = int_div_ceil(in_r as i32 * (transform.grid_size as i32 - 1), 255);
-    let y_n: i32 = int_div_ceil(in_g as i32 * (transform.grid_size as i32 - 1), 255);
-    let z_n: i32 = int_div_ceil(in_b as i32 * (transform.grid_size as i32 - 1), 255);
-    let rx: f32 = linear_r * (transform.grid_size as i32 - 1) as f32 - x as f32;
-    let ry: f32 = linear_g * (transform.grid_size as i32 - 1) as f32 - y as f32;
-    let rz: f32 = linear_b * (transform.grid_size as i32 - 1) as f32 - z as f32;
     let CLU = |table: *const f32, x, y, z| {
         *table.offset(((x * len + y * x_len + z * xy_len) * 3) as isize)
     };
@@ -994,8 +898,26 @@ unsafe fn qcms_transform_data_tetra_clut_cmyk(
         let table1 = table.offset((w * grid_size * grid_size * grid_size * 3) as isize);
         let table2 = table.offset((w_n * grid_size * grid_size * grid_size * 3) as isize);
 
-        let (r1, g1, b1) = tetra(transform, table1, c, m, y);
-        let (r2, g2, b2) = tetra(transform, table2, c, m, y);
+        // The C/M/Y grid coordinates are the same for both K-slices, so compute
+        // them once and reuse for both tetra_interp calls (only the table differs).
+        let linear_c: f32 = c as i32 as f32 / 255.0;
+        let linear_m: f32 = m as i32 as f32 / 255.0;
+        let linear_y: f32 = y as i32 as f32 / 255.0;
+        let cx: i32 = c as i32 * (transform.grid_size as i32 - 1) / 255;
+        let cy: i32 = m as i32 * (transform.grid_size as i32 - 1) / 255;
+        let cz: i32 = y as i32 * (transform.grid_size as i32 - 1) / 255;
+        let cx_n: i32 = int_div_ceil(c as i32 * (transform.grid_size as i32 - 1), 255);
+        let cy_n: i32 = int_div_ceil(m as i32 * (transform.grid_size as i32 - 1), 255);
+        let cz_n: i32 = int_div_ceil(y as i32 * (transform.grid_size as i32 - 1), 255);
+        let crx: f32 = linear_c * (transform.grid_size as i32 - 1) as f32 - cx as f32;
+        let cry: f32 = linear_m * (transform.grid_size as i32 - 1) as f32 - cy as f32;
+        let crz: f32 = linear_y * (transform.grid_size as i32 - 1) as f32 - cz as f32;
+        let (r1, g1, b1) = tetra_interp(
+            transform, table1, cx, cy, cz, cx_n, cy_n, cz_n, crx, cry, crz,
+        );
+        let (r2, g2, b2) = tetra_interp(
+            transform, table2, cx, cy, cz, cx_n, cy_n, cz_n, crx, cry, crz,
+        );
         let r = lerp(r1, r2, t);
         let g = lerp(g1, g2, t);
         let b = lerp(b1, b2, t);
@@ -1187,12 +1109,34 @@ pub(crate) unsafe fn transform_data_rgba_f16_to_rgba_u8(
             px_out[3] = (alpha * 255.0 + 0.5) as u8;
         }
     } else {
-        // Non-matrix (A2B/CLut) profile: convert f16 to u8, then apply the
-        // full qcms pipeline which handles all profile types.
-        for (s, d) in src.iter().zip(dst.iter_mut()) {
-            *d = (f16_to_f32(*s).clamp(0.0, 1.0) * 255.0 + 0.5) as u8;
+        // Non-matrix (A2B0/CLUT) profile. Convert f16 -> f32 then feed the
+        // values straight into the tetrahedral CLUT.
+        let table = transform.clut.as_ref().unwrap().as_ptr();
+        let n = (transform.grid_size as i32 - 1) as f32;
+        for (px_in, px_out) in src.chunks_exact(4).zip(dst.chunks_exact_mut(4)) {
+            let gx = f16_to_f32(px_in[0]).clamp(0.0, 1.0) * n;
+            let gy = f16_to_f32(px_in[1]).clamp(0.0, 1.0) * n;
+            let gz = f16_to_f32(px_in[2]).clamp(0.0, 1.0) * n;
+            let alpha = f16_to_f32(px_in[3]).clamp(0.0, 1.0);
+            let (fx, fy, fz) = (gx.floor(), gy.floor(), gz.floor());
+            let (r, g, b) = tetra_interp(
+                transform,
+                table,
+                fx as i32,
+                fy as i32,
+                fz as i32,
+                gx.ceil() as i32,
+                gy.ceil() as i32,
+                gz.ceil() as i32,
+                gx - fx,
+                gy - fy,
+                gz - fz,
+            );
+            px_out[0] = clamp_u8(r * 255.0);
+            px_out[1] = clamp_u8(g * 255.0);
+            px_out[2] = clamp_u8(b * 255.0);
+            px_out[3] = (alpha * 255.0 + 0.5) as u8;
         }
-        transform.transform_fn.expect("non-null transform_fn")(transform, dest, dest, length);
     }
 }
 

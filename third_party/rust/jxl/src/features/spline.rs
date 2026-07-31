@@ -3,20 +3,18 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use std::{
-    f32::consts::{FRAC_1_SQRT_2, PI, SQRT_2},
-    iter::{self, zip},
-    ops,
-};
+use std::f32::consts::{FRAC_1_SQRT_2, PI, SQRT_2};
+use std::iter::{self, zip};
+use std::ops;
 
-use crate::{
-    bit_reader::BitReader,
-    entropy_coding::decode::{Histograms, SymbolReader, unpack_signed},
-    error::{Error, Result},
-    frame::color_correlation_map::ColorCorrelationParams,
-    util::{CeilLog2, NewWithCapacity, fast_cos, fast_erff_simd, tracing_wrappers::*},
-};
-use jxl_simd::{F32SimdVec, ScalarDescriptor, SimdDescriptor, simd_function};
+use jxl_simd::{F32SimdVec, SimdDescriptor, simd_function};
+
+use crate::bit_reader::BitReader;
+use crate::entropy_coding::decode::{Histograms, SymbolReader, unpack_signed};
+use crate::error::{Error, Result};
+use crate::frame::color_correlation_map::ColorCorrelationParams;
+use crate::util::tracing_wrappers::*;
+use crate::util::{CeilLog2, NewWithCapacity, fast_cos, fast_erff_simd};
 const MAX_NUM_CONTROL_POINTS: u32 = 1 << 20;
 const MAX_NUM_CONTROL_POINTS_PER_PIXEL_RATIO: u32 = 2;
 const DELTA_LIMIT: i64 = 1 << 30;
@@ -172,12 +170,18 @@ fn validate_spline_point_pos<T: num_traits::ToPrimitive>(x: T, y: T) -> Result<(
 
 const CHANNEL_WEIGHT: [f32; 4] = [0.0042, 0.075, 0.07, 0.3333];
 
-fn area_limit(image_size: u64) -> u64 {
+fn area_limit(image_size: u64, force_level5: bool) -> u64 {
     // Use saturating arithmetic to prevent overflow
-    1024u64
-        .saturating_mul(image_size)
-        .saturating_add(1u64 << 32)
-        .min(1u64 << 42)
+    if force_level5 {
+        8u64.saturating_mul(image_size)
+            .saturating_add(1u64 << 25)
+            .min(1u64 << 30)
+    } else {
+        1024u64
+            .saturating_mul(image_size)
+            .saturating_add(1u64 << 32)
+            .min(1u64 << 42)
+    }
 }
 
 impl QuantizedSpline {
@@ -191,7 +195,12 @@ impl QuantizedSpline {
     ) -> Result<QuantizedSpline> {
         let num_control_points =
             splines_reader.read_unsigned(splines_histograms, br, NUM_CONTROL_POINTS_CONTEXT);
-        *total_num_control_points += num_control_points;
+        *total_num_control_points = total_num_control_points
+            .checked_add(num_control_points)
+            .ok_or(Error::SplinesTooManyControlPoints(
+                u32::MAX,
+                max_control_points,
+            ))?;
         if *total_num_control_points > max_control_points {
             return Err(Error::SplinesTooManyControlPoints(
                 *total_num_control_points,
@@ -240,10 +249,8 @@ impl QuantizedSpline {
         quantization_adjustment: i32,
         y_to_x: f32,
         y_to_b: f32,
-        image_size: u64,
+        area_limit: u64,
     ) -> Result<Spline> {
-        let area_limit = area_limit(image_size);
-
         let mut result = Spline {
             control_points: Vec::new_with_capacity(self.control_points.len() + 1)?,
             ..Default::default()
@@ -302,20 +309,22 @@ impl QuantizedSpline {
             result.color_dct[2].0[i] += y_to_b * result.color_dct[1].0[i];
         }
 
-        let mut width_estimate = 0;
+        let mut width_estimate = 0u64;
         let mut color = [0u64; 3];
 
         for (c, color_val) in color.iter_mut().enumerate() {
             for i in 0..32 {
-                *color_val += (inv_quant * self.color_dct[c][i].abs() as f32).ceil() as u64;
+                *color_val = color_val.saturating_add(
+                    (inv_quant * self.color_dct[c][i].unsigned_abs() as f32).ceil() as u64,
+                );
             }
         }
 
-        color[0] += y_to_x.abs().ceil() as u64 * color[1];
-        color[2] += y_to_b.abs().ceil() as u64 * color[1];
+        color[0] = color[0].saturating_add((y_to_x.abs().ceil() as u64).saturating_mul(color[1]));
+        color[2] = color[2].saturating_add((y_to_b.abs().ceil() as u64).saturating_mul(color[1]));
 
         let max_color = color[0].max(color[1]).max(color[2]);
-        let logcolor = 1u64.max((1u64 + max_color).ceil_log2());
+        let logcolor = 1u64.max(1u64.saturating_add(max_color).ceil_log2());
 
         let weight_limit =
             (((area_limit as f32 / logcolor as f32) / manhattan_distance.max(1) as f32).sqrt())
@@ -326,12 +335,13 @@ impl QuantizedSpline {
             result.sigma_dct.0[i] =
                 self.sigma_dct[i] as f32 * inv_dct_factor * CHANNEL_WEIGHT[3] * inv_quant;
 
-            let weight_f = (inv_quant * self.sigma_dct[i].abs() as f32).ceil();
+            let weight_f = (inv_quant * self.sigma_dct[i].unsigned_abs() as f32).ceil();
             let weight = weight_limit.min(weight_f.max(1.0)) as u64;
-            width_estimate += weight * weight * logcolor;
+            width_estimate = width_estimate
+                .saturating_add(weight.saturating_mul(weight).saturating_mul(logcolor));
         }
 
-        result.estimated_area_reached = width_estimate * manhattan_distance;
+        result.estimated_area_reached = width_estimate.saturating_mul(manhattan_distance);
 
         Ok(result)
     }
@@ -528,13 +538,10 @@ fn draw_segment_inner<D: SimdDescriptor>(
     row_pos: (usize, usize),
     x_range: (usize, usize),
     segment: &SplineSegment,
-) -> usize {
+) {
     let (x_start, x_end) = x_range;
     let (row_x0, y) = row_pos;
     let len = D::F32Vec::LEN;
-    if x_start + len > x_end {
-        return x_start;
-    }
 
     let inv_sigma = D::F32Vec::splat(d, segment.inv_sigma);
     let half = D::F32Vec::splat(d, 0.5);
@@ -566,7 +573,8 @@ fn draw_segment_inner<D: SimdDescriptor>(
 
     let num_chunks = (end_offset - start_offset) / len;
     let mut x = x_start;
-    for _ in 0..num_chunks {
+    // chunks + remainder
+    for iter in 0..=num_chunks {
         let vx = D::F32Vec::splat(d, x as f32) + vx_base;
         let dx = vx - center_x;
         let sqd = dx.mul_add(dx, dy2);
@@ -578,19 +586,30 @@ fn draw_segment_inner<D: SimdDescriptor>(
         let local_intensity =
             sigma_over_4_times_intensity * one_dimensional_factor * one_dimensional_factor;
 
-        let c0 = it0.next().unwrap();
-        cm0.mul_add(local_intensity, D::F32Vec::load(d, c0))
-            .store(c0);
-        let c1 = it1.next().unwrap();
-        cm1.mul_add(local_intensity, D::F32Vec::load(d, c1))
-            .store(c1);
-        let c2 = it2.next().unwrap();
-        cm2.mul_add(local_intensity, D::F32Vec::load(d, c2))
-            .store(c2);
+        if iter < num_chunks {
+            let mul_accum = |cm: D::F32Vec, data: &mut [f32]| {
+                cm.mul_add(local_intensity, D::F32Vec::load(d, data))
+                    .store(data)
+            };
+            mul_accum(cm0, it0.next().unwrap());
+            mul_accum(cm1, it1.next().unwrap());
+            mul_accum(cm2, it2.next().unwrap());
+        } else {
+            let mul_accum = |cm: D::F32Vec, data: &mut [f32]| {
+                let mut full_data = [0.0; 16];
+                full_data[..data.len()].copy_from_slice(data);
+                cm.mul_add(local_intensity, D::F32Vec::load(d, &full_data))
+                    .store(&mut full_data);
+                data.copy_from_slice(&full_data[..data.len()]);
+            };
+            mul_accum(cm0, it0.into_remainder());
+            mul_accum(cm1, it1.into_remainder());
+            mul_accum(cm2, it2.into_remainder());
+            break;
+        }
 
         x += len;
     }
-    x
 }
 
 simd_function!(
@@ -611,13 +630,7 @@ simd_function!(
             return;
         }
 
-        let x = clamped_x0;
-        let x = draw_segment_inner(d, row, (x0, y), (x, clamped_x1), segment);
-        let d = d.maybe_downgrade_256bit();
-        let x = draw_segment_inner(d, row, (x0, y), (x, clamped_x1), segment);
-        let d = d.maybe_downgrade_128bit();
-        let x = draw_segment_inner(d, row, (x0, y), (x, clamped_x1), segment);
-        draw_segment_inner(ScalarDescriptor, row, (x0, y), (x, clamped_x1), segment);
+        draw_segment_inner(d, row, (x0, y), (clamped_x0, clamped_x1), segment);
     }
 );
 
@@ -735,19 +748,20 @@ impl Splines {
         image_ysize: u64,
         color_correlation_params: &ColorCorrelationParams,
         high_precision: bool,
+        force_level5: bool,
     ) -> Result<()> {
         let mut total_estimated_area_reached = 0u64;
         let mut splines = Vec::new();
         // Use saturating_mul to prevent overflow with malicious image dimensions
         let image_area = image_xsize.saturating_mul(image_ysize);
-        let area_limit = area_limit(image_area);
+        let area_limit = area_limit(image_area, force_level5);
         for (index, qspline) in self.splines.iter().enumerate() {
             let spline = qspline.dequantize(
                 &self.starting_points[index],
                 self.quantization_adjustment,
                 color_correlation_params.y_to_x_lf(),
                 color_correlation_params.y_to_b_lf(),
-                image_area,
+                area_limit,
             )?;
             total_estimated_area_reached += spline.estimated_area_reached;
             if total_estimated_area_reached > area_limit {
@@ -796,7 +810,7 @@ impl Splines {
         }
 
         // TODO(from libjxl): Consider linear sorting here.
-        segments_by_y.sort_by_key(|segment| segment.0);
+        segments_by_y.sort_unstable_by_key(|segment| segment.0);
 
         self.segment_indices.clear();
         self.segment_indices.try_reserve(segments_by_y.len())?;
@@ -902,7 +916,7 @@ mod test_splines {
         error::{Error, Result},
         features::spline::SplineSegment,
         frame::color_correlation_map::ColorCorrelationParams,
-        util::test::{assert_all_almost_abs_eq, assert_almost_abs_eq, assert_almost_eq},
+        tests::assert_close,
     };
 
     use super::{
@@ -1494,7 +1508,8 @@ mod test_splines {
                 got_dequantized.control_points.len(),
                 want_dequantized.control_points.len()
             );
-            assert_all_almost_abs_eq(
+            assert_close!(
+                all,
                 got_dequantized
                     .control_points
                     .iter()
@@ -1507,7 +1522,8 @@ mod test_splines {
                     .collect::<Vec<f32>>(),
                 1e-6,
             );
-            assert_all_almost_abs_eq(
+            assert_close!(
+                all,
                 got_dequantized
                     .control_points
                     .iter()
@@ -1521,13 +1537,15 @@ mod test_splines {
                 1e-6,
             );
             for index in 0..got_dequantized.color_dct.len() {
-                assert_all_almost_abs_eq(
+                assert_close!(
+                    all,
                     got_dequantized.color_dct[index].0,
                     want_dequantized.color_dct[index].0,
                     1e-4,
                 );
             }
-            assert_all_almost_abs_eq(
+            assert_close!(
+                all,
                 got_dequantized.sigma_dct.0,
                 want_dequantized.sigma_dct.0,
                 1e-4,
@@ -1599,7 +1617,8 @@ mod test_splines {
             Point { x: 4.0, y: 3.0 },
         ];
         let got_result = draw_centripetal_catmull_rom_spline(&control_points)?;
-        assert_all_almost_abs_eq(
+        assert_close!(
+            all,
             got_result.iter().map(|p| p.x).collect::<Vec<f32>>(),
             want_result.iter().map(|p| p.x).collect::<Vec<f32>>(),
             1e-10,
@@ -1628,17 +1647,20 @@ mod test_splines {
         for_each_equally_spaced_point(&segments, desired_rendering_distance, |p, d| {
             got_results.push((p, d))
         });
-        assert_all_almost_abs_eq(
+        assert_close!(
+            all,
             got_results.iter().map(|(p, _)| p.x).collect::<Vec<f32>>(),
             want_results.iter().map(|(p, _)| p.x).collect::<Vec<f32>>(),
             1e-9,
         );
-        assert_all_almost_abs_eq(
+        assert_close!(
+            all,
             got_results.iter().map(|(p, _)| p.y).collect::<Vec<f32>>(),
             want_results.iter().map(|(p, _)| p.y).collect::<Vec<f32>>(),
             1e-9,
         );
-        assert_all_almost_abs_eq(
+        assert_close!(
+            all,
             got_results.iter().map(|(_, d)| *d).collect::<Vec<f32>>(),
             want_results.iter().map(|(_, d)| *d).collect::<Vec<f32>>(),
             1e-9,
@@ -1689,7 +1711,7 @@ mod test_splines {
         ];
         for (t, want) in want_out.iter().enumerate() {
             let got_out = dct.continuous_idct(t as f32);
-            assert_almost_abs_eq(got_out, *want, 1e-4);
+            assert_close!(got_out, *want, 1e-4);
         }
         Ok(())
     }
@@ -1707,23 +1729,23 @@ mod test_splines {
             let original = dct.continuous_idct(t_val);
             let precomputed = PrecomputedCosines::new(t_val);
             let fast = dct.continuous_idct_fast(&precomputed);
-            assert_almost_abs_eq(fast, original, 1e-5);
+            assert_close!(fast, original, 1e-5);
         }
     }
 
     fn verify_segment_almost_equal(seg1: &SplineSegment, seg2: &SplineSegment) {
-        assert_almost_eq(seg1.center_x, seg2.center_x, 1e-2, 1e-4);
-        assert_almost_eq(seg1.center_y, seg2.center_y, 1e-2, 1e-4);
+        assert_close!(seg1.center_x, seg2.center_x, 1e-2, rel: 1e-4);
+        assert_close!(seg1.center_y, seg2.center_y, 1e-2, rel: 1e-4);
         for (got, want) in zip(seg1.color.iter(), seg2.color.iter()) {
-            assert_almost_eq(*got, *want, 1e-2, 1e-4);
+            assert_close!(*got, *want, 1e-2, rel: 1e-4);
         }
-        assert_almost_eq(seg1.inv_sigma, seg2.inv_sigma, 1e-2, 1e-4);
-        assert_almost_eq(seg1.maximum_distance, seg2.maximum_distance, 1e-2, 1e-4);
-        assert_almost_eq(
+        assert_close!(seg1.inv_sigma, seg2.inv_sigma, 1e-2, rel: 1e-4);
+        assert_close!(seg1.maximum_distance, seg2.maximum_distance, 1e-2, rel: 1e-4);
+        assert_close!(
             seg1.sigma_over_4_times_intensity,
             seg2.sigma_over_4_times_intensity,
             1e-2,
-            1e-4,
+            rel: 1e-4,
         );
     }
 

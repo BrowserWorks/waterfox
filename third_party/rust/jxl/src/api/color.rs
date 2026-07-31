@@ -3,16 +3,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use std::{borrow::Cow, fmt};
+use std::borrow::Cow;
+use std::fmt;
 
-use crate::{
-    color::tf::{hlg_to_scene, linear_to_pq_precise, pq_to_linear_precise},
-    error::{Error, Result},
-    headers::color_encoding::{
-        ColorEncoding, ColorSpace, Primaries, RenderingIntent, TransferFunction, WhitePoint,
-    },
-    util::{Matrix3x3, Vector3, inv_3x3_matrix, mul_3x3_matrix, mul_3x3_vector},
+use crate::color::tf::{hlg_to_scene, linear_to_pq_precise, pq_to_linear_precise};
+use crate::error::{Error, Result};
+use crate::headers::color_encoding::{
+    ColorEncoding, ColorSpace, Primaries, RenderingIntent, TransferFunction, WhitePoint,
 };
+use crate::util::{Matrix3x3, Vector3, inv_3x3_matrix, mul_3x3_matrix, mul_3x3_vector};
 
 // Bradford matrices for chromatic adaptation
 const K_BRADFORD: Matrix3x3<f64> = [
@@ -1075,17 +1074,6 @@ impl JxlColorEncoding {
         let total_profile_size = final_icc_profile_data.len() as u32;
         write_u32_be(&mut final_icc_profile_data, 0, total_profile_size)?;
 
-        // Assemble the final ICC profile parts: header + tag_table + tags_data
-        let mut final_icc_profile_data: Vec<u8> =
-            Vec::with_capacity(header.len() + tag_table_bytes.len() + tags_data.len());
-        final_icc_profile_data.extend_from_slice(&header);
-        final_icc_profile_data.extend_from_slice(&tag_table_bytes);
-        final_icc_profile_data.extend_from_slice(&tags_data);
-
-        // Update the profile size in the header (at offset 0)
-        let total_profile_size = final_icc_profile_data.len() as u32;
-        write_u32_be(&mut final_icc_profile_data, 0, total_profile_size)?;
-
         // The MD5 checksum (Profile ID) must be computed on the profile with
         // specific header fields zeroed out, as per the ICC specification.
         let mut profile_for_checksum = final_icc_profile_data.clone();
@@ -1223,7 +1211,7 @@ impl JxlColorProfile {
     ///
     /// Two profiles are the same if they are both simple color encodings
     /// with matching color space (primaries, white point) and transfer function.
-    /// ICC profiles are never considered the same (even if identical bytes).
+    /// ICC profiles are considered the same if they have identical bytes.
     pub fn same_color_encoding(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Simple(a), Self::Simple(b)) => {
@@ -1360,36 +1348,6 @@ impl fmt::Display for JxlColorProfile {
             Self::Simple(enc) => write!(f, "{}", enc),
         }
     }
-}
-
-pub trait JxlCmsTransformer {
-    /// Runs a single transform. The buffers each contain `num_pixels` x `num_channels` interleaved
-    /// floating point (0..1) samples, where `num_channels` is the number of color channels of
-    /// their respective color profiles. For CMYK data, 0 represents the maximum amount of ink
-    /// while 1 represents no ink.
-    fn do_transform(&mut self, input: &[f32], output: &mut [f32]) -> Result<()>;
-
-    /// Runs a single transform in-place. The buffer contains `num_pixels` x `num_channels`
-    /// interleaved floating point (0..1) samples, where `num_channels` is the number of color
-    /// channels of the input and output color profiles. For CMYK data, 0 represents the maximum
-    /// amount of ink while 1 represents no ink.
-    fn do_transform_inplace(&mut self, inout: &mut [f32]) -> Result<()>;
-}
-
-pub trait JxlCms {
-    /// Initializes `n` transforms (different transforms might be used in parallel) to
-    /// convert from color space `input` to colorspace `output`, assuming an intensity of 1.0 for
-    /// non-absolute luminance colorspaces of `intensity_target`.
-    /// It is an error to not return `n` transforms.
-    /// Returns the number of channels the ICC outputs, and the transforms.
-    fn initialize_transforms(
-        &self,
-        n: usize,
-        max_pixels_per_transform: usize,
-        input: JxlColorProfile,
-        output: JxlColorProfile,
-        intensity_target: f32,
-    ) -> Result<(usize, Vec<Box<dyn JxlCmsTransformer + Send>>)>;
 }
 
 /// Writes a u32 value in big-endian format to the slice at the given position.
@@ -1651,36 +1609,6 @@ impl TF_HLG {
     #[inline]
     fn display_from_encoded(e: f64) -> f64 {
         Self::inv_oetf(e)
-    }
-
-    /// Converts a linear display value to a non-linear encoded signal (inverse EOTF).
-    ///
-    /// This corresponds to `EncodedFromDisplay(d) = OETF(InvOOTF(d))`.
-    /// Since the InvOOTF is an identity function, this is equivalent to `oetf(d)`.
-    #[inline]
-    #[allow(dead_code)]
-    fn encoded_from_display(d: f64) -> f64 {
-        Self::oetf(d)
-    }
-
-    /// The private HLG OETF, converting scene-referred light to a non-linear signal.
-    fn oetf(mut s: f64) -> f64 {
-        if s == 0.0 {
-            return 0.0;
-        }
-        let original_sign = s.signum();
-        s = s.abs();
-
-        let e = if s <= Self::INV_12 {
-            (3.0 * s).sqrt()
-        } else {
-            Self::A * (12.0 * s - Self::B).ln() + Self::C
-        };
-
-        // The result should be positive for positive inputs.
-        debug_assert!(e > 0.0);
-
-        e.copysign(original_sign)
     }
 
     /// The private HLG inverse OETF, converting a non-linear signal back to scene-referred light.
@@ -2073,8 +2001,9 @@ fn tone_map_pixel(
 
 /// Create mAB A2B0 tag for XYB color space.
 fn create_icc_lut_atob_tag_for_xyb(tags: &mut Vec<u8>) -> Result<(), Error> {
-    use super::xyb_constants::*;
     use byteorder::{BigEndian, WriteBytesExt};
+
+    use super::xyb_constants::*;
 
     // Tag signature: 'mAB '
     tags.extend_from_slice(b"mAB ");
@@ -2572,7 +2501,7 @@ mod test {
         let decoder = JxlDecoder::new(options);
         let mut input: &[u8] = &data;
 
-        let decoder_info = match decoder.process(&mut input).unwrap() {
+        let decoder_info = match decoder.process(&mut input, None).unwrap() {
             ProcessingResult::Complete { result } => result,
             _ => panic!("Expected complete decoding"),
         };
@@ -2614,7 +2543,7 @@ mod test {
         let decoder = JxlDecoder::new(options);
         let mut input: &[u8] = &data;
 
-        let decoder_info = match decoder.process(&mut input).unwrap() {
+        let decoder_info = match decoder.process(&mut input, None).unwrap() {
             ProcessingResult::Complete { result } => result,
             _ => panic!("Expected complete decoding"),
         };

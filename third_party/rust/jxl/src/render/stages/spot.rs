@@ -3,7 +3,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::render::RenderPipelineInPlaceStage;
+use crate::render::{ErasedLocalState, RenderPipelineInPlaceStage};
 
 /// Render spot color
 pub struct SpotColorStage {
@@ -42,7 +42,8 @@ impl RenderPipelineInPlaceStage for SpotColorStage {
         _position: (usize, usize),
         xsize: usize,
         row: &mut [&mut [f32]],
-        _state: Option<&mut dyn std::any::Any>,
+        _state: Option<&mut ErasedLocalState>,
+        _previous_call_was_previous_row: bool,
     ) {
         let [row_r, row_g, row_b, row_s] = row else {
             panic!(
@@ -75,7 +76,7 @@ mod test {
     use crate::error::Result;
     use crate::image::Image;
     use crate::render::test::make_and_run_simple_pipeline;
-    use crate::util::test::assert_all_almost_abs_eq;
+    use crate::tests::assert_close;
 
     #[test]
     fn consistency() -> Result<()> {
@@ -106,9 +107,9 @@ mod test {
             256,
         )?;
 
-        assert_all_almost_abs_eq(output[0].row(0), &[0.75, 0.25, 0.25], 1e-6);
-        assert_all_almost_abs_eq(output[1].row(0), &[0.25, 0.75, 0.25], 1e-6);
-        assert_all_almost_abs_eq(output[2].row(0), &[0.25, 0.25, 0.75], 1e-6);
+        assert_close!(all, output[0].row(0), &[0.75, 0.25, 0.25], 1e-6);
+        assert_close!(all, output[1].row(0), &[0.25, 0.75, 0.25], 1e-6);
+        assert_close!(all, output[2].row(0), &[0.25, 0.25, 0.75], 1e-6);
 
         Ok(())
     }

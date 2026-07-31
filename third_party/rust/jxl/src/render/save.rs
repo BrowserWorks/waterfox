@@ -3,12 +3,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::{
-    api::{JxlColorType, JxlDataFormat, JxlOutputBuffer},
-    error::{Error, Result},
-    headers::Orientation,
-    image::DataTypeTag,
-};
+use crate::api::{JxlColorType, JxlDataFormat, JxlOutputBuffer};
+use crate::error::{Error, Result};
+use crate::headers::Orientation;
+use crate::image::DataTypeTag;
 
 #[derive(Debug)]
 pub struct SaveStage {

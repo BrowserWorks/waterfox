@@ -3,10 +3,8 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::{
-    api::ProcessingResult,
-    error::{Error, Result},
-};
+use crate::api::ProcessingResult;
+use crate::error::{Error, Result};
 
 /// The magic bytes for a bare JPEG XL codestream.
 pub(crate) const CODESTREAM_SIGNATURE: [u8; 2] = [0xff, 0x0a];

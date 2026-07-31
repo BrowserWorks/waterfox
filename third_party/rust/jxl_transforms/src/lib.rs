@@ -27,15 +27,14 @@ mod reinterpreting_dct32;
 mod reinterpreting_dct4;
 mod reinterpreting_dct8;
 
+pub use idct2d::*;
+pub use idct_large::*;
 use reinterpreting_dct16::*;
 use reinterpreting_dct2::*;
+pub use reinterpreting_dct2d::*;
 use reinterpreting_dct32::*;
 use reinterpreting_dct4::*;
 use reinterpreting_dct8::*;
-
-pub use idct2d::*;
-pub use idct_large::*;
-pub use reinterpreting_dct2d::*;
 
 #[cfg(test)]
 mod tests;

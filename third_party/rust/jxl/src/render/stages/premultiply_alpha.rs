@@ -3,8 +3,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::render::RenderPipelineInPlaceStage;
 use jxl_simd::{F32SimdVec, simd_function};
+
+use crate::render::{ErasedLocalState, RenderPipelineInPlaceStage};
 
 /// Premultiply color channels by alpha.
 /// This multiplies RGB values by the alpha channel value.
@@ -74,7 +75,8 @@ impl RenderPipelineInPlaceStage for PremultiplyAlphaStage {
         _position: (usize, usize),
         xsize: usize,
         row: &mut [&mut [f32]],
-        _state: Option<&mut dyn std::any::Any>,
+        _state: Option<&mut ErasedLocalState>,
+        _previous_call_was_previous_row: bool,
     ) {
         // The row slice contains only the channels we said we use.
         // The last channel is alpha (since alpha_channel > color channels).
@@ -99,7 +101,7 @@ mod test {
     use crate::error::Result;
     use crate::image::Image;
     use crate::render::test::make_and_run_simple_pipeline;
-    use crate::util::test::assert_all_almost_abs_eq;
+    use crate::tests::assert_close;
 
     #[test]
     fn consistency() -> Result<()> {
@@ -133,11 +135,11 @@ mod test {
         )?;
 
         // Expected: color * alpha
-        assert_all_almost_abs_eq(output[0].row(0), &[1.0, 0.5, 0.0, 0.0], 1e-6);
-        assert_all_almost_abs_eq(output[1].row(0), &[0.5, 0.25, 0.0, 0.5], 1e-6);
-        assert_all_almost_abs_eq(output[2].row(0), &[0.0, 0.125, 0.0, 0.25], 1e-6);
+        assert_close!(all, output[0].row(0), &[1.0, 0.5, 0.0, 0.0], 1e-6);
+        assert_close!(all, output[1].row(0), &[0.5, 0.25, 0.0, 0.5], 1e-6);
+        assert_close!(all, output[2].row(0), &[0.0, 0.125, 0.0, 0.25], 1e-6);
         // Alpha unchanged
-        assert_all_almost_abs_eq(output[3].row(0), &[1.0, 0.5, 0.0, 0.5], 1e-6);
+        assert_close!(all, output[3].row(0), &[1.0, 0.5, 0.0, 0.5], 1e-6);
 
         Ok(())
     }

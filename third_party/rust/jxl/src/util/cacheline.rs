@@ -24,6 +24,11 @@ pub fn round_up_size_to_cache_line<T>(size: usize) -> usize {
     size.div_ceil(n) * n
 }
 
+/// Returns the number of `CacheLine`s required to store `num_elements` of type `T`.
+pub const fn num_cache_lines_for<T>(num_elements: usize) -> usize {
+    num_elements.div_ceil(num_per_cache_line::<T>())
+}
+
 #[derive(Clone)]
 #[repr(C, align(64))]
 pub struct CacheLine([u8; CACHE_LINE_BYTE_SIZE]);
