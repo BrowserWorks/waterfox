@@ -11,15 +11,19 @@ pub trait ShiftRightCeil: Copy {
         Self: Shr<T, Output = Self> + Shl<T, Output = Self>;
 }
 
-impl<S: Copy + Add<Self, Output = Self> + Sub<Self, Output = Self> + From<u8>> ShiftRightCeil
-    for S
+impl<S: Copy + PartialEq + Add<Self, Output = Self> + Sub<Self, Output = Self> + From<u8>>
+    ShiftRightCeil for S
 {
     #[inline(always)]
     fn shrc<T: Copy>(self, rhs: T) -> Self
     where
         Self: Shr<T, Output = Self> + Shl<T, Output = Self>,
     {
-        (self + (Self::from(1u8) << rhs) - Self::from(1u8)) >> rhs
+        if self == Self::from(0u8) {
+            Self::from(0u8)
+        } else {
+            ((self - Self::from(1u8)) >> rhs) + Self::from(1u8)
+        }
     }
 }
 

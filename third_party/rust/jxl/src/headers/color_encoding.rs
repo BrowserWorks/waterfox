@@ -3,10 +3,15 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::{bit_reader::BitReader, error::Error, headers::encodings::*};
+use std::fmt;
+
 use jxl_macros::UnconditionalCoder;
 use num_derive::FromPrimitive;
-use std::fmt;
+
+use crate::api::{adapt_to_xyz_d50, primaries_to_xyz};
+use crate::bit_reader::BitReader;
+use crate::error::Error;
+use crate::headers::encodings::*;
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(UnconditionalCoder, Copy, Clone, PartialEq, Debug, FromPrimitive)]
@@ -39,6 +44,17 @@ pub enum WhitePoint {
     Custom = 2,
     E = 10,
     DCI = 11,
+}
+
+impl WhitePoint {
+    pub fn to_xy_coords(&self, custom: &CustomXY) -> (f32, f32) {
+        match self {
+            WhitePoint::D65 => (0.3127, 0.3290),
+            WhitePoint::E => (1.0 / 3.0, 1.0 / 3.0),
+            WhitePoint::DCI => (0.314, 0.351),
+            WhitePoint::Custom => custom.as_f32_coords(),
+        }
+    }
 }
 
 #[allow(clippy::upper_case_acronyms)]
@@ -196,9 +212,24 @@ impl ColorEncoding {
             || self.tf.transfer_function == TransferFunction::Unknown
             || self.color_space == ColorSpace::XYB
         {
-            Err(Error::InvalidColorEncoding)
-        } else {
-            Ok(())
+            return Err(Error::InvalidColorEncoding);
         }
+        let (wx, wy) = self.white_point.to_xy_coords(&self.white);
+        if self.white_point == WhitePoint::Custom {
+            adapt_to_xyz_d50(wx, wy)?;
+        }
+        if self.primaries == Primaries::Custom {
+            primaries_to_xyz(
+                self.custom_primaries[0].as_f32_coords().0,
+                self.custom_primaries[0].as_f32_coords().1,
+                self.custom_primaries[1].as_f32_coords().0,
+                self.custom_primaries[1].as_f32_coords().1,
+                self.custom_primaries[2].as_f32_coords().0,
+                self.custom_primaries[2].as_f32_coords().1,
+                wx,
+                wy,
+            )?;
+        }
+        Ok(())
     }
 }

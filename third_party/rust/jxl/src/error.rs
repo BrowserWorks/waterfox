@@ -7,12 +7,10 @@ use std::collections::TryReserveError;
 
 use thiserror::Error;
 
-use crate::{
-    api::{JxlColorType, JxlDataFormat},
-    entropy_coding::huffman::HUFFMAN_MAX_BITS,
-    features::spline::Point,
-    image::DataTypeTag,
-};
+use crate::api::{JxlColorType, JxlDataFormat};
+use crate::entropy_coding::huffman::HUFFMAN_MAX_BITS;
+use crate::features::spline::Point;
+use crate::image::DataTypeTag;
 
 #[derive(Error, Debug)]
 #[non_exhaustive]
@@ -63,6 +61,8 @@ pub enum Error {
     SizeOverflow,
     #[error("Invalid ISOBMMF container")]
     InvalidBox,
+    #[error("Unexpected end of codestream box")]
+    UnexpectedCodestreamBoxEnd,
     #[error("ICC is too large")]
     IccTooLarge,
     #[error("Invalid ICC stream: unexpected end of stream")]
@@ -116,8 +116,6 @@ pub enum Error {
     PassesLastPassTooLarge,
     #[error("Non-patch reference frame with a crop")]
     NonPatchReferenceWithCrop,
-    #[error("Non-444 chroma subsampling is not allowed when adaptive DC smoothing is enabled")]
-    Non444ChromaSubsampling,
     #[error("Non-444 chroma subsampling is not allowed for bigger than 8x8 transforms")]
     InvalidBlockSizeForChromaSubsampling,
     #[error("Out of memory: {0}")]
@@ -151,6 +149,8 @@ pub enum Error {
     InvalidProperty(u32),
     #[error("Invalid alpha channel for blending: {0}, limit is {1}")]
     InvalidBlendingAlphaChannel(usize, usize),
+    #[error("Blending cannot use reference frame {0} saved before color transforms")]
+    BlendingPreColorTransform(usize),
     #[error("Invalid alpha channel for blending: {0}, limit is {1}")]
     PatchesInvalidAlphaChannel(usize, usize),
     #[error("Invalid patch blend mode: {0}, limit is {1}")]
@@ -219,8 +219,12 @@ pub enum Error {
     MixingDifferentChannels,
     #[error("Invalid transform: squeezing meta-channels needs an in-place transform")]
     MetaSqueezeRequiresInPlace,
-    #[error("Invalid transform: too many squeezes (shift > 30)")]
+    #[error("Invalid transform: too many squeezes")]
     TooManySqueezes,
+    #[error("Palette meta-channel too large: {0} samples > limit {1}")]
+    PaletteTooLarge(usize, usize),
+    #[error("Too many modular channels: {0} > limit {1}")]
+    TooManyModularChannels(usize, usize),
     #[error("Invalid BlockConextMap: too big: num_lf_context: {0}, num_qf_thresholds: {1}")]
     BlockContextMapSizeTooBig(usize, usize),
     #[error("Invalid BlockConextMap: too many distinct contexts.")]
@@ -237,6 +241,8 @@ pub enum Error {
     HFBlockOutOfBounds,
     #[error("Invalid AC: nonzeros {0} is too large for {1} 8x8 blocks")]
     InvalidNumNonZeros(usize, usize),
+    #[error("Invalid AC: histogram index {0} is out of bounds (num_histograms = {1})")]
+    InvalidHistogramIndex(usize, usize),
     #[error("Invalid AC: {0} nonzeros after decoding block")]
     EndOfBlockResidualNonZeros(usize),
     #[error("Unknown transfer function for ICC profile")]
@@ -259,38 +265,26 @@ pub enum Error {
     IccUnsupportedTransferFunction,
     #[error("Table size too large when writing ICC: {0}")]
     IccTableSizeExceeded(usize),
-    #[error("Invalid CMS configuration: requested ICC but no CMS is configured")]
-    ICCOutputNoCMS,
-    #[error("Non-XYB image requires CMS to convert to different output color profile")]
-    NonXybOutputNoCMS,
     #[error("I/O error: {0}")]
     IOError(#[from] std::io::Error),
     #[error("Wrong buffer count: {0} buffers given, {1} buffers expected")]
     WrongBufferCount(usize, usize),
     #[error("Image is not grayscale, but grayscale output was requested")]
     NotGrayscale,
+    #[error("Image is not CMYK, but CMYK output was requested")]
+    NotCmyk,
+    #[error("The pixel format can only be changed before the first frame header is decoded")]
+    PixelFormatChangedAfterFirstFrame,
     #[error("Invalid output buffer byte size {0}x{1} for {2}x{3} image with type {4:?} {5:?}")]
     InvalidOutputBufferSize(usize, usize, usize, usize, JxlColorType, JxlDataFormat),
     #[error("Attempting to save channels with different downsample amounts: {0:?} and {1:?}")]
     SaveDifferentDownsample((u8, u8), (u8, u8)),
     #[error("Image has {0} extra channels, more than the maximum of 256")]
     TooManyExtraChannels(usize),
-    #[error(
-        "CMS transform increases channel count from {in_channels} to {out_channels}, which is not supported"
-    )]
-    CmsChannelCountIncrease {
-        in_channels: usize,
-        out_channels: usize,
-    },
-    #[error(
-        "Cannot output extra channel {channel_index} ({channel_type:?}): it was consumed by CMS color conversion"
-    )]
-    CmsConsumedChannelRequested {
-        channel_index: usize,
-        channel_type: String,
-    },
-    #[error("CMS error: {0}")]
-    CmsError(String),
+    #[error("No LF frame for level {0}")]
+    NoLfFrame(u32),
+    #[error("Brotli decompress error: {0}")]
+    Brotli(std::io::Error),
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

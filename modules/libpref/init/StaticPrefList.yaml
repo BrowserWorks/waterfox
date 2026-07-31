@@ -9018,6 +9018,20 @@
   value: @IS_NIGHTLY_BUILD@
   mirror: always
 
+# How many threads may work on a single JXL image decode, counting the thread doing the
+# decode, which takes a share of the work as well as waiting for the others. The pool is
+# asked for one fewer than this because of that. 0 means decide based on the machines
+# number of cpus clamped to between 2 and 8. 1 means the decoding thread by itself, so
+# parallel decoding is off. Any other value is taken literally. Takes effect on the next
+# decode, but the pool's thread limit is fixed by the first parallel decode of the
+# process, so lowering this later uses less of the pool while raising it past that limit
+# does not add threads.
+- name: image.jxl.decode_participants
+  type: RelaxedAtomicUint32
+  value: 1
+  mirror: always
+  rust: true
+
 #endif
 
 #---------------------------------------------------------------------------

@@ -3,15 +3,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::{
-    frame::{
-        modular::{ModularChannel, predict::clamped_gradient},
-        quantizer::NUM_QUANT_TABLES,
-    },
-    headers::frame_header::FrameHeader,
-    image::Image,
-};
-use num_traits::abs;
+use crate::frame::modular::predict::clamped_gradient;
+use crate::frame::modular::{ModularChannel, ModularStorage};
+use crate::frame::quantizer::NUM_QUANT_TABLES;
+use crate::headers::frame_header::FrameHeader;
+use crate::image::{Image, ImageRect};
 
 #[derive(Debug)]
 pub enum ModularStreamId {
@@ -46,6 +42,7 @@ pub(super) fn precompute_references(
     chan: usize,
     y: usize,
     references: &mut Image<i32>,
+    storage: ModularStorage,
 ) {
     if references.size().0 == 0 {
         return;
@@ -58,28 +55,55 @@ pub(super) fn precompute_references(
             break;
         }
         let j = chan - i - 1;
-        if buffers[j].data.size() != buffers[chan].data.size()
+        if buffers[j].size(storage) != buffers[chan].size(storage)
             || buffers[j].shift != buffers[chan].shift
         {
             continue;
         }
-        let ref_chan_row = buffers[j].data.row(y);
-        let ref_chan_prev = buffers[j].data.row(y.saturating_sub(1));
-        for x in 0..buffers[chan].data.size().0 {
-            let ref_row = references.row_mut(x);
-            let v = ref_chan_row[x];
-            ref_row[offset] = abs(v);
-            ref_row[offset + 1] = v;
-            let vleft = if x > 0 { ref_chan_row[x - 1] } else { 0 };
-            let vtop = if y > 0 { ref_chan_prev[x] } else { vleft };
-            let vtopleft = if x > 0 && y > 0 {
-                ref_chan_prev[x - 1]
-            } else {
-                vleft
-            };
-            let vpredicted = clamped_gradient(vleft as i64, vtop as i64, vtopleft as i64);
-            ref_row[offset + 2] = abs(v as i64 - vpredicted) as i32;
-            ref_row[offset + 3] = (v as i64 - vpredicted) as i32;
+        if storage == ModularStorage::I16 {
+            let ref_rect = ImageRect::<i16>::from_raw(buffers[j].data.as_rect());
+            let ref_chan_row = ref_rect.row(y);
+            let ref_chan_prev = ref_rect.row(y.saturating_sub(1));
+            for x in 0..buffers[chan].size(storage).0 {
+                let ref_row = references.row_mut(x);
+                let v = ref_chan_row[x] as i32;
+                ref_row[offset] = v.wrapping_abs();
+                ref_row[offset + 1] = v;
+                let vleft = if x > 0 { ref_chan_row[x - 1] as i32 } else { 0 };
+                let vtop = if y > 0 {
+                    ref_chan_prev[x] as i32
+                } else {
+                    vleft
+                };
+                let vtopleft = if x > 0 && y > 0 {
+                    ref_chan_prev[x - 1] as i32
+                } else {
+                    vleft
+                };
+                let vpredicted = clamped_gradient(vleft as i64, vtop as i64, vtopleft as i64);
+                ref_row[offset + 2] = (v as i64 - vpredicted).wrapping_abs() as i32;
+                ref_row[offset + 3] = (v as i64 - vpredicted) as i32;
+            }
+        } else {
+            let ref_rect = ImageRect::<i32>::from_raw(buffers[j].data.as_rect());
+            let ref_chan_row = ref_rect.row(y);
+            let ref_chan_prev = ref_rect.row(y.saturating_sub(1));
+            for x in 0..buffers[chan].size(storage).0 {
+                let ref_row = references.row_mut(x);
+                let v = ref_chan_row[x];
+                ref_row[offset] = v.wrapping_abs();
+                ref_row[offset + 1] = v;
+                let vleft = if x > 0 { ref_chan_row[x - 1] } else { 0 };
+                let vtop = if y > 0 { ref_chan_prev[x] } else { vleft };
+                let vtopleft = if x > 0 && y > 0 {
+                    ref_chan_prev[x - 1]
+                } else {
+                    vleft
+                };
+                let vpredicted = clamped_gradient(vleft as i64, vtop as i64, vtopleft as i64);
+                ref_row[offset + 2] = (v as i64 - vpredicted).wrapping_abs() as i32;
+                ref_row[offset + 3] = (v as i64 - vpredicted) as i32;
+            }
         }
         offset += 4;
     }

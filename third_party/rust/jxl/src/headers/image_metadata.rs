@@ -3,14 +3,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::{
-    bit_reader::BitReader,
-    error::Error,
-    headers::{bit_depth::*, color_encoding::*, encodings::*, extra_channels::*, size::*},
-    image::Rect,
-};
 use jxl_macros::UnconditionalCoder;
 use num_derive::FromPrimitive;
+
+use crate::bit_reader::BitReader;
+use crate::error::Error;
+use crate::headers::bit_depth::*;
+use crate::headers::color_encoding::*;
+use crate::headers::encodings::*;
+use crate::headers::extra_channels::*;
+use crate::headers::size::*;
+use crate::image::Rect;
 
 #[derive(Debug, Default, Clone)]
 pub struct Signature;
@@ -62,6 +65,20 @@ impl Orientation {
             (size.1, size.0)
         } else {
             size
+        }
+    }
+
+    /// Returns the per-pixel step in display coordinates when iterating along
+    /// the frame's x axis. Equivalent to
+    /// `display_pixel((1, y), size) - display_pixel((0, y), size)` but works
+    /// for any non-empty `size` (the latter form would underflow when
+    /// `size.0 == 1` and the orientation flips x).
+    pub fn display_row_step(&self) -> (isize, isize) {
+        match self {
+            Orientation::Identity | Orientation::FlipVertical => (1, 0),
+            Orientation::FlipHorizontal | Orientation::Rotate180 => (-1, 0),
+            Orientation::Transpose | Orientation::Rotate90Cw => (0, 1),
+            Orientation::AntiTranspose | Orientation::Rotate90Ccw => (0, -1),
         }
     }
 

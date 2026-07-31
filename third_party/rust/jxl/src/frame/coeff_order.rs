@@ -3,21 +3,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::{
-    BLOCK_DIM, BLOCK_SIZE,
-    bit_reader::BitReader,
-    entropy_coding::decode::SymbolReader,
-    error::Result,
-    frame::Histograms,
-    headers::permutation::Permutation,
-    util::{CeilLog2, tracing_wrappers::*},
-};
+use std::borrow::Cow;
+use std::mem;
 
 use jxl_transforms::transform_map::*;
 
-use std::borrow::Cow;
-use std::mem;
-use std::sync::OnceLock;
+use crate::bit_reader::BitReader;
+use crate::entropy_coding::decode::SymbolReader;
+use crate::error::Result;
+use crate::frame::Histograms;
+use crate::headers::permutation::Permutation;
+use crate::util::CeilLog2;
+use crate::util::sync::OnceLock;
+use crate::util::tracing_wrappers::*;
+use crate::{BLOCK_DIM, BLOCK_SIZE};
 
 pub const NUM_ORDERS: usize = 13;
 

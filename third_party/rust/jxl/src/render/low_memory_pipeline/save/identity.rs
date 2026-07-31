@@ -3,17 +3,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-#![allow(unsafe_code)]
-
-use std::mem::MaybeUninit;
 use std::ops::Range;
 
 use jxl_simd::{F32SimdVec, SimdDescriptor, U8SimdVec, U16SimdVec, simd_function};
 
-use crate::{
-    api::{Endianness, JxlDataFormat, JxlOutputBuffer},
-    render::low_memory_pipeline::row_buffers::RowBuffer,
-};
+use crate::api::{Endianness, JxlDataFormat, JxlOutputBuffer};
+use crate::image::ImageDataType;
+use crate::render::low_memory_pipeline::row_buffers::RowBuffer;
 
 macro_rules! define_run_interleaved {
     ($fn_name:ident, $ty:ty, $vec_trait:ident, $store_fn:ident, $cnt:expr, $($arg:ident),+) => {
@@ -21,7 +17,7 @@ macro_rules! define_run_interleaved {
         fn $fn_name<D: SimdDescriptor>(
             d: D,
             $($arg: &[$ty]),+,
-            out: &mut [MaybeUninit<$ty>],
+            out: &mut [$ty],
         ) -> usize {
             let len = D::$vec_trait::LEN;
             let mut n = 0;
@@ -70,7 +66,7 @@ define_run_interleaved!(
     run_interleaved_2_f32,
     f32,
     F32Vec,
-    store_interleaved_2_uninit,
+    store_interleaved_2,
     2,
     a,
     b
@@ -79,7 +75,7 @@ define_run_interleaved!(
     run_interleaved_3_f32,
     f32,
     F32Vec,
-    store_interleaved_3_uninit,
+    store_interleaved_3,
     3,
     a,
     b,
@@ -89,7 +85,7 @@ define_run_interleaved!(
     run_interleaved_4_f32,
     f32,
     F32Vec,
-    store_interleaved_4_uninit,
+    store_interleaved_4,
     4,
     a,
     b,
@@ -100,10 +96,10 @@ define_run_interleaved!(
 simd_function!(
     store_interleaved_f32,
     d: D,
-    fn store_interleaved_impl_f32(
-        inputs: &[&[f32]],
-        output: &mut [MaybeUninit<f32>]
-    ) -> usize {
+        fn store_interleaved_impl_f32(
+            inputs: &[&[f32]],
+            output: &mut [f32]
+        ) -> usize {
         match inputs.len() {
             2 => run_interleaved_2_f32(d, inputs[0], inputs[1], output),
             3 => run_interleaved_3_f32(d, inputs[0], inputs[1], inputs[2], output),
@@ -117,7 +113,7 @@ define_run_interleaved!(
     run_interleaved_2_u8,
     u8,
     U8Vec,
-    store_interleaved_2_uninit,
+    store_interleaved_2,
     2,
     a,
     b
@@ -126,7 +122,7 @@ define_run_interleaved!(
     run_interleaved_3_u8,
     u8,
     U8Vec,
-    store_interleaved_3_uninit,
+    store_interleaved_3,
     3,
     a,
     b,
@@ -136,7 +132,7 @@ define_run_interleaved!(
     run_interleaved_4_u8,
     u8,
     U8Vec,
-    store_interleaved_4_uninit,
+    store_interleaved_4,
     4,
     a,
     b,
@@ -147,10 +143,10 @@ define_run_interleaved!(
 simd_function!(
     store_interleaved_u8,
     d: D,
-    fn store_interleaved_impl_u8(
-        inputs: &[&[u8]],
-        output: &mut [MaybeUninit<u8>]
-    ) -> usize {
+        fn store_interleaved_impl_u8(
+            inputs: &[&[u8]],
+            output: &mut [u8]
+        ) -> usize {
         match inputs.len() {
             2 => run_interleaved_2_u8(d, inputs[0], inputs[1], output),
             3 => run_interleaved_3_u8(d, inputs[0], inputs[1], inputs[2], output),
@@ -164,7 +160,7 @@ define_run_interleaved!(
     run_interleaved_2_u16,
     u16,
     U16Vec,
-    store_interleaved_2_uninit,
+    store_interleaved_2,
     2,
     a,
     b
@@ -173,7 +169,7 @@ define_run_interleaved!(
     run_interleaved_3_u16,
     u16,
     U16Vec,
-    store_interleaved_3_uninit,
+    store_interleaved_3,
     3,
     a,
     b,
@@ -183,7 +179,7 @@ define_run_interleaved!(
     run_interleaved_4_u16,
     u16,
     U16Vec,
-    store_interleaved_4_uninit,
+    store_interleaved_4,
     4,
     a,
     b,
@@ -194,10 +190,10 @@ define_run_interleaved!(
 simd_function!(
     store_interleaved_u16,
     d: D,
-    fn store_interleaved_impl_u16(
-        inputs: &[&[u16]],
-        output: &mut [MaybeUninit<u16>]
-    ) -> usize {
+        fn store_interleaved_impl_u16(
+            inputs: &[&[u16]],
+            output: &mut [u16]
+        ) -> usize {
         match inputs.len() {
             2 => run_interleaved_2_u16(d, inputs[0], inputs[1], output),
             3 => run_interleaved_3_u16(d, inputs[0], inputs[1], inputs[2], output),
@@ -223,8 +219,7 @@ pub(super) fn store(
         | JxlDataFormat::U16 { endianness, .. }
         | JxlDataFormat::F32 { endianness, .. } => endianness == Endianness::native(),
     };
-    // SAFETY: we never write uninit memory to the `output_row`.
-    let output_buf = unsafe { output_buf.row_mut(output_y) };
+    let output_buf = output_buf.row_mut(output_y);
     let output_buf = &mut output_buf[0..(byte_end - byte_start) * input_buf.len()];
     match (
         input_buf.len(),
@@ -234,18 +229,7 @@ pub(super) fn store(
         (1, _, true) => {
             // We can just do a memcpy.
             let input_buf = &input_buf[0].get_row::<u8>(input_y)[byte_start..byte_end];
-            assert_eq!(input_buf.len(), output_buf.len());
-            // SAFETY: we are copying `u8`s, which have an alignment of 1, from a slice of [u8] to
-            // a slice of [MaybeUninit<u8>] of the same length (as we checked just above). u8 and
-            // MaybeUninit<u8> have the same layout, and aliasing rules guarantee that the two
-            // slices are non-overlapping.
-            unsafe {
-                std::ptr::copy_nonoverlapping(
-                    input_buf.as_ptr(),
-                    output_buf.as_mut_ptr() as *mut u8,
-                    output_buf.len(),
-                );
-            }
+            output_buf.copy_from_slice(input_buf);
             input_buf.len() / data_format.bytes_per_sample()
         }
         (channels, 1, true) if (2..=4).contains(&channels) => {
@@ -255,31 +239,18 @@ pub(super) fn store(
             for (i, buf) in input_buf.iter().enumerate() {
                 slices[i] = &buf.get_row::<u8>(input_y)[start_u8..end_u8];
             }
-            // Note that, by the conditions on the *_uninit methods on U8Vec, this function
-            // never writes uninitialized memory.
             store_interleaved_u8(&slices[..channels], output_buf)
         }
         (channels, 2, true) if (2..=4).contains(&channels) => {
             let ptr = output_buf.as_mut_ptr();
             if ptr.align_offset(std::mem::align_of::<u16>()) == 0 {
-                let len_u16 = output_buf.len() / 2;
-                // SAFETY: we checked alignment above, and the size is correct by definition
-                // (note that it is guaranteed that MaybeUninit<T> has the same size and align
-                // of T for any T).
-                let output_u16 = unsafe {
-                    std::slice::from_raw_parts_mut(
-                        output_buf.as_mut_ptr().cast::<MaybeUninit<u16>>(),
-                        len_u16,
-                    )
-                };
+                let output_u16 = u16::cast_slice_mut(output_buf);
                 let start_u16 = byte_start / 2;
                 let end_u16 = byte_end / 2;
                 let mut slices = [&[] as &[u16]; 4];
                 for (i, buf) in input_buf.iter().enumerate() {
                     slices[i] = &buf.get_row::<u16>(input_y)[start_u16..end_u16];
                 }
-                // Note that, by the conditions on the *_uninit methods on U16Vec, this function
-                // never writes uninitialized memory.
                 store_interleaved_u16(&slices[..channels], output_u16)
             } else {
                 0
@@ -288,17 +259,7 @@ pub(super) fn store(
         (channels, 4, true) if (2..=4).contains(&channels) => {
             let ptr = output_buf.as_mut_ptr();
             if ptr.align_offset(std::mem::align_of::<f32>()) == 0 {
-                let len_f32 = output_buf.len() / std::mem::size_of::<f32>();
-                // SAFETY: we checked alignment above, and the size is correct by definition
-                // (note that it is guaranteed that MaybeUninit<T> has the same size and align
-                // of T for any T).
-                let output_f32 = unsafe {
-                    std::slice::from_raw_parts_mut(
-                        output_buf.as_mut_ptr().cast::<MaybeUninit<f32>>(),
-                        len_f32,
-                    )
-                };
-
+                let output_f32 = f32::cast_slice_mut(output_buf);
                 let start_f32 = byte_start / 4;
                 let end_f32 = byte_end / 4;
 
@@ -306,9 +267,6 @@ pub(super) fn store(
                 for (i, buf) in input_buf.iter().enumerate() {
                     slices[i] = &buf.get_row::<f32>(input_y)[start_f32..end_f32];
                 }
-
-                // Note that, by the conditions on the *_uninit methods on F32Vec, this function
-                // never writes uninitialized memory.
                 store_interleaved_f32(&slices[..channels], output_f32)
             } else {
                 0
