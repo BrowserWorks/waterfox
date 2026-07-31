@@ -3,12 +3,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::{
-    BLOCK_DIM,
-    bit_reader::BitReader,
-    error::{Error, Result},
-};
 use std::default::Default;
+
+use crate::BLOCK_DIM;
+use crate::bit_reader::BitReader;
+use crate::error::{Error, Result};
 
 pub const COLOR_TILE_DIM: usize = 64;
 
@@ -58,7 +57,7 @@ impl ColorCorrelationParams {
             }
             let base_correlation_x = val_x.to_f32();
             let base_correlation_b = val_b.to_f32();
-            if base_correlation_x > 4.0 || base_correlation_b > 4.0 {
+            if base_correlation_x.abs() > 4.0 || base_correlation_b.abs() > 4.0 {
                 return Err(Error::BaseColorCorrelationOutOfRange);
             }
             let ytox_lf = br.read(8)? as i32 - 128;

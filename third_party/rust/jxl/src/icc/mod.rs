@@ -8,8 +8,7 @@ use std::io::Cursor;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
 use crate::bit_reader::*;
-use crate::entropy_coding::decode::Histograms;
-use crate::entropy_coding::decode::SymbolReader;
+use crate::entropy_coding::decode::{Histograms, SymbolReader};
 use crate::error::{Error, Result};
 use crate::headers::encodings::*;
 use crate::util::NewWithCapacity;
@@ -21,27 +20,37 @@ mod tag;
 
 use header::read_header;
 use stream::IccStream;
-pub(crate) use stream::read_varint_from_reader;
+pub use stream::read_varint_from_reader;
 use tag::{read_single_command, read_tag_list};
 
 const ICC_CONTEXTS: usize = 41;
 const ICC_HEADER_SIZE: u64 = 128;
+const PREAMBLE_SIZE: usize = 20;
+
+fn check_preamble(
+    output_size: u64,
+    commands_size: u64,
+    bytes_read: u64,
+    total_len: u64,
+) -> Result<()> {
+    if bytes_read.saturating_add(commands_size) > total_len {
+        return Err(Error::InvalidIccStream);
+    }
+    if output_size > (1 << 28) || output_size.saturating_add(65536) < total_len {
+        return Err(Error::IccTooLarge);
+    }
+    Ok(())
+}
 
 fn read_icc_inner(stream: &mut IccStream) -> Result<Vec<u8>, Error> {
     let output_size = stream.read_varint()?;
     let commands_size = stream.read_varint()?;
-    if stream.bytes_read().saturating_add(commands_size) > stream.len() {
-        return Err(Error::InvalidIccStream);
-    }
-
-    // Simple check to avoid allocating too large buffer.
-    if output_size > (1 << 28) {
-        return Err(Error::IccTooLarge);
-    }
-
-    if output_size + 65536 < stream.len() {
-        return Err(Error::IccTooLarge);
-    }
+    check_preamble(
+        output_size,
+        commands_size,
+        stream.bytes_read(),
+        stream.len(),
+    )?;
 
     // Extract command stream first.
     let commands = stream.read_to_vec_exact(commands_size as usize)?;
@@ -118,19 +127,22 @@ pub struct IncrementalIccReader {
 impl IncrementalIccReader {
     pub fn new(br: &mut BitReader) -> Result<Self> {
         let len = u64::read_unconditional(&(), br, &Empty {})?;
-        if len > 1u64 << 20 {
+        if len > 1u64 << 24 {
             return Err(Error::IccTooLarge);
         }
 
         let len = len as usize;
 
-        let histograms = Histograms::decode(ICC_CONTEXTS, br, true)?;
-        let reader = SymbolReader::new(&histograms, br, None)?;
+        let mut lz77_scratch = Vec::new();
+        let histograms = Histograms::decode(ICC_CONTEXTS, br, true, &mut lz77_scratch)?;
+        let reader = SymbolReader::new(&histograms, br, None, &mut lz77_scratch)?;
+        let initial_alloc = len.min(64 * 1024);
+        let out_buf = Vec::new_with_capacity(initial_alloc)?;
         Ok(Self {
             histograms,
             reader,
             len,
-            out_buf: Vec::new_with_capacity(len)?,
+            out_buf,
             prev_bytes: [0, 0],
         })
     }
@@ -171,6 +183,16 @@ impl IncrementalIccReader {
         self.num_coded_bytes() - self.out_buf.len()
     }
 
+    fn check_preamble(&self) -> Result<()> {
+        let mut cursor = &self.out_buf[..];
+        let output_size =
+            read_varint_from_reader(&mut cursor).map_err(|_| Error::InvalidIccStream)?;
+        let commands_size =
+            read_varint_from_reader(&mut cursor).map_err(|_| Error::InvalidIccStream)?;
+        let bytes_read = (self.out_buf.len() - cursor.len()) as u64;
+        check_preamble(output_size, commands_size, bytes_read, self.len as u64)
+    }
+
     pub fn read_one(&mut self, br: &mut BitReader) -> Result<()> {
         let ctx = self.get_icc_ctx() as usize;
         let checkpoint = self.reader.checkpoint::<1>();
@@ -180,20 +202,21 @@ impl IncrementalIccReader {
             self.reader.restore(checkpoint);
             return Err(err);
         }
+        self.reader.check_for_error()?;
         if sym >= 256 {
             warn!(sym, "Invalid symbol in ICC stream");
             return Err(Error::InvalidIccStream);
         }
 
         let b = sym as u8;
+        if let Err(err) = self.out_buf.try_reserve(1) {
+            self.reader.restore(checkpoint);
+            return Err(err.into());
+        }
         self.out_buf.push(b);
         self.prev_bytes = [b, self.prev_bytes[0]];
-        Ok(())
-    }
-
-    pub fn read_all(&mut self, br: &mut BitReader) -> Result<()> {
-        for _ in self.out_buf.len()..self.num_coded_bytes() {
-            self.read_one(br)?;
+        if self.len > PREAMBLE_SIZE && self.out_buf.len() == PREAMBLE_SIZE {
+            self.check_preamble()?;
         }
         Ok(())
     }

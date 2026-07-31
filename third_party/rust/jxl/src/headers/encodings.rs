@@ -3,12 +3,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use super::{frame_header::PermutationNonserialized, permutation::Permutation};
-use crate::{
-    bit_reader::BitReader,
-    entropy_coding::decode::{Histograms, SymbolReader, unpack_signed},
-    error::Error,
-};
+use super::frame_header::PermutationNonserialized;
+use super::permutation::Permutation;
+use crate::bit_reader::BitReader;
+use crate::entropy_coding::decode::{Histograms, SymbolReader, unpack_signed};
+use crate::error::Error;
 
 pub enum U32 {
     Bits(usize),
@@ -186,8 +185,14 @@ impl UnconditionalCoder<()> for Permutation {
         let ret = if nonserialized.permuted {
             let size = nonserialized.num_entries;
             let num_contexts = 8;
-            let histograms = Histograms::decode(num_contexts, br, /*allow_lz77=*/ true)?;
-            let mut reader = SymbolReader::new(&histograms, br, None)?;
+            let mut lz77_scratch = Vec::new();
+            let histograms = Histograms::decode(
+                num_contexts,
+                br,
+                /*allow_lz77=*/ true,
+                &mut lz77_scratch,
+            )?;
+            let mut reader = SymbolReader::new(&histograms, br, None, &mut lz77_scratch)?;
             Permutation::decode(size, 0, &histograms, br, &mut reader)
         } else {
             Ok(Permutation::default())
@@ -206,6 +211,17 @@ impl<T: UnconditionalCoder<Config>, Config, const N: usize> UnconditionalCoder<C
     ) -> Result<[T; N], Error> {
         use array_init::try_array_init;
         try_array_init(|_| T::read_unconditional(config, br, nonserialized))
+    }
+}
+
+impl<Config, T: UnconditionalCoder<Config>> UnconditionalCoder<Config> for Box<T> {
+    type Nonserialized = T::Nonserialized;
+    fn read_unconditional(
+        config: &Config,
+        br: &mut BitReader,
+        nonserialized: &Self::Nonserialized,
+    ) -> Result<Box<T>, Error> {
+        Ok(Box::new(T::read_unconditional(config, br, nonserialized)?))
     }
 }
 

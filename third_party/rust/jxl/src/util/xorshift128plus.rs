@@ -6,6 +6,8 @@
 // Adapted from https://github.com/vpxyz/xorshift/blob/master/xorshift128plus/
 // (MIT-license)
 
+use jxl_simd::{I32SimdVec, SimdDescriptor, U32SimdVec, U64SimdVec, shl, shr};
+
 pub struct Xorshift128Plus {
     s0: [u64; Self::N],
     s1: [u64; Self::N],
@@ -14,11 +16,12 @@ pub struct Xorshift128Plus {
 impl Xorshift128Plus {
     pub const N: usize = 8;
 
+    #[cfg(test)]
     pub fn new_with_seed(seed: u64) -> Self {
         let mut s0 = [0; Self::N];
         let mut s1 = [0; Self::N];
 
-        s0[0] = Self::split_mix_64(seed + 0x9E3779B97F4A7C15);
+        s0[0] = Self::split_mix_64(seed.wrapping_add(0x9E3779B97F4A7C15));
         s1[0] = Self::split_mix_64(s0[0]);
 
         for i in 1..Self::N {
@@ -47,6 +50,7 @@ impl Xorshift128Plus {
         Self { s0, s1 }
     }
 
+    #[cfg(test)]
     pub fn fill(&mut self, random_bits: &mut [u64; Self::N]) {
         for ((s0, s1), random_bits) in self
             .s0
@@ -64,6 +68,50 @@ impl Xorshift128Plus {
         }
     }
 
+    #[inline(always)]
+    pub fn fill_u16_simd<D: SimdDescriptor>(&mut self, d: D, dest: &mut [u16]) {
+        if D::U64Vec::LEN == 1 {
+            for ((s0, s1), dest_chunk) in self
+                .s0
+                .iter_mut()
+                .zip(self.s1.iter_mut())
+                .zip(dest[..16].chunks_exact_mut(2))
+            {
+                let mut new_s1 = *s0;
+                *s0 = *s1;
+                let bits = new_s1.wrapping_add(*s0);
+                new_s1 ^= new_s1 << 23;
+                dest_chunk[0] = (bits >> 16) as u16;
+                dest_chunk[1] = (bits >> 48) as u16;
+                new_s1 ^= *s0 ^ (new_s1 >> 18) ^ (*s0 >> 5);
+                *s1 = new_s1;
+            }
+        } else {
+            let mut out_idx = 0;
+            for (s0_mem, s1_mem) in self
+                .s0
+                .chunks_exact_mut(D::U64Vec::LEN)
+                .zip(self.s1.chunks_exact_mut(D::U64Vec::LEN))
+            {
+                let mut s0 = D::U64Vec::load(d, s0_mem);
+                let mut s1 = D::U64Vec::load(d, s1_mem);
+                let mut new_s1 = s0;
+                s0 = s1;
+                let bits = new_s1 + s0;
+                new_s1 ^= shl!(new_s1, 23);
+                let u32_bits = bits.bitcast_to_u32();
+                shr!(u32_bits, 16)
+                    .bitcast_to_i32()
+                    .store_u16(&mut dest[out_idx..]);
+                out_idx += D::U32Vec::LEN;
+                new_s1 ^= s0 ^ shr!(new_s1, 18) ^ shr!(s0, 5);
+                s1 = new_s1;
+                s0.store(s0_mem);
+                s1.store(s1_mem);
+            }
+        }
+    }
+
     fn split_mix_64(mut z: u64) -> u64 {
         z = (z ^ (z >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
         z = (z ^ (z >> 27)).wrapping_mul(0x94D049BB133111EB);
@@ -73,7 +121,49 @@ impl Xorshift128Plus {
 
 #[cfg(test)]
 mod test {
-    use crate::util::xorshift128plus::Xorshift128Plus;
+    use jxl_simd::{SimdDescriptor, test_all_instruction_sets};
+
+    use super::Xorshift128Plus;
+
+    fn test_xorshift128plus_simd_scalar_equivalence<D: SimdDescriptor>(d: D) {
+        arbtest::arbtest(|u| {
+            let s1 = u.arbitrary::<u32>()?;
+            let s2 = u.arbitrary::<u32>()?;
+            let s3 = u.arbitrary::<u32>()?;
+            let s4 = u.arbitrary::<u32>()?;
+
+            let mut rng_scalar = Xorshift128Plus::new_with_seeds(s1, s2, s3, s4);
+            let mut rng_simd = Xorshift128Plus::new_with_seeds(s1, s2, s3, s4);
+
+            let num_batches = u.arbitrary::<u8>()? % 32 + 1;
+            let mut scalar_u16 = [0u16; 16];
+            let mut simd_u16 = [0u16; 16];
+
+            for _ in 0..num_batches {
+                let mut scalar_u64 = [0u64; Xorshift128Plus::N];
+                rng_scalar.fill(&mut scalar_u64);
+                for (i, el) in scalar_u16.iter_mut().enumerate() {
+                    let k = i / 2;
+                    let high = i % 2 != 0;
+                    let bits = if high {
+                        ((scalar_u64[k] & 0xFFFFFFFF00000000) >> 32) as u32
+                    } else {
+                        (scalar_u64[k] & 0xFFFFFFFF) as u32
+                    };
+                    *el = (bits >> 16) as u16;
+                }
+
+                rng_simd.fill_u16_simd(d, &mut simd_u16);
+
+                assert_eq!(simd_u16, scalar_u16);
+                assert_eq!(rng_simd.s0, rng_scalar.s0);
+                assert_eq!(rng_simd.s1, rng_scalar.s1);
+            }
+
+            Ok(())
+        });
+    }
+    test_all_instruction_sets!(test_xorshift128plus_simd_scalar_equivalence);
 
     #[test]
     fn xorshift128plus_golden() {

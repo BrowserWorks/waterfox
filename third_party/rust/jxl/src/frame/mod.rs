@@ -3,32 +3,31 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use std::{collections::BTreeSet, sync::Arc};
+use std::collections::{BTreeSet, HashSet};
 
-use crate::{
-    api::JxlDecoderOptions,
-    entropy_coding::decode::Histograms,
-    error::Result,
-    features::{noise::Noise, patches::PatchesDictionary, spline::Splines},
-    headers::{
-        FileHeader,
-        extra_channels::ExtraChannelInfo,
-        frame_header::{Encoding, FrameHeader, FrameType},
-        permutation::Permutation,
-        toc::Toc,
-    },
-    image::Image,
-    util::tracing_wrappers::*,
-};
 use adaptive_lf_smoothing::adaptive_lf_smoothing;
 use block_context_map::BlockContextMap;
 use color_correlation_map::ColorCorrelationParams;
-use modular::{FullModularImage, Tree};
+use modular::{FullModularImage, ModularStorage, Tree};
 use quant_weights::DequantMatrices;
 use quantizer::{LfQuantFactors, QuantizerParams};
 
+use crate::api::{AlphaMode, JxlDecoderOptions, JxlParallelRunner};
+use crate::entropy_coding::decode::Histograms;
+use crate::error::Result;
 use crate::features::epf::SigmaSource;
-use crate::util::AtomicRefCell;
+use crate::features::noise::Noise;
+use crate::features::patches::PatchesDictionary;
+use crate::features::spline::Splines;
+use crate::headers::FileHeader;
+use crate::headers::extra_channels::ExtraChannelInfo;
+use crate::headers::frame_header::{Encoding, FrameHeader, FrameType};
+use crate::headers::permutation::Permutation;
+use crate::headers::toc::Toc;
+use crate::image::{BufferRecycler, Image, Rect};
+use crate::render::buffer_splitter::{OutputChannelRef, OutputChannelSplitter};
+use crate::util::sync::{Arc, Mutex, RwLock};
+use crate::util::tracing_wrappers::*;
 
 mod adaptive_lf_smoothing;
 mod block_context_map;
@@ -41,6 +40,8 @@ pub mod modular;
 mod quant_weights;
 pub mod quantizer;
 pub mod render;
+
+pub(crate) use group::VarDctBuffers;
 
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Section {
@@ -66,11 +67,14 @@ pub struct PassState {
     histograms: Histograms,
 }
 
+use crate::util::CacheLine;
+
 pub struct HfGlobalState {
     num_histograms: u32,
     passes: Vec<PassState>,
     dequant_matrices: DequantMatrices,
-    hf_coefficients: Option<(Image<i32>, Image<i32>, Image<i32>)>,
+    hf_coefficients: Vec<Mutex<Vec<CacheLine>>>,
+    use_i16: bool,
 }
 
 #[derive(Debug)]
@@ -121,10 +125,13 @@ pub struct DecoderState {
     pub render_spotcolors: bool,
     #[cfg(test)]
     pub use_simple_pipeline: bool,
-    pub visible_frame_index: usize,
-    pub nonvisible_frame_index: usize,
+    #[cfg(test)]
+    pub allow_16bit_modular_buffers: bool,
     pub high_precision: bool,
-    pub premultiply_output: bool,
+    pub alpha_mode: AlphaMode,
+    pub adjust_orientation: bool,
+    pub level5_limits: bool,
+    pub sample_limit: Option<usize>,
     // Whether the latest level 1 LF frame was fully rendered.
     // If this is set to `true`, early flushing in the main frame
     // (before HF is available) will do nothing.
@@ -135,87 +142,203 @@ impl DecoderState {
     pub const MAX_STORED_FRAMES: usize = 4;
     pub const NUM_LF_FRAMES: usize = 4;
 
-    pub fn new(file_header: FileHeader, options: &JxlDecoderOptions) -> Self {
+    pub fn keep_slots(&mut self, keep_slots: [bool; 8]) {
+        if keep_slots == [true; 8] {
+            return;
+        }
+        let reference_frames = Arc::get_mut(&mut self.reference_frames)
+            .expect("remaining references to reference_frames");
+        for (i, frame) in reference_frames.iter_mut().enumerate() {
+            if !keep_slots[i] {
+                *frame = None;
+            }
+        }
+        for (i, frame) in self.lf_frames.iter_mut().enumerate() {
+            if !keep_slots[Self::MAX_STORED_FRAMES + i] {
+                *frame = None;
+            }
+        }
+    }
+
+    pub fn new(file_header: FileHeader, options: &JxlDecoderOptions, level5_limits: bool) -> Self {
         Self {
             file_header,
             reference_frames: Arc::new([None, None, None, None]),
             lf_frames: std::array::from_fn(|_| None),
             render_spotcolors: options.render_spot_colors,
             #[cfg(test)]
-            use_simple_pipeline: false,
-            visible_frame_index: 0,
-            nonvisible_frame_index: 0,
+            use_simple_pipeline: options.test_options.use_simple_pipeline,
+            #[cfg(test)]
+            allow_16bit_modular_buffers: !options.test_options.disable_16bit_modular_buffers,
             high_precision: options.high_precision,
-            premultiply_output: options.premultiply_output,
+            alpha_mode: options.alpha_mode,
+            adjust_orientation: options.adjust_orientation,
+            level5_limits,
+            sample_limit: options.sample_limit,
             lf_frame_was_rendered: false,
+        }
+    }
+
+    pub fn modular_storage(&self) -> ModularStorage {
+        #[cfg(test)]
+        if !self.allow_16bit_modular_buffers {
+            return ModularStorage::I32;
+        }
+        if self.file_header.image_metadata.modular_16bit_sufficient {
+            ModularStorage::I16
+        } else {
+            ModularStorage::I32
         }
     }
 
     pub fn extra_channel_info(&self) -> &Vec<ExtraChannelInfo> {
         &self.file_header.image_metadata.extra_channel_info
     }
-
-    pub fn reference_frame(&self, i: usize) -> Option<&ReferenceFrame> {
-        assert!(i < Self::MAX_STORED_FRAMES);
-        self.reference_frames[i].as_ref()
-    }
-
-    #[cfg(test)]
-    pub fn set_use_simple_pipeline(&mut self, u: bool) {
-        self.use_simple_pipeline = u;
-    }
 }
 
 pub struct HfMetadata {
-    ytox_map: Image<i8>,
-    ytob_map: Image<i8>,
+    pub ytox_map: Image<i8>,
+    pub ytob_map: Image<i8>,
     pub raw_quant_map: Image<i32>,
     pub transform_map: Image<u8>,
     pub epf_map: Image<u8>,
-    used_hf_types: u32,
+    pub quant_lf: Image<u8>,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum RenderUnit {
-    /// VarDCT data
-    VarDCT,
-    /// Modular channel with the given index
-    Modular(usize),
+pub struct LfImageSplitter<'a> {
+    pub channels: [OutputChannelSplitter<'a>; 3],
+}
+
+impl<'a> LfImageSplitter<'a> {
+    pub fn new(lf_image: &'a mut [Image<f32>; 3]) -> Self {
+        let [img0, img1, img2] = lf_image;
+        Self {
+            channels: [
+                OutputChannelSplitter::from_image(img0),
+                OutputChannelSplitter::from_image(img1),
+                OutputChannelSplitter::from_image(img2),
+            ],
+        }
+    }
+
+    pub fn borrow_rect(&self, channel: usize, rect: Rect) -> OutputChannelRef<'a, '_> {
+        self.channels[channel].borrow_typed_rect::<f32>(rect)
+    }
+}
+
+pub struct HfMetaSplitter<'a> {
+    pub ytox_map: OutputChannelSplitter<'a>,
+    pub ytob_map: OutputChannelSplitter<'a>,
+    pub raw_quant_map: OutputChannelSplitter<'a>,
+    pub transform_map: OutputChannelSplitter<'a>,
+    pub epf_map: OutputChannelSplitter<'a>,
+    pub quant_lf: OutputChannelSplitter<'a>,
+}
+
+impl<'a> HfMetaSplitter<'a> {
+    pub fn new(hf_meta: &'a mut HfMetadata) -> Self {
+        Self {
+            ytox_map: OutputChannelSplitter::from_image(&mut hf_meta.ytox_map),
+            ytob_map: OutputChannelSplitter::from_image(&mut hf_meta.ytob_map),
+            raw_quant_map: OutputChannelSplitter::from_image(&mut hf_meta.raw_quant_map),
+            transform_map: OutputChannelSplitter::from_image(&mut hf_meta.transform_map),
+            epf_map: OutputChannelSplitter::from_image(&mut hf_meta.epf_map),
+            quant_lf: OutputChannelSplitter::from_image(&mut hf_meta.quant_lf),
+        }
+    }
+}
+
+pub struct HfMetaViews<'a, 'b> {
+    pub ytox_map: OutputChannelRef<'a, 'b>,
+    pub ytob_map: OutputChannelRef<'a, 'b>,
+    pub raw_quant_map: OutputChannelRef<'a, 'b>,
+    pub transform_map: OutputChannelRef<'a, 'b>,
+    pub epf_map: OutputChannelRef<'a, 'b>,
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum DataStatus {
+    Zero,
+    Partial,
+    Final,
+}
+
+// TODO(veluca): consider merging the modular rendering infra
+// with VarDCT rendering infra. That would likely remove the
+// need for this custom tracking.
+#[derive(Debug)]
+struct GroupStatus {
+    // Groups that should be rendered on the next call to flush().
+    need_vardct_flush: BTreeSet<usize>,
+    need_modular_flush: BTreeSet<usize>,
+    channel_status: Vec<Vec<DataStatus>>,
+    final_vardct_render_done: HashSet<usize>,
+    incomplete_groups: usize,
+}
+
+impl GroupStatus {
+    fn new(frame_header: &FrameHeader) -> Self {
+        let count = frame_header.num_groups();
+        let ecs = frame_header.num_extra_channels as usize;
+        // We don't track noise channels because we pretend they always
+        // have the same status as VarDCT channels.
+        GroupStatus {
+            need_vardct_flush: BTreeSet::new(),
+            need_modular_flush: BTreeSet::new(),
+            channel_status: vec![vec![DataStatus::Zero; 3 + ecs]; count],
+            final_vardct_render_done: HashSet::new(),
+            incomplete_groups: count,
+        }
+    }
+
+    fn update_status(&mut self, group: usize, channel: usize, status: DataStatus) {
+        let ss = &mut self.channel_status[group];
+        let all_complete = ss.iter().all(|x| *x == DataStatus::Final);
+        ss[channel] = status;
+        if !all_complete && ss.iter().all(|x| *x == DataStatus::Final) {
+            self.incomplete_groups = self.incomplete_groups.checked_sub(1).unwrap();
+        }
+    }
+
+    fn colour_complete(&self, group: usize) -> bool {
+        self.channel_status[group][..3]
+            .iter()
+            .all(|x| *x == DataStatus::Final)
+    }
 }
 
 pub struct Frame {
-    header: FrameHeader,
+    pub(super) header: FrameHeader,
     toc: Toc,
     color_channels: usize,
-    lf_global: Option<LfGlobalState>,
-    hf_global: Option<HfGlobalState>,
-    lf_image: Option<[Image<f32>; 3]>,
-    quant_lf: Image<u8>,
-    hf_meta: Option<HfMetadata>,
-    decoder_state: DecoderState,
+    pub(super) lf_global: Option<LfGlobalState>,
+    pub(super) hf_global: Option<HfGlobalState>,
+    pub(super) lf_image: Option<[Image<f32>; 3]>,
+    pub(super) hf_meta: Option<HfMetadata>,
+    pub(super) decoder_state: DecoderState,
     #[cfg(test)]
     use_simple_pipeline: bool,
     #[cfg(test)]
-    render_pipeline: Option<Box<dyn std::any::Any>>,
+    render_pipeline: Option<Box<dyn std::any::Any + Send + Sync>>,
     #[cfg(not(test))]
     render_pipeline: Option<Box<crate::render::LowMemoryRenderPipeline>>,
     reference_frame_data: Option<Vec<Image<f32>>>,
     lf_frame_data: Option<[Image<f32>; 3]>,
-    was_flushed_once: bool,
-    /// Reusable buffers for VarDCT group decoding.
-    vardct_buffers: Option<group::VarDctBuffers>,
-    // Last pass rendered so far for each HF group.
-    last_rendered_pass: Vec<Option<usize>>,
-    // Groups that should be rendered on the next call to flush().
-    groups_to_flush: BTreeSet<usize>,
-    changed_since_last_flush: BTreeSet<(usize, RenderUnit)>,
-    incomplete_groups: usize,
-    patches: Arc<AtomicRefCell<PatchesDictionary>>,
-    splines: Arc<AtomicRefCell<Splines>>,
-    noise: Arc<AtomicRefCell<Noise>>,
-    lf_quant: Arc<AtomicRefCell<LfQuantFactors>>,
-    color_correlation_params: Arc<AtomicRefCell<ColorCorrelationParams>>,
-    epf_sigma: Arc<AtomicRefCell<SigmaSource>>,
+    section0_render_up_to_date: bool,
+    group_status: GroupStatus,
+    patches: Arc<RwLock<PatchesDictionary>>,
+    splines: Arc<RwLock<Splines>>,
+    noise: Arc<RwLock<Noise>>,
+    lf_quant: Arc<RwLock<LfQuantFactors>>,
+    color_correlation_params: Arc<RwLock<ColorCorrelationParams>>,
+    epf_sigma: Arc<RwLock<SigmaSource>>,
+    // LF groups that received data and thus should trigger a modular
+    // re-render of the corresponding groups.
+    dirty_lf_groups: BTreeSet<usize>,
+    buffer_recycler: Arc<BufferRecycler>,
+    // LF groups that received data or have modified neighbors and need to be previewed.
+    lf_preview_dirty_groups: BTreeSet<usize>,
+    frame_counters: (usize, usize),
 }
 
 impl Frame {
@@ -225,10 +348,6 @@ impl Frame {
 
     pub fn header(&self) -> &FrameHeader {
         &self.header
-    }
-
-    pub fn total_bytes_in_toc(&self) -> usize {
-        self.toc.entries.iter().map(|x| *x as usize).sum()
     }
 
     #[instrument(level = "debug", skip(self), ret)]
@@ -266,25 +385,27 @@ impl Frame {
             .unwrap_or_default()
     }
 
-    pub fn finalize_lf(&mut self) -> Result<()> {
+    pub fn finalize_lf(&mut self, parallel_runner: &mut dyn JxlParallelRunner) -> Result<()> {
         if self.header.should_do_adaptive_lf_smoothing() {
             let lf_global = self.lf_global.as_mut().unwrap();
             let lf_quant = &lf_global.lf_quant;
             let inv_quant_lf = lf_global.quant_params.as_mut().unwrap().inv_quant_lf();
+            let lf_factors = [
+                inv_quant_lf * lf_quant.quant_factors[0],
+                inv_quant_lf * lf_quant.quant_factors[1],
+                inv_quant_lf * lf_quant.quant_factors[2],
+            ];
             adaptive_lf_smoothing(
-                [
-                    inv_quant_lf * lf_quant.quant_factors[0],
-                    inv_quant_lf * lf_quant.quant_factors[1],
-                    inv_quant_lf * lf_quant.quant_factors[2],
-                ],
+                lf_factors,
+                &self.header,
                 self.lf_image.as_mut().unwrap(),
-            )
-        } else {
-            Ok(())
+                parallel_runner,
+            )?;
         }
+        Ok(())
     }
 
-    pub fn finalize(mut self) -> Result<Option<DecoderState>> {
+    pub fn finalize(mut self: Box<Self>) -> Result<DecoderState> {
         // First, drop the render pipeline to ensure that no other references to the reference
         // frames are around.
         self.render_pipeline = None;
@@ -306,12 +427,7 @@ impl Frame {
         if self.header.lf_level != 0 {
             self.decoder_state.lf_frames[(self.header.lf_level - 1) as usize] = self.lf_frame_data;
         }
-        let decoder_state = if self.header.is_last {
-            None
-        } else {
-            Some(self.decoder_state)
-        };
-        Ok(decoder_state)
+        Ok(self.decoder_state)
     }
 
     fn modular_color_channels(&self) -> usize {
@@ -320,189 +436,5 @@ impl Frame {
         } else {
             self.color_channels
         }
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use std::panic;
-
-    use crate::{
-        error::{Error, Result},
-        features::spline::Point,
-        util::test::assert_almost_abs_eq,
-    };
-    use test_log::test;
-
-    use super::Frame;
-
-    fn decode(
-        bytes: &[u8],
-        verify: impl Fn(&Frame, usize) -> Result<()> + 'static,
-    ) -> Result<usize> {
-        crate::api::tests::decode(bytes, usize::MAX, false, false, Some(Box::new(verify)))
-            .map(|x| x.0)
-    }
-
-    #[test]
-    fn splines() -> Result<(), Error> {
-        let verify_frame = move |frame: &Frame, _| {
-            let splines = frame.splines.borrow();
-            assert_eq!(splines.quantization_adjustment, 0);
-            let expected_starting_points = [Point { x: 9.0, y: 54.0 }].to_vec();
-            assert_eq!(splines.starting_points, expected_starting_points);
-            assert_eq!(splines.splines.len(), 1);
-            let spline = splines.splines[0].clone();
-            let expected_control_points = [
-                (109, 105),
-                (-130, -261),
-                (-66, 193),
-                (227, -52),
-                (-170, 290),
-            ]
-            .to_vec();
-            assert_eq!(spline.control_points.clone(), expected_control_points);
-
-            const EXPECTED_COLOR_DCT: [[i32; 32]; 3] = [
-                {
-                    let mut row = [0; 32];
-                    row[0] = 168;
-                    row[1] = 119;
-                    row
-                },
-                {
-                    let mut row = [0; 32];
-                    row[0] = 9;
-                    row[2] = 7;
-                    row
-                },
-                {
-                    let mut row = [0; 32];
-                    row[0] = -10;
-                    row[1] = 7;
-                    row
-                },
-            ];
-            assert_eq!(spline.color_dct, EXPECTED_COLOR_DCT);
-            const EXPECTED_SIGMA_DCT: [i32; 32] = {
-                let mut dct = [0; 32];
-                dct[0] = 4;
-                dct[7] = 2;
-                dct
-            };
-            assert_eq!(spline.sigma_dct, EXPECTED_SIGMA_DCT);
-            Ok(())
-        };
-        assert_eq!(
-            decode(
-                include_bytes!("../../resources/test/splines.jxl"),
-                verify_frame
-            )?,
-            1
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn noise() -> Result<(), Error> {
-        let verify_frame = |frame: &Frame, _| {
-            let noise = frame.noise.borrow();
-            let want_noise = [
-                0.000000, 0.000977, 0.002930, 0.003906, 0.005859, 0.006836, 0.008789, 0.010742,
-            ];
-            for (index, noise_param) in want_noise.iter().enumerate() {
-                assert_almost_abs_eq(noise.lut[index], *noise_param, 1e-6);
-            }
-            Ok(())
-        };
-        assert_eq!(
-            decode(
-                include_bytes!("../../resources/test/8x8_noise.jxl"),
-                verify_frame,
-            )?,
-            1
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn patches() -> Result<(), Error> {
-        let verify_frame = |frame: &Frame, frame_index| {
-            if frame_index == 0 {
-                assert!(!frame.header().has_patches());
-                assert!(frame.header().can_be_referenced);
-            } else if frame_index == 1 {
-                assert!(frame.header().has_patches());
-                assert!(!frame.header().can_be_referenced);
-            }
-            Ok(())
-        };
-        assert_eq!(
-            decode(
-                include_bytes!("../../resources/test/grayscale_patches_modular.jxl"),
-                verify_frame,
-            )?,
-            2
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn multiple_lf_420() -> Result<(), Error> {
-        let verify_frame = |frame: &Frame, _| {
-            assert!(frame.header().is420());
-            let Some(lf_image) = &frame.lf_image else {
-                panic!("no lf_image");
-            };
-            for y in 0..146 {
-                let sample_cb_row = lf_image[0].row(y);
-                let sample_cr_row = lf_image[2].row(y);
-                for x in 0..146 {
-                    let sample_cb = sample_cb_row[x];
-                    let sample_cr = sample_cr_row[x];
-                    let no_chroma = sample_cb == 0.0 && sample_cr == 0.0;
-                    if y < 128 || x < 128 {
-                        assert!(!no_chroma);
-                    } else {
-                        assert!(no_chroma);
-                    }
-                }
-            }
-            Ok(())
-        };
-        decode(
-            include_bytes!("../../resources/test/multiple_lf_420.jxl"),
-            verify_frame,
-        )?;
-        Ok(())
-    }
-
-    #[test]
-    fn xyb_grayscale_patches() -> Result<(), Error> {
-        let verify_frame = |frame: &Frame, frame_index| {
-            if frame_index == 0 {
-                assert_eq!(
-                    frame.header.frame_type,
-                    crate::headers::frame_header::FrameType::ReferenceOnly,
-                );
-                assert_eq!(
-                    frame.header.encoding,
-                    crate::headers::frame_header::Encoding::Modular,
-                );
-                assert_eq!(frame.modular_color_channels(), 3);
-            } else {
-                assert!(frame.header.has_patches());
-                assert_eq!(frame.modular_color_channels(), 0);
-            }
-            Ok(())
-        };
-        assert_eq!(
-            decode(
-                include_bytes!("../../resources/test/grayscale_patches_var_dct.jxl"),
-                verify_frame,
-            )?,
-            2
-        );
-        Ok(())
     }
 }

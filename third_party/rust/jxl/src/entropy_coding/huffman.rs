@@ -8,7 +8,8 @@ use std::fmt::Debug;
 use crate::bit_reader::BitReader;
 use crate::entropy_coding::decode::*;
 use crate::error::{Error, Result};
-use crate::util::{CeilLog2, NewWithCapacity, tracing_wrappers::*};
+use crate::util::tracing_wrappers::*;
+use crate::util::{CeilLog2, NewWithCapacity};
 
 pub const HUFFMAN_MAX_BITS: usize = 15;
 const TABLE_BITS: usize = 8;
@@ -30,7 +31,7 @@ impl Debug for TableEntry {
 }
 
 #[derive(Debug)]
-struct Table {
+pub struct Table {
     entries: Vec<TableEntry>,
 }
 
@@ -81,7 +82,7 @@ impl Table {
             }
             *symbol = sym as u16;
         }
-        if (0..num_symbols - 1).any(|i| symbols[..i].contains(&symbols[i + 1])) {
+        if (0..num_symbols - 1).any(|i| symbols[..=i].contains(&symbols[i + 1])) {
             return Err(Error::InvalidHuffman);
         }
 
@@ -441,7 +442,7 @@ impl Table {
         Ok(Table { entries })
     }
 
-    #[inline]
+    #[inline(always)]
     pub fn read(&self, br: &mut BitReader) -> u32 {
         let mut pos = br.peek(TABLE_BITS) as usize;
         let mut n_bits = self.entries[pos].bits as usize;
@@ -451,14 +452,16 @@ impl Table {
             pos += self.entries[pos].value as usize;
             pos += br.peek(n_bits) as usize;
         }
-        br.consume_optimistic(self.entries[pos].bits as usize);
-        self.entries[pos].value as u32
+        let entry = self.entries[pos];
+        br.consume_optimistic(entry.bits as usize);
+        entry.value as u32
     }
 }
 
 #[derive(Debug)]
 pub struct HuffmanCodes {
     tables: Vec<Table>,
+    alphabet_sizes: Vec<usize>,
 }
 
 impl HuffmanCodes {
@@ -474,7 +477,10 @@ impl HuffmanCodes {
             .iter()
             .map(|sz| Table::decode(*sz, br))
             .collect::<Result<_>>()?;
-        Ok(HuffmanCodes { tables })
+        Ok(HuffmanCodes {
+            tables,
+            alphabet_sizes,
+        })
     }
 
     #[inline]
@@ -489,20 +495,13 @@ impl HuffmanCodes {
             None
         }
     }
-}
 
-#[cfg(test)]
-impl Table {
-    fn new_single_symbol(sym: u16) -> Table {
-        Table {
-            entries: vec![
-                TableEntry {
-                    bits: 0,
-                    value: sym
-                };
-                TABLE_SIZE
-            ],
-        }
+    pub fn max_symbol_for_cluster(&self, cluster: usize) -> u32 {
+        self.alphabet_sizes[cluster].saturating_sub(1) as u32
+    }
+
+    pub fn table(&self, ctx: usize) -> &Table {
+        &self.tables[ctx]
     }
 }
 
@@ -513,18 +512,13 @@ impl HuffmanCodes {
         let mut br = BitReader::new(&[0b11101111, 0b00111111, 0, 1, 0, 0b10100000, 0b0110]);
         HuffmanCodes::decode(1, &mut br).unwrap()
     }
-
-    pub(super) fn byte_histogram_rle() -> HuffmanCodes {
-        let mut histogram = Self::byte_histogram();
-        histogram.tables.push(Table::new_single_symbol(1));
-        histogram
-    }
 }
 
 #[cfg(test)]
 mod test {
-    use super::*;
     use test_log::test;
+
+    use super::*;
 
     #[test]
     fn byte_histogram() {
@@ -573,5 +567,17 @@ mod test {
             1791,
             &mut br,
         );
+    }
+
+    #[test]
+    fn test_simple_table_duplicate_symbols() {
+        // Simple table header: num_symbols = 2 (coded as 1 -> bits '01'), symbols: 0, 0 (max_bits for alphabet 256 is 8)
+        // Bit stream: 2 bits for (num_symbols - 1) = 1 (binary 01), symbol 0 = 0x00, symbol 1 = 0x00
+        let data = [0b00000001, 0b00000000, 0b00000000];
+        let mut br = BitReader::new(&data);
+        assert!(matches!(
+            Table::decode_simple_table(256, &mut br),
+            Err(Error::InvalidHuffman)
+        ));
     }
 }

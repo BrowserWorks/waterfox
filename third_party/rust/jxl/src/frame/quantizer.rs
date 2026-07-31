@@ -3,12 +3,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::{
-    bit_reader::BitReader,
-    error::{Error, Result},
-    frame::quant_weights,
-    headers::encodings::{Empty, UnconditionalCoder},
-};
+use crate::bit_reader::BitReader;
+use crate::error::{Error, Result};
+use crate::frame::quant_weights;
+use crate::headers::encodings::{Empty, UnconditionalCoder};
 
 pub const NUM_QUANT_TABLES: usize = 17;
 pub const GLOBAL_SCALE_DENOM: usize = 1 << 16;
@@ -16,17 +14,12 @@ pub const GLOBAL_SCALE_DENOM: usize = 1 << 16;
 #[derive(Debug, Clone)]
 pub struct LfQuantFactors {
     pub quant_factors: [f32; 3],
-    pub inv_quant_factors: [f32; 3],
 }
 
 impl Default for LfQuantFactors {
     fn default() -> Self {
         let quant_factors = quant_weights::LF_QUANT;
-        let inv_quant_factors = quant_factors.map(f32::recip);
-        Self {
-            quant_factors,
-            inv_quant_factors,
-        }
+        Self { quant_factors }
     }
 }
 
@@ -44,12 +37,7 @@ impl LfQuantFactors {
             }
         }
 
-        let inv_quant_factors = quant_factors.map(f32::recip);
-
-        Ok(LfQuantFactors {
-            quant_factors,
-            inv_quant_factors,
-        })
+        Ok(LfQuantFactors { quant_factors })
     }
 }
 

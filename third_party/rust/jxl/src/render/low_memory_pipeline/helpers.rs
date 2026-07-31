@@ -3,7 +3,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::render::low_memory_pipeline::render_group::ChannelVec;
+use crate::util::ChannelVec;
 
 /// Returns a vector of &mut vals[idx[i].0][idx[i].1], in order of idx[i].2.
 /// Panics if any of the indices are out of bounds or

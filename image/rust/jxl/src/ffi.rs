@@ -243,7 +243,7 @@ pub unsafe extern "C" fn jxl_decoder_has_more_frames(decoder: *const JxlApiDecod
     // SAFETY: Caller guarantees `decoder` is a valid, non-null pointer from `jxl_decoder_new`.
     let decoder = unsafe { &*decoder };
 
-    decoder.inner.has_more_frames()
+    decoder.has_more_frames
 }
 
 #[no_mangle]
@@ -320,14 +320,4 @@ pub unsafe extern "C" fn jxl_decoder_flush_pixels(
         Ok(false) => JxlDecoderStatus::NeedMoreData,
         Err(_) => JxlDecoderStatus::Error,
     }
-}
-
-/// # Safety
-/// `decoder` must be a valid pointer returned by `jxl_decoder_new`.
-#[no_mangle]
-pub unsafe extern "C" fn jxl_decoder_num_completed_passes(decoder: *const JxlApiDecoder) -> u32 {
-    debug_assert!(!decoder.is_null());
-    // SAFETY: Caller guarantees valid pointer.
-    let decoder = unsafe { &*decoder };
-    decoder.num_completed_passes() as u32
 }

@@ -3,21 +3,20 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::{
-    BLOCK_DIM, BLOCK_SIZE,
-    bit_reader::BitReader,
-    entropy_coding::decode::SymbolReader,
-    error::Result,
-    frame::Histograms,
-    headers::permutation::Permutation,
-    util::{CeilLog2, tracing_wrappers::*},
-};
+use std::borrow::Cow;
+use std::mem;
 
 use jxl_transforms::transform_map::*;
 
-use std::borrow::Cow;
-use std::mem;
-use std::sync::OnceLock;
+use crate::bit_reader::BitReader;
+use crate::entropy_coding::decode::SymbolReader;
+use crate::error::Result;
+use crate::frame::Histograms;
+use crate::headers::permutation::Permutation;
+use crate::util::CeilLog2;
+use crate::util::sync::OnceLock;
+use crate::util::tracing_wrappers::*;
+use crate::{BLOCK_DIM, BLOCK_SIZE};
 
 pub const NUM_ORDERS: usize = 13;
 
@@ -120,7 +119,11 @@ pub fn natural_coeff_order(transform: HfTransformType) -> Vec<u32> {
     out
 }
 
-pub fn decode_coeff_orders(used_orders: u32, br: &mut BitReader) -> Result<Vec<Permutation>> {
+pub fn decode_coeff_orders(
+    used_orders: u32,
+    br: &mut BitReader,
+    lz77_scratch: &mut Vec<u32>,
+) -> Result<Vec<Permutation>> {
     // Use cached natural coefficient orders instead of recomputing
     let all_component_orders = 3 * NUM_ORDERS;
     let mut permutations: Vec<Permutation> = (0..all_component_orders)
@@ -129,8 +132,8 @@ pub fn decode_coeff_orders(used_orders: u32, br: &mut BitReader) -> Result<Vec<P
     if used_orders == 0 {
         return Ok(permutations);
     }
-    let histograms = Histograms::decode(NUM_PERMUTATION_CONTEXTS, br, true)?;
-    let mut reader = SymbolReader::new(&histograms, br, None)?;
+    let histograms = Histograms::decode(NUM_PERMUTATION_CONTEXTS, br, true, lz77_scratch)?;
+    let mut reader = SymbolReader::new(&histograms, br, None, lz77_scratch)?;
     for (ord, transform_type) in TRANSFORM_TYPE_LUT.iter().enumerate() {
         if used_orders & (1 << ord) == 0 {
             continue;
@@ -144,6 +147,7 @@ pub fn decode_coeff_orders(used_orders: u32, br: &mut BitReader) -> Result<Vec<P
             permutations[index].compose(&permutation);
         }
     }
+    reader.reclaim_lz77_scratch(lz77_scratch);
     reader.check_final_state(&histograms, br)?;
     Ok(permutations)
 }

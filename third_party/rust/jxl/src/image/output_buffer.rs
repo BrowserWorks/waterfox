@@ -3,9 +3,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use std::{fmt::Debug, marker::PhantomData, mem::MaybeUninit};
+use std::fmt::Debug;
+use std::marker::PhantomData;
 
-use super::{RawImageRectMut, Rect, internal::RawImageBuffer};
+use super::internal::RawImageBuffer;
+use super::{RawImageRectMut, Rect};
+use crate::image::ImageDataType;
 
 #[derive(Debug)]
 #[repr(transparent)]
@@ -17,16 +20,16 @@ pub struct JxlOutputBuffer<'a> {
 
 impl<'a> JxlOutputBuffer<'a> {
     /// Creates a new JxlOutputBuffer from raw pointers.
-    /// It is guaranteed that `buf` will never be used to write uninitialized data.
     ///
     /// # Safety
     /// - `buf` must be valid for writes for all bytes in the range
     ///   `buf[i*bytes_between_rows..i*bytes_between_rows+bytes_per_row]` for all values of `i`
     ///   from `0` to `num_rows-1`.
+    /// - `buf` must be initialized for all the bytes in these ranges.
     /// - The bytes in these ranges must not be accessed as long as the returned `Self` is in scope.
     /// - All the bytes in those ranges (and in between) must be part of the same allocated object.
     pub unsafe fn new_from_ptr(
-        buf: *mut MaybeUninit<u8>,
+        buf: *mut u8,
         num_rows: usize,
         bytes_per_row: usize,
         bytes_between_rows: usize,
@@ -36,7 +39,12 @@ impl<'a> JxlOutputBuffer<'a> {
             // We are promised write access to the underlying data, so our own safety invariant is
             // respected.
             inner: unsafe {
-                RawImageBuffer::new_from_ptr(buf, num_rows, bytes_per_row, bytes_between_rows)
+                RawImageBuffer::new_from_ptr(
+                    buf.cast(),
+                    num_rows,
+                    bytes_per_row,
+                    bytes_between_rows,
+                )
             },
             _ph: PhantomData,
         }
@@ -51,24 +59,8 @@ impl<'a> JxlOutputBuffer<'a> {
         }
     }
 
-    /// Creates a new JxlOutputBuffer from a slice of uninit data.
-    /// It is guaranteed that `buf` will never be used to write uninitalized data.
-    pub fn new_uninit(
-        buf: &'a mut [MaybeUninit<u8>],
-        num_rows: usize,
-        bytes_per_row: usize,
-    ) -> Self {
-        Self::new_uninit_with_stride(buf, num_rows, bytes_per_row, bytes_per_row)
-    }
-
-    pub fn new(buf: &'a mut [u8], num_rows: usize, bytes_per_row: usize) -> Self {
-        Self::new_with_stride(buf, num_rows, bytes_per_row, bytes_per_row)
-    }
-
-    /// Creates a new JxlOutputBuffer from a slice of uninit data.
-    /// It is guaranteed that `buf` will never be used to write uninitalized data.
-    pub fn new_uninit_with_stride(
-        buf: &'a mut [MaybeUninit<u8>],
+    pub fn new_with_stride(
+        buf: &'a mut [u8],
         num_rows: usize,
         bytes_per_row: usize,
         byte_stride: usize,
@@ -87,20 +79,8 @@ impl<'a> JxlOutputBuffer<'a> {
         unsafe { Self::new_from_ptr(buf.as_mut_ptr(), num_rows, bytes_per_row, byte_stride) }
     }
 
-    pub fn new_with_stride(
-        buf: &'a mut [u8],
-        num_rows: usize,
-        bytes_per_row: usize,
-        byte_stride: usize,
-    ) -> Self {
-        Self::new_uninit_with_stride(
-            // SAFETY: `new_uninit` guarantees that no uninit data is ever written to the passed-in
-            // slice. Moreover, `T` and `MaybeUninit<T>` have the same memory layout.
-            unsafe { std::slice::from_raw_parts_mut(buf.as_mut_ptr().cast(), buf.len()) },
-            num_rows,
-            bytes_per_row,
-            byte_stride,
-        )
+    pub fn new(buf: &'a mut [u8], num_rows: usize, bytes_per_row: usize) -> Self {
+        Self::new_with_stride(buf, num_rows, bytes_per_row, bytes_per_row)
     }
 
     pub(crate) fn reborrow(lender: &'a mut JxlOutputBuffer<'_>) -> JxlOutputBuffer<'a> {
@@ -111,31 +91,27 @@ impl<'a> JxlOutputBuffer<'a> {
         }
     }
 
-    /// # Safety
-    /// The caller must guarantee that the returned slice is not used for writing uninit data.
-    pub(crate) unsafe fn row_mut(&mut self, row: usize) -> &mut [MaybeUninit<u8>] {
-        // SAFETY: caller guarantees no uninit data is written, and we have write access to the
-        // data due to safety invariant.
-        unsafe { self.inner.row_mut(row) }
+    pub(crate) fn typed_row_mut<T: ImageDataType>(&mut self, row: usize) -> &mut [T] {
+        T::cast_slice_mut(self.row_mut(row))
     }
 
-    #[inline]
-    pub fn write_bytes(&mut self, row: usize, col: usize, bytes: &[u8]) {
-        // SAFETY: We never use the returned slice to write uninit data, and we have write access
-        // to the data.
-        let slice = unsafe { self.inner.row_mut(row) };
-        for (w, s) in slice.iter_mut().skip(col).zip(bytes.iter().copied()) {
-            w.write(s);
-        }
+    pub(crate) fn row_mut(&mut self, row: usize) -> &mut [u8] {
+        // SAFETY: we have write access to the data due to safety invariant.
+        unsafe { self.inner.row_mut(row) }
     }
 
     pub fn byte_size(&self) -> (usize, usize) {
         self.inner.byte_size()
     }
 
-    pub fn rect(&mut self, rect: Rect) -> JxlOutputBuffer<'_> {
+    /// # Safety
+    /// The caller must guarantee that there are no outstanding lends
+    /// of the provided `rect`.
+    pub(crate) unsafe fn rect(&self, rect: Rect) -> JxlOutputBuffer<'_> {
         // Safety note: the return value borrows from `self`, so we are lending our memory to the
-        // returned JxlOutputBuffer.
+        // returned JxlOutputBuffer. The caller guarantees that the region identified by
+        // `rect` does not overlap with other regions with outstanding borrows, so we have
+        // exclusive access to that region.
         Self {
             inner: self.inner.rect(rect),
             _ph: PhantomData,

@@ -8,8 +8,9 @@
 use criterion::measurement::Measurement;
 use criterion::{criterion_group, criterion_main, BenchmarkGroup, BenchmarkId, Criterion};
 use jxl_simd::{bench_all_instruction_sets, SimdDescriptor};
-use jxl_transforms::transform_map::MAX_COEFF_AREA;
 use jxl_transforms::*;
+
+const MAX_COEFF_AREA: usize = 256 * 256;
 
 fn bench_idct2d<D: SimdDescriptor>(d: D, c: &mut BenchmarkGroup<'_, impl Measurement>, name: &str) {
     let mut data = vec![1.0; MAX_COEFF_AREA];

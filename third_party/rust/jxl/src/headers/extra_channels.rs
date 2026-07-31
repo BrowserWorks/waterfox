@@ -3,13 +3,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::{
-    bit_reader::BitReader,
-    error::Error,
-    headers::{bit_depth::BitDepth, encodings::*},
-};
 use jxl_macros::UnconditionalCoder;
 use num_derive::FromPrimitive;
+
+use crate::bit_reader::BitReader;
+use crate::error::Error;
+use crate::headers::bit_depth::BitDepth;
+use crate::headers::encodings::*;
 
 #[allow(clippy::upper_case_acronyms)]
 #[derive(UnconditionalCoder, Copy, Clone, PartialEq, Debug, FromPrimitive, Eq)]

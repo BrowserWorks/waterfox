@@ -6,10 +6,10 @@
 use std::borrow::Cow;
 
 use crate::bit_reader::BitReader;
-use crate::entropy_coding::decode::Histograms;
-use crate::entropy_coding::decode::SymbolReader;
+use crate::entropy_coding::decode::{Histograms, SymbolReader};
 use crate::error::{Error, Result};
-use crate::util::{CeilLog2, NewWithCapacity, tracing_wrappers::instrument, value_of_lowest_1_bit};
+use crate::util::tracing_wrappers::instrument;
+use crate::util::{CeilLog2, NewWithCapacity, value_of_lowest_1_bit};
 
 #[derive(Debug, PartialEq, Default, Clone)]
 pub struct Permutation(pub Cow<'static, [u32]>);
@@ -103,9 +103,9 @@ impl Permutation {
 #[instrument(level = "debug", ret, err)]
 fn decode_lehmer_code(code: &[u32], permutation_slice: &[u32]) -> Result<Vec<u32>> {
     let n = permutation_slice.len();
-    if n == 0 {
+    if n == 0 || n > (1 << 30) {
         return Err(Error::InvalidPermutationLehmerCode {
-            size: 0,
+            size: n as u32,
             idx: 0,
             lehmer: 0,
         });
@@ -216,10 +216,12 @@ fn get_context(x: u32) -> usize {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use arbtest::arbitrary::{self, Arbitrary, Unstructured};
     use core::assert_eq;
+
+    use arbtest::arbitrary::{self, Arbitrary, Unstructured};
     use test_log::test;
+
+    use super::*;
 
     #[test]
     fn generate_permutation_arbtest() {

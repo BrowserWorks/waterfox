@@ -3,8 +3,9 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::*;
 use jxl_simd::{F32SimdVec, SimdDescriptor};
+
+use crate::*;
 
 #[inline(always)]
 fn idct2d_2_2_impl<D: SimdDescriptor>(d: D, data: &mut [f32]) {

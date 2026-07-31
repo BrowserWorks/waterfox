@@ -3,10 +3,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::{bit_reader::BitReader, error::Error, headers::encodings::*};
+use std::fmt::Debug;
+
 use jxl_macros::UnconditionalCoder;
 
-use std::fmt::Debug;
+use crate::bit_reader::BitReader;
+use crate::error::Error;
+use crate::headers::encodings::*;
 
 #[derive(UnconditionalCoder, Clone, Copy, PartialEq, Eq)]
 #[validate]
