@@ -4053,6 +4053,9 @@ version = "0.1.0"
 dependencies = [
  "jxl",
  "log",
+ "moz_task",
+ "static_prefs",
+ "xpcom",
 ]
 
 [[package]]
