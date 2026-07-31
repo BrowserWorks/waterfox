@@ -3,24 +3,23 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::{
-    api::{Endianness, JxlColorType, JxlDataFormat, JxlOutputBuffer},
-    error::Result,
-    headers::Orientation,
-    image::{DataTypeTag, Image, ImageDataType, Rect},
-    render::{SimpleRenderPipeline, buffer_splitter::BufferSplitter},
-    util::{
-        ShiftRightCeil,
-        test::check_equal_images,
-        tracing_wrappers::{instrument, trace},
-    },
-};
+use std::sync::Arc;
+
 use rand::SeedableRng;
 
+use super::internal::Stage;
+use super::stages::ExtendToImageDimensionsStage;
 use super::{
     RenderPipeline, RenderPipelineBuilder, RenderPipelineInOutStage, RenderPipelineInPlaceStage,
-    internal::Stage, stages::ExtendToImageDimensionsStage,
 };
+use crate::api::{Endianness, JxlColorType, JxlDataFormat, JxlOutputBuffer};
+use crate::error::Result;
+use crate::headers::Orientation;
+use crate::image::{BufferRecycler, DataTypeTag, Image, ImageDataType, Rect};
+use crate::render::SimpleRenderPipeline;
+use crate::render::buffer_splitter::BufferSplitter;
+use crate::util::ShiftRightCeil;
+use crate::util::tracing_wrappers::{instrument, trace};
 
 pub(super) trait RenderPipelineTestableStage<V> {
     type InputT: ImageDataType;
@@ -98,12 +97,14 @@ fn make_and_run_simple_pipeline_impl<InputT: ImageDataType, OutputT: ImageDataTy
         .iter()
         .map(|x| stage.uses_channel(*x))
         .collect();
+    let channel_types = vec![(InputT::DATA_TYPE_ID, None); input_images.len()];
     let mut pipeline = RenderPipelineBuilder::<SimpleRenderPipeline>::new_with_chunk_size(
-        input_images.len(),
+        &channel_types,
         image_size,
         downsampling_shift,
         LOG_GROUP_SIZE,
         chunk_size,
+        Arc::new(BufferRecycler::new()),
     )
     .add_stage_internal(stage);
 
@@ -130,7 +131,7 @@ fn make_and_run_simple_pipeline_impl<InputT: ImageDataType, OutputT: ImageDataTy
             false,
         );
     }
-    let mut pipeline = pipeline.build()?;
+    let pipeline = pipeline.build()?;
 
     let num_groups = image_size.0.shrc(LOG_GROUP_SIZE) * image_size.1.shrc(LOG_GROUP_SIZE);
 
@@ -152,7 +153,7 @@ fn make_and_run_simple_pipeline_impl<InputT: ImageDataType, OutputT: ImageDataTy
         })
         .collect();
 
-    let mut buffer_splitter = BufferSplitter::new(&mut buf_ptrs);
+    let buffer_splitter = BufferSplitter::new(&mut buf_ptrs);
 
     for g in 0..num_groups {
         for &c in all_channels.iter() {
@@ -169,10 +170,12 @@ fn make_and_run_simple_pipeline_impl<InputT: ImageDataType, OutputT: ImageDataTy
                 g,
                 true,
                 extract_group_rect(&input_images[c], g, log_group_size)?,
-                &mut buffer_splitter,
+                &buffer_splitter,
             )?;
         }
     }
+
+    drop(buffer_splitter);
 
     Ok(outputs)
 }
@@ -231,8 +234,8 @@ pub(super) fn test_stage_consistency<S: RenderPipelineTestableStage<V>, V>(
         )
         .unwrap_or_else(|_| panic!("error running pipeline with chunk size {chunk_size}"));
 
-        for (o, bo) in output.iter().zip(base_output.iter()) {
-            check_equal_images(bo, o);
+        for (out, base_out) in output.iter().zip(base_output.iter()) {
+            crate::tests::assert_image_eq!(out, base_out, "with chunk size {}", chunk_size);
         }
 
         Ok(())

@@ -15,13 +15,15 @@ pub mod size;
 pub mod toc;
 pub mod transform_data;
 
-use crate::{bit_reader::BitReader, error::Error, headers::encodings::*};
 use frame_header::FrameHeaderNonserialized;
-use jxl_macros::UnconditionalCoder;
-
 pub use image_metadata::*;
+use jxl_macros::UnconditionalCoder;
 pub use size::Size;
 pub use transform_data::*;
+
+use crate::bit_reader::BitReader;
+use crate::error::Error;
+use crate::headers::encodings::*;
 
 #[derive(UnconditionalCoder, Debug, Clone)]
 pub struct FileHeader {

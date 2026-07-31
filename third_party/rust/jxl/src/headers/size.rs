@@ -3,13 +3,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::{
-    bit_reader::BitReader,
-    error::Error,
-    headers::encodings::{self, *},
-};
 use jxl_macros::UnconditionalCoder;
 use num_derive::FromPrimitive;
+
+use crate::bit_reader::BitReader;
+use crate::error::Error;
+use crate::headers::encodings::{self, *};
 
 #[derive(UnconditionalCoder, Copy, Clone, PartialEq, Debug, FromPrimitive, Default)]
 enum AspectRatio {
@@ -98,7 +97,11 @@ impl Size {
     }
 
     fn check(&self, _: &encodings::Empty) -> Result<(), Error> {
-        self.compute_xsize()?;
+        let xsize = self.compute_xsize()?;
+        let ysize = self.ysize();
+        if xsize > (1 << 30) || ysize > (1 << 30) || (xsize as u64) * (ysize as u64) > (1 << 40) {
+            return Err(Error::ImageDimensionTooLarge(xsize.max(ysize) as u64));
+        }
         Ok(())
     }
 
@@ -130,7 +133,11 @@ impl Preview {
     }
 
     fn check(&self, _: &encodings::Empty) -> Result<(), Error> {
-        self.compute_xsize()?;
+        let xsize = self.compute_xsize()?;
+        let ysize = self.ysize();
+        if xsize > 4096 || ysize > 4096 {
+            return Err(Error::ImageDimensionTooLarge(xsize.max(ysize) as u64));
+        }
         Ok(())
     }
 

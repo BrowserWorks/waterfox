@@ -5,16 +5,15 @@
 
 #![allow(clippy::needless_range_loop)]
 
-use std::any::Any;
-
-use crate::{
-    image::{Image, ImageDataType},
-    render::{
-        RenderPipelineInOutStage, RenderPipelineInPlaceStage, RunInOutStage, RunInPlaceStage,
-        internal::PipelineBuffer,
-    },
-    util::{SmallVec, mirror, round_up_size_to_cache_line, tracing_wrappers::*},
+use crate::image::{Image, ImageDataType};
+use crate::render::internal::PipelineBuffer;
+use crate::render::low_memory_pipeline::row_buffers::RowBuffer;
+use crate::render::{
+    Channels, ChannelsMut, ErasedLocalState, RenderPipelineInOutStage, RenderPipelineInPlaceStage,
+    RunInOutStage, RunInPlaceStage,
 };
+use crate::util::tracing_wrappers::*;
+use crate::util::{mirror, round_up_size_to_cache_line};
 
 impl PipelineBuffer for Image<f64> {
     type InPlaceExtraInfo = usize;
@@ -26,7 +25,7 @@ impl<T: RenderPipelineInPlaceStage> RunInPlaceStage<Image<f64>> for T {
         &self,
         chunk_size: usize,
         buffers: &mut [&mut Image<f64>],
-        mut state: Option<&mut dyn Any>,
+        mut state: Option<&mut ErasedLocalState>,
     ) {
         debug!("running inplace stage '{self}' in simple pipeline");
         let numc = buffers.len();
@@ -53,7 +52,7 @@ impl<T: RenderPipelineInPlaceStage> RunInPlaceStage<Image<f64>> for T {
                     }
                 }
                 let mut row: Vec<_> = buffer.iter_mut().map(|x| x as &mut [_]).collect();
-                self.process_row_chunk((x, y), xsize, &mut row, state.as_deref_mut());
+                self.process_row_chunk((x, y), xsize, &mut row, state.as_deref_mut(), false);
                 for c in 0..numc {
                     let out_row = buffers[c].row_mut(y);
                     for ix in 0..xsize {
@@ -72,7 +71,7 @@ impl<T: RenderPipelineInOutStage> RunInOutStage<Image<f64>> for T {
         chunk_size: usize,
         input_buffers: &[&Image<f64>],
         output_buffers: &mut [Image<f64>],
-        mut state: Option<&mut dyn Any>,
+        mut state: Option<&mut ErasedLocalState>,
     ) {
         assert_ne!(chunk_size, 0);
         debug!("running inout stage '{self}' in simple pipeline");
@@ -96,85 +95,75 @@ impl<T: RenderPipelineInOutStage> RunInOutStage<Image<f64>> for T {
         );
         assert_eq!(input_size.0, output_size.0.div_ceil(1 << Self::SHIFT.0));
         assert_eq!(input_size.1, output_size.1.div_ceil(1 << Self::SHIFT.1));
-        let mut buffer_in = vec![
-            vec![
-                vec![
-                    T::InputT::default();
-                    // Double rounding make sure that we always have enough buffer for reading a whole SIMD lane.
-                    round_up_size_to_cache_line::<T::OutputT>(
-                        round_up_size_to_cache_line::<T::OutputT>(chunk_size)
-                            + T::BORDER.0 as usize * 2
-                    )
-                ];
-                T::BORDER.1 as usize * 2 + 1
-            ];
-            numc
-        ];
-        let mut buffer_out = vec![
-            vec![
-                vec![
-                    T::OutputT::default();
-                    round_up_size_to_cache_line::<T::OutputT>(chunk_size)
-                        << T::SHIFT.0
-                ];
-                1 << T::SHIFT.1
-            ];
-            numc
-        ];
+
+        let border_x = Self::BORDER.0 as usize;
+        let border_y = Self::BORDER.1 as usize;
+        let mut buffer_in: Vec<RowBuffer> = (0..numc)
+            .map(|_| {
+                RowBuffer::new(
+                    T::InputT::DATA_TYPE_ID,
+                    border_y,
+                    0,
+                    0,
+                    chunk_size + 2 * border_x,
+                )
+                .unwrap()
+            })
+            .collect();
+        let mut buffer_out: Vec<RowBuffer> = (0..numc)
+            .map(|_| {
+                RowBuffer::new(
+                    T::OutputT::DATA_TYPE_ID,
+                    0,
+                    Self::SHIFT.1 as usize,
+                    Self::SHIFT.0 as usize,
+                    chunk_size << Self::SHIFT.0,
+                )
+                .unwrap()
+            })
+            .collect();
+
+        let x0_in = RowBuffer::x0_offset::<T::InputT>();
+        let x0_out = RowBuffer::x0_offset::<T::OutputT>();
 
         for y in 0..input_size.1 {
             for x in (0..input_size.0).step_by(chunk_size) {
-                let border_x = Self::BORDER.0 as isize;
-                let border_y = Self::BORDER.1 as isize;
+                let iborder_x = border_x as isize;
+                let iborder_y = border_y as isize;
                 let xsize = input_size.0.min(x + chunk_size) - x;
                 let xs = xsize as isize;
                 debug!("position: {x}x{y} xsize: {xsize}");
                 for c in 0..numc {
-                    for iy in -border_y..=border_y {
+                    for iy in -iborder_y..=iborder_y {
                         let imgy = mirror(y as isize + iy, input_size.1);
                         let in_row = input_buffers[c].row(imgy);
-                        let buf_in_row = &mut buffer_in[c][(iy + border_y) as usize];
-                        for ix in (-border_x..0).chain(xs..xs + border_x) {
+                        let buf_in_row =
+                            buffer_in[c].get_row_mut::<T::InputT>((iy + iborder_y) as usize);
+                        for ix in (-iborder_x..0).chain(xs..xs + iborder_x) {
                             let imgx = mirror(x as isize + ix, input_size.0);
-                            buf_in_row[(ix + border_x) as usize] =
+                            buf_in_row[(x0_in as isize + ix) as usize] =
                                 T::InputT::from_f64(in_row[imgx]);
                         }
                         for ix in 0..xsize {
-                            buf_in_row[ix + border_x as usize] =
-                                T::InputT::from_f64(in_row[x + ix]);
+                            buf_in_row[x0_in + ix] = T::InputT::from_f64(in_row[x + ix]);
                         }
                     }
                 }
 
                 {
-                    // Build flat input rows: all rows for all channels in one Vec
-                    let num_input_channels = buffer_in.len();
-                    let input_rows_per_channel = buffer_in[0].len();
-                    let mut input_row_data = SmallVec::new();
-                    for ch_buf in buffer_in.iter() {
-                        for row in ch_buf.iter() {
-                            input_row_data.push(row as &[_]);
-                        }
-                    }
-                    let input_rows = crate::render::Channels::new(
-                        input_row_data,
-                        num_input_channels,
-                        input_rows_per_channel,
+                    let input_refs: Vec<&RowBuffer> = buffer_in.iter().collect();
+                    let input_rows = Channels::from_row_buffers(
+                        &input_refs,
+                        x0_in,
+                        border_y,
+                        2 * border_y + 1,
+                        border_x,
                     );
-
-                    // Build flat output rows: all rows for all channels in one Vec
-                    let num_output_channels = buffer_out.len();
-                    let output_rows_per_channel = buffer_out[0].len();
-                    let mut output_row_data = SmallVec::new();
-                    for ch_buf in buffer_out.iter_mut() {
-                        for row in ch_buf.iter_mut() {
-                            output_row_data.push(row as &mut [_]);
-                        }
-                    }
-                    let mut output_rows = crate::render::ChannelsMut::new(
-                        output_row_data,
-                        num_output_channels,
-                        output_rows_per_channel,
+                    let mut output_rows = ChannelsMut::from_row_buffers(
+                        &mut buffer_out,
+                        x0_out,
+                        0,
+                        1 << Self::SHIFT.1,
                     );
 
                     self.process_row_chunk(
@@ -183,6 +172,7 @@ impl<T: RenderPipelineInOutStage> RunInOutStage<Image<f64>> for T {
                         &input_rows,
                         &mut output_rows,
                         state.as_deref_mut(),
+                        false,
                     );
                 }
 
@@ -193,8 +183,9 @@ impl<T: RenderPipelineInOutStage> RunInOutStage<Image<f64>> for T {
                 for c in 0..numc {
                     for iy in 0..stripe_ysize {
                         let out_row = output_buffers[c].row_mut((y << Self::SHIFT.1) + iy);
+                        let buf_out_row = buffer_out[c].get_row::<T::OutputT>(iy);
                         for ix in 0..stripe_xsize {
-                            out_row[(x << Self::SHIFT.0) + ix] = buffer_out[c][iy][ix].to_f64();
+                            out_row[(x << Self::SHIFT.0) + ix] = buf_out_row[x0_out + ix].to_f64();
                         }
                     }
                 }

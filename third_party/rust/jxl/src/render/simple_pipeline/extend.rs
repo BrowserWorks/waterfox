@@ -3,11 +3,10 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-use crate::{
-    image::{Image, ImageDataType},
-    render::stages::ExtendToImageDimensionsStage,
-    util::{round_up_size_to_cache_line, tracing_wrappers::*},
-};
+use crate::image::{Image, ImageDataType};
+use crate::render::stages::ExtendToImageDimensionsStage;
+use crate::util::round_up_size_to_cache_line;
+use crate::util::tracing_wrappers::*;
 
 impl ExtendToImageDimensionsStage {
     #[instrument(skip_all)]
