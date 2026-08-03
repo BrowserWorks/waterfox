@@ -188,7 +188,7 @@ impl<I: HashKey, V: Default + Clone> HashIndexBuilder<I, V> {
         self.indexes = vec![I::default(); new_capacity];
         self.values = vec![V::default(); new_capacity];
 
-        for (key, value) in old_indexes.into_iter().zip(old_values.into_iter()) {
+        for (key, value) in old_indexes.into_iter().zip(old_values) {
             if !HashKey::is_empty(&key) {
                 let slot = find_slot(&key, new_capacity, |slot| -> bool {
                     HashKey::is_empty(&self.indexes[slot])
@@ -213,6 +213,6 @@ mod tests {
         // Verify get_hash is stable.
         // If the value changes, update ADBLOCK_RUST_DAT_VERSION.
         let message = "If the value changes, update ADBLOCK_RUST_DAT_VERSION.";
-        assert_eq!(get_hash(&"adblock-rust"), 15102204115509201409, "{message}");
+        assert_eq!(get_hash(&"adblock-rust"), 5391703202028078439, "{message}");
     }
 }

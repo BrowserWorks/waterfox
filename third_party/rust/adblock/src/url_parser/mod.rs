@@ -5,8 +5,7 @@ mod parser;
 // mod parser_regex;
 
 #[cfg(not(feature = "embedded-domain-resolver"))]
-static DOMAIN_RESOLVER: once_cell::sync::OnceCell<Box<dyn ResolvesDomain>> =
-    once_cell::sync::OnceCell::new();
+static DOMAIN_RESOLVER: std::sync::OnceLock<Box<dyn ResolvesDomain>> = std::sync::OnceLock::new();
 
 /// Sets the library's domain resolver implementation.
 ///

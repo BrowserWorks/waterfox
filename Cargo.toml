@@ -264,9 +264,6 @@ base64_21 = { package = "base64", path = "build/rust/base64" }
 # Patch wasi 0.11 to 0.14
 wasi_0_11 = { package = "wasi", path = "build/rust/wasi" }
 
-# Patch itertools 0.13 to 0.14
-itertools = { path = "build/rust/itertools" }
-
 # tokio 0.29.0 includes an experimental "tracing" feature which requires
 # backtrace ^0.3.58 and the `tokio_unstable` flag. We don't use it, and nothing
 # else we do use requires backtrace, so dummy it out for now.
