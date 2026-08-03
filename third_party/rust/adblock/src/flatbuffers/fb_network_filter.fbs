@@ -7,7 +7,10 @@
 namespace fb;
 
 table NetworkFilter {
-  mask: uint32;  // NetworkFilterMask (network.rs)
+  // NetworkFilterMask (network.rs).
+  // Default = DEFAULT_OPTIONS | IS_HOSTNAME_ANCHOR | IS_RIGHT_ANCHOR | FROM_DOCUMENT
+  // (the most common mask, covering ~50% of filters).
+  mask: uint32 = 540221439;  // 0x20331FFF
 
   /// These arrays contain sorted (ascending) indices in the |unique_domains_hashes|
   /// instead of the hashes themselves. This approach saves memory, as there
@@ -15,13 +18,20 @@ table NetworkFilter {
   opt_domains: [uint32];
   opt_not_domains: [uint32];
 
-  patterns: [string];
+  // A union-like storage for pattern. Prefer |single_pattern| where
+  // possible for performance concerns.
+  single_pattern: string;
+  multi_patterns: [string];
+
   modifier_option: string;
   hostname: string;
 
   tag: string;
 
+  // Debug mode only
   raw_line: string;
+  source_index: uint32 = 4294967295; // 0xFFFFFFFF
+  line_number: uint32 = 4294967295;  // 0xFFFFFFFF
 }
 
 table NetworkFilterList {
@@ -103,6 +113,15 @@ table CosmeticFilters {
   hostname_values: [HostnameSpecificRules] (required);
 }
 
+table SourceInfo {
+  title: string;
+  homepage: string;
+  network_filter_count: int32;
+  cosmetic_filter_count: int32;
+  parse_error: int32;
+  invalid_lines: [string];
+}
+
 /// A root type containing a serialized Engine.
 table Engine {
   /// Contains several NetworkFilterList matching to different kinds of lists.
@@ -114,6 +133,10 @@ table Engine {
   unique_domains_hashes: [uint64] (required);
 
   cosmetic_filters: CosmeticFilters (required);
+
+  debug: bool;
+
+  source_info: [SourceInfo] (required);
 }
 
 root_type Engine;

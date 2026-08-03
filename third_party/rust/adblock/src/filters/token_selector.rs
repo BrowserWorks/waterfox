@@ -1,7 +1,6 @@
 //! Token selector for optimizing filter storage by choosing least-used tokens
 
-use crate::utils::{to_short_hash, Hash, ShortHash};
-use seahash::SeaHasher;
+use crate::utils::{Hash, ShortHash, to_short_hash};
 use std::collections::HashMap;
 use std::hash::BuildHasherDefault;
 
@@ -51,10 +50,31 @@ const BAD_TOKENS: [&str; 36] = [
 const WORST_TOKEN_USAGE: usize = usize::MAX / 2;
 const BAD_TOKEN_USAGE: usize = usize::MAX / 4;
 
+/// A no-op hasher for [`ShortHash`] keys (`u32`) that are already hash values.
+/// Returns the key itself, skipping any real hashing work.
+#[derive(Default)]
+struct PreHashedHasher(u64);
+
+impl std::hash::Hasher for PreHashedHasher {
+    #[inline]
+    fn write(&mut self, _bytes: &[u8]) {
+        unreachable!("PreHashedHasher only supports u32 keys via write_u32");
+    }
+
+    #[inline]
+    fn write_u32(&mut self, i: u32) {
+        self.0 = i as u64;
+    }
+
+    #[inline]
+    fn finish(&self) -> u64 {
+        self.0
+    }
+}
 /// Selects the optimal token for filter storage by tracking usage frequencies.
 /// Tokens that are used less frequently are preferred for better efficiency.
 pub(crate) struct TokenSelector {
-    usage: HashMap<ShortHash, usize, BuildHasherDefault<SeaHasher>>,
+    usage: HashMap<ShortHash, usize, BuildHasherDefault<PreHashedHasher>>,
 }
 
 impl TokenSelector {
@@ -62,7 +82,7 @@ impl TokenSelector {
     pub fn new(capacity: usize) -> Self {
         let mut usage = HashMap::with_capacity_and_hasher(
             capacity + WORST_TOKENS.len() + BAD_TOKENS.len(),
-            BuildHasherDefault::<SeaHasher>::default(),
+            Default::default(),
         );
         let mut store_token = |token: &str, count: usize| {
             usage.insert(to_short_hash(crate::utils::fast_hash(token)), count);

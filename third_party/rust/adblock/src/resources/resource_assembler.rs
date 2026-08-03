@@ -4,14 +4,15 @@
 use crate::resources::{MimeType, Resource, ResourceType};
 use base64::{engine::Engine as _, prelude::BASE64_STANDARD};
 use memchr::memmem;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
+use std::sync::LazyLock;
 
-static TOP_COMMENT_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^/\*[\S\s]+?\n\*/\s*"#).unwrap());
-static NON_EMPTY_LINE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"\S"#).unwrap());
+static TOP_COMMENT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"^/\*[\S\s]+?\n\*/\s*"#).unwrap());
+static NON_EMPTY_LINE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"\S"#).unwrap());
 
 /// Represents a single entry of the `Map` from uBlock Origin's `redirect-resources.js`.
 struct ResourceProperties {
@@ -60,14 +61,14 @@ type JsResourceEntry = (String, JsResourceProperties);
 
 const REDIRECTABLE_RESOURCES_DECLARATION: &str = "export default new Map([";
 //  ]);
-static MAP_END_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r#"^\s*\]\s*\)"#).unwrap());
+static MAP_END_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"^\s*\]\s*\)"#).unwrap());
 
-static TRAILING_COMMA_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r#",([\],\}])"#).unwrap());
-static UNQUOTED_FIELD_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"([\{,])([a-zA-Z][a-zA-Z0-9_]*):"#).unwrap());
+static TRAILING_COMMA_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#",([\],\}])"#).unwrap());
+static UNQUOTED_FIELD_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"([\{,])([a-zA-Z][a-zA-Z0-9_]*):"#).unwrap());
 // Avoid matching a starting `/*` inside a string
-static TRAILING_BLOCK_COMMENT_RE: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"\s*/\*[^'"]*\*/\s*$"#).unwrap());
+static TRAILING_BLOCK_COMMENT_RE: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"\s*/\*[^'"]*\*/\s*$"#).unwrap());
 
 /// Reads data from a a file in the format of uBlock Origin's `redirect-resources.js` file to
 /// determine the files in the `web_accessible_resources` directory, as well as any of their

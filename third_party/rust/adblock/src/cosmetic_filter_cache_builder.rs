@@ -6,7 +6,7 @@ use crate::cosmetic_filter_cache::ProceduralOrActionFilter;
 use crate::cosmetic_filter_utils::SpecificFilterType;
 use crate::cosmetic_filter_utils::{encode_script_with_permission, key_from_selector};
 use crate::filters::cosmetic::{CosmeticFilter, CosmeticFilterMask, CosmeticFilterOperator};
-use crate::filters::fb_builder::{EngineFlatBuilder, ShareableString};
+use crate::filters::fb_builder::EngineFlatBuilder;
 use crate::filters::flatbuffer_generated::fb;
 use crate::flatbuffers::containers::flat_map::FlatMapBuilder;
 use crate::flatbuffers::containers::flat_multimap::FlatMultiMapBuilder;
@@ -14,7 +14,7 @@ use crate::flatbuffers::containers::hash_map::HashMapBuilder;
 use crate::flatbuffers::containers::hash_set::HashSetBuilder;
 
 use crate::flatbuffers::containers::flat_serialize::{
-    serialize_vec_opt, FlatBuilder, FlatSerialize,
+    FlatBuilder, FlatSerialize, serialize_vec_opt,
 };
 
 use crate::utils::Hash;
@@ -27,14 +27,14 @@ use flatbuffers::WIPOffset;
 /// Note: hide and inject_script are now handled separately at the top level
 /// See HostnameSpecificRules declaration for more details.
 #[derive(Default)]
-struct HostnameRule {
-    unhide: Vec<ShareableString>,
-    uninject_script: Vec<ShareableString>,
-    procedural_action: Vec<ShareableString>,
-    procedural_action_exception: Vec<ShareableString>,
+struct HostnameRule<'a> {
+    unhide: Vec<WIPOffset<&'a str>>,
+    uninject_script: Vec<WIPOffset<&'a str>>,
+    procedural_action: Vec<WIPOffset<&'a str>>,
+    procedural_action_exception: Vec<WIPOffset<&'a str>>,
 }
 
-impl<'a> FlatSerialize<'a, EngineFlatBuilder<'a>> for HostnameRule {
+impl<'a> FlatSerialize<'a, EngineFlatBuilder<'a>> for HostnameRule<'a> {
     type Output = WIPOffset<fb::HostnameSpecificRules<'a>>;
 
     fn serialize(
@@ -63,31 +63,21 @@ impl<'a> FlatSerialize<'a, EngineFlatBuilder<'a>> for HostnameRule {
 struct StringVector(Vec<String>);
 
 #[derive(Default)]
-pub(crate) struct CosmeticFilterCacheBuilder {
+pub(crate) struct CosmeticFilterCacheBuilder<'a> {
     simple_class_rules: HashSetBuilder<String>,
     simple_id_rules: HashSetBuilder<String>,
     misc_generic_selectors: HashSet<String>,
     complex_class_rules: HashMapBuilder<String, StringVector>,
     complex_id_rules: HashMapBuilder<String, StringVector>,
 
-    hostname_hide: FlatMultiMapBuilder<Hash, ShareableString>,
-    hostname_inject_script: FlatMultiMapBuilder<Hash, ShareableString>,
+    hostname_hide: FlatMultiMapBuilder<Hash, WIPOffset<&'a str>>,
+    hostname_inject_script: FlatMultiMapBuilder<Hash, WIPOffset<&'a str>>,
 
-    specific_rules: HashMap<Hash, HostnameRule>,
+    specific_rules: HashMap<Hash, HostnameRule<'a>>,
 }
 
-impl CosmeticFilterCacheBuilder {
-    pub fn from_rules(rules: Vec<CosmeticFilter>, builder: &mut EngineFlatBuilder) -> Self {
-        let mut self_ = Self::default();
-
-        for rule in rules {
-            self_.add_filter(rule, builder);
-        }
-
-        self_
-    }
-
-    pub fn add_filter(&mut self, rule: CosmeticFilter, builder: &mut EngineFlatBuilder) {
+impl<'a> CosmeticFilterCacheBuilder<'a> {
+    pub fn add_filter(&mut self, rule: CosmeticFilter, builder: &mut EngineFlatBuilder<'a>) {
         if rule.has_hostname_constraint() {
             if let Some(generic_rule) = rule.hidden_generic_rule() {
                 self.add_generic_filter(generic_rule);
@@ -140,7 +130,7 @@ impl CosmeticFilterCacheBuilder {
         }
     }
 
-    fn store_hostname_rule(&mut self, rule: CosmeticFilter, builder: &mut EngineFlatBuilder) {
+    fn store_hostname_rule(&mut self, rule: CosmeticFilter, builder: &mut EngineFlatBuilder<'a>) {
         use SpecificFilterType::*;
 
         let unhide = rule.mask.contains(CosmeticFilterMask::UNHIDE);
@@ -186,59 +176,59 @@ impl CosmeticFilterCacheBuilder {
         &mut self,
         tokens: impl IntoIterator<Item = Hash>,
         kind: &SpecificFilterType,
-        builder: &mut EngineFlatBuilder,
+        builder: &mut EngineFlatBuilder<'a>,
     ) {
         use SpecificFilterType::*;
 
         match kind {
             // Handle hide and inject_script at top level for better deduplication
             Hide(s) => {
-                let mut shareable_string = None;
+                let mut cached_offset = None;
                 for token in tokens {
-                    let s = shareable_string.get_or_insert_with(|| builder.add_shareable_string(s));
-                    self.hostname_hide.insert(token, s.clone());
+                    let s = cached_offset.get_or_insert_with(|| builder.create_string(s));
+                    self.hostname_hide.insert(token, *s);
                 }
             }
             InjectScript((s, permission)) => {
-                let mut shareable_string = None;
+                let mut cached_offset = None;
                 for token in tokens {
-                    let s = shareable_string.get_or_insert_with(|| {
-                        builder.add_shareable_string(&encode_script_with_permission(s, permission))
+                    let s = cached_offset.get_or_insert_with(|| {
+                        builder.create_string(&encode_script_with_permission(s, permission))
                     });
-                    self.hostname_inject_script.insert(token, s.clone());
+                    self.hostname_inject_script.insert(token, *s);
                 }
             }
             // Handle remaining types through HostnameRule
             Unhide(s) => {
-                let mut shareable_string = None;
+                let mut cached_offset = None;
                 for token in tokens {
-                    let s = shareable_string.get_or_insert_with(|| builder.add_shareable_string(s));
+                    let s = cached_offset.get_or_insert_with(|| builder.create_string(s));
                     let entry = self.specific_rules.entry(token).or_default();
-                    entry.unhide.push(s.clone());
+                    entry.unhide.push(*s);
                 }
             }
             UninjectScript((s, _)) => {
-                let mut shareable_string = None;
+                let mut cached_offset = None;
                 for token in tokens {
-                    let s = shareable_string.get_or_insert_with(|| builder.add_shareable_string(s));
+                    let s = cached_offset.get_or_insert_with(|| builder.create_string(s));
                     let entry = self.specific_rules.entry(token).or_default();
-                    entry.uninject_script.push(s.clone());
+                    entry.uninject_script.push(*s);
                 }
             }
             ProceduralOrAction(s) => {
-                let mut shareable_string = None;
+                let mut cached_offset = None;
                 for token in tokens {
-                    let s = shareable_string.get_or_insert_with(|| builder.add_shareable_string(s));
+                    let s = cached_offset.get_or_insert_with(|| builder.create_string(s));
                     let entry = self.specific_rules.entry(token).or_default();
-                    entry.procedural_action.push(s.clone());
+                    entry.procedural_action.push(*s);
                 }
             }
             ProceduralOrActionException(s) => {
-                let mut shareable_string = None;
+                let mut cached_offset = None;
                 for token in tokens {
-                    let s = shareable_string.get_or_insert_with(|| builder.add_shareable_string(s));
+                    let s = cached_offset.get_or_insert_with(|| builder.create_string(s));
                     let entry = self.specific_rules.entry(token).or_default();
-                    entry.procedural_action_exception.push(s.clone());
+                    entry.procedural_action_exception.push(*s);
                 }
             }
         }
@@ -257,7 +247,7 @@ impl<'a, B: FlatBuilder<'a>> FlatSerialize<'a, B> for StringVector {
     }
 }
 
-impl<'a> FlatSerialize<'a, EngineFlatBuilder<'a>> for CosmeticFilterCacheBuilder {
+impl<'a> FlatSerialize<'a, EngineFlatBuilder<'a>> for CosmeticFilterCacheBuilder<'a> {
     type Output = WIPOffset<fb::CosmeticFilters<'a>>;
 
     fn serialize(

@@ -244,7 +244,7 @@ impl<V: Vector> Finder<V> {
         while offsets.has_non_zero() {
             let offset = offsets.first_offset();
             let cur = cur.add(offset);
-            if end.sub(needle.len()) < cur {
+            if end.distance(cur) < needle.len() {
                 return None;
             }
             if is_equal_raw(needle.as_ptr(), cur, needle.len()) {
