@@ -224,16 +224,14 @@ impl CosmeticFilter {
 
         let mut any_unsupported = false;
         for (location_type, location) in Self::locations_before_sharp(line, sharp_index) {
-            let mut hostname = String::new();
-            if location.is_ascii() {
-                hostname.push_str(location);
+            let hash = if location.is_ascii() {
+                crate::utils::fast_hash(location)
             } else {
                 match idna::domain_to_ascii(location) {
-                    Ok(x) if !x.is_empty() => hostname.push_str(&x),
+                    Ok(x) if !x.is_empty() => crate::utils::fast_hash(&x),
                     _ => return Err(CosmeticFilterError::PunycodeError),
                 }
-            }
-            let hash = crate::utils::fast_hash(&hostname);
+            };
             match location_type {
                 CosmeticFilterLocationType::NotEntity => not_entities_vec.push(hash),
                 CosmeticFilterLocationType::NotHostname => not_hostnames_vec.push(hash),
@@ -278,6 +276,62 @@ impl CosmeticFilter {
         })
     }
 
+    /// Turns a string of the format `.selector { background: red }` into
+    /// `Some((".selector", "background: red"))`.
+    fn split_abp_brace_suffix(s: &str) -> Option<(&str, &str)> {
+        if !s.ends_with('}') {
+            return None;
+        }
+        let open = s.rfind('{')?;
+        if open == 0 {
+            return None;
+        }
+        let selector = s[..open].trim_end();
+        let body = s[open + 1..s.len() - 1].trim();
+        if selector.is_empty() {
+            return None;
+        }
+        Some((selector, body))
+    }
+
+    /// Returns `Some(true)` for ` remove: true; ` with optional whitespace and semicolon,
+    /// `Some(false)` for the corresponding false construction, or `None` otherwise.
+    fn parse_abp_remove_body(body: &str) -> Option<bool> {
+        let (key, mut val) = body.split_once(":")?;
+        if key.trim() != "remove" {
+            return None;
+        }
+        val = val.trim();
+        if let Some(stripped_val) = val.strip_suffix(';') {
+            val = stripped_val;
+        }
+        match val {
+            "true" => Some(true),
+            "false" => Some(false),
+            _ => None,
+        }
+    }
+
+    /// Parses ABP curly-bracketed style injections and `remove:` directives into corresponding
+    /// `CosmeticFilterAction`s.
+    fn parse_abp_style_injection(
+        after_sharp: &str,
+    ) -> Option<Result<(&str, Option<CosmeticFilterAction>), CosmeticFilterError>> {
+        let (selector, body) = match Self::split_abp_brace_suffix(after_sharp) {
+            Some(parts) => parts,
+            None if after_sharp.ends_with('}') => {
+                return Some(Err(CosmeticFilterError::InvalidActionSpecifier));
+            }
+            None => return None,
+        };
+
+        Some(match Self::parse_abp_remove_body(body) {
+            Some(true) => Ok((selector, Some(CosmeticFilterAction::Remove))),
+            Some(false) => Err(CosmeticFilterError::InvalidActionSpecifier),
+            None => CosmeticFilterAction::new_style(body).map(|action| (selector, Some(action))),
+        })
+    }
+
     /// Parses the contents of a cosmetic filter rule following the `##` or `#@#` separator.
     ///
     /// On success, returns `selector` and `style` according to the rule.
@@ -290,6 +344,10 @@ impl CosmeticFilter {
     ) -> Result<(&str, Option<CosmeticFilterAction>), CosmeticFilterError> {
         if after_sharp.starts_with('^') {
             return Err(CosmeticFilterError::HtmlFilteringUnsupported);
+        }
+
+        if let Some(result) = Self::parse_abp_style_injection(after_sharp) {
+            return result;
         }
 
         const STYLE_TOKEN: &[u8] = b":style(";
@@ -621,10 +679,10 @@ mod css_validation {
         selector: &str,
         accept_abp_selectors: bool,
     ) -> Result<Vec<CosmeticFilterOperator>, CosmeticFilterError> {
-        use once_cell::sync::Lazy;
         use regex::Regex;
-        static RE_SIMPLE_SELECTOR: Lazy<Regex> =
-            Lazy::new(|| Regex::new(r"^[#.]?[A-Za-z_][\w-]*$").unwrap());
+        use std::sync::LazyLock;
+        static RE_SIMPLE_SELECTOR: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r"^[#.]?[A-Za-z_][\w-]*$").unwrap());
 
         if RE_SIMPLE_SELECTOR.is_match(selector) {
             return Ok(vec![CosmeticFilterOperator::CssSelector(
@@ -832,13 +890,16 @@ mod css_validation {
     }
 
     pub fn is_valid_css_style(style: &str) -> bool {
-        if style.contains('\\') {
-            return false;
-        }
-        if style.contains("url(") {
-            return false;
-        }
-        if style.contains("/*") {
+        use regex::{Regex, RegexBuilder};
+        use std::sync::LazyLock;
+        static RE_INVALID_DIRECTIVE: LazyLock<Regex> = LazyLock::new(|| {
+            RegexBuilder::new(r"image-set\(|url\(|\\|\/\*")
+                .case_insensitive(true)
+                .build()
+                .unwrap()
+        });
+
+        if RE_INVALID_DIRECTIVE.is_match(style) {
             return false;
         }
         true
@@ -962,7 +1023,7 @@ mod css_validation {
                 | "remove-attr" | "remove-class" => {
                     return Err(arguments.new_custom_error(
                         SelectorParseErrorKind::UnsupportedPseudoClassOrElement(name),
-                    ))
+                    ));
                 }
                 _ => (),
             }

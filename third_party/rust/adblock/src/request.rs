@@ -5,6 +5,38 @@ use thiserror::Error;
 use crate::url_parser;
 use crate::utils;
 
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum RequestMethod {
+    Connect,
+    Delete,
+    Get,
+    Head,
+    Options,
+    Patch,
+    Post,
+    Put,
+    Other,
+}
+
+impl std::str::FromStr for RequestMethod {
+    type Err = ();
+
+    fn from_str(raw_method: &str) -> Result<Self, Self::Err> {
+        match raw_method.to_ascii_lowercase().as_str() {
+            "" => Err(()),
+            "connect" => Ok(RequestMethod::Connect),
+            "delete" => Ok(RequestMethod::Delete),
+            "get" => Ok(RequestMethod::Get),
+            "head" => Ok(RequestMethod::Head),
+            "options" => Ok(RequestMethod::Options),
+            "patch" => Ok(RequestMethod::Patch),
+            "post" => Ok(RequestMethod::Post),
+            "put" => Ok(RequestMethod::Put),
+            _ => Ok(RequestMethod::Other),
+        }
+    }
+}
+
 /// The type of resource requested from the URL endpoint.
 #[derive(Clone, PartialEq, Debug)]
 pub enum RequestType {
@@ -79,6 +111,7 @@ fn cpt_match_type(cpt: &str) -> RequestType {
 #[derive(Clone, Debug)]
 pub struct Request {
     pub request_type: RequestType,
+    pub method: Option<RequestMethod>,
 
     pub is_http: bool,
     pub is_https: bool,
@@ -125,6 +158,7 @@ impl Request {
         source_hostname: &str,
         third_party: bool,
         original_url: String,
+        method: Option<RequestMethod>,
     ) -> Request {
         let is_http: bool;
         let is_https: bool;
@@ -167,6 +201,7 @@ impl Request {
 
         Request {
             request_type,
+            method,
             url: url.to_owned(),
             url_lower_cased: url_lower_cased.to_owned(),
             hostname: hostname.to_owned(),
@@ -181,36 +216,34 @@ impl Request {
     }
 
     /// Construct a new [`Request`].
-    pub fn new(url: &str, source_url: &str, request_type: &str) -> Result<Request, RequestError> {
-        if let Some(parsed_url) = url_parser::parse_url(url) {
-            if let Some(parsed_source) = url_parser::parse_url(source_url) {
-                let source_domain = parsed_source.domain();
+    pub fn new(
+        url: &str,
+        source_url: &str,
+        request_type: &str,
+        method: &str,
+    ) -> Result<Request, RequestError> {
+        let parsed_url = url_parser::parse_url(url).ok_or(RequestError::HostnameParseError)?;
+        let parsed_method = method.parse::<RequestMethod>().ok();
 
-                let third_party = source_domain != parsed_url.domain();
+        let parsed_source = url_parser::parse_url(source_url);
+        let (source_domain, third_party) = match &parsed_source {
+            Some(parsed_source) => (
+                parsed_source.hostname(),
+                parsed_source.domain() != parsed_url.domain(),
+            ),
+            None => ("", true),
+        };
 
-                Ok(Request::from_detailed_parameters(
-                    request_type,
-                    &parsed_url.url,
-                    parsed_url.schema(),
-                    parsed_url.hostname(),
-                    parsed_source.hostname(),
-                    third_party,
-                    url.to_string(),
-                ))
-            } else {
-                Ok(Request::from_detailed_parameters(
-                    request_type,
-                    &parsed_url.url,
-                    parsed_url.schema(),
-                    parsed_url.hostname(),
-                    "",
-                    true,
-                    url.to_string(),
-                ))
-            }
-        } else {
-            Err(RequestError::HostnameParseError)
-        }
+        Ok(Request::from_detailed_parameters(
+            request_type,
+            &parsed_url.url,
+            parsed_url.schema(),
+            parsed_url.hostname(),
+            source_domain,
+            third_party,
+            url.to_string(),
+            parsed_method,
+        ))
     }
 
     /// If you're building a [`Request`] in a context that already has access to parsed
@@ -222,6 +255,7 @@ impl Request {
         source_hostname: &str,
         request_type: &str,
         third_party: bool,
+        method: &str,
     ) -> Request {
         let splitter = memchr::memchr(b':', url.as_bytes()).unwrap_or(0);
         let schema: &str = &url[..splitter];
@@ -234,6 +268,7 @@ impl Request {
             source_hostname,
             third_party,
             url.to_string(),
+            method.parse::<RequestMethod>().ok(),
         )
     }
 }

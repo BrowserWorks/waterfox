@@ -1,4 +1,4 @@
-//! Parsing functions and collections for handling with multiple filter rules.
+//! Parsing functions and collections for handling multiple filter rules.
 
 use std::convert::TryFrom;
 
@@ -18,6 +18,15 @@ pub enum RuleTypes {
     All,
     NetworkOnly,
     CosmeticOnly,
+}
+
+/// Recorded information about a filter list that has been added to a [FilterSet].
+#[derive(Default, Clone, Serialize)]
+pub struct AddedFiltersRecord {
+    /// An index that the [crate::Engine] will use to keep track of this source
+    pub source_index: usize,
+    /// Any header information parsed from the list itself
+    pub metadata: FilterListMetadata,
 }
 
 impl RuleTypes {
@@ -69,6 +78,13 @@ impl Default for ParseOptions {
     }
 }
 
+#[derive(Clone)]
+pub(crate) struct ListSource {
+    pub(crate) list_text: String,
+    pub(crate) parse_options: ParseOptions,
+    pub(crate) metadata: FilterListMetadata,
+}
+
 /// Manages a set of rules to be added to an [`crate::Engine`].
 ///
 /// To be able to efficiently handle special options like `$badfilter`, and to allow optimizations,
@@ -76,9 +92,8 @@ impl Default for ParseOptions {
 /// compound list from multiple different sources before compiling the rules into an `Engine`.
 #[derive(Clone)]
 pub struct FilterSet {
-    debug: bool,
-    pub(crate) network_filters: Vec<NetworkFilter>,
-    pub(crate) cosmetic_filters: Vec<CosmeticFilter>,
+    pub(crate) debug: bool,
+    pub(crate) list_sources: Vec<ListSource>,
 }
 
 /// Collects metadata for the list by reading just until the first non-comment line.
@@ -94,8 +109,8 @@ pub fn read_list_metadata(list: &str) -> FilterListMetadata {
 
     // String slice is safe here because `cutoff` is guaranteed to be a character boundary
     for line in list[0..cutoff].lines() {
-        if line.starts_with('!') {
-            metadata.try_add(line);
+        if let Some(comment_content) = line.strip_prefix('!') {
+            metadata.try_add_metadata(comment_content);
         } else if line.starts_with('[') {
             continue;
         } else {
@@ -121,7 +136,7 @@ impl Default for FilterSet {
 }
 
 /// Corresponds to the `expires` field of `FilterListMetadata`.
-#[derive(Debug, PartialEq, Serialize)]
+#[derive(Debug, PartialEq, Clone, Serialize)]
 pub enum ExpiresInterval {
     Hours(u16),
     Days(u8),
@@ -164,7 +179,7 @@ impl TryFrom<&str> for ExpiresInterval {
 
 /// Includes information about any "special comments" as described by
 /// <https://help.eyeo.com/adblockplus/how-to-write-filters#special-comments>
-#[derive(Default, Serialize)]
+#[derive(Default, Clone, Serialize)]
 pub struct FilterListMetadata {
     /// `! Homepage: http://example.com` - This comment determines which webpage should be linked
     /// as filter list homepage.
@@ -188,27 +203,21 @@ pub struct FilterListMetadata {
 }
 
 impl FilterListMetadata {
-    /// Attempts to add a line of a filter list to this collection of metadata. Only comment lines
+    /// Attempts to add a comment's content to this collection of metadata. Only contents
     /// with valid metadata content will be added. Previously added information will not be
     /// rewritten.
-    fn try_add(&mut self, line: &str) {
-        if let Some(kv) = line.strip_prefix("! ") {
-            if let Some((key, value)) = kv.split_once(": ") {
-                match key {
-                    "Homepage" if self.homepage.is_none() => {
-                        self.homepage = Some(value.to_string())
+    pub(crate) fn try_add_metadata(&mut self, metadata: &str) {
+        if let Some((key, value)) = metadata.trim().split_once(": ") {
+            match key {
+                "Homepage" if self.homepage.is_none() => self.homepage = Some(value.to_string()),
+                "Title" if self.title.is_none() => self.title = Some(value.to_string()),
+                "Expires" if self.expires.is_none() => {
+                    if let Ok(expires) = ExpiresInterval::try_from(value) {
+                        self.expires = Some(expires)
                     }
-                    "Title" if self.title.is_none() => self.title = Some(value.to_string()),
-                    "Expires" if self.expires.is_none() => {
-                        if let Ok(expires) = ExpiresInterval::try_from(value) {
-                            self.expires = Some(expires);
-                        }
-                    }
-                    "Redirect" if self.redirect.is_none() => {
-                        self.redirect = Some(value.to_string())
-                    }
-                    _ => (),
                 }
+                "Redirect" if self.redirect.is_none() => self.redirect = Some(value.to_string()),
+                _ => (),
             }
         }
     }
@@ -221,54 +230,53 @@ impl FilterSet {
     pub fn new(debug: bool) -> Self {
         Self {
             debug,
-            network_filters: Vec::new(),
-            cosmetic_filters: Vec::new(),
-        }
-    }
-
-    // Used in benchmarks to avoid parsing the rules twice.
-    #[doc(hidden)]
-    pub fn new_with_rules(
-        network_filters: Vec<NetworkFilter>,
-        cosmetic_filters: Vec<CosmeticFilter>,
-        debug: bool,
-    ) -> Self {
-        Self {
-            debug,
-            network_filters,
-            cosmetic_filters,
+            list_sources: Vec::new(),
         }
     }
 
     /// Adds the contents of an entire filter list to this `FilterSet`. Filters that cannot be
     /// parsed successfully are ignored. Returns any discovered metadata about the list of rules
     /// added.
-    pub fn add_filter_list(&mut self, filter_list: &str, opts: ParseOptions) -> FilterListMetadata {
-        self.add_filters(filter_list.lines(), opts)
+    pub fn add_filter_list(&mut self, list_text: String, opts: ParseOptions) -> AddedFiltersRecord {
+        let metadata = match opts.format {
+            FilterFormat::Standard => read_list_metadata(&list_text),
+            FilterFormat::Hosts => FilterListMetadata::default(),
+        };
+        self.list_sources.push(ListSource {
+            list_text,
+            parse_options: opts,
+            metadata: metadata.clone(),
+        });
+        AddedFiltersRecord {
+            source_index: self.list_sources.len() - 1,
+            metadata,
+        }
     }
 
     /// Adds a collection of filter rules to this `FilterSet`. Filters that cannot be parsed
     /// successfully are ignored. Returns any discovered metadata about the list of rules added.
+    #[cfg(test)]
     pub fn add_filters(
         &mut self,
         filters: impl IntoIterator<Item = impl AsRef<str>>,
         opts: ParseOptions,
-    ) -> FilterListMetadata {
-        let (metadata, parsed_network_filters, parsed_cosmetic_filters) =
-            parse_filters_with_metadata(filters, self.debug, opts);
-        self.network_filters.extend(parsed_network_filters);
-        self.cosmetic_filters.extend(parsed_cosmetic_filters);
-        metadata
+    ) {
+        let list_text = filters.into_iter().fold(String::new(), |mut acc, rule| {
+            acc.push_str(rule.as_ref());
+            acc.push('\n');
+            acc
+        });
+        self.list_sources.push(ListSource {
+            list_text,
+            parse_options: opts,
+            metadata: FilterListMetadata::default(),
+        });
     }
 
     /// Adds the string representation of a single filter rule to this `FilterSet`.
-    pub fn add_filter(&mut self, filter: &str, opts: ParseOptions) -> Result<(), FilterParseError> {
-        let filter_parsed = parse_filter(filter, self.debug, opts);
-        match filter_parsed? {
-            ParsedFilter::Network(filter) => self.network_filters.push(filter),
-            ParsedFilter::Cosmetic(filter) => self.cosmetic_filters.push(filter),
-        }
-        Ok(())
+    #[cfg(test)]
+    pub fn add_filter(&mut self, filter: &str, opts: ParseOptions) {
+        self.add_filters([filter], opts)
     }
 
     /// Consumes this `FilterSet`, returning an equivalent list of content blocking rules and a
@@ -285,18 +293,33 @@ impl FilterSet {
         self,
     ) -> Result<(Vec<crate::content_blocking::CbRule>, Vec<String>), ()> {
         use crate::content_blocking;
-        use crate::filters::network::NetworkFilterMaskHelper;
         use std::collections::HashSet;
 
-        if !self.debug {
+        let FilterSet {
+            debug,
+            list_sources,
+        } = self;
+
+        if !debug {
             return Err(());
+        }
+
+        let mut network_filters = vec![];
+        let mut cosmetic_filters = vec![];
+        for list_source in list_sources.iter() {
+            let list_text = list_source.list_text.lines();
+            let parse_options = list_source.parse_options;
+            let (list_network_filters, list_cosmetic_filters) =
+                parse_filters(list_text, debug, parse_options);
+            network_filters.extend(list_network_filters);
+            cosmetic_filters.extend(list_cosmetic_filters);
         }
 
         // Store bad filter id to skip them later.
         let mut bad_filter_ids = HashSet::new();
-        for filter in self.network_filters.iter() {
+        for filter in network_filters.iter() {
             if filter.is_badfilter() {
-                bad_filter_ids.insert(filter.get_id_without_badfilter());
+                bad_filter_ids.insert(filter.get_id());
             }
         }
 
@@ -305,15 +328,16 @@ impl FilterSet {
 
         let mut filters_used = vec![];
 
-        self.network_filters.into_iter().for_each(|filter| {
+        network_filters.into_iter().for_each(|filter| {
             // Don't process bad filter rules or matching bad filter rules.
             if bad_filter_ids.contains(&filter.get_id()) || filter.is_badfilter() {
                 return;
             }
-            let original_rule = *filter
+            let original_rule = filter
                 .raw_line
-                .clone()
-                .expect("All rules should be in debug mode");
+                .as_ref()
+                .expect("All rules should be in debug mode")
+                .to_string();
             if let Ok(equivalent) = TryInto::<content_blocking::CbRuleEquivalent>::try_into(filter)
             {
                 filters_used.push(original_rule);
@@ -330,7 +354,7 @@ impl FilterSet {
 
         let add_fp_document_exception = !filters_used.is_empty();
 
-        self.cosmetic_filters.into_iter().for_each(|filter| {
+        cosmetic_filters.into_iter().for_each(|filter| {
             let original_rule = *filter
                 .raw_line
                 .clone()
@@ -386,27 +410,27 @@ impl Default for FilterFormat {
 pub enum FilterType {
     /// A network filter, used for changing the behavior of network requests
     Network,
-    /// A network filter, used for changing the behavior of fetched pages
+    /// A cosmetic filter, used for changing the behavior of fetched pages
     Cosmetic,
     /// Something else that isn't supported
     NotSupported,
 }
 
-/// Successful result of parsing a single filter rule
-pub enum ParsedFilter {
-    Network(NetworkFilter),
+/// Successful result of parsing a single line from a filter list
+pub enum ParsedLine<'a> {
+    Network(NetworkFilter<'a>),
     Cosmetic(CosmeticFilter),
 }
 
-impl From<NetworkFilter> for ParsedFilter {
-    fn from(v: NetworkFilter) -> Self {
-        ParsedFilter::Network(v)
+impl From<NetworkFilter<'static>> for ParsedLine<'static> {
+    fn from(v: NetworkFilter<'static>) -> Self {
+        ParsedLine::Network(v)
     }
 }
 
-impl From<CosmeticFilter> for ParsedFilter {
+impl From<CosmeticFilter> for ParsedLine<'static> {
     fn from(v: CosmeticFilter) -> Self {
-        ParsedFilter::Cosmetic(v)
+        ParsedLine::Cosmetic(v)
     }
 }
 
@@ -421,6 +445,8 @@ pub enum FilterParseError {
     Unsupported,
     #[error("empty")]
     Empty,
+    #[error("invalid expires interval")]
+    InvalidExpiresInterval,
 }
 
 impl From<NetworkFilterError> for FilterParseError {
@@ -435,12 +461,12 @@ impl From<CosmeticFilterError> for FilterParseError {
     }
 }
 
-/// Parse a single filter rule
-pub fn parse_filter(
-    line: &str,
+/// Parse a single line from a filter list
+pub fn parse_filter<'a>(
+    line: &'a str,
     debug: bool,
     opts: ParseOptions,
-) -> Result<ParsedFilter, FilterParseError> {
+) -> Result<ParsedLine<'a>, FilterParseError> {
     let filter = line.trim();
 
     if filter.is_empty() {
@@ -451,12 +477,12 @@ pub fn parse_filter(
         FilterFormat::Standard => match (detect_filter_type(filter), opts.rule_types) {
             (FilterType::Network, RuleTypes::All | RuleTypes::NetworkOnly) => {
                 NetworkFilter::parse(filter, debug, opts)
-                    .map(|f| f.into())
+                    .map(ParsedLine::Network)
                     .map_err(|e| e.into())
             }
             (FilterType::Cosmetic, RuleTypes::All | RuleTypes::CosmeticOnly) => {
                 CosmeticFilter::parse(filter, debug, opts.permissions)
-                    .map(|f| f.into())
+                    .map(ParsedLine::Cosmetic)
                     .map_err(|e| e.into())
             }
             _ => Err(FilterParseError::Unsupported),
@@ -505,46 +531,28 @@ pub fn parse_filter(
             }
 
             NetworkFilter::parse_hosts_style(hostname, debug)
-                .map(|f| f.into())
+                .map(ParsedLine::Network)
                 .map_err(|e| e.into())
         }
     }
 }
 
 /// Parse an entire list of filters, ignoring any errors
-pub fn parse_filters(
-    list: impl IntoIterator<Item = impl AsRef<str>>,
+pub fn parse_filters<'a>(
+    list: impl IntoIterator<Item = &'a str>,
     debug: bool,
     opts: ParseOptions,
-) -> (Vec<NetworkFilter>, Vec<CosmeticFilter>) {
-    let (_metadata, network_filters, cosmetic_filters) =
-        parse_filters_with_metadata(list, debug, opts);
+) -> (Vec<NetworkFilter<'a>>, Vec<CosmeticFilter>) {
+    let (network_filters, cosmetic_filters): (Vec<_>, Vec<_>) = list
+        .into_iter()
+        .filter_map(|line| match parse_filter(line, debug, opts) {
+            Ok(ParsedLine::Network(f)) => Some(Either::Left(f)),
+            Ok(ParsedLine::Cosmetic(f)) => Some(Either::Right(f)),
+            _ => None,
+        })
+        .partition_map(|x| x);
 
     (network_filters, cosmetic_filters)
-}
-
-/// Parse an entire list of filters, ignoring any errors
-pub fn parse_filters_with_metadata(
-    list: impl IntoIterator<Item = impl AsRef<str>>,
-    debug: bool,
-    opts: ParseOptions,
-) -> (FilterListMetadata, Vec<NetworkFilter>, Vec<CosmeticFilter>) {
-    let mut metadata = FilterListMetadata::default();
-
-    let list_iter = list.into_iter();
-
-    let (network_filters, cosmetic_filters): (Vec<_>, Vec<_>) = list_iter
-        .map(|line| {
-            metadata.try_add(line.as_ref());
-            parse_filter(line.as_ref(), debug, opts)
-        })
-        .filter_map(Result::ok)
-        .partition_map(|filter| match filter {
-            ParsedFilter::Network(f) => Either::Left(f),
-            ParsedFilter::Cosmetic(f) => Either::Right(f),
-        });
-
-    (metadata, network_filters, cosmetic_filters)
 }
 
 /// Given a single line, checks if this would likely be a cosmetic filter, a

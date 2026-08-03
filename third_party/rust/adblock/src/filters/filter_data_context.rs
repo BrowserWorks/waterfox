@@ -13,12 +13,14 @@ pub(crate) type FilterDataContextRef = std::sync::Arc<FilterDataContext>;
 pub(crate) struct FilterDataContext {
     pub(crate) memory: VerifiedFlatbufferMemory,
     pub(crate) unique_domains_hashes_map: HashMap<Hash, u32>,
+    pub(crate) debug: bool,
 }
 
 impl FilterDataContext {
     pub(crate) fn new(memory: VerifiedFlatbufferMemory) -> FilterDataContextRef {
         // Reconstruct the unique_domains_hashes_map from the flatbuffer data
         let root = memory.root();
+        let debug = root.debug();
         let mut unique_domains_hashes_map: HashMap<crate::utils::Hash, u32> = HashMap::new();
         for (index, hash) in root.unique_domains_hashes().iter().enumerate() {
             unique_domains_hashes_map.insert(hash, index as u32);
@@ -26,6 +28,7 @@ impl FilterDataContext {
         FilterDataContextRef::new(Self {
             memory,
             unique_domains_hashes_map,
+            debug,
         })
     }
 }

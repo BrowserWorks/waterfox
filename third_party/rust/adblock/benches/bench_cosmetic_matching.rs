@@ -1,4 +1,5 @@
 use adblock::Engine;
+use adblock::lists::FilterSet;
 use criterion::*;
 
 #[path = "../tests/test_utils.rs"]
@@ -7,10 +8,12 @@ mod test_utils;
 pub fn make_engine() -> Engine {
     use adblock::resources::Resource;
 
-    let rules = test_utils::rules_from_lists(&["data/brave/brave-main-list.txt"]);
+    let rules = test_utils::rules_from_lists(["data/brave/brave-main-list.txt"]);
     let resource_json = std::fs::read_to_string("data/brave/brave-resources.json").unwrap();
     let resource_list: Vec<Resource> = serde_json::from_str(&resource_json).unwrap();
-    let mut engine = Engine::from_rules_parametrised(rules, Default::default(), true, true);
+    let mut filter_set = FilterSet::new(true);
+    filter_set.add_filter_list(rules, Default::default());
+    let mut engine = Engine::new_with_filter_set(filter_set);
     engine.use_resources(resource_list);
     engine
 }

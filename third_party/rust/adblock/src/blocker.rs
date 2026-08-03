@@ -1,10 +1,10 @@
 //! Holds [`Blocker`], which handles all network-based adblocking queries.
 
 use memchr::{memchr as find_char, memrchr as find_char_reverse};
-use once_cell::sync::Lazy;
 use serde::Serialize;
 use std::collections::HashSet;
 use std::ops::DerefMut;
+use std::sync::OnceLock;
 
 use crate::filters::fb_network_builder::NetworkFilterListId;
 use crate::filters::filter_data_context::FilterDataContextRef;
@@ -13,17 +13,28 @@ use crate::network_filter_list::NetworkFilterList;
 use crate::regex_manager::{RegexManager, RegexManagerDiscardPolicy};
 use crate::request::Request;
 use crate::resources::ResourceStorage;
-
-/// Options used when constructing a [`Blocker`].
-pub struct BlockerOptions {
-    pub enable_optimizations: bool,
-}
+use crate::sourcemap::FilterRuleDebugInfo;
 
 /// Describes how a particular network request should be handled.
 #[derive(Debug, Serialize, Default)]
 pub struct BlockerResult {
-    /// Was a blocking filter matched for this request?
-    pub matched: bool,
+    /// Represents any matched blocking rule.
+    /// If you just need to check whether or not to block the request, use
+    /// [BlockerResult::should_block].
+    ///
+    /// If `Some`, the request should be blocked, but this may be invalidated
+    /// if an exception was also matched.
+    ///
+    /// If debugging was _not_ enabled (see [`crate::FilterSet::new`]), rule
+    /// info will be limited.
+    pub filter: Option<FilterRuleDebugInfo>,
+    /// Represents any matched exception rule.
+    /// If `Some`, this means that there was a match, but the request should
+    /// _not_ be blocked.
+    ///
+    /// If debugging was _not_ enabled (see [`crate::FilterSet::new`]), rule
+    /// info will be limited.
+    pub exception: Option<FilterRuleDebugInfo>,
     /// Important is used to signal that a rule with the `important` option
     /// matched. An `important` match means that exceptions should not apply
     /// and no further checking is neccesary--the request should be blocked
@@ -46,24 +57,21 @@ pub struct BlockerResult {
     /// modified at all, the new version will be here. This should be used
     /// as long as the request is not blocked.
     pub rewritten_url: Option<String>,
-    /// Contains a string representation of any matched exception rule.
-    /// Effectively this means that there was a match, but the request should
-    /// not be blocked.
-    ///
-    /// If debugging was _not_ enabled (see [`crate::FilterSet::new`]), this
-    /// will only contain a constant `"NetworkFilter"` placeholder string.
-    pub exception: Option<String>,
-    /// When `matched` is true, this contains a string representation of the
-    /// matched blocking rule.
-    ///
-    /// If debugging was _not_ enabled (see [`crate::FilterSet::new`]), this
-    /// will only contain a constant `"NetworkFilter"` placeholder string.
-    pub filter: Option<String>,
+}
+
+impl BlockerResult {
+    /// Should the request be blocked?
+    pub fn should_block(&self) -> bool {
+        self.important || (self.filter.is_some() && self.exception.is_none())
+    }
 }
 
 // only check for tags in tagged and exception rule buckets,
 // pass empty set for the rest
-static NO_TAGS: Lazy<HashSet<String>> = Lazy::new(HashSet::new);
+fn get_no_tags() -> &'static HashSet<String> {
+    static NO_TAGS: OnceLock<HashSet<String>> = OnceLock::new();
+    NO_TAGS.get_or_init(&HashSet::new)
+}
 
 /// Stores network filters for efficient querying.
 pub struct Blocker {
@@ -186,13 +194,16 @@ impl Blocker {
         // Always check important filters
         let important_filter = self
             .importants()
-            .check(request, &NO_TAGS, &mut regex_manager);
+            .check(request, get_no_tags(), &mut regex_manager);
 
         // only check the rest of the rules if not previously matched
         let filter = if important_filter.is_none() && !matched_rule {
             self.tagged_filters_all()
                 .check(request, &self.tags_enabled, &mut regex_manager)
-                .or_else(|| self.filters().check(request, &NO_TAGS, &mut regex_manager))
+                .or_else(|| {
+                    self.filters()
+                        .check(request, get_no_tags(), &mut regex_manager)
+                })
         } else {
             important_filter
         };
@@ -205,7 +216,7 @@ impl Blocker {
             }
             None => None,
             // If matched an important filter, exceptions don't atter
-            Some(f) if f.is_important() => None,
+            Some(f) if f.filter_mask.is_important() => None,
             Some(_) => self
                 .exceptions()
                 .check(request, &self.tags_enabled, &mut regex_manager),
@@ -213,7 +224,7 @@ impl Blocker {
 
         let redirect_filters =
             self.redirects()
-                .check_all(request, &NO_TAGS, regex_manager.deref_mut());
+                .check_all(request, get_no_tags(), regex_manager.deref_mut());
 
         // Extract the highest priority redirect directive.
         // 1. Exceptions - can bail immediately if found
@@ -221,38 +232,37 @@ impl Blocker {
         let redirect_resource = {
             let mut exceptions = vec![];
             for redirect_filter in redirect_filters.iter() {
-                if redirect_filter.is_exception() {
-                    if let Some(redirect) = redirect_filter.modifier_option.as_ref() {
-                        exceptions.push(redirect);
-                    }
+                if redirect_filter.filter_mask.is_exception()
+                    && let Some(redirect) = redirect_filter.modifier_option.as_ref()
+                {
+                    exceptions.push(redirect);
                 }
             }
             let mut resource_and_priority = None;
             for redirect_filter in redirect_filters.iter() {
-                if !redirect_filter.is_exception() {
-                    if let Some(redirect) = redirect_filter.modifier_option.as_ref() {
-                        if !exceptions.contains(&redirect) {
-                            // parse redirect + priority
-                            let (resource, priority) =
-                                if let Some(idx) = find_char_reverse(b':', redirect.as_bytes()) {
-                                    let priority_str = &redirect[idx + 1..];
-                                    let resource = &redirect[..idx];
-                                    if let Ok(priority) = priority_str.parse::<i32>() {
-                                        (resource, priority)
-                                    } else {
-                                        (&redirect[..], 0)
-                                    }
-                                } else {
-                                    (&redirect[..], 0)
-                                };
-                            if let Some((_, p1)) = resource_and_priority {
-                                if priority > p1 {
-                                    resource_and_priority = Some((resource, priority));
-                                }
+                if !redirect_filter.filter_mask.is_exception()
+                    && let Some(redirect) = redirect_filter.modifier_option.as_ref()
+                    && !exceptions.contains(&redirect)
+                {
+                    // parse redirect + priority
+                    let (resource, priority) =
+                        if let Some(idx) = find_char_reverse(b':', redirect.as_bytes()) {
+                            let priority_str = &redirect[idx + 1..];
+                            let resource = &redirect[..idx];
+                            if let Ok(priority) = priority_str.parse::<i32>() {
+                                (resource, priority)
                             } else {
-                                resource_and_priority = Some((resource, priority));
+                                (&redirect[..], 0)
                             }
+                        } else {
+                            (&redirect[..], 0)
+                        };
+                    if let Some((_, p1)) = resource_and_priority {
+                        if priority > p1 {
+                            resource_and_priority = Some((resource, priority));
                         }
+                    } else {
+                        resource_and_priority = Some((resource, priority));
                     }
                 }
             }
@@ -272,7 +282,7 @@ impl Blocker {
         let important = filter.is_some()
             && filter
                 .as_ref()
-                .map(|f| f.is_important())
+                .map(|f| f.filter_mask.is_important())
                 .unwrap_or_else(|| false);
 
         let rewritten_url = if important {
@@ -282,14 +292,20 @@ impl Blocker {
         };
 
         // If something has already matched before but we don't know what, still return a match
-        let matched = exception.is_none() && (filter.is_some() || matched_rule);
+        let fallback_match = if matched_rule {
+            Some(FilterRuleDebugInfo::default())
+        } else {
+            None
+        };
+
         BlockerResult {
-            matched,
+            filter: filter
+                .map(|f| f.debug_data.unwrap_or(FilterRuleDebugInfo::default()))
+                .or(fallback_match),
+            exception: exception.map(|f| f.debug_data.unwrap_or(FilterRuleDebugInfo::default())),
             important,
             redirect,
             rewritten_url,
-            exception: exception.as_ref().map(|f| f.to_string()), // copy the exception
-            filter: filter.as_ref().map(|f| f.to_string()),       // copy the filter
         }
     }
 
@@ -339,16 +355,17 @@ impl Blocker {
                 .map(|param| (param, true))
                 .collect();
 
-            let filters = removeparam_filters.check_all(request, &NO_TAGS, regex_manager);
+            let filters = removeparam_filters.check_all(request, get_no_tags(), regex_manager);
             let mut rewrite = false;
             for removeparam_filter in filters {
                 if let Some(removeparam) = &removeparam_filter.modifier_option {
                     params.iter_mut().for_each(|(param, include)| {
-                        if let QParam::KeyValue(k, v) = param {
-                            if !v.is_empty() && k == removeparam {
-                                *include = false;
-                                rewrite = true;
-                            }
+                        if let QParam::KeyValue(k, v) = param
+                            && !v.is_empty()
+                            && k == removeparam
+                        {
+                            *include = false;
+                            rewrite = true;
                         }
                     });
                 }
@@ -358,7 +375,7 @@ impl Blocker {
                     params
                         .into_iter()
                         .filter(|(_, include)| *include)
-                        .map(|(param, _)| param.to_string()),
+                        .map(|(param, _)| param),
                     "&",
                 );
                 let new_param_str = if p.is_empty() {
@@ -404,17 +421,15 @@ impl Blocker {
         let mut enabled_directives: HashSet<&str> = HashSet::new();
 
         for filter in filters.iter() {
-            if filter.is_exception() {
-                if filter.is_csp() {
-                    if let Some(csp_directive) = &filter.modifier_option {
-                        disabled_directives.insert(csp_directive);
-                    } else {
-                        // Exception filters with empty `csp` options will disable all CSP
-                        // injections for matching pages.
-                        return None;
-                    }
+            if filter.filter_mask.is_exception() {
+                if let Some(csp_directive) = &filter.modifier_option {
+                    disabled_directives.insert(csp_directive);
+                } else {
+                    // Exception filters with empty `csp` options will disable all CSP
+                    // injections for matching pages.
+                    return None;
                 }
-            } else if filter.is_csp() {
+            } else {
                 if let Some(csp_directive) = &filter.modifier_option {
                     enabled_directives.insert(csp_directive);
                 }
@@ -423,11 +438,7 @@ impl Blocker {
 
         let mut remaining_directives = enabled_directives.difference(&disabled_directives);
 
-        let mut merged = if let Some(directive) = remaining_directives.next() {
-            String::from(*directive)
-        } else {
-            return None;
-        };
+        let mut merged = String::from(*remaining_directives.next()?);
 
         remaining_directives.for_each(|directive| {
             merged.push(',');
@@ -446,16 +457,26 @@ impl Blocker {
     }
 
     #[cfg(test)]
-    pub fn new(
-        network_filters: Vec<crate::filters::network::NetworkFilter>,
-        options: &BlockerOptions,
-    ) -> Self {
-        use crate::engine::Engine;
-        use crate::FilterSet;
+    pub fn new(network_filters: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
+        let mut filter_set = crate::FilterSet::new(false);
+        filter_set.add_filters(network_filters, Default::default());
+        let engine = crate::engine::Engine::new_with_filter_set(filter_set);
+        Self::from_context(engine.filter_data_context())
+    }
 
-        let mut filter_set = FilterSet::new(true);
-        filter_set.network_filters = network_filters;
-        let engine = Engine::from_filter_set(filter_set, options.enable_optimizations);
+    #[cfg(test)]
+    pub fn new_debug(network_filters: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
+        let mut filter_set = crate::FilterSet::new(true);
+        filter_set.add_filters(network_filters, Default::default());
+        let engine = crate::engine::Engine::new_with_filter_set(filter_set);
+        Self::from_context(engine.filter_data_context())
+    }
+
+    #[cfg(test)]
+    pub fn new_with_list_text(text: String) -> Self {
+        let mut filter_set = crate::FilterSet::new(false);
+        filter_set.add_filter_list(text, Default::default());
+        let engine = crate::engine::Engine::new_with_filter_set(filter_set);
         Self::from_context(engine.filter_data_context())
     }
 

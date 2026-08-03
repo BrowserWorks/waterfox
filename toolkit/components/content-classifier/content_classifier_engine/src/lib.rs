@@ -4,7 +4,7 @@
 
 use std::sync::Mutex;
 
-use adblock::Engine;
+use adblock::{lists::FilterSet, Engine};
 use cstr::cstr;
 use nserror::{nsresult, NS_ERROR_INVALID_ARG, NS_ERROR_SERVICE_NOT_AVAILABLE, NS_OK};
 use nsstring::{nsACString, nsCString};
@@ -50,17 +50,14 @@ pub unsafe extern "C" fn content_classifier_engine_from_rules(
         return NS_ERROR_INVALID_ARG;
     }
 
-    let rules_vec: Vec<String> = rules
-        .iter()
-        .map(|r| String::from_utf8_lossy(r.as_ref()).to_string())
-        .collect();
-
-    let engine = Engine::from_rules(
-        rules_vec,
-        adblock::lists::ParseOptions {
-            ..adblock::lists::ParseOptions::default()
-        },
-    );
+    let list_text = rules.iter().fold(String::new(), |mut list, rule| {
+        list.push_str(&String::from_utf8_lossy(rule.as_ref()));
+        list.push('\n');
+        list
+    });
+    let mut filter_set = FilterSet::new(false);
+    filter_set.add_filter_list(list_text, adblock::lists::ParseOptions::default());
+    let engine = Engine::new_with_filter_set(filter_set);
 
     let boxed_engine = Box::new(ContentClassifierFFIEngine { engine });
     *out_engine = Box::into_raw(boxed_engine);
@@ -83,6 +80,7 @@ pub unsafe extern "C" fn content_classifier_engine_check_network_request_prepars
     schemeless_site: &nsACString,
     source_schemeless_site: &nsACString,
     request_type: &nsACString,
+    request_method: &nsACString,
     third_party: bool,
     previously_matched_rule: bool,
     out_matched: *mut bool,
@@ -100,6 +98,7 @@ pub unsafe extern "C" fn content_classifier_engine_check_network_request_prepars
     let source_schemeless_site_str =
         String::from_utf8_lossy(source_schemeless_site.as_ref()).to_string();
     let request_type_str = String::from_utf8_lossy(request_type.as_ref()).to_string();
+    let request_method_str = String::from_utf8_lossy(request_method.as_ref()).to_string();
 
     let request = adblock::request::Request::preparsed(
         &url_str,
@@ -107,16 +106,17 @@ pub unsafe extern "C" fn content_classifier_engine_check_network_request_prepars
         &source_schemeless_site_str,
         &request_type_str,
         third_party,
+        &request_method_str,
     );
 
     let result = engine.check_network_request_subset(&request, previously_matched_rule, false);
 
-    *out_matched = result.matched;
+    *out_matched = result.should_block();
     *out_important = result.important;
 
     if !out_exception.is_null() {
         if let Some(exception) = result.exception {
-            (*out_exception).assign(&exception);
+            (*out_exception).assign(&exception.to_string());
         } else {
             (*out_exception).truncate();
         }
