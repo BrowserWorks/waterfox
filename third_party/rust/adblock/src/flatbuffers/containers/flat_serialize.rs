@@ -6,6 +6,7 @@ use flatbuffers::{Vector, WIPOffset};
 pub trait FlatBuilder<'a> {
     fn create_string(&mut self, s: &str) -> WIPOffset<&'a str>;
     fn raw_builder(&mut self) -> &mut flatbuffers::FlatBufferBuilder<'a>;
+    fn into_raw_builder(self) -> flatbuffers::FlatBufferBuilder<'a>;
 }
 
 // The trait to serialize structure into flatbuffer.
@@ -35,6 +36,10 @@ impl<'b> FlatBuilder<'b> for flatbuffers::FlatBufferBuilder<'b> {
     }
 
     fn raw_builder(&mut self) -> &mut flatbuffers::FlatBufferBuilder<'b> {
+        self
+    }
+
+    fn into_raw_builder(self) -> flatbuffers::FlatBufferBuilder<'b> {
         self
     }
 }

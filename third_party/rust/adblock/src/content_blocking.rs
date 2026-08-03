@@ -1,13 +1,13 @@
 //! Transforms filter rules into content blocking syntax used on iOS and MacOS.
 
 use crate::filters::cosmetic::CosmeticFilter;
-use crate::filters::network::{NetworkFilter, NetworkFilterMask, NetworkFilterMaskHelper};
-use crate::lists::ParsedFilter;
+use crate::filters::network::{NetworkFilter, NetworkFilterFeaturesMask, NetworkFilterMask};
+use crate::lists::ParsedLine;
 
 use memchr::{memchr as find_char, memmem};
-use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::sync::LazyLock;
 
 use std::collections::HashSet;
 use std::convert::{TryFrom, TryInto};
@@ -229,23 +229,19 @@ pub enum CbRuleCreationFailure {
     ProceduralCosmeticFiltersUnsupported,
 }
 
-impl TryFrom<ParsedFilter> for CbRuleEquivalent {
+impl TryFrom<ParsedLine<'_>> for CbRuleEquivalent {
     type Error = CbRuleCreationFailure;
 
-    fn try_from(v: ParsedFilter) -> Result<Self, Self::Error> {
+    fn try_from(v: ParsedLine) -> Result<Self, Self::Error> {
         match v {
-            ParsedFilter::Network(f) => f.try_into(),
-            ParsedFilter::Cosmetic(f) => Ok(Self::SingleRule(f.try_into()?)),
+            ParsedLine::Network(f) => f.try_into(),
+            ParsedLine::Cosmetic(f) => Ok(Self::SingleRule(f.try_into()?)),
         }
     }
 }
 
 fn non_empty(v: Vec<String>) -> Option<Vec<String>> {
-    if !v.is_empty() {
-        Some(v)
-    } else {
-        None
-    }
+    if !v.is_empty() { Some(v) } else { None }
 }
 
 /// Some adblock rules cannot be directly represented by a single content blocking rule. This enum
@@ -301,23 +297,26 @@ impl Iterator for CbRuleEquivalentIterator {
     }
 }
 
-impl TryFrom<NetworkFilter> for CbRuleEquivalent {
+impl TryFrom<NetworkFilter<'_>> for CbRuleEquivalent {
     type Error = CbRuleCreationFailure;
 
     fn try_from(v: NetworkFilter) -> Result<Self, Self::Error> {
-        static SPECIAL_CHARS: Lazy<Regex> =
-            Lazy::new(|| Regex::new(r##"([.+?^${}()|\[\]\\])"##).unwrap());
-        static REPLACE_WILDCARDS: Lazy<Regex> = Lazy::new(|| Regex::new(r##"\*"##).unwrap());
-        static TRAILING_SEPARATOR: Lazy<Regex> = Lazy::new(|| Regex::new(r##"\^$"##).unwrap());
-        if let Some(raw_line) = &v.raw_line {
+        static SPECIAL_CHARS: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r##"([.+?^${}()|\[\]\\])"##).unwrap());
+        static REPLACE_WILDCARDS: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r##"\*"##).unwrap());
+        static TRAILING_SEPARATOR: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r##"\^$"##).unwrap());
+        if let Some(raw_line) = v.raw_line.as_deref() {
             if v.is_redirect() {
                 return Err(CbRuleCreationFailure::NetworkRedirectUnsupported);
             }
-            if v.mask.contains(NetworkFilterMask::GENERIC_HIDE) {
+            if v.is_generic_hide() {
                 return Err(CbRuleCreationFailure::NetworkGenerichideUnsupported);
             }
             debug_assert!(
-                !v.mask.contains(NetworkFilterMask::BAD_FILTER),
+                !v.features_mask
+                    .contains(NetworkFilterFeaturesMask::BAD_FILTER),
                 "BAD_FILTER should be filtered out"
             );
             if v.is_csp() {
@@ -345,7 +344,7 @@ impl TryFrom<NetworkFilter> for CbRuleEquivalent {
 
             let url_filter = match (v.filter, v.hostname) {
                 (crate::filters::network::FilterPart::AnyOf(_), _) => {
-                    return Err(CbRuleCreationFailure::OptimizedRulesUnsupported)
+                    return Err(CbRuleCreationFailure::OptimizedRulesUnsupported);
                 }
                 (crate::filters::network::FilterPart::Simple(part), Some(hostname)) => {
                     let without_trailing_separator = TRAILING_SEPARATOR.replace_all(&part, "");
@@ -548,34 +547,33 @@ impl TryFrom<NetworkFilter> for CbRuleEquivalent {
                 return Err(CbRuleCreationFailure::RuleContainsNonASCII);
             }
 
-            if let Some(resource_types) = &single_rule.trigger.resource_type {
-                if resource_types.len() > 1
-                    && resource_types.contains(&CbResourceType::Document)
-                    && single_rule.trigger.load_type.is_empty()
-                {
-                    let mut non_doc_types = resource_types.clone();
-                    non_doc_types.remove(&CbResourceType::Document);
-                    let rule_clone = single_rule.clone();
-                    let non_doc_rule = CbRule {
-                        trigger: CbTrigger {
-                            resource_type: Some(non_doc_types),
-                            ..rule_clone.trigger
-                        },
-                        ..rule_clone
-                    };
-                    let mut doc_type = HashSet::new();
-                    doc_type.insert(CbResourceType::Document);
-                    let just_doc_rule = CbRule {
-                        trigger: CbTrigger {
-                            resource_type: Some(doc_type),
-                            load_type: vec![CbLoadType::ThirdParty],
-                            ..single_rule.trigger
-                        },
-                        ..single_rule
-                    };
+            if let Some(resource_types) = &single_rule.trigger.resource_type
+                && resource_types.len() > 1
+                && resource_types.contains(&CbResourceType::Document)
+                && single_rule.trigger.load_type.is_empty()
+            {
+                let mut non_doc_types = resource_types.clone();
+                non_doc_types.remove(&CbResourceType::Document);
+                let rule_clone = single_rule.clone();
+                let non_doc_rule = CbRule {
+                    trigger: CbTrigger {
+                        resource_type: Some(non_doc_types),
+                        ..rule_clone.trigger
+                    },
+                    ..rule_clone
+                };
+                let mut doc_type = HashSet::new();
+                doc_type.insert(CbResourceType::Document);
+                let just_doc_rule = CbRule {
+                    trigger: CbTrigger {
+                        resource_type: Some(doc_type),
+                        load_type: vec![CbLoadType::ThirdParty],
+                        ..single_rule.trigger
+                    },
+                    ..single_rule
+                };
 
-                    return Ok(Self::SplitDocument(non_doc_rule, just_doc_rule));
-                }
+                return Ok(Self::SplitDocument(non_doc_rule, just_doc_rule));
             }
 
             Ok(Self::SingleRule(single_rule))
@@ -600,7 +598,7 @@ impl TryFrom<CosmeticFilter> for CbRule {
             return Err(CbRuleCreationFailure::ScriptletInjectionsNotSupported);
         }
 
-        if let Some(raw_line) = &v.raw_line {
+        if let Some(raw_line) = v.raw_line.as_deref() {
             let mut hostnames_vec = vec![];
             let mut not_hostnames_vec = vec![];
 

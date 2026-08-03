@@ -663,6 +663,16 @@ From safe functions, unsafe code is used to read into a flatbuffer that was cons
 safely. By the invariants of the flatbuffer crate, this is okay to do.
 """
 
+[[audits.adblock]]
+who = "Alex Kontos <MrAlex94@users.noreply.github.com>"
+criteria = "safe-to-deploy"
+delta = "0.12.1 -> 0.13.2"
+notes = """
+Reviewed the handwritten source delta. No new unsafe code or deserialization-verification
+bypass was found. Existing unsafe invariants remain intact, and the generated FlatBuffer
+bindings match the reviewed schema changes.
+"""
+
 [[audits.adler2]]
 who = "Erich Gubler <erichdongubler@gmail.com>"
 criteria = "safe-to-deploy"
@@ -4245,6 +4255,16 @@ version = "0.2.10"
 who = "Dana Keeler <dkeeler@mozilla.com>"
 criteria = "safe-to-deploy"
 version = "0.10.5"
+
+[[audits.memchr]]
+who = "Alex Kontos <MrAlex94@users.noreply.github.com>"
+criteria = "safe-to-deploy"
+delta = "2.7.5 -> 2.8.3"
+notes = """
+Reviewed raw-pointer and SIMD changes. The delta fixes out-of-allocation pointer
+arithmetic, narrows raw dispatch APIs, preserves existing callback invariants, and
+corrects big-endian AArch64 mask ordering. No dependencies or capabilities were added.
+"""
 
 [[audits.memmap2]]
 who = "Mike Hommey <mh+mozilla@glandium.org>"

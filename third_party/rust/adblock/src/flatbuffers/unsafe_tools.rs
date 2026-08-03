@@ -59,7 +59,7 @@ impl VerifiedFlatbufferMemory {
 
     // Creates a new VerifiedFlatbufferMemory from a builder.
     // Skip the verification, the builder must contains a valid FilterList.
-    pub(crate) fn from_builder(builder: &flatbuffers::FlatBufferBuilder<'_>) -> Self {
+    pub(crate) fn from_builder(builder: flatbuffers::FlatBufferBuilder<'_>) -> Self {
         Self::from_slice(builder.finished_data())
     }
 

@@ -6,7 +6,7 @@ authors = ["Tim Huang <tihuang@mozilla.com>", "Benjamin VanderSloot <bvandersloo
 license = "MPL-2.0"
 
 [dependencies]
-adblock = { version = "0.12.1", features = ["full-regex-handling", "single-thread"], default-features = false }
+adblock = { version = "0.13.2", features = ["full-regex-handling", "single-thread"], default-features = false }
 cstr = "0.2"
 nsstring = { path = "../../../../xpcom/rust/nsstring" }
 nserror = { path = "../../../../xpcom/rust/nserror" }

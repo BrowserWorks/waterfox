@@ -7,47 +7,29 @@ use flatbuffers::ForwardsUOffset;
 use crate::filters::fb_network::FlatNetworkFilter;
 use crate::filters::filter_data_context::FilterDataContext;
 use crate::filters::flatbuffer_generated::fb;
-use crate::filters::network::{
-    NetworkFilter, NetworkFilterMask, NetworkFilterMaskHelper, NetworkMatchable,
-};
+use crate::filters::network::{NetworkFilterMask, NetworkMatchable};
 use crate::flatbuffers::containers::flat_multimap::FlatMultiMapView;
 use crate::flatbuffers::unsafe_tools::fb_vector_to_slice;
 use crate::regex_manager::RegexManager;
 use crate::request::Request;
-use crate::utils::{to_short_hash, ShortHash};
+use crate::sourcemap::FilterRuleDebugInfo;
+use crate::utils::{ShortHash, to_short_hash};
 
-/// Holds relevant information from a single matchin gnetwork filter rule as a result of querying a
+/// Holds relevant information from a single matching network filter rule as a result of querying a
 /// [NetworkFilterList] for a given request.
-pub struct CheckResult {
+pub(crate) struct CheckResult {
     pub filter_mask: NetworkFilterMask,
     pub modifier_option: Option<String>,
-    pub raw_line: Option<String>,
-}
-
-impl From<&NetworkFilter> for CheckResult {
-    fn from(filter: &NetworkFilter) -> Self {
-        Self {
-            filter_mask: filter.mask,
-            modifier_option: filter.modifier_option.clone(),
-            raw_line: filter.raw_line.clone().map(|v| *v),
-        }
-    }
+    pub debug_data: Option<FilterRuleDebugInfo>,
 }
 
 impl fmt::Display for CheckResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        if let Some(ref raw_line) = self.raw_line {
-            write!(f, "{raw_line}")
+        if let Some(ref debug_data) = self.debug_data {
+            write!(f, "{debug_data}")
         } else {
             write!(f, "{}", self.filter_mask)
         }
-    }
-}
-
-impl NetworkFilterMaskHelper for CheckResult {
-    #[inline]
-    fn has_flag(&self, v: NetworkFilterMask) -> bool {
-        self.filter_mask.contains(v)
     }
 }
 
@@ -100,7 +82,7 @@ impl NetworkFilterList<'_> {
                         return Some(CheckResult {
                             filter_mask: filter.mask,
                             modifier_option: filter.modifier_option(),
-                            raw_line: filter.raw_line(),
+                            debug_data: filter.get_rule_debug_info(),
                         });
                     }
                 }
@@ -142,7 +124,7 @@ impl NetworkFilterList<'_> {
                         filters.push(CheckResult {
                             filter_mask: filter.mask,
                             modifier_option: filter.modifier_option(),
-                            raw_line: filter.raw_line(),
+                            debug_data: filter.get_rule_debug_info(),
                         });
                     }
                 }

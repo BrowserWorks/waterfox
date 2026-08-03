@@ -10,9 +10,9 @@
 # See Cargo.toml.orig for the original contents.
 
 [package]
-edition = "2021"
+edition = "2024"
 name = "adblock"
-version = "0.12.1"
+version = "0.13.2"
 authors = [
     "Anton Lazarev <alazarev@brave.com>",
     "Andrius Aucinas",
@@ -119,23 +119,20 @@ version = "2.10.0"
 features = ["serde"]
 
 [dependencies.cssparser]
-version = "0.34"
+version = "0.35"
 optional = true
 
 [dependencies.flatbuffers]
-version = "25.9.23"
+version = "25.12.19"
 
 [dependencies.idna]
 version = "1.0.3"
 
 [dependencies.itertools]
-version = "0.13"
+version = "0.14"
 
 [dependencies.memchr]
-version = "2.7"
-
-[dependencies.once_cell]
-version = "1.8"
+version = "2.8"
 
 [dependencies.percent-encoding]
 version = "2.1"
@@ -144,17 +141,17 @@ version = "2.1"
 version = "0.1"
 
 [dependencies.regex]
-version = "1.12.2"
+version = "1.12.3"
 
 [dependencies.rustc-hash]
-version = "1.1.0"
+version = "2.1"
 default-features = false
 
 [dependencies.seahash]
 version = "4.1.0"
 
 [dependencies.selectors]
-version = "0.26"
+version = "0.32"
 optional = true
 
 [dependencies.serde]
@@ -165,7 +162,7 @@ features = [
 ]
 
 [dependencies.serde_json]
-version = "1.0.145"
+version = "1.0.149"
 
 [dependencies.thiserror]
 version = "1.0"
@@ -174,7 +171,7 @@ version = "1.0"
 version = "2.5"
 
 [dev-dependencies.criterion]
-version = "=0.5.1"
+version = "=0.8.2"
 
 [dev-dependencies.csv]
 version = "=1.3.0"
@@ -186,15 +183,13 @@ version = "=0.3.31"
 version = "=0.5.1"
 
 [dev-dependencies.reqwest]
-version = "=0.12.19"
-features = ["rustls-tls"]
-default-features = false
+version = "=0.13.3"
 
 [dev-dependencies.sha2]
 version = "=0.9.9"
 
 [dev-dependencies.tokio]
-version = "=1.45.1"
+version = "=1.47.4"
 features = ["rt-multi-thread"]
 
 [lints.clippy]
