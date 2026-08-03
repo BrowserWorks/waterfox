@@ -3,18 +3,21 @@
 use crate::blocker::{Blocker, BlockerResult};
 use crate::cosmetic_filter_cache::{CosmeticFilterCache, UrlSpecificResources};
 use crate::cosmetic_filter_cache_builder::CosmeticFilterCacheBuilder;
-use crate::data_format::{deserialize_dat_file, serialize_dat_file, DeserializationError};
-use crate::filters::cosmetic::CosmeticFilter;
+use crate::data_format::{deserialize_dat_file, serialize_dat_file};
 use crate::filters::fb_builder::EngineFlatBuilder;
-use crate::filters::fb_network_builder::NetworkRulesBuilder;
+use crate::filters::fb_network_builder::{NetworkFilterDebugData, NetworkRulesBuilder};
 use crate::filters::filter_data_context::{FilterDataContext, FilterDataContextRef};
-use crate::filters::network::NetworkFilter;
-use crate::flatbuffers::containers::flat_serialize::FlatSerialize;
+use crate::filters::flatbuffer_generated::fb;
+use crate::flatbuffers::containers::flat_serialize::{FlatBuilder, FlatSerialize};
 use crate::flatbuffers::unsafe_tools::VerifiedFlatbufferMemory;
-use crate::lists::{FilterSet, ParseOptions};
+use crate::lists::{FilterSet, ParseOptions, ParsedLine, parse_filter};
 use crate::regex_manager::RegexManagerDiscardPolicy;
 use crate::request::Request;
 use crate::resources::{Resource, ResourceStorage, ResourceStorageBackend};
+
+pub use crate::data_format::DeserializationError;
+
+use crate::filters::{cosmetic::CosmeticFilter, network::NetworkFilter};
 
 use std::collections::HashSet;
 
@@ -31,7 +34,7 @@ use std::collections::HashSet;
 ///
 /// You'll first want to combine all of your filter lists in a [`FilterSet`], which will parse list
 /// header metadata. Once all lists have been composed together, you can call
-/// [`Engine::from_filter_set`] to start using them for blocking.
+/// [`Engine::new_with_filter_set`] to start using them for blocking.
 ///
 /// You may also want to supply certain assets for `$redirect` filters and `##+js(...)` scriptlet
 /// injections. These are known as [`Resource`]s, and can be provided with
@@ -40,8 +43,6 @@ use std::collections::HashSet;
 /// ### Network blocking
 ///
 /// Use the [`Engine::check_network_request`] method to determine how to handle a network request.
-///
-/// If you _only_ need network blocking, consider using a [`Blocker`] directly.
 ///
 /// ### Cosmetic filtering
 ///
@@ -59,45 +60,35 @@ pub struct Engine {
 }
 
 #[cfg(feature = "debug-info")]
+pub struct SourceInfo {
+    pub title: Option<String>,
+    pub homepage: Option<String>,
+    pub network_filter_count: u32,
+    pub cosmetic_filter_count: u32,
+    pub parse_error: u32,
+    pub invalid_lines: Vec<String>,
+}
+
+#[cfg(feature = "debug-info")]
 pub struct EngineDebugInfo {
     pub regex_debug_info: crate::regex_manager::RegexDebugInfo,
     pub flatbuffer_size: usize,
+    pub source_info: Vec<SourceInfo>,
 }
 
 impl Default for Engine {
     fn default() -> Self {
-        Self::from_filter_set(FilterSet::new(false), false)
+        Self::new_with_filter_set(FilterSet::new(false))
     }
 }
 
 impl Engine {
-    /// Loads rules in a single format, enabling optimizations and discarding debug information.
-    pub fn from_rules(
-        rules: impl IntoIterator<Item = impl AsRef<str>>,
-        opts: ParseOptions,
-    ) -> Self {
+    /// A helper for tests and benchmarks. Use [`Engine::new_with_filter_set`] instead.
+    #[doc(hidden)]
+    pub fn new_with_list_text(list_text: impl Into<String>) -> Self {
         let mut filter_set = FilterSet::new(false);
-        filter_set.add_filters(rules, opts);
-        Self::from_filter_set(filter_set, true)
-    }
-
-    /// Loads rules, enabling optimizations and including debug information.
-    pub fn from_rules_debug(
-        rules: impl IntoIterator<Item = impl AsRef<str>>,
-        opts: ParseOptions,
-    ) -> Self {
-        Self::from_rules_parametrised(rules, opts, true, true)
-    }
-
-    pub fn from_rules_parametrised(
-        filter_rules: impl IntoIterator<Item = impl AsRef<str>>,
-        opts: ParseOptions,
-        debug: bool,
-        optimize: bool,
-    ) -> Self {
-        let mut filter_set = FilterSet::new(debug);
-        filter_set.add_filters(filter_rules, opts);
-        Self::from_filter_set(filter_set, optimize)
+        filter_set.add_filter_list(list_text.into(), ParseOptions::default());
+        Self::new_with_filter_set(filter_set)
     }
 
     #[cfg(test)]
@@ -110,19 +101,144 @@ impl Engine {
         self.filter_data_context
     }
 
-    /// Loads rules from the given `FilterSet`. It is recommended to use a `FilterSet` when adding
-    /// rules from multiple sources.
-    pub fn from_filter_set(set: FilterSet, optimize: bool) -> Self {
+    /// A helper for tests and benchmarks. Use [`Engine::new_with_filter_set`] instead.
+    #[doc(hidden)]
+    pub fn new_with_parsed_rules(
+        network_filters: Vec<NetworkFilter>,
+        cosmetic_filters: Vec<CosmeticFilter>,
+    ) -> Self {
+        let mut builder = EngineFlatBuilder::default();
+        let mut network_rules_builder = NetworkRulesBuilder::new(true);
+        let mut cosmetic_filter_cache_builder = CosmeticFilterCacheBuilder::default();
+
+        for filter in network_filters {
+            network_rules_builder.add_filter(filter, Default::default(), &mut builder);
+        }
+        for filter in cosmetic_filters {
+            cosmetic_filter_cache_builder.add_filter(filter, &mut builder);
+        }
+
+        Self::new_with_flatbuffer_offsets(
+            FlatSerialize::serialize(network_rules_builder, &mut builder),
+            FlatSerialize::serialize(cosmetic_filter_cache_builder, &mut builder),
+            Vec::new(),
+            false,
+            builder,
+        )
+    }
+
+    #[doc(hidden)]
+    pub fn new_with_filter_set_no_optimize(set: FilterSet) -> Self {
+        Self::new_with_filter_set_internal(set, false)
+    }
+
+    /// Loads rules from the given `FilterSet`.
+    pub fn new_with_filter_set(set: FilterSet) -> Self {
+        Self::new_with_filter_set_internal(set, true)
+    }
+
+    fn new_with_filter_set_internal(set: FilterSet, optimize: bool) -> Self {
         let FilterSet {
-            network_filters,
-            cosmetic_filters,
-            ..
+            debug,
+            ref list_sources,
         } = set;
+        let mut builder = EngineFlatBuilder::default();
+        let mut network_rules_builder = NetworkRulesBuilder::new(optimize);
+        let mut cosmetic_filter_cache_builder = CosmeticFilterCacheBuilder::default();
+        let mut source_info_vec = Vec::new();
 
-        let memory = make_flatbuffer(network_filters, cosmetic_filters, optimize);
+        for (source_index, list_source) in set.list_sources.iter().enumerate() {
+            let mut network_filter_count = 0;
+            let mut cosmetic_filter_count = 0;
+            let mut parse_error = 0;
+            let mut invalid_lines = Vec::new();
+            for (line_number, line) in list_source.list_text.lines().enumerate() {
+                let parsed_line = parse_filter(line, debug, list_source.parse_options);
+                match parsed_line {
+                    Ok(ParsedLine::Network(filter)) => {
+                        let debug_data = if debug {
+                            NetworkFilterDebugData {
+                                source_index: source_index as u32,
+                                line_number: line_number as u32,
+                            }
+                        } else {
+                            Default::default()
+                        };
+                        network_rules_builder.add_filter(filter, debug_data, &mut builder);
+                        network_filter_count += 1;
+                    }
+                    Ok(ParsedLine::Cosmetic(filter)) => {
+                        cosmetic_filter_cache_builder.add_filter(filter, &mut builder);
+                        cosmetic_filter_count += 1;
+                    }
+                    Err(_) => {
+                        parse_error += 1;
+                        if set.debug {
+                            invalid_lines.push(line);
+                        }
+                    }
+                }
+            }
 
+            let homepage = list_source
+                .metadata
+                .homepage
+                .as_ref()
+                .map(|v| builder.create_string(v.as_str()));
+            let title = list_source
+                .metadata
+                .title
+                .as_ref()
+                .map(|v| builder.create_string(v.as_str()));
+
+            let invalid_lines = if set.debug {
+                Some(FlatSerialize::serialize(invalid_lines, &mut builder))
+            } else {
+                None
+            };
+
+            let source_info = fb::SourceInfo::create(
+                builder.raw_builder(),
+                &fb::SourceInfoArgs {
+                    title,
+                    homepage,
+                    network_filter_count,
+                    cosmetic_filter_count,
+                    parse_error,
+                    invalid_lines,
+                },
+            );
+
+            source_info_vec.push(source_info);
+        }
+        let network_rules_offset = FlatSerialize::serialize(network_rules_builder, &mut builder);
+        // Drop the list sources to reduce peak memory usage.
+        _ = list_sources;
+
+        let cosmetic_rules_offset =
+            FlatSerialize::serialize(cosmetic_filter_cache_builder, &mut builder);
+
+        Self::new_with_flatbuffer_offsets(
+            network_rules_offset,
+            cosmetic_rules_offset,
+            source_info_vec,
+            debug,
+            builder,
+        )
+    }
+
+    fn new_with_flatbuffer_offsets<'a>(
+        network_rules: flatbuffers::WIPOffset<
+            flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<fb::NetworkFilterList<'a>>>,
+        >,
+        cosmetic_rules: flatbuffers::WIPOffset<fb::CosmeticFilters<'a>>,
+        source_info_vec: Vec<flatbuffers::WIPOffset<fb::SourceInfo<'a>>>,
+        debug: bool,
+        mut builder: EngineFlatBuilder<'a>,
+    ) -> Self {
+        let source_info_vec = FlatSerialize::serialize(source_info_vec, &mut builder);
+        let memory = builder.finish(network_rules, cosmetic_rules, source_info_vec, debug);
         let filter_data_context = FilterDataContext::new(memory);
-
         Self {
             blocker: Blocker::from_context(FilterDataContextRef::clone(&filter_data_context)),
             cosmetic_cache: CosmeticFilterCache::from_context(FilterDataContextRef::clone(
@@ -144,6 +260,12 @@ impl Engine {
         self.blocker.check_exceptions(request)
     }
 
+    /// Like [Self::check_network_request], but with extra options.
+    ///
+    /// - `previously_matched_rule` can assume the existence of a blocking rule, which would skip
+    ///   checking for other blocking rules and immediately look for matching exceptions.
+    /// - `force_check_exceptions` can force the engine to _always_ look for and report matching
+    ///   exceptions, even if no blocking rule exists.
     pub fn check_network_request_subset(
         &self,
         request: &Request,
@@ -170,6 +292,7 @@ impl Engine {
     ///
     /// Tags can be used to cheaply enable or disable network rules with a corresponding `$tag`
     /// option.
+    #[deprecated(note = "Rebuild the engine with or without the relevant filters instead")]
     pub fn use_tags(&mut self, tags: &[&str]) {
         self.blocker.use_tags(tags);
     }
@@ -178,6 +301,7 @@ impl Engine {
     ///
     /// Tags can be used to cheaply enable or disable network rules with a corresponding `$tag`
     /// option.
+    #[deprecated(note = "Rebuild the engine with or without the relevant filters instead")]
     pub fn enable_tags(&mut self, tags: &[&str]) {
         self.blocker.enable_tags(tags);
     }
@@ -186,6 +310,7 @@ impl Engine {
     ///
     /// Tags can be used to cheaply enable or disable network rules with a corresponding `$tag`
     /// option.
+    #[deprecated(note = "Rebuild the engine with or without the relevant filters instead")]
     pub fn disable_tags(&mut self, tags: &[&str]) {
         self.blocker.disable_tags(tags);
     }
@@ -194,6 +319,7 @@ impl Engine {
     ///
     /// Tags can be used to cheaply enable or disable network rules with a corresponding `$tag`
     /// option.
+    #[deprecated(note = "Rebuild the engine with or without the relevant filters instead")]
     pub fn tag_exists(&self, tag: &str) -> bool {
         self.blocker.tags_enabled().contains(&tag.to_owned())
     }
@@ -253,7 +379,7 @@ impl Engine {
     /// `hidden_class_id_selectors` to obtain any stylesheets consisting of generic rules (if the
     /// returned `generichide` value is false).
     pub fn url_cosmetic_resources(&self, url: &str) -> UrlSpecificResources {
-        let request = if let Ok(request) = Request::new(url, url, "document") {
+        let request = if let Ok(request) = Request::new(url, url, "document", "get") {
             request
         } else {
             return UrlSpecificResources::empty();
@@ -267,7 +393,7 @@ impl Engine {
         )
     }
 
-    pub fn set_regex_discard_policy(&mut self, new_discard_policy: RegexManagerDiscardPolicy) {
+    pub fn set_regex_discard_policy(&self, new_discard_policy: RegexManagerDiscardPolicy) {
         self.blocker.set_regex_discard_policy(new_discard_policy);
     }
 
@@ -283,9 +409,26 @@ impl Engine {
 
     #[cfg(feature = "debug-info")]
     pub fn get_debug_info(&self) -> EngineDebugInfo {
+        let engine = self.filter_data_context.memory.root();
+        let source_info = engine
+            .source_info()
+            .iter()
+            .map(|s| SourceInfo {
+                title: s.title().map(|s| s.to_string()),
+                homepage: s.homepage().map(|s| s.to_string()),
+                network_filter_count: s.network_filter_count() as u32,
+                cosmetic_filter_count: s.cosmetic_filter_count() as u32,
+                parse_error: s.parse_error() as u32,
+                invalid_lines: s
+                    .invalid_lines()
+                    .map(|v| v.iter().map(|s| s.to_string()).collect())
+                    .unwrap_or_default(),
+            })
+            .collect();
         EngineDebugInfo {
             regex_debug_info: self.blocker.get_regex_debug_info(),
             flatbuffer_size: self.filter_data_context.memory.data().len(),
+            source_info,
         }
     }
 
@@ -328,19 +471,6 @@ fn _assertions() {
 
     _assert_send::<Engine>();
     _assert_sync::<Engine>();
-}
-
-fn make_flatbuffer(
-    network_filters: Vec<NetworkFilter>,
-    cosmetic_filters: Vec<CosmeticFilter>,
-    optimize: bool,
-) -> VerifiedFlatbufferMemory {
-    let mut builder = EngineFlatBuilder::default();
-    let network_rules_builder = NetworkRulesBuilder::from_rules(network_filters, optimize);
-    let network_rules = FlatSerialize::serialize(network_rules_builder, &mut builder);
-    let cosmetic_rules = CosmeticFilterCacheBuilder::from_rules(cosmetic_filters, &mut builder);
-    let cosmetic_rules = FlatSerialize::serialize(cosmetic_rules, &mut builder);
-    builder.finish(network_rules, cosmetic_rules)
 }
 
 #[cfg(test)]

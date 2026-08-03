@@ -9,7 +9,7 @@
 use std::error::Error;
 use std::fmt::{self, Formatter, Write};
 
-use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
+use percent_encoding::{AsciiSet, CONTROLS, utf8_percent_encode};
 use std::ops::{Range, RangeFrom, RangeTo};
 
 /// https://url.spec.whatwg.org/#fragment-percent-encode-set
@@ -266,13 +266,9 @@ impl<'i> Input<'i> {
     fn next_utf8(&mut self) -> Option<(char, &'i str)> {
         loop {
             let utf8 = self.chars.as_str();
-            match self.chars.next() {
-                Some(c) => {
-                    if !matches!(c, '\t' | '\n' | '\r') {
-                        return Some((c, &utf8[..c.len_utf8()]));
-                    }
-                }
-                None => return None,
+            let c = self.chars.next()?;
+            if !matches!(c, '\t' | '\n' | '\r') {
+                return Some((c, &utf8[..c.len_utf8()]));
             }
         }
     }
