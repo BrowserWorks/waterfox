@@ -5,6 +5,7 @@
 #include "mozilla/ContentClassifierEngine.h"
 #include "ContentClassifierService.h"
 #include "nsIEffectiveTLDService.h"
+#include "nsIHttpChannel.h"
 #include "nsNetUtil.h"
 #include "mozilla/Components.h"
 #include "mozIThirdPartyUtil.h"
@@ -34,8 +35,8 @@ ContentClassifierEngineResult ContentClassifierEngine::CheckNetworkRequest(
   nsresult rv = content_classifier_engine_check_network_request_preparsed(
       mEngine, &aRequest.mUrl, &aRequest.mSchemelessSite,
       &aRequest.mSourceSchemelessSite, &aRequest.mRequestType,
-      aRequest.mThirdParty, aPreviouslyMatched, &matched, &important,
-      &exception);
+      &aRequest.mRequestMethod, aRequest.mThirdParty, aPreviouslyMatched,
+      &matched, &important, &exception);
   return ContentClassifierEngineResult(matched, !exception.IsEmpty(), important,
                                        rv, mFeature);
 }
@@ -48,6 +49,11 @@ ContentClassifierRequest::ContentClassifierRequest(nsIChannel* aChannel)
 
   rv = uri->GetSpec(mUrl);
   if (NS_FAILED(rv)) return;
+
+  nsCOMPtr<nsIHttpChannel> httpChannel = do_QueryInterface(aChannel);
+  if (httpChannel && NS_FAILED(httpChannel->GetRequestMethod(mRequestMethod))) {
+    mRequestMethod.Truncate();
+  }
 
   nsCString host;
   rv = uri->GetHost(host);

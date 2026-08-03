@@ -39,19 +39,19 @@ use serde::{Deserialize, Serialize};
 /// # use adblock::lists::ParseOptions;
 /// # use adblock::resources::{MimeType, PermissionMask, Resource, ResourceStorage, ResourceType};
 /// # let mut filter_set = adblock::lists::FilterSet::default();
-/// # let untrusted_filters = vec![""];
-/// # let trusted_filters = vec![""];
+/// # let untrusted_filters = "".to_string();
+/// # let trusted_filters = "".to_string();
 /// const COOKIE_ACCESS: PermissionMask = PermissionMask::from_bits(0b00000001);
 /// const LOCALSTORAGE_ACCESS: PermissionMask = PermissionMask::from_bits(0b00000010);
 ///
 /// // `untrusted_filters` will not be able to use privileged scriptlet injections.
-/// filter_set.add_filters(
+/// filter_set.add_filter_list(
 ///     untrusted_filters,
 ///     Default::default(),
 /// );
 /// // `trusted_filters` will be able to inject scriptlets requiring `COOKIE_ACCESS`
 /// // permissions or `LOCALSTORAGE_ACCESS` permissions.
-/// filter_set.add_filters(
+/// filter_set.add_filter_list(
 ///     trusted_filters,
 ///     ParseOptions {
 ///         permissions: COOKIE_ACCESS | LOCALSTORAGE_ACCESS,
@@ -59,7 +59,7 @@ use serde::{Deserialize, Serialize};
 ///     },
 /// );
 ///
-/// let mut engine = Engine::from_filter_set(filter_set, true);
+/// let mut engine = Engine::new_with_filter_set(filter_set);
 /// // The `trusted-set-cookie` scriptlet cannot be injected without `COOKIE_ACCESS`
 /// // permission.
 /// engine.use_resources([Resource {

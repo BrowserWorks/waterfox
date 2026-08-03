@@ -2,11 +2,11 @@ use memchr::memrchr as find_char_reverse;
 
 use super::network::NetworkFilterError;
 
-use once_cell::sync::Lazy;
 use regex::Regex;
+use std::sync::LazyLock;
 
 /// For now, only support `$removeparam` with simple alphanumeric/dash/underscore patterns.
-static VALID_PARAM: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z0-9_\-]+$").unwrap());
+static VALID_PARAM: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[a-zA-Z0-9_\-]+$").unwrap());
 
 #[derive(Clone, Copy)]
 pub(crate) enum NetworkFilterLeftAnchor {
@@ -26,26 +26,34 @@ pub(crate) enum NetworkFilterRightAnchor {
 #[derive(Clone)]
 pub(crate) struct NetworkFilterPattern {
     pub(crate) left_anchor: Option<NetworkFilterLeftAnchor>,
-    pub(crate) pattern: String,
+    pub(crate) start: usize,
+    pub(crate) end: usize,
     pub(crate) right_anchor: Option<NetworkFilterRightAnchor>,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum HttpMethod {
+    Get,
+    Head,
+    Post,
 }
 
 /// Any option that appears on the right side of a network filter as initiated by a `$` character.
 /// All `bool` arguments below are `true` if the option stands alone, or `false` if the option is
 /// negated using a prepended `~`.
 #[derive(Clone)]
-pub(crate) enum NetworkFilterOption {
-    Domain(Vec<(bool, String)>),
+pub(crate) enum NetworkFilterOption<'a> {
+    Domain(Vec<(bool, &'a str)>),
     Badfilter,
     Important,
     MatchCase,
     ThirdParty(bool),
     FirstParty(bool),
-    Tag(String),
-    Redirect(String),
-    RedirectRule(String),
-    Csp(Option<String>),
-    Removeparam(String),
+    Tag(&'a str),
+    Redirect(&'a str),
+    RedirectRule(&'a str),
+    Csp(Option<&'a str>),
+    Removeparam(&'a str),
     Generichide,
     Document,
     Image(bool),
@@ -60,9 +68,10 @@ pub(crate) enum NetworkFilterOption {
     Websocket(bool),
     Font(bool),
     All,
+    Method(Vec<(bool, HttpMethod)>),
 }
 
-impl NetworkFilterOption {
+impl NetworkFilterOption<'_> {
     pub fn is_content_type(&self) -> bool {
         matches!(
             self,
@@ -90,14 +99,16 @@ impl NetworkFilterOption {
 /// Abstract syntax representation of a network filter. This representation can fully specify the
 /// string representation of a filter as written, with the exception of aliased options like `1p`
 /// or `ghide`. This allows separation of concerns between parsing and interpretation.
-pub(crate) struct AbstractNetworkFilter {
+pub(crate) struct AbstractNetworkFilter<'a> {
     pub(crate) exception: bool,
     pub(crate) pattern: NetworkFilterPattern,
-    pub(crate) options: Option<Vec<NetworkFilterOption>>,
+    pub(crate) options: Option<Vec<NetworkFilterOption<'a>>>,
 }
 
-impl AbstractNetworkFilter {
-    pub(crate) fn parse(line: &str) -> Result<Self, NetworkFilterError> {
+impl AbstractNetworkFilter<'_> {
+    pub(crate) fn parse<'a>(
+        line: &'a str,
+    ) -> Result<AbstractNetworkFilter<'a>, NetworkFilterError> {
         let mut filter_index_start: usize = 0;
         let mut filter_index_end: usize = line.len();
 
@@ -139,13 +150,12 @@ impl AbstractNetworkFilter {
             None
         };
 
-        let pattern = &line[filter_index_start..filter_index_end];
-
         Ok(AbstractNetworkFilter {
             exception,
             pattern: NetworkFilterPattern {
                 left_anchor,
-                pattern: pattern.to_string(),
+                start: filter_index_start,
+                end: filter_index_end,
                 right_anchor,
             },
             options,
@@ -153,7 +163,9 @@ impl AbstractNetworkFilter {
     }
 }
 
-fn parse_filter_options(raw_options: &str) -> Result<Vec<NetworkFilterOption>, NetworkFilterError> {
+fn parse_filter_options<'a>(
+    raw_options: &'a str,
+) -> Result<Vec<NetworkFilterOption<'a>>, NetworkFilterError> {
     let mut result = vec![];
 
     for raw_option in raw_options.split(',') {
@@ -170,13 +182,13 @@ fn parse_filter_options(raw_options: &str) -> Result<Vec<NetworkFilterOption>, N
 
         result.push(match (option, negation) {
             ("domain", _) | ("from", _) => {
-                let domains: Vec<(bool, String)> = value
+                let domains: Vec<(bool, &'a str)> = value
                     .split('|')
                     .map(|domain| {
                         if let Some(negated_domain) = domain.strip_prefix('~') {
-                            (false, negated_domain.to_string())
+                            (false, negated_domain)
                         } else {
-                            (true, domain.to_string())
+                            (true, domain)
                         }
                     })
                     .filter(|(_, d)| !(d.starts_with('/') && d.ends_with('/')))
@@ -195,15 +207,20 @@ fn parse_filter_options(raw_options: &str) -> Result<Vec<NetworkFilterOption>, N
             ("third-party", negated) | ("3p", negated) => NetworkFilterOption::ThirdParty(!negated),
             ("first-party", negated) | ("1p", negated) => NetworkFilterOption::FirstParty(!negated),
             ("tag", true) => return Err(NetworkFilterError::NegatedTag),
-            ("tag", false) => NetworkFilterOption::Tag(String::from(value)),
-            ("redirect", true) => return Err(NetworkFilterError::NegatedRedirection),
-            ("redirect", false) => {
+            ("tag", false) => NetworkFilterOption::Tag(value),
+            // `rewrite` is the ABP-syntax alias for `redirect`. The `abp-resource:`-prefixed
+            // values it uses are shipped by uBO as aliases of the corresponding redirect
+            // resources, so no further translation is needed here.
+            ("redirect", true) | ("rewrite", true) => {
+                return Err(NetworkFilterError::NegatedRedirection);
+            }
+            ("redirect", false) | ("rewrite", false) => {
                 // Ignore this filter if no redirection resource is specified
                 if value.is_empty() {
                     return Err(NetworkFilterError::EmptyRedirection);
                 }
 
-                NetworkFilterOption::Redirect(String::from(value))
+                NetworkFilterOption::Redirect(value)
             }
             ("redirect-rule", true) => return Err(NetworkFilterError::NegatedRedirection),
             ("redirect-rule", false) => {
@@ -211,13 +228,11 @@ fn parse_filter_options(raw_options: &str) -> Result<Vec<NetworkFilterOption>, N
                     return Err(NetworkFilterError::EmptyRedirection);
                 }
 
-                NetworkFilterOption::RedirectRule(String::from(value))
+                NetworkFilterOption::RedirectRule(value)
             }
-            ("csp", _) => NetworkFilterOption::Csp(if !value.is_empty() {
-                Some(String::from(value))
-            } else {
-                None
-            }),
+            ("csp", _) => {
+                NetworkFilterOption::Csp(if !value.is_empty() { Some(value) } else { None })
+            }
             ("removeparam", true) => return Err(NetworkFilterError::NegatedRemoveparam),
             ("removeparam", false) => {
                 if value.is_empty() {
@@ -226,10 +241,10 @@ fn parse_filter_options(raw_options: &str) -> Result<Vec<NetworkFilterOption>, N
                 if !VALID_PARAM.is_match(value) {
                     return Err(NetworkFilterError::RemoveparamRegexUnsupported);
                 }
-                NetworkFilterOption::Removeparam(String::from(value))
+                NetworkFilterOption::Removeparam(value)
             }
             ("generichide", true) | ("ghide", true) => {
-                return Err(NetworkFilterError::NegatedGenericHide)
+                return Err(NetworkFilterError::NegatedGenericHide);
             }
             ("generichide", false) | ("ghide", false) => NetworkFilterOption::Generichide,
             ("document", true) | ("doc", true) => return Err(NetworkFilterError::NegatedDocument),
@@ -253,6 +268,35 @@ fn parse_filter_options(raw_options: &str) -> Result<Vec<NetworkFilterOption>, N
             ("font", negated) => NetworkFilterOption::Font(!negated),
             ("all", true) => return Err(NetworkFilterError::NegatedAll),
             ("all", false) => NetworkFilterOption::All,
+            ("method", true) => return Err(NetworkFilterError::UnrecognisedOption),
+            ("method", false) => {
+                if value.is_empty() {
+                    return Err(NetworkFilterError::UnrecognisedOption);
+                }
+                let methods: Vec<(bool, HttpMethod)> = value
+                    .split('|')
+                    .filter_map(|method| {
+                        let (enabled, name) = if let Some(negated) = method.strip_prefix('~') {
+                            (false, negated)
+                        } else {
+                            (true, method)
+                        };
+                        if name.eq_ignore_ascii_case("get") {
+                            Some((enabled, HttpMethod::Get))
+                        } else if name.eq_ignore_ascii_case("head") {
+                            Some((enabled, HttpMethod::Head))
+                        } else if name.eq_ignore_ascii_case("post") {
+                            Some((enabled, HttpMethod::Post))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                if methods.is_empty() {
+                    return Err(NetworkFilterError::UnrecognisedOption);
+                }
+                NetworkFilterOption::Method(methods)
+            }
             (_, _) => return Err(NetworkFilterError::UnrecognisedOption),
         });
     }

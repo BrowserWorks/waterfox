@@ -2,15 +2,19 @@
 //! modification.
 
 use memchr::memchr as find_char;
-use once_cell::sync::Lazy;
 use regex::Regex;
+use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
+use std::hash::Hasher;
+use std::sync::LazyLock;
 use thiserror::Error;
 
 use std::fmt;
 
 use crate::filters::abstract_network::{
-    AbstractNetworkFilter, NetworkFilterLeftAnchor, NetworkFilterOption, NetworkFilterRightAnchor,
+    AbstractNetworkFilter, HttpMethod, NetworkFilterLeftAnchor, NetworkFilterOption,
+    NetworkFilterRightAnchor,
 };
 use crate::lists::ParseOptions;
 use crate::regex_manager::RegexManager;
@@ -18,7 +22,25 @@ use crate::request;
 use crate::utils::{self, Hash, TokensBuffer};
 
 /// For now, only support `$removeparam` with simple alphanumeric/dash/underscore patterns.
-static VALID_PARAM: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z0-9_\-]+$").unwrap());
+static VALID_PARAM: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"^[a-zA-Z0-9_\-]+$").unwrap());
+
+bitflags::bitflags! {
+  /// Features that are properties used to classify the filter, but not stored
+  /// in the flatbuffer serialized format. For that reason, not available
+  /// for FlatNetworkFilter (use NetworkFilterMask instead).
+  #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Default)]
+  pub struct NetworkFilterFeaturesMask: u32 {
+    const BAD_FILTER = 1 << 0;
+    const IS_REMOVEPARAM = 1 << 1;
+    const GENERIC_HIDE = 1 << 2;
+    const IS_CSP = 1 << 3;
+    const IS_REDIRECT = 1 << 4;
+
+    /// Specifies that a redirect rule should also create a corresponding block rule.
+    /// This is used to avoid returning two separate rules from `NetworkFilter::parse`.
+    const ALSO_BLOCK_REDIRECT = 1 << 5;
+  }
+}
 
 #[non_exhaustive]
 #[derive(Debug, Error, PartialEq, Clone)]
@@ -45,6 +67,8 @@ pub enum NetworkFilterError {
     NegatedAll,
     #[error("generichide without exception")]
     GenericHideWithoutException,
+    #[error("method with generichide")]
+    MethodWithGenerichide,
     #[error("empty redirection")]
     EmptyRedirection,
     #[error("empty removeparam")]
@@ -96,13 +120,8 @@ bitflags::bitflags! {
         const FROM_HTTPS = 1 << 12;
         const IS_IMPORTANT = 1 << 13;
         const MATCH_CASE = 1 << 14;
-        const IS_REMOVEPARAM = 1 << 15;
         const THIRD_PARTY = 1 << 16;
         const FIRST_PARTY = 1 << 17;
-        const IS_REDIRECT = 1 << 26;
-        const BAD_FILTER = 1 << 27;
-        const GENERIC_HIDE = 1 << 30;
-
         // Full document rules are not implied by negated types.
         const FROM_DOCUMENT = 1 << 29;
 
@@ -112,16 +131,19 @@ bitflags::bitflags! {
         const IS_RIGHT_ANCHOR = 1 << 20;
         const IS_HOSTNAME_ANCHOR = 1 << 21;
         const IS_EXCEPTION = 1 << 22;
-        const IS_CSP = 1 << 23;
         const IS_COMPLETE_REGEX = 1 << 24;
         const IS_HOSTNAME_REGEX = 1 << 28;
 
-        // Specifies that a redirect rule should also create a corresponding block rule.
-        // This is used to avoid returning two separate rules from `NetworkFilter::parse`.
-        const ALSO_BLOCK_REDIRECT = 1 << 31;
-
         // "Other" network request types
         const UNMATCHED = 1 << 25;
+
+        const FROM_GET = 1 << 26;
+        const FROM_HEAD = 1 << 27;
+        const FROM_POST = 1 << 30;
+
+        const FROM_ANY_METHODS = Self::FROM_GET.bits() |
+            Self::FROM_HEAD.bits() |
+            Self::FROM_POST.bits();
 
         // Includes all request types that are implied by any negated types.
         const FROM_NETWORK_TYPES = Self::FROM_FONT.bits() |
@@ -150,6 +172,23 @@ bitflags::bitflags! {
 
         // Careful with checking for NONE - will always match
         const NONE = 0;
+    }
+}
+
+impl NetworkFilterMask {
+    #[inline]
+    pub(crate) fn check_method_allowed(self, method: Option<&request::RequestMethod>) -> bool {
+        if !self.intersects(Self::FROM_ANY_METHODS) {
+            return true;
+        }
+        let Some(method) = method else {
+            return false;
+        };
+        let method_mask = Self::from(method);
+        if method_mask.is_empty() {
+            return false;
+        }
+        self.contains(method_mask)
     }
 }
 
@@ -187,31 +226,6 @@ pub trait NetworkFilterMaskHelper {
     }
 
     #[inline]
-    fn is_redirect(&self) -> bool {
-        self.has_flag(NetworkFilterMask::IS_REDIRECT)
-    }
-
-    #[inline]
-    fn is_removeparam(&self) -> bool {
-        self.has_flag(NetworkFilterMask::IS_REMOVEPARAM)
-    }
-
-    #[inline]
-    fn also_block_redirect(&self) -> bool {
-        self.has_flag(NetworkFilterMask::ALSO_BLOCK_REDIRECT)
-    }
-
-    #[inline]
-    fn is_badfilter(&self) -> bool {
-        self.has_flag(NetworkFilterMask::BAD_FILTER)
-    }
-
-    #[inline]
-    fn is_generic_hide(&self) -> bool {
-        self.has_flag(NetworkFilterMask::GENERIC_HIDE)
-    }
-
-    #[inline]
     fn is_regex(&self) -> bool {
         self.has_flag(NetworkFilterMask::IS_REGEX)
     }
@@ -224,11 +238,6 @@ pub trait NetworkFilterMaskHelper {
     #[inline]
     fn is_plain(&self) -> bool {
         !self.is_regex()
-    }
-
-    #[inline]
-    fn is_csp(&self) -> bool {
-        self.has_flag(NetworkFilterMask::IS_CSP)
     }
 
     #[inline]
@@ -278,6 +287,17 @@ impl fmt::Display for NetworkFilterMask {
     }
 }
 
+impl From<&request::RequestMethod> for NetworkFilterMask {
+    fn from(method: &request::RequestMethod) -> NetworkFilterMask {
+        match method {
+            request::RequestMethod::Get => NetworkFilterMask::FROM_GET,
+            request::RequestMethod::Head => NetworkFilterMask::FROM_HEAD,
+            request::RequestMethod::Post => NetworkFilterMask::FROM_POST,
+            _ => NetworkFilterMask::NONE,
+        }
+    }
+}
+
 impl From<&request::RequestType> for NetworkFilterMask {
     fn from(request_type: &request::RequestType) -> NetworkFilterMask {
         match request_type {
@@ -303,21 +323,21 @@ impl From<&request::RequestType> for NetworkFilterMask {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum FilterPart {
+pub enum FilterPart<'a> {
     Empty,
-    Simple(String),
-    AnyOf(Vec<String>),
+    Simple(Cow<'a, str>),
+    AnyOf(Vec<Cow<'a, str>>),
 }
 
 #[derive(Debug, PartialEq)]
-pub(crate) enum FilterTokens<'a> {
+pub(crate) enum FilterTokens {
     Empty,
-    OptDomains(&'a [Hash]),
-    Other(&'a [Hash]),
+    OptDomains,
+    Other,
 }
 
 pub struct FilterPartIterator<'a> {
-    filter_part: &'a FilterPart,
+    filter_part: &'a FilterPart<'a>,
     index: usize,
 }
 
@@ -330,14 +350,14 @@ impl<'a> Iterator for FilterPartIterator<'a> {
             FilterPart::Simple(s) => {
                 if self.index == 0 {
                     self.index += 1;
-                    Some(s.as_str())
+                    Some(s.as_ref())
                 } else {
                     None
                 }
             }
             FilterPart::AnyOf(vec) => {
                 if self.index < vec.len() {
-                    let result = Some(vec[self.index].as_str());
+                    let result = Some(vec[self.index].as_ref());
                     self.index += 1;
                     result
                 } else {
@@ -353,18 +373,23 @@ impl ExactSizeIterator for FilterPartIterator<'_> {
     fn len(&self) -> usize {
         match self.filter_part {
             FilterPart::Empty => 0,
-            FilterPart::Simple(_) => 1,
-            FilterPart::AnyOf(vec) => vec.len(),
+            FilterPart::Simple(_) => 1usize.saturating_sub(self.index),
+            FilterPart::AnyOf(vec) => vec.len().saturating_sub(self.index),
         }
     }
 }
 
-impl FilterPart {
+impl FilterPart<'_> {
     pub fn string_view(&self) -> Option<String> {
         match &self {
             FilterPart::Empty => None,
-            FilterPart::Simple(s) => Some(s.clone()),
-            FilterPart::AnyOf(s) => Some(s.join("|")),
+            FilterPart::Simple(s) => Some(s.to_string()),
+            FilterPart::AnyOf(s) => Some(
+                s.iter()
+                    .map(|part| part.as_ref())
+                    .collect::<Vec<_>>()
+                    .join("|"),
+            ),
         }
     }
 
@@ -377,18 +402,19 @@ impl FilterPart {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NetworkFilter {
+pub struct NetworkFilter<'a> {
     pub mask: NetworkFilterMask,
-    pub filter: FilterPart,
+    pub features_mask: NetworkFilterFeaturesMask,
+    pub filter: FilterPart<'a>,
     pub opt_domains: Option<Vec<Hash>>,
     pub opt_not_domains: Option<Vec<Hash>>,
     /// Used for `$redirect`, `$redirect-rule`, `$csp`, and `$removeparam` - only one of which is
     /// supported per-rule.
-    pub modifier_option: Option<String>,
-    pub hostname: Option<String>,
-    pub(crate) tag: Option<String>,
+    pub modifier_option: Option<&'a str>,
+    pub hostname: Option<Cow<'a, str>>,
+    pub(crate) tag: Option<&'a str>,
 
-    pub raw_line: Option<Box<String>>,
+    pub raw_line: Option<Cow<'a, str>>,
 
     pub id: Hash,
 }
@@ -397,21 +423,21 @@ pub struct NetworkFilter {
 // prevent field access, and don't load the ID from the serialized format.
 /// The ID of a filter is assumed to be correctly calculated for the purposes of this
 /// implementation.
-impl PartialEq for NetworkFilter {
+impl PartialEq for NetworkFilter<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
 }
 
 /// Filters are sorted by ID to preserve a stable ordering of data in the serialized format.
-impl PartialOrd for NetworkFilter {
+impl PartialOrd for NetworkFilter<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.id.partial_cmp(&other.id)
     }
 }
 
 /// Ensure that no invalid option combinations were provided for a filter.
-fn validate_options(options: &[NetworkFilterOption]) -> Result<(), NetworkFilterError> {
+fn validate_options(options: &[NetworkFilterOption<'_>]) -> Result<(), NetworkFilterError> {
     let mut has_csp = false;
     let mut has_content_type = false;
     let mut modifier_options = 0;
@@ -436,8 +462,25 @@ fn validate_options(options: &[NetworkFilterOption]) -> Result<(), NetworkFilter
     Ok(())
 }
 
-impl NetworkFilter {
-    pub fn parse(line: &str, debug: bool, _opts: ParseOptions) -> Result<Self, NetworkFilterError> {
+fn cow_ascii_lowercase<'a>(s: &'a str) -> Cow<'a, str> {
+    if s.as_bytes().iter().any(|byte| byte.is_ascii_uppercase()) {
+        Cow::Owned(s.to_ascii_lowercase())
+    } else {
+        Cow::Borrowed(s)
+    }
+}
+
+fn decode_hostname<'a>(host: &'a [u8]) -> Result<Cow<'a, str>, NetworkFilterError> {
+    idna::domain_to_ascii_cow(host, idna::AsciiDenyList::EMPTY)
+        .map_err(|_| NetworkFilterError::PunycodeError)
+}
+
+impl<'a> NetworkFilter<'a> {
+    pub fn parse(
+        line: &'a str,
+        debug: bool,
+        _opts: ParseOptions,
+    ) -> Result<Self, NetworkFilterError> {
         let parsed = AbstractNetworkFilter::parse(line)?;
 
         // Represent options as a bitmask
@@ -445,19 +488,22 @@ impl NetworkFilter {
             | NetworkFilterMask::FIRST_PARTY
             | NetworkFilterMask::FROM_HTTPS
             | NetworkFilterMask::FROM_HTTP;
+        let mut features_mask: NetworkFilterFeaturesMask = Default::default();
 
         // Temporary masks for positive (e.g.: $script) and negative (e.g.: $~script)
         // content type options.
         let mut cpt_mask_positive: NetworkFilterMask = NetworkFilterMask::NONE;
         let mut cpt_mask_negative: NetworkFilterMask = NetworkFilterMask::NONE;
+        let mut method_mask_positive: NetworkFilterMask = NetworkFilterMask::NONE;
+        let mut method_mask_negative: NetworkFilterMask = NetworkFilterMask::NONE;
 
-        let mut hostname: Option<String> = None;
+        let mut hostname: Option<&'a [u8]> = None;
 
         let mut opt_domains: Option<Vec<Hash>> = None;
         let mut opt_not_domains: Option<Vec<Hash>> = None;
 
-        let mut modifier_option: Option<String> = None;
-        let mut tag: Option<String> = None;
+        let mut modifier_option: Option<&'a str> = None;
+        let mut tag: Option<&'a str> = None;
 
         if parsed.exception {
             mask.set(NetworkFilterMask::IS_EXCEPTION, true);
@@ -476,18 +522,24 @@ impl NetworkFilter {
                 };
             }
 
+            macro_rules! apply_method {
+                ($method:ident, $enabled:ident) => {
+                    if $enabled {
+                        method_mask_positive.set(NetworkFilterMask::$method, true);
+                    } else {
+                        method_mask_negative.set(NetworkFilterMask::$method, true);
+                    }
+                };
+            }
+
             options.into_iter().for_each(|option| {
                 match option {
-                    NetworkFilterOption::Domain(mut domains) => {
-                        // Some rules have duplicate domain options - avoid including duplicates
-                        // Benchmarking doesn't indicate signficant performance degradation across the entire easylist
-                        domains.sort_unstable();
-                        domains.dedup();
+                    NetworkFilterOption::Domain(domains) => {
                         let mut opt_domains_array: Vec<Hash> = vec![];
                         let mut opt_not_domains_array: Vec<Hash> = vec![];
 
                         for (enabled, domain) in domains {
-                            let domain_hash = utils::fast_hash(&domain);
+                            let domain_hash = utils::fast_hash(domain);
                             if !enabled {
                                 opt_not_domains_array.push(domain_hash);
                             } else {
@@ -497,14 +549,20 @@ impl NetworkFilter {
 
                         if !opt_domains_array.is_empty() {
                             opt_domains_array.sort_unstable();
+                            // Some rules have duplicate domain options - avoid including duplicates
+                            opt_domains_array.dedup();
                             opt_domains = Some(opt_domains_array);
                         }
                         if !opt_not_domains_array.is_empty() {
                             opt_not_domains_array.sort_unstable();
+                            // Some rules have duplicate domain options - avoid including duplicates
+                            opt_not_domains_array.dedup();
                             opt_not_domains = Some(opt_not_domains_array);
                         }
                     }
-                    NetworkFilterOption::Badfilter => mask.set(NetworkFilterMask::BAD_FILTER, true),
+                    NetworkFilterOption::Badfilter => {
+                        features_mask.set(NetworkFilterFeaturesMask::BAD_FILTER, true)
+                    }
                     NetworkFilterOption::Important => {
                         mask.set(NetworkFilterMask::IS_IMPORTANT, true)
                     }
@@ -519,28 +577,28 @@ impl NetworkFilter {
                     }
                     NetworkFilterOption::Tag(value) => tag = Some(value),
                     NetworkFilterOption::Redirect(value) => {
-                        mask.set(NetworkFilterMask::IS_REDIRECT, true);
-                        mask.set(NetworkFilterMask::ALSO_BLOCK_REDIRECT, true);
+                        features_mask.set(NetworkFilterFeaturesMask::IS_REDIRECT, true);
+                        features_mask.set(NetworkFilterFeaturesMask::ALSO_BLOCK_REDIRECT, true);
                         modifier_option = Some(value);
                     }
                     NetworkFilterOption::RedirectRule(value) => {
-                        mask.set(NetworkFilterMask::IS_REDIRECT, true);
+                        features_mask.set(NetworkFilterFeaturesMask::IS_REDIRECT, true);
                         modifier_option = Some(value);
                     }
                     NetworkFilterOption::Removeparam(value) => {
-                        mask.set(NetworkFilterMask::IS_REMOVEPARAM, true);
+                        features_mask.set(NetworkFilterFeaturesMask::IS_REMOVEPARAM, true);
                         modifier_option = Some(value);
                     }
                     NetworkFilterOption::Csp(value) => {
-                        mask.set(NetworkFilterMask::IS_CSP, true);
+                        features_mask.set(NetworkFilterFeaturesMask::IS_CSP, true);
                         // CSP rules can never have content types, and should always match against
                         // subdocument and document rules. Rules do not match against document
-                        // requests by default, so this must be explictly added.
+                        // requests by default, so this must be explicitly added.
                         mask.set(NetworkFilterMask::FROM_DOCUMENT, true);
                         modifier_option = value;
                     }
                     NetworkFilterOption::Generichide => {
-                        mask.set(NetworkFilterMask::GENERIC_HIDE, true)
+                        features_mask.set(NetworkFilterFeaturesMask::GENERIC_HIDE, true)
                     }
                     NetworkFilterOption::Document => {
                         cpt_mask_positive.set(NetworkFilterMask::FROM_DOCUMENT, true)
@@ -569,6 +627,15 @@ impl NetworkFilter {
                     }
                     NetworkFilterOption::Font(enabled) => apply_content_type!(FROM_FONT, enabled),
                     NetworkFilterOption::All => apply_content_type!(FROM_ALL_TYPES, true),
+                    NetworkFilterOption::Method(methods) => {
+                        for (enabled, method) in methods {
+                            match method {
+                                HttpMethod::Get => apply_method!(FROM_GET, enabled),
+                                HttpMethod::Head => apply_method!(FROM_HEAD, enabled),
+                                HttpMethod::Post => apply_method!(FROM_POST, enabled),
+                            }
+                        }
+                    }
                 }
             });
         }
@@ -579,7 +646,7 @@ impl NetworkFilter {
         // The negated types will be applied later.
         //
         // This doesn't apply to removeparam filters.
-        if !mask.contains(NetworkFilterMask::IS_REMOVEPARAM)
+        if !features_mask.contains(NetworkFilterFeaturesMask::IS_REMOVEPARAM)
             && (cpt_mask_negative & NetworkFilterMask::FROM_NETWORK_TYPES)
                 != NetworkFilterMask::NONE
         {
@@ -588,7 +655,7 @@ impl NetworkFilter {
         // If no positive types were set, then the filter should apply to all network types.
         if (cpt_mask_positive & NetworkFilterMask::FROM_ALL_TYPES).is_empty() {
             // Removeparam is again a special case.
-            if mask.contains(NetworkFilterMask::IS_REMOVEPARAM) {
+            if features_mask.contains(NetworkFilterFeaturesMask::IS_REMOVEPARAM) {
                 mask |= NetworkFilterMask::FROM_DOCUMENT
                     | NetworkFilterMask::FROM_SUBDOCUMENT
                     | NetworkFilterMask::FROM_XMLHTTPREQUEST;
@@ -614,7 +681,7 @@ impl NetworkFilter {
             end_url_anchor = true;
         }
 
-        let pattern = &parsed.pattern.pattern;
+        let pattern = &line[parsed.pattern.start..parsed.pattern.end];
 
         let is_regex = check_is_regex(pattern);
         mask.set(NetworkFilterMask::IS_REGEX, is_regex);
@@ -641,7 +708,7 @@ impl NetworkFilter {
                 // and then the pattern.
                 // TODO - this could be made more efficient if we could match between two
                 // indices. Once again, we have to do more work than is really needed.
-                static SEPARATOR: Lazy<Regex> = Lazy::new(|| Regex::new("[/^*]").unwrap());
+                static SEPARATOR: LazyLock<Regex> = LazyLock::new(|| Regex::new("[/^*]").unwrap());
                 if let Some(first_separator) = SEPARATOR.find(pattern) {
                     let first_separator_start = first_separator.start();
                     // NOTE: `first_separator` shall never be -1 here since `IS_REGEX` is true.
@@ -655,7 +722,7 @@ impl NetworkFilter {
                         mask.set(NetworkFilterMask::IS_HOSTNAME_REGEX, true);
                     }
 
-                    hostname = Some(String::from(&pattern[..first_separator_start]));
+                    hostname = Some(&pattern.as_bytes()[..first_separator_start]);
                     filter_index_start = first_separator_start;
 
                     // If the only symbol remaining for the selector is '^' then ignore it
@@ -680,12 +747,12 @@ impl NetworkFilter {
                 let slash_index = find_char(b'/', pattern.as_bytes());
                 slash_index
                     .map(|i| {
-                        hostname = Some(String::from(&pattern[..i]));
+                        hostname = Some(&pattern.as_bytes()[..i]);
                         filter_index_start += i;
                         mask.set(NetworkFilterMask::IS_LEFT_ANCHOR, true);
                     })
                     .or_else(|| {
-                        hostname = Some(String::from(pattern));
+                        hostname = Some(pattern.as_bytes());
                         filter_index_start = filter_index_end;
                         None
                     });
@@ -737,13 +804,13 @@ impl NetworkFilter {
             }
         }
 
-        let filter: Option<String> = if filter_index_end > filter_index_start {
+        let filter = if filter_index_end > filter_index_start {
             let filter_str = &pattern[filter_index_start..filter_index_end];
             mask.set(NetworkFilterMask::IS_REGEX, check_is_regex(filter_str));
             if mask.contains(NetworkFilterMask::MATCH_CASE) {
-                Some(String::from(filter_str))
+                Some(Cow::Borrowed(filter_str))
             } else {
-                Some(filter_str.to_ascii_lowercase())
+                Some(cow_ascii_lowercase(filter_str))
             }
         } else {
             None
@@ -751,30 +818,13 @@ impl NetworkFilter {
 
         // TODO: ignore hostname anchor is not hostname provided
 
-        let hostname_decoded = hostname
-            .map(|host| {
-                let hostname_normalised = if mask.contains(NetworkFilterMask::IS_HOSTNAME_ANCHOR) {
-                    host.trim_start_matches("www.")
-                } else {
-                    &host
-                };
+        let hostname_decoded = hostname.map(decode_hostname).transpose()?;
 
-                let lowercase = hostname_normalised.to_lowercase();
-                let hostname = if lowercase.is_ascii() {
-                    lowercase
-                } else {
-                    idna::domain_to_ascii(&lowercase)
-                        .map_err(|_| NetworkFilterError::PunycodeError)?
-                };
-                Ok(hostname)
-            })
-            .transpose();
-
-        if mask.contains(NetworkFilterMask::GENERIC_HIDE) && !parsed.exception {
+        if features_mask.contains(NetworkFilterFeaturesMask::GENERIC_HIDE) && !parsed.exception {
             return Err(NetworkFilterError::GenericHideWithoutException);
         }
 
-        if mask.contains(NetworkFilterMask::IS_REMOVEPARAM) && parsed.exception {
+        if features_mask.contains(NetworkFilterFeaturesMask::IS_REMOVEPARAM) && parsed.exception {
             return Err(NetworkFilterError::RemoveparamWithException);
         }
 
@@ -793,12 +843,29 @@ impl NetworkFilter {
             && mask.contains(NetworkFilterMask::IS_HOSTNAME_ANCHOR)
             && mask.contains(NetworkFilterMask::IS_RIGHT_ANCHOR)
             && !end_url_anchor
-            && !mask.contains(NetworkFilterMask::IS_REMOVEPARAM)
+            && !features_mask.contains(NetworkFilterFeaturesMask::IS_REMOVEPARAM)
         {
             mask |= NetworkFilterMask::FROM_ALL_TYPES;
         }
         // Finally, apply any explicitly negated request types
         mask &= !cpt_mask_negative;
+
+        if !method_mask_positive.is_empty() || !method_mask_negative.is_empty() {
+            mask |= method_mask_positive;
+            if (method_mask_negative & NetworkFilterMask::FROM_ANY_METHODS)
+                != NetworkFilterMask::NONE
+                && (method_mask_positive & NetworkFilterMask::FROM_ANY_METHODS).is_empty()
+            {
+                mask |= NetworkFilterMask::FROM_ANY_METHODS;
+            }
+            mask &= !method_mask_negative;
+        }
+
+        if features_mask.contains(NetworkFilterFeaturesMask::GENERIC_HIDE)
+            && mask.intersects(NetworkFilterMask::FROM_ANY_METHODS)
+        {
+            return Err(NetworkFilterError::MethodWithGenerichide);
+        }
 
         Ok(NetworkFilter {
             filter: if let Some(simple_filter) = filter {
@@ -806,13 +873,14 @@ impl NetworkFilter {
             } else {
                 FilterPart::Empty
             },
-            hostname: hostname_decoded?,
+            hostname: hostname_decoded,
             mask,
+            features_mask,
             opt_domains,
             opt_not_domains,
             tag,
             raw_line: if debug {
-                Some(Box::new(String::from(line)))
+                Some(Cow::Borrowed(line))
             } else {
                 None
             },
@@ -823,10 +891,10 @@ impl NetworkFilter {
 
     /// Given a hostname, produces an equivalent filter parsed from the form `"||hostname^"`, to
     /// emulate the behavior of hosts-style blocking.
-    pub fn parse_hosts_style(hostname: &str, debug: bool) -> Result<Self, NetworkFilterError> {
+    pub fn parse_hosts_style(hostname: &'a str, debug: bool) -> Result<Self, NetworkFilterError> {
         // Make sure the hostname doesn't contain any invalid characters
-        static INVALID_CHARS: Lazy<Regex> =
-            Lazy::new(|| Regex::new("[/^*!?$&(){}\\[\\]+=~`\\s|@,'\"><:;]").unwrap());
+        static INVALID_CHARS: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new("[/^*!?$&(){}\\[\\]+=~`\\s|@,'\"><:;]").unwrap());
         if INVALID_CHARS.is_match(hostname) {
             return Err(NetworkFilterError::FilterParseError);
         }
@@ -839,52 +907,53 @@ impl NetworkFilter {
             return Err(NetworkFilterError::FilterParseError);
         }
 
-        // Normalize the hostname to punycode and parse it as a `||hostname^` rule.
-        let normalized_host = hostname.to_lowercase();
-        let normalized_host = normalized_host.trim_start_matches("www.");
+        let decoded_hostname = decode_hostname(hostname.as_bytes())?;
 
-        let mut hostname = "||".to_string();
-        if normalized_host.is_ascii() {
-            hostname.push_str(normalized_host);
-        } else {
-            hostname.push_str(
-                &idna::domain_to_ascii(normalized_host)
-                    .map_err(|_| NetworkFilterError::PunycodeError)?,
-            );
-        }
-        hostname.push('^');
+        let mask = NetworkFilterMask::THIRD_PARTY
+            | NetworkFilterMask::FIRST_PARTY
+            | NetworkFilterMask::FROM_HTTPS
+            | NetworkFilterMask::FROM_HTTP
+            | NetworkFilterMask::FROM_NETWORK_TYPES
+            | NetworkFilterMask::FROM_ALL_TYPES
+            | NetworkFilterMask::IS_HOSTNAME_ANCHOR
+            | NetworkFilterMask::IS_RIGHT_ANCHOR;
 
-        NetworkFilter::parse(&hostname, debug, Default::default())
-    }
+        let mut rule = String::with_capacity(hostname.len() + 3);
+        rule.push_str("||");
+        rule.push_str(hostname);
+        rule.push('^');
+        let id = utils::fast_hash(&rule);
 
-    pub fn get_id_without_badfilter(&self) -> Hash {
-        let mut mask = self.mask;
-        mask.set(NetworkFilterMask::BAD_FILTER, false);
-        compute_filter_id(
-            self.modifier_option.as_deref(),
+        Ok(NetworkFilter {
+            filter: FilterPart::Empty,
+            hostname: Some(decoded_hostname),
             mask,
-            self.filter.string_view().as_deref(),
-            self.hostname.as_deref(),
-            self.opt_domains.as_ref(),
-            self.opt_not_domains.as_ref(),
-        )
+            features_mask: Default::default(),
+            opt_domains: None,
+            opt_not_domains: None,
+            tag: None,
+            raw_line: if debug { Some(Cow::Owned(rule)) } else { None },
+            modifier_option: None,
+            id,
+        })
     }
 
     pub fn get_id(&self) -> Hash {
         compute_filter_id(
-            self.modifier_option.as_deref(),
+            self.modifier_option,
             self.mask,
-            self.filter.string_view().as_deref(),
+            self.features_mask,
+            &self.filter,
             self.hostname.as_deref(),
             self.opt_domains.as_ref(),
             self.opt_not_domains.as_ref(),
         )
     }
 
-    pub(crate) fn get_tokens<'a>(
-        &'a self,
-        tokens_buffer: &'a mut TokensBuffer,
-    ) -> FilterTokens<'a> {
+    /// Returns the tokens that the filter matches to.
+    ///
+    /// For `!FilterTokens::Empty`, the result is stored in the given `tokens_buffer`.
+    pub(crate) fn get_tokens(&self, tokens_buffer: &mut TokensBuffer) -> FilterTokens {
         tokens_buffer.clear();
 
         // If there is only one domain and no domain negation, we also use this
@@ -892,24 +961,25 @@ impl NetworkFilter {
         if self.opt_domains.is_some()
             && self.opt_not_domains.is_none()
             && self.opt_domains.as_ref().map(|d| d.len()) == Some(1)
+            && let Some(domains) = self.opt_domains.as_ref()
+            && let Some(domain) = domains.first()
         {
-            if let Some(domains) = self.opt_domains.as_ref() {
-                if let Some(domain) = domains.first() {
-                    tokens_buffer.push(*domain);
-                }
-            }
+            tokens_buffer.push(*domain);
         }
 
         // Get tokens from filter
         match &self.filter {
-            FilterPart::Simple(f) => {
-                if !self.is_complete_regex() {
-                    let skip_last_token =
-                        (self.is_plain() || self.is_regex()) && !self.is_right_anchor();
-                    let skip_first_token = self.is_right_anchor();
+            FilterPart::Simple(f) if !self.is_complete_regex() => {
+                let skip_last_token =
+                    (self.is_plain() || self.is_regex()) && !self.is_right_anchor();
+                let skip_first_token = self.is_right_anchor();
 
-                    utils::tokenize_filter_to(f, skip_first_token, skip_last_token, tokens_buffer);
-                }
+                utils::tokenize_filter_to(
+                    f.as_ref(),
+                    skip_first_token,
+                    skip_last_token,
+                    tokens_buffer,
+                );
             }
             FilterPart::AnyOf(_) => (), // across AnyOf set of filters no single token is guaranteed to match to a request
             _ => (),
@@ -918,32 +988,40 @@ impl NetworkFilter {
         // Append tokens from hostname, if any
         if !self.mask.contains(NetworkFilterMask::IS_HOSTNAME_REGEX) {
             if let Some(hostname) = self.hostname.as_ref() {
-                utils::tokenize_to(hostname, tokens_buffer);
+                utils::tokenize_to(hostname.as_ref(), tokens_buffer);
             }
         } else if let Some(hostname) = self.hostname.as_ref() {
             // Find last dot to tokenize the prefix
             let last_dot_pos = hostname.rfind('.');
             if let Some(last_dot_pos) = last_dot_pos {
-                utils::tokenize_to(&hostname[..last_dot_pos], tokens_buffer);
+                utils::tokenize_to(&hostname.as_ref()[..last_dot_pos], tokens_buffer);
             }
         }
 
-        if tokens_buffer.is_empty() && self.mask.contains(NetworkFilterMask::IS_REMOVEPARAM) {
-            if let Some(removeparam) = &self.modifier_option {
-                if VALID_PARAM.is_match(removeparam) {
-                    utils::tokenize_to(&removeparam.to_ascii_lowercase(), tokens_buffer);
-                }
-            }
+        if tokens_buffer.is_empty()
+            && self
+                .features_mask
+                .contains(NetworkFilterFeaturesMask::IS_REMOVEPARAM)
+            && let Some(removeparam) = &self.modifier_option
+            && VALID_PARAM.is_match(removeparam.as_ref())
+        {
+            utils::tokenize_to(&removeparam.to_ascii_lowercase(), tokens_buffer);
         }
 
         // If we got no tokens for the filter/hostname part, then we will dispatch
         // this filter in multiple buckets based on the domains option.
         if tokens_buffer.is_empty() && self.opt_domains.is_some() && self.opt_not_domains.is_none()
         {
-            if let Some(opt_domains) = self.opt_domains.as_ref() {
-                if !opt_domains.is_empty() {
-                    return FilterTokens::OptDomains(opt_domains);
+            if let Some(opt_domains) = self.opt_domains.as_ref()
+                && !opt_domains.is_empty()
+            {
+                let cap = tokens_buffer.remaining_capacity();
+                if opt_domains.len() <= cap {
+                    tokens_buffer.extend(opt_domains.iter().copied());
+                    return FilterTokens::OptDomains;
                 }
+                // Too many domains to bucket individually; fall back to the catch-all
+                // bucket (token 0).
             }
             FilterTokens::Empty
         } else {
@@ -954,33 +1032,65 @@ impl NetworkFilter {
                 tokens_buffer.push(utils::fast_hash("https"));
             }
 
-            FilterTokens::Other(tokens_buffer.as_slice())
+            if tokens_buffer.is_empty() {
+                FilterTokens::Empty
+            } else {
+                FilterTokens::Other
+            }
         }
+    }
+
+    pub fn is_badfilter(&self) -> bool {
+        self.features_mask
+            .contains(NetworkFilterFeaturesMask::BAD_FILTER)
+    }
+
+    pub fn is_removeparam(&self) -> bool {
+        self.features_mask
+            .contains(NetworkFilterFeaturesMask::IS_REMOVEPARAM)
+    }
+
+    pub fn is_generic_hide(&self) -> bool {
+        self.features_mask
+            .contains(NetworkFilterFeaturesMask::GENERIC_HIDE)
+    }
+
+    pub fn is_csp(&self) -> bool {
+        self.features_mask
+            .contains(NetworkFilterFeaturesMask::IS_CSP)
+    }
+
+    pub fn is_redirect(&self) -> bool {
+        self.features_mask
+            .contains(NetworkFilterFeaturesMask::IS_REDIRECT)
+    }
+
+    pub fn also_block_redirect(&self) -> bool {
+        self.features_mask
+            .contains(NetworkFilterFeaturesMask::ALSO_BLOCK_REDIRECT)
     }
 
     #[cfg(test)]
     pub(crate) fn matches_test(&self, request: &request::Request) -> bool {
-        let filter_set = crate::FilterSet::new_with_rules(vec![self.clone()], vec![], true);
-        let engine = crate::Engine::from_filter_set(filter_set, true);
-
+        let engine = crate::Engine::new_with_parsed_rules(vec![self.clone()], vec![]);
         if self.is_exception() {
             engine.check_network_request_exceptions(request)
         } else {
-            engine.check_network_request(request).matched
+            engine.check_network_request(request).filter.is_some()
         }
     }
 }
 
-impl NetworkFilterMaskHelper for NetworkFilter {
+impl NetworkFilterMaskHelper for NetworkFilter<'_> {
     fn has_flag(&self, v: NetworkFilterMask) -> bool {
         self.mask.contains(v)
     }
 }
 
-impl fmt::Display for NetworkFilter {
+impl fmt::Display for NetworkFilter<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-        match self.raw_line.as_ref() {
-            Some(r) => write!(f, "{}", r.clone()),
+        match self.raw_line.as_deref() {
+            Some(r) => write!(f, "{r}"),
             None => write!(f, "NetworkFilter"),
         }
     }
@@ -994,50 +1104,61 @@ pub(crate) trait NetworkMatchable {
 // Filter parsing
 // ---------------------------------------------------------------------------
 
+#[inline]
+fn write_str_to_hasher(hasher: &mut impl Hasher, s: &str) {
+    hasher.write_usize(s.len());
+    hasher.write(s.as_bytes());
+}
+
 fn compute_filter_id(
     modifier_option: Option<&str>,
     mask: NetworkFilterMask,
-    filter: Option<&str>,
+    features_mask: NetworkFilterFeaturesMask,
+    filter: &FilterPart<'_>,
     hostname: Option<&str>,
     opt_domains: Option<&Vec<Hash>>,
     opt_not_domains: Option<&Vec<Hash>>,
 ) -> Hash {
-    let mut hash: Hash = (5408 * 33) ^ Hash::from(mask.bits());
+    let mut hasher = FxHasher::default();
+
+    hasher.write_u64(u64::from(mask.bits()));
+
+    // Exclude BAD_FILTER from the hash
+    let features_mask_bits = features_mask.bits() & !NetworkFilterFeaturesMask::BAD_FILTER.bits();
+    hasher.write_u64(u64::from(features_mask_bits));
 
     if let Some(s) = modifier_option {
-        let chars = s.chars();
-        for c in chars {
-            hash = hash.wrapping_mul(33) ^ (c as Hash);
-        }
-    };
+        write_str_to_hasher(&mut hasher, s);
+    }
 
     if let Some(domains) = opt_domains {
         for d in domains {
-            hash = hash.wrapping_mul(33) ^ d;
-        }
-    };
-
-    if let Some(domains) = opt_not_domains {
-        for d in domains {
-            hash = hash.wrapping_mul(33) ^ d;
+            hasher.write_u64(*d);
         }
     }
 
-    if let Some(s) = filter {
-        let chars = s.chars();
-        for c in chars {
-            hash = hash.wrapping_mul(33) ^ (c as Hash);
+    if let Some(domains) = opt_not_domains {
+        for d in domains {
+            hasher.write_u64(*d);
+        }
+    }
+
+    match filter {
+        FilterPart::Empty => {}
+        FilterPart::Simple(s) => write_str_to_hasher(&mut hasher, s.as_ref()),
+        FilterPart::AnyOf(parts) => {
+            hasher.write_u64(parts.len() as u64);
+            for part in parts {
+                write_str_to_hasher(&mut hasher, part);
+            }
         }
     }
 
     if let Some(s) = hostname {
-        let chars = s.chars();
-        for c in chars {
-            hash = hash.wrapping_mul(33) ^ (c as Hash);
-        }
+        write_str_to_hasher(&mut hasher, s);
     }
 
-    hash
+    hasher.finish()
 }
 
 /// Check if the sub-string contained between the indices start and end is a

@@ -121,7 +121,7 @@ urlpattern = "0.6.0"
 urlpattern_glue = { path = "../../../../netwerk/base/urlpattern_glue" }
 uritemplate_glue = { path = "../../../../netwerk/base/uritemplate_glue" }
 
-adblock = { version = "0.12.1", features = ["full-regex-handling", "single-thread"], default-features = false }
+adblock = { version = "0.13.2", features = ["full-regex-handling", "single-thread"], default-features = false }
 content_classifier_engine = { path = "../../../components/content-classifier/content_classifier_engine" }
 
 libz-rs-sys = { version = "0.6", features = ["custom-prefix"], optional = true }
