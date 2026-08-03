@@ -18,8 +18,9 @@ struct TestRequest {
 }
 
 fn load_requests() -> Vec<TestRequest> {
-    rules_from_lists(&["data/requests.json"])
-        .map(|r| serde_json::from_str(&r))
+    rules_from_lists(["data/requests.json"])
+        .lines()
+        .map(serde_json::from_str)
         .filter_map(Result::ok)
         .collect::<Vec<_>>()
 }
@@ -37,7 +38,7 @@ fn request_parsing_throughput(c: &mut Criterion) {
         b.iter(|| {
             let mut successful = 0;
             requests.iter().for_each(|r| {
-                let req: Result<Request, _> = Request::new(&r.url, &r.frameUrl, &r.cpt);
+                let req: Result<Request, _> = Request::new(&r.url, &r.frameUrl, &r.cpt, "");
                 if req.is_ok() {
                     successful += 1;
                 }
@@ -87,7 +88,7 @@ fn request_new_throughput(c: &mut Criterion) {
         b.iter(|| {
             let mut successful = 0;
             requests.iter().for_each(|r| {
-                Request::new(&r.url, &r.frameUrl, &r.cpt).ok();
+                Request::new(&r.url, &r.frameUrl, &r.cpt, "").ok();
                 successful += 1;
             });
         })

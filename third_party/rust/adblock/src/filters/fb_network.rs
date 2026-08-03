@@ -8,24 +8,40 @@ use crate::regex_manager::RegexManager;
 use crate::request::Request;
 
 use crate::filters::flatbuffer_generated::fb;
+use crate::sourcemap::{FilterRuleDebugInfo, SourceLocation};
+
+pub(crate) const NO_SOURCE_LINE_INFO: u32 = u32::MAX;
+
 /// A list of string parts that can be matched against a URL.
-pub(crate) struct FlatPatterns<'a> {
-    patterns: Option<flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<&'a str>>>,
+pub(crate) enum FlatPatterns<'a> {
+    /// No patterns to match
+    Empty,
+    /// Memory-usage optimization - ~95% of filters have <= 1 pattern. Special-casing avoids the
+    /// need to hold an extra pointer and vector length.
+    Single(&'a str),
+    /// More than 1 pattern to match
+    Multi(flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<&'a str>>),
 }
 
 impl<'a> FlatPatterns<'a> {
     #[inline(always)]
     pub fn new(
-        patterns: Option<flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<&'a str>>>,
+        single_pattern: Option<&'a str>,
+        multi_patterns: Option<flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<&'a str>>>,
     ) -> Self {
-        Self { patterns }
+        if let Some(single_pattern) = single_pattern {
+            FlatPatterns::Single(single_pattern)
+        } else if let Some(patterns) = multi_patterns {
+            FlatPatterns::Multi(patterns)
+        } else {
+            FlatPatterns::Empty
+        }
     }
 
     #[inline(always)]
     pub fn iter(&self) -> FlatPatternsIterator<'_> {
         FlatPatternsIterator {
             patterns: self,
-            len: self.patterns.map_or(0, |d| d.len()),
             index: 0,
         }
     }
@@ -34,7 +50,6 @@ impl<'a> FlatPatterns<'a> {
 /// Iterator over [FlatPatterns].
 pub(crate) struct FlatPatternsIterator<'a> {
     patterns: &'a FlatPatterns<'a>,
-    len: usize,
     index: usize,
 }
 
@@ -43,21 +58,37 @@ impl<'a> Iterator for FlatPatternsIterator<'a> {
 
     #[inline(always)]
     fn next(&mut self) -> Option<Self::Item> {
-        self.patterns.patterns.and_then(|fi| {
-            if self.index < self.len {
-                self.index += 1;
-                Some(fi.get(self.index - 1))
-            } else {
-                None
+        match &self.patterns {
+            FlatPatterns::Empty => None,
+            FlatPatterns::Single(s) => {
+                if self.index == 0 {
+                    self.index += 1;
+                    Some(*s)
+                } else {
+                    None
+                }
             }
-        })
+            FlatPatterns::Multi(v) => {
+                if self.index < v.len() {
+                    let result = v.get(self.index);
+                    self.index += 1;
+                    Some(result)
+                } else {
+                    None
+                }
+            }
+        }
     }
 }
 
 impl ExactSizeIterator for FlatPatternsIterator<'_> {
     #[inline(always)]
     fn len(&self) -> usize {
-        self.len
+        match &self.patterns {
+            FlatPatterns::Empty => 0,
+            FlatPatterns::Single(_) => 1_usize.saturating_sub(self.index),
+            FlatPatterns::Multi(v) => v.len().saturating_sub(self.index),
+        }
     }
 }
 
@@ -123,12 +154,91 @@ impl<'a> FlatNetworkFilter<'a> {
 
     #[inline(always)]
     pub fn patterns(&self) -> FlatPatterns<'_> {
-        FlatPatterns::new(self.fb_filter.patterns())
+        FlatPatterns::new(
+            self.fb_filter.single_pattern(),
+            self.fb_filter.multi_patterns(),
+        )
     }
 
     #[inline(always)]
-    pub fn raw_line(&self) -> Option<String> {
-        self.fb_filter.raw_line().map(|v| v.to_string())
+    pub fn raw_line(&self) -> String {
+        debug_assert!(
+            self.filter_data_context.debug,
+            "raw_line is only available in debug mode"
+        );
+        match self.fb_filter.raw_line() {
+            Some(v) => v.to_string(),
+            None => {
+                debug_assert!(false, "raw_line is not set");
+                Default::default()
+            }
+        }
+    }
+
+    #[inline(always)]
+    fn source_index(&self) -> Option<u32> {
+        if !self.filter_data_context.debug {
+            debug_assert!(false, "source_index is only available in debug mode");
+            return None;
+        }
+
+        let index = self.fb_filter.source_index();
+        if index == NO_SOURCE_LINE_INFO {
+            None
+        } else {
+            Some(index)
+        }
+    }
+
+    #[inline(always)]
+    fn line_number(&self) -> Option<u32> {
+        if !self.filter_data_context.debug {
+            debug_assert!(false, "line_number is only available in debug mode");
+            return None;
+        }
+
+        let number = self.fb_filter.line_number();
+        if number == NO_SOURCE_LINE_INFO {
+            None
+        } else {
+            Some(number)
+        }
+    }
+
+    fn source_location(&self) -> Option<SourceLocation> {
+        let source_index = self.source_index();
+        let line_number = self.line_number();
+
+        match (source_index, line_number) {
+            (Some(source_index), Some(line_number)) => Some(SourceLocation {
+                source_index,
+                line_number,
+            }),
+            (None, None) => None,
+            _ => {
+                debug_assert!(
+                    false,
+                    "source_index and line_number should always be available together"
+                );
+                None
+            }
+        }
+    }
+
+    /// Gets [FilterRuleDebugInfo] corresponding to the original filter rule if debug information
+    /// was enabled.
+    pub fn get_rule_debug_info(&self) -> Option<FilterRuleDebugInfo> {
+        if !self.filter_data_context.debug {
+            return None;
+        }
+
+        let raw_line = Some(self.raw_line());
+        let source_location = self.source_location();
+
+        Some(FilterRuleDebugInfo {
+            raw_line,
+            source_location,
+        })
     }
 }
 

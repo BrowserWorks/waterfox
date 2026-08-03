@@ -406,8 +406,8 @@ user-login = "mstange"
 user-name = "Markus Stange"
 
 [[publisher.memchr]]
-version = "2.7.4"
-when = "2024-06-14"
+version = "2.7.5"
+when = "2025-06-11"
 user-id = 189
 user-login = "BurntSushi"
 user-name = "Andrew Gallant"

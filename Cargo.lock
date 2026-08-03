@@ -28,27 +28,24 @@ dependencies = [
 
 [[package]]
 name = "adblock"
-version = "0.12.1"
+version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "698c1e831aaee3d583efe775790acc7d59fd99d8060e7385b99d2d369a5cdca8"
+checksum = "7a4c8558f27608dec74695c866f9a8ef897ec7a77cb826f8a5baf0b8ba461d2a"
 dependencies = [
  "arrayvec",
  "base64 0.22.1",
  "bitflags 2.10.0",
  "flatbuffers",
  "idna",
- "itertools 0.13.0",
+ "itertools",
  "memchr",
- "once_cell",
  "percent-encoding",
- "precomputed-hash",
  "regex",
- "rustc-hash 1.999.999",
+ "rustc-hash 2.1.1",
  "seahash",
  "serde",
  "serde_json",
  "thiserror 1.999.999",
- "url",
 ]
 
 [[package]]
@@ -570,7 +567,7 @@ dependencies = [
  "bitflags 2.10.0",
  "cexpr",
  "clang-sys",
- "itertools 0.14.0",
+ "itertools",
  "proc-macro2",
  "quote",
  "regex",
@@ -3918,13 +3915,6 @@ dependencies = [
 
 [[package]]
 name = "itertools"
-version = "0.13.0"
-dependencies = [
- "itertools 0.14.0",
-]
-
-[[package]]
-name = "itertools"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
@@ -4608,9 +4598,9 @@ dependencies = [
 
 [[package]]
 name = "memchr"
-version = "2.7.4"
+version = "2.8.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
+checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "memmap2"
@@ -4873,7 +4863,7 @@ dependencies = [
  "futures",
  "getrandom 0.2.999",
  "hex",
- "itertools 0.14.0",
+ "itertools",
  "maybe-async",
  "mls-rs-codec",
  "mls-rs-core",
@@ -4895,7 +4885,7 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "45bd834f164dc06c1fed805540ae307a460b7ed7c2769a35a376f1de577a0dc1"
 dependencies = [
- "itertools 0.14.0",
+ "itertools",
  "mls-rs-codec-derive",
  "thiserror 2.0.12",
  "wasm-bindgen",
@@ -5173,7 +5163,7 @@ dependencies = [
  "icu_properties",
  "idna",
  "indexmap",
- "itertools 0.14.0",
+ "itertools",
  "libc",
  "log",
  "memchr",
@@ -5538,7 +5528,7 @@ dependencies = [
  "glob",
  "heck",
  "icu_segmenter",
- "itertools 0.14.0",
+ "itertools",
  "lazy_static",
  "mozilla-central-workspace-hack",
  "regex",
@@ -6460,7 +6450,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a56d757972c98b346a9b766e3f02746cde6dd1cd1d1d563472929fdd74bec4d"
 dependencies = [
  "anyhow",
- "itertools 0.14.0",
+ "itertools",
  "proc-macro2",
  "quote",
  "syn",
@@ -7620,7 +7610,7 @@ dependencies = [
  "gecko-profiler",
  "icu_segmenter",
  "indexmap",
- "itertools 0.14.0",
+ "itertools",
  "itoa",
  "log",
  "malloc_size_of",
@@ -7716,7 +7706,7 @@ dependencies = [
  "icu_normalizer",
  "icu_properties",
  "interrupt-support",
- "itertools 0.14.0",
+ "itertools",
  "once_cell",
  "parking_lot",
  "rc_crypto",

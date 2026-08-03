@@ -1,77 +1,47 @@
-use adblock::{Engine, FilterSet};
-use criterion::*;
-use tokio::runtime::Runtime;
+use std::borrow::Cow;
+use std::sync::OnceLock;
 
-use adblock::filters::network::{NetworkFilter, NetworkFilterMask, NetworkFilterMaskHelper};
+use adblock::Engine;
+use criterion::*;
+
+use adblock::filters::network::{NetworkFilter, NetworkFilterMask};
 use adblock::request::Request;
 use adblock::resources::Resource;
 
-const DEFAULT_LISTS_URL: &str =
-    "https://raw.githubusercontent.com/brave/adblock-resources/master/filter_lists/list_catalog.json";
+fn live_filter_list() -> String {
+    std::fs::read_to_string("data/live-filters.txt").unwrap_or_else(|e| {
+        panic!("failed to read data/live-filters.txt ({e}). Run: node data/fetch-live-lists.js")
+    })
+}
 
-async fn get_all_filters() -> Vec<String> {
-    use futures::FutureExt;
+static ALL_FILTERS: OnceLock<Box<[String]>> = OnceLock::new();
 
-    #[derive(serde::Serialize, serde::Deserialize)]
-    struct ComponentDescriptor {
-        sources: Vec<SourceDescriptor>,
-    }
-
-    #[derive(serde::Serialize, serde::Deserialize)]
-    struct SourceDescriptor {
-        url: String,
-    }
-
-    let default_components = reqwest::get(DEFAULT_LISTS_URL)
-        .then(|resp| resp.expect("Could not get default filter listing").text())
-        .map(|text| {
-            serde_json::from_str::<Vec<ComponentDescriptor>>(
-                &text.expect("Could not get default filter listing as text"),
-            )
-            .expect("Could not parse default filter listing JSON")
-        })
-        .await;
-
-    let filters_fut: Vec<_> = default_components[0]
-        .sources
-        .iter()
-        .map(|list| {
-            reqwest::get(&list.url)
-                .then(|resp| resp.expect("Could not request rules").text())
-                .map(|text| {
-                    text.expect("Could not get rules as text")
-                        .lines()
-                        .map(|s| s.to_owned())
-                        .collect::<Vec<_>>()
-                })
-        })
-        .collect();
-
-    futures::future::join_all(filters_fut)
-        .await
-        .iter()
-        .flatten()
-        .cloned()
-        .collect()
+fn all_filters() -> &'static [String] {
+    ALL_FILTERS.get_or_init(|| {
+        live_filter_list()
+            .lines()
+            .map(str::to_owned)
+            .collect::<Vec<_>>()
+            .into_boxed_slice()
+    })
 }
 
 /// Gets all rules with redirects, and modifies them to apply to resources at `a{0-n}.com/bad.js`
-fn get_redirect_rules() -> Vec<NetworkFilter> {
-    let async_runtime = Runtime::new().expect("Could not start Tokio runtime");
-
-    let filters = async_runtime.block_on(get_all_filters());
-    let (network_filters, _) = adblock::lists::parse_filters(&filters, true, Default::default());
+fn get_redirect_rules() -> Vec<NetworkFilter<'static>> {
+    let filters = all_filters();
+    let (network_filters, _) =
+        adblock::lists::parse_filters(filters.iter().map(|s| s.as_str()), true, Default::default());
 
     network_filters
         .into_iter()
         .filter(NetworkFilter::is_redirect)
         .filter(NetworkFilter::also_block_redirect)
-        .filter(|rule| rule.modifier_option.as_ref().unwrap() != "none")
+        .filter(|rule| rule.modifier_option.unwrap() != "none")
         .enumerate()
         .map(|(index, mut rule)| {
             rule.mask.insert(NetworkFilterMask::IS_LEFT_ANCHOR);
             rule.mask.insert(NetworkFilterMask::IS_RIGHT_ANCHOR);
-            rule.hostname = Some(format!("a{index}.com/bad.js"));
+            rule.hostname = Some(Cow::Owned(format!("a{index}.com/bad.js")));
 
             rule.filter = adblock::filters::network::FilterPart::Empty;
             rule.mask.remove(NetworkFilterMask::IS_HOSTNAME_ANCHOR);
@@ -86,8 +56,7 @@ fn get_redirect_rules() -> Vec<NetworkFilter> {
 
 /// Loads the supplied rules, and the test set of resources, into a Engine
 fn get_preloaded_engine(rules: Vec<NetworkFilter>) -> Engine {
-    let filter_set = FilterSet::new_with_rules(rules, vec![], false);
-    Engine::from_filter_set(filter_set, true /* optimize */)
+    Engine::new_with_parsed_rules(rules, vec![])
 }
 
 fn get_resources_for_filters(#[allow(unused)] filters: &[NetworkFilter]) -> Vec<Resource> {
@@ -118,17 +87,17 @@ fn get_resources_for_filters(#[allow(unused)] filters: &[NetworkFilter]) -> Vec<
             .iter()
             .filter(|f| f.is_redirect())
             .map(|f| {
-                let mut redirect = f.modifier_option.as_ref().unwrap().as_str();
+                let mut redirect = f.modifier_option.as_ref().unwrap().to_string();
                 // strip priority, if present
                 if let Some(i) = redirect.rfind(':') {
-                    redirect = &redirect[0..i];
+                    redirect.truncate(i);
                 }
 
                 Resource {
-                    name: redirect.to_owned(),
+                    name: redirect.clone(),
                     aliases: vec![],
-                    kind: ResourceType::Mime(MimeType::from_extension(redirect)),
-                    content: BASE64_STANDARD.encode(redirect),
+                    kind: ResourceType::Mime(MimeType::from_extension(&redirect)),
+                    content: BASE64_STANDARD.encode(&redirect),
                     dependencies: vec![],
                     permission: Default::default(),
                 }
@@ -175,7 +144,7 @@ pub fn build_custom_requests(rules: Vec<NetworkFilter>) -> Vec<Request> {
             let domain = &rule_hostname[..rule_hostname.find('/').unwrap()];
             let hostname = domain;
 
-            let raw_line = rule.raw_line.clone().unwrap();
+            let raw_line = rule.raw_line.as_deref().unwrap().to_string();
             let source_hostname = if rule.opt_domains.is_some() {
                 let domain_start = raw_line.rfind("domain=").unwrap() + "domain=".len();
                 let from_start = &raw_line[domain_start..];
@@ -194,7 +163,7 @@ pub fn build_custom_requests(rules: Vec<NetworkFilter>) -> Vec<Request> {
 
             let source_url = format!("https://{source_hostname}");
 
-            Request::new(&url, &source_url, raw_type).unwrap()
+            Request::new(&url, &source_url, raw_type, "").unwrap()
         })
         .collect::<Vec<_>>()
 }

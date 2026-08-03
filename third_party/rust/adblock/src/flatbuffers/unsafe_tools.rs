@@ -35,7 +35,9 @@ pub fn fb_vector_to_slice<T>(vector: flatbuffers::Vector<'_, T>) -> &[T] {
 // It could be constructed from raw data (includes the flatbuffer verification)
 // or from a builder that have just been used to construct the flatbuffer
 // Invariants:
-// 1. self.data() is properly verified flatbuffer contains the root object.
+// 1. self.data() is a flatbuffer root safe to read without the verifier. It was checked in
+//    `from_raw` or accepted by `Engine::deserialize` after
+//    the same-version DAT checksum matched.
 // 2. self.data() is aligned to MIN_ALIGNMENT bytes.
 //    This is necessary for fb_vector_to_slice.
 pub(crate) struct VerifiedFlatbufferMemory {
@@ -49,9 +51,11 @@ pub(crate) struct VerifiedFlatbufferMemory {
 
 impl VerifiedFlatbufferMemory {
     pub(crate) fn from_raw(data: &[u8]) -> Result<Self, flatbuffers::InvalidFlatbuffer> {
-        let memory = Self::from_slice(data);
+        let memory = Self::from_raw_unchecked(data);
 
         // Verify that the data is a valid flatbuffer.
+        #[cfg(test)]
+        root_as_engine_calls::record();
         let _ = fb::root_as_engine(memory.data())?;
 
         Ok(memory)
@@ -59,12 +63,13 @@ impl VerifiedFlatbufferMemory {
 
     // Creates a new VerifiedFlatbufferMemory from a builder.
     // Skip the verification, the builder must contains a valid FilterList.
-    pub(crate) fn from_builder(builder: &flatbuffers::FlatBufferBuilder<'_>) -> Self {
-        Self::from_slice(builder.finished_data())
+    pub(crate) fn from_builder(builder: flatbuffers::FlatBufferBuilder<'_>) -> Self {
+        Self::from_raw_unchecked(builder.finished_data())
     }
 
-    // Properly align the buffer to MIN_ALIGNMENT bytes.
-    pub(crate) fn from_slice(data: &[u8]) -> Self {
+    // Aligns `data` and wraps it without running the FlatBuffer verifier.
+    // The caller must already know `data` satisfies invariant 1.
+    pub(crate) fn from_raw_unchecked(data: &[u8]) -> Self {
         let mut vec = Vec::with_capacity(data.len() + MIN_ALIGNMENT);
         let shift = vec.as_ptr() as usize % MIN_ALIGNMENT;
 
@@ -95,5 +100,22 @@ impl VerifiedFlatbufferMemory {
 
     pub fn data(&self) -> &[u8] {
         &self.raw_data[self.start..]
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod root_as_engine_calls {
+    use std::cell::Cell;
+
+    thread_local! {
+        static COUNT: Cell<usize> = const { Cell::new(0) };
+    }
+
+    pub(super) fn record() {
+        COUNT.set(COUNT.get() + 1);
+    }
+
+    pub(crate) fn count() -> usize {
+        COUNT.get()
     }
 }

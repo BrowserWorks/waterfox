@@ -24,9 +24,12 @@ pub fn to_short_hash(hash: Hash) -> ShortHash {
     hash as ShortHash
 }
 
+/// Characters that form a token. `%` is a separator so percent-encoded paths
+/// like `%2Faymt%2Faa%2F%3F` yield interior tokens (`2faymt`, `2faa`) instead of
+/// one last-token that `skip_last_token` would drop into the fallback bucket.
 #[inline]
 fn is_allowed_filter(ch: char) -> bool {
-    ch.is_alphanumeric() || ch == '%'
+    ch.is_alphanumeric()
 }
 
 /// A fixed-size array-like vector of hashes with maximum capacity of 256.
