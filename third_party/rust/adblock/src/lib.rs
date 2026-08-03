@@ -15,6 +15,8 @@
 //!
 //! Check the [`Engine`] documentation to get started with adblocking.
 
+extern crate alloc;
+
 // Own modules, currently everything is exposed, will need to limit
 pub mod blocker;
 #[cfg(feature = "content-blocking")]
@@ -32,6 +34,7 @@ mod optimizer;
 pub mod regex_manager;
 pub mod request;
 pub mod resources;
+pub mod sourcemap;
 pub mod url_parser;
 
 #[doc(hidden)]

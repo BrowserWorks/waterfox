@@ -83,9 +83,16 @@ where
     }
 }
 
-#[derive(Default)]
 pub(crate) struct FlatMultiMapBuilder<I, V> {
     entries: Vec<(I, V)>,
+}
+
+impl<I, V> Default for FlatMultiMapBuilder<I, V> {
+    fn default() -> Self {
+        Self {
+            entries: Vec::new(),
+        }
+    }
 }
 
 impl<I: Ord + std::hash::Hash, V> FlatMultiMapBuilder<I, V> {
@@ -98,6 +105,10 @@ impl<I: Ord + std::hash::Hash, V> FlatMultiMapBuilder<I, V> {
     #[allow(dead_code)] // Unused code is allowed during cosmetic filter migration
     pub fn insert(&mut self, key: I, value: V) {
         self.entries.push((key, value));
+    }
+
+    pub fn retain_by_value(&mut self, mut retain_if: impl FnMut(&V) -> bool) {
+        self.entries.retain(|(_, value)| retain_if(value));
     }
 
     pub fn finish<'a, B: FlatBuilder<'a>>(

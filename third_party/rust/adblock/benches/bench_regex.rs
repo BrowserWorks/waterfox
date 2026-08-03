@@ -1,6 +1,6 @@
 use criterion::*;
 
-use regex::{bytes::Regex as BytesRegex, Regex, RegexSet};
+use regex::{Regex, RegexSet, bytes::Regex as BytesRegex};
 
 fn bench_simple_regexes(c: &mut Criterion) {
     let mut group = c.benchmark_group("regex");
@@ -17,7 +17,7 @@ fn bench_simple_regexes(c: &mut Criterion) {
     group.bench_function("list", move |b| {
         b.iter(|| {
             for rule in rules.iter() {
-                criterion::black_box(rule.is_match(pattern));
+                std::hint::black_box(rule.is_match(pattern));
             }
         })
     });

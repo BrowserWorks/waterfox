@@ -5,9 +5,10 @@
 use crate::filters::network::{NetworkFilterMask, NetworkFilterMaskHelper};
 
 use regex::{
-    bytes::Regex as BytesRegex, bytes::RegexBuilder as BytesRegexBuilder,
-    bytes::RegexSet as BytesRegexSet, bytes::RegexSetBuilder as BytesRegexSetBuilder, Regex,
+    Regex, bytes::Regex as BytesRegex, bytes::RegexBuilder as BytesRegexBuilder,
+    bytes::RegexSet as BytesRegexSet, bytes::RegexSetBuilder as BytesRegexSetBuilder,
 };
+use std::sync::LazyLock;
 
 use std::collections::HashMap;
 use std::fmt;
@@ -173,16 +174,15 @@ pub(crate) fn compile_regex<'a, I>(
 where
     I: Iterator<Item = &'a str> + ExactSizeIterator,
 {
-    use once_cell::sync::Lazy;
     // Escape special regex characters: |.$+?{}()[]\
-    static SPECIAL_RE: Lazy<Regex> =
-        Lazy::new(|| Regex::new(r"([\|\.\$\+\?\{\}\(\)\[\]])").unwrap());
+    static SPECIAL_RE: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r"([\|\.\$\+\?\{\}\(\)\[\]])").unwrap());
     // * can match anything
-    static WILDCARD_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\*").unwrap());
+    static WILDCARD_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\*").unwrap());
     // ^ can match any separator or the end of the pattern
-    static ANCHOR_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\^(.)").unwrap());
+    static ANCHOR_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\^(.)").unwrap());
     // ^ can match any separator or the end of the pattern
-    static ANCHOR_RE_EOL: Lazy<Regex> = Lazy::new(|| Regex::new(r"\^$").unwrap());
+    static ANCHOR_RE_EOL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\^$").unwrap());
 
     let mut escaped_patterns = Vec::with_capacity(filters.len());
     for filter_str in filters {

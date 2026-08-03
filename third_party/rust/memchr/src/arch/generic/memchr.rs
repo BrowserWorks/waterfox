@@ -12,7 +12,7 @@ Generic crate-internal routines for the `memchr` family of functions.
 //
 // While the routine below is fairly long and perhaps intimidating, the basic
 // idea is actually very simple and can be expressed straight-forwardly in
-// pseudo code. The psuedo code below is written for 128 bit vectors, but the
+// pseudo code. The pseudo code below is written for 128 bit vectors, but the
 // actual code below works for anything that implements the Vector trait.
 //
 //     needle = (n1 << 15) | (n1 << 14) | ... | (n1 << 1) | n1
@@ -1132,7 +1132,13 @@ pub(crate) unsafe fn search_slice_with_raw(
     let start = haystack.as_ptr();
     let end = start.add(haystack.len());
     let found = find_raw(start, end)?;
-    Some(found.distance(start))
+    let idx = found.distance(start);
+    // Required by safety invariant required for find_raw
+    // this lets the compiler know the returned index is in bounds for the slice
+    if idx >= haystack.len() {
+        core::hint::unreachable_unchecked();
+    }
+    Some(idx)
 }
 
 /// Performs a forward byte-at-a-time loop until either `ptr >= end_ptr` or

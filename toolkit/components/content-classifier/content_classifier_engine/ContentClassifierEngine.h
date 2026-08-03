@@ -54,6 +54,7 @@ class ContentClassifierRequest {
   nsCString mSchemelessSite;
   nsCString mSourceSchemelessSite;
   nsCString mRequestType;
+  nsCString mRequestMethod;
   bool mThirdParty = false;
   bool mPrivateBrowsing = false;
   bool mValid = false;
