@@ -72,6 +72,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
     "resource://gre/modules/TelemetryReportingPolicy.sys.mjs",
   TRRRacer: "resource:///modules/TRRPerformance.sys.mjs",
   UpdateUtils: "resource://gre/modules/UpdateUtils.sys.mjs",
+  WaterfoxGlue: "resource:///modules/WaterfoxGlue.sys.mjs",
   WaterfoxUpgradeMessage: "resource:///modules/WaterfoxUpgradeMessage.sys.mjs",
   WebChannel: "resource://gre/modules/WebChannel.sys.mjs",
   WebProtocolHandlerRegistrar:
@@ -402,6 +403,9 @@ BrowserGlue.prototype = {
 
     // apply distribution customizations
     lazy.DistributionManagement.applyCustomizations();
+
+    // Preserve legacy Waterfox defaults before Firefox migrations inspect them.
+    lazy.WaterfoxGlue.prepareProfileUpgrade();
 
     // handle any UI migration
     this._migrateUI();

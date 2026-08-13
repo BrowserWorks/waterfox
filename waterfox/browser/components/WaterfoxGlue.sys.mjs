@@ -32,6 +32,19 @@ const GECKO_MIGRATION_PREF = "browser.migration.version";
 const LAST_66_GECKO_VERSION = 155;
 const NOVA_PREF = "browser.nova.enabled";
 const MIGRATION_VERSION = 6;
+const SIDEBAR_MIGRATION_VERSION = 4;
+const SIDEBAR_REVAMP_PREF = "sidebar.revamp";
+const SIDEBAR_DEFAULT_LAUNCHER_VISIBLE_PREF =
+  "sidebar.revamp.defaultLauncherVisible";
+
+function setBoolPrefIfUnset(pref, value) {
+  if (
+    !Services.prefs.prefHasUserValue(pref) &&
+    !Services.prefs.prefIsLocked(pref)
+  ) {
+    Services.prefs.setBoolPref(pref, value);
+  }
+}
 
 export const WaterfoxGlue = {
   init() {
@@ -128,11 +141,23 @@ export const WaterfoxGlue = {
     }
   },
 
+  prepareProfileUpgrade() {
+    const version = Services.prefs.getIntPref(MIGRATION_PREF, 0);
+    if (version <= 0 || version >= SIDEBAR_MIGRATION_VERSION) {
+      return;
+    }
+
+    setBoolPrefIfUnset(SIDEBAR_REVAMP_PREF, false);
+    setBoolPrefIfUnset(SIDEBAR_DEFAULT_LAUNCHER_VISIBLE_PREF, false);
+  },
+
   // Runs once per profile upgrade. Migrations for profiles coming from
   // earlier Waterfox versions go here, keyed on the version they left
   // off at. Versions 1 through 3 are pre-6.7 releases (6.6.17 wrote 3),
   // version 4 is Waterfox 6.7.0.
   migrateUI() {
+    this.prepareProfileUpgrade();
+
     const version = Services.prefs.getIntPref(MIGRATION_PREF, 0);
     if (version >= MIGRATION_VERSION) {
       return;
