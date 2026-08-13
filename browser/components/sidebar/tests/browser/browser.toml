@@ -107,6 +107,8 @@ skip-if = [
 ["browser_syncedtabs_sidebar_glean.js"]
 
 ["browser_toolbar_sidebar_button.js"]
+
+["browser_waterfox_new_profile_defaults.js"]
 skip-if = [
   "os == 'linux' && os_version == '24.04' && arch == 'x86_64' && opt && a11y_checks && swgl && verify-standalone",
 ]
