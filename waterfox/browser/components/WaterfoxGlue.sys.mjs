@@ -25,7 +25,10 @@ ChromeUtils.defineESModuleGetters(lazy, {
 });
 
 const MIGRATION_PREF = "browser.migration.waterfox_version";
-const MIGRATION_VERSION = 3;
+const MIGRATION_VERSION = 4;
+const SIDEBAR_REVAMP_PREF = "sidebar.revamp";
+const SIDEBAR_DEFAULT_LAUNCHER_VISIBLE_PREF =
+  "sidebar.revamp.defaultLauncherVisible";
 
 const REMOVED_LEPTON_CONTENT_PREFS = [
   "userContent.player.ui",
@@ -46,7 +49,10 @@ const REMOVED_LEPTON_CONTENT_PREFS = [
 ];
 
 function setBoolPrefIfUnset(pref, value) {
-  if (!Services.prefs.prefHasUserValue(pref)) {
+  if (
+    !Services.prefs.prefHasUserValue(pref) &&
+    !Services.prefs.prefIsLocked(pref)
+  ) {
     Services.prefs.setBoolPref(pref, value);
   }
 }
@@ -156,10 +162,22 @@ export const WaterfoxGlue = {
     }
   },
 
+  prepareProfileUpgrade() {
+    const version = Services.prefs.getIntPref(MIGRATION_PREF, 0);
+    if (version <= 0 || version >= MIGRATION_VERSION) {
+      return;
+    }
+
+    setBoolPrefIfUnset(SIDEBAR_REVAMP_PREF, false);
+    setBoolPrefIfUnset(SIDEBAR_DEFAULT_LAUNCHER_VISIBLE_PREF, false);
+  },
+
   // Runs once per profile upgrade. Migrations for profiles coming from
   // earlier Waterfox versions go here, keyed on the version they left
   // off at. Version 2 is where Waterfox 140 profiles ended up.
   migrateUI() {
+    this.prepareProfileUpgrade();
+
     const version = Services.prefs.getIntPref(MIGRATION_PREF, 0);
     if (version >= MIGRATION_VERSION) {
       return;
