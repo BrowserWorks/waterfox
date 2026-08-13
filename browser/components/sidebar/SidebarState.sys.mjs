@@ -12,7 +12,7 @@ XPCOMUtils.defineLazyPreferenceGetter(
   "sidebar.verticalTabs"
 );
 
-const DEFAULT_LAUNCHER_VISIBLE = false;
+const DEFAULT_LAUNCHER_VISIBLE_PREF = "sidebar.revamp.defaultLauncherVisible";
 
 /**
  * The properties that make up a sidebar's UI state.
@@ -440,7 +440,7 @@ export class SidebarState {
     if (lazy.verticalTabsEnabled) {
       return true;
     }
-    return DEFAULT_LAUNCHER_VISIBLE;
+    return Services.prefs.getBoolPref(DEFAULT_LAUNCHER_VISIBLE_PREF, false);
   }
 
   get fullscreen() {
