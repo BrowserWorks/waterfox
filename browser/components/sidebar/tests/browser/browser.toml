@@ -111,6 +111,8 @@ skip-if = [
   "os == 'linux' && os_version == '24.04' && arch == 'x86_64' && opt && a11y_checks && swgl && verify-standalone",
 ]
 
+["browser_waterfox_new_profile_defaults.js"]
+
 ["browser_tools_migration.js"]
 
 ["browser_tools_overflow.js"]
