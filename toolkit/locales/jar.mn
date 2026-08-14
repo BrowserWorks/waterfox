@@ -18,7 +18,9 @@
 
 @AB_CD@.jar:
 % locale global @AB_CD@ %locale/@AB_CD@/global/
+#ifdef MOZ_NORMANDY
   locale/@AB_CD@/global/aboutStudies.properties         (%chrome/global/aboutStudies.properties)
+#endif
   locale/@AB_CD@/global/autocomplete.properties         (%chrome/global/autocomplete.properties)
   locale/@AB_CD@/global/commonDialogs.properties        (%chrome/global/commonDialogs.properties)
   locale/@AB_CD@/global/contentAreaCommands.properties  (%chrome/global/contentAreaCommands.properties)
