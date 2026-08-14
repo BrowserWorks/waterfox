@@ -4,8 +4,8 @@
 
 "use strict";
 
-const { AddonStudies } = ChromeUtils.importESModule(
-  "resource://normandy/lib/AddonStudies.sys.mjs"
+const { AppConstants } = ChromeUtils.importESModule(
+  "resource://gre/modules/AppConstants.sys.mjs"
 );
 const { ClientID } = ChromeUtils.importESModule(
   "resource://gre/modules/ClientID.sys.mjs"
@@ -13,10 +13,15 @@ const { ClientID } = ChromeUtils.importESModule(
 
 ChromeUtils.defineESModuleGetters(this, {
   AddonManager: "resource://gre/modules/AddonManager.sys.mjs",
+  AddonStudies: "resource://normandy/lib/AddonStudies.sys.mjs",
 });
 
 this.normandyAddonStudy = class extends ExtensionAPI {
   getAPI(context) {
+    if (!AppConstants.MOZ_NORMANDY) {
+      return {};
+    }
+
     let { extension } = context;
 
     return {

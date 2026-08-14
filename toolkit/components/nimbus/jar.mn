@@ -8,6 +8,7 @@ toolkit.jar:
   res/nimbus/ExperimentAPI.sys.mjs (./ExperimentAPI.sys.mjs)
   res/nimbus/FeatureManifest.sys.mjs (FeatureManifest.sys.mjs)
   res/nimbus/FirefoxLabs.sys.mjs (./FirefoxLabs.sys.mjs)
+  res/nimbus/schemas/LegacyHeartbeat.schema.json (./schemas/LegacyHeartbeat.schema.json)
   res/nimbus/schemas/NimbusExperiment.schema.json (./schemas/NimbusExperiment.schema.json)
   res/nimbus/schemas/NimbusTelemetryFeature.schema.json (./schemas/NimbusTelemetryFeature.schema.json)
   res/nimbus/schemas/PrefFlipsFeature.schema.json (./schemas/PrefFlipsFeature.schema.json)
