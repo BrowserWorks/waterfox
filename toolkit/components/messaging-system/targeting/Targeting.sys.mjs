@@ -10,7 +10,6 @@ ChromeUtils.defineESModuleGetters(lazy, {
   ASRouterTargeting:
     // eslint-disable-next-line mozilla/no-browser-refs-in-toolkit
     "resource:///modules/asrouter/ASRouterTargeting.sys.mjs",
-  ClientEnvironment: "resource://normandy/lib/ClientEnvironment.sys.mjs",
   ClientEnvironmentBase:
     "resource://gre/modules/components-utils/ClientEnvironment.sys.mjs",
   FilterExpressions:
@@ -40,7 +39,7 @@ const TargetingEnvironment = {
   },
 
   get userId() {
-    return lazy.ClientEnvironment.userId;
+    return lazy.ClientEnvironmentBase.randomizationId;
   },
 
   get version() {
