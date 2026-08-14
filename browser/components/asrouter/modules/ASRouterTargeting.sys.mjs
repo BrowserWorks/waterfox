@@ -65,7 +65,8 @@ ChromeUtils.defineESModuleGetters(lazy, {
   BackupService: "resource:///modules/backup/BackupService.sys.mjs",
   BrowserInitState: "resource:///modules/BrowserGlue.sys.mjs",
   BrowserWindowTracker: "resource:///modules/BrowserWindowTracker.sys.mjs",
-  ClientEnvironment: "resource://normandy/lib/ClientEnvironment.sys.mjs",
+  ClientEnvironmentBase:
+    "resource://gre/modules/components-utils/ClientEnvironment.sys.mjs",
   CustomizableUI:
     "moz-src:///browser/components/customizableui/CustomizableUI.sys.mjs",
   ExperimentAPI: "resource://nimbus/ExperimentAPI.sys.mjs",
@@ -1006,7 +1007,7 @@ const TargetingGetters = {
     return AppConstants.platform;
   },
   get userId() {
-    return lazy.ClientEnvironment.userId;
+    return lazy.ClientEnvironmentBase.randomizationId;
   },
   get profileRestartCount() {
     let bts = Cc["@mozilla.org/backgroundtasks;1"]?.getService(
