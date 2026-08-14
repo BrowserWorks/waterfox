@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { ActorManagerParent } from "resource://gre/modules/ActorManagerParent.sys.mjs";
+import { AppConstants } from "resource://gre/modules/AppConstants.sys.mjs";
 
 const lazy = {};
 
@@ -871,6 +872,10 @@ let JSWINDOWACTORS = {
     allFrames: true,
   },
 };
+
+if (!AppConstants.MOZ_NORMANDY) {
+  delete JSWINDOWACTORS.ShieldFrame;
+}
 
 export let DesktopActorRegistry = {
   init() {
