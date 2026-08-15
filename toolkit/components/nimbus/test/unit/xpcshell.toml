@@ -46,6 +46,8 @@ skip-if = [
 
 ["test_Migrations.js"]
 
+["test_NimbusDisabled.js"]
+
 ["test_NimbusTestUtils.js"]
 
 ["test_RemoteSettingsExperimentLoader.js"]

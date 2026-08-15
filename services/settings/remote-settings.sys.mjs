@@ -286,6 +286,9 @@ function remoteSettingsFunction() {
       for (const changeset of changesets) {
         const bucket = lazy.Utils.actualBucketName(changeset.metadata.bucket);
         const collection = changeset.metadata.id;
+        if (!AppConstants.MOZ_NORMANDY && collection.startsWith("nimbus-")) {
+          continue;
+        }
         const identifier = `${bucket}/${collection}`;
 
         if (pulled.includes(identifier)) {
