@@ -47,6 +47,24 @@ const Prefs = Object.freeze({
   NIMBUS_PROFILE_ID: "nimbus.profileId",
 });
 
+const DISABLED_EXPERIMENT_LOADER = Object.freeze({
+  _hasUpdatedOnce: false,
+  remoteSettingsClients: Object.freeze({}),
+  disable() {},
+  async enable() {},
+  async finishedUpdating() {},
+  async getRecipesFromAllCollections() {
+    return [];
+  },
+  async onEnabledPrefChange() {},
+  async updateRecipes() {
+    return [];
+  },
+  async withUpdateLock(callback) {
+    return callback();
+  },
+});
+
 XPCOMUtils.defineLazyPreferenceGetter(
   lazy,
   "COLLECTION_ID",
@@ -196,7 +214,7 @@ export const ExperimentAPI = new (class {
   #firstStartupTimestamps = null;
 
   constructor() {
-    if (IS_MAIN_PROCESS) {
+    if (IS_MAIN_PROCESS && this.productEnabled) {
       // Ensure that the profile ID is cached in a pref.
       if (Services.prefs.prefHasUserValue(Prefs.NIMBUS_PROFILE_ID)) {
         this.#cachedProfileId = Services.prefs.getStringPref(
@@ -219,8 +237,10 @@ export const ExperimentAPI = new (class {
     this._removeCrashReportAnnotator =
       this._removeCrashReportAnnotator.bind(this);
 
-    ChromeUtils.defineLazyGetter(this, "_remoteSettingsClient", function () {
-      return lazy.RemoteSettings(lazy.COLLECTION_ID);
+    ChromeUtils.defineLazyGetter(this, "_remoteSettingsClient", () => {
+      return this.productEnabled
+        ? lazy.RemoteSettings(lazy.COLLECTION_ID)
+        : null;
     });
   }
 
@@ -260,6 +280,11 @@ export const ExperimentAPI = new (class {
    *          Whether or not the ExperimentAPI was initialized.
    */
   async init({ extraContext, forceSync = false } = {}) {
+    if (!this.productEnabled) {
+      this.#initializedPromise ??= Promise.resolve();
+      return false;
+    }
+
     if (this.#initializedPromise) {
       // Either init has already finished, or it is in flight. Either way,
       // chain off the promise so we only return once init is actually complete.
@@ -443,6 +468,9 @@ export const ExperimentAPI = new (class {
    * @type {RemoteSettingsExperimentLoader}
    */
   get _rsLoader() {
+    if (!this.productEnabled) {
+      return DISABLED_EXPERIMENT_LOADER;
+    }
     if (this.#experimentLoader === null) {
       this.#experimentLoader = new lazy.RemoteSettingsExperimentLoader(
         this.manager
@@ -456,7 +484,11 @@ export const ExperimentAPI = new (class {
     this.#experimentLoader?.disable();
     this.#experimentLoader = null;
 
-    lazy.CleanupManager.removeCleanupHandler(this._removeCrashReportAnnotator);
+    if (AppConstants.MOZ_NORMANDY) {
+      lazy.CleanupManager.removeCleanupHandler(
+        this._removeCrashReportAnnotator
+      );
+    }
     this.#experimentManager?.store.off("update", this._annotateCrashReport);
     this.#experimentManager = null;
 
@@ -500,14 +532,20 @@ export const ExperimentAPI = new (class {
       Services.policies.isAllowed("Shield");
   }
 
+  get productEnabled() {
+    return AppConstants.MOZ_NORMANDY;
+  }
+
   get enabled() {
-    return this.labsEnabled || this.rolloutsEnabled || this.studiesEnabled;
+    return (
+      this.productEnabled &&
+      (this.labsEnabled || this.rolloutsEnabled || this.studiesEnabled)
+    );
   }
 
   get labsEnabled() {
     return (
-      // Waterfox: labs recipes never arrive while the experiments
-      // collection stays offline, so a pref can switch them off.
+      this.productEnabled &&
       Services.prefs.getBoolPref("nimbus.labs.enabled", true) &&
       Services.policies.isAllowed("FirefoxLabs")
     );
@@ -515,17 +553,20 @@ export const ExperimentAPI = new (class {
 
   get rolloutsEnabled() {
     return (
+      this.productEnabled &&
       this.#prefValues.rolloutsEnabled &&
       Services.policies.isAllowed("NimbusRollouts")
     );
   }
 
   get studiesEnabled() {
-    return this.#studiesEnabled;
+    return this.productEnabled && this.#studiesEnabled;
   }
 
   get aiFeaturesEnabled() {
-    return this.#prefValues.aiFeaturesEnabled === "available";
+    return (
+      this.productEnabled && this.#prefValues.aiFeaturesEnabled === "available"
+    );
   }
 
   /**
@@ -564,7 +605,9 @@ export const ExperimentAPI = new (class {
    *          store
    */
   async ready() {
-    return this.manager.store.ready();
+    if (this.productEnabled) {
+      await this.manager.store.ready();
+    }
   }
 
   /**
@@ -597,7 +640,7 @@ export const ExperimentAPI = new (class {
    * Handle a pref change that may result in Nimbus being enabled or disabled.
    */
   async _onEnabledPrefChange() {
-    if (!this.#initializedPromise) {
+    if (!this.productEnabled || !this.#initializedPromise) {
       return;
     }
 
@@ -649,6 +692,9 @@ export const ExperimentAPI = new (class {
    * @returns {Recipe|undefined} A matching experiment recipe if one is found
    */
   async getRecipe(slug) {
+    if (!this.productEnabled) {
+      return undefined;
+    }
     if (!IS_MAIN_PROCESS) {
       throw new Error(
         "getRecipe() should only be called from the main process"
@@ -720,6 +766,9 @@ export const ExperimentAPI = new (class {
    * @throws {Error} If enrollment fails.
    */
   async optInToExperiment(options) {
+    if (!this.productEnabled) {
+      throw new Error("Nimbus is disabled");
+    }
     return this._rsLoader._optInToExperiment(options);
   }
 
@@ -837,6 +886,13 @@ export class _ExperimentFeature {
       );
     }
 
+    if (!ExperimentAPI.productEnabled) {
+      return {
+        ...this.prefGetters,
+        ...defaultValues,
+      };
+    }
+
     let enrollment = null;
     try {
       enrollment = ExperimentAPI.manager.store.getExperimentForFeature(
@@ -879,6 +935,11 @@ export class _ExperimentFeature {
           `Nimbus: Warning - variable "${variable}" is not defined in FeatureManifest.yaml`
         );
       }
+    }
+
+    if (!ExperimentAPI.productEnabled) {
+      const prefName = this.getFallbackPrefName(variable);
+      return prefName ? this.prefGetters[variable] : undefined;
     }
 
     // Next, check if an experiment is defined
@@ -929,6 +990,9 @@ export class _ExperimentFeature {
    *          null.
    */
   getEnrollmentMetadata(enrollmentType = undefined) {
+    if (!ExperimentAPI.productEnabled) {
+      return null;
+    }
     if (this.allowCoenrollment) {
       throw new Error(
         "Co-enrolling features must use the getAllEnrollments or getAllEnrollmentMetadata APIs"
@@ -976,6 +1040,9 @@ export class _ExperimentFeature {
    *        enrollment using this feature.
    */
   getAllEnrollments() {
+    if (!ExperimentAPI.productEnabled) {
+      return [];
+    }
     return ExperimentAPI.manager.store
       .getAll()
       .filter(e => e.active && e.featureIds.includes(this.featureId))
@@ -1004,6 +1071,9 @@ export class _ExperimentFeature {
    *          - whether or not the enrollment is a rollout.
    */
   getAllEnrollmentMetadata() {
+    if (!ExperimentAPI.productEnabled) {
+      return [];
+    }
     return ExperimentAPI.manager.store
       .getAll()
       .filter(e => e.active && e.featureIds.includes(this.featureId))
@@ -1011,6 +1081,9 @@ export class _ExperimentFeature {
   }
 
   recordExposureEvent({ once = false, slug } = {}) {
+    if (!ExperimentAPI.productEnabled) {
+      return;
+    }
     if (this.allowCoenrollment && typeof slug !== "string") {
       throw new Error("Co-enrolling features must provide slug");
     }
