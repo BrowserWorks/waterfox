@@ -2,30 +2,12 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { AppConstants } from "resource://gre/modules/AppConstants.sys.mjs";
-
-const lazy = {};
-
-ChromeUtils.defineESModuleGetters(lazy, {
-  ExperimentAPI: "resource://nimbus/ExperimentAPI.sys.mjs",
-});
-
 const MIGRATION_PREF = "browser.migration.waterfox_version";
 const MIGRATION_VERSION = 2;
 
 export const WaterfoxGlue = {
   init() {
     this.migrateUI();
-
-    // With Normandy compiled out nothing else starts Nimbus, leaving every
-    // NimbusFeatures.ready() caller waiting forever. Initialise it here so
-    // the local store settles; without recipe data each feature only ever
-    // uses its fallback prefs.
-    if (!AppConstants.MOZ_NORMANDY) {
-      lazy.ExperimentAPI.init().catch(error =>
-        console.error("ExperimentAPI startup init failed", error)
-      );
-    }
   },
 
   // Runs once per profile upgrade. Migrations for profiles coming from

@@ -15,6 +15,14 @@ namespace mozilla {
 
 constinit static nsTHashSet<nsCString> sExposureFeatureSet;
 
+static constexpr bool NimbusEnabled() {
+#ifdef MOZ_NORMANDY
+  return true;
+#else
+  return false;
+#endif
+}
+
 void NimbusFeatures::GetPrefName(const nsACString& branchPrefix,
                                  const nsACString& aFeatureId,
                                  const nsACString& aVariable,
@@ -37,6 +45,12 @@ void NimbusFeatures::GetPrefName(const nsACString& branchPrefix,
  */
 bool NimbusFeatures::GetBool(const nsACString& aFeatureId,
                              const nsACString& aVariable, bool aDefault) {
+  if (!NimbusEnabled()) {
+    auto prefName = GetNimbusFallbackPrefName(aFeatureId, aVariable);
+    return prefName.isSome() ? Preferences::GetBool(prefName->get(), aDefault)
+                             : aDefault;
+  }
+
   nsAutoCString experimentPref;
   GetPrefName(kSyncDataPrefBranch, aFeatureId, aVariable, experimentPref);
   if (Preferences::HasUserValue(experimentPref.get())) {
@@ -63,6 +77,12 @@ bool NimbusFeatures::GetBool(const nsACString& aFeatureId,
  */
 int NimbusFeatures::GetInt(const nsACString& aFeatureId,
                            const nsACString& aVariable, int aDefault) {
+  if (!NimbusEnabled()) {
+    auto prefName = GetNimbusFallbackPrefName(aFeatureId, aVariable);
+    return prefName.isSome() ? Preferences::GetInt(prefName->get(), aDefault)
+                             : aDefault;
+  }
+
   nsAutoCString experimentPref;
   GetPrefName(kSyncDataPrefBranch, aFeatureId, aVariable, experimentPref);
   if (Preferences::HasUserValue(experimentPref.get())) {
@@ -86,6 +106,13 @@ nsresult NimbusFeatures::OnUpdate(const nsACString& aFeatureId,
                                   const nsACString& aVariable,
                                   PrefChangedFunc aUserCallback,
                                   void* aUserData) {
+  if (!NimbusEnabled()) {
+    auto prefName = GetNimbusFallbackPrefName(aFeatureId, aVariable);
+    return prefName.isSome() ? Preferences::RegisterCallback(
+                                   aUserCallback, *prefName, aUserData)
+                             : NS_OK;
+  }
+
   nsAutoCString experimentPref;
   nsAutoCString rolloutPref;
   GetPrefName(kSyncDataPrefBranch, aFeatureId, aVariable, experimentPref);
@@ -103,6 +130,13 @@ nsresult NimbusFeatures::OffUpdate(const nsACString& aFeatureId,
                                    const nsACString& aVariable,
                                    PrefChangedFunc aUserCallback,
                                    void* aUserData) {
+  if (!NimbusEnabled()) {
+    auto prefName = GetNimbusFallbackPrefName(aFeatureId, aVariable);
+    return prefName.isSome() ? Preferences::UnregisterCallback(
+                                   aUserCallback, *prefName, aUserData)
+                             : NS_OK;
+  }
+
   nsAutoCString experimentPref;
   nsAutoCString rolloutPref;
   GetPrefName(kSyncDataPrefBranch, aFeatureId, aVariable, experimentPref);
@@ -131,11 +165,15 @@ nsresult NimbusFeatures::OffUpdate(const nsACString& aFeatureId,
 nsresult NimbusFeatures::GetExperimentSlug(const nsACString& aFeatureId,
                                            nsACString& aExperimentSlug,
                                            nsACString& aBranchSlug) {
-  nsAutoCString prefName;
-  nsAutoString prefValue;
-
   aExperimentSlug.Truncate();
   aBranchSlug.Truncate();
+
+  if (!NimbusEnabled()) {
+    return NS_ERROR_NOT_AVAILABLE;
+  }
+
+  nsAutoCString prefName;
+  nsAutoString prefValue;
 
   GetPrefName(kSyncDataPrefBranch, aFeatureId, EmptyCString(), prefName);
   MOZ_TRY(Preferences::GetString(prefName.get(), prefValue));
@@ -180,6 +218,10 @@ nsresult NimbusFeatures::GetExperimentSlug(const nsACString& aFeatureId,
  */
 nsresult NimbusFeatures::RecordExposureEvent(const nsACString& aFeatureId,
                                              const bool aOnce) {
+  if (!NimbusEnabled()) {
+    return NS_OK;
+  }
+
   nsAutoCString featureName(aFeatureId);
   if (!sExposureFeatureSet.EnsureInserted(featureName) && aOnce) {
     // We already sent (or tried to send) an exposure ping for this featureId
