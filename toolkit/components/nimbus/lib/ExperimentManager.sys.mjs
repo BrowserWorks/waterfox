@@ -5,7 +5,8 @@
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
-  ClientEnvironment: "resource://normandy/lib/ClientEnvironment.sys.mjs",
+  ClientEnvironmentBase:
+    "resource://gre/modules/components-utils/ClientEnvironment.sys.mjs",
   ClientID: "resource://gre/modules/ClientID.sys.mjs",
   ExperimentAPI: "resource://nimbus/ExperimentAPI.sys.mjs",
   ExperimentStore: "resource://nimbus/lib/ExperimentStore.sys.mjs",
@@ -13,7 +14,6 @@ ChromeUtils.defineESModuleGetters(lazy, {
   NimbusEnrollments: "resource://nimbus/lib/Enrollments.sys.mjs",
   NimbusFeatures: "resource://nimbus/ExperimentAPI.sys.mjs",
   NimbusTelemetry: "resource://nimbus/lib/Telemetry.sys.mjs",
-  NormandyUtils: "resource://normandy/lib/NormandyUtils.sys.mjs",
   PrefFlipsFeature: "resource://nimbus/lib/PrefFlipsFeature.sys.mjs",
   PrefUtils: "moz-src:///toolkit/modules/PrefUtils.sys.mjs",
   EnrollmentsContext:
@@ -500,7 +500,7 @@ export class ExperimentManager {
   async getUserId(bucketConfig) {
     let id;
     if (bucketConfig.randomizationUnit === "normandy_id") {
-      id = lazy.ClientEnvironment.userId;
+      id = lazy.ClientEnvironmentBase.randomizationId;
     } else if (bucketConfig.randomizationUnit === "group_id") {
       id = await lazy.ClientID.getProfileGroupID();
     } else {
@@ -518,6 +518,10 @@ export class ExperimentManager {
    * @returns {OptInEntry[]} The opt-in recipes and their sources.
    */
   async getAvailableOptIns() {
+    if (!lazy.ExperimentAPI.productEnabled) {
+      return [];
+    }
+
     const enrollmentsCtx = new lazy.EnrollmentsContext(this, null, {
       validationEnabled: false,
     });
@@ -674,6 +678,9 @@ export class ExperimentManager {
    *                 as `recipe` and re-enrollment is prevented.
    */
   async enroll(recipe, source, { reenroll = false, branchSlug } = {}) {
+    if (!lazy.ExperimentAPI.productEnabled) {
+      throw new Error("Nimbus is disabled");
+    }
     if (typeof source !== "string") {
       throw new Error("source is required");
     }
@@ -921,6 +928,9 @@ export class ExperimentManager {
    * @returns {object} The resulting enrollment.
    */
   forceEnroll(recipe, branchOrBranchSlug) {
+    if (!lazy.ExperimentAPI.productEnabled) {
+      throw new Error("Nimbus is disabled");
+    }
     let branch;
     if (typeof branchOrBranchSlug === "string") {
       branch = recipe.branches.find(b => b.slug === branchOrBranchSlug);
@@ -1364,7 +1374,7 @@ export class ExperimentManager {
     }
 
     while (Object.keys(branchValues).length < branches.length + includeNot) {
-      const id = lazy.NormandyUtils.generateUuid();
+      const id = Services.uuid.generateUUID().toString().slice(1, -1);
       const enrolls = await lazy.Sampling.bucketSample(
         [id, namespace],
         start,
@@ -1399,7 +1409,11 @@ export class ExperimentManager {
    * @param {string} userId
    * @returns {Promise<Branch>}
    */
-  async chooseBranch(slug, branches, userId = lazy.ClientEnvironment.userId) {
+  async chooseBranch(
+    slug,
+    branches,
+    userId = lazy.ClientEnvironmentBase.randomizationId
+  ) {
     const ratios = branches.map(({ ratio = 1 }) => ratio);
 
     // It's important that the input be:
