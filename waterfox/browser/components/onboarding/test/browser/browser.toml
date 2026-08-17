@@ -1,0 +1,11 @@
+[DEFAULT]
+tags = "waterfox_onboarding"
+prefs = [
+  "intl.multilingual.aboutWelcome.languageMismatchEnabled=false",
+  "waterfox.blocker.enabled=false",
+  "waterfox.blocker.enabledLists={\"core-easylist\":false,\"core-easyprivacy\":false,\"core-ublock-filters\":false,\"core-ublock-unbreak\":false,\"core-ublock-quick-fixes\":false,\"privacy-ublock-privacy\":false,\"privacy-ublock-badware\":false,\"privacy-ublock-resource-abuse\":false,\"privacy-adguard-tracking\":false,\"peter-lowe-adservers\":false,\"annoyances-easylist-cookie\":false,\"annoyances-ublock-cookies\":false}",
+]
+
+["browser_waterfox_onboarding_actions.js"]
+
+["browser_waterfox_onboarding_page.js"]

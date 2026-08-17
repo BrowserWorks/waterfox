@@ -1,0 +1,16 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+browser.jar:
+%   content browser %content/browser/ contentaccessible=yes
+    content/browser/waterfox/onboarding/onboarding.html                 (content/onboarding.html)
+    content/browser/waterfox/onboarding/onboarding.css                  (content/onboarding.css)
+    content/browser/waterfox/onboarding/onboarding.mjs                  (content/onboarding.mjs)
+    content/browser/waterfox/onboarding/browser-layout-horizontal.svg   (browser-layout-horizontal.svg)
+    content/browser/waterfox/onboarding/browser-layout-vertical.svg     (browser-layout-vertical.svg)
+    content/browser/waterfox/onboarding/browser-layout-tree.svg         (browser-layout-tree.svg)
+    content/browser/waterfox/onboarding/browser-tabs-topabove.svg       (browser-tabs-topabove.svg)
+    content/browser/waterfox/onboarding/browser-tabs-topbelow.svg       (browser-tabs-topbelow.svg)
+    content/browser/waterfox/onboarding/browser-tabs-bottomabove.svg    (browser-tabs-bottomabove.svg)
+    content/browser/waterfox/onboarding/browser-tabs-bottombelow.svg    (browser-tabs-bottombelow.svg)
