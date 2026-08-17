@@ -1,0 +1,23 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at https://mozilla.org/MPL/2.0/. -->
+<svg width="54" height="42" viewBox="0 0 54 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g clip-path="url(#clip0_layout_horizontal)">
+<rect width="54" height="42" rx="4" fill="white"/>
+<rect width="54" height="5" fill="#F0F0F4"/>
+<rect x="5" y="2" width="12" height="2" rx="1" fill="#5B5B66"/>
+<rect x="19" y="2" width="12" height="2" rx="1" fill="#5B5B66"/>
+<rect x="33" y="2" width="12" height="2" rx="1" fill="#5B5B66"/>
+<rect x="50" y="7" width="2" height="2" rx="1" fill="#5B5B66"/>
+<rect x="2" y="7" width="2" height="2" rx="1" fill="#5B5B66"/>
+<rect x="6" y="7" width="2" height="2" rx="1" fill="#5B5B66"/>
+<rect x="10" y="7" width="38" height="2" rx="1" fill="#5B5B66"/>
+<rect y="11" width="54" height="31" fill="white"/>
+</g>
+<rect x="0.5" y="0.5" width="53" height="41" rx="3.5" fill="none" stroke="#CFCFD8"/>
+<defs>
+<clipPath id="clip0_layout_horizontal">
+<rect width="54" height="42" rx="4" fill="white"/>
+</clipPath>
+</defs>
+</svg>

@@ -9,6 +9,7 @@ DIRS += [
     "extensions",
     "feeds",
     "migration",
+    "onboarding",
     "privatetab",
     "remotesettings",
     "search",

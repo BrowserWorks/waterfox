@@ -1,0 +1,365 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this file,
+   - You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="color-scheme" content="light dark" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; object-src 'none'; script-src chrome:; img-src chrome:; style-src chrome:; font-src chrome:;"
+    />
+    <title data-l10n-id="waterfox-onboarding-welcome-title"></title>
+    <link
+      rel="icon"
+      type="image/png"
+      href="chrome://branding/content/icon32.png"
+    />
+    <link rel="stylesheet" href="chrome://global/skin/in-content/common.css" />
+    <link
+      rel="stylesheet"
+      href="chrome://browser/content/waterfox/onboarding/onboarding.css"
+    />
+    <link rel="localization" href="branding/brand.ftl" />
+    <link rel="localization" href="toolkit/branding/brandings.ftl" />
+    <link rel="localization" href="browser/waterfox/onboarding.ftl" />
+    <link rel="localization" href="browser/newtab/onboarding.ftl" />
+    <link rel="localization" href="browser/migrationWizard.ftl" />
+  </head>
+  <body>
+    <main id="onboarding" hidden>
+      <header class="page-header">
+        <div class="brand">
+          <img src="chrome://branding/content/about-logo.svg" alt="" />
+          <img
+            class="wordmark"
+            src="chrome://branding/content/about-wordmark.svg"
+            alt="Waterfox"
+          />
+        </div>
+        <span
+          id="step-counter"
+          data-l10n-id="waterfox-onboarding-step-label"
+          data-l10n-args='{"current": 1, "total": 5}'
+        ></span>
+      </header>
+
+      <div
+        id="progress"
+        role="progressbar"
+        aria-labelledby="step-counter"
+        aria-valuemin="1"
+        aria-valuemax="5"
+        aria-valuenow="1"
+      >
+        <span class="segment"></span>
+        <span class="segment"></span>
+        <span class="segment"></span>
+        <span class="segment"></span>
+        <span class="segment"></span>
+      </div>
+
+      <div class="card-area">
+        <section class="step card centered" id="step-welcome">
+          <img
+            class="hero-logo"
+            src="chrome://branding/content/about-logo.svg"
+            alt=""
+          />
+          <h1 data-l10n-id="waterfox-onboarding-welcome-title"></h1>
+          <p
+            class="subtitle"
+            data-l10n-id="waterfox-onboarding-welcome-subtitle"
+          ></p>
+          <div class="language-picker">
+            <label
+              for="locale-select"
+              class="field-label"
+              data-l10n-id="onboarding-live-language-header"
+            ></label>
+            <select id="locale-select"></select>
+            <p
+              class="hint"
+              data-l10n-id="waterfox-onboarding-language-hint"
+            ></p>
+            <p
+              id="locale-error"
+              class="error"
+              role="alert"
+              data-l10n-id="waterfox-onboarding-language-error"
+              hidden
+            ></p>
+          </div>
+        </section>
+
+        <section class="step card" id="step-import" hidden>
+          <h1 data-l10n-id="waterfox-onboarding-import-title"></h1>
+          <p
+            class="subtitle"
+            data-l10n-id="waterfox-onboarding-import-subtitle"
+          ></p>
+          <migration-wizard
+            id="import-wizard"
+            auto-request-state=""
+            force-show-import-all="true"
+            migrator-key="firefox-import"
+            selection-header-string=""
+            hide-option-expander-subtitle="true"
+            checkbox-margin-block="4px"
+            header-font-size="1em"
+            header-font-weight="600"
+            header-margin-block="0 12px"
+            subheader-font-size="0.9em"
+            subheader-margin-block="0 12px"
+          ></migration-wizard>
+        </section>
+
+        <section class="step card" id="step-appearance" hidden>
+          <h1 data-l10n-id="waterfox-onboarding-theme-color-title"></h1>
+          <p
+            class="subtitle"
+            data-l10n-id="waterfox-onboarding-appearance-subtitle"
+          ></p>
+
+          <fieldset class="field">
+            <legend
+              class="field-label"
+              data-l10n-id="waterfox-onboarding-tabs-style-legend"
+            ></legend>
+            <div class="tile-row" id="style-tiles">
+              <button class="tile" data-value="nova">
+                <img
+                  src="chrome://browser/content/waterfox/style/waterfox-style-nova.svg"
+                  alt=""
+                />
+                <span
+                  data-l10n-id="waterfox-onboarding-style-nova-label"
+                ></span>
+              </button>
+              <button class="tile" data-value="proton">
+                <img
+                  src="chrome://browser/content/waterfox/style/waterfox-style-proton.svg"
+                  alt=""
+                />
+                <span
+                  data-l10n-id="waterfox-onboarding-style-proton-label"
+                ></span>
+              </button>
+              <button class="tile" data-value="photon">
+                <img
+                  src="chrome://browser/content/waterfox/style/waterfox-style-photon.svg"
+                  alt=""
+                />
+                <span
+                  data-l10n-id="waterfox-onboarding-style-photon-label"
+                ></span>
+              </button>
+            </div>
+          </fieldset>
+
+          <div class="field-columns">
+            <fieldset class="field">
+              <legend
+                class="field-label"
+                data-l10n-id="waterfox-onboarding-tabs-density-legend"
+              ></legend>
+              <div class="segmented" id="density-segments" role="group">
+                <button data-value="compact">
+                  <span
+                    data-l10n-id="waterfox-onboarding-density-compact-label"
+                  ></span>
+                </button>
+                <button data-value="normal">
+                  <span
+                    data-l10n-id="waterfox-onboarding-density-normal-label"
+                  ></span>
+                </button>
+                <button data-value="touch">
+                  <span
+                    data-l10n-id="waterfox-onboarding-density-touch-label"
+                  ></span>
+                </button>
+              </div>
+            </fieldset>
+
+            <fieldset class="field">
+              <legend
+                class="field-label"
+                data-l10n-id="waterfox-onboarding-theme-mode-legend"
+              ></legend>
+              <div class="segmented" id="mode-segments" role="group">
+                <button data-value="system">
+                  <img
+                    class="segment-icon"
+                    src="chrome://browser/skin/device-desktop.svg"
+                    alt=""
+                  />
+                  <span
+                    data-l10n-id="waterfox-onboarding-theme-mode-system-label"
+                  ></span>
+                </button>
+                <button data-value="light">
+                  <img
+                    class="segment-icon"
+                    src="chrome://browser/skin/weather/sunny.svg"
+                    alt=""
+                  />
+                  <span
+                    data-l10n-id="waterfox-onboarding-theme-mode-light-label"
+                  ></span>
+                </button>
+                <button data-value="dark">
+                  <img
+                    class="segment-icon"
+                    src="chrome://browser/skin/weather/night-hazy-moonlight.svg"
+                    alt=""
+                  />
+                  <span
+                    data-l10n-id="waterfox-onboarding-theme-mode-dark-label"
+                  ></span>
+                </button>
+              </div>
+            </fieldset>
+          </div>
+
+          <fieldset class="field">
+            <legend
+              class="field-label"
+              data-l10n-id="waterfox-onboarding-theme-color-legend"
+            ></legend>
+            <div class="color-grid" id="color-grid"></div>
+          </fieldset>
+        </section>
+
+        <section class="step card" id="step-tabs" hidden>
+          <h1 data-l10n-id="waterfox-onboarding-tabs-title"></h1>
+          <p
+            class="subtitle"
+            data-l10n-id="waterfox-onboarding-tabs-subtitle"
+          ></p>
+
+          <fieldset class="field">
+            <legend
+              class="field-label"
+              data-l10n-id="waterfox-onboarding-tabs-layout-legend"
+            ></legend>
+            <div class="tile-row" id="layout-tiles">
+              <button class="tile" data-value="horizontal">
+                <img
+                  src="chrome://browser/content/waterfox/onboarding/browser-layout-horizontal.svg"
+                  alt=""
+                />
+                <span
+                  data-l10n-id="waterfox-onboarding-tabs-horizontal-label"
+                ></span>
+              </button>
+              <button class="tile" data-value="vertical">
+                <img
+                  src="chrome://browser/content/waterfox/onboarding/browser-layout-vertical.svg"
+                  alt=""
+                />
+                <span
+                  data-l10n-id="waterfox-onboarding-tabs-vertical-label"
+                ></span>
+              </button>
+              <button class="tile" data-value="tree">
+                <img
+                  src="chrome://browser/content/waterfox/onboarding/browser-layout-tree.svg"
+                  alt=""
+                />
+                <span data-l10n-id="waterfox-onboarding-tabs-tree-label"></span>
+              </button>
+            </div>
+          </fieldset>
+
+          <fieldset class="field" id="tab-location-field">
+            <legend
+              class="field-label"
+              data-l10n-id="waterfox-onboarding-tabs-location-label"
+            ></legend>
+            <div class="segmented" id="location-segments" role="group">
+              <button data-value="topabove">
+                <span
+                  data-l10n-id="waterfox-onboarding-location-top-above-label"
+                ></span>
+              </button>
+              <button data-value="topbelow">
+                <span
+                  data-l10n-id="waterfox-onboarding-location-top-below-label"
+                ></span>
+              </button>
+            </div>
+            <p
+              class="hint"
+              data-l10n-id="waterfox-onboarding-tabs-location-hint"
+            ></p>
+          </fieldset>
+        </section>
+
+        <section class="step card centered" id="step-finish" hidden>
+          <img
+            class="hero-logo"
+            src="chrome://branding/content/about-logo.svg"
+            alt=""
+          />
+          <h1 data-l10n-id="waterfox-onboarding-finish-title"></h1>
+          <p
+            class="subtitle"
+            data-l10n-id="waterfox-onboarding-finish-subtitle"
+          ></p>
+          <div class="privacy-note" id="privacy-note" hidden>
+            <span class="check" aria-hidden="true"></span>
+            <span>
+              <span
+                data-l10n-id="waterfox-onboarding-finish-privacy-note"
+              ></span>
+              <button
+                id="privacy-settings"
+                class="link inline"
+                data-l10n-id="waterfox-onboarding-customize-privacy-button"
+              ></button>
+            </span>
+          </div>
+        </section>
+      </div>
+
+      <footer class="page-footer">
+        <button
+          id="back-button"
+          class="button secondary"
+          data-l10n-id="waterfox-onboarding-back-button"
+          hidden
+        ></button>
+        <div class="footer-end">
+          <button
+            id="skip-button"
+            class="link"
+            data-l10n-id="waterfox-onboarding-skip-step-button"
+            hidden
+          ></button>
+          <button
+            id="next-button"
+            class="button primary"
+            data-l10n-id="waterfox-onboarding-start-button"
+          ></button>
+        </div>
+      </footer>
+    </main>
+
+    <script src="chrome://global/content/elements/named-deck.js" async></script>
+    <script
+      src="chrome://global/content/elements/panel-list.mjs"
+      type="module"
+    ></script>
+    <script
+      src="chrome://browser/content/migration/migration-wizard.mjs"
+      type="module"
+    ></script>
+    <script
+      src="chrome://browser/content/waterfox/onboarding/onboarding.mjs"
+      type="module"
+    ></script>
+  </body>
+</html>
