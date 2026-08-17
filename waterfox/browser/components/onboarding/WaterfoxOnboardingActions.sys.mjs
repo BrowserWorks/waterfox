@@ -5,6 +5,17 @@
 import { WaterfoxBrowserStyle } from "resource:///modules/WaterfoxBrowserStyle.sys.mjs";
 import { WaterfoxThemeColors } from "resource:///modules/WaterfoxThemeColors.sys.mjs";
 
+const lazy = {};
+
+ChromeUtils.defineESModuleGetters(lazy, {
+  AddonManager: "resource://gre/modules/AddonManager.sys.mjs",
+  SearchService: "moz-src:///toolkit/components/search/SearchService.sys.mjs",
+  WaterfoxBlockerUtils: "resource:///modules/WaterfoxBlockerUtils.sys.mjs",
+});
+
+const BLOCKER_PREF = "waterfox.blocker.enabled";
+const BLOCKER_UI_PREF = "waterfox.blocker.ui.enabled";
+const BLOCKER_DISMISSED_PREF = "waterfox.blocker.extensionDetectionDismissed";
 
 // Lepton modes: 0/1 load the Waterfox chrome customisations, 2 turns them off.
 const TREE_TABS_PREF = "browser.tabs.verticalTabs.tree.enabled";
@@ -72,7 +83,37 @@ function setUiDensity(density) {
 }
 
 function keepPrivacyDefaults() {
-  Services.prefs.setBoolPref("waterfox.blocker.enabled", true);
+  Services.prefs.setBoolPref(BLOCKER_PREF, true);
+}
+
+// Both blocker choices count as answering the extension detection prompt, so
+// the detector does not ask again through its own flow.
+async function useBuiltInBlocker() {
+  const addons = await lazy.AddonManager.getAddonsByTypes(["extension"]);
+  for (const addon of addons) {
+    if (lazy.WaterfoxBlockerUtils.isEnabledAdblockAddon(addon)) {
+      await addon.disable();
+    }
+  }
+  Services.prefs.setBoolPref(BLOCKER_PREF, true);
+  Services.prefs.setBoolPref(BLOCKER_UI_PREF, true);
+  Services.prefs.setBoolPref(BLOCKER_DISMISSED_PREF, true);
+}
+
+function keepAdblockExtension() {
+  Services.prefs.setBoolPref(BLOCKER_PREF, false);
+  Services.prefs.setBoolPref(BLOCKER_DISMISSED_PREF, true);
+}
+
+async function setDefaultSearchQwant() {
+  const engine = lazy.SearchService.getEngineById("qwant");
+  if (!engine || engine.hidden) {
+    return;
+  }
+  await lazy.SearchService.setDefault(
+    engine,
+    lazy.SearchService.CHANGE_REASON.CONFIG
+  );
 }
 
 export const WaterfoxOnboardingActions = {
@@ -99,6 +140,15 @@ export const WaterfoxOnboardingActions = {
       case "privacy-defaults":
         keepPrivacyDefaults();
         break;
+      case "blocker-builtin":
+        await useBuiltInBlocker();
+        break;
+      case "blocker-keep":
+        keepAdblockExtension();
+        break;
+      case "search-qwant":
+        await setDefaultSearchQwant();
+        break;
     }
   },
 
@@ -109,4 +159,7 @@ export const WaterfoxOnboardingActions = {
   setTabLocation,
   setUiDensity,
   keepPrivacyDefaults,
+  useBuiltInBlocker,
+  keepAdblockExtension,
+  setDefaultSearchQwant,
 };

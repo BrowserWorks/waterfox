@@ -6,6 +6,8 @@
  * The multistage renderer and its stock styles come from aboutwelcome; this
  * sheet only adds the Waterfox tiles and screen sizing. */
 
+@import url("chrome://browser/content/waterfox/fonts/fonts.css");
+
 .onboardingContainer {
   --waterfox-card-background-color: var(--background-color-box);
   --waterfox-card-text-color: var(--text-color);
@@ -15,7 +17,13 @@
   --waterfox-card-disabled-border-color: var(--button-border-color-disabled);
   --waterfox-card-disabled-text-color: var(--button-text-color-disabled);
 
-  .tiles-single-select-container:has(.waterfox-style) {
+  /* The brand font renders headings, as on the website. */
+  .welcome-text h1 {
+    font-family: Archivo, system-ui, sans-serif;
+  }
+
+  .tiles-single-select-container:has(.waterfox-style),
+  .tiles-single-select-container:has(.waterfox-tab-layout) {
     align-items: stretch;
     width: 100%;
     margin: 0;
@@ -63,7 +71,46 @@
     }
   }
 
-  .tiles-single-select-section.waterfox-style {
+  .tiles-single-select-section.waterfox-tab-layout {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    box-sizing: border-box;
+    width: 100%;
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens -- no size token this large */
+    max-width: 720px;
+    gap: var(--space-medium);
+    margin: 0;
+    padding: 0;
+
+    .select-item {
+      min-width: 0;
+      box-sizing: border-box;
+      overflow: hidden;
+      padding: var(--space-small);
+
+      .icon {
+        width: 100%;
+        /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens -- no size token this large */
+        height: 90px;
+        border-radius: var(--border-radius-medium);
+        z-index: 0;
+      }
+
+      .label-text {
+        justify-content: center;
+        margin: var(--space-small) 0 0;
+        font-weight: var(--font-weight-bold);
+        text-align: center;
+      }
+
+      .body-text {
+        display: none;
+      }
+    }
+  }
+
+  .tiles-single-select-section.waterfox-style,
+  .tiles-single-select-section.waterfox-tab-layout {
     .select-item {
       border-color: currentColor;
       background-color: var(--waterfox-card-background-color);
@@ -110,7 +157,8 @@
     }
   }
 
-  .WATERFOX_153_UPGRADE_APPEARANCE {
+  .WATERFOX_153_UPGRADE_APPEARANCE,
+  .WATERFOX_153_UPGRADE_TABS {
     .main-content-inner {
       box-sizing: border-box;
       padding-inline: var(--space-xxlarge);
@@ -137,6 +185,12 @@
       }
 
       .tiles-single-select-section.waterfox-style {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .WATERFOX_153_UPGRADE_TABS {
+      .tiles-single-select-section.waterfox-tab-layout {
         grid-template-columns: 1fr;
       }
     }
