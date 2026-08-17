@@ -18,7 +18,7 @@
 
 #define PROFILES_ENABLED_PREF "browser.profiles.enabled"
 #define ABOUT_WELCOME_CHROME_URL \
-  "chrome://browser/content/aboutwelcome/aboutwelcome.html"
+  "chrome://browser/content/waterfox/onboarding/onboarding.html"
 #define ABOUT_HOME_URL "about:home"
 
 namespace mozilla {

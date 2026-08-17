@@ -9,6 +9,7 @@ DIRS += [
     "feeds",
     "icloudpasswords",
     "migration",
+    "onboarding",
     "privatetab",
     "remotesettings",
     "search",
