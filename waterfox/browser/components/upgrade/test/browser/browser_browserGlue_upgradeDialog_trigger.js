@@ -41,14 +41,14 @@ function setDefaultBoolPref(pref, value) {
   return () => defaultPrefs.setBoolPref(pref, originalValue);
 }
 
-async function forceMajorUpgrade() {
+async function forceMajorUpgrade(mstone = "88.0") {
   const versionPref = "browser.startup.upgradeDialog.version";
   const originalMajorUpgrade = BrowserHandler.majorUpgrade;
   const hadVersion = Services.prefs.prefHasUserValue(versionPref);
   const originalVersion = Services.prefs.getIntPref(versionPref, 0);
 
   await SpecialPowers.pushPrefEnv({
-    set: [["browser.startup.homepage_override.mstone", "88.0"]],
+    set: [["browser.startup.homepage_override.mstone", mstone]],
   });
 
   void BrowserHandler.getFirstWindowArgs();
@@ -113,8 +113,8 @@ add_task(async function enterprise_disabled() {
 add_task(async function upgrade_message_is_compact_and_uses_current_style() {
   await SpecialPowers.pushPrefEnv({
     set: [
-      ["browser.theme.enableWaterfoxCustomizations", 1],
-      ["browser.nova.enabled", true],
+      ["browser.theme.waterfox.browserStyle", "photon"],
+      ["browser.nova.enabled", false],
     ],
   });
 
@@ -125,10 +125,55 @@ add_task(async function upgrade_message_is_compact_and_uses_current_style() {
     Assert.equal(message.template, "spotlight", "Uses the Spotlight template");
     Assert.equal(content.template, "multistage", "Uses multistage content");
     Assert.equal(content.modal, "tab", "Uses a tab modal");
+    const screenIds = content.screens.map(screen => screen.id);
     Assert.deepEqual(
-      content.screens.map(screen => screen.id),
-      ["WATERFOX_153_UPGRADE_WELCOME", "WATERFOX_153_UPGRADE_APPEARANCE"],
-      "Keeps the compact two-screen upgrade flow"
+      screenIds.slice(0, 3),
+      [
+        "WATERFOX_153_UPGRADE_WELCOME",
+        "WATERFOX_153_UPGRADE_APPEARANCE",
+        "WATERFOX_153_UPGRADE_TABS",
+      ],
+      "Starts with the welcome, appearance, and tabs screens"
+    );
+    Assert.equal(
+      screenIds.at(-1),
+      "WATERFOX_153_UPGRADE_PRIVACY",
+      "Ends with the privacy summary"
+    );
+    Assert.ok(
+      !screenIds.includes("WATERFOX_153_UPGRADE_BLOCKER"),
+      "No blocker screen without an ad blocking extension installed"
+    );
+    Assert.equal(
+      new Set(screenIds).size,
+      screenIds.length,
+      "Screen ids are unique"
+    );
+
+    const tabsScreen = content.screens[2].content;
+    Assert.equal(
+      tabsScreen.tiles.type,
+      "single-select",
+      "Tabs screen renders a single select picker"
+    );
+    Assert.equal(
+      tabsScreen.tiles.class_name,
+      "waterfox-tab-layout",
+      "Tabs screen uses the tab layout picker"
+    );
+    Assert.equal(
+      tabsScreen.tiles.selected,
+      "waterfox-layout-horizontal",
+      "Tab layout picker preselects the current arrangement"
+    );
+    Assert.deepEqual(
+      tabsScreen.tiles.data.map(tile => tile.id),
+      [
+        "waterfox-layout-horizontal",
+        "waterfox-layout-vertical",
+        "waterfox-layout-tree",
+      ],
+      "Offers horizontal, vertical, and tree tabs in order"
     );
     Assert.equal(
       content.screens[0].content.title.args.version,
@@ -181,6 +226,29 @@ add_task(async function upgrade_message_is_compact_and_uses_current_style() {
   }
 });
 
+add_task(async function major_upgrade_from_140_mstone() {
+  const cleanupPref = setDefaultBoolPref(
+    "browser.startup.upgradeDialog.enabled",
+    false
+  );
+  const cleanupUpgrade = await forceMajorUpgrade("140.0.2");
+
+  try {
+    Assert.ok(
+      BrowserHandler.majorUpgrade,
+      "Coming from a 140.x mstone counts as a major upgrade"
+    );
+    await BROWSER_GLUE._maybeShowDefaultBrowserPrompt();
+    assertUpgradeDialogReason(
+      "The 140 to 153 upgrade passes the major upgrade gate",
+      "disabled"
+    );
+  } finally {
+    cleanupPref();
+    await cleanupUpgrade();
+  }
+});
+
 add_task(async function show_major_upgrade() {
   const cleanupPref = setDefaultBoolPref(
     "browser.startup.upgradeDialog.enabled",
@@ -202,10 +270,20 @@ add_task(async function show_major_upgrade() {
       "WATERFOX_153_UPGRADE",
       "Waterfox 153 upgrade dialog shown"
     );
+    const renderedIds = data.screens.map(screen => screen.id);
     Assert.deepEqual(
-      data.screens.map(screen => screen.id),
-      ["WATERFOX_153_UPGRADE_WELCOME", "WATERFOX_153_UPGRADE_APPEARANCE"],
-      "The rendered upgrade dialog stays compact"
+      renderedIds.slice(0, 3),
+      [
+        "WATERFOX_153_UPGRADE_WELCOME",
+        "WATERFOX_153_UPGRADE_APPEARANCE",
+        "WATERFOX_153_UPGRADE_TABS",
+      ],
+      "The rendered dialog starts with welcome, appearance, and tabs"
+    );
+    Assert.equal(
+      renderedIds.at(-1),
+      "WATERFOX_153_UPGRADE_PRIVACY",
+      "The rendered dialog ends with the privacy summary"
     );
     Assert.equal(data.modal, "tab", "Upgrade dialog uses a tab modal");
     Assert.ok(
