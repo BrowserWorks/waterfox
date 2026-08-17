@@ -85,6 +85,22 @@ export const WaterfoxGlue = {
       allFrames: true,
     });
 
+    // The onboarding page is served as about:welcome and talks to the parent
+    // through this actor for locale switching and applying setup choices.
+    ChromeUtils.registerWindowActor("WaterfoxOnboarding", {
+      parent: {
+        esModuleURI: "resource:///modules/WaterfoxOnboardingParent.sys.mjs",
+      },
+      child: {
+        esModuleURI: "resource:///modules/WaterfoxOnboardingChild.sys.mjs",
+        events: {
+          DOMDocElementInserted: {},
+        },
+      },
+      matches: ["about:welcome", "about:welcome?*"],
+      remoteTypes: ["parent", "privilegedabout"],
+    });
+
     lazy.WaterfoxBlockerPanel.init();
     lazy.WaterfoxBlockerExtensionDetector.init();
     lazy.WaterfoxBlockerService.init().catch(error =>

@@ -1,0 +1,563 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+/* Colors come from the semantic design tokens (via the --wfx-* aliases
+ * below) so the page follows the active theme color and high contrast mode.
+ * Dimension tokens are used where their values match the onboarding design;
+ * the remaining px metrics are intentionally bespoke and have no token
+ * equivalents, so the token rule stays off for this file, as in
+ * aboutDialog.css. */
+/* stylelint-disable stylelint-plugin-mozilla/use-design-tokens */
+
+:root {
+  color-scheme: light dark;
+
+  --wfx-accent: var(--color-accent-primary);
+  --wfx-accent-button: var(--color-accent-primary);
+  --wfx-accent-button-hover: var(--color-accent-primary-hover);
+  --wfx-accent-ring: color-mix(in srgb, var(--color-accent-primary) 15%, transparent);
+
+  --wfx-page-bg: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--color-accent-primary) 10%, var(--background-color-canvas)),
+    var(--background-color-canvas) 70%
+  );
+  --wfx-card-bg: var(--background-color-box);
+  --wfx-card-border: var(--border-color-deemphasized);
+  --wfx-card-shadow: 0 8px 30px light-dark(rgba(0, 0, 0, 0.08), rgba(0, 0, 0, 0.35));
+
+  --wfx-heading: var(--text-color);
+  --wfx-body: var(--text-color-deemphasized);
+  --wfx-label: var(--text-color);
+  --wfx-hint: var(--text-color-deemphasized);
+  --wfx-tile-text: var(--text-color);
+
+  /* Not --button-background-color: the Nova brand tokens set it transparent,
+   * which erases the track. Same recipe as the shared token instead. */
+  --wfx-progress-track: color-mix(in srgb, currentColor 8%, transparent);
+  --wfx-divider: var(--border-color-deemphasized);
+
+  --wfx-control-border: var(--border-color-interactive);
+  --wfx-tile-border: var(--border-color-deemphasized);
+  --wfx-tile-bg: var(--background-color-box);
+
+  --wfx-segment-track: color-mix(in srgb, currentColor 8%, transparent);
+
+  --wfx-secondary-border: var(--border-color-interactive);
+  --wfx-secondary-text: var(--text-color);
+  --wfx-link: var(--link-color);
+
+  --wfx-note-bg: var(--background-color-success);
+  --wfx-note-border: color-mix(in srgb, var(--icon-color-success) 30%, transparent);
+  --wfx-note-text: var(--text-color);
+  --wfx-note-check: var(--icon-color-success);
+}
+
+/* Several containers set display, which would defeat the hidden attribute. */
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+body {
+  background: var(--wfx-page-bg);
+  font-family: system-ui, sans-serif;
+  color: var(--wfx-body);
+}
+
+#onboarding {
+  box-sizing: border-box;
+  min-height: 100vh;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 36px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header and progress */
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand > img {
+  width: var(--size-item-medium);
+  height: auto;
+}
+
+.brand > .wordmark {
+  width: auto;
+  height: 15px;
+}
+
+#step-counter {
+  color: var(--wfx-hint);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+#progress {
+  display: flex;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+#progress > .segment {
+  flex: 1;
+  height: 5px;
+  border-radius: var(--border-radius-circle);
+  background: var(--wfx-progress-track);
+  transition: background-color 0.25s ease;
+}
+
+#progress > .segment[filled] {
+  background: var(--wfx-accent-button);
+}
+
+/* Card */
+
+.card-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding-block: 24px;
+}
+
+.card {
+  box-sizing: border-box;
+  width: 100%;
+  background: var(--wfx-card-bg);
+  border: 1px solid var(--wfx-card-border);
+  border-radius: 20px;
+  box-shadow: var(--wfx-card-shadow);
+  padding: 44px 64px;
+}
+
+.card.centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-block: 56px;
+}
+
+.hero-logo {
+  width: 80px;
+  height: auto;
+  margin-bottom: 22px;
+}
+
+h1 {
+  font-size: 28px;
+  font-weight: var(--font-weight-bold);
+  color: var(--wfx-heading);
+  letter-spacing: -0.02em;
+  margin: 0 0 8px;
+}
+
+.centered h1 {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.subtitle {
+  font-size: var(--font-size-root);
+  line-height: 1.6;
+  margin: 0;
+  max-width: 52ch;
+  text-wrap: pretty;
+}
+
+.centered .subtitle {
+  font-size: 15.5px;
+  max-width: 46ch;
+}
+
+/* Fields */
+
+.field {
+  border: none;
+  margin: 22px 0 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+
+.field-label {
+  display: block;
+  font-size: var(--font-size-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--wfx-label);
+  margin-bottom: 8px;
+  padding: 0;
+}
+
+.field-columns {
+  display: flex;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.field-columns > .field {
+  flex: 1;
+  min-inline-size: 240px;
+}
+
+.hint {
+  font-size: 12.5px;
+  color: var(--wfx-hint);
+  margin: 10px 0 0;
+}
+
+.error {
+  font-size: var(--font-size-small);
+  color: var(--text-color-error);
+  margin: 8px 0 0;
+}
+
+/* Language picker */
+
+.language-picker {
+  margin-top: 36px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.language-picker .hint {
+  margin-top: 2px;
+}
+
+#locale-select {
+  box-sizing: border-box;
+  width: 320px;
+  max-width: 100%;
+  padding: 12px 14px;
+  font-size: var(--font-size-root);
+  font-family: inherit;
+  color: var(--wfx-tile-text);
+  border: 1.5px solid var(--wfx-control-border);
+  border-radius: 12px;
+  background-color: var(--wfx-tile-bg);
+}
+
+#locale-select:focus-visible {
+  outline: var(--focus-outline-width) solid var(--wfx-accent);
+  outline-offset: var(--focus-outline-offset);
+}
+
+/* Buttons */
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  margin: 0;
+}
+
+.button {
+  border: none;
+  border-radius: var(--border-radius-circle);
+  font-weight: var(--font-weight-semibold);
+}
+
+.button.primary {
+  background: var(--wfx-accent-button);
+  color: var(--button-text-color-primary);
+  padding: 12px 26px;
+  font-size: var(--font-size-root);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--color-accent-primary) 25%, transparent);
+}
+
+.button.primary:enabled:hover,
+.button.primary:enabled:hover:active {
+  background: var(--wfx-accent-button-hover);
+  color: var(--button-text-color-primary);
+}
+
+.button.secondary {
+  background: transparent;
+  border: 1px solid var(--wfx-secondary-border);
+  color: var(--wfx-secondary-text);
+  padding: 10px 22px;
+  font-size: 14px;
+}
+
+.button.secondary:enabled:hover,
+.button.secondary:enabled:hover:active {
+  background: var(--button-background-color-hover);
+}
+
+.link {
+  background: none;
+  border: none;
+  padding: 0;
+  min-height: unset;
+  color: var(--wfx-link);
+  font-weight: var(--font-weight-semibold);
+  font-size: 14px;
+}
+
+.link:enabled:hover,
+.link:enabled:hover:active {
+  background-color: transparent;
+  border-color: transparent;
+  color: var(--wfx-link);
+  text-decoration: underline;
+}
+
+.link.inline {
+  font-size: inherit;
+}
+
+.button:focus-visible,
+.link:focus-visible,
+.tile:focus-visible,
+.segmented > button:focus-visible,
+.color-tile:focus-visible {
+  outline: var(--focus-outline-width) solid var(--wfx-accent);
+  outline-offset: var(--focus-outline-offset);
+}
+
+/* Segmented controls */
+
+.segmented {
+  display: flex;
+  background: var(--wfx-segment-track);
+  border-radius: var(--border-radius-circle);
+  padding: 3px;
+  gap: 2px;
+}
+
+.segmented > button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  min-height: unset;
+  border-radius: var(--border-radius-circle);
+  padding: 7px 16px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--wfx-body);
+}
+
+.segmented > button[selected] {
+  background: var(--wfx-card-bg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--wfx-heading);
+  box-shadow: 0 1px 3px light-dark(rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.4));
+}
+
+/* Keep the selected pill through the common.css hover and active states. */
+.segmented > button[selected]:enabled:hover,
+.segmented > button[selected]:enabled:hover:active {
+  background: var(--wfx-card-bg);
+  color: var(--wfx-heading);
+}
+
+.segment-icon {
+  width: var(--size-item-small);
+  height: var(--size-item-small);
+  -moz-context-properties: fill;
+  fill: currentColor;
+}
+
+/* Option tiles */
+
+.tile-row {
+  display: flex;
+  gap: 12px;
+}
+
+.tile {
+  flex: 1;
+  min-inline-size: 0;
+  border: 1px solid var(--wfx-tile-border);
+  border-radius: 14px;
+  padding: 12px;
+  background: var(--wfx-tile-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.tile[selected] {
+  border: 2px solid var(--wfx-accent-button);
+  padding: 11px;
+  box-shadow: 0 0 0 3px var(--wfx-accent-ring);
+}
+
+.tile > img {
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+}
+
+.tile > span {
+  font-size: 13.5px;
+  font-weight: var(--font-weight-semibold);
+  color: var(--wfx-tile-text);
+}
+
+/* Theme color grid */
+
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px 8px;
+}
+
+.color-tile {
+  border: none;
+  background: none;
+  padding: 0;
+  min-height: unset;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+}
+
+.color-tile > .swatch {
+  box-sizing: border-box;
+  width: var(--size-item-large);
+  height: var(--size-item-large);
+  border-radius: 50% 50% 50% 22%;
+  border: 1px solid light-dark(rgba(20, 35, 80, 0.12), rgba(255, 255, 255, 0.14));
+}
+
+.color-tile:enabled:hover,
+.color-tile:enabled:hover:active {
+  background-color: transparent;
+}
+
+.color-tile:enabled:hover:not([selected]) > .swatch {
+  box-shadow:
+    0 0 0 2px var(--wfx-card-bg),
+    0 0 0 4px var(--wfx-control-border);
+}
+
+.color-tile[selected] > .swatch {
+  box-shadow:
+    0 0 0 2px var(--wfx-card-bg),
+    0 0 0 4px var(--wfx-accent-button);
+}
+
+.color-tile > .color-label {
+  font-size: 11px;
+  color: var(--wfx-hint);
+}
+
+.color-tile[selected] > .color-label {
+  color: var(--wfx-label);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Tab strip position is dimmed for vertical and tree layouts. */
+#tab-location-field.dimmed {
+  opacity: 0.5;
+}
+
+/* Import wizard */
+
+#import-wizard {
+  margin: 22px auto 0;
+}
+
+/* Finish */
+
+.privacy-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 26px;
+  padding: 14px 18px;
+  background: var(--wfx-note-bg);
+  border: 1px solid var(--wfx-note-border);
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--wfx-note-text);
+  text-align: start;
+}
+
+.privacy-note .check {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--border-radius-circle);
+  background-color: var(--wfx-note-check);
+  background-image: url("chrome://global/skin/icons/check.svg");
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: 14px;
+  -moz-context-properties: fill;
+  /* The success icon color flips light in dark mode, so the glyph uses the
+   * note background for contrast in both modes. */
+  fill: var(--wfx-note-bg);
+}
+
+.privacy-note .link {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.privacy-note .link:enabled:hover,
+.privacy-note .link:enabled:hover:active {
+  color: inherit;
+}
+
+/* Footer */
+
+.page-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 20px;
+  border-top: 1px solid var(--wfx-divider);
+  padding-top: 16px;
+}
+
+.page-footer:has(#back-button:not([hidden])) {
+  justify-content: space-between;
+}
+
+.footer-end {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+@media (max-width: 760px) {
+  .card {
+    padding: 28px 24px;
+  }
+
+  .tile-row {
+    flex-direction: column;
+  }
+
+  .color-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
