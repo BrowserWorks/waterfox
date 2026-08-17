@@ -1650,9 +1650,10 @@ BrowserGlue.prototype = {
 
   async _showUpgradeDialog() {
     const data = await lazy.WaterfoxUpgradeMessage.getUpgradeMessage();
-    const { gBrowser } = lazy.BrowserWindowTracker.getTopWindow({
+    const win = lazy.BrowserWindowTracker.getTopWindow({
       allowFromInactiveWorkspace: true,
     });
+    const { gBrowser } = win;
 
     // We'll be adding a new tab open the tab-modal dialog in.
     let tab;
@@ -1685,6 +1686,8 @@ BrowserGlue.prototype = {
     });
 
     gBrowser.selectedTab = tab;
+    // Pull the window forward so the tab modal dialog is not missed.
+    win.focus();
   },
 
   async _showSetToDefaultSpotlight(message, browser) {
