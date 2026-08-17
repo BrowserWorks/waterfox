@@ -1,0 +1,33 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at https://mozilla.org/MPL/2.0/. -->
+<svg width="180" height="84" viewBox="0 0 180 84" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    :root { --frame: #fff; --chrome: #f0f0f4; --strip: #e0e0e6; --active: #fff; --line: #5b5b66; --muted: #cfcfd8; --accent: #0060df; --border: #cfcfd8; }
+    @media (prefers-color-scheme: dark) { :root { --frame: #1c1b22; --chrome: #2b2a33; --strip: #35343f; --active: #42414d; --line: #cfcfd8; --muted: #5b5b66; --accent: #00ddff; --border: #5b5b66; } }
+  </style>
+  <defs>
+    <clipPath id="frame-clip"><rect x="1" y="1" width="178" height="82" rx="8"/></clipPath>
+  </defs>
+  <g clip-path="url(#frame-clip)">
+    <rect x="1" y="1" width="178" height="82" fill="var(--frame)"/>
+    <rect x="1" y="1" width="178" height="18" fill="var(--chrome)"/>
+    <circle cx="11" cy="10" r="3" fill="var(--line)"/>
+    <circle cx="21" cy="10" r="3" fill="var(--muted)"/>
+    <rect x="31" y="5.5" width="128" height="9" rx="4.5" fill="var(--frame)" stroke="var(--muted)"/>
+    <rect x="1" y="19" width="178" height="20" fill="var(--strip)"/>
+    <rect x="7" y="23" width="52" height="16" rx="6" fill="var(--active)"/>
+    <circle cx="16" cy="31" r="3" fill="var(--accent)"/>
+    <rect x="23" y="29" width="27" height="4" rx="2" fill="var(--line)"/>
+    <circle cx="69" cy="31" r="3" fill="var(--muted)"/>
+    <rect x="76" y="29" width="22" height="4" rx="2" fill="var(--muted)"/>
+    <circle cx="111" cy="31" r="3" fill="var(--muted)"/>
+    <rect x="118" y="29" width="20" height="4" rx="2" fill="var(--muted)"/>
+    <path d="M163 27v8m-4-4h8" stroke="var(--line)" stroke-width="2" stroke-linecap="round"/>
+    <rect x="1" y="39" width="178" height="36" fill="var(--frame)"/>
+    <rect x="61" y="47" width="58" height="20" rx="4" fill="var(--chrome)"/>
+    <rect x="1" y="75" width="178" height="8" fill="var(--chrome)"/>
+    <rect x="7" y="78" width="42" height="2" rx="1" fill="var(--muted)"/>
+  </g>
+  <rect x="0.5" y="0.5" width="179" height="83" rx="8.5" fill="none" stroke="var(--border)"/>
+</svg>
