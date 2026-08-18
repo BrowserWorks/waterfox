@@ -456,8 +456,8 @@ export class AddonInternal {
           lazy.AddonManager.SIGNEDSTATE_PRIVILEGED,
         ].includes(this.signedState);
       case KEY_APP_SYSTEM_ADDONS:
-        // System add-ons must be signed by the system key.
-        return this.signedState == lazy.AddonManager.SIGNEDSTATE_SYSTEM;
+        // Waterfox serves its own system add-ons and does not sign them.
+        return true;
 
       case KEY_APP_SYSTEM_BUILTINS:
       case KEY_APP_BUILTINS:
@@ -489,7 +489,10 @@ export class AddonInternal {
   get isPrivileged() {
     return lazy.ExtensionData.getIsPrivileged({
       signedState: this.signedState,
-      builtIn: this.location.isBuiltin,
+      // Hotfixes arrive unsigned through the system add-on location, so they
+      // cannot derive privilege from a signature the way Mozilla's do.
+      builtIn:
+        this.location.isBuiltin || this.location.name == KEY_APP_SYSTEM_ADDONS,
       temporarilyInstalled: this.location.isTemporary,
     });
   }
