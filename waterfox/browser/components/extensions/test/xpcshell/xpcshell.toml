@@ -1,0 +1,10 @@
+[DEFAULT]
+firefox-appdir = "browser"
+head = "../../../../../../toolkit/components/extensions/test/xpcshell/head.js"
+tags = "waterfox_extensions"
+skip-if = [
+  "os == 'android'",
+  "os == 'win'",
+]
+
+["test_native_manifest_compat_dirs.js"]

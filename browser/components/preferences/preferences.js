@@ -564,6 +564,11 @@ function init_all() {
     SettingPaneManager.registerPane(id, config);
   }
 
+  ChromeUtils.importESModule(
+    "chrome://browser/content/waterfox/settings/WaterfoxSettingsPanes.mjs",
+    { global: "current" }
+  );
+
   // customHomepage is registered separately because its groups are set up by
   // AboutPreferences.observe(), which only fires in the redesign path.
   if (redesignEnabled) {
