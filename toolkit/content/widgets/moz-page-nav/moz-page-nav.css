@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 @import url("chrome://global/content/elements/moz-page-nav.tokens.css");
+@import url("chrome://browser/content/waterfox/fonts/fonts.css");
 
 :host {
   margin-inline-start: var(--page-nav-margin-inline-start);
@@ -63,6 +64,7 @@ nav {
   }
 
   > .page-nav-heading {
+    font-family: Archivo, system-ui, sans-serif;
     font-size: var(--font-size-xlarge);
     font-weight: var(--font-weight-heading);
     margin-block: 0;
