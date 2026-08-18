@@ -1095,6 +1095,12 @@ function getSignedStatus(aRv, aCert, aAddonID) {
 }
 
 function shouldVerifySignedState(aAddonType, aLocation) {
+  // Waterfox has no add-on signing key, so the system add-on set it serves for
+  // hotfixes is trusted on the strength of the update connection instead.
+  if (aLocation.name === XPIExports.XPIProvider.KEY_APP_SYSTEM_ADDONS) {
+    return false;
+  }
+
   // Updated system add-ons should always have their signature checked (unless they are built
   // into the omni jar).
   if (
