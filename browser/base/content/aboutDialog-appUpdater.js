@@ -88,6 +88,21 @@ appUpdater.prototype = {
     this._appUpdater.stop();
   },
 
+  resetToCheckForUpdates({ monitorCurrentState = false } = {}) {
+    this.stopCurrentCheck();
+    if (this.updatingMinDisplayTimerId) {
+      clearTimeout(this.updatingMinDisplayTimerId);
+      this.updatingMinDisplayTimerId = null;
+    }
+    this._appUpdater = new AppUpdater();
+    this._appUpdater.addListener(this._appUpdateListener);
+    if (monitorCurrentState) {
+      this._appUpdater.check({ checkOnly: true });
+    } else {
+      this.selectPanel("checkForUpdates");
+    }
+  },
+
   get update() {
     return this._appUpdater.update;
   },

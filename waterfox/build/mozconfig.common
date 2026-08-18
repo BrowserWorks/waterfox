@@ -101,6 +101,9 @@ if [ -n "$wfx_target" ]; then
     if [ "$wfx_os" = "windows" ]; then
         ac_add_options --disable-bits-download
     fi
+    if [ "$wfx_os" = "windows" ] || [ "$wfx_os" = "macos" ]; then
+        ac_add_options --disable-update-agent
+    fi
     ac_add_options --disable-crashreporter
     ac_add_options --disable-debug
     ac_add_options --disable-dmd
