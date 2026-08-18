@@ -2,6 +2,8 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+@import url("chrome://browser/content/waterfox/fonts/fonts.css");
+
 /* Typography scale */
 :root {
   font: message-box;
@@ -9,18 +11,21 @@
 
 h1,
 .heading-xlarge {
+  font-family: Archivo, system-ui, sans-serif;
   font-weight: var(--font-weight-heading);
   font-size: var(--font-size-heading-xlarge);
 }
 
 h2,
 .heading-large {
+  font-family: Archivo, system-ui, sans-serif;
   font-weight: var(--font-weight-heading);
   font-size: var(--font-size-heading-large);
 }
 
 h3,
 .heading-medium {
+  font-family: Archivo, system-ui, sans-serif;
   font-weight: var(--font-weight-heading);
   font-size: var(--font-size-heading-medium);
 }
