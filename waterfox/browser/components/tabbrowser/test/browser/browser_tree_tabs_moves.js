@@ -105,6 +105,65 @@ add_task(async function test_external_move_of_collapsed_parent_takes_subtree() {
   BrowserTestUtils.removeTab(otherTab);
 });
 
+add_task(
+  async function test_collapsed_external_move_carries_split_descendants() {
+    await enableTreeTabs();
+    const parent = BrowserTestUtils.addTab(
+      gBrowser,
+      "about:blank?move-split-parent"
+    );
+    const primary = await openTabWithTree(parent);
+    const companion = BrowserTestUtils.addTab(
+      gBrowser,
+      "about:blank?move-split-companion"
+    );
+    const child = await openTabWithTree(primary);
+    const other = BrowserTestUtils.addTab(
+      gBrowser,
+      "about:blank?move-split-other"
+    );
+    const wrapper = gBrowser.addTabSplitView([primary, companion], {
+      insertBefore: primary,
+    });
+
+    try {
+      await BrowserTestUtils.switchTab(gBrowser, parent);
+      gBrowser.TreeTabsService.collapseSubtree(parent);
+      await waitForTreeCondition(
+        () => isTreeHidden(primary) && isTreeHidden(child),
+        "Waiting for the split subtree to collapse"
+      );
+      gBrowser.moveTabToEnd(parent);
+      await waitForTreeCondition(
+        () => child._tPos == parent._tPos + 3,
+        "Waiting for both split panes and their child to follow the moved parent"
+      );
+      Assert.deepEqual(
+        Array.from(gBrowser.tabs).slice(parent._tPos),
+        [parent, primary, companion, child],
+        "The complete logical subtree moves in preorder without splitting the row"
+      );
+      is(primary.splitview, wrapper, "The primary retains its wrapper");
+      is(companion.splitview, wrapper, "The companion retains its wrapper");
+      is(getTreeParent(primary), parent, "The split owner retains its parent");
+      is(getTreeParent(child), primary, "The split row retains its child");
+      Assert.greater(
+        parent._tPos,
+        other._tPos,
+        "The subtree moved after the other tab"
+      );
+    } finally {
+      gBrowser.TreeTabsService.expandSubtree(parent);
+      wrapper.unsplitTabs();
+      for (const tab of [child, companion, primary, parent, other]) {
+        if (tab.isConnected && !tab.closing) {
+          await BrowserTestUtils.removeTab(tab);
+        }
+      }
+    }
+  }
+);
+
 add_task(async function test_close_tabs_to_left_promotes_survivors() {
   await enableTreeTabs();
 
