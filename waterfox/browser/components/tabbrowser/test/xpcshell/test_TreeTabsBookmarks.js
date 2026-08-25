@@ -91,6 +91,42 @@ add_task(function test_parse_structure_clamps_malformed_jumps() {
   );
 });
 
+add_task(function test_parse_structure_discards_previous_branch() {
+  Assert.deepEqual(
+    TreeTabsBookmarks.parseStructure(
+      bookmarkItems(
+        "Root",
+        "> Child",
+        ">> Grandchild",
+        ">>> Great-grandchild",
+        "> Sibling",
+        ">>>> Jump",
+        ">>>> Second jump",
+        ">> Cousin"
+      )
+    ),
+    [
+      { parent: null, title: "Root" },
+      { parent: 0, title: "Child" },
+      { parent: 1, title: "Grandchild" },
+      { parent: 2, title: "Great-grandchild" },
+      { parent: 0, title: "Sibling" },
+      { parent: 4, title: "Jump" },
+      { parent: 5, title: "Second jump" },
+      { parent: 4, title: "Cousin" },
+    ],
+    "Clamped jumps after returning to a sibling use only the current branch"
+  );
+});
+
+add_task(function test_parse_structure_empty() {
+  Assert.deepEqual(
+    TreeTabsBookmarks.parseStructure([]),
+    [],
+    "An empty bookmark list has no structure"
+  );
+});
+
 add_task(function test_parse_structure_marker_like_titles() {
   Assert.deepEqual(
     TreeTabsBookmarks.parseStructure(

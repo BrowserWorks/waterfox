@@ -22,7 +22,6 @@ ChromeUtils.defineESModuleGetters(lazy, {
   PlacesTransactions: "resource://gre/modules/PlacesTransactions.sys.mjs",
   PlacesUtils: "resource://gre/modules/PlacesUtils.sys.mjs",
   TreeTabsBookmarks: "resource:///modules/TreeTabsBookmarks.sys.mjs",
-  TreeTabsGroups: "resource:///modules/TreeTabsGroups.sys.mjs",
   TreeTabsStore: "resource:///modules/TreeTabsStore.sys.mjs",
   PrivateBrowsingUtils: "resource://gre/modules/PrivateBrowsingUtils.sys.mjs",
   Weave: "resource://services-sync/main.sys.mjs",
@@ -892,38 +891,19 @@ export var PlacesUIUtils = {
         args
       );
       if (treeBookmarkFolder) {
-        const openedTabs = [];
-        const onTabOpen = event => openedTabs.push(event.target);
-        browserWindow.addEventListener("TabOpen", onTabOpen, true);
-        const onStartup = subject => {
-          if (subject != browserWindow) {
-            return;
-          }
-          Services.obs.removeObserver(
-            onStartup,
-            "browser-delayed-startup-finished"
-          );
-          browserWindow.removeEventListener("TabOpen", onTabOpen, true);
-          const availableTabs = openedTabs.filter(
-            tab => tab.isConnected && tab.documentGlobal == browserWindow
-          );
-          const tabs = [];
-          for (const url of urls) {
-            const index = availableTabs.findIndex(
-              tab => lazy.TreeTabsGroups.getTabURL(tab) == url
-            );
-            if (index < 0) {
-              break;
+        browserWindow._onInitialTabsLoaded = tabs => {
+          browserWindow.delayedStartupPromise.then(() => {
+            if (!browserWindow.closed) {
+              this._applyTreeBookmarkFolder(
+                browserWindow,
+                tabs.filter(
+                  tab => tab.isConnected && tab.documentGlobal == browserWindow
+                ),
+                treeBookmarkFolder
+              );
             }
-            tabs.push(availableTabs.splice(index, 1)[0]);
-          }
-          this._applyTreeBookmarkFolder(
-            browserWindow,
-            tabs,
-            treeBookmarkFolder
-          );
+          });
         };
-        Services.obs.addObserver(onStartup, "browser-delayed-startup-finished");
       }
       return;
     }
