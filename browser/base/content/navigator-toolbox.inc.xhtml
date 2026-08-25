@@ -72,6 +72,27 @@
                              command="cmd_newNavigatorTab"
                              tooltip="dynamic-shortcut-tooltip"
                              data-l10n-id="tabs-toolbar-new-tab"/>
+              <toolbarbutton id="waterfox-tree-newtab-action-button"
+                             class="toolbarbutton-1"
+                             type="menu"
+                             hidden="true"
+                             data-l10n-id="waterfox-tree-new-tab-action-button">
+                <menupopup id="waterfox-tree-newtab-action-popup"
+                           nonnative="">
+                  <menuitem id="waterfox-tree-newtab-independent"
+                            data-tree-newtab-action="independent"
+                            data-l10n-id="waterfox-tree-new-tab-independent"/>
+                  <menuitem id="waterfox-tree-newtab-child"
+                            data-tree-newtab-action="child"
+                            data-l10n-id="waterfox-tree-new-tab-child"/>
+                  <menuitem id="waterfox-tree-newtab-sibling"
+                            data-tree-newtab-action="sibling"
+                            data-l10n-id="waterfox-tree-new-tab-sibling"/>
+                  <menuitem id="waterfox-tree-newtab-next-sibling"
+                            data-tree-newtab-action="next-sibling"
+                            data-l10n-id="waterfox-tree-new-tab-next-sibling"/>
+                </menupopup>
+              </toolbarbutton>
               <spacer class="closing-tabs-spacer" style="width: 0;"/>
             </hbox>
           </arrowscrollbox>

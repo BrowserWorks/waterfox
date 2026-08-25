@@ -8580,6 +8580,9 @@
         );
         labelArray.push(audioPlayingString);
       }
+      if (includeLabel && tab._treeDescendantsTooltip) {
+        labelArray.push(tab._treeDescendantsTooltip);
+      }
       return labelArray.join("\n");
     }
 
