@@ -40,6 +40,7 @@
           <image class="tab-close-button close-icon" role="button" data-l10n-id="tabbrowser-close-tabs-button" data-l10n-args='{"tabCount": 1}' keyNav="false"/>
         </hbox>
       </stack>
+      <html:button class="tab-tree-disclosure" type="button" tabindex="-1" hidden="hidden"></html:button>
       `;
 
     constructor() {

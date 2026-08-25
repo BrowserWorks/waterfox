@@ -48,6 +48,18 @@ add_task(async function test_tree_tabs_keyboard_navigation() {
     gBrowser.TreeTabsService.isCollapsed(parentTab),
     "ArrowLeft collapses expanded tree parent"
   );
+  is(
+    parentTab.getAttribute("aria-expanded"),
+    "false",
+    "The focused row exposes collapsed state"
+  );
+  is(
+    parentTab
+      .querySelector(".tab-tree-disclosure")
+      .getAttribute("aria-expanded"),
+    "false",
+    "The disclosure exposes the same collapsed state"
+  );
 
   focusTreeTabs();
   dispatchTreeArrowKey("ArrowRight");
@@ -58,6 +70,11 @@ add_task(async function test_tree_tabs_keyboard_navigation() {
   ok(
     !gBrowser.TreeTabsService.isCollapsed(parentTab),
     "ArrowRight expands collapsed tree parent"
+  );
+  is(
+    parentTab.getAttribute("aria-expanded"),
+    "true",
+    "The focused row exposes expanded state"
   );
 
   gBrowser.TreeTabsService.collapseSubtree(childTab);
@@ -177,4 +194,98 @@ add_task(async function test_global_tree_navigation_shortcuts() {
 
   BrowserTestUtils.removeTab(childTab);
   BrowserTestUtils.removeTab(parentTab);
+});
+
+add_task(async function test_disclosure_native_keyboard_activation() {
+  await enableTreeTabs();
+  SidebarController._state.launcherExpanded = true;
+  await waitForTreeCondition(
+    () => gBrowser.tabContainer.hasAttribute("expanded"),
+    "Waiting for expanded rows"
+  );
+  const parent = gBrowser.selectedTab;
+  const child = await openTabWithTree(parent);
+  const disclosure = parent.querySelector(".tab-tree-disclosure");
+  const groupTab = BrowserTestUtils.addTab(gBrowser, "about:blank");
+  const group = gBrowser.addTabGroup([groupTab], { label: "Stale aria focus" });
+  let groupClicks = 0;
+  let disclosureClicks = 0;
+  let leakedKeys = 0;
+  const countClicks = event => {
+    if (event.target == group.labelElement) {
+      groupClicks++;
+    } else if (event.target == disclosure) {
+      ok(event.isTrusted, "Native keyboard activation creates a trusted click");
+      disclosureClicks++;
+    }
+  };
+  const countLeakedKeys = () => leakedKeys++;
+  window.addEventListener("click", countClicks, true);
+  for (const type of ["keydown", "keyup"]) {
+    gBrowser.tabContainer.addEventListener(type, countLeakedKeys, {
+      mozSystemGroup: true,
+    });
+  }
+  try {
+    is(disclosure.localName, "button", "The disclosure is a native button");
+    is(
+      disclosure.tabIndex,
+      -1,
+      "Row arrow keys remain the sequential keyboard contract"
+    );
+    for (const [key, collapsed] of [
+      ["KEY_Enter", true],
+      [" ", false],
+    ]) {
+      gBrowser.tabContainer.ariaFocusedItem = group.labelElement;
+      disclosure.focus();
+      is(
+        document.activeElement,
+        disclosure,
+        "Assistive technology can focus the button directly"
+      );
+      is(
+        gBrowser.tabContainer.ariaFocusedItem,
+        group.labelElement,
+        "The native group label remains the stale aria focus target"
+      );
+      EventUtils.synthesizeKey(key);
+      is(
+        gBrowser.TreeTabsService.isCollapsed(parent),
+        collapsed,
+        `${key} activates only the directly focused disclosure`
+      );
+      ok(
+        !group.collapsed,
+        "Disclosure activation leaves the native group open"
+      );
+    }
+    is(groupClicks, 0, "Neither key activates the stale native group label");
+    is(
+      disclosureClicks,
+      2,
+      "Each native button default activates exactly once"
+    );
+    is(
+      leakedKeys,
+      0,
+      "Disclosure keydown and keyup do not reach native tab handlers"
+    );
+    is(
+      gBrowser.selectedTab,
+      parent,
+      "Disclosure activation does not change selection"
+    );
+  } finally {
+    window.removeEventListener("click", countClicks, true);
+    for (const type of ["keydown", "keyup"]) {
+      gBrowser.tabContainer.removeEventListener(type, countLeakedKeys, {
+        mozSystemGroup: true,
+      });
+    }
+    gBrowser.tabContainer.ariaFocusedItem = parent;
+    parent.focus();
+    await BrowserTestUtils.removeTab(groupTab);
+    await BrowserTestUtils.removeTab(child);
+  }
 });
