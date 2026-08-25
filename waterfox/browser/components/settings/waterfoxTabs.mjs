@@ -188,6 +188,10 @@ const TREE_CONTROLS = [
         value: 3,
         l10nId: "waterfox-tabs-tree-close-parent-option-detach",
       },
+      {
+        value: 4,
+        l10nId: "waterfox-tabs-tree-close-parent-option-group",
+      },
     ],
   },
   {
@@ -235,6 +239,12 @@ const TREE_CONTROLS = [
         l10nId: "waterfox-tabs-tree-double-click-option-none",
       },
     ],
+  },
+  {
+    id: "waterfox-tree-auto-group-pinned",
+    l10nId: "waterfox-tabs-tree-auto-group-pinned-toggle",
+    pref: "browser.tabs.verticalTabs.tree.autoGroup.pinnedOpener",
+    control: "moz-toggle",
   },
   {
     id: "waterfox-tree-sticky-active",
