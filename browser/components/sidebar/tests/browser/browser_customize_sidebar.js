@@ -291,6 +291,61 @@ add_task(async function test_vertical_tabs_setting() {
   Services.prefs.clearUserPref(VERTICAL_TABS_PREF);
 });
 
+add_task(
+  async function test_nested_tree_tabs_setting_preserves_vertical_tabs() {
+    const treeTabsPref = "browser.tabs.verticalTabs.tree.enabled";
+    await SpecialPowers.pushPrefEnv({
+      set: [
+        [VERTICAL_TABS_PREF, true],
+        [treeTabsPref, true],
+      ],
+    });
+
+    try {
+      await SidebarTestUtils.waitForTabstripOrientation(window, "vertical");
+      const panel = await showCustomizePanel(window);
+      await panel.updateComplete;
+      const treeInput = panel.shadowRoot.querySelector("#tree-vertical-tabs");
+      await treeInput.updateComplete;
+      is(
+        treeInput.parentElement,
+        panel.verticalTabsInput,
+        "The real tree checkbox is nested inside the vertical-tabs checkbox"
+      );
+      ok(treeInput.checked, "Tree tabs are initially enabled");
+
+      for (const checked of [false, true]) {
+        const changed = BrowserTestUtils.waitForEvent(treeInput, "change");
+        treeInput.click();
+        await changed;
+        await panel.updateComplete;
+        await SidebarController.waitUntilStable();
+
+        is(
+          Services.prefs.getBoolPref(treeTabsPref),
+          checked,
+          "Tree pref toggled"
+        );
+        is(treeInput.checked, checked, "The tree checkbox reflects the pref");
+        ok(
+          Services.prefs.getBoolPref(VERTICAL_TABS_PREF),
+          "The nested change does not disable vertical tabs"
+        );
+        ok(panel.verticalTabsInput.checked, "Vertical tabs remain checked");
+        ok(gBrowser.tabContainer.verticalMode, "The tab strip stays vertical");
+        ok(treeInput.isConnected, "The nested checkbox remains in the panel");
+      }
+
+      Services.prefs.setBoolPref(treeTabsPref, false);
+      await panel.updateComplete;
+      await treeInput.updateComplete;
+      ok(!treeInput.checked, "External pref changes also update the checkbox");
+    } finally {
+      await SpecialPowers.popPrefEnv();
+    }
+  }
+);
+
 add_task(async function test_keyboard_navigation_away_from_settings_link() {
   const panel = await showCustomizePanel(window);
   const manageSettingsLink = panel.shadowRoot.querySelector(
