@@ -30,7 +30,8 @@ const TREE_MAX_DEPTH_PREF = "browser.tabs.verticalTabs.tree.maxDepth";
 const TREE_INDENT_PREF = "browser.tabs.verticalTabs.tree.indentPx";
 const TREE_SUCCESSOR_PREF = "browser.tabs.verticalTabs.tree.successorControl";
 const TREE_DROP_LINKS_PREF = "browser.tabs.verticalTabs.tree.dropLinksOnTab";
-
+const TREE_AUTO_GROUP_PINNED_PREF =
+  "browser.tabs.verticalTabs.tree.autoGroup.pinnedOpener";
 const MAX_INT_PREF = 2147483647;
 let lastTreeMaxDepth = 6;
 
@@ -160,6 +161,7 @@ Preferences.addAll([
   { id: TREE_INDENT_PREF, type: "int" },
   { id: TREE_SUCCESSOR_PREF, type: "bool" },
   { id: TREE_DROP_LINKS_PREF, type: "int" },
+  { id: TREE_AUTO_GROUP_PINNED_PREF, type: "bool" },
   ...TOGGLES.map(toggle => ({
     id: toggle.pref,
     type: "bool",
@@ -234,6 +236,7 @@ for (let [id, pref] of [
   ["waterfox-tree-propagate-muted", TREE_PROPAGATE_MUTED_PREF],
   ["waterfox-tree-successor", TREE_SUCCESSOR_PREF],
   ["waterfox-tree-drop-links", TREE_DROP_LINKS_PREF],
+  ["waterfox-tree-auto-group-pinned", TREE_AUTO_GROUP_PINNED_PREF],
 ]) {
   Preferences.addSetting({
     id,
@@ -490,6 +493,10 @@ SettingGroupManager.registerGroups({
                 value: 3,
                 l10nId: "waterfox-tabs-tree-close-parent-option-detach",
               },
+              {
+                value: 4,
+                l10nId: "waterfox-tabs-tree-close-parent-option-group",
+              },
             ],
           },
           {
@@ -534,6 +541,11 @@ SettingGroupManager.registerGroups({
                 l10nId: "waterfox-tabs-tree-double-click-option-none",
               },
             ],
+          },
+          {
+            id: "waterfox-tree-auto-group-pinned",
+            l10nId: "waterfox-tabs-tree-auto-group-pinned-toggle",
+            control: "moz-toggle",
           },
           {
             id: "waterfox-tree-sticky-active",

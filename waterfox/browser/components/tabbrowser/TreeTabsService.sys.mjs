@@ -11,6 +11,8 @@ const PREF_CLOSE_PARENT_BEHAVIOR =
 const PREF_MAX_DEPTH = "browser.tabs.verticalTabs.tree.maxDepth";
 const PREF_SUCCESSOR_CONTROL =
   "browser.tabs.verticalTabs.tree.successorControl";
+const PREF_AUTO_GROUP_PINNED_OPENER =
+  "browser.tabs.verticalTabs.tree.autoGroup.pinnedOpener";
 
 function getBoolPref(name, fallback) {
   try {
@@ -40,6 +42,13 @@ function clampIndex(index, length) {
   }
   return index;
 }
+
+const lazy = {};
+
+ChromeUtils.defineESModuleGetters(lazy, {
+  TreeTabsGroups: "resource:///modules/TreeTabsGroups.sys.mjs",
+  TreeTabsStore: "resource:///modules/TreeTabsStore.sys.mjs",
+});
 
 export const TreeTabsService = {
   _windowStates: new Map(),
@@ -407,6 +416,35 @@ export const TreeTabsService = {
         this.attachTab(tab, opener, options);
         return;
       }
+      if (opener?.pinned && getBoolPref(PREF_AUTO_GROUP_PINNED_OPENER, true)) {
+        const openerGuid = lazy.TreeTabsStore.getTabGuid(opener, {
+          create: true,
+        });
+        const existingGroup = lazy.TreeTabsGroups.findGroupTabForOpener(
+          window,
+          openerGuid
+        );
+        if (existingGroup) {
+          this.attachTab(tab, existingGroup);
+          return;
+        }
+        const relatedTabs = Array.from(window.gBrowser.tabs).filter(
+          candidate =>
+            candidate !== tab &&
+            !candidate.pinned &&
+            !candidate.closing &&
+            candidate.openerTab === opener &&
+            !lazy.TreeTabsGroups.isGroupTab(candidate)
+        );
+        if (relatedTabs.length) {
+          lazy.TreeTabsGroups.groupTabs(window, [...relatedTabs, tab], {
+            automaticTitle: true,
+            openerGuid,
+            temporary: true,
+          });
+          return;
+        }
+      }
       const sameSiteBase = this._getSameSiteBase(info, window);
       if (sameSiteBase) {
         // An openerless tab on the same site as the current tab reads as
@@ -679,6 +717,34 @@ export const TreeTabsService = {
       return descendants;
     }
 
+    if (behavior === 4) {
+      const children = node.children.filter(child => !child.closing);
+      const replacedParentCount =
+        lazy.TreeTabsGroups.getReplacedParentCount(tab);
+      if (children.length > 1 && replacedParentCount < 1) {
+        const siblings = node.parent
+          ? state.nodes.get(node.parent)?.children || []
+          : state.roots;
+        const siblingIndex = siblings.indexOf(tab);
+        const payload = {
+          window,
+          title: tab.label,
+          parent: node.parent,
+          children,
+          insertBefore: siblings[siblingIndex + 1] || null,
+          insertAfter: siblings[siblingIndex - 1] || null,
+          siblingIndex,
+          replacedParentCount: replacedParentCount + 1,
+        };
+        this._promoteAllChildren(state, tab);
+        this._removeNode(state, tab);
+        this._notifyStructureChanged(window);
+        this._notify("tree-tabs-group-replace-requested", payload);
+        return [];
+      }
+      behavior = node.parent ? 1 : 0;
+    }
+
     if (node.children.length) {
       switch (behavior) {
         case 0:
@@ -867,6 +933,22 @@ export const TreeTabsService = {
       this._addRoot(state, tab, state.roots.length);
     }
     this._notifyStructureChanged(window);
+  },
+
+  removeGroupTab(tab) {
+    if (!this._isEnabled() || !lazy.TreeTabsGroups.isGroupTab(tab)) {
+      return false;
+    }
+    const { state, window } = this._getStateForTab(tab);
+    if (!state || !window || !state.nodes.has(tab)) {
+      return false;
+    }
+    tab._treeTabsCleanupAncestors = this.getAncestors(tab);
+    this._promoteAllChildren(state, tab);
+    this._removeNode(state, tab);
+    this._notifyStructureChanged(window);
+    window.gBrowser.removeTab(tab);
+    return true;
   },
 
   closeTree(tab) {

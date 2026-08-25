@@ -17,7 +17,8 @@ pref("browser.tabs.verticalTabs.tree.autoCollapse.onSelect", false);
 pref("browser.tabs.verticalTabs.tree.autoExpand.onAttach", true);
 
 // What happens to children when their parent closes: 0 promote the first
-// child, 1 promote them all, 2 close the whole subtree, 3 detach to roots.
+// child, 1 promote them all, 2 close the whole subtree, 3 detach to roots,
+// 4 replace the parent with a group tab.
 // A collapsed parent always closes its whole subtree, and with 0 a parent
 // closed as the last child promotes all of its children instead.
 pref("browser.tabs.verticalTabs.tree.closeParentBehavior", 0);
@@ -30,6 +31,7 @@ pref("browser.tabs.verticalTabs.tree.successorControl", true);
 
 // A link dropped onto a tab: 0 load in that tab, 1 ask, 2 open as child.
 pref("browser.tabs.verticalTabs.tree.dropLinksOnTab", 1);
+pref("browser.tabs.verticalTabs.tree.autoGroup.pinnedOpener", true);
 
 // Deepest nesting level allowed, -1 for no limit.
 pref("browser.tabs.verticalTabs.tree.maxDepth", -1);
