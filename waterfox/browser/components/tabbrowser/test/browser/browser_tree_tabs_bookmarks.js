@@ -158,6 +158,24 @@ add_task(async function test_open_tabset_restores_encoded_tree_without_group() {
         `Bookmark tab ${index + 1} keeps its unique URL`
       );
     }
+    await waitForTreeCondition(
+      () =>
+        childTab.hasAttribute("discarded") &&
+        grandchildTab.hasAttribute("discarded"),
+      "Waiting for background bookmark tree members to be discarded"
+    );
+    ok(
+      !rootTab.hasAttribute("discarded"),
+      "The active bookmark root remains loaded"
+    );
+    ok(
+      childTab.hasAttribute("discarded"),
+      "Background bookmark children open discarded"
+    );
+    ok(
+      grandchildTab.hasAttribute("discarded"),
+      "Background bookmark descendants open discarded"
+    );
   } finally {
     try {
       await cleanupBookmarkTestTabs(originalTabs);
