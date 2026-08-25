@@ -211,3 +211,65 @@ add_task(async function test_successor_of_pinned_tab_is_pinned() {
   BrowserTestUtils.removeTab(pinnedA);
   BrowserTestUtils.removeTab(normalTab);
 });
+
+add_task(async function test_move_tree_to_new_window_preserves_topology() {
+  await enableTreeTabs();
+
+  const parentURL = "about:blank?waterfox-tree-new-window-parent";
+  const childURL = "about:blank?waterfox-tree-new-window-child";
+  const grandchildURL = "about:blank?waterfox-tree-new-window-grandchild";
+  const parentTab = BrowserTestUtils.addTab(gBrowser, parentURL);
+  const childTab = await openTabWithTree(parentTab, childURL);
+  await openTabWithTree(childTab, grandchildURL);
+  gBrowser.TreeTabsService.collapseSubtree(childTab);
+
+  const delayedStartup = BrowserTestUtils.waitForNewWindow();
+  const newWindow = gBrowser.replaceTabsWithWindow(parentTab);
+  await delayedStartup;
+
+  try {
+    const findTab = url =>
+      Array.from(newWindow.gBrowser.tabs).find(
+        tab => tab.linkedBrowser.currentURI.spec == url
+      );
+    await waitForTreeCondition(() => {
+      const movedParent = findTab(parentURL);
+      const movedChild = findTab(childURL);
+      const movedGrandchild = findTab(grandchildURL);
+      return (
+        movedParent &&
+        movedChild &&
+        movedGrandchild &&
+        newWindow.gBrowser.TreeTabsService.getParent(movedChild) ==
+          movedParent &&
+        newWindow.gBrowser.TreeTabsService.getParent(movedGrandchild) ==
+          movedChild &&
+        newWindow.gBrowser.TreeTabsService.isCollapsed(movedChild)
+      );
+    }, "Waiting for the moved tree to be restored in the new window");
+
+    const movedParent = findTab(parentURL);
+    const movedChild = findTab(childURL);
+    const movedGrandchild = findTab(grandchildURL);
+    is(
+      newWindow.gBrowser.TreeTabsService.getParent(movedChild),
+      movedParent,
+      "Moved child retains its parent"
+    );
+    is(
+      newWindow.gBrowser.TreeTabsService.getParent(movedGrandchild),
+      movedChild,
+      "Moved grandchild retains its parent"
+    );
+    ok(
+      newWindow.gBrowser.TreeTabsService.isCollapsed(movedChild),
+      "Moved subtree retains its collapsed state"
+    );
+    ok(
+      SessionStore.getCustomWindowValue(newWindow, "treeTabs:tree-structure"),
+      "Moved tree is persisted immediately after delayed startup"
+    );
+  } finally {
+    await BrowserTestUtils.closeWindow(newWindow);
+  }
+});
