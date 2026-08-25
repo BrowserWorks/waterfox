@@ -577,6 +577,784 @@ add_task(function test_tab_restore_reclaims_root_children() {
   );
 });
 
+add_task(
+  function test_window_restore_waits_for_final_extdata_and_lazy_groups() {
+    const mockStore = setupStore();
+    const window = createMockWindow();
+    const tabs = Array.from({ length: 4 }, () => createMockTab(window));
+    const [outside, outsideChild, grouped, groupedChild] = tabs;
+    const structure = tabs.map((tab, index) => ({
+      id: `restored-${index}`,
+      parent: index % 2 ? index - 1 : null,
+      collapsed: index == 2,
+    }));
+
+    putTabJSON(mockStore, outside, "data-persistent-id", "old-id");
+    TreeTabsStore.getTabGuid(outside);
+    TreeTabsStore._manualRestoreCompleted.add(window);
+    TreeTabsStore.onWindowRestoring(window);
+    putWindowJSON(mockStore, window, "tree-structure", structure);
+    for (let index = 0; index < tabs.length; index++) {
+      putTabJSON(
+        mockStore,
+        tabs[index],
+        "data-persistent-id",
+        structure[index].id
+      );
+    }
+    grouped.group = {};
+    resetWrites(mockStore);
+
+    Assert.ok(
+      !TreeTabsStore.tryManualRestore(window),
+      "TabOpen-time attempts cannot complete an in-progress window restore"
+    );
+    TreeTabsStore.clearRestoreGuard(window);
+    TreeTabsStore.saveTabState(outsideChild, { force: true });
+    TreeTabsStore.saveWindowStructure(window);
+    Assert.equal(mockStore._writes.tab.length, 0, "Even forced saves wait");
+    Assert.equal(
+      mockStore._writes.window.length,
+      0,
+      "Window data stays intact"
+    );
+
+    groupedChild.group = grouped.group;
+    TreeTabsStore.onWindowRestored(window);
+    Assert.equal(TreeTabsService.getParent(outsideChild), outside);
+    Assert.equal(TreeTabsService.getParent(groupedChild), grouped);
+    Assert.ok(TreeTabsService.isCollapsed(grouped));
+    Assert.equal(TreeTabsStore.getTabGuid(outside), "restored-0");
+    Assert.ok(!TreeTabsStore.isRestorePending(window));
+    Assert.deepEqual(
+      getWindowJSON(mockStore, window, "tree-structure"),
+      structure,
+      "Restore reads the incoming structure without rewriting it"
+    );
+  }
+);
+
+add_task(function test_window_restore_merges_extra_lazy_tree() {
+  for (const referenceKey of ["ancestors", "children"]) {
+    const mockStore = setupStore();
+    const window = createMockWindow();
+    const tabs = Array.from({ length: 4 }, (_, index) =>
+      createStoredTab(mockStore, window, `extra-${index}`, { lazy: true })
+    );
+    const [parent, child, extraParent, extraChild] = tabs;
+    const structure = [
+      { id: "extra-0", parent: null, collapsed: false },
+      { id: "extra-1", parent: 0, collapsed: false },
+    ];
+    putWindowJSON(mockStore, window, "tree-structure", structure);
+    putTabJSON(mockStore, extraParent, "ancestors", []);
+    putTreeLink(mockStore, extraParent, extraChild, referenceKey);
+    putTabJSON(mockStore, extraParent, "special-tab-states", [
+      "subtree-collapsed",
+    ]);
+    const savedData = getStoredData(mockStore);
+
+    TreeTabsStore.onWindowRestoring(window);
+    TreeTabsStore.onWindowRestored(window);
+    Assert.equal(TreeTabsService.getParent(child), parent);
+    Assert.equal(
+      TreeTabsService.getParent(extraChild),
+      extraParent,
+      `Extra lazy tabs restore from ${referenceKey} without activation`
+    );
+    Assert.ok(TreeTabsService.isCollapsed(extraParent));
+    Assert.ok(!TreeTabsStore.isRestorePending(window));
+    Assert.ok(TreeTabsStore._manualRestoreCompleted.has(window));
+    Assert.deepEqual(
+      getStoredData(mockStore),
+      savedData,
+      "Merging metadata does not rewrite persisted tab or window data"
+    );
+
+    TreeTabsStore.onTreeEvent("tree-tabs-structure-changed", { window });
+    const pending = TreeTabsStore._pendingSaves.get(window);
+    Assert.ok(pending, "A completed merge permits the full-window save");
+    clearTimeout(pending.timerId);
+    TreeTabsStore._flushWindowSave(window);
+    Assert.deepEqual(
+      getWindowJSON(mockStore, window, "tree-structure").map(
+        entry => entry.parent
+      ),
+      [null, 0, null, 2],
+      "The first full-window save includes both restored trees"
+    );
+    Assert.equal(
+      getTabJSON(mockStore, extraChild, "ancestors")[0].uniqueId,
+      "extra-2"
+    );
+    Assert.equal(
+      getTabJSON(mockStore, extraParent, "children")[0].uniqueId,
+      "extra-3"
+    );
+    TreeTabsStore.onTabRestoring(extraChild);
+    TreeTabsStore.onTabRestored(extraChild);
+    Assert.equal(
+      TreeTabsService.getParent(extraChild),
+      extraParent,
+      "Later lazy activation retains the merged relationship"
+    );
+  }
+});
+
+add_task(function test_window_restore_merges_cross_snapshot_metadata() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  const tabs = [
+    "extra-parent",
+    "extra-ancestor",
+    "extra-child",
+    "covered-root",
+    "covered-child",
+    "other-root",
+  ].map(id => createStoredTab(mockStore, window, id, { lazy: true }));
+  const [extraParent, byAncestor, byChildren, root, child, otherRoot] = tabs;
+  putWindowJSON(mockStore, window, "tree-structure", [
+    { id: "covered-root", parent: null, collapsed: true },
+    { id: "covered-child", parent: 0, collapsed: false },
+    { id: "other-root", parent: null, collapsed: false },
+  ]);
+  putTabJSON(mockStore, extraParent, "ancestors", []);
+  putTabJSON(mockStore, extraParent, "children", [
+    "covered-root",
+    "covered-child",
+    "other-root",
+  ]);
+  for (const tab of [root, child, otherRoot]) {
+    putTabJSON(mockStore, tab, "ancestors", ["extra-parent"]);
+  }
+  putTabJSON(mockStore, root, "children", [
+    "covered-child",
+    "other-root",
+    "extra-child",
+  ]);
+  putTabJSON(mockStore, root, "special-tab-states", []);
+  putTabJSON(mockStore, child, "special-tab-states", ["subtree-collapsed"]);
+  putTabJSON(mockStore, byAncestor, "ancestors", ["covered-child"]);
+  TreeTabsService.attachTab(root, extraParent);
+  TreeTabsService.collapseSubtree(child);
+
+  TreeTabsStore.onWindowRestoring(window);
+  TreeTabsStore.onWindowRestored(window);
+  Assert.equal(TreeTabsService.getParent(root), null, "Snapshot root wins");
+  Assert.equal(
+    TreeTabsService.getParent(child),
+    root,
+    "Snapshot ancestry wins over conflicting tab metadata"
+  );
+  Assert.equal(
+    TreeTabsService.getParent(otherRoot),
+    null,
+    "Neither covered nor extra parents can reclaim a snapshot root"
+  );
+  Assert.equal(TreeTabsService.getParent(extraParent), null);
+  Assert.equal(
+    TreeTabsService.getParent(byAncestor),
+    child,
+    "An extra tab can name a snapshot-covered ancestor"
+  );
+  Assert.equal(
+    TreeTabsService.getParent(byChildren),
+    root,
+    "A covered parent's children-only reference restores an extra tab"
+  );
+  Assert.ok(TreeTabsService.isCollapsed(root), "Snapshot collapse wins");
+  Assert.ok(!TreeTabsService.isCollapsed(child), "Snapshot expansion wins");
+  Assert.ok(
+    !TreeTabsStore.isRestorePending(window),
+    "Superseded metadata for covered tabs does not block completion"
+  );
+
+  for (const tab of tabs) {
+    TreeTabsStore.saveTabState(tab);
+  }
+  TreeTabsStore.saveWindowStructure(window);
+  Assert.deepEqual(getTabJSON(mockStore, root, "ancestors"), []);
+  Assert.deepEqual(getTabJSON(mockStore, otherRoot, "ancestors"), []);
+  Assert.deepEqual(getTabJSON(mockStore, extraParent, "children"), []);
+  for (const [tab, parentGuid] of [
+    [child, "covered-root"],
+    [byAncestor, "covered-child"],
+    [byChildren, "covered-root"],
+  ]) {
+    Assert.equal(
+      getTabJSON(mockStore, tab, "ancestors")[0].uniqueId,
+      parentGuid
+    );
+  }
+});
+
+add_task(function test_window_restore_guards_incomplete_extra_metadata() {
+  for (const parentCoverage of ["covered", "extra"]) {
+    for (const referenceKey of ["ancestors", "children"]) {
+      const mockStore = setupStore();
+      const window = createMockWindow();
+      const tabs = Array.from({ length: 4 }, (_, index) =>
+        createStoredTab(mockStore, window, `guarded-${index}`)
+      );
+      const [parent, child, extraParent, extraChild] = tabs;
+      const metadataParent = parentCoverage == "covered" ? parent : extraParent;
+      const parentIndex = tabs.indexOf(metadataParent);
+      const structure = [
+        { id: "guarded-0", parent: null },
+        { id: "guarded-1", parent: 0 },
+      ];
+      putWindowJSON(mockStore, window, "tree-structure", structure);
+      putTabJSON(mockStore, extraParent, "ancestors", []);
+      putTreeLink(mockStore, metadataParent, extraChild, referenceKey);
+      const savedData = getStoredData(mockStore);
+      extraChild.group = {};
+
+      TreeTabsStore.onWindowRestoring(window);
+      TreeTabsStore.onWindowRestored(window);
+      Assert.equal(TreeTabsService.getParent(child), parent);
+      Assert.equal(TreeTabsService.getParent(extraChild), null);
+      Assert.ok(
+        TreeTabsStore.isRestorePending(window),
+        `Unapplied ${referenceKey} for a ${parentCoverage} parent stays pending`
+      );
+      Assert.ok(!TreeTabsStore._manualRestoreCompleted.has(window));
+      TreeTabsStore.clearRestoreGuard(window);
+      assertSavesBlocked(mockStore, window, savedData);
+
+      extraChild.group = metadataParent.group;
+      Assert.ok(
+        TreeTabsStore.tryManualRestore(window),
+        "A manual retry merges extra metadata before completing restoration"
+      );
+      Assert.equal(TreeTabsService.getParent(extraChild), metadataParent);
+      Assert.ok(!TreeTabsStore.isRestorePending(window));
+      TreeTabsStore.saveTabState(extraChild, { force: true });
+      TreeTabsStore.saveWindowStructure(window);
+      Assert.equal(
+        getTabJSON(mockStore, extraChild, "ancestors")[0].uniqueId,
+        `guarded-${parentIndex}`
+      );
+      Assert.equal(
+        getWindowJSON(mockStore, window, "tree-structure")[3].parent,
+        parentIndex,
+        "The recovered extra relationship can now be persisted"
+      );
+    }
+  }
+});
+
+add_task(function test_idless_window_snapshot_fallback_completion() {
+  for (const recovery of ["complete", "flat", "partial"]) {
+    const referenceKeys =
+      recovery == "flat" ? [null] : ["ancestors", "children"];
+    for (const referenceKey of referenceKeys) {
+      info(`ID-less snapshot: ${recovery}, references=${referenceKey}`);
+      const mockStore = setupStore();
+      const window = createMockWindow();
+      const tabs = Array.from({ length: 4 }, (_, index) =>
+        createStoredTab(mockStore, window, `idless-${index}`, {
+          lazy: true,
+          legacy: true,
+        })
+      );
+      const [child, parent, otherParent, otherChild] = tabs;
+      const structure = Array.from({ length: 5 }, (_, index) => ({
+        parent: index % 2 ? index - 1 : -1,
+        collapsed: false,
+      }));
+      putWindowJSON(mockStore, window, "tree-structure", structure, {
+        legacy: true,
+      });
+      for (const [parentTab, childTab] of [
+        [parent, child],
+        [otherParent, otherChild],
+      ]) {
+        putTabJSON(mockStore, parentTab, "ancestors", [], { legacy: true });
+        if (recovery != "flat") {
+          putTreeLink(mockStore, parentTab, childTab, referenceKey, {
+            legacy: true,
+          });
+        }
+      }
+      putTabJSON(
+        mockStore,
+        parent,
+        "special-tab-states",
+        ["subtree-collapsed"],
+        { legacy: true }
+      );
+      if (recovery == "partial") {
+        otherChild.group = {};
+      }
+      const savedData = getStoredData(mockStore);
+
+      TreeTabsStore.onWindowRestoring(window);
+      TreeTabsStore.onWindowRestored(window);
+      Assert.equal(
+        TreeTabsService.getParent(child),
+        recovery == "flat" ? null : parent,
+        "Fallback uses persistent references, not the unmatched legacy positions"
+      );
+      Assert.equal(
+        TreeTabsService.getParent(otherChild),
+        recovery == "complete" ? otherParent : null
+      );
+      Assert.ok(TreeTabsService.isCollapsed(parent));
+      Assert.equal(
+        TreeTabsStore.isRestorePending(window),
+        recovery != "complete"
+      );
+      Assert.equal(
+        TreeTabsStore._manualRestoreCompleted.has(window),
+        recovery == "complete"
+      );
+      Assert.deepEqual(
+        TreeTabsStore.loadWindowStructure(window),
+        structure,
+        "Restoration does not synchronously rewrite the legacy snapshot"
+      );
+
+      TreeTabsStore.clearRestoreGuard(window);
+      if (recovery == "complete") {
+        for (const tab of tabs) {
+          TreeTabsStore.saveTabState(tab, { force: true });
+        }
+        TreeTabsStore.saveWindowStructure(window);
+        Assert.ok(mockStore._writes.tab.length, "Forced tab saves resume");
+        Assert.deepEqual(
+          getWindowJSON(mockStore, window, "tree-structure").map(
+            entry => entry.parent
+          ),
+          [1, null, null, 2],
+          "A complete fallback can replace an oversized ID-less snapshot"
+        );
+      } else {
+        assertSavesBlocked(mockStore, window, savedData);
+      }
+    }
+  }
+});
+
+add_task(function test_unmatched_window_tree_completes_from_tab_metadata() {
+  for (const legacy of [false, true]) {
+    const mockStore = setupStore();
+    const window = createMockWindow();
+    const parent = createStoredTab(mockStore, window, "live-parent", {
+      legacy,
+    });
+    const child = createStoredTab(mockStore, window, "live-child", { legacy });
+    const storedStructure = [
+      { id: "stale-parent", parent: null },
+      { id: "stale-child", parent: 0 },
+    ];
+    putWindowJSON(mockStore, window, "tree-structure", storedStructure);
+    putTabJSON(mockStore, parent, "ancestors", [], { legacy });
+    putTabJSON(mockStore, parent, "children", ["live-child"], { legacy });
+    putTabJSON(mockStore, parent, "special-tab-states", ["subtree-collapsed"], {
+      legacy,
+    });
+    putTabJSON(mockStore, child, "ancestors", ["live-parent"], { legacy });
+
+    TreeTabsStore.onWindowRestoring(window);
+    TreeTabsStore.onWindowRestored(window);
+    Assert.equal(TreeTabsService.getParent(child), parent);
+    Assert.ok(TreeTabsService.isCollapsed(parent));
+    Assert.ok(
+      !TreeTabsStore.isRestorePending(window),
+      "A complete tab-level fallback releases the unmatched-snapshot guard"
+    );
+    Assert.ok(TreeTabsStore._manualRestoreCompleted.has(window));
+    Assert.deepEqual(
+      getWindowJSON(mockStore, window, "tree-structure"),
+      storedStructure,
+      "Completion does not synchronously overwrite the old snapshot"
+    );
+
+    resetWrites(mockStore);
+    TreeTabsStore.saveTabState(child, { force: true });
+    Assert.ok(mockStore._writes.tab.length, "Forced tab saves resume");
+    TreeTabsStore.onTreeEvent("tree-tabs-structure-changed", { window });
+    Assert.ok(
+      TreeTabsStore._pendingSaves.has(window),
+      "Tree events can save again"
+    );
+    TreeTabsStore._cancelWindowSave(window);
+    TreeTabsStore.saveWindowStructure(window);
+    Assert.deepEqual(
+      getWindowJSON(mockStore, window, "tree-structure").map(entry => entry.id),
+      ["live-parent", "live-child"],
+      "The recovered live tree can replace the stale identities"
+    );
+    TreeTabsService.detachTab(child);
+    TreeTabsStore.saveWindowStructure(window);
+    Assert.deepEqual(
+      getWindowJSON(mockStore, window, "tree-structure").map(
+        entry => entry.parent
+      ),
+      [null, null],
+      "Subsequent deliberate flattening is persisted"
+    );
+  }
+});
+
+add_task(function test_unmatched_window_tree_guards_incomplete_tab_fallback() {
+  for (const referenceKey of [null, "ancestors", "children"]) {
+    info(`Unmatched snapshot: ${referenceKey || "flat"} fallback`);
+    const mockStore = setupStore();
+    const window = createMockWindow();
+    const tabs = Array.from({ length: referenceKey ? 4 : 2 }, (_, index) =>
+      createStoredTab(mockStore, window, `live-${index}`)
+    );
+    const structure = tabs.map((tab, index) => ({
+      id: `stale-${index}`,
+      parent: index % 2 ? index - 1 : null,
+    }));
+    putWindowJSON(mockStore, window, "tree-structure", structure);
+    if (referenceKey) {
+      for (const index of [0, 2]) {
+        putTreeLink(mockStore, tabs[index], tabs[index + 1], referenceKey);
+      }
+      tabs[2].group = {};
+    }
+    const savedData = getStoredData(mockStore);
+
+    TreeTabsStore.onWindowRestoring(window);
+    TreeTabsStore.onWindowRestored(window);
+    Assert.equal(
+      TreeTabsService.getParent(tabs[1]),
+      referenceKey ? tabs[0] : null
+    );
+    if (referenceKey) {
+      Assert.equal(TreeTabsService.getParent(tabs[3]), null);
+    }
+    Assert.ok(TreeTabsStore.isRestorePending(window));
+    Assert.ok(!TreeTabsStore._manualRestoreCompleted.has(window));
+    TreeTabsStore.clearRestoreGuard(window);
+    assertSavesBlocked(mockStore, window, savedData);
+  }
+});
+
+add_task(function test_empty_window_snapshot_saves_only_complete_metadata() {
+  for (const referenceKey of [null, "ancestors", "children"]) {
+    info(`Empty snapshot: ${referenceKey || "flat"} metadata`);
+    const mockStore = setupStore();
+    const window = createMockWindow();
+    const parent = createStoredTab(mockStore, window, "empty-parent");
+    const child = createStoredTab(mockStore, window, "empty-child");
+    const tabs = [parent, child];
+    putWindowJSON(mockStore, window, "tree-structure", []);
+    if (referenceKey) {
+      putTreeLink(mockStore, parent, child, referenceKey);
+      child.group = {};
+    }
+    const savedData = getStoredData(mockStore);
+
+    TreeTabsStore.onWindowRestoring(window);
+    TreeTabsStore.onWindowRestored(window);
+    Assert.equal(TreeTabsService.getParent(child), null);
+    Assert.equal(
+      TreeTabsStore.isRestorePending(window),
+      !!referenceKey,
+      "An empty snapshot needs no parent link unless metadata supplies one"
+    );
+    Assert.equal(
+      TreeTabsStore._manualRestoreCompleted.has(window),
+      !referenceKey
+    );
+    Assert.deepEqual(getWindowJSON(mockStore, window, "tree-structure"), []);
+
+    if (referenceKey) {
+      TreeTabsStore.clearRestoreGuard(window);
+      assertSavesBlocked(mockStore, window, savedData);
+    } else {
+      assertTabOrder(TreeTabsService.getRootTabs(window), tabs);
+      for (const tab of tabs) {
+        TreeTabsStore.saveTabState(tab, { force: true });
+      }
+      TreeTabsStore.saveWindowStructure(window);
+      Assert.ok(mockStore._writes.tab.length, "Forced tab saves are allowed");
+      Assert.deepEqual(
+        getWindowJSON(mockStore, window, "tree-structure").map(
+          entry => entry.parent
+        ),
+        [null, null],
+        "The flat window can be persisted without waiting for another restore"
+      );
+    }
+  }
+});
+
+add_task(function test_restore_completion_checks_snapshot_links() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  const child = createStoredTab(mockStore, window, "checked-child");
+  const parent = createStoredTab(mockStore, window, "checked-parent");
+  const otherRoot = createStoredTab(mockStore, window, "checked-root");
+  const tabs = [child, parent, otherRoot];
+  putTabJSON(mockStore, child, "ancestors", ["checked-root"]);
+  putTabJSON(mockStore, parent, "ancestors", ["checked-child"]);
+  const structure = [
+    { id: "checked-parent", parent: null },
+    { id: "checked-child", parent: 0 },
+    { id: "checked-root", parent: -1 },
+  ];
+  const resolved = TreeTabsStore._resolveStructureTabs(tabs, structure);
+  const structureEntries = new Map(
+    resolved.map(({ entry, tab }) => [tab, entry])
+  );
+  const state = TreeTabsStore._getWindowState(window, { create: true });
+  state.structure = structure;
+  for (const tab of tabs) {
+    TreeTabsStore._recordTabRestoreState(
+      window,
+      tab,
+      TreeTabsStore.loadTabState(tab)
+    );
+  }
+  TreeTabsService.init(window);
+  const isComplete = () =>
+    TreeTabsStore._hasCompleteTabRestore(window, state, tabs, {
+      structureEntries,
+      resolved,
+      requireRestoredLink: false,
+    });
+
+  Assert.ok(!isComplete(), "Covered non-root entries cannot remain flat");
+  TreeTabsService.attachTab(child, parent);
+  const counts = countGuidRestoreWork(() => {
+    Assert.ok(
+      isComplete(),
+      "Resolved snapshot parents and roots override stale tab ancestors"
+    );
+  });
+  Assert.deepEqual(
+    counts,
+    { windowEnumerations: 0, guidLookups: 0, persistentIDReads: 0 },
+    "Completion reuses the resolved snapshot mapping without additional work"
+  );
+
+  TreeTabsService.attachTab(child, otherRoot);
+  Assert.ok(
+    !isComplete(),
+    "A different live parent does not satisfy the snapshot"
+  );
+  TreeTabsService.attachTab(child, parent);
+  TreeTabsService.attachTab(parent, otherRoot);
+  Assert.ok(!isComplete(), "An explicit snapshot root must remain a root");
+  TreeTabsService.detachTab(parent);
+  TreeTabsService.attachTab(otherRoot, parent);
+  Assert.ok(!isComplete(), "Legacy -1 root entries are also verified");
+  TreeTabsService.detachTab(otherRoot);
+
+  child.group = {};
+  Assert.equal(TreeTabsService.getParent(child), parent);
+  Assert.ok(
+    !isComplete(),
+    "An existing link across native groups is not a complete snapshot restore"
+  );
+  child.group = parent.group;
+  Assert.ok(
+    isComplete(),
+    "Completion succeeds once all snapshot links are valid"
+  );
+});
+
+add_task(function test_window_restore_guards_blocked_snapshot_links() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  const tabs = Array.from({ length: 4 }, (_, index) =>
+    createStoredTab(mockStore, window, `blocked-${index}`)
+  );
+  for (const tab of tabs) {
+    putTabJSON(mockStore, tab, "ancestors", []);
+  }
+  const structure = tabs.map((tab, index) => ({
+    id: `blocked-${index}`,
+    parent: index % 2 ? index - 1 : null,
+  }));
+  putWindowJSON(mockStore, window, "tree-structure", structure);
+  const savedData = getStoredData(mockStore);
+  tabs[3].group = {};
+
+  TreeTabsStore.onWindowRestoring(window);
+  TreeTabsStore.onWindowRestored(window);
+  Assert.equal(TreeTabsService.getParent(tabs[1]), tabs[0]);
+  Assert.equal(TreeTabsService.getParent(tabs[3]), null);
+  Assert.ok(TreeTabsStore.isRestorePending(window));
+  Assert.ok(!TreeTabsStore._manualRestoreCompleted.has(window));
+  TreeTabsStore.clearRestoreGuard(window);
+  assertSavesBlocked(mockStore, window, savedData);
+
+  tabs[3].group = tabs[2].group;
+  Assert.ok(TreeTabsStore.tryManualRestore(window));
+  Assert.equal(TreeTabsService.getParent(tabs[3]), tabs[2]);
+  Assert.ok(!TreeTabsStore.isRestorePending(window));
+  for (const tab of tabs) {
+    TreeTabsStore.saveTabState(tab, { force: true });
+  }
+  TreeTabsStore.saveWindowStructure(window);
+  Assert.equal(
+    getTabJSON(mockStore, tabs[3], "ancestors")[0].uniqueId,
+    "blocked-2",
+    "Saves resume only after the covered relationship has been restored"
+  );
+});
+
+add_task(function test_flat_window_restore_normalizes_guids_once() {
+  for (const count of [64, 128]) {
+    const mockStore = setupStore();
+    const window = createMockWindow();
+    const tabs = Array.from({ length: count }, (_, index) =>
+      createStoredTab(mockStore, window, `flat-${index}`)
+    );
+    TreeTabsStore.onWindowRestoring(window);
+    const counts = countGuidRestoreWork(() =>
+      TreeTabsStore.onWindowRestored(window)
+    );
+    info(`flat-window-restore ${JSON.stringify({ tabs: count, ...counts })}`);
+    Assert.lessOrEqual(
+      counts.persistentIDReads,
+      3 * count,
+      "Bulk restoration reads each persistent ID a bounded number of times"
+    );
+    assertTabOrder(
+      TreeTabsService.getRootTabs(window),
+      tabs,
+      "All normalized tabs remain roots"
+    );
+    for (let index = 0; index < count; index++) {
+      Assert.equal(
+        TreeTabsStore.getTabGuid(tabs[index]),
+        `flat-${index}`,
+        "Bulk loading preserves each unique ID"
+      );
+    }
+  }
+});
+
+add_task(function test_window_restore_registers_tabs_without_tree_metadata() {
+  setupStore();
+  const window = createMockWindow();
+  createMockTab(window);
+  TreeTabsStore.onWindowRestoring(window);
+  window.gBrowser.tabs = [];
+  const tabs = Array.from({ length: 3 }, () => createMockTab(window));
+  for (const tab of tabs) {
+    tab.linkedPanel = "";
+  }
+  tabs[1].hidden = true;
+  TreeTabsStore.onWindowRestored(window);
+  assertTabOrder(
+    TreeTabsService.getRootTabs(window),
+    tabs,
+    "Restored tabs with no Waterfox metadata all enter the model as roots"
+  );
+  Assert.ok(tabs[1].hidden, "The store does not unhide extension-hidden tabs");
+});
+
+add_task(function test_partial_group_restore_preserves_all_saved_extdata() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  const tabs = Array.from({ length: 4 }, (_, index) =>
+    createStoredTab(mockStore, window, `partial-${index}`)
+  );
+  const structure = tabs.map((tab, index) => ({
+    id: `partial-${index}`,
+    parent: index % 2 ? index - 1 : null,
+    collapsed: index == 2,
+  }));
+  for (let index = 0; index < tabs.length; index++) {
+    putTabJSON(
+      mockStore,
+      tabs[index],
+      "ancestors",
+      index % 2 ? [structure[index - 1].id] : []
+    );
+  }
+  putWindowJSON(mockStore, window, "tree-structure", structure);
+  const savedData = getStoredData(mockStore);
+  tabs[2].group = {};
+
+  Assert.ok(!TreeTabsStore.tryManualRestore(window), "Partial is not complete");
+  Assert.equal(TreeTabsService.getParent(tabs[1]), tabs[0]);
+  Assert.equal(TreeTabsService.getParent(tabs[3]), null);
+  Assert.ok(!TreeTabsStore._manualRestoreCompleted.has(window));
+  TreeTabsStore.clearRestoreGuard(window);
+  assertSavesBlocked(mockStore, window, savedData);
+
+  tabs[3].group = tabs[2].group;
+  Assert.ok(
+    TreeTabsStore.tryManualRestore(window),
+    "Retry restores both branches"
+  );
+  Assert.equal(TreeTabsService.getParent(tabs[3]), tabs[2]);
+  Assert.ok(TreeTabsService.isCollapsed(tabs[2]));
+  Assert.ok(!TreeTabsStore.isRestorePending(window));
+});
+
+add_task(function test_window_restore_reads_legacy_data_for_unactivated_tabs() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  const child = createStoredTab(mockStore, window, null, { lazy: true });
+  const unrelated = createMockTab(window);
+  const parent = createStoredTab(
+    mockStore,
+    window,
+    { id: "1legacy-parent" },
+    { lazy: true, legacy: true }
+  );
+  putTabJSON(mockStore, child, "ancestors", ["1legacy-parent"], {
+    legacy: true,
+  });
+  putTabJSON(mockStore, parent, "special-tab-states", ["subtree-collapsed"], {
+    legacy: true,
+  });
+
+  TreeTabsStore.onWindowRestoring(window);
+  TreeTabsStore.onWindowRestored(window);
+  Assert.equal(
+    TreeTabsService.getParent(child),
+    parent,
+    "Persistent ids starting with digits are not treated as strip indices"
+  );
+  Assert.equal(TreeTabsService.getParent(unrelated), null);
+  Assert.ok(
+    TreeTabsService.isCollapsed(parent),
+    "Lazy legacy collapse is restored"
+  );
+});
+
+add_task(function test_tab_restore_resolves_structure_by_id_not_position() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  const child = createStoredTab(mockStore, window, "child-guid");
+  const unrelated = createMockTab(window);
+  const parent = createStoredTab(mockStore, window, "parent-guid");
+  const state = TreeTabsStore._getWindowState(window, { create: true });
+  state.structure = [
+    { id: "parent-guid", parent: null },
+    { id: "child-guid", parent: 0 },
+  ];
+  TreeTabsStore.onTabRestored(child);
+  Assert.equal(TreeTabsService.getParent(child), parent);
+  Assert.equal(TreeTabsService.getParent(unrelated), null);
+});
+
+add_task(function test_persistent_reference_wins_over_reused_panel_id() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  const unrelated = createMockTab(window);
+  const parent = createStoredTab(mockStore, window, "parent-guid");
+  Assert.equal(
+    TreeTabsStore._findTabByReference(window, {
+      id: unrelated.linkedPanel,
+      uniqueId: "parent-guid",
+    }),
+    parent,
+    "A previous session's panel id cannot override the persistent id"
+  );
+});
+
 add_task(function test_try_manual_restore_successfully_restores_parent_links() {
   const mockStore = setupStore();
   const window = createMockWindow();
@@ -1658,6 +2436,86 @@ add_task(function test_duplicate_tab_gets_a_fresh_persistent_id() {
     "dup-guid",
     "The original keeps its id"
   );
+});
+
+add_task(function test_horizontal_duplicate_drops_only_copied_tree_links() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  window.gBrowser.tabContainer = { verticalMode: false };
+  const parent = createMockTab(window);
+  const original = createMockTab(window);
+  const descendant = createMockTab(window);
+  TreeTabsService.attachTab(original, parent);
+  TreeTabsService.attachTab(descendant, original);
+  TreeTabsStore.saveWindowStructure(window);
+  TreeTabsStore.saveTabState(original);
+  const originalData = [...mockStore._tabValues.get(original)];
+  const originalGuid = TreeTabsStore.getTabGuid(original);
+  const duplicate = createMockTab(window);
+  mockStore._tabValues.set(duplicate, new Map(originalData));
+  TreeTabsService.onTabOpened(duplicate, { opener: original, duplicate: true });
+  TreeTabsService.detachTab(descendant);
+
+  TreeTabsStore.onTabRestoring(duplicate);
+  TreeTabsStore.onTabRestored(duplicate);
+  Assert.notEqual(TreeTabsStore.getTabGuid(duplicate), originalGuid);
+  Assert.equal(TreeTabsService.getParent(duplicate), null);
+  Assert.deepEqual(TreeTabsService.getChildren(duplicate), []);
+  Assert.equal(
+    TreeTabsService.getParent(descendant),
+    null,
+    "A horizontal duplicate cannot reclaim children from copied metadata"
+  );
+  Assert.deepEqual(getTabJSON(mockStore, duplicate, "ancestors"), []);
+  Assert.deepEqual(getTabJSON(mockStore, duplicate, "children"), []);
+  Assert.deepEqual(
+    [...mockStore._tabValues.get(original)],
+    originalData,
+    "The original tab's metadata is untouched"
+  );
+  Assert.equal(TreeTabsService.getParent(original), parent);
+
+  window.gBrowser.tabContainer.verticalMode = true;
+  TreeTabsStore.onTabRestoring(duplicate);
+  TreeTabsStore.onTabRestored(duplicate);
+  Assert.equal(
+    TreeTabsService.getParent(duplicate),
+    null,
+    "A later restore cannot resurrect the duplicate's copied ancestry"
+  );
+});
+
+add_task(function test_horizontal_undo_and_window_restore_keep_saved_links() {
+  for (const mode of ["undo", "window", "disabled"]) {
+    const mockStore = setupStore({ enabled: mode != "disabled" });
+    const window = createMockWindow();
+    window.gBrowser.tabContainer = { verticalMode: false };
+    const parent = createStoredTab(mockStore, window, "parent-guid");
+    const original = createStoredTab(mockStore, window, "copied-guid");
+    original.closing = mode == "undo";
+    const restored = createStoredTab(mockStore, window, "copied-guid");
+    putTabJSON(mockStore, restored, "ancestors", ["parent-guid"]);
+    if (mode == "window") {
+      TreeTabsStore.onWindowRestoring(window);
+    }
+    TreeTabsStore.onTabRestoring(restored);
+    Assert.deepEqual(
+      getTabJSON(mockStore, restored, "ancestors"),
+      ["parent-guid"],
+      `${mode} is not treated as a horizontal duplicate`
+    );
+    if (mode == "window") {
+      TreeTabsStore.onWindowRestored(window);
+    } else if (mode == "undo") {
+      Assert.equal(TreeTabsStore.getTabGuid(restored), "copied-guid");
+      TreeTabsStore.onTabRestored(restored);
+    } else {
+      Services.prefs.setBoolPref(TREE_PREF_ENABLED, true);
+      TreeTabsStore.onTabRestoring(restored);
+      TreeTabsStore.onTabRestored(restored);
+    }
+    Assert.equal(TreeTabsService.getParent(restored), parent, mode);
+  }
 });
 
 add_task(function test_references_resolve_by_persistent_id_for_lazy_tabs() {

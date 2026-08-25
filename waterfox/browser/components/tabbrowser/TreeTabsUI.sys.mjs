@@ -27,6 +27,8 @@ const PREF_PROPAGATE_MUTED_STATE =
 const PREF_DROP_LINKS_ON_TAB = "browser.tabs.verticalTabs.tree.dropLinksOnTab";
 const PREF_AUTO_GROUP_PINNED_OPENER =
   "browser.tabs.verticalTabs.tree.autoGroup.pinnedOpener";
+const PREF_EXPAND_NATIVE_GROUP =
+  "browser.tabs.verticalTabs.tree.expandNativeGroupOnTreeExpand";
 const TAB_DROP_TYPE = "application/x-moz-tabbrowser-tab";
 const RESTORE_RETRY_TIMEOUT_MS = 10000;
 
@@ -756,9 +758,13 @@ function createTreeTabsController(window) {
     _dragAutoExpandedTabs: new Set(),
     _dragHoverExpandTab: null,
     _dragHoverExpandTimer: null,
+    _dragAutoExpandedGroups: new Set(),
+    _dragHoverExpandGroup: null,
+    _dragHoverExpandGroupTimer: null,
     _groupCleanupTabs: new Set(),
     _groupCleanupScanAll: false,
     _groupCleanupTimer: null,
+    _nativeGroupReconcileTimer: null,
     _switchingExpandTimer: null,
     _switchingModifierHeld: false,
 
@@ -794,6 +800,9 @@ function createTreeTabsController(window) {
 
       this._tabContainer.addEventListener("TabOpen", this);
       this._tabContainer.addEventListener("TabClose", this);
+      this._tabContainer.addEventListener("TabGrouped", this);
+      this._tabContainer.addEventListener("TabUngrouped", this);
+      this._tabContainer.addEventListener("TabGroupMoved", this);
       this._tabContainer.addEventListener("TabMove", this);
       this._tabContainer.addEventListener("TabPinned", this);
       this._tabContainer.addEventListener("TabAttrModified", this);
@@ -807,7 +816,7 @@ function createTreeTabsController(window) {
       this._tabContainer.addEventListener("click", this, true);
       this._tabContainer.addEventListener("dblclick", this);
       this._tabContainer.addEventListener("keydown", this);
-      this._tabContainer.addEventListener("dragover", this);
+      this._tabContainer.addEventListener("dragover", this, true);
       this._tabContainer.addEventListener("drop", this);
       this._tabContainer.addEventListener("drop", this, true);
       this._tabContainer.addEventListener("dragleave", this);
@@ -879,6 +888,9 @@ function createTreeTabsController(window) {
 
       this._tabContainer?.removeEventListener("TabOpen", this);
       this._tabContainer?.removeEventListener("TabClose", this);
+      this._tabContainer?.removeEventListener("TabGrouped", this);
+      this._tabContainer?.removeEventListener("TabUngrouped", this);
+      this._tabContainer?.removeEventListener("TabGroupMoved", this);
       this._tabContainer?.removeEventListener("TabMove", this);
       this._tabContainer?.removeEventListener("TabPinned", this);
       this._tabContainer?.removeEventListener("TabAttrModified", this);
@@ -892,7 +904,7 @@ function createTreeTabsController(window) {
       this._tabContainer?.removeEventListener("click", this, true);
       this._tabContainer?.removeEventListener("dblclick", this);
       this._tabContainer?.removeEventListener("keydown", this);
-      this._tabContainer?.removeEventListener("dragover", this);
+      this._tabContainer?.removeEventListener("dragover", this, true);
       this._tabContainer?.removeEventListener("drop", this);
       this._tabContainer?.removeEventListener("drop", this, true);
       this._tabContainer?.removeEventListener("dragleave", this);
@@ -937,8 +949,13 @@ function createTreeTabsController(window) {
         window.clearTimeout(this._groupCleanupTimer);
         this._groupCleanupTimer = null;
       }
+      if (this._nativeGroupReconcileTimer) {
+        window.clearTimeout(this._nativeGroupReconcileTimer);
+        this._nativeGroupReconcileTimer = null;
+      }
       this._groupCleanupTabs.clear();
       this._groupCleanupScanAll = false;
+      this._dragAutoExpandedGroups.clear();
 
       if (window.TreeTabsDnD == TreeTabsDnD) {
         delete window.TreeTabsDnD;
@@ -982,6 +999,11 @@ function createTreeTabsController(window) {
           break;
         case "TabClose":
           this._handleTabClose(event);
+          break;
+        case "TabGrouped":
+        case "TabUngrouped":
+        case "TabGroupMoved":
+          this._scheduleNativeGroupReconcile();
           break;
         case "TabMove":
           if (!this._isEnabled()) {
@@ -1182,6 +1204,16 @@ function createTreeTabsController(window) {
             this._updateTab(payload.tab);
             if (payload.collapsed) {
               this._moveSelectionOutOfCollapsedSubtree(payload.tab);
+            } else {
+              if (
+                Services.prefs.getBoolPref(PREF_EXPAND_NATIVE_GROUP, true) &&
+                payload.tab.group?.collapsed
+              ) {
+                payload.tab.group.collapsed = false;
+              }
+              window.requestAnimationFrame(() => {
+                payload.tab.scrollIntoView({ block: "nearest" });
+              });
             }
             this._updateHiddenTabs();
           }
@@ -1506,6 +1538,41 @@ function createTreeTabsController(window) {
       this._updateAllTabs();
     },
 
+    _scheduleNativeGroupReconcile() {
+      if (!this._isEnabled()) {
+        return;
+      }
+      if (this._nativeGroupReconcileTimer) {
+        window.clearTimeout(this._nativeGroupReconcileTimer);
+      }
+      this._nativeGroupReconcileTimer = window.setTimeout(() => {
+        this._nativeGroupReconcileTimer = null;
+        const store = lazy.TreeTabsStore;
+        if (store.isRestorePending(window)) {
+          if (store.tryManualRestore(window)) {
+            this._updateAllTabs();
+            this._stopRestoreRetry();
+            this._scheduleAllGroupCleanup();
+          }
+          if (store.isRestorePending(window)) {
+            return;
+          }
+        }
+        const service = lazy.TreeTabsService;
+        let changed = false;
+        for (const tab of window.gBrowser.tabs) {
+          const parent = service.getParent(tab);
+          if (parent && parent.group !== tab.group) {
+            service.detachTab(tab);
+            changed = true;
+          }
+        }
+        if (changed) {
+          this._updateAllTabs();
+        }
+      });
+    },
+
     _scheduleAllGroupCleanup(delay = 100) {
       if (!lazy.TreeTabsService.isActive(window)) {
         return;
@@ -1819,7 +1886,8 @@ function createTreeTabsController(window) {
         !parent.closing &&
         !parent.pinned &&
         !tab.pinned &&
-        this._ownsTab(parent)
+        this._ownsTab(parent) &&
+        parent.group === tab.group
       );
       if (!valid) {
         if (currentParent) {
@@ -1969,16 +2037,26 @@ function createTreeTabsController(window) {
         return;
       }
 
-      const targetTab = this._tabContainer.tabDragAndDrop?._getDragTarget?.(
+      const target = this._tabContainer.tabDragAndDrop?._getDragTarget?.(
         event,
         { ignoreSides: true }
       );
+      const isGroupLabel = window.gBrowser.isTabGroupLabel?.(target);
+      const targetTab = target?.classList?.contains("tabbrowser-tab")
+        ? target
+        : null;
+      const targetGroup = target?.group || targetTab?.group || null;
+      if (isGroupLabel && targetGroup) {
+        this._openDroppedLinksInGroup(event, targetGroup);
+        return;
+      }
+
       const behavior = Services.prefs.getIntPref(PREF_DROP_LINKS_ON_TAB, 1);
       if (
-        !targetTab?.classList?.contains("tabbrowser-tab") ||
+        !targetTab ||
         targetTab.pinned ||
         targetTab.closing ||
-        behavior === 0
+        (behavior === 0 && !targetGroup)
       ) {
         return;
       }
@@ -1994,6 +2072,7 @@ function createTreeTabsController(window) {
         ...dropped,
         behavior,
         inBackground: this._getDropInBackground(event),
+        targetGroup,
         targetTab,
       });
     },
@@ -2031,10 +2110,12 @@ function createTreeTabsController(window) {
       behavior,
       inBackground,
       policyContainer,
+      targetGroup,
       targetTab,
       triggeringPrincipal,
       urls,
     }) {
+      targetGroup ||= targetTab?.group || null;
       try {
         let action = behavior;
         if (action === 1) {
@@ -2049,6 +2130,7 @@ function createTreeTabsController(window) {
             replace: true,
             allowThirdPartyFixup: true,
             targetTab,
+            tabGroup: targetGroup,
             triggeringPrincipal,
             policyContainer,
             userContextId: targetTab.userContextId,
@@ -2065,6 +2147,7 @@ function createTreeTabsController(window) {
             policyContainer,
             allowThirdPartyFixup: true,
             openerBrowser: targetTab.linkedBrowser,
+            tabGroup: targetGroup,
             userContextId: targetTab.userContextId,
           });
           service.attachTab(
@@ -2078,6 +2161,35 @@ function createTreeTabsController(window) {
         }
         if (firstTab && !inBackground) {
           window.gBrowser.selectedTab = firstTab;
+        }
+      } finally {
+        this._restoreDragAutoExpandedTabs();
+      }
+    },
+
+    async _openDroppedLinksInGroup(event, group) {
+      const dropped = this._readDroppedLinks(event);
+      if (!group || !dropped) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      this._clearDropTarget();
+      const inBackground = this._getDropInBackground(event);
+      try {
+        if (!(await this._confirmDroppedLinks(dropped.urls))) {
+          return;
+        }
+        const tabs = window.gBrowser.loadTabs(dropped.urls, {
+          inBackground,
+          replace: false,
+          allowThirdPartyFixup: true,
+          tabGroup: group,
+          triggeringPrincipal: dropped.triggeringPrincipal,
+          policyContainer: dropped.policyContainer,
+        });
+        if (tabs.length && !inBackground) {
+          window.gBrowser.selectedTab = tabs[0];
         }
       } finally {
         this._restoreDragAutoExpandedTabs();
@@ -2174,13 +2286,15 @@ function createTreeTabsController(window) {
         parent = service.getParent(base);
         anchor = parent
           ? service.getSubtreeEndAnchor(parent)
-          : Array.from(gBrowser.tabs).findLast(tab => !tab.pinned);
+          : base.group?.tabs.at(-1) ||
+            Array.from(gBrowser.tabs).findLast(tab => !tab.pinned);
       }
 
       const newTab = gBrowser.addTrustedTab(
         window.BROWSER_NEW_TAB_URL || "about:newtab",
         {
           tabIndex: anchor ? anchor._tPos + 1 : undefined,
+          tabGroup: action == "independent" ? null : base.group,
           focusUrlBar: true,
         }
       );
@@ -2825,18 +2939,74 @@ function createTreeTabsController(window) {
         draggedTab && !draggedTab.multiselected
           ? TreeTabsDnD._previewDropParent(event, draggedTab)
           : null;
+      const nativeTarget =
+        !draggedTab && event.dataTransfer?.types?.length
+          ? this._tabContainer.tabDragAndDrop?._getDragTarget?.(event, {
+              ignoreSides: true,
+            })
+          : null;
+      const hoverTab =
+        parent ||
+        (nativeTarget?.classList?.contains("tabbrowser-tab")
+          ? nativeTarget
+          : null);
 
       if (this._dropTargetTab && this._dropTargetTab != parent) {
         this._dropTargetTab.removeAttribute("data-tree-drop-target");
         this._dropTargetTab = null;
-        this._cancelDragHoverExpand();
       }
 
       if (parent) {
         parent.dataset.treeDropTarget = "child";
         this._dropTargetTab = parent;
-        this._scheduleDragHoverExpand(parent);
       }
+      if (hoverTab) {
+        this._scheduleDragHoverExpand(hoverTab);
+      } else {
+        this._cancelDragHoverExpand();
+      }
+
+      this._maybeScheduleGroupHoverExpand(event);
+    },
+
+    _maybeScheduleGroupHoverExpand(event) {
+      if (!event.dataTransfer?.types?.length) {
+        return;
+      }
+      const target = this._tabContainer.tabDragAndDrop?._getDragTarget?.(
+        event,
+        { ignoreSides: true }
+      );
+      const group = target?.group || null;
+      if (!group || !group.collapsed) {
+        this._cancelGroupHoverExpand();
+        return;
+      }
+      if (this._dragHoverExpandGroup == group) {
+        return;
+      }
+      this._cancelGroupHoverExpand();
+      this._dragHoverExpandGroup = group;
+      const delay = Services.prefs.getIntPref(
+        "browser.tabs.dragDrop.expandGroup.delayMS",
+        500
+      );
+      this._dragHoverExpandGroupTimer = window.setTimeout(() => {
+        this._dragHoverExpandGroupTimer = null;
+        this._dragHoverExpandGroup = null;
+        if (group.isConnected && group.collapsed) {
+          this._dragAutoExpandedGroups.add(group);
+          group.collapsed = false;
+        }
+      }, delay);
+    },
+
+    _cancelGroupHoverExpand() {
+      if (this._dragHoverExpandGroupTimer) {
+        window.clearTimeout(this._dragHoverExpandGroupTimer);
+        this._dragHoverExpandGroupTimer = null;
+      }
+      this._dragHoverExpandGroup = null;
     },
 
     // Lingering over a collapsed parent while dragging expands it, so the
@@ -2877,9 +3047,16 @@ function createTreeTabsController(window) {
 
     _restoreDragAutoExpandedTabs() {
       this._cancelDragHoverExpand();
+      this._cancelGroupHoverExpand();
       if (TreeTabsDnD._dropPending) {
         return;
       }
+      for (const group of this._dragAutoExpandedGroups) {
+        if (group.isConnected && !group.collapsed) {
+          group.collapsed = true;
+        }
+      }
+      this._dragAutoExpandedGroups.clear();
       if (!this._dragAutoExpandedTabs.size) {
         return;
       }
@@ -2909,6 +3086,7 @@ function createTreeTabsController(window) {
         this._dropTargetTab = null;
       }
       this._cancelDragHoverExpand();
+      this._cancelGroupHoverExpand();
     },
 
     _getTreeContextMenuElements() {
