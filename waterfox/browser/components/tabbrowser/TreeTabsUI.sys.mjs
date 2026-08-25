@@ -1045,9 +1045,7 @@ function createTreeTabsController(window) {
           const tabsToClose = (payload.tabs || []).filter(
             tab => tab && !tab.closing
           );
-          if (tabsToClose.length) {
-            window.gBrowser.removeTabs(tabsToClose);
-          }
+          this._removeTreeTabs(tabsToClose, payload.baseTab || null);
         });
         return;
       }
@@ -2067,7 +2065,8 @@ function createTreeTabsController(window) {
         tab.closing ||
         !this._ownsTab(tab) ||
         this._isWindowRestoring ||
-        lazy.TreeTabsStore._restoringWindows?.has(window)
+        lazy.TreeTabsStore._restoringWindows?.has(window) ||
+        lazy.TreeTabsStore.isRestoringClosedTreeSet(window)
       ) {
         return;
       }
@@ -2270,24 +2269,41 @@ function createTreeTabsController(window) {
       });
     },
 
-    // Preserve links before close operations scrub the model so undo close can
-    // rebuild the subtree.
-    _saveSubtreeStates(tab) {
-      for (const subtreeTab of [
+    _closeTreeTabs(tab) {
+      const tabsToClose = [
         tab,
         ...lazy.TreeTabsService.getDescendants(tab),
-      ]) {
-        lazy.TreeTabsStore.saveTabState(subtreeTab, { force: true });
+      ].filter(tabToClose => tabToClose && !tabToClose.closing);
+      const snapshot = lazy.TreeTabsStore.beginClosedTreeSet(
+        window,
+        tabsToClose
+      );
+      try {
+        lazy.TreeTabsService.closeTree(tab);
+        this._removeTreeTabs(tabsToClose);
+      } finally {
+        if (snapshot) {
+          lazy.TreeTabsStore.finishClosedTreeSet(window);
+        }
       }
     },
 
-    _closeTreeTabs(tab) {
-      this._saveSubtreeStates(tab);
-      const tabsToClose = lazy.TreeTabsService.closeTree(tab).filter(
-        tabToClose => tabToClose && !tabToClose.closing
+    _removeTreeTabs(tabsToClose, baseTab = null) {
+      tabsToClose = [...new Set(tabsToClose)].filter(
+        tab => tab && !tab.closing
       );
-      if (tabsToClose.length) {
-        window.gBrowser.removeTabs(tabsToClose);
+      const members = baseTab ? [baseTab, ...tabsToClose] : tabsToClose;
+      const snapshot = lazy.TreeTabsStore.hasActiveClosedTreeSet(window)
+        ? null
+        : lazy.TreeTabsStore.beginClosedTreeSet(window, members);
+      try {
+        if (tabsToClose.length) {
+          window.gBrowser.removeTabs(tabsToClose);
+        }
+      } finally {
+        if (snapshot) {
+          lazy.TreeTabsStore.finishClosedTreeSet(window);
+        }
       }
     },
 
@@ -2778,12 +2794,20 @@ function createTreeTabsController(window) {
             break;
           }
           case "context_closeDescendants": {
-            this._saveSubtreeStates(contextTab);
             const tabsToClose = treeService
-              .closeDescendants(contextTab)
+              .getDescendants(contextTab)
               .filter(tab => tab && !tab.closing);
-            if (tabsToClose.length) {
-              window.gBrowser.removeTabs(tabsToClose);
+            const snapshot = lazy.TreeTabsStore.beginClosedTreeSet(
+              window,
+              tabsToClose
+            );
+            try {
+              treeService.closeDescendants(contextTab);
+              this._removeTreeTabs(tabsToClose);
+            } finally {
+              if (snapshot) {
+                lazy.TreeTabsStore.finishClosedTreeSet(window);
+              }
             }
             break;
           }

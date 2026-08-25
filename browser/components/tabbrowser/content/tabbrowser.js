@@ -5592,6 +5592,29 @@
         return;
       }
 
+      let startedClosedTreeSet = false;
+      if (
+        this.TreeTabsService.enabled &&
+        !skipSessionStore &&
+        !this.TreeTabsStore.hasActiveClosedTreeSet(window)
+      ) {
+        const closeSet = [
+          ...new Set(
+            tabs.flatMap(tab =>
+              this.TreeTabsService.getTabsClosingWith(tab, {
+                isUserTriggered,
+              })
+            )
+          ),
+        ];
+        if (closeSet.length > 1) {
+          startedClosedTreeSet = !!this.TreeTabsStore.beginClosedTreeSet(
+            window,
+            closeSet
+          );
+        }
+      }
+
       if (!skipSessionStore) {
         SessionStore.resetLastClosedTabCount(window);
       }
@@ -5669,10 +5692,13 @@
         }
       } catch (e) {
         console.error(e);
+      } finally {
+        this.#clearMultiSelectionLocked = false;
+        this._avoidSingleSelectedTab();
+        if (startedClosedTreeSet) {
+          this.TreeTabsStore.finishClosedTreeSet(window);
+        }
       }
-
-      this.#clearMultiSelectionLocked = false;
-      this._avoidSingleSelectedTab();
     }
 
     removeCurrentTab(aParams) {
@@ -5720,13 +5746,28 @@
       let tabWidth = window.windowUtils.getBoundsWithoutFlushing(aTab).width;
       let isLastTab = this.#isLastTabInWindow(aTab);
 
-      // Save the subtree before close-parent behavior detaches or closes
-      // descendants, so undo close can restore their links.
       const treeTabs = this.TreeTabsService;
+      const treeCloseIsUserTriggered = isUserTriggered || !!triggeringEvent;
+      let startedClosedTreeSet = false;
       if (treeTabs.enabled) {
-        this.TreeTabsStore.saveTabState(aTab, { force: true });
-        for (const descendant of treeTabs.getDescendants(aTab)) {
-          this.TreeTabsStore.saveTabState(descendant, { force: true });
+        const closeSet = treeTabs.getTabsClosingWith(aTab, {
+          isUserTriggered: treeCloseIsUserTriggered,
+        });
+        if (!this.TreeTabsStore.hasActiveClosedTreeSet(window)) {
+          if (closeSet.length > 1) {
+            startedClosedTreeSet = !!this.TreeTabsStore.beginClosedTreeSet(
+              window,
+              closeSet
+            );
+          } else {
+            this.TreeTabsStore.invalidateClosedTreeSet(window);
+          }
+        }
+        if (!this.TreeTabsStore.isTabStateFrozen(aTab)) {
+          this.TreeTabsStore.saveTabState(aTab, { force: true });
+          for (const descendant of treeTabs.getDescendants(aTab)) {
+            this.TreeTabsStore.saveTabState(descendant, { force: true });
+          }
         }
       }
 
@@ -5741,17 +5782,22 @@
           telemetrySource,
         })
       ) {
-        Glean.browserTabclose.timeAnim.cancel(aTab._closeTimeAnimTimerId);
-        aTab._closeTimeAnimTimerId = null;
         Glean.browserTabclose.timeNoAnim.cancel(aTab._closeTimeNoAnimTimerId);
+        aTab._closeTimeAnimTimerId = null;
         aTab._closeTimeNoAnimTimerId = null;
+        if (startedClosedTreeSet) {
+          this.TreeTabsStore.cancelClosedTreeSet(window);
+        }
         return;
       }
 
       if (treeTabs.enabled) {
         treeTabs.onTabClosed(aTab, {
-          isUserTriggered: isUserTriggered || !!triggeringEvent,
+          isUserTriggered: treeCloseIsUserTriggered,
         });
+        if (startedClosedTreeSet) {
+          this.TreeTabsStore.finishClosedTreeSet(window);
+        }
       }
 
       let lockTabSizing =
@@ -6952,14 +6998,38 @@
       }
 
       let elements;
+      let treeTabsToMove = null;
       if (contextTab.multiselected) {
         elements = this.selectedElements;
+      } else if (
+        this.isTab(contextTab) &&
+        this.TreeTabsService.enabled &&
+        this.TreeTabsService.getChildren(contextTab).length
+      ) {
+        treeTabsToMove = [
+          contextTab,
+          ...this.TreeTabsService.getDescendants(contextTab),
+        ];
+        elements = treeTabsToMove;
       } else {
         elements = [contextTab.splitview ?? contextTab];
       }
 
       if (this.tabs.length == elements.length) {
         return null;
+      }
+
+      let treeSnapshot = null;
+      let treeGuids = null;
+      if (treeTabsToMove) {
+        this.TreeTabsStore.ensureUniqueTabGuids(window);
+        treeGuids = new Map(
+          treeTabsToMove.map(tab => [
+            tab,
+            this.TreeTabsStore.getTabGuid(tab, { create: true }),
+          ])
+        );
+        treeSnapshot = this.TreeTabsService.snapshotSubtree(contextTab);
       }
 
       if (elements.length == 1) {
@@ -6991,18 +7061,85 @@
           : elements[0];
       }
 
+      const adoptedTabMap = new Map();
       let win = this.replaceTabWithWindow(selectedTab, aOptions);
+      if (!win) {
+        return null;
+      }
+      if (treeSnapshot) {
+        const restoreTree = subject => {
+          if (subject != win) {
+            return;
+          }
+          Services.obs.removeObserver(
+            restoreTree,
+            "browser-delayed-startup-finished"
+          );
+          win.gBrowser.TreeTabsStore.ensureUniqueTabGuids(win);
+          const tabsByGuid = new Map();
+          for (const tab of win.gBrowser.tabs) {
+            const guid = win.gBrowser.TreeTabsStore.getTabGuid(tab);
+            if (guid) {
+              tabsByGuid.set(guid, tab);
+            }
+          }
+          for (const [oldTab, guid] of treeGuids) {
+            const newTab = tabsByGuid.get(guid);
+            if (newTab) {
+              adoptedTabMap.set(oldTab, newTab);
+            }
+          }
+          win.gBrowser.TreeTabsService.restoreSubtreeSnapshot(
+            treeSnapshot,
+            adoptedTabMap
+          );
+
+          const sourceTabMap = new Map();
+          const sourceTabs = new Set([
+            treeSnapshot.insertBefore,
+            treeSnapshot.insertAfter,
+          ]);
+          for (const node of treeSnapshot.nodes) {
+            sourceTabs.add(node.tab);
+            sourceTabs.add(node.parent);
+            for (const child of node.children) {
+              sourceTabs.add(child);
+            }
+          }
+          for (const tab of sourceTabs) {
+            if (tab?.isConnected && tab.documentGlobal == window) {
+              sourceTabMap.set(tab, tab);
+            }
+          }
+          this.TreeTabsService.restoreSubtreeSnapshot(
+            treeSnapshot,
+            sourceTabMap
+          );
+          win.gBrowser.TreeTabsStore.completeExternalRestore(win);
+          this.TreeTabsStore.completeExternalRestore(window);
+        };
+        Services.obs.addObserver(
+          restoreTree,
+          "browser-delayed-startup-finished"
+        );
+      }
       win.addEventListener(
         "before-initial-tab-adopted",
         () => {
           let tabIndex = 0;
           for (let element of elements) {
             if (element !== selectedTab && element !== selectedTab.splitview) {
-              const newTab = win.gBrowser.isSplitViewWrapper(element)
-                ? win.gBrowser.adoptSplitView(element, {
-                    elementIndex: tabIndex,
-                  })
-                : win.gBrowser.adoptTab(element, { tabIndex });
+              let newTab;
+              if (win.gBrowser.isSplitViewWrapper(element)) {
+                newTab = win.gBrowser.adoptSplitView(element, {
+                  elementIndex: tabIndex,
+                });
+              } else {
+                newTab = win.gBrowser.adoptTab(element, { tabIndex });
+                if (newTab) {
+                  adoptedTabMap.set(element, newTab);
+                }
+              }
               if (!newTab) {
                 // The adoption failed. Restore "fadein" and don't increase the index.
                 element.setAttribute("fadein", "true");

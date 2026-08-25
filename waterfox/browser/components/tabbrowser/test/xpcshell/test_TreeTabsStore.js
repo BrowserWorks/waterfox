@@ -35,6 +35,9 @@ function createMockSessionStore() {
       tabValues.get(tab).set(key, value);
       writes.tab.push({ tab, key, value });
     },
+    deleteCustomTabValue(tab, key) {
+      tabValues.get(tab)?.delete(key);
+    },
     getCustomWindowValue(win, key) {
       return windowValues.get(win)?.get(key) || "";
     },
@@ -63,6 +66,12 @@ function clearTreeStoreState() {
     TreeTabsStore._restoringWindows = new WeakSet();
     TreeTabsStore._restoreGuardTimers.clear();
     TreeTabsStore._manualRestoreCompleted = new WeakSet();
+    TreeTabsStore._activeClosedTreeSets.clear();
+    TreeTabsStore._closedTreeSets.clear();
+    TreeTabsStore._pendingClosedTreeRestores.clear();
+    TreeTabsStore._frozenCloseTabs = new WeakSet();
+    TreeTabsStore._restoringClosedTreeSets = new WeakSet();
+    TreeTabsStore._closedSetRestoringTabs = new WeakSet();
   }
   TreeTabsStore._tabGuids = new WeakMap();
   TreeTabsService._windowStates.clear();
@@ -1032,5 +1041,73 @@ add_task(function test_references_resolve_by_persistent_id_for_lazy_tabs() {
     TreeTabsService.getParent(child),
     parent,
     "Ancestor reference resolves through the persistent id"
+  );
+});
+
+add_task(function test_external_restore_refreshes_all_tab_references() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  const surroundingParent = createMockTab(window);
+  const importedRoot = createMockTab(window);
+  const importedChild = createMockTab(window);
+
+  TreeTabsStore.saveTabState(surroundingParent);
+  TreeTabsService.attachTab(importedRoot, surroundingParent);
+  TreeTabsService.attachTab(importedChild, importedRoot);
+  TreeTabsStore.ensureRestoreGuard(window);
+  resetWrites(mockStore);
+
+  TreeTabsStore.completeExternalRestore(window);
+
+  const savedChildren = getTabJSON(mockStore, surroundingParent, "children");
+  Assert.equal(savedChildren.length, 1, "The surrounding parent is refreshed");
+  Assert.equal(
+    savedChildren[0].uniqueId,
+    getTabJSON(mockStore, importedRoot, "data-persistent-id"),
+    "The surrounding parent references the imported root"
+  );
+  Assert.ok(
+    !TreeTabsStore._restoringWindows.has(window),
+    "The external restore guard is cleared"
+  );
+  Assert.deepEqual(
+    getWindowJSON(mockStore, window, "tree-structure").map(
+      entry => entry.parent
+    ),
+    [null, 0, 1],
+    "The complete imported structure is persisted"
+  );
+});
+
+add_task(function test_partial_closed_set_restore_clears_consumed_set_id() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  const tab = createMockTab(window);
+  const guid = "partial-restore-guid";
+  const setId = "partial-restore-set";
+  putTabJSON(mockStore, tab, "data-persistent-id", guid);
+  putTabJSON(mockStore, tab, "closed-tree-set-id", setId);
+
+  const restore = {
+    requestedTab: tab,
+    snapshot: {
+      id: setId,
+      entries: [{ guid, collapsed: false }],
+      beforeGuid: null,
+      afterGuid: null,
+    },
+  };
+  TreeTabsStore._pendingClosedTreeRestores.set(window, restore);
+
+  TreeTabsStore._restoreClosedTreeSet(window, restore);
+
+  Assert.equal(
+    getTabJSON(mockStore, tab, "closed-tree-set-id"),
+    null,
+    "A consumed closed-set id is removed after partial recovery"
+  );
+  Assert.ok(
+    !TreeTabsStore._pendingClosedTreeRestores.has(window),
+    "The partial restore transaction is finished"
   );
 });

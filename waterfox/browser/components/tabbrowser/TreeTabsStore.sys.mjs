@@ -7,6 +7,7 @@ import { clearTimeout, setTimeout } from "resource://gre/modules/Timer.sys.mjs";
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  SessionStore: "resource:///modules/sessionstore/SessionStore.sys.mjs",
   TreeTabsService: "resource:///modules/TreeTabsService.sys.mjs",
   TreeTabsMigration: "resource:///modules/TreeTabsMigration.sys.mjs",
 });
@@ -14,6 +15,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
 const PREF_ENABLED = "browser.tabs.verticalTabs.tree.enabled";
 const WINDOW_KEY = "tree-structure";
 const LEGACY_UNIQUE_ID_KEY = "data-persistent-id";
+const CLOSED_TREE_SET_ID_KEY = "closed-tree-set-id";
 const SAVE_DEBOUNCE_MS = 150;
 const RESTORE_GUARD_TIMEOUT_MS = 10000;
 
@@ -78,6 +80,12 @@ export const TreeTabsStore = {
   _restoreGuardTimers: new Map(),
   _manualRestoreCompleted: new WeakSet(),
   _tabGuids: new WeakMap(),
+  _activeClosedTreeSets: new Map(),
+  _closedTreeSets: new Map(),
+  _pendingClosedTreeRestores: new Map(),
+  _frozenCloseTabs: new WeakSet(),
+  _restoringClosedTreeSets: new WeakSet(),
+  _closedSetRestoringTabs: new WeakSet(),
 
   init() {
     if (this._initialized) {
@@ -119,6 +127,12 @@ export const TreeTabsStore = {
     this._restoringWindows = new WeakSet();
     this._restoreGuardTimers.clear();
     this._manualRestoreCompleted = new WeakSet();
+    this._activeClosedTreeSets.clear();
+    this._closedTreeSets.clear();
+    this._pendingClosedTreeRestores.clear();
+    this._frozenCloseTabs = new WeakSet();
+    this._restoringClosedTreeSets = new WeakSet();
+    this._closedSetRestoringTabs = new WeakSet();
   },
 
   initWindow(window) {
@@ -126,6 +140,7 @@ export const TreeTabsStore = {
       return;
     }
     this._wiredWindows.add(window);
+    this.ensureUniqueTabGuids(window);
     // Set a guard before restore starts so stray saves do not clobber the
     // persisted structure. The delayed startup hook can run after the window's
     // own restore has begun, so the timeout and the manual restore path are the
@@ -146,6 +161,8 @@ export const TreeTabsStore = {
     }
     this._cancelWindowSave(window);
     this.clearRestoreGuard(window);
+    this.cancelClosedTreeSet(window);
+    this._pendingClosedTreeRestores.delete(window);
     this._windowStates.delete(window);
   },
 
@@ -201,7 +218,10 @@ export const TreeTabsStore = {
     if (!window) {
       return;
     }
-    if (this._restoringWindows.has(window)) {
+    if (
+      this._restoringWindows.has(window) ||
+      this._restoringClosedTreeSets.has(window)
+    ) {
       return;
     }
 
@@ -242,6 +262,198 @@ export const TreeTabsStore = {
     return guid;
   },
 
+  getTabGuid(tab, options) {
+    return this._getTabGuid(tab, options);
+  },
+
+  ensureUniqueTabGuids(window) {
+    const seen = new Set();
+    for (const tab of this._getWindowTabs(window)) {
+      let guid = this._getTabGuid(tab);
+      if (!guid) {
+        continue;
+      }
+      if (seen.has(guid)) {
+        guid = Services.uuid.generateUUID().toString().slice(1, -1);
+        this._writeTabJSON(tab, LEGACY_UNIQUE_ID_KEY, guid);
+        this._tabGuids.set(tab, guid);
+      }
+      seen.add(guid);
+    }
+  },
+
+  completeExternalRestore(window) {
+    if (!window) {
+      return;
+    }
+    this.ensureUniqueTabGuids(window);
+    this._cancelWindowSave(window);
+    this.clearRestoreGuard(window);
+    this._manualRestoreCompleted.add(window);
+    for (const tab of this._getWindowTabs(window)) {
+      if (!tab.closing) {
+        this.saveTabState(tab, { force: true });
+      }
+    }
+    this.saveWindowStructure(window);
+  },
+
+  hasActiveClosedTreeSet(window) {
+    return this._activeClosedTreeSets.has(window);
+  },
+
+  isRestoringClosedTreeSet(window) {
+    return this._restoringClosedTreeSets.has(window);
+  },
+
+  isTabStateFrozen(tab) {
+    return this._frozenCloseTabs.has(tab);
+  },
+
+  beginClosedTreeSet(window, tabs) {
+    if (!window || this._activeClosedTreeSets.has(window)) {
+      return this._activeClosedTreeSets.get(window) || null;
+    }
+
+    const members = [...new Set(tabs)]
+      .filter(
+        tab => tab && !tab.closing && this._getWindowForTab(tab) == window
+      )
+      .sort(
+        (a, b) => this._getTabIndex(window, a) - this._getTabIndex(window, b)
+      );
+    if (!members.length) {
+      return null;
+    }
+
+    this.ensureUniqueTabGuids(window);
+    const id = Services.uuid.generateUUID().toString().slice(1, -1);
+    const memberSet = new Set(members);
+    const allTabs = this._getWindowTabs(window);
+    const firstIndex = allTabs.indexOf(members[0]);
+    const lastIndex = allTabs.indexOf(members.at(-1));
+    const before = allTabs
+      .slice(0, Math.max(firstIndex, 0))
+      .reverse()
+      .find(tab => !memberSet.has(tab));
+    const after = allTabs.slice(lastIndex + 1).find(tab => !memberSet.has(tab));
+
+    for (const tab of members) {
+      this._getTabGuid(tab, { create: true });
+      this._writeTabJSON(tab, CLOSED_TREE_SET_ID_KEY, id);
+      this.saveTabState(tab, { force: true, ignoreFreeze: true });
+      this._frozenCloseTabs.add(tab);
+    }
+
+    const entries = members.map(tab => {
+      const parent = lazy.TreeTabsService.getParent(tab);
+      const siblings = parent
+        ? lazy.TreeTabsService.getChildren(parent)
+        : lazy.TreeTabsService.getRootTabs(window);
+      const siblingIndex = siblings.indexOf(tab);
+      let state = null;
+      try {
+        state = JSON.parse(lazy.SessionStore.getTabState(tab));
+      } catch {}
+      return {
+        guid: this._getTabGuid(tab, { create: true }),
+        tab,
+        parentGuid: this._getTabGuid(parent, { create: true }),
+        insertBeforeGuid: this._getTabGuid(siblings[siblingIndex + 1], {
+          create: true,
+        }),
+        insertAfterGuid: this._getTabGuid(siblings[siblingIndex - 1], {
+          create: true,
+        }),
+        siblingIndex,
+        stripIndex: this._getTabIndex(window, tab),
+        collapsed: lazy.TreeTabsService.isCollapsed(tab),
+        state,
+        closedId: null,
+      };
+    });
+
+    const snapshot = {
+      id,
+      entries,
+      beforeGuid: this._getTabGuid(before, { create: true }),
+      afterGuid: this._getTabGuid(after, { create: true }),
+    };
+    this._activeClosedTreeSets.set(window, snapshot);
+    return snapshot;
+  },
+
+  _getClosedTabsByGuid(window) {
+    let closedTabs = [];
+    try {
+      closedTabs = lazy.SessionStore.getClosedTabDataForWindow(window);
+    } catch {}
+    const closedByGuid = new Map();
+    for (const closed of closedTabs) {
+      const guid = this.readClosedTabGuid(closed);
+      if (guid && !closedByGuid.has(guid)) {
+        closedByGuid.set(guid, closed);
+      }
+    }
+    return closedByGuid;
+  },
+
+  finishClosedTreeSet(window) {
+    const snapshot = this._activeClosedTreeSets.get(window);
+    if (!snapshot) {
+      return null;
+    }
+    this._activeClosedTreeSets.delete(window);
+
+    const closedByGuid = this._getClosedTabsByGuid(window);
+    snapshot.entries = snapshot.entries.filter(entry => {
+      const closed = closedByGuid.get(entry.guid);
+      const actuallyClosed = Boolean(closed || entry.tab?.closing);
+      this._frozenCloseTabs.delete(entry.tab);
+      if (!actuallyClosed && entry.tab) {
+        this._deleteTabJSON(entry.tab, CLOSED_TREE_SET_ID_KEY);
+      }
+      entry.closedId = closed?.closedId ?? null;
+      entry.tab = null;
+      return actuallyClosed;
+    });
+
+    if (snapshot.entries.length > 1) {
+      this._closedTreeSets.set(snapshot.id, snapshot);
+      return snapshot;
+    }
+    return null;
+  },
+
+  cancelClosedTreeSet(window) {
+    const snapshot = this._activeClosedTreeSets.get(window);
+    if (!snapshot) {
+      return;
+    }
+    for (const entry of snapshot.entries) {
+      this._frozenCloseTabs.delete(entry.tab);
+      this._deleteTabJSON(entry.tab, CLOSED_TREE_SET_ID_KEY);
+    }
+    this._activeClosedTreeSets.delete(window);
+  },
+
+  invalidateClosedTreeSet() {
+    return null;
+  },
+
+  // The persistent ID inside a SessionStore closed-tab record, for matching
+  // closed tabs against tabs that were closed as one tree.
+  readClosedTabGuid(closedData) {
+    const extData = closedData?.state?.extData;
+    if (!extData) {
+      return null;
+    }
+    const raw =
+      extData[`treeTabs:${LEGACY_UNIQUE_ID_KEY}`] ||
+      extData[`extension:sidebar@waterfox.net:${LEGACY_UNIQUE_ID_KEY}`];
+    return this._extractLegacyUniqueId(parseJSON(raw));
+  },
+
   _toReference(tab) {
     const id = getTabIdentity(tab);
     const uniqueId = this._getTabGuid(tab, { create: true });
@@ -252,7 +464,11 @@ export const TreeTabsStore = {
   },
 
   saveTabState(tab, options = {}) {
-    if (!this._isEnabled() || !tab) {
+    if (
+      !this._isEnabled() ||
+      !tab ||
+      (!options.ignoreFreeze && this._frozenCloseTabs.has(tab))
+    ) {
       return;
     }
     const force = options.force === true;
@@ -347,6 +563,7 @@ export const TreeTabsStore = {
       specialStates: parseJSON(rawSpecialStates) || [],
       hasSpecialStateData: rawSpecialStates != null,
       legacyUniqueId: this._readLegacyUniqueId(tab),
+      closedTreeSetId: this._readTabJSON(tab, CLOSED_TREE_SET_ID_KEY),
     };
 
     return state;
@@ -373,19 +590,28 @@ export const TreeTabsStore = {
   },
 
   onTabRestoring(tab) {
-    if (!this._isEnabled() || !tab) {
+    if (!tab) {
       return;
     }
     const window = this._getWindowForTab(tab);
+    const tabState = this.loadTabState(tab);
+    this._resetDuplicateGuid(window, tab, tabState);
+    if (!this._isEnabled()) {
+      return;
+    }
     const state = this._getWindowState(window, { create: true });
     if (!state) {
       return;
     }
-    const tabState = this.loadTabState(tab);
-    this._resetDuplicateGuid(window, tab, tabState);
     state.tabData.set(tab, tabState);
     if (tabState?.legacyUniqueId) {
       state.uniqueIdToTab.set(tabState.legacyUniqueId, tab);
+      this._trackClosedTreeSetRestore(
+        window,
+        tab,
+        tabState.legacyUniqueId,
+        tabState.closedTreeSetId
+      );
     }
   },
 
@@ -411,6 +637,10 @@ export const TreeTabsStore = {
 
   onTabRestored(tab) {
     if (!this._isEnabled() || !tab) {
+      return;
+    }
+    if (this._closedSetRestoringTabs.has(tab)) {
+      this._closedSetRestoringTabs.delete(tab);
       return;
     }
     const window = this._getWindowForTab(tab);
@@ -476,6 +706,151 @@ export const TreeTabsStore = {
       lazy.TreeTabsService.collapseSubtree(tab);
     } else if (collapsed === false) {
       lazy.TreeTabsService.expandSubtree(tab);
+    }
+  },
+
+  _trackClosedTreeSetRestore(window, tab, guid, setId) {
+    const pending = this._pendingClosedTreeRestores.get(window);
+    if (pending) {
+      if (pending.snapshot.entries.some(entry => entry.guid == guid)) {
+        this._closedSetRestoringTabs.add(tab);
+      }
+      return;
+    }
+
+    let snapshot = setId ? this._closedTreeSets.get(setId) : null;
+    if (!snapshot) {
+      snapshot = Array.from(this._closedTreeSets.values()).find(candidate =>
+        candidate.entries.some(entry => entry.guid == guid)
+      );
+    }
+    if (!snapshot || !snapshot.entries.some(entry => entry.guid == guid)) {
+      return;
+    }
+    this._closedTreeSets.delete(snapshot.id);
+    const restore = { snapshot, requestedTab: tab };
+    this._pendingClosedTreeRestores.set(window, restore);
+    this._closedSetRestoringTabs.add(tab);
+    setTimeout(() => this._restoreClosedTreeSet(window, restore), 0);
+  },
+
+  _restoreClosedTreeSet(window, restore) {
+    if (this._pendingClosedTreeRestores.get(window) != restore) {
+      return;
+    }
+    const { snapshot, requestedTab } = restore;
+    this._restoringClosedTreeSets.add(window);
+    try {
+      this.ensureUniqueTabGuids(window);
+      const guidToTab = new Map();
+      for (const tab of this._getWindowTabs(window)) {
+        if (!tab.closing) {
+          const guid = this._getTabGuid(tab);
+          if (guid) {
+            guidToTab.set(guid, tab);
+          }
+        }
+      }
+
+      const closedByGuid = this._getClosedTabsByGuid(window);
+      for (const entry of snapshot.entries) {
+        if (entry.closedId == null) {
+          entry.closedId = closedByGuid.get(entry.guid)?.closedId ?? null;
+        }
+        let tab = guidToTab.get(entry.guid);
+        if (!tab && entry.closedId != null) {
+          try {
+            tab = lazy.SessionStore.undoCloseById(entry.closedId, true, window);
+          } catch {}
+        }
+        if (!tab && entry.state) {
+          tab = window.gBrowser.addTrustedTab("about:blank", {
+            createLazyBrowser: true,
+            skipAnimation: true,
+          });
+          lazy.SessionStore.setTabState(tab, entry.state);
+        }
+        if (tab) {
+          guidToTab.set(entry.guid, tab);
+          this._closedSetRestoringTabs.add(tab);
+        }
+      }
+
+      const restoredTabs = snapshot.entries
+        .map(entry => guidToTab.get(entry.guid))
+        .filter(Boolean);
+      if (restoredTabs.length < 2) {
+        return;
+      }
+
+      const before = guidToTab.get(snapshot.beforeGuid);
+      const after = guidToTab.get(snapshot.afterGuid);
+      if (after && !restoredTabs.includes(after)) {
+        window.gBrowser.moveTabsBefore(restoredTabs, after);
+      } else if (before && !restoredTabs.includes(before)) {
+        window.gBrowser.moveTabsAfter(restoredTabs, before);
+      } else {
+        let index = Math.min(
+          snapshot.entries[0].stripIndex,
+          window.gBrowser.tabs.length - restoredTabs.length
+        );
+        for (const tab of restoredTabs) {
+          window.gBrowser.moveTabTo(tab, { tabIndex: index++ });
+        }
+      }
+
+      for (const tab of restoredTabs) {
+        lazy.TreeTabsService.detachTab(tab);
+      }
+
+      for (const entry of snapshot.entries) {
+        const tab = guidToTab.get(entry.guid);
+        if (!tab) {
+          continue;
+        }
+        const parent = guidToTab.get(entry.parentGuid);
+        if (parent && !parent.pinned) {
+          const insertBefore = guidToTab.get(entry.insertBeforeGuid);
+          const insertAfter = guidToTab.get(entry.insertAfterGuid);
+          lazy.TreeTabsService.attachTab(tab, parent, {
+            insertBefore,
+            insertAfter,
+            index: entry.siblingIndex,
+            suppressAutoExpand: true,
+          });
+        } else {
+          lazy.TreeTabsService.detachTab(tab);
+          lazy.TreeTabsService.moveTabSubtree(tab, entry.siblingIndex);
+        }
+      }
+
+      if (requestedTab?.isConnected && !requestedTab.closing) {
+        window.gBrowser.selectedTab = requestedTab;
+      }
+      for (const entry of snapshot.entries) {
+        const tab = guidToTab.get(entry.guid);
+        if (!tab) {
+          continue;
+        }
+        if (entry.collapsed) {
+          lazy.TreeTabsService.collapseSubtree(tab);
+        } else {
+          lazy.TreeTabsService.expandSubtree(tab);
+        }
+      }
+    } finally {
+      this._pendingClosedTreeRestores.delete(window);
+      this._restoringClosedTreeSets.delete(window);
+      for (const entry of snapshot.entries) {
+        const tab = this._getWindowTabs(window).find(
+          candidate => this._getTabGuid(candidate) == entry.guid
+        );
+        if (tab) {
+          this._deleteTabJSON(tab, CLOSED_TREE_SET_ID_KEY);
+          this.saveTabState(tab, { force: true });
+        }
+      }
+      this.saveWindowStructure(window);
     }
   },
 
@@ -720,7 +1095,10 @@ export const TreeTabsStore = {
       this._pendingSaves.delete(window);
       return;
     }
-    if (this._restoringWindows.has(window)) {
+    if (
+      this._restoringWindows.has(window) ||
+      this._restoringClosedTreeSets.has(window)
+    ) {
       this._pendingSaves.delete(window);
       return;
     }
@@ -1006,6 +1384,12 @@ export const TreeTabsStore = {
       return;
     }
     lazy.TreeTabsMigration.writeTabKey(tab, key, json);
+  },
+
+  _deleteTabJSON(tab, key) {
+    if (tab) {
+      lazy.TreeTabsMigration.deleteTabKey(tab, key);
+    }
   },
 
   _writeWindowJSON(window, key, value) {

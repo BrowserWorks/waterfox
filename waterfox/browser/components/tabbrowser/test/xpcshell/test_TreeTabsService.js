@@ -1702,3 +1702,36 @@ add_task(function test_edge_case_max_depth_enforcement() {
   const roots = TreeTabsService.getRootTabs(win);
   assertSameTabSet(roots, [root, grandChild], "Grandchild remains a root tab");
 });
+
+add_task(function test_restore_snapshot_ignores_external_hints_without_nodes() {
+  setupTreeService();
+
+  const sourceWindow = createMockWindow();
+  const sourceHint = createMockTab(sourceWindow);
+  const sourceRoot = createMockTab(sourceWindow);
+  TreeTabsService.init(sourceWindow);
+  const snapshot = TreeTabsService.snapshotSubtree(sourceRoot);
+
+  const targetWindow = createMockWindow();
+  const targetHint = createMockTab(targetWindow);
+  TreeTabsService.init(targetWindow);
+
+  Assert.equal(
+    snapshot.insertAfter,
+    sourceHint,
+    "The snapshot has an external hint"
+  );
+  Assert.equal(
+    TreeTabsService.restoreSubtreeSnapshot(
+      snapshot,
+      new Map([[sourceHint, targetHint]])
+    ),
+    null,
+    "A map containing only external hints has no subtree to restore"
+  );
+  assertTabOrder(
+    TreeTabsService.getRootTabs(targetWindow),
+    [targetHint],
+    "The target tree is unchanged"
+  );
+});
