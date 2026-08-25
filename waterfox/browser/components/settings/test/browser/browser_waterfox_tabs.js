@@ -178,6 +178,106 @@ add_task(async function test_tree_auto_collapse_layout_and_binding() {
   }
 });
 
+add_task(async function test_ordinary_tree_bindings() {
+  const prefix = "browser.tabs.verticalTabs.tree.";
+  const bindings = [
+    ["auto-attach", "autoAttach", 1],
+    ["auto-collapse-on-select", "autoCollapse.onSelect", true],
+    ["auto-collapse-on-attach", "autoExpand.onAttach", true],
+    ["expand-native-group", "expandNativeGroupOnTreeExpand", true],
+    ["close-parent", "closeParentBehavior", 1],
+    ["successor", "successorControl", true],
+    ["drop-links", "dropLinksOnTab", 1],
+    ["double-click", "doubleClickBehavior", 1],
+    ["auto-group-pinned", "autoGroup.pinnedOpener", true],
+    ["bookmark-restore", "bookmarks.restoreTree", true],
+    ["bookmark-group", "bookmarks.autoGroup", true],
+    ["sticky-active", "sticky.activeTab", true],
+    ["propagate-muted", "propagateMutedState", true],
+  ];
+  await SpecialPowers.pushPrefEnv({
+    set: [
+      [prefix + "enabled", false],
+      ...bindings.map(([, name, value]) => [
+        prefix + name,
+        typeof value == "boolean" ? false : 0,
+      ]),
+    ],
+  });
+
+  let tab;
+  try {
+    tab = await openPrefsTab("tabsBrowsing");
+    const doc = tab.linkedBrowser.contentDocument;
+    const layout = await settingGroupRenders(doc, "browserLayout");
+    await layout.updateComplete;
+    const control = id => doc.getElementById(`waterfox-tree-${id}`);
+    await TestUtils.waitForCondition(
+      () => bindings.every(([id]) => control(id)?.disabled),
+      "All ordinary tree controls render disabled while tree tabs are off"
+    );
+
+    for (const [id, name, value] of bindings) {
+      const element = control(id);
+      const isToggle = typeof value == "boolean";
+      const readControl = () =>
+        isToggle ? element.pressed : Number(element.value);
+      await TestUtils.waitForCondition(
+        () => readControl() === (isToggle ? false : 0),
+        `${id} reflects its initial preference`
+      );
+      if (isToggle) {
+        Services.prefs.setBoolPref(prefix + name, value);
+      } else {
+        Services.prefs.setIntPref(prefix + name, value);
+      }
+      await TestUtils.waitForCondition(
+        () => readControl() === value,
+        `${id} observes external preference changes while disabled`
+      );
+    }
+
+    Services.prefs.setBoolPref(prefix + "enabled", true);
+    await TestUtils.waitForCondition(
+      () => bindings.every(([id]) => !control(id).disabled),
+      "All ordinary tree controls enable when the master preference turns on"
+    );
+    for (const [id, name, value] of bindings) {
+      const element = control(id);
+      const isToggle = typeof value == "boolean";
+      await element.updateComplete;
+      const changed = TestUtils.waitForPrefChange(prefix + name);
+      if (isToggle) {
+        synthesizeClick(element);
+      } else {
+        element.value = "0";
+        element.dispatchEvent(
+          new doc.defaultView.Event("change", { bubbles: true })
+        );
+      }
+      await changed;
+      is(
+        isToggle
+          ? Services.prefs.getBoolPref(prefix + name)
+          : Services.prefs.getIntPref(prefix + name),
+        isToggle ? false : 0,
+        `${id} writes its preference after a user change`
+      );
+    }
+
+    Services.prefs.setBoolPref(prefix + "enabled", false);
+    await TestUtils.waitForCondition(
+      () => bindings.every(([id]) => control(id).disabled),
+      "All ordinary tree controls disable when the master preference turns off"
+    );
+  } finally {
+    if (tab) {
+      BrowserTestUtils.removeTab(tab);
+    }
+    await SpecialPowers.popPrefEnv();
+  }
+});
+
 add_task(async function test_additional_tree_settings() {
   const prefix = "browser.tabs.verticalTabs.tree.";
   await SpecialPowers.pushPrefEnv({

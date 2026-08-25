@@ -374,9 +374,9 @@ export class SidebarCustomize extends SidebarPage {
     });
   }
 
-  #handleTreeVerticalTabsChange({ target: { checked } }) {
-    Services.prefs.setBoolPref(TREE_TABS_ENABLED_PREF, checked);
-    this.treeTabsEnabled = checked;
+  #handleTreeVerticalTabsChange(event) {
+    event.stopPropagation();
+    Services.prefs.setBoolPref(TREE_TABS_ENABLED_PREF, event.target.checked);
   }
 }
 

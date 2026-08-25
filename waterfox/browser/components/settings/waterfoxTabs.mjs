@@ -13,38 +13,12 @@ const AUTO_GROUP_PREF = "browser.tabs.autoGroupNewTabs";
 const PLACEMENT_PREF = "browser.tabs.autoGroupNewTabs.placement";
 
 const TREE_ENABLED_PREF = "browser.tabs.verticalTabs.tree.enabled";
-const TREE_AUTO_ATTACH_PREF = "browser.tabs.verticalTabs.tree.autoAttach";
-const TREE_AUTO_COLLAPSE_SELECT_PREF =
-  "browser.tabs.verticalTabs.tree.autoCollapse.onSelect";
-const TREE_AUTO_EXPAND_ATTACH_PREF =
-  "browser.tabs.verticalTabs.tree.autoExpand.onAttach";
-const TREE_CLOSE_PARENT_PREF =
-  "browser.tabs.verticalTabs.tree.closeParentBehavior";
-const TREE_DOUBLE_CLICK_PREF =
-  "browser.tabs.verticalTabs.tree.doubleClickBehavior";
-const TREE_STICKY_ACTIVE_PREF =
-  "browser.tabs.verticalTabs.tree.sticky.activeTab";
-const TREE_PROPAGATE_MUTED_PREF =
-  "browser.tabs.verticalTabs.tree.propagateMutedState";
 const TREE_MAX_DEPTH_PREF = "browser.tabs.verticalTabs.tree.maxDepth";
 const TREE_INDENT_PREF = "browser.tabs.verticalTabs.tree.indentPx";
-const TREE_SUCCESSOR_PREF = "browser.tabs.verticalTabs.tree.successorControl";
-const TREE_DROP_LINKS_PREF = "browser.tabs.verticalTabs.tree.dropLinksOnTab";
-const TREE_EXPAND_NATIVE_GROUP_PREF =
-  "browser.tabs.verticalTabs.tree.expandNativeGroupOnTreeExpand";
-const TREE_AUTO_GROUP_PINNED_PREF =
-  "browser.tabs.verticalTabs.tree.autoGroup.pinnedOpener";
-const TREE_BOOKMARK_RESTORE_PREF =
-  "browser.tabs.verticalTabs.tree.bookmarks.restoreTree";
-const TREE_BOOKMARK_GROUP_PREF =
-  "browser.tabs.verticalTabs.tree.bookmarks.autoGroup";
 const MAX_INT_PREF = 2147483647;
 let lastTreeMaxDepth = 6;
 
-// moz-input-number does not yet forward numeric bounds or validate changes.
-/**
- *
- */
+/** moz-input-number does not yet forward numeric bounds or validate changes. */
 class WaterfoxInputInteger extends MozInputNumber {
   static properties = { min: { type: Number } };
 
@@ -149,6 +123,158 @@ const TOGGLES = [
   },
 ];
 
+const TREE_CONTROLS = [
+  {
+    id: "waterfox-tree-auto-attach",
+    l10nId: "waterfox-tabs-tree-auto-attach-select",
+    pref: "browser.tabs.verticalTabs.tree.autoAttach",
+    control: "moz-select",
+    options: [
+      {
+        value: 0,
+        l10nId: "waterfox-tabs-tree-auto-attach-option-root",
+      },
+      {
+        value: 1,
+        l10nId: "waterfox-tabs-tree-auto-attach-option-child",
+      },
+      {
+        value: 2,
+        l10nId: "waterfox-tabs-tree-auto-attach-option-sibling",
+      },
+    ],
+  },
+  {
+    id: "waterfox-tree-auto-collapse-on-select",
+    l10nId: "waterfox-tabs-tree-auto-collapse-on-select-toggle",
+    pref: "browser.tabs.verticalTabs.tree.autoCollapse.onSelect",
+    control: "moz-toggle",
+    controlAttrs: {
+      searchkeywords:
+        "auto collapse auto-collapse automatic collapse expand tree tabs branches selection switch",
+    },
+  },
+  {
+    id: "waterfox-tree-auto-collapse-on-attach",
+    l10nId: "waterfox-tabs-tree-auto-collapse-on-attach-toggle",
+    pref: "browser.tabs.verticalTabs.tree.autoExpand.onAttach",
+    control: "moz-toggle",
+  },
+  {
+    id: "waterfox-tree-expand-native-group",
+    l10nId: "waterfox-tabs-tree-expand-native-group-toggle",
+    pref: "browser.tabs.verticalTabs.tree.expandNativeGroupOnTreeExpand",
+    control: "moz-toggle",
+    controlAttrs: {
+      searchkeywords: "expand open branch native tab group tree",
+    },
+  },
+  {
+    id: "waterfox-tree-close-parent",
+    l10nId: "waterfox-tabs-tree-close-parent-select",
+    pref: "browser.tabs.verticalTabs.tree.closeParentBehavior",
+    control: "moz-select",
+    options: [
+      {
+        value: 0,
+        l10nId: "waterfox-tabs-tree-close-parent-option-promote-first",
+      },
+      {
+        value: 1,
+        l10nId: "waterfox-tabs-tree-close-parent-option-promote-all",
+      },
+      {
+        value: 2,
+        l10nId: "waterfox-tabs-tree-close-parent-option-close-all",
+      },
+      {
+        value: 3,
+        l10nId: "waterfox-tabs-tree-close-parent-option-detach",
+      },
+      {
+        value: 4,
+        l10nId: "waterfox-tabs-tree-close-parent-option-group",
+      },
+    ],
+  },
+  {
+    id: "waterfox-tree-successor",
+    l10nId: "waterfox-tabs-tree-successor-toggle",
+    pref: "browser.tabs.verticalTabs.tree.successorControl",
+    control: "moz-toggle",
+    controlAttrs: {
+      searchkeywords: "successor close next active selected tab tree",
+    },
+  },
+  {
+    id: "waterfox-tree-drop-links",
+    l10nId: "waterfox-tabs-tree-drop-links-select",
+    pref: "browser.tabs.verticalTabs.tree.dropLinksOnTab",
+    control: "moz-select",
+    controlAttrs: {
+      searchkeywords: "drag drop links ask remember child tabs tree",
+    },
+    options: [
+      { value: 0, l10nId: "waterfox-tabs-tree-drop-links-option-load" },
+      { value: 1, l10nId: "waterfox-tabs-tree-drop-links-option-ask" },
+      {
+        value: 2,
+        l10nId: "waterfox-tabs-tree-drop-links-option-child",
+      },
+    ],
+  },
+  {
+    id: "waterfox-tree-double-click",
+    l10nId: "waterfox-tabs-tree-double-click-select",
+    pref: "browser.tabs.verticalTabs.tree.doubleClickBehavior",
+    control: "moz-select",
+    options: [
+      {
+        value: 0,
+        l10nId: "waterfox-tabs-tree-double-click-option-toggle",
+      },
+      {
+        value: 1,
+        l10nId: "waterfox-tabs-tree-double-click-option-close",
+      },
+      {
+        value: 2,
+        l10nId: "waterfox-tabs-tree-double-click-option-none",
+      },
+    ],
+  },
+  {
+    id: "waterfox-tree-auto-group-pinned",
+    l10nId: "waterfox-tabs-tree-auto-group-pinned-toggle",
+    pref: "browser.tabs.verticalTabs.tree.autoGroup.pinnedOpener",
+    control: "moz-toggle",
+  },
+  {
+    id: "waterfox-tree-bookmark-restore",
+    l10nId: "waterfox-tabs-tree-bookmark-restore-toggle",
+    pref: "browser.tabs.verticalTabs.tree.bookmarks.restoreTree",
+    control: "moz-toggle",
+  },
+  {
+    id: "waterfox-tree-bookmark-group",
+    l10nId: "waterfox-tabs-tree-bookmark-group-toggle",
+    pref: "browser.tabs.verticalTabs.tree.bookmarks.autoGroup",
+    control: "moz-toggle",
+  },
+  {
+    id: "waterfox-tree-sticky-active",
+    l10nId: "waterfox-tabs-tree-sticky-active-toggle",
+    pref: "browser.tabs.verticalTabs.tree.sticky.activeTab",
+    control: "moz-toggle",
+  },
+  {
+    id: "waterfox-tree-propagate-muted",
+    l10nId: "waterfox-tabs-tree-propagate-muted-toggle",
+    pref: "browser.tabs.verticalTabs.tree.propagateMutedState",
+    control: "moz-toggle",
+  },
+];
+
 // sidebar.verticalTabs is already registered by the Mozilla pane module,
 // so the dependency watches the pref directly instead of re adding it.
 Preferences.addAll([
@@ -156,21 +282,12 @@ Preferences.addAll([
   { id: BOOKMARKS_POSITION_PREF, type: "string" },
   { id: AUTO_GROUP_PREF, type: "bool" },
   { id: PLACEMENT_PREF, type: "string" },
-  { id: TREE_AUTO_ATTACH_PREF, type: "int" },
-  { id: TREE_AUTO_COLLAPSE_SELECT_PREF, type: "bool" },
-  { id: TREE_AUTO_EXPAND_ATTACH_PREF, type: "bool" },
-  { id: TREE_CLOSE_PARENT_PREF, type: "int" },
-  { id: TREE_DOUBLE_CLICK_PREF, type: "int" },
-  { id: TREE_STICKY_ACTIVE_PREF, type: "bool" },
-  { id: TREE_PROPAGATE_MUTED_PREF, type: "bool" },
   { id: TREE_MAX_DEPTH_PREF, type: "int" },
   { id: TREE_INDENT_PREF, type: "int" },
-  { id: TREE_SUCCESSOR_PREF, type: "bool" },
-  { id: TREE_DROP_LINKS_PREF, type: "int" },
-  { id: TREE_EXPAND_NATIVE_GROUP_PREF, type: "bool" },
-  { id: TREE_AUTO_GROUP_PINNED_PREF, type: "bool" },
-  { id: TREE_BOOKMARK_RESTORE_PREF, type: "bool" },
-  { id: TREE_BOOKMARK_GROUP_PREF, type: "bool" },
+  ...TREE_CONTROLS.map(({ pref, control }) => ({
+    id: pref,
+    type: control == "moz-toggle" ? "bool" : "int",
+  })),
   ...TOGGLES.map(toggle => ({
     id: toggle.pref,
     type: "bool",
@@ -235,21 +352,7 @@ Preferences.addSetting({
 
 // Every tree behavior control follows the master switch and greys out while
 // the tree is off.
-for (let [id, pref] of [
-  ["waterfox-tree-auto-attach", TREE_AUTO_ATTACH_PREF],
-  ["waterfox-tree-auto-collapse-on-select", TREE_AUTO_COLLAPSE_SELECT_PREF],
-  ["waterfox-tree-auto-collapse-on-attach", TREE_AUTO_EXPAND_ATTACH_PREF],
-  ["waterfox-tree-close-parent", TREE_CLOSE_PARENT_PREF],
-  ["waterfox-tree-double-click", TREE_DOUBLE_CLICK_PREF],
-  ["waterfox-tree-sticky-active", TREE_STICKY_ACTIVE_PREF],
-  ["waterfox-tree-propagate-muted", TREE_PROPAGATE_MUTED_PREF],
-  ["waterfox-tree-successor", TREE_SUCCESSOR_PREF],
-  ["waterfox-tree-drop-links", TREE_DROP_LINKS_PREF],
-  ["waterfox-tree-expand-native-group", TREE_EXPAND_NATIVE_GROUP_PREF],
-  ["waterfox-tree-auto-group-pinned", TREE_AUTO_GROUP_PINNED_PREF],
-  ["waterfox-tree-bookmark-restore", TREE_BOOKMARK_RESTORE_PREF],
-  ["waterfox-tree-bookmark-group", TREE_BOOKMARK_GROUP_PREF],
-]) {
+for (let { id, pref } of TREE_CONTROLS) {
   Preferences.addSetting({
     id,
     pref,
@@ -451,142 +554,7 @@ SettingGroupManager.registerGroups({
               searchkeywords: "tree style tabs nesting vertical",
             },
           },
-          {
-            id: "waterfox-tree-auto-attach",
-            l10nId: "waterfox-tabs-tree-auto-attach-select",
-            control: "moz-select",
-            options: [
-              {
-                value: 0,
-                l10nId: "waterfox-tabs-tree-auto-attach-option-root",
-              },
-              {
-                value: 1,
-                l10nId: "waterfox-tabs-tree-auto-attach-option-child",
-              },
-              {
-                value: 2,
-                l10nId: "waterfox-tabs-tree-auto-attach-option-sibling",
-              },
-            ],
-          },
-          {
-            id: "waterfox-tree-auto-collapse-on-select",
-            l10nId: "waterfox-tabs-tree-auto-collapse-on-select-toggle",
-            control: "moz-toggle",
-            controlAttrs: {
-              searchkeywords:
-                "auto collapse auto-collapse automatic collapse expand tree tabs branches selection switch",
-            },
-          },
-          {
-            id: "waterfox-tree-auto-collapse-on-attach",
-            l10nId: "waterfox-tabs-tree-auto-collapse-on-attach-toggle",
-            control: "moz-toggle",
-          },
-          {
-            id: "waterfox-tree-expand-native-group",
-            l10nId: "waterfox-tabs-tree-expand-native-group-toggle",
-            control: "moz-toggle",
-            controlAttrs: {
-              searchkeywords: "expand open branch native tab group tree",
-            },
-          },
-          {
-            id: "waterfox-tree-close-parent",
-            l10nId: "waterfox-tabs-tree-close-parent-select",
-            control: "moz-select",
-            options: [
-              {
-                value: 0,
-                l10nId: "waterfox-tabs-tree-close-parent-option-promote-first",
-              },
-              {
-                value: 1,
-                l10nId: "waterfox-tabs-tree-close-parent-option-promote-all",
-              },
-              {
-                value: 2,
-                l10nId: "waterfox-tabs-tree-close-parent-option-close-all",
-              },
-              {
-                value: 3,
-                l10nId: "waterfox-tabs-tree-close-parent-option-detach",
-              },
-              {
-                value: 4,
-                l10nId: "waterfox-tabs-tree-close-parent-option-group",
-              },
-            ],
-          },
-          {
-            id: "waterfox-tree-successor",
-            l10nId: "waterfox-tabs-tree-successor-toggle",
-            control: "moz-toggle",
-            controlAttrs: {
-              searchkeywords: "successor close next active selected tab tree",
-            },
-          },
-          {
-            id: "waterfox-tree-drop-links",
-            l10nId: "waterfox-tabs-tree-drop-links-select",
-            control: "moz-select",
-            controlAttrs: {
-              searchkeywords: "drag drop links ask remember child tabs tree",
-            },
-            options: [
-              { value: 0, l10nId: "waterfox-tabs-tree-drop-links-option-load" },
-              { value: 1, l10nId: "waterfox-tabs-tree-drop-links-option-ask" },
-              {
-                value: 2,
-                l10nId: "waterfox-tabs-tree-drop-links-option-child",
-              },
-            ],
-          },
-          {
-            id: "waterfox-tree-double-click",
-            l10nId: "waterfox-tabs-tree-double-click-select",
-            control: "moz-select",
-            options: [
-              {
-                value: 0,
-                l10nId: "waterfox-tabs-tree-double-click-option-toggle",
-              },
-              {
-                value: 1,
-                l10nId: "waterfox-tabs-tree-double-click-option-close",
-              },
-              {
-                value: 2,
-                l10nId: "waterfox-tabs-tree-double-click-option-none",
-              },
-            ],
-          },
-          {
-            id: "waterfox-tree-auto-group-pinned",
-            l10nId: "waterfox-tabs-tree-auto-group-pinned-toggle",
-            control: "moz-toggle",
-          },
-          {
-            id: "waterfox-tree-bookmark-restore",
-            l10nId: "waterfox-tabs-tree-bookmark-restore-toggle",
-            control: "moz-toggle",
-          },
-          {
-            id: "waterfox-tree-bookmark-group",
-            l10nId: "waterfox-tabs-tree-bookmark-group-toggle",
-            control: "moz-toggle",
-          },
-          {
-            id: "waterfox-tree-sticky-active",
-            l10nId: "waterfox-tabs-tree-sticky-active-toggle",
-            control: "moz-toggle",
-          },
-          {
-            id: "waterfox-tree-propagate-muted",
-            l10nId: "waterfox-tabs-tree-propagate-muted-toggle",
-            control: "moz-toggle",
-          },
+          ...TREE_CONTROLS.map(({ pref: _pref, ...item }) => item),
           {
             id: "waterfox-tree-indent",
             l10nId: "waterfox-tabs-tree-indent-input",
