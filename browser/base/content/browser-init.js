@@ -876,10 +876,14 @@ var gBrowserInit = {
       // We don't check if uriToLoad is a XULElement because this case has
       // already been handled before first paint, and the argument cleared.
       if (Array.isArray(uriToLoad)) {
+        // Optional one-shot handoff of ordered startup tabs, including the
+        // reused first tab.
+        const onInitialTabsLoaded = window._onInitialTabsLoaded;
+        delete window._onInitialTabsLoaded;
         // This function throws for certain malformed URIs, so use exception handling
         // so that we don't disrupt startup
         try {
-          gBrowser.loadTabs(uriToLoad, {
+          const tabs = gBrowser.loadTabs(uriToLoad, {
             inBackground: false,
             replace: true,
             // See below for the semantics of window.arguments. Only the minimum is supported.
@@ -891,6 +895,7 @@ var gBrowserInit = {
             policyContainer: window.arguments[10],
             fromExternal: true,
           });
+          onInitialTabsLoaded?.(tabs);
         } catch (e) {}
       } else if (window.arguments.length >= 3) {
         // window.arguments[1]: extraOptions (nsIPropertyBag)
