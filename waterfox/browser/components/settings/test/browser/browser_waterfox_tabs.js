@@ -178,6 +178,102 @@ add_task(async function test_tree_auto_collapse_layout_and_binding() {
   }
 });
 
+add_task(async function test_additional_tree_settings() {
+  const prefix = "browser.tabs.verticalTabs.tree.";
+  await SpecialPowers.pushPrefEnv({
+    set: [
+      [prefix + "enabled", true],
+      [prefix + "successorControl", true],
+      [prefix + "expandNativeGroupOnTreeExpand", true],
+      [prefix + "dropLinksOnTab", 2],
+      [prefix + "indentPx", 16],
+      [prefix + "maxDepth", -1],
+    ],
+  });
+  let tab;
+  try {
+    tab = await openPrefsTab("tabsBrowsing");
+    const doc = tab.linkedBrowser.contentDocument;
+    const layout = await settingGroupRenders(doc, "browserLayout");
+    await layout.updateComplete;
+    const control = id => doc.getElementById(`waterfox-tree-${id}`);
+    const input = async (element, value) => {
+      element.inputEl.value = String(value);
+      for (const type of ["input", "change"]) {
+        element.inputEl.dispatchEvent(
+          new doc.defaultView.Event(type, { bubbles: true })
+        );
+      }
+      await element.updateComplete;
+    };
+    const bindings = [
+      ["successor", "successorControl", false],
+      ["expand-native-group", "expandNativeGroupOnTreeExpand", false],
+      ["drop-links", "dropLinksOnTab", 1],
+      ["indent", "indentPx", 24],
+    ];
+    for (const [id, name, value] of bindings) {
+      const changed = TestUtils.waitForPrefChange(prefix + name);
+      if (typeof value == "boolean") {
+        synthesizeClick(control(id));
+      } else {
+        await input(control(id), value);
+      }
+      await changed;
+      const actual =
+        typeof value == "boolean"
+          ? Services.prefs.getBoolPref(prefix + name)
+          : Services.prefs.getIntPref(prefix + name);
+      is(
+        actual,
+        value,
+        `${id} writes its preference, including returning link drops to Ask`
+      );
+    }
+
+    await input(control("indent"), "");
+    is(
+      Services.prefs.getIntPref(prefix + "indentPx"),
+      24,
+      "Empty input does not overwrite indentation"
+    );
+    synthesizeClick(control("limit-depth"));
+    await TestUtils.waitForCondition(() => !control("max-depth").disabled);
+    for (const value of [0, 1, 12]) {
+      await input(control("max-depth"), value);
+      is(
+        Services.prefs.getIntPref(prefix + "maxDepth"),
+        value,
+        `Depth ${value} is available`
+      );
+    }
+    for (const value of [-1, 12]) {
+      const changed = TestUtils.waitForPrefChange(prefix + "maxDepth");
+      synthesizeClick(control("limit-depth"));
+      await changed;
+      is(
+        Services.prefs.getIntPref(prefix + "maxDepth"),
+        value,
+        "Unlimited nesting and the last finite limit can be restored"
+      );
+      await control("limit-depth").updateComplete;
+    }
+    Services.prefs.setBoolPref(prefix + "enabled", false);
+    await TestUtils.waitForCondition(
+      () =>
+        [...bindings.map(([id]) => id), "limit-depth", "max-depth"].every(
+          id => control(id).disabled
+        ),
+      "The new controls follow the tree master switch"
+    );
+  } finally {
+    if (tab) {
+      BrowserTestUtils.removeTab(tab);
+    }
+    await SpecialPowers.popPrefEnv();
+  }
+});
+
 add_task(async function test_grouping_placement_follows_master() {
   let tab = await openPrefsTab("tabsBrowsing");
   let doc = tab.linkedBrowser.contentDocument;

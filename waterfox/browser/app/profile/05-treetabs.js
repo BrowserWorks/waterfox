@@ -34,6 +34,7 @@ pref("browser.tabs.verticalTabs.tree.dropLinksOnTab", 1);
 pref("browser.tabs.verticalTabs.tree.autoGroup.pinnedOpener", true);
 pref("browser.tabs.verticalTabs.tree.bookmarks.restoreTree", true);
 pref("browser.tabs.verticalTabs.tree.bookmarks.autoGroup", true);
+pref("browser.tabs.verticalTabs.tree.expandNativeGroupOnTreeExpand", true);
 
 // Deepest nesting level allowed, -1 for no limit.
 pref("browser.tabs.verticalTabs.tree.maxDepth", -1);
