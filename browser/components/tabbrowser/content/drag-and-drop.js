@@ -635,7 +635,9 @@
 
         if (targetGroup && adoptedTabMap.size) {
           targetGroup.addTabs(
-            Array.from(adoptedTabMap.values()),
+            Array.from(adoptedTabMap.values()).sort(
+              (a, b) => a._tPos - b._tPos
+            ),
             dropMetricsContext
           );
         }
