@@ -51,3 +51,5 @@ support-files = ["head.js"]
 ["browser_tree_tabs_rendering.js"]
 
 ["browser_tree_tabs_restore.js"]
+
+["browser_tree_tabs_split_view.js"]

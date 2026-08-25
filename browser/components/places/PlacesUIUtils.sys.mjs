@@ -797,8 +797,8 @@ export var PlacesUIUtils = {
     );
     if (root && previousTab) {
       const service = browserWindow.gBrowser.TreeTabsService;
-      const previous = previousTab;
-      const next = nextTab;
+      const previous = previousTab.splitview?.tabs?.[0] || previousTab;
+      const next = nextTab?.splitview?.tabs?.[0] || nextTab;
       let parent = service.getParent(previous);
       let options = { insertAfter: previous, suppressAutoExpand: true };
       if (next && service.getParent(next) == previous) {

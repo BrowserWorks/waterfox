@@ -5750,9 +5750,16 @@
       const treeCloseIsUserTriggered = isUserTriggered || !!triggeringEvent;
       let startedClosedTreeSet = false;
       if (treeTabs.enabled) {
-        const closeSet = treeTabs.getTabsClosingWith(aTab, {
-          isUserTriggered: treeCloseIsUserTriggered,
-        });
+        const hasSurvivingSplitPane = Array.from(
+          aTab.splitview?.tabs || []
+        ).some(
+          tab => tab != aTab && !tab.closing && !tab._closedInMultiselection
+        );
+        const closeSet = hasSurvivingSplitPane
+          ? [aTab]
+          : treeTabs.getTabsClosingWith(aTab, {
+              isUserTriggered: treeCloseIsUserTriggered,
+            });
         if (!this.TreeTabsStore.hasActiveClosedTreeSet(window)) {
           if (closeSet.length > 1) {
             startedClosedTreeSet = !!this.TreeTabsStore.beginClosedTreeSet(
@@ -7010,7 +7017,9 @@
           contextTab,
           ...this.TreeTabsService.getDescendants(contextTab),
         ];
-        elements = treeTabsToMove;
+        elements = [
+          ...new Set(treeTabsToMove.map(tab => tab.splitview ?? tab)),
+        ];
       } else {
         elements = [contextTab.splitview ?? contextTab];
       }
@@ -7131,9 +7140,15 @@
             if (element !== selectedTab && element !== selectedTab.splitview) {
               let newTab;
               if (win.gBrowser.isSplitViewWrapper(element)) {
+                const oldTabs = Array.from(element.tabs);
                 newTab = win.gBrowser.adoptSplitView(element, {
                   elementIndex: tabIndex,
                 });
+                if (newTab) {
+                  for (let i = 0; i < oldTabs.length; i += 1) {
+                    adoptedTabMap.set(oldTabs[i], newTab.tabs[i]);
+                  }
+                }
               } else {
                 newTab = win.gBrowser.adoptTab(element, { tabIndex });
                 if (newTab) {

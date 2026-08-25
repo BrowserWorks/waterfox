@@ -585,6 +585,7 @@
             selectedTab = tab;
             indexForSelectedTab = newIndex;
           } else if (isSplitViewWrapper(tab)) {
+            const oldSplitTabs = tab.tabs.slice();
             const droppedIntoPinnedArea = dropIndex < gBrowser.pinnedTabCount;
             const newSplitView = gBrowser.adoptSplitView(tab, {
               elementIndex: droppedIntoPinnedArea
@@ -593,6 +594,12 @@
               selectTab: true,
             });
             if (newSplitView) {
+              for (let index = 0; index < oldSplitTabs.length; index++) {
+                const adoptedTab = newSplitView.tabs[index];
+                if (adoptedTab) {
+                  adoptedTabMap.set(oldSplitTabs[index], adoptedTab);
+                }
+              }
               if (droppedIntoPinnedArea) {
                 unpinnedSplitViews.push(newSplitView);
               } else {
@@ -717,7 +724,9 @@
 
           let nextItem = this._tabbrowserTabs.dragAndDropElements[newIndex];
           let tabGroup =
-            targetTab?.group || (isTab(nextItem) && nextItem.group);
+            targetTab?.group ||
+            ((isTab(nextItem) || isSplitViewWrapper(nextItem)) &&
+              nextItem.group);
           gBrowser.loadTabs(urls, {
             inBackground,
             replace,
