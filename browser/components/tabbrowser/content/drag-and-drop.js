@@ -435,6 +435,14 @@
           shouldTranslate &&= oldTranslateX && oldTranslateX != newTranslateX;
         }
 
+        let finishTreeDrop = () => {
+          window.TreeTabsDnD?.afterSameWindowDrop?.(
+            this._tabbrowserTabs,
+            event,
+            { draggedTab, dropEffect, state: treeDropState }
+          );
+        };
+
         let moveTabs = () => {
           if (dropIndex !== undefined) {
             for (let tab of movingTabs) {
@@ -468,11 +476,7 @@
             this._expandGroupOnDrop(draggedTab);
           }
 
-          window.TreeTabsDnD?.afterSameWindowDrop?.(
-            this._tabbrowserTabs,
-            event,
-            { draggedTab, dropEffect, state: treeDropState }
-          );
+          finishTreeDrop();
         };
 
         if (shouldPin || shouldUnpin) {
@@ -536,6 +540,7 @@
               color: draggedTab._dragData.tabGroupCreationColor,
               telemetryUserCreateSource: "drag",
             });
+            finishTreeDrop();
           } else if (
             shouldDropIntoCollapsedTabGroup &&
             isTabGroupLabel(dropElement) &&
@@ -548,6 +553,7 @@
             if (dropElement.group != draggedTab.group) {
               dropElement.group.addTabs(movingTabs, dropMetricsContext);
             }
+            finishTreeDrop();
           } else {
             moveTabs();
             this._tabbrowserTabs._notifyBackgroundTab(movingTabs.at(-1));
@@ -564,6 +570,9 @@
       } else if (draggedTab) {
         // Move the tabs into this window. To avoid multiple tab-switches in
         // the original window, the selected tab should be adopted last.
+        const targetGroup = this._getDragTarget(event, {
+          ignoreSides: true,
+        })?.group;
         const dropIndex = this._getDropIndex(event);
         let newIndex = dropIndex;
         let selectedTab;
@@ -610,6 +619,13 @@
             adoptedTabMap.set(selectedTab, newTab);
             ++newIndex;
           }
+        }
+
+        if (targetGroup && adoptedTabMap.size) {
+          targetGroup.addTabs(
+            Array.from(adoptedTabMap.values()),
+            dropMetricsContext
+          );
         }
 
         window.TreeTabsDnD?.afterCrossWindowDrop?.(
@@ -700,7 +716,8 @@
           }
 
           let nextItem = this._tabbrowserTabs.dragAndDropElements[newIndex];
-          let tabGroup = isTab(nextItem) && nextItem.group;
+          let tabGroup =
+            targetTab?.group || (isTab(nextItem) && nextItem.group);
           gBrowser.loadTabs(urls, {
             inBackground,
             replace,
