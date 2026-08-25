@@ -124,3 +124,57 @@ add_task(async function test_tree_tabs_keyboard_navigation() {
 
   BrowserTestUtils.removeTab(otherRootTab);
 });
+
+add_task(async function test_global_tree_navigation_shortcuts() {
+  await enableTreeTabs();
+
+  const parentTab = BrowserTestUtils.addTab(
+    gBrowser,
+    "about:blank?waterfox-tree-global-key-parent"
+  );
+  const childTab = await openTabWithTree(
+    parentTab,
+    "about:blank?waterfox-tree-global-key-child"
+  );
+
+  const modifiers =
+    Services.appinfo.OS == "Darwin"
+      ? { ctrlKey: true, shiftKey: true }
+      : { altKey: true, shiftKey: true };
+  window.dispatchEvent(
+    new KeyboardEvent("keydown", {
+      ...modifiers,
+      key: "ArrowRight",
+      bubbles: true,
+      cancelable: true,
+    })
+  );
+  await waitForTreeCondition(
+    () => gBrowser.selectedTab == childTab,
+    "Waiting for the global shortcut to select the first child"
+  );
+  is(
+    gBrowser.selectedTab,
+    childTab,
+    "Global ArrowRight selects the first tree child"
+  );
+
+  gURLBar.focus();
+  gURLBar.inputField.dispatchEvent(
+    new KeyboardEvent("keydown", {
+      ...modifiers,
+      key: "ArrowLeft",
+      bubbles: true,
+      cancelable: true,
+      composed: true,
+    })
+  );
+  is(
+    gBrowser.selectedTab,
+    childTab,
+    "Global tree shortcuts do not capture editable chrome controls"
+  );
+
+  BrowserTestUtils.removeTab(childTab);
+  BrowserTestUtils.removeTab(parentTab);
+});
