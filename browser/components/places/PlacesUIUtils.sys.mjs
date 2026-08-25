@@ -817,6 +817,15 @@ export var PlacesUIUtils = {
     }
 
     lazy.TreeTabsStore.completeExternalRestore(browserWindow);
+    for (const tab of tabs) {
+      if (tab != browserWindow.gBrowser.selectedTab && !tab.pinned) {
+        void browserWindow.gBrowser.prepareDiscardBrowser(tab).then(() => {
+          if (tab.isConnected && !tab.selected && !tab.closing) {
+            browserWindow.gBrowser.discardBrowser(tab, true);
+          }
+        });
+      }
+    }
   },
 
   /**
