@@ -13,27 +13,20 @@ ChromeUtils.defineESModuleGetters(lazy, {
 
 export const TreeTabsBookmarks = {
   parseStructure(items) {
-    const lastItemIndicesWithLevel = new Map();
-    let lastLevel = 0;
+    const ancestors = [];
 
     return items.map((item, index) => {
       const match = item.title.match(BOOKMARK_TITLE_DESCENDANT_MATCHER);
       if (index == 0 || !match) {
-        lastItemIndicesWithLevel.clear();
-        lastItemIndicesWithLevel.set(0, index);
-        lastLevel = 0;
+        ancestors.length = 0;
+        ancestors.push(index);
         return { parent: null, title: item.title };
       }
 
-      const level = Math.min(match[1].length, lastLevel + 1);
-      while (lastLevel >= level) {
-        lastItemIndicesWithLevel.delete(lastLevel);
-        lastLevel -= 1;
-      }
-
-      const parent = lastItemIndicesWithLevel.get(level - 1);
-      lastItemIndicesWithLevel.set(level, index);
-      lastLevel = level;
+      const level = Math.min(match[1].length, ancestors.length);
+      ancestors.length = level;
+      const parent = ancestors[level - 1];
+      ancestors.push(index);
       return {
         parent,
         title: item.title.slice(match[0].length),
