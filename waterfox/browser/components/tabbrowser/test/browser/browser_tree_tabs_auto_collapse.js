@@ -87,3 +87,83 @@ add_task(async function test_tree_tabs_auto_collapse_on_select() {
   BrowserTestUtils.removeTab(childB);
   BrowserTestUtils.removeTab(rootB);
 });
+
+add_task(
+  async function test_auto_collapse_expands_selected_branch_and_keeps_manual_tree() {
+    await enableTreeTabs();
+    Services.prefs.setBoolPref(PREF_TREE_AUTO_COLLAPSE_ON_SELECT, true);
+
+    const firstRoot = gBrowser.selectedTab;
+    const branch = await openTabWithTree(firstRoot, "about:blank");
+    const leaf = await openTabWithTree(branch, "about:blank");
+    const manualRoot = BrowserTestUtils.addTab(
+      gBrowser,
+      "about:blank?waterfox-tree-manual-expanded-root"
+    );
+    const manualChild = await openTabWithTree(manualRoot, "about:blank");
+
+    gBrowser.TreeTabsService.collapseSubtree(branch);
+    await userSelectTab(branch);
+    await waitForTreeCondition(
+      () => !gBrowser.TreeTabsService.isCollapsed(branch),
+      "Waiting for the selected nested branch to expand"
+    );
+    ok(
+      !gBrowser.TreeTabsService.isCollapsed(branch),
+      "Selecting a collapsed nested parent expands its subtree"
+    );
+
+    gBrowser.TreeTabsService.collapseSubtree(manualRoot);
+    const menu = await openTabContextMenu(manualRoot);
+    const expandItem = document.getElementById("context_expandTree");
+    const hidden = BrowserTestUtils.waitForPopupEvent(menu, "hidden");
+    menu.activateItem(expandItem);
+    await hidden;
+    await userSelectTab(leaf);
+    await waitForTreeUpdate();
+
+    ok(
+      !gBrowser.TreeTabsService.isCollapsed(manualRoot),
+      "A manually expanded tree is preserved while another branch is selected"
+    );
+
+    const newChild = gBrowser.addTrustedTab("about:blank", {
+      openerBrowser: manualChild.linkedBrowser,
+      skipAnimation: true,
+    });
+    await userSelectTab(newChild);
+    await userSelectTab(leaf);
+    ok(
+      !isTreeHidden(newChild),
+      "A new descendant stays visible in a manually expanded tree"
+    );
+    ok(
+      !gBrowser.TreeTabsService.isCollapsed(manualRoot),
+      "Opening a new subtab does not undo manual expansion"
+    );
+
+    gBrowser.TreeTabsService.collapseSubtree(firstRoot);
+    gBrowser.TreeTabsService.collapseSubtree(manualRoot);
+    const allMenu = await openTabContextMenu(manualRoot);
+    const allHidden = BrowserTestUtils.waitForPopupEvent(allMenu, "hidden");
+    allMenu.activateItem(document.getElementById("context_expandAll"));
+    await allHidden;
+    const anotherChild = gBrowser.addTrustedTab("about:blank", {
+      openerBrowser: newChild.linkedBrowser,
+      skipAnimation: true,
+    });
+    await userSelectTab(anotherChild);
+    await userSelectTab(leaf);
+    ok(
+      !isTreeHidden(anotherChild),
+      "Expand All Trees remains effective after opening a new subtab"
+    );
+
+    BrowserTestUtils.removeTab(anotherChild);
+    BrowserTestUtils.removeTab(newChild);
+    BrowserTestUtils.removeTab(manualChild);
+    BrowserTestUtils.removeTab(manualRoot);
+    BrowserTestUtils.removeTab(leaf);
+    BrowserTestUtils.removeTab(branch);
+  }
+);

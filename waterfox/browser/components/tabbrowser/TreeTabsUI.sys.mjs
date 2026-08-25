@@ -705,6 +705,7 @@ function createTreeTabsController(window) {
     _twistyHoverTab: null,
     _twistyInlinePaddingPx: null,
     _resizeObserver: null,
+    _orientationObserver: null,
     _tabContextMenu: null,
     _isWindowRestoring: false,
     _autoCollapseInProgress: false,
@@ -712,7 +713,9 @@ function createTreeTabsController(window) {
     _restoreRetryActive: false,
     _restoreRetryTimerId: null,
     _inheritedMuteTabs: new WeakSet(),
+    _manuallyExpandedTabs: new WeakSet(),
     _newTabButton: null,
+    _newTabActionButton: null,
     _dragAutoExpandedTabs: new Set(),
     _dragHoverExpandTab: null,
     _dragHoverExpandTimer: null,
@@ -760,7 +763,7 @@ function createTreeTabsController(window) {
       this._tabContainer.addEventListener("mousemove", this);
       this._tabContainer.addEventListener("mouseleave", this);
       this._tabContainer.addEventListener("mousedown", this, true);
-      this._tabContainer.addEventListener("click", this);
+      this._tabContainer.addEventListener("click", this, true);
       this._tabContainer.addEventListener("dblclick", this);
       this._tabContainer.addEventListener("keydown", this);
       this._tabContainer.addEventListener("dragover", this);
@@ -775,16 +778,35 @@ function createTreeTabsController(window) {
         "vertical-tabs-newtab-button"
       );
       this._newTabButton?.addEventListener("click", this, true);
+      this._newTabActionButton = document.getElementById(
+        "waterfox-tree-newtab-action-button"
+      );
+      this._newTabActionButton?.addEventListener("command", this);
+      this._newTabActionButton?.addEventListener("popupshowing", this);
 
       if (this._verticalTabsBox) {
         this._resizeObserver = new window.ResizeObserver(() => {
           this._invalidateTwistyHitMetrics();
+          this._updateNewTabActionButton();
           if (this._isEnabled()) {
             this._updateAllTabs();
           }
         });
         this._resizeObserver.observe(this._verticalTabsBox);
       }
+
+      this._orientationObserver = new window.MutationObserver(() => {
+        this._cancelSwitchingExpand();
+        this._updateNewTabActionButton();
+        if (this._isEnabled()) {
+          this._revealSelectedTab(window.gBrowser.selectedTab);
+          this._updateAllTabs();
+        }
+      });
+      this._orientationObserver.observe(this._tabContainer, {
+        attributes: true,
+        attributeFilter: ["orient"],
+      });
 
       this._tabContextMenu?.addEventListener("popupshowing", this);
       this._tabContextMenu?.addEventListener("command", this);
@@ -825,7 +847,7 @@ function createTreeTabsController(window) {
       this._tabContainer?.removeEventListener("mousemove", this);
       this._tabContainer?.removeEventListener("mouseleave", this);
       this._tabContainer?.removeEventListener("mousedown", this, true);
-      this._tabContainer?.removeEventListener("click", this);
+      this._tabContainer?.removeEventListener("click", this, true);
       this._tabContainer?.removeEventListener("dblclick", this);
       this._tabContainer?.removeEventListener("keydown", this);
       this._tabContainer?.removeEventListener("dragover", this);
@@ -837,9 +859,14 @@ function createTreeTabsController(window) {
       window.removeEventListener("keydown", this, true);
       window.removeEventListener("keyup", this, true);
       this._newTabButton?.removeEventListener("click", this, true);
+      this._newTabActionButton?.removeEventListener("command", this);
+      this._newTabActionButton?.removeEventListener("popupshowing", this);
       this._newTabButton = null;
+      this._newTabActionButton = null;
       this._resizeObserver?.disconnect();
       this._resizeObserver = null;
+      this._orientationObserver?.disconnect();
+      this._orientationObserver = null;
 
       this._tabContextMenu?.removeEventListener("popupshowing", this);
       this._tabContextMenu?.removeEventListener("command", this);
@@ -863,6 +890,7 @@ function createTreeTabsController(window) {
       this._restoreRetryActive = false;
       this._restoreRetryTimerId = null;
       this._inheritedMuteTabs = new WeakSet();
+      this._manuallyExpandedTabs = new WeakSet();
 
       if (window.TreeTabsDnD == TreeTabsDnD) {
         delete window.TreeTabsDnD;
@@ -943,6 +971,13 @@ function createTreeTabsController(window) {
           this._handleTabTwistyMouseDown(event);
           break;
         case "click":
+          if (
+            event.currentTarget == this._tabContainer &&
+            (this._handleTreeCloseButtonClick(event) ||
+              this._handleTreeAudioButtonClick(event))
+          ) {
+            return;
+          }
           if (event.currentTarget == this._newTabButton) {
             this._handleNewTabButtonClick(event);
             return;
@@ -965,6 +1000,7 @@ function createTreeTabsController(window) {
           break;
         case "resize":
           this._invalidateTwistyHitMetrics();
+          this._updateNewTabActionButton();
           break;
         case "dragleave":
           TreeTabsDnD._lastPreviewParent = null;
@@ -987,10 +1023,16 @@ function createTreeTabsController(window) {
         case "popupshowing":
           if (event.target == this._tabContextMenu) {
             this._updateTreeContextMenuVisibility();
+          } else if (event.currentTarget == this._newTabActionButton) {
+            this._updateNewTabActionPopup();
           }
           break;
         case "command":
-          this._handleTreeContextMenuCommand(event);
+          if (event.currentTarget == this._newTabActionButton) {
+            this._handleNewTabActionCommand(event);
+          } else {
+            this._handleTreeContextMenuCommand(event);
+          }
           break;
         default:
           break;
@@ -1071,6 +1113,41 @@ function createTreeTabsController(window) {
       return Services.prefs.getBoolPref(PREF_ENABLED, false);
     },
 
+    _setManuallyExpanded(tab, expanded) {
+      if (expanded) {
+        this._manuallyExpandedTabs.add(tab);
+      } else {
+        this._manuallyExpandedTabs.delete(tab);
+      }
+    },
+
+    _updateNewTabActionButton() {
+      if (this._newTabActionButton) {
+        this._newTabActionButton.hidden = !(
+          this._isEnabled() && this._tabContainer?.verticalMode
+        );
+      }
+    },
+
+    _updateNewTabActionPopup() {
+      const base = window.gBrowser?.selectedTab;
+      const relationshipAvailable = !!(
+        this._isEnabled() &&
+        this._tabContainer?.verticalMode &&
+        base &&
+        !base.closing &&
+        !base.pinned &&
+        this._ownsTab(base)
+      );
+      for (const item of this._newTabActionButton?.querySelectorAll(
+        "[data-tree-newtab-action]"
+      ) || []) {
+        item.disabled =
+          item.dataset.treeNewtabAction != "independent" &&
+          !relationshipAvailable;
+      }
+    },
+
     // Mirror the tree parent into openerTab, so extensions reading
     // openerTabId see the tree structure.
     _syncOpenerTab(attached, payload) {
@@ -1092,6 +1169,96 @@ function createTreeTabsController(window) {
 
     _shouldPropagateMutedState() {
       return Services.prefs.getBoolPref(PREF_PROPAGATE_MUTED_STATE, true);
+    },
+
+    _handleTreeCloseButtonClick(event) {
+      const path = event.composedPath();
+      if (!path.some(node => node?.classList?.contains("tab-close-button"))) {
+        return false;
+      }
+      const tab = path.find(node =>
+        node?.classList?.contains("tabbrowser-tab")
+      );
+      if (!tab || !lazy.TreeTabsService.isCollapsed(tab)) {
+        return false;
+      }
+      const tabCount = lazy.TreeTabsService.getDescendants(tab).length + 1;
+      if (tabCount < 25) {
+        return false;
+      }
+
+      const [title, button] = window.gBrowser.tabLocalization.formatValuesSync([
+        {
+          id: "tabbrowser-confirm-close-tabs-title",
+          args: { tabCount },
+        },
+        { id: "tabbrowser-confirm-close-tabs-button" },
+      ]);
+      const flags =
+        Services.prompt.BUTTON_POS_0 * Services.prompt.BUTTON_TITLE_IS_STRING +
+        Services.prompt.BUTTON_POS_1 * Services.prompt.BUTTON_TITLE_CANCEL;
+      const choice = Services.prompt.confirmEx(
+        window,
+        title,
+        null,
+        flags,
+        button,
+        null,
+        null,
+        null,
+        {}
+      );
+      if (choice == 0) {
+        return false;
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return true;
+    },
+
+    _handleTreeAudioButtonClick(event) {
+      const path = event.composedPath();
+      const audioButton = path.find(node =>
+        node?.classList?.contains("tab-audio-button")
+      );
+      const tab = path.find(node =>
+        node?.classList?.contains("tabbrowser-tab")
+      );
+      if (
+        !audioButton ||
+        !tab ||
+        !lazy.TreeTabsService.isCollapsed(tab) ||
+        tab.hasAttribute("soundplaying") ||
+        tab.hasAttribute("muted") ||
+        tab.hasAttribute("activemedia-blocked")
+      ) {
+        return false;
+      }
+
+      const descendants = lazy.TreeTabsService.getDescendants(tab);
+      const unmute = descendants.some(
+        descendant => descendant.linkedBrowser?.audioMuted
+      );
+      for (const descendant of descendants) {
+        if (!descendant.linkedBrowser || descendant.closing) {
+          continue;
+        }
+        if (unmute) {
+          if (descendant.linkedBrowser.audioMuted) {
+            descendant.toggleMuteAudio();
+          }
+          this._inheritedMuteTabs.delete(descendant);
+        } else if (
+          descendant.hasAttribute("soundplaying") &&
+          !descendant.linkedBrowser.audioMuted
+        ) {
+          descendant.toggleMuteAudio();
+          this._inheritedMuteTabs.add(descendant);
+        }
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return true;
     },
 
     _handleMutedStateChange(tab) {
@@ -1121,8 +1288,10 @@ function createTreeTabsController(window) {
         }
 
         if (isMuted) {
-          // Only propagate mute to descendants currently hidden by tree collapse.
-          if (child.dataset.treeHidden != "true") {
+          if (
+            child.dataset.treeHidden != "true" ||
+            !child.hasAttribute("soundplaying")
+          ) {
             continue;
           }
           if (!child.linkedBrowser.audioMuted) {
@@ -1307,7 +1476,10 @@ function createTreeTabsController(window) {
       if (!selectedTab || !this._ownsTab(selectedTab) || selectedTab.closing) {
         return;
       }
+      this._applyAutoCollapseForTab(selectedTab);
+    },
 
+    _applyAutoCollapseForTab(selectedTab) {
       this._autoCollapseInProgress = true;
       try {
         const service = lazy.TreeTabsService;
@@ -1315,6 +1487,7 @@ function createTreeTabsController(window) {
         for (let i = ancestors.length - 1; i >= 0; i -= 1) {
           service.expandSubtree(ancestors[i]);
         }
+        service.expandSubtree(selectedTab);
 
         const selectedRoot = this._getTreeRoot(selectedTab);
         if (!selectedRoot) {
@@ -1322,15 +1495,14 @@ function createTreeTabsController(window) {
         }
         service.expandSubtree(selectedRoot);
 
-        // Sibling branches along the expanded path fold away too, so only
-        // the path to the selected tab stays open.
         const path = new Set([selectedTab, ...ancestors]);
         for (const ancestor of ancestors) {
           for (const child of service.getChildren(ancestor)) {
             if (
               !path.has(child) &&
               service.getChildren(child).length &&
-              !service.isCollapsed(child)
+              !service.isCollapsed(child) &&
+              !this._manuallyExpandedTabs.has(child)
             ) {
               service.collapseSubtree(child);
             }
@@ -1341,7 +1513,11 @@ function createTreeTabsController(window) {
           if (root == selectedRoot) {
             continue;
           }
-          if (service.getChildren(root).length && !service.isCollapsed(root)) {
+          if (
+            service.getChildren(root).length &&
+            !service.isCollapsed(root) &&
+            !this._manuallyExpandedTabs.has(root)
+          ) {
             service.collapseSubtree(root);
           }
         }
@@ -1368,9 +1544,49 @@ function createTreeTabsController(window) {
       if (changed.includes("muted")) {
         this._handleMutedStateChange(event.target);
       }
+      if (changed.includes("muted") || changed.includes("soundplaying")) {
+        this._updateAncestorSoundIndicators(event.target);
+      }
       if (changed.includes("openerTab")) {
         this._handleOpenerChange(event.target);
       }
+      if (changed.includes("label")) {
+        this._updateTab(event.target);
+        for (const ancestor of lazy.TreeTabsService.getAncestors(
+          event.target
+        )) {
+          this._updateTab(ancestor);
+        }
+      }
+    },
+
+    _updateAncestorSoundIndicators(tab) {
+      if (!this._isEnabled() || !tab || !this._ownsTab(tab)) {
+        return;
+      }
+      for (const ancestor of lazy.TreeTabsService.getAncestors(tab)) {
+        this._updateTabSoundIndicator(ancestor);
+      }
+    },
+
+    // A parent advertises the audio state of its subtree, so a collapsed
+    // tree still shows that something inside it is playing or muted.
+    _updateTabSoundIndicator(tab) {
+      const descendants = lazy.TreeTabsService.getDescendants(tab);
+      let hasSound = false;
+      let hasMuted = false;
+      for (const descendant of descendants) {
+        if (descendant.hasAttribute("muted")) {
+          hasMuted = true;
+        } else if (descendant.hasAttribute("soundplaying")) {
+          hasSound = true;
+        }
+        if (hasSound && hasMuted) {
+          break;
+        }
+      }
+      tab.toggleAttribute("data-tree-has-sound-member", hasSound);
+      tab.toggleAttribute("data-tree-has-muted-member", hasMuted);
     },
 
     // An extension changed openerTabId on an existing tab; mirror the new
@@ -1419,7 +1635,16 @@ function createTreeTabsController(window) {
     },
 
     _handleKeyEvent(event) {
-      if (event.key == "Control") {
+      if (
+        event.type == "keydown" &&
+        event.currentTarget == window &&
+        this._handleGlobalTreeKeyDown(event)
+      ) {
+        return;
+      }
+      const switchingModifier =
+        Services.appinfo.OS == "Darwin" ? "Meta" : "Control";
+      if (event.key == switchingModifier) {
         if (event.type == "keydown") {
           this._switchingModifierHeld = true;
         } else {
@@ -1430,6 +1655,73 @@ function createTreeTabsController(window) {
       if (event.type == "keydown" && event.currentTarget != window) {
         this._handleTabTreeKeyDown(event);
       }
+    },
+
+    _handleGlobalTreeKeyDown(event) {
+      if (
+        !this._isEnabled() ||
+        !this._tabContainer?.verticalMode ||
+        event.defaultPrevented ||
+        event.isComposing ||
+        !event.shiftKey
+      ) {
+        return false;
+      }
+      if (
+        event
+          .composedPath()
+          .some(
+            node =>
+              node?.isContentEditable ||
+              ["input", "textarea"].includes(node?.localName)
+          )
+      ) {
+        return false;
+      }
+      const mac = Services.appinfo.OS == "Darwin";
+      if (
+        (mac && (!event.ctrlKey || event.altKey || event.metaKey)) ||
+        (!mac && (!event.altKey || event.ctrlKey || event.metaKey))
+      ) {
+        return false;
+      }
+      if (
+        !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(event.key)
+      ) {
+        return false;
+      }
+
+      const service = lazy.TreeTabsService;
+      const tab = window.gBrowser.selectedTab;
+      if (!tab || tab.pinned) {
+        return false;
+      }
+      let target = null;
+      if (event.key == "ArrowLeft") {
+        if (service.getChildren(tab).length && !service.isCollapsed(tab)) {
+          service.collapseSubtree(tab);
+          this._setManuallyExpanded(tab, false);
+        } else {
+          target = service.getParent(tab);
+        }
+      } else if (event.key == "ArrowRight") {
+        if (service.isCollapsed(tab)) {
+          service.expandSubtree(tab);
+          this._setManuallyExpanded(tab, true);
+        } else {
+          target = service.getChildren(tab)[0] || null;
+        }
+      } else {
+        const visible = service.getVisibleTabs(window);
+        const index = visible.indexOf(tab);
+        target = visible[index + (event.key == "ArrowUp" ? -1 : 1)] || null;
+      }
+      if (target && !target.closing) {
+        this._focusTab(target);
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      return true;
     },
 
     _handleDragEnd() {
@@ -1644,8 +1936,54 @@ function createTreeTabsController(window) {
       }
     },
 
-    // Landing on a collapsed parent while cycling tabs with Ctrl held
-    // expands it after a short hold, so the next cycle can reach inside.
+    _handleNewTabActionCommand(event) {
+      const action = event.target?.dataset?.treeNewtabAction;
+      if (!action || !this._isEnabled() || !this._tabContainer?.verticalMode) {
+        return;
+      }
+      const gBrowser = window.gBrowser;
+      const service = lazy.TreeTabsService;
+      const base = gBrowser.selectedTab;
+      if (!base || (action != "independent" && base.pinned)) {
+        return;
+      }
+
+      let anchor = null;
+      let parent = null;
+      if (action == "child") {
+        parent = base;
+        anchor = service.getSubtreeEndAnchor(base);
+      } else if (action == "next-sibling") {
+        parent = service.getParent(base);
+        anchor = service.getSubtreeEndAnchor(base);
+      } else if (action == "sibling") {
+        parent = service.getParent(base);
+        anchor = parent
+          ? service.getSubtreeEndAnchor(parent)
+          : Array.from(gBrowser.tabs).findLast(tab => !tab.pinned);
+      }
+
+      const newTab = gBrowser.addTrustedTab(
+        window.BROWSER_NEW_TAB_URL || "about:newtab",
+        {
+          tabIndex: anchor ? anchor._tPos + 1 : undefined,
+          focusUrlBar: true,
+        }
+      );
+      if (action == "child") {
+        service.attachTab(newTab, base);
+      } else if (action == "next-sibling") {
+        service.onTabOpened(newTab, { nextSiblingOf: base });
+      } else if (action == "sibling" && parent) {
+        service.attachTab(newTab, parent);
+      } else {
+        service.detachTab(newTab);
+      }
+      gBrowser.selectedTab = newTab;
+    },
+
+    // Landing on a collapsed parent while cycling tabs with the accelerator
+    // held expands it after a short hold, so the next cycle can reach inside.
     _maybeScheduleSwitchingExpand(tab) {
       this._cancelSwitchingExpand();
       if (
@@ -1669,7 +2007,11 @@ function createTreeTabsController(window) {
           return;
         }
         this._withAutoCollapseSuppressed(() => {
-          lazy.TreeTabsService.expandSubtree(tab);
+          if (this._isAutoCollapseOnSelectEnabled()) {
+            this._applyAutoCollapseForTab(tab);
+          } else {
+            lazy.TreeTabsService.expandSubtree(tab);
+          }
         });
       }, 800);
     },
@@ -1943,7 +2285,9 @@ function createTreeTabsController(window) {
       event.preventDefault();
       event.stopPropagation();
       this._withAutoCollapseSuppressed(() => {
+        const expand = lazy.TreeTabsService.isCollapsed(tab);
         lazy.TreeTabsService.toggleCollapsed(tab);
+        this._setManuallyExpanded(tab, expand);
       });
     },
 
@@ -2003,7 +2347,9 @@ function createTreeTabsController(window) {
           this._closeTreeTabs(tab);
           return;
         }
+        const expand = lazy.TreeTabsService.isCollapsed(tab);
         lazy.TreeTabsService.toggleCollapsed(tab);
+        this._setManuallyExpanded(tab, expand);
       });
     },
 
@@ -2045,6 +2391,7 @@ function createTreeTabsController(window) {
           event.preventDefault();
           event.stopPropagation();
           lazy.TreeTabsService.collapseSubtree(tab);
+          this._setManuallyExpanded(tab, false);
           return;
         }
 
@@ -2066,6 +2413,7 @@ function createTreeTabsController(window) {
 
       if (isCollapsed) {
         lazy.TreeTabsService.expandSubtree(tab);
+        this._setManuallyExpanded(tab, true);
         return;
       }
 
@@ -2086,6 +2434,7 @@ function createTreeTabsController(window) {
       }
 
       this._updateTreeContextMenuVisibility();
+      this._updateNewTabActionButton();
 
       this._clearDropTarget();
       if (enabled) {
@@ -2156,16 +2505,29 @@ function createTreeTabsController(window) {
         tab.removeAttribute("data-tree-has-children");
       }
 
-      const labelContainer = tab.querySelector(".tab-label-container");
+      this._updateTabSoundIndicator(tab);
+
+      const tabContent = tab.querySelector(".tab-content");
       if (lazy.TreeTabsService.isCollapsed(tab)) {
+        const descendants = lazy.TreeTabsService.getDescendants(tab);
         tab.dataset.treeCollapsed = "true";
-        labelContainer?.setAttribute(
+        tabContent?.setAttribute(
           "data-tree-counter",
-          String(lazy.TreeTabsService.getDescendants(tab).length)
+          String(descendants.length)
         );
+        tab._treeDescendantsTooltip = descendants
+          .map(descendant => {
+            const relativeLevel =
+              lazy.TreeTabsService.getLevel(descendant) - level;
+            return `${"  ".repeat(relativeLevel)}${descendant.label}`;
+          })
+          .join("\n");
+        tab.dataset.treeDescendantsTooltip = "true";
       } else {
+        delete tab._treeDescendantsTooltip;
         tab.removeAttribute("data-tree-collapsed");
-        labelContainer?.removeAttribute("data-tree-counter");
+        tab.removeAttribute("data-tree-descendants-tooltip");
+        tabContent?.removeAttribute("data-tree-counter");
       }
     },
 
@@ -2208,12 +2570,14 @@ function createTreeTabsController(window) {
       tab.removeAttribute("data-tree-parent");
       tab.removeAttribute("data-tree-has-children");
       tab.removeAttribute("data-tree-collapsed");
-      tab
-        .querySelector(".tab-label-container")
-        ?.removeAttribute("data-tree-counter");
+      tab.querySelector(".tab-content")?.removeAttribute("data-tree-counter");
       tab.removeAttribute("data-tree-hidden");
       tab.removeAttribute("data-tree-drop-target");
       tab.removeAttribute("data-tree-twisty-hover");
+      tab.removeAttribute("data-tree-has-sound-member");
+      tab.removeAttribute("data-tree-has-muted-member");
+      delete tab._treeDescendantsTooltip;
+      tab.removeAttribute("data-tree-descendants-tooltip");
       tab.style.removeProperty("--tree-level");
       if (this._twistyHoverTab == tab) {
         this._twistyHoverTab = null;
@@ -2423,9 +2787,11 @@ function createTreeTabsController(window) {
         switch (commandId) {
           case "context_collapseTree":
             treeService.collapseSubtree(contextTab);
+            this._setManuallyExpanded(contextTab, false);
             break;
           case "context_expandTree":
             treeService.expandSubtree(contextTab);
+            this._setManuallyExpanded(contextTab, true);
             break;
           case "context_closeTree": {
             this._closeTreeTabs(contextTab);
@@ -2443,9 +2809,15 @@ function createTreeTabsController(window) {
           }
           case "context_collapseAll":
             treeService.collapseAll(window);
+            for (const tab of window.gBrowser.tabs) {
+              this._setManuallyExpanded(tab, false);
+            }
             break;
           case "context_expandAll":
             treeService.expandAll(window);
+            for (const tab of window.gBrowser.tabs) {
+              this._setManuallyExpanded(tab, true);
+            }
             break;
           default:
             break;

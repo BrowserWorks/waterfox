@@ -99,14 +99,70 @@
   outline-offset: -2px;
 }
 
+#vertical-tabs[tree-tabs-enabled] #tabbrowser-arrowscrollbox[overflowing] > #tabbrowser-arrowscrollbox-periphery > #tabs-newtab-button {
+  display: flex !important;
+}
+
+#vertical-tabs[tree-tabs-enabled] #tabbrowser-tabs[orient="vertical"] > #vertical-tabs-newtab-button {
+  display: none;
+}
+
+#vertical-tabs[tree-tabs-enabled]
+  #tabbrowser-tabs[expanded]
+  > #tabbrowser-arrowscrollbox[orient="vertical"]
+  > #tabbrowser-arrowscrollbox-periphery
+  > #tabs-newtab-button {
+  width: auto;
+  flex: 1;
+}
+
+#vertical-tabs[tree-tabs-enabled] #waterfox-tree-newtab-action-button {
+  appearance: none !important;
+  list-style-image: url("chrome://global/skin/icons/arrow-down-12.svg");
+  flex: none;
+  align-self: stretch;
+  aspect-ratio: 1;
+  margin-block: var(--tab-block-margin) !important;
+  margin-inline: var(--tab-inner-inline-margin) !important;
+  border-radius: var(--tab-border-radius);
+
+  > .toolbarbutton-text {
+    display: none;
+  }
+
+  &:hover {
+    background-color: var(--tab-background-color-hover);
+  }
+
+  &:focus-visible {
+    outline: var(--focus-outline);
+    outline-offset: var(--focus-outline-inset);
+  }
+}
+
+#tabbrowser-tabs[orient="vertical"]:not([expanded]) #waterfox-tree-newtab-action-button {
+  display: none;
+}
+
+/* Audio state of a collapsed subtree, surfaced on its parent row. The tab's
+   own audio state keeps the native icon; for mixed subtrees playing wins
+   over muted. */
+#vertical-tabs[tree-tabs-enabled]
+  #tabbrowser-tabs[expanded]
+  .tabbrowser-tab[data-tree-collapsed]:is([data-tree-has-sound-member], [data-tree-has-muted-member])
+  .tab-audio-button:not([pinned], [crashed]) {
+  display: flex !important;
+}
+
 /* Descendant counter on collapsed parents */
 #vertical-tabs[tree-tabs-enabled]
   #tabbrowser-tabs[expanded]
   .tabbrowser-tab[data-tree-collapsed]
-  .tab-label-container[data-tree-counter]:not([data-tree-counter="0"])::after {
+  .tab-content[data-tree-counter]:not([data-tree-counter="0"])::before {
   content: "(" attr(data-tree-counter) ")";
-  margin-inline-start: var(--space-xsmall);
+  margin-inline-end: var(--space-xsmall);
   align-self: center;
+  flex: none;
   color: currentColor;
   opacity: var(--opacity-deemphasized);
   font-size: var(--font-size-small);
