@@ -7,6 +7,8 @@ const lazy = {};
 ChromeUtils.defineESModuleGetters(lazy, {
   OpenInTabsUtils:
     "moz-src:///browser/components/tabbrowser/OpenInTabsUtils.sys.mjs",
+  PlacesUIUtils: "moz-src:///browser/components/places/PlacesUIUtils.sys.mjs",
+  TreeTabsBookmarks: "resource:///modules/TreeTabsBookmarks.sys.mjs",
   TreeTabsGroups: "resource:///modules/TreeTabsGroups.sys.mjs",
   TreeTabsService: "resource:///modules/TreeTabsService.sys.mjs",
   TreeTabsStore: "resource:///modules/TreeTabsStore.sys.mjs",
@@ -66,6 +68,10 @@ const TREE_CONTEXT_MENU = {
     {
       id: "context_closeDescendants",
       l10nId: "waterfox-tab-context-close-descendants",
+    },
+    {
+      id: "context_bookmarkTree",
+      l10nId: "waterfox-tab-context-bookmark-tree",
     },
     {
       id: "context_copyTreeLinks",
@@ -2963,7 +2969,9 @@ function createTreeTabsController(window) {
       );
       const contextCollapseAll = document.getElementById("context_collapseAll");
       const contextExpandAll = document.getElementById("context_expandAll");
-
+      const contextBookmarkTree = document.getElementById(
+        "context_bookmarkTree"
+      );
       const contextCopyTreeLinks = document.getElementById(
         "context_copyTreeLinks"
       );
@@ -3020,7 +3028,7 @@ function createTreeTabsController(window) {
       ].some(tab => treeService.isCollapsed(tab));
       contextCloseTree.hidden = !hasDescendants;
       contextCloseDescendants.hidden = !hasDescendants;
-
+      contextBookmarkTree.hidden = false;
       contextCopyTreeLinks.hidden = !hasDescendants;
       contextCopyDescendantsLinks.hidden = !hasDescendants;
       contextCollapseAll.hidden = !hasAnyTree;
@@ -3036,7 +3044,7 @@ function createTreeTabsController(window) {
         contextExpandTreeRecursively.hidden &&
         contextCloseTree.hidden &&
         contextCloseDescendants.hidden &&
-
+        contextBookmarkTree.hidden &&
         contextCopyTreeLinks.hidden &&
         contextCopyDescendantsLinks.hidden &&
         contextCollapseAll.hidden &&
@@ -3145,7 +3153,9 @@ function createTreeTabsController(window) {
             }
             break;
           }
-
+          case "context_bookmarkTree":
+            this._bookmarkTree(contextRoots);
+            break;
           case "context_copyTreeLinks":
             this._copyTreeAsLinks(contextRoots);
             break;
@@ -3168,6 +3178,25 @@ function createTreeTabsController(window) {
             break;
         }
       });
+    },
+
+    async _bookmarkTree(contextRoots) {
+      const roots = Array.isArray(contextRoots) ? contextRoots : [contextRoots];
+      const tabs = roots.flatMap(root => {
+        const tree = [root, ...lazy.TreeTabsService.getDescendants(root)];
+        return lazy.TreeTabsGroups.isGroupTab(root) && tree.length > 1
+          ? tree.slice(1)
+          : tree;
+      });
+      const items = lazy.TreeTabsBookmarks.encodeTabs(tabs);
+      if (!items.length) {
+        return;
+      }
+      const URIList = items.map(item => ({
+        title: item.title,
+        uri: Services.io.createExposableURI(Services.io.newURI(item.url)),
+      }));
+      await lazy.PlacesUIUtils.showBookmarkPagesDialog(URIList, [], window);
     },
 
     // The whole tree as an indented link list: plain text gets a bullet

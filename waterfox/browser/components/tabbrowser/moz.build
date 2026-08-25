@@ -5,6 +5,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 EXTRA_JS_MODULES += [
+    "TreeTabsBookmarks.sys.mjs",
     "TreeTabsGroups.sys.mjs",
     "TreeTabsMigration.sys.mjs",
     "TreeTabsService.sys.mjs",
