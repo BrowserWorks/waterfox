@@ -105,7 +105,7 @@ function createTreeTabsController(window) {
     // one at a time, so the TabMove fixup would see half-moved subtrees.
     _suppressMoveFixup: false,
 
-    // Preserve the previewed parent so the drop matches the displayed outline.
+    // Track the parent outlined during dragover.
     _lastPreviewParent: null,
 
     // Keep move fixup suppressed until the matching after* hook; the generation
@@ -115,6 +115,13 @@ function createTreeTabsController(window) {
 
     _getService(tabContainer) {
       return tabContainer?.documentGlobal?.gBrowser?.TreeTabsService || null;
+    },
+
+    _getLogicalTab(item) {
+      if (item?.matches?.("tab-split-view-wrapper")) {
+        return item.tabs?.[0] || null;
+      }
+      return item?.splitview?.tabs?.[0] || item || null;
     },
 
     _isEnabled(tabContainer) {
@@ -155,6 +162,8 @@ function createTreeTabsController(window) {
         !tab.hidden &&
         tab.visible &&
         tab.dataset?.treeHidden != "true" &&
+        // Only the first pane of a split view pair carries tree links.
+        (!tab.splitview || tab.splitview.tabs?.[0] == tab) &&
         !movingSet.has(tab)
       );
     },
@@ -168,13 +177,24 @@ function createTreeTabsController(window) {
         moving.add(draggedTab);
       }
       if (Array.isArray(state?.movingTabs) && state.movingTabs.length) {
-        for (const tab of state.movingTabs) {
-          moving.add(tab);
+        for (const item of state.movingTabs) {
+          if (item?.tabs?.length) {
+            for (const tab of item.tabs) {
+              moving.add(tab);
+            }
+          } else {
+            moving.add(item);
+          }
         }
       } else if (draggedTab) {
-        const service = this._getService(window.gBrowser.tabContainer);
-        for (const tab of service?.getDescendants(draggedTab) || []) {
-          moving.add(tab);
+        const service = draggedTab.documentGlobal?.gBrowser?.TreeTabsService;
+        const tabs = draggedTab.multiselected
+          ? draggedTab.documentGlobal.gBrowser.selectedElements
+          : this._collectSubtreeTabs(draggedTab, service);
+        for (const item of this._toNativeMovingElements(tabs)) {
+          for (const tab of item.tabs || [item]) {
+            moving.add(tab);
+          }
         }
       }
       return moving;
@@ -218,12 +238,31 @@ function createTreeTabsController(window) {
       return Math.max(minLevel, Math.min(neutral + steps, maxLevel));
     },
 
-    // Resolve placement from the final flat order, except a gesture drop honors
-    // its previewed parent.
+    // Gesture placement is captured before native cleanup deletes _dragData.
+    // External moves instead resolve placement from the final flat order.
     _resolvePlacement(draggedTab, event, state) {
       const service = this._getService(window.gBrowser.tabContainer);
+      const draggedItem = draggedTab;
+      draggedTab = this._getLogicalTab(draggedTab);
       if (!service || !draggedTab || draggedTab.pinned) {
         return null;
+      }
+      if (event && state?.placement) {
+        const { parent, insertAfter } = state.placement;
+        const movingSet = this._getMovingSet(draggedTab, state);
+        if (
+          [parent, insertAfter].every(
+            tab =>
+              !tab ||
+              (tab.isConnected &&
+                !tab.closing &&
+                !tab.pinned &&
+                tab.documentGlobal == window &&
+                !movingSet.has(tab))
+          )
+        ) {
+          return state.placement;
+        }
       }
       const tabs = Array.from(window.gBrowser.tabs);
       const draggedIndex = tabs.indexOf(draggedTab);
@@ -231,17 +270,6 @@ function createTreeTabsController(window) {
         return null;
       }
       const movingSet = this._getMovingSet(draggedTab, state);
-
-      if (event) {
-        const previewParent = this._takePreviewParent(movingSet);
-        if (previewParent) {
-          const children = service.getChildren(previewParent);
-          return {
-            parent: previewParent,
-            insertAfter: children[children.length - 1] || null,
-          };
-        }
-      }
 
       let prev = null;
       for (let i = draggedIndex - 1; i >= 0; i -= 1) {
@@ -262,8 +290,22 @@ function createTreeTabsController(window) {
         }
       }
 
+      return this._placementBetween(
+        service,
+        prev,
+        next,
+        draggedItem,
+        event,
+        movingSet
+      );
+    },
+
+    _placementBetween(service, prev, next, draggedItem, event, movingSet) {
+      if (!prev) {
+        return { parent: null, insertAfter: null };
+      }
       const prevLevel = service.getLevel(prev);
-      const level = this._chooseLevel(service, prev, next, draggedTab, event);
+      const level = this._chooseLevel(service, prev, next, draggedItem, event);
       if (level > prevLevel) {
         return { parent: prev, insertAfter: null };
       }
@@ -282,7 +324,8 @@ function createTreeTabsController(window) {
 
     _applyPlacement(draggedTab, placement) {
       const service = this._getService(window.gBrowser.tabContainer);
-      if (!service || !placement) {
+      draggedTab = this._getLogicalTab(draggedTab);
+      if (!service || !draggedTab || !placement) {
         return false;
       }
       const { parent, insertAfter } = placement;
@@ -313,79 +356,192 @@ function createTreeTabsController(window) {
       return true;
     },
 
-    // The middle half of a row previews attaching to it; the outer quarters use
-    // horizontal drag and neighboring rows to choose a depth.
-    _previewDropParent(event, draggedTab) {
-      const service = this._getService(window.gBrowser.tabContainer);
-      if (!service) {
-        this._lastPreviewParent = null;
-        return null;
-      }
-      const movingSet = this._getMovingSet(draggedTab, null);
-      const candidates = Array.from(window.gBrowser.tabs).filter(tab =>
-        this._isPlacementCandidate(tab, movingSet)
+    _getRowBounds(tab) {
+      const row = tab.splitview || tab;
+      const rect = row.getBoundingClientRect();
+      // Native gap animation must not change which row the pointer targets.
+      const transform = new window.DOMMatrixReadOnly(
+        window.getComputedStyle(row).transform
       );
-
-      let prev = null;
-      let next = null;
-      let hovered = null;
-      for (const tab of candidates) {
-        const rect = tab.getBoundingClientRect();
-        if (!rect.height) {
-          continue;
-        }
-        if (
-          !hovered &&
-          event.clientY >= rect.top + rect.height / 4 &&
-          event.clientY <= rect.bottom - rect.height / 4
-        ) {
-          hovered = tab;
-        }
-        if (rect.top + rect.height / 2 <= event.clientY) {
-          prev = tab;
-        } else {
-          next = tab;
-          break;
-        }
-      }
-
-      let parent = null;
-      if (hovered && !draggedTab.multiselected) {
-        parent = hovered;
-      } else if (prev) {
-        const prevLevel = service.getLevel(prev);
-        const level = this._chooseLevel(service, prev, next, draggedTab, event);
-        if (level > prevLevel) {
-          parent = prev;
-        } else if (level > 0) {
-          const chain = [prev, ...service.getAncestors(prev)];
-          parent = chain[prevLevel - (level - 1)] || null;
-        }
-      }
-      if (parent && movingSet.has(parent)) {
-        parent = null;
-      }
-      this._lastPreviewParent = parent;
-      return parent;
+      return {
+        top: rect.top - transform.m42,
+        bottom: rect.bottom - transform.m42,
+        height: rect.height,
+      };
     },
 
-    _takePreviewParent(movingSet) {
-      const parent = this._lastPreviewParent;
-      this._lastPreviewParent = null;
+    getAttachTarget(tabContainer, event, draggedTab, state = null) {
+      const logicalTab = this._getLogicalTab(draggedTab);
       if (
-        !parent ||
-        !parent.isConnected ||
-        parent.closing ||
-        parent.pinned ||
-        parent.documentGlobal != window ||
-        movingSet.has(parent)
+        !this._isEnabled(tabContainer) ||
+        !logicalTab?.classList?.contains("tabbrowser-tab") ||
+        logicalTab.pinned ||
+        draggedTab.multiselected ||
+        logicalTab.multiselected ||
+        this._isDropIntoPinnedArea(tabContainer, event)
       ) {
         return null;
       }
-      return parent;
+      const movingSet = this._getMovingSet(logicalTab, state);
+      for (const tab of window.gBrowser.tabs) {
+        if (!this._isPlacementCandidate(tab, movingSet)) {
+          continue;
+        }
+        const rect = this._getRowBounds(tab);
+        if (
+          rect.height &&
+          event.clientY >= rect.top + rect.height / 4 &&
+          event.clientY <= rect.bottom - rect.height / 4
+        ) {
+          return tab;
+        }
+      }
+      return null;
+    },
+
+    _getNativeDropGap(dragData, tabs, movingSet) {
+      if (typeof dragData?.dropBefore != "boolean") {
+        return null;
+      }
+      const dropElement = dragData.dropElement;
+      const dropTab = this._getLogicalTab(dropElement);
+      const isGroupLabel = window.gBrowser.isTabGroupLabel(dropElement);
+      let dropGroup = null;
+      if (window.gBrowser.isTabGroup(dropElement)) {
+        dropGroup = dropElement;
+      } else if (isGroupLabel) {
+        dropGroup = dropElement.group;
+      }
+      let index;
+      if (
+        dropGroup?.isConnected &&
+        dropGroup.documentGlobal == window &&
+        dropGroup.tabs.length
+      ) {
+        const atStart =
+          !(isGroupLabel && dragData.shouldDropIntoCollapsedTabGroup) &&
+          (dragData.dropBefore || (isGroupLabel && !dropGroup.collapsed));
+        index = atStart
+          ? dropGroup.tabs[0]._tPos
+          : dropGroup.tabs.at(-1)._tPos + 1;
+      } else if (tabs.includes(dropTab) && !movingSet.has(dropTab)) {
+        index = dropTab._tPos + (dragData.dropBefore ? 0 : 1);
+      } else {
+        return null;
+      }
+      const logicalTabs = tabs.filter(
+        tab =>
+          !tab.pinned &&
+          !tab.closing &&
+          !movingSet.has(tab) &&
+          this._getLogicalTab(tab) == tab
+      );
+      const previous = logicalTabs.findLast(tab => tab._tPos < index);
+      const following = logicalTabs.find(tab => tab._tPos >= index);
+      if (
+        dropGroup ||
+        (previous?.group != following?.group &&
+          (previous?.group?.collapsed || following?.group?.collapsed))
+      ) {
+        // Hidden group members still delimit root-level insertion gaps.
+        const service = this._getService(window.gBrowser.tabContainer);
+        return {
+          index,
+          placement: {
+            parent: null,
+            insertAfter:
+              logicalTabs.findLast(
+                tab => tab._tPos < index && !service.getParent(tab)
+              ) || null,
+          },
+        };
+      }
+      return { index };
+    },
+
+    // The middle half attaches to the row; edges follow the native insertion
+    // gap, retaining both its parent and its preceding sibling.
+    _previewDropPlacement(event, draggedTab, state = null) {
+      const tabContainer = window.gBrowser.tabContainer;
+      const service = this._getService(tabContainer);
+      const logicalTab = this._getLogicalTab(draggedTab);
+      if (
+        !this._isEnabled(tabContainer) ||
+        !logicalTab?.classList?.contains("tabbrowser-tab") ||
+        logicalTab.pinned ||
+        this._isDropIntoPinnedArea(tabContainer, event)
+      ) {
+        return null;
+      }
+      const movingSet = this._getMovingSet(logicalTab, state);
+      const parent = this.getAttachTarget(
+        tabContainer,
+        event,
+        draggedTab,
+        state
+      );
+      if (parent) {
+        return {
+          parent,
+          insertAfter:
+            service.getChildren(parent).findLast(tab => !movingSet.has(tab)) ||
+            null,
+        };
+      }
+
+      const tabs = Array.from(window.gBrowser.tabs);
+      const candidates = tabs.filter(tab =>
+        this._isPlacementCandidate(tab, movingSet)
+      );
+      const dragData = draggedTab._dragData || logicalTab._dragData;
+      const nativeGap = this._getNativeDropGap(dragData, tabs, movingSet);
+      if (nativeGap?.placement) {
+        return nativeGap.placement;
+      }
+      let prev = null;
+      let next = null;
+      if (nativeGap) {
+        const { index } = nativeGap;
+        prev = candidates.findLast(tab => tab._tPos < index) || null;
+        next = candidates.find(tab => tab._tPos >= index) || null;
+      } else {
+        for (const tab of candidates) {
+          const rect = this._getRowBounds(tab);
+          if (!rect.height) {
+            continue;
+          }
+          if (rect.top + rect.height / 2 <= event.clientY) {
+            prev = tab;
+          } else {
+            next = tab;
+            break;
+          }
+        }
+      }
+      return this._placementBetween(
+        service,
+        prev,
+        next,
+        draggedTab,
+        event,
+        movingSet
+      );
+    },
+
+    _previewDropParent(event, draggedTab) {
+      this._lastPreviewParent =
+        this._previewDropPlacement(event, draggedTab)?.parent || null;
+      return this._lastPreviewParent;
+    },
+
+    updateDragOver(tabContainer, event) {
+      if (this._isEnabled(tabContainer)) {
+        controller._updateDropTarget(event);
+      }
     },
 
     _collectSubtreeTabs(rootTab, treeService) {
+      rootTab = this._getLogicalTab(rootTab);
       if (!rootTab || !treeService) {
         return rootTab ? [rootTab] : [];
       }
@@ -404,6 +560,17 @@ function createTreeTabsController(window) {
       return [rootTab, ...descendants];
     },
 
+    _toNativeMovingElements(tabs) {
+      return [...new Set(tabs.map(tab => tab.splitview || tab))];
+    },
+
+    _dropElementContainsAnyTab(dropElement, tabs) {
+      return (
+        tabs.includes(dropElement) ||
+        Array.from(dropElement?.tabs || []).some(tab => tabs.includes(tab))
+      );
+    },
+
     _isDropIntoPinnedArea(tabContainer, event) {
       const pinnedContainer = tabContainer?.pinnedTabsContainer;
       return !!pinnedContainer?.contains(event.target);
@@ -414,10 +581,11 @@ function createTreeTabsController(window) {
         return null;
       }
 
+      const logicalDraggedTab = this._getLogicalTab(draggedTab);
       const state = {
-        cancel: false,
         movingTabs,
         crossWindowSnapshot: null,
+        logicalDraggedTab,
         multiselect: false,
       };
 
@@ -426,8 +594,12 @@ function createTreeTabsController(window) {
       }
 
       const sourceService =
-        draggedTab.documentGlobal?.gBrowser?.TreeTabsService;
-      if (!sourceService) {
+        logicalDraggedTab?.documentGlobal?.gBrowser?.TreeTabsService;
+      if (
+        !sourceService ||
+        !logicalDraggedTab?.classList?.contains("tabbrowser-tab") ||
+        logicalDraggedTab.pinned
+      ) {
         return state;
       }
 
@@ -446,30 +618,48 @@ function createTreeTabsController(window) {
       // behind instead of travelling with it. Alt does the same where Ctrl
       // turns the drag into a copy (Windows and Linux).
       if (event.ctrlKey || event.altKey) {
-        sourceService.onTabMoved(draggedTab, { detachChildren: true });
+        sourceService.onTabMoved(logicalDraggedTab, { detachChildren: true });
+        state.placement = this._previewDropPlacement(event, draggedTab, state);
         return state;
       }
 
-      const subtreeTabs = this._collectSubtreeTabs(draggedTab, sourceService);
-      if (
-        subtreeTabs.length > movingTabs.length &&
-        !this._isDropIntoPinnedArea(tabContainer, event)
-      ) {
-        state.movingTabs = subtreeTabs;
-      }
-
-      // A native target inside the moving subtree is invalid; keep only the
-      // horizontal depth adjustment.
-      const dragData = draggedTab._dragData;
+      const subtreeTabs = this._collectSubtreeTabs(
+        logicalDraggedTab,
+        sourceService
+      );
+      const subtreeElements = this._toNativeMovingElements(subtreeTabs);
+      const dragData = draggedTab._dragData || logicalDraggedTab._dragData;
       if (
         dragData?.dropElement &&
-        state.movingTabs.includes(dragData.dropElement)
+        this._dropElementContainsAnyTab(dragData.dropElement, subtreeTabs)
+      ) {
+        sourceService.onTabMoved(logicalDraggedTab, {
+          detachChildren: true,
+        });
+        state.movingTabs = [logicalDraggedTab.splitview || logicalDraggedTab];
+      } else if (
+        subtreeElements.length > movingTabs.length &&
+        !this._isDropIntoPinnedArea(tabContainer, event)
+      ) {
+        state.movingTabs = subtreeElements;
+      }
+
+      if (
+        dragData?.dropElement &&
+        this._dropElementContainsAnyTab(dragData.dropElement, [
+          ...this._getMovingSet(draggedTab, state),
+        ])
       ) {
         dragData.dropElement = null;
       }
 
+      if (draggedTab.container == tabContainer) {
+        state.placement = this._previewDropPlacement(event, draggedTab, state);
+      }
+
       if (draggedTab.container != tabContainer && subtreeTabs.length > 1) {
-        state.crossWindowSnapshot = sourceService.onTabDetached(draggedTab);
+        state.crossWindowSnapshot =
+          sourceService.onTabDetached(logicalDraggedTab);
       }
 
       return state;
@@ -491,7 +681,13 @@ function createTreeTabsController(window) {
         if (state?.multiselect || draggedTab?.multiselected) {
           // Rebuild links from the final strip order after all selected tabs
           // move.
-          const moved = (state?.movingTabs || [])
+          const moved = [
+            ...new Set(
+              (state?.movingTabs || [])
+                .flatMap(item => (item?.tabs?.length ? item.tabs : [item]))
+                .map(tab => tab?.splitview?.tabs?.[0] || tab)
+            ),
+          ]
             .filter(tab => tab?.isConnected && !tab.closing && !tab.pinned)
             .sort((a, b) => a._tPos - b._tPos);
           for (const tab of moved) {
@@ -503,10 +699,12 @@ function createTreeTabsController(window) {
         } else {
           // Ctrl/Alt leaves children behind, but the dragged tab still needs
           // placement.
+          const logicalDraggedTab =
+            state?.logicalDraggedTab || this._getLogicalTab(draggedTab);
           const placement = this._resolvePlacement(draggedTab, event, state);
-          if (placement && this._applyPlacement(draggedTab, placement)) {
+          if (placement && this._applyPlacement(logicalDraggedTab, placement)) {
             changed = true;
-            this._syncSubtreeStripPosition(draggedTab);
+            this._syncSubtreeStripPosition(logicalDraggedTab);
           }
         }
       } finally {
@@ -535,15 +733,16 @@ function createTreeTabsController(window) {
     // subtree to restore tree order in the strip.
     _syncSubtreeStripPosition(tab) {
       const service = this._getService(window.gBrowser.tabContainer);
-      if (!service) {
+      tab = this._getLogicalTab(tab);
+      if (!service || !tab) {
         return;
       }
       const parent = service.getParent(tab);
-      if (!parent) {
-        return;
-      }
-
-      const children = service.getChildren(parent);
+      const children = parent
+        ? service.getChildren(parent)
+        : service
+            .getRootTabs(window)
+            .filter(root => !root.pinned && this._getLogicalTab(root) == root);
       const index = children.indexOf(tab);
       let anchor = parent;
       if (index > 0) {
@@ -553,24 +752,37 @@ function createTreeTabsController(window) {
       }
 
       const subtree = this._collectSubtreeTabs(tab, service);
-      if (
-        subtree.some(moving => moving.group || moving.pinned) ||
-        anchor.group
-      ) {
+      if (subtree.some(moving => moving.pinned || moving.group != tab.group)) {
         return;
       }
+      if (tab.group && anchor?.group != tab.group) {
+        anchor = null;
+      } else if (!tab.group && anchor?.group) {
+        anchor = anchor.group;
+      }
 
+      const elements = this._toNativeMovingElements(subtree);
       const wasSuppressingMoveFixup = this._suppressMoveFixup;
       this._suppressMoveFixup = true;
       try {
-        let target = anchor._tPos + 1;
-        for (const moving of subtree) {
-          if (moving._tPos !== target) {
-            window.gBrowser.moveTabTo(moving, {
-              tabIndex: moving._tPos < target ? target - 1 : target,
-            });
+        if (anchor) {
+          window.gBrowser.moveTabsAfter(elements, anchor.splitview || anchor);
+        } else {
+          const movingSet = this._getMovingSet(tab, { movingTabs: elements });
+          let next = Array.from(window.gBrowser.tabs).find(
+            item =>
+              !item.pinned &&
+              !movingSet.has(item) &&
+              (!tab.group || item.group == tab.group)
+          );
+          next = next?.splitview || next;
+          if (!next && tab.group) {
+            // Anchor a sole grouped subtree to itself, not the outer strip.
+            next = elements[0];
+          } else if (!tab.group && next?.group) {
+            next = next.group;
           }
-          target = moving._tPos + 1;
+          window.gBrowser.moveTabsBefore(elements, next);
         }
       } finally {
         this._suppressMoveFixup = wasSuppressingMoveFixup;
@@ -651,7 +863,7 @@ function createTreeTabsController(window) {
     afterCrossWindowDrop(
       tabContainer,
       event,
-      { draggedTab, dropEffect, adoptedDraggedTab, adoptedTabMap, state }
+      { draggedTab, dropEffect, adoptedTabMap, state }
     ) {
       this._endDrop();
       if (
@@ -661,7 +873,7 @@ function createTreeTabsController(window) {
         event.ctrlKey ||
         event.altKey
       ) {
-        return null;
+        return;
       }
 
       // Moving a subtree to another window keeps its shape; nesting it against
@@ -672,11 +884,7 @@ function createTreeTabsController(window) {
           state.crossWindowSnapshot,
           adoptedTabMap
         );
-        if (adoptedDraggedTab) {
-          return adoptedDraggedTab;
-        }
       }
-      return null;
     },
   };
 
@@ -747,6 +955,8 @@ function createTreeTabsController(window) {
     _orientationObserver: null,
     _tabContextMenu: null,
     _isWindowRestoring: false,
+    _deferringTreeRender: false,
+    _treeRenderPending: false,
     _autoCollapseInProgress: false,
     _autoCollapseSuppressDepth: 0,
     _restoreRetryActive: false,
@@ -760,6 +970,8 @@ function createTreeTabsController(window) {
     _dragAutoExpandedGroups: new Set(),
     _dragHoverExpandGroup: null,
     _dragHoverExpandGroupTimer: null,
+    _splitViewMains: new Map(),
+    _splitViewPanes: new Map(),
     _groupCleanupTabs: new Set(),
     _groupCleanupScanAll: false,
     _groupCleanupTimer: null,
@@ -799,6 +1011,9 @@ function createTreeTabsController(window) {
 
       this._tabContainer.addEventListener("TabOpen", this);
       this._tabContainer.addEventListener("TabClose", this);
+      this._tabContainer.addEventListener("SplitViewCreated", this);
+      this._tabContainer.addEventListener("SplitViewRemoved", this);
+      this._tabContainer.addEventListener("SplitViewTabChange", this);
       this._tabContainer.addEventListener("TabGrouped", this);
       this._tabContainer.addEventListener("TabUngrouped", this);
       this._tabContainer.addEventListener("TabGroupMoved", this);
@@ -844,8 +1059,10 @@ function createTreeTabsController(window) {
         this._cancelSwitchingExpand();
         this._updateNewTabActionButton();
         if (this._isEnabled()) {
-          this._revealSelectedTab(window.gBrowser.selectedTab);
-          this._updateAllTabs();
+          this._withFinalTreeRender(() => {
+            this._revealSelectedTab(window.gBrowser.selectedTab);
+            this._updateAllTabs();
+          });
         }
       });
       this._orientationObserver.observe(this._tabContainer, {
@@ -883,6 +1100,9 @@ function createTreeTabsController(window) {
 
       this._tabContainer?.removeEventListener("TabOpen", this);
       this._tabContainer?.removeEventListener("TabClose", this);
+      this._tabContainer?.removeEventListener("SplitViewCreated", this);
+      this._tabContainer?.removeEventListener("SplitViewRemoved", this);
+      this._tabContainer?.removeEventListener("SplitViewTabChange", this);
       this._tabContainer?.removeEventListener("TabGrouped", this);
       this._tabContainer?.removeEventListener("TabUngrouped", this);
       this._tabContainer?.removeEventListener("TabGroupMoved", this);
@@ -932,6 +1152,8 @@ function createTreeTabsController(window) {
       this._twistyInlinePaddingPx = null;
       this._resizeObserver = null;
       this._isWindowRestoring = false;
+      this._deferringTreeRender = false;
+      this._treeRenderPending = false;
       this._autoCollapseInProgress = false;
       this._autoCollapseSuppressDepth = 0;
       this._restoreRetryActive = false;
@@ -949,6 +1171,8 @@ function createTreeTabsController(window) {
       this._groupCleanupTabs.clear();
       this._groupCleanupScanAll = false;
       this._dragAutoExpandedGroups.clear();
+      this._splitViewMains.clear();
+      this._splitViewPanes.clear();
 
       if (window.TreeTabsDnD == TreeTabsDnD) {
         delete window.TreeTabsDnD;
@@ -962,9 +1186,237 @@ function createTreeTabsController(window) {
       if (!this._isEnabled()) {
         return;
       }
-      this._updateTab(event.target);
-      this._updateHiddenTabs();
-      this._maybeTryManualRestore();
+      const rendered = this._withFinalTreeRender(() => {
+        if (this._maybeTryManualRestore()) {
+          this._syncSplitViewTrees();
+          this._updateAllTabs();
+        }
+      });
+      if (!rendered) {
+        this._updateTab(event.target);
+        this._updateHiddenTabs();
+      }
+    },
+
+    // A split view pair occupies one tree row, owned by its first pane. The
+    // other panes carry no tree links of their own, so their children are
+    // folded into the shared row and links follow a reordered first pane.
+    _syncSplitViewTrees() {
+      if (!this._isEnabled()) {
+        return false;
+      }
+      let changed = false;
+      const wrappers = new Set(this._tabContainer?.allSplitViews || []);
+      for (const [wrapper, main] of this._splitViewMains) {
+        if (!wrappers.has(wrapper)) {
+          this._handleSplitViewRemoved(
+            main,
+            this._splitViewPanes.get(wrapper) || []
+          );
+          this._splitViewMains.delete(wrapper);
+          this._splitViewPanes.delete(wrapper);
+          changed = true;
+        }
+      }
+
+      for (const wrapper of wrappers) {
+        const tabs = Array.from(wrapper.tabs || []);
+        const main = tabs[0];
+        if (!main) {
+          continue;
+        }
+        const previousMain = this._splitViewMains.get(wrapper);
+        const previousPanes = this._splitViewPanes.get(wrapper);
+        const subPanes = tabs.slice(1);
+        if (
+          previousMain == main &&
+          previousPanes?.length == tabs.length &&
+          tabs.every((tab, index) => tab == previousPanes[index]) &&
+          subPanes.every(
+            tab =>
+              !lazy.TreeTabsService.getParent(tab) &&
+              !lazy.TreeTabsService.getChildren(tab).length &&
+              !lazy.TreeTabsService.isCollapsed(tab) &&
+              !this._manuallyExpandedTabs.has(tab)
+          )
+        ) {
+          continue;
+        }
+        changed = true;
+        if (
+          previousMain &&
+          previousMain != main &&
+          tabs.includes(previousMain)
+        ) {
+          this._transferTreeLinks(previousMain, main);
+        }
+        for (const sub of subPanes) {
+          this._mergeSplitTreeLinks(main, sub);
+        }
+        this._splitViewMains.set(wrapper, main);
+        this._splitViewPanes.set(wrapper, tabs);
+      }
+      return changed;
+    },
+
+    _handleSplitViewRemoved(main, panes) {
+      const service = lazy.TreeTabsService;
+      const livePanes = panes.filter(
+        tab => this._ownsTab(tab) && !tab.closing && !tab.splitview
+      );
+      if (!main || !livePanes.includes(main) || livePanes.length < 2) {
+        return;
+      }
+
+      const companions = livePanes.filter(tab => tab != main);
+      const parent = service.getParent(main);
+      let previous = main;
+      for (const companion of companions) {
+        service.expandSubtree(companion);
+        if (parent) {
+          service.attachTab(companion, parent, {
+            insertAfter: previous,
+            suppressAutoExpand: true,
+          });
+        } else {
+          service.detachTab(companion);
+          const roots = service.getRootTabs(window);
+          service.moveTabSubtree(companion, roots.indexOf(previous) + 1);
+        }
+        previous = companion;
+      }
+
+      const anchor = [main, ...service.getDescendants(main)].reduce(
+        (last, tab) => (tab._tPos > last._tPos ? tab : last),
+        main
+      );
+      const wasSuppressingMoveFixup = TreeTabsDnD._suppressMoveFixup;
+      TreeTabsDnD._suppressMoveFixup = true;
+      try {
+        window.gBrowser.moveTabsAfter(companions, anchor);
+      } finally {
+        TreeTabsDnD._suppressMoveFixup = wasSuppressingMoveFixup;
+      }
+    },
+
+    _mergeSplitTreeLinks(main, sub) {
+      const service = lazy.TreeTabsService;
+      const subChildren = service.getChildren(sub);
+      const shouldCollapse =
+        service.isCollapsed(main) ||
+        (!!subChildren.length && service.isCollapsed(sub));
+      const manuallyExpanded =
+        this._manuallyExpandedTabs.has(main) ||
+        (!!subChildren.length && this._manuallyExpandedTabs.has(sub));
+      this._manuallyExpandedTabs.delete(sub);
+
+      if (service.getAncestors(main).includes(sub)) {
+        this._transferTreeLinks(sub, main);
+      } else {
+        let previousChild = service.getChildren(main).at(-1) || null;
+        for (const child of subChildren) {
+          if (
+            service.attachTab(child, main, {
+              insertAfter: previousChild,
+              suppressAutoExpand: true,
+            })
+          ) {
+            previousChild = child;
+          }
+        }
+        if (service.getChildren(sub).length) {
+          service.onTabMoved(sub, { detachChildren: true });
+        }
+        if (service.getParent(sub)) {
+          service.detachTab(sub);
+        }
+        service.expandSubtree(sub);
+      }
+
+      if (shouldCollapse) {
+        this._manuallyExpandedTabs.delete(main);
+        service.collapseSubtree(main);
+      } else if (manuallyExpanded) {
+        this._manuallyExpandedTabs.add(main);
+      }
+    },
+
+    _transferTreeLinks(from, to) {
+      const service = lazy.TreeTabsService;
+      const parent = service.getParent(from);
+      const children = service.getChildren(from);
+      const collapsed = service.isCollapsed(from);
+      const manuallyExpanded =
+        !collapsed &&
+        (this._manuallyExpandedTabs.has(from) ||
+          this._manuallyExpandedTabs.has(to));
+      this._manuallyExpandedTabs.delete(from);
+      this._manuallyExpandedTabs.delete(to);
+      const siblings = parent
+        ? service.getChildren(parent)
+        : service.getRootTabs(window);
+      const siblingIndex = siblings.indexOf(from);
+
+      if (parent && parent != to) {
+        service.attachTab(to, parent, {
+          insertBefore: siblings[siblingIndex + 1] || null,
+          insertAfter: siblings[siblingIndex - 1] || null,
+          index: siblingIndex,
+          suppressAutoExpand: true,
+        });
+      } else if (!parent) {
+        service.detachTab(to);
+        service.moveTabSubtree(to, siblingIndex);
+      }
+
+      let previousChild = null;
+      for (const child of children) {
+        if (child == to) {
+          continue;
+        }
+        service.attachTab(
+          child,
+          to,
+          previousChild
+            ? { insertAfter: previousChild, suppressAutoExpand: true }
+            : { index: 0, suppressAutoExpand: true }
+        );
+        previousChild = child;
+      }
+      if (parent || children.length) {
+        service.detachTab(from);
+      }
+      service.expandSubtree(from);
+      if (collapsed) {
+        service.collapseSubtree(to);
+      } else {
+        service.expandSubtree(to);
+        if (manuallyExpanded) {
+          this._manuallyExpandedTabs.add(to);
+        }
+      }
+    },
+
+    // TabClose fires before the model applies the close behaviour, so a
+    // closing pane can hand its tree links to the surviving pane first.
+    _handleSplitPaneClose(tab) {
+      const wrapper = tab.splitview;
+      if (!wrapper) {
+        return;
+      }
+      const owner = this._splitViewMains.get(wrapper) || wrapper.tabs?.[0];
+      if (owner != tab) {
+        return;
+      }
+      const heir = Array.from(wrapper.tabs || []).find(
+        other =>
+          other != tab && !other.closing && !other._closedInMultiselection
+      );
+      if (!heir) {
+        return;
+      }
+      this._transferTreeLinks(tab, heir);
+      this._splitViewMains.set(wrapper, heir);
     },
 
     _handleTabClose(event) {
@@ -977,6 +1429,7 @@ function createTreeTabsController(window) {
         lazy.TreeTabsService.getAncestors(event.target);
       delete event.target._treeTabsCleanupAncestors;
       this._scheduleGroupCleanup(cleanupChain);
+      this._handleSplitPaneClose(event.target);
       if (event.detail?.adoptedBy) {
         // Adoption closes the source tab through _beginRemoveTab and skips
         // removeTab, so the model never hears about it there.
@@ -985,6 +1438,7 @@ function createTreeTabsController(window) {
       this._updateAllTabs();
     },
 
+    // eslint-disable-next-line complexity
     handleEvent(event) {
       switch (event.type) {
         case "TabOpen":
@@ -992,6 +1446,16 @@ function createTreeTabsController(window) {
           break;
         case "TabClose":
           this._handleTabClose(event);
+          break;
+        case "SplitViewCreated":
+        case "SplitViewRemoved":
+        case "SplitViewTabChange":
+          this._withFinalTreeRender(() => {
+            if (this._syncSplitViewTrees()) {
+              this._updateAllTabs();
+            }
+          });
+          this._scheduleNativeGroupReconcile();
           break;
         case "TabGrouped":
         case "TabUngrouped":
@@ -1002,15 +1466,28 @@ function createTreeTabsController(window) {
           if (!this._isEnabled()) {
             return;
           }
-          this._maybeFixupTreeOnExternalMove(event.target);
-          this._updateAllTabs();
-          this._maybeTryManualRestore();
+          this._withFinalTreeRender(() => {
+            if (event.detail?.previousTabState?.splitViewId == null) {
+              this._maybeFixupTreeOnExternalMove(event.target);
+            }
+            if (this._maybeTryManualRestore()) {
+              this._syncSplitViewTrees();
+            }
+            this._updateAllTabs();
+          });
           break;
         case "TabPinned":
           this._handleTabPinned(event.target);
           break;
         case "SSTabRestored":
-          this._maybeTryManualRestore();
+          this._withFinalTreeRender(() => {
+            const restored = this._maybeTryManualRestore();
+            const changed = this._syncSplitViewTrees();
+            if (restored || changed) {
+              this._updateAllTabs();
+            }
+          });
+          this._scheduleNativeGroupReconcile();
           this._scheduleAllGroupCleanup(1000);
           break;
         case "SSWindowRestoring":
@@ -1018,8 +1495,15 @@ function createTreeTabsController(window) {
           break;
         case "SSWindowRestored":
           this._isWindowRestoring = false;
-          this._maybeRestoreTreeStructure();
-          this._scheduleAllGroupCleanup(1000);
+          if (this._isEnabled()) {
+            this._withFinalTreeRender(() => {
+              this._maybeRestoreTreeStructure();
+              this._syncSplitViewTrees();
+              this._updateAllTabs();
+            });
+            this._scheduleNativeGroupReconcile();
+            this._scheduleAllGroupCleanup(1000);
+          }
           break;
         case "TabSelect":
           this._handleTabSelect(event);
@@ -1221,13 +1705,29 @@ function createTreeTabsController(window) {
       return Services.prefs.getBoolPref(PREF_ENABLED, false);
     },
 
+    _getLogicalTreeTab(tab) {
+      if (tab?.matches?.("tab-split-view-wrapper")) {
+        return tab.tabs?.[0] || null;
+      }
+      return tab?.splitview?.tabs?.[0] || tab || null;
+    },
+
+    _getTreeNodeTabs(tab) {
+      const logicalTab = this._getLogicalTreeTab(tab);
+      return logicalTab?.splitview?.tabs?.length
+        ? Array.from(logicalTab.splitview.tabs)
+        : [logicalTab].filter(Boolean);
+    },
+
     _getTreeCommandTabs(tab, { descendantsOnly = false } = {}) {
-      if (!tab) {
+      const logicalTab = this._getLogicalTreeTab(tab);
+      if (!logicalTab) {
         return [];
       }
-      return descendantsOnly
-        ? lazy.TreeTabsService.getDescendants(tab)
-        : [tab, ...lazy.TreeTabsService.getDescendants(tab)];
+      const nodes = descendantsOnly
+        ? lazy.TreeTabsService.getDescendants(logicalTab)
+        : [logicalTab, ...lazy.TreeTabsService.getDescendants(logicalTab)];
+      return [...new Set(nodes.flatMap(node => this._getTreeNodeTabs(node)))];
     },
 
     _getTreeContextRoots() {
@@ -1237,7 +1737,9 @@ function createTreeTabsController(window) {
         : [contextMenu?.contextTab];
       const roots = [
         ...new Set(
-          tabs.filter(tab => tab && !tab.closing && !tab.pinned)
+          tabs
+            .map(tab => this._getLogicalTreeTab(tab))
+            .filter(tab => tab && !tab.closing && !tab.pinned)
         ),
       ];
       const rootSet = new Set(roots);
@@ -1274,7 +1776,7 @@ function createTreeTabsController(window) {
     },
 
     _updateNewTabActionPopup() {
-      const base = window.gBrowser?.selectedTab;
+      const base = this._getLogicalTreeTab(window.gBrowser?.selectedTab);
       const relationshipAvailable = !!(
         this._isEnabled() &&
         this._tabContainer?.verticalMode &&
@@ -1323,7 +1825,11 @@ function createTreeTabsController(window) {
       const tab = path.find(node =>
         node?.classList?.contains("tabbrowser-tab")
       );
-      if (!tab || !lazy.TreeTabsService.isCollapsed(tab)) {
+      if (
+        !tab ||
+        this._getLogicalTreeTab(tab) != tab ||
+        !lazy.TreeTabsService.isCollapsed(tab)
+      ) {
         return false;
       }
       const tabCount = lazy.TreeTabsService.getDescendants(tab).length + 1;
@@ -1365,8 +1871,8 @@ function createTreeTabsController(window) {
       const audioButton = path.find(node =>
         node?.classList?.contains("tab-audio-button")
       );
-      const tab = path.find(node =>
-        node?.classList?.contains("tabbrowser-tab")
+      const tab = this._getLogicalTreeTab(
+        path.find(node => node?.classList?.contains("tabbrowser-tab"))
       );
       if (
         !audioButton ||
@@ -1536,29 +2042,35 @@ function createTreeTabsController(window) {
       }
       this._nativeGroupReconcileTimer = window.setTimeout(() => {
         this._nativeGroupReconcileTimer = null;
-        const store = lazy.TreeTabsStore;
-        if (store.isRestorePending(window)) {
-          if (store.tryManualRestore(window)) {
-            this._updateAllTabs();
-            this._stopRestoreRetry();
-            this._scheduleAllGroupCleanup();
-          }
+        if (!this._isEnabled()) {
+          return;
+        }
+        this._withFinalTreeRender(() => {
+          const store = lazy.TreeTabsStore;
+          let changed = false;
           if (store.isRestorePending(window)) {
-            return;
+            if (store.tryManualRestore(window)) {
+              changed = true;
+              this._syncSplitViewTrees();
+              this._stopRestoreRetry();
+              this._scheduleAllGroupCleanup();
+            }
+            if (store.isRestorePending(window)) {
+              return;
+            }
           }
-        }
-        const service = lazy.TreeTabsService;
-        let changed = false;
-        for (const tab of window.gBrowser.tabs) {
-          const parent = service.getParent(tab);
-          if (parent && parent.group !== tab.group) {
-            service.detachTab(tab);
-            changed = true;
+          const service = lazy.TreeTabsService;
+          for (const tab of window.gBrowser.tabs) {
+            const parent = service.getParent(tab);
+            if (parent && parent.group !== tab.group) {
+              service.detachTab(tab);
+              changed = true;
+            }
           }
-        }
-        if (changed) {
-          this._updateAllTabs();
-        }
+          if (changed) {
+            this._updateAllTabs();
+          }
+        });
       });
     },
 
@@ -1623,23 +2135,19 @@ function createTreeTabsController(window) {
     },
 
     _maybeRestoreTreeStructure() {
-      if (!this._isEnabled()) {
-        return;
-      }
-
-      if (!window.gBrowser?.tabs?.length) {
-        return;
+      if (!this._isEnabled() || !window.gBrowser?.tabs?.length) {
+        return false;
       }
 
       if (
         this._hasTreeStructure() &&
         !lazy.TreeTabsStore.isRestorePending(window)
       ) {
-        return;
+        return false;
       }
 
       this._startRestoreRetry();
-      this._maybeTryManualRestore();
+      return this._maybeTryManualRestore();
     },
 
     _startRestoreRetry() {
@@ -1669,17 +2177,16 @@ function createTreeTabsController(window) {
     },
 
     _maybeTryManualRestore() {
-      if (!this._restoreRetryActive || !this._isEnabled()) {
-        return;
+      if (
+        !this._restoreRetryActive ||
+        !this._isEnabled() ||
+        !window.gBrowser?.tabs?.length ||
+        !lazy.TreeTabsStore.tryManualRestore(window)
+      ) {
+        return false;
       }
-      if (!window.gBrowser?.tabs?.length) {
-        return;
-      }
-
-      if (lazy.TreeTabsStore.tryManualRestore(window)) {
-        this._updateAllTabs();
-        this._stopRestoreRetry();
-      }
+      this._stopRestoreRetry();
+      return true;
     },
 
     _isAutoCollapseOnSelectEnabled() {
@@ -1742,7 +2249,7 @@ function createTreeTabsController(window) {
         return;
       }
 
-      const selectedTab = event?.target;
+      const selectedTab = this._getLogicalTreeTab(event?.target);
       if (!selectedTab || !this._ownsTab(selectedTab) || selectedTab.closing) {
         return;
       }
@@ -1868,8 +2375,9 @@ function createTreeTabsController(window) {
       }
       const service = lazy.TreeTabsService;
       const currentParent = service.getParent(tab);
-      const parent = tab.openerTab;
+      const parent = this._getLogicalTreeTab(tab.openerTab);
       const valid = !!(
+        this._getLogicalTreeTab(tab) == tab &&
         parent &&
         parent != tab &&
         !parent.closing &&
@@ -1963,7 +2471,7 @@ function createTreeTabsController(window) {
       }
 
       const service = lazy.TreeTabsService;
-      const tab = window.gBrowser.selectedTab;
+      const tab = this._getLogicalTreeTab(window.gBrowser.selectedTab);
       if (!tab || tab.pinned) {
         return false;
       }
@@ -2104,6 +2612,7 @@ function createTreeTabsController(window) {
       triggeringPrincipal,
       urls,
     }) {
+      targetTab = this._getLogicalTreeTab(targetTab);
       targetGroup ||= targetTab?.group || null;
       try {
         let action = behavior;
@@ -2223,7 +2732,7 @@ function createTreeTabsController(window) {
       }
       const gBrowser = window.gBrowser;
       const service = lazy.TreeTabsService;
-      const base = gBrowser.selectedTab;
+      const base = this._getLogicalTreeTab(gBrowser.selectedTab);
       if (!base || (action != "independent" && base.pinned)) {
         return;
       }
@@ -2268,6 +2777,7 @@ function createTreeTabsController(window) {
     // held expands it after a short hold, so the next cycle can reach inside.
     _maybeScheduleSwitchingExpand(tab) {
       this._cancelSwitchingExpand();
+      tab = this._getLogicalTreeTab(tab);
       if (
         !lazy.TreeTabsService.isActive(window) ||
         !this._switchingModifierHeld ||
@@ -2283,7 +2793,7 @@ function createTreeTabsController(window) {
         if (
           !lazy.TreeTabsService.isActive(window) ||
           tab.closing ||
-          window.gBrowser?.selectedTab != tab ||
+          this._getLogicalTreeTab(window.gBrowser?.selectedTab) != tab ||
           !lazy.TreeTabsService.isCollapsed(tab)
         ) {
           return;
@@ -2310,6 +2820,7 @@ function createTreeTabsController(window) {
     // know about tree visibility. An invisible active tab is worse than
     // expanding the tree, so reveal it.
     _revealSelectedTab(tab) {
+      tab = this._getLogicalTreeTab(tab);
       if (
         !lazy.TreeTabsService.isActive(window) ||
         !tab ||
@@ -2340,11 +2851,14 @@ function createTreeTabsController(window) {
         return;
       }
       const selected = window.gBrowser?.selectedTab;
+      const logicalSelected = this._getLogicalTreeTab(selected);
       if (
-        !selected ||
-        selected == collapsedRoot ||
-        !lazy.TreeTabsService.getAncestors(selected).includes(collapsedRoot) ||
-        !lazy.TreeTabsService.isSubtreeCollapsed(selected)
+        !logicalSelected ||
+        logicalSelected == collapsedRoot ||
+        !lazy.TreeTabsService.getAncestors(logicalSelected).includes(
+          collapsedRoot
+        ) ||
+        !lazy.TreeTabsService.isSubtreeCollapsed(logicalSelected)
       ) {
         return;
       }
@@ -2367,6 +2881,7 @@ function createTreeTabsController(window) {
         !tab ||
         tab.pinned ||
         tab.group ||
+        tab.splitview ||
         tab.closing ||
         !this._ownsTab(tab) ||
         this._isWindowRestoring ||
@@ -2393,34 +2908,27 @@ function createTreeTabsController(window) {
     },
 
     _moveSubtreeAfter(tab) {
-      const descendants = lazy.TreeTabsService.getDescendants(tab);
+      const descendants = TreeTabsDnD._toNativeMovingElements(
+        lazy.TreeTabsService.getDescendants(tab)
+      );
+      if (!descendants.length) {
+        return;
+      }
       const wasSuppressed = TreeTabsDnD._suppressMoveFixup;
       TreeTabsDnD._suppressMoveFixup = true;
       try {
-        for (let i = 0; i < descendants.length; i += 1) {
-          const descendant = descendants[i];
-          // Moving a tab from before the target shifts the target down one.
-          const tabIndex =
-            tab._tPos + i + (descendant._tPos < tab._tPos ? 0 : 1);
-          window.gBrowser.moveTabTo(descendant, { tabIndex });
-        }
+        window.gBrowser.moveTabsAfter(descendants, tab.splitview || tab);
       } finally {
         TreeTabsDnD._suppressMoveFixup = wasSuppressed;
       }
     },
 
     _isSubtreeContiguous(tab) {
-      const descendants = lazy.TreeTabsService.getDescendants(tab);
-      if (!descendants.length) {
-        return true;
-      }
-      let min = Infinity;
-      let max = -Infinity;
-      for (const descendant of descendants) {
-        min = Math.min(min, descendant._tPos);
-        max = Math.max(max, descendant._tPos);
-      }
-      return min == tab._tPos + 1 && max - tab._tPos == descendants.length;
+      const elements = TreeTabsDnD._toNativeMovingElements(
+        TreeTabsDnD._collectSubtreeTabs(tab, lazy.TreeTabsService)
+      );
+      const tabs = elements.flatMap(item => item.tabs || [item]);
+      return tabs.every((item, index) => item._tPos == tab._tPos + index);
     },
 
     _ownsTab(tab) {
@@ -2575,46 +3083,51 @@ function createTreeTabsController(window) {
     },
 
     _closeTreeTabs(tab) {
-      this._closeTrees([tab]);
+      this._closeTrees([this._getLogicalTreeTab(tab)]);
     },
 
-    _closeTrees(roots) {
-      const tabsToClose = this._getTreeContextTabs(roots).filter(
-        tab => tab && !tab.closing
-      );
-      const snapshot = lazy.TreeTabsStore.beginClosedTreeSet(
-        window,
-        tabsToClose
-      );
+    _withClosedTreeSet(tabs, callback) {
+      const store = lazy.TreeTabsStore;
+      const ownsSnapshot =
+        !store.hasActiveClosedTreeSet(window) &&
+        store.beginClosedTreeSet(window, tabs);
       try {
-        for (const root of roots) {
-          lazy.TreeTabsService.closeTree(root);
-        }
-        this._removeTreeTabs(tabsToClose);
+        return callback();
       } finally {
-        if (snapshot) {
-          lazy.TreeTabsStore.finishClosedTreeSet(window);
+        if (ownsSnapshot) {
+          store.finishClosedTreeSet(window);
         }
       }
+    },
+
+    _closeTrees(roots, { descendantsOnly = false } = {}) {
+      const tabsToClose = this._getTreeContextTabs(roots, {
+        descendantsOnly,
+      }).filter(tab => tab && !tab.closing);
+      this._withClosedTreeSet(tabsToClose, () => {
+        for (const root of roots) {
+          if (descendantsOnly) {
+            lazy.TreeTabsService.closeDescendants(root);
+          } else {
+            lazy.TreeTabsService.closeTree(root);
+          }
+        }
+        this._removeTreeTabs(tabsToClose);
+      });
     },
 
     _removeTreeTabs(tabsToClose, baseTab = null) {
-      tabsToClose = [...new Set(tabsToClose)].filter(
-        tab => tab && !tab.closing
-      );
-      const members = baseTab ? [baseTab, ...tabsToClose] : tabsToClose;
-      const snapshot = lazy.TreeTabsStore.hasActiveClosedTreeSet(window)
-        ? null
-        : lazy.TreeTabsStore.beginClosedTreeSet(window, members);
-      try {
+      tabsToClose = [
+        ...new Set(tabsToClose.flatMap(tab => this._getTreeNodeTabs(tab))),
+      ].filter(tab => tab && !tab.closing);
+      const members = baseTab
+        ? [...this._getTreeNodeTabs(baseTab), ...tabsToClose]
+        : tabsToClose;
+      this._withClosedTreeSet(members, () => {
         if (tabsToClose.length) {
           window.gBrowser.removeTabs(tabsToClose);
         }
-      } finally {
-        if (snapshot) {
-          lazy.TreeTabsStore.finishClosedTreeSet(window);
-        }
-      }
+      });
     },
 
     _handleTabDoubleClick(event) {
@@ -2630,7 +3143,7 @@ function createTreeTabsController(window) {
         return;
       }
 
-      const tab = this._getTabFromEvent(event);
+      const tab = this._getLogicalTreeTab(this._getTabFromEvent(event));
       if (!tab || !this._ownsTab(tab) || tab.closing) {
         return;
       }
@@ -2682,7 +3195,9 @@ function createTreeTabsController(window) {
         return;
       }
 
-      const tab = this._getTabFromEvent(event) || window.gBrowser?.selectedTab;
+      const tab = this._getLogicalTreeTab(
+        this._getTabFromEvent(event) || window.gBrowser?.selectedTab
+      );
       if (!tab || !this._ownsTab(tab) || tab.closing) {
         return;
       }
@@ -2743,16 +3258,52 @@ function createTreeTabsController(window) {
 
       this._clearDropTarget();
       if (enabled) {
-        this._maybeRestoreTreeStructure();
+        this._withFinalTreeRender(() => {
+          this._maybeRestoreTreeStructure();
+          this._syncSplitViewTrees();
+          this._updateAllTabs();
+        });
+        this._scheduleNativeGroupReconcile();
         this._scheduleAllGroupCleanup(1000);
       } else {
         // Keep the model so toggling the pref back on brings the tree back.
+        this._treeRenderPending = false;
         this._inheritedMuteTabs = new WeakSet();
         this._clearAllTabs();
       }
     },
 
+    // Restore and normalization own their final synchronous projection, including
+    // updates requested by model observers and selection repair along the way.
+    _withFinalTreeRender(callback) {
+      const wasDeferring = this._deferringTreeRender;
+      this._deferringTreeRender = true;
+      let pending;
+      try {
+        callback();
+      } finally {
+        this._deferringTreeRender = wasDeferring;
+        pending = this._treeRenderPending;
+        if (pending && !wasDeferring && !this._isWindowRestoring) {
+          this._updateAllTabs();
+        }
+      }
+      return pending;
+    },
+
+    _deferTreeRender() {
+      if (this._deferringTreeRender || this._isWindowRestoring) {
+        this._treeRenderPending = true;
+        return true;
+      }
+      return false;
+    },
+
     _updateAllTabs() {
+      if (this._deferTreeRender()) {
+        return;
+      }
+      this._treeRenderPending = false;
       const indentPx = Services.prefs.getIntPref(PREF_INDENT_PX, 16);
       // Feed the per level indent into the stylesheet variable so the pref
       // drives the visual step, not just the depth clamp below.
@@ -2779,7 +3330,7 @@ function createTreeTabsController(window) {
     },
 
     _updateTab(tab, indentPx, maxVisualLevel) {
-      if (!tab) {
+      if (!tab || this._deferTreeRender()) {
         return;
       }
 
@@ -2793,6 +3344,14 @@ function createTreeTabsController(window) {
       const clampedLevel = Math.min(level, maxLevel);
       tab.dataset.treeLevel = String(level);
       tab.style.setProperty("--tree-level", clampedLevel);
+
+      // The pair's wrapper takes the indent of its tree-bearing first pane;
+      // the panes themselves stay flush inside it.
+      const wrapper = tab.splitview;
+      if (wrapper && wrapper.tabs?.[0] == tab) {
+        wrapper.dataset.treeLevel = String(level);
+        wrapper.style.setProperty("--tree-level", clampedLevel);
+      }
 
       const parent = lazy.TreeTabsService.getParent(tab);
       if (parent?.linkedPanel) {
@@ -2835,11 +3394,15 @@ function createTreeTabsController(window) {
     },
 
     _updateHiddenTabs() {
+      if (this._deferTreeRender()) {
+        return;
+      }
       const visible = new Set(lazy.TreeTabsService.getVisibleTabs(window));
       const stickyActiveTabEnabled = this._isStickyActiveTabEnabled();
       const selectedTab = stickyActiveTabEnabled
         ? window.gBrowser?.selectedTab
         : null;
+      const selectedLogicalTab = this._getLogicalTreeTab(selectedTab);
       let changed = false;
       const setHidden = (tab, hidden) => {
         if ((tab.dataset.treeHidden == "true") == hidden) {
@@ -2854,14 +3417,24 @@ function createTreeTabsController(window) {
       };
 
       for (const tab of window.gBrowser.tabs) {
+        // A split pane row follows the visibility of its tree-bearing pane.
+        const mainPane = tab.splitview?.tabs?.[0];
+        const anchor = mainPane && mainPane != tab ? mainPane : tab;
         // TabOpen can precede model registration. A tab without a tree parent
         // cannot be hidden by a collapsed ancestor.
         const shouldShow =
           visible.size === 0 ||
-          visible.has(tab) ||
-          !lazy.TreeTabsService.getParent(tab) ||
-          (stickyActiveTabEnabled && tab == selectedTab);
+          visible.has(anchor) ||
+          !lazy.TreeTabsService.getParent(anchor) ||
+          (stickyActiveTabEnabled && anchor == selectedLogicalTab);
         setHidden(tab, !shouldShow);
+      }
+      for (const wrapper of this._tabContainer?.allSplitViews || []) {
+        const hidden = wrapper.tabs?.[0]?.dataset.treeHidden == "true";
+        if (wrapper.hasAttribute("data-tree-hidden") != hidden) {
+          wrapper.toggleAttribute("data-tree-hidden", hidden);
+          changed = true;
+        }
       }
 
       // data-tree-hidden affects tab.visible, so invalidate its dependent
@@ -2884,6 +3457,10 @@ function createTreeTabsController(window) {
       tab.removeAttribute("data-tree-has-muted-member");
       delete tab._treeDescendantsTooltip;
       tab.removeAttribute("data-tree-descendants-tooltip");
+      if (tab.splitview) {
+        tab.splitview.removeAttribute("data-tree-level");
+        tab.splitview.removeAttribute("data-tree-hidden");
+        tab.splitview.style.removeProperty("--tree-level");
       tab.style.removeProperty("--tree-level");
       if (this._twistyHoverTab == tab) {
         this._twistyHoverTab = null;
@@ -2892,6 +3469,19 @@ function createTreeTabsController(window) {
 
     _updateDropTarget(event) {
       const draggedTab = TreeTabsDnD._getDraggedTab(event);
+      if (
+        event.eventPhase == window.Event.CAPTURING_PHASE &&
+        TreeTabsDnD._isEnabled(this._tabContainer) &&
+        draggedTab?.container == this._tabContainer &&
+        !draggedTab.pinned &&
+        !draggedTab.multiselected &&
+        !draggedTab._dragData?.fromTabList &&
+        this._tabContainer.tabDragAndDrop.getDropEffectForTabDrag(event) ==
+          "move"
+      ) {
+        // The native dragover hook updates the outline after resolving its gap.
+        return;
+      }
       const parent =
         draggedTab && !draggedTab.multiselected
           ? TreeTabsDnD._previewDropParent(event, draggedTab)
@@ -2904,9 +3494,11 @@ function createTreeTabsController(window) {
           : null;
       const hoverTab =
         parent ||
-        (nativeTarget?.classList?.contains("tabbrowser-tab")
-          ? nativeTarget
-          : null);
+        this._getLogicalTreeTab(
+          nativeTarget?.classList?.contains("tabbrowser-tab")
+            ? nativeTarget
+            : null
+        );
 
       if (this._dropTargetTab && this._dropTargetTab != parent) {
         this._dropTargetTab.removeAttribute("data-tree-drop-target");
@@ -3018,7 +3610,7 @@ function createTreeTabsController(window) {
         return;
       }
       const service = lazy.TreeTabsService;
-      const selected = window.gBrowser?.selectedTab;
+      const selected = this._getLogicalTreeTab(window.gBrowser?.selectedTab);
       for (const tab of this._dragAutoExpandedTabs) {
         if (tab.closing || !tab.isConnected) {
           continue;
@@ -3264,30 +3856,12 @@ function createTreeTabsController(window) {
               this._setManuallyExpanded(tab, true);
             }
             break;
-          case "context_closeTree": {
+          case "context_closeTree":
             this._closeTrees(contextRoots);
             break;
-          }
-          case "context_closeDescendants": {
-            const tabsToClose = this._getTreeContextTabs(contextRoots, {
-              descendantsOnly: true,
-            }).filter(tab => tab && !tab.closing);
-            const snapshot = lazy.TreeTabsStore.beginClosedTreeSet(
-              window,
-              tabsToClose
-            );
-            try {
-              for (const root of contextRoots) {
-                treeService.closeDescendants(root);
-              }
-              this._removeTreeTabs(tabsToClose);
-            } finally {
-              if (snapshot) {
-                lazy.TreeTabsStore.finishClosedTreeSet(window);
-              }
-            }
+          case "context_closeDescendants":
+            this._closeTrees(contextRoots, { descendantsOnly: true });
             break;
-          }
           case "context_bookmarkTree":
             this._bookmarkTree(contextRoots);
             break;
@@ -3316,7 +3890,9 @@ function createTreeTabsController(window) {
     },
 
     async _bookmarkTree(contextRoots) {
-      const roots = Array.isArray(contextRoots) ? contextRoots : [contextRoots];
+      const roots = Array.isArray(contextRoots)
+        ? contextRoots
+        : [this._getLogicalTreeTab(contextRoots)];
       const tabs = roots.flatMap(root => {
         const tree = [root, ...lazy.TreeTabsService.getDescendants(root)];
         return lazy.TreeTabsGroups.isGroupTab(root) && tree.length > 1
@@ -3336,10 +3912,13 @@ function createTreeTabsController(window) {
 
     // The whole tree as an indented link list: plain text gets a bullet
     // outline of URLs, HTML a nested list of titled links, like TST's
-    // "Copy this Tree as Links". Collapsed descendants are included.
+    // "Copy this Tree as Links". Collapsed descendants are included, and
+    // both panes of a split view pair are emitted for their tree row.
     _copyTreeAsLinks(contextRoots, { descendantsOnly = false } = {}) {
       const service = lazy.TreeTabsService;
-      contextRoots = Array.isArray(contextRoots) ? contextRoots : [contextRoots];
+      contextRoots = Array.isArray(contextRoots)
+        ? contextRoots
+        : [this._getLogicalTreeTab(contextRoots)];
       const roots = descendantsOnly
         ? contextRoots.flatMap(tab => service.getChildren(tab))
         : contextRoots;
@@ -3361,11 +3940,20 @@ function createTreeTabsController(window) {
         );
 
       const buildItem = itemTab => {
-        const url = itemTab.linkedBrowser?.currentURI?.spec || "";
-        let plain = `* ${url}`;
-        let rich = `<li><a href="${escapeForHTML(url)}">${escapeForHTML(
-          itemTab.label
-        )}</a>`;
+        const paneTabs = itemTab.splitview?.tabs?.length
+          ? itemTab.splitview.tabs
+          : [itemTab];
+        const plainLines = [];
+        const richLinks = [];
+        for (const paneTab of paneTabs) {
+          const url = paneTab.linkedBrowser?.currentURI?.spec || "";
+          plainLines.push(`* ${url}`);
+          richLinks.push(
+            `<a href="${escapeForHTML(url)}">${escapeForHTML(paneTab.label)}</a>`
+          );
+        }
+        let plain = plainLines.join("\n");
+        let rich = `<li>${richLinks.join("</li>\n<li>")}`;
         const children = service.getChildren(itemTab).map(buildItem);
         if (children.length) {
           plain +=
