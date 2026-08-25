@@ -32,6 +32,10 @@ const TREE_SUCCESSOR_PREF = "browser.tabs.verticalTabs.tree.successorControl";
 const TREE_DROP_LINKS_PREF = "browser.tabs.verticalTabs.tree.dropLinksOnTab";
 const TREE_AUTO_GROUP_PINNED_PREF =
   "browser.tabs.verticalTabs.tree.autoGroup.pinnedOpener";
+const TREE_BOOKMARK_RESTORE_PREF =
+  "browser.tabs.verticalTabs.tree.bookmarks.restoreTree";
+const TREE_BOOKMARK_GROUP_PREF =
+  "browser.tabs.verticalTabs.tree.bookmarks.autoGroup";
 const MAX_INT_PREF = 2147483647;
 let lastTreeMaxDepth = 6;
 
@@ -162,6 +166,8 @@ Preferences.addAll([
   { id: TREE_SUCCESSOR_PREF, type: "bool" },
   { id: TREE_DROP_LINKS_PREF, type: "int" },
   { id: TREE_AUTO_GROUP_PINNED_PREF, type: "bool" },
+  { id: TREE_BOOKMARK_RESTORE_PREF, type: "bool" },
+  { id: TREE_BOOKMARK_GROUP_PREF, type: "bool" },
   ...TOGGLES.map(toggle => ({
     id: toggle.pref,
     type: "bool",
@@ -237,6 +243,8 @@ for (let [id, pref] of [
   ["waterfox-tree-successor", TREE_SUCCESSOR_PREF],
   ["waterfox-tree-drop-links", TREE_DROP_LINKS_PREF],
   ["waterfox-tree-auto-group-pinned", TREE_AUTO_GROUP_PINNED_PREF],
+  ["waterfox-tree-bookmark-restore", TREE_BOOKMARK_RESTORE_PREF],
+  ["waterfox-tree-bookmark-group", TREE_BOOKMARK_GROUP_PREF],
 ]) {
   Preferences.addSetting({
     id,
@@ -545,6 +553,16 @@ SettingGroupManager.registerGroups({
           {
             id: "waterfox-tree-auto-group-pinned",
             l10nId: "waterfox-tabs-tree-auto-group-pinned-toggle",
+            control: "moz-toggle",
+          },
+          {
+            id: "waterfox-tree-bookmark-restore",
+            l10nId: "waterfox-tabs-tree-bookmark-restore-toggle",
+            control: "moz-toggle",
+          },
+          {
+            id: "waterfox-tree-bookmark-group",
+            l10nId: "waterfox-tabs-tree-bookmark-group-toggle",
             control: "moz-toggle",
           },
           {
