@@ -545,6 +545,96 @@ add_task(function test_visible_tabs_nested_collapse_and_subtree_state() {
   );
 });
 
+add_task(function test_horizontal_mode_preserves_tree_without_auto_attach() {
+  setupTreeService({ autoAttach: 1 });
+  const win = createMockWindow();
+  win.gBrowser.tabContainer = { verticalMode: true };
+  const parent = createMockTab(win);
+  const child = createMockTab(win);
+  const pinned = createMockTab(win, { pinned: true });
+  TreeTabsService.attachTab(child, parent);
+  TreeTabsService.collapseSubtree(parent);
+  win.gBrowser.tabContainer.verticalMode = false;
+
+  Assert.ok(TreeTabsService.enabled, "The saved model remains enabled");
+  Assert.ok(!TreeTabsService.isActive(win), "Automatic behavior is inactive");
+  for (const info of [
+    { opener: parent },
+    { opener: child, duplicate: true },
+    { nextSiblingOf: child },
+    { opener: pinned },
+    { opener: pinned },
+    { currentTab: child },
+  ]) {
+    const opened = createMockTab(win, { openerTab: info.opener });
+    TreeTabsService.onTabOpened(opened, info);
+    Assert.equal(
+      TreeTabsService.getParent(opened),
+      null,
+      "Horizontal opens remain independent"
+    );
+  }
+  Assert.equal(TreeTabsService.getSubtreeEndAnchor(parent), null);
+  Assert.equal(TreeTabsService.getNewTabAnchor(parent, child), null);
+  Assert.equal(TreeTabsService.getPinnedOpenerAnchor(pinned, child, win), null);
+  Assert.equal(TreeTabsService.getSuccessor(parent), null);
+  Assert.equal(TreeTabsService.getParent(child), parent);
+  Assert.ok(
+    TreeTabsService.isCollapsed(parent),
+    "Saved collapse is not discarded"
+  );
+  win.gBrowser.tabContainer.verticalMode = true;
+  Assert.ok(TreeTabsService.isActive(win));
+  Assert.equal(TreeTabsService.getParent(child), parent);
+});
+
+add_task(
+  function test_horizontal_close_never_creates_groups_or_closes_children() {
+    for (const closeParentBehavior of [0, 1, 2, 3, 4]) {
+      setupTreeService({ closeParentBehavior });
+      const win = createMockWindow();
+      win.gBrowser.tabContainer = { verticalMode: false };
+      const parent = createMockTab(win);
+      const first = createMockTab(win);
+      const second = createMockTab(win);
+      const grandchild = createMockTab(win);
+      TreeTabsService.attachTab(first, parent);
+      TreeTabsService.attachTab(second, parent);
+      TreeTabsService.attachTab(grandchild, first);
+      TreeTabsService.collapseSubtree(parent);
+      const unexpectedNotification = () =>
+        Assert.ok(
+          false,
+          "Closing a horizontal parent must not request a replacement group"
+        );
+      Services.obs.addObserver(
+        unexpectedNotification,
+        "tree-tabs-group-replace-requested"
+      );
+      try {
+        assertTabOrder(
+          TreeTabsService.getTabsClosingWith(parent),
+          [parent],
+          "Only the clicked tab closes"
+        );
+        Assert.deepEqual(TreeTabsService.onTabClosed(parent), []);
+        Assert.equal(TreeTabsService.getParent(first), null);
+        Assert.equal(TreeTabsService.getParent(second), null);
+        Assert.equal(
+          TreeTabsService.getParent(grandchild),
+          first,
+          "The remaining subtree is retained"
+        );
+      } finally {
+        Services.obs.removeObserver(
+          unexpectedNotification,
+          "tree-tabs-group-replace-requested"
+        );
+      }
+    }
+  }
+);
+
 add_task(function test_on_tab_opened_auto_attach_off_makes_root() {
   setupTreeService({ autoAttach: 0 });
 
@@ -1701,4 +1791,37 @@ add_task(function test_edge_case_max_depth_enforcement() {
 
   const roots = TreeTabsService.getRootTabs(win);
   assertSameTabSet(roots, [root, grandChild], "Grandchild remains a root tab");
+});
+
+add_task(function test_restore_snapshot_ignores_external_hints_without_nodes() {
+  setupTreeService();
+
+  const sourceWindow = createMockWindow();
+  const sourceHint = createMockTab(sourceWindow);
+  const sourceRoot = createMockTab(sourceWindow);
+  TreeTabsService.init(sourceWindow);
+  const snapshot = TreeTabsService.snapshotSubtree(sourceRoot);
+
+  const targetWindow = createMockWindow();
+  const targetHint = createMockTab(targetWindow);
+  TreeTabsService.init(targetWindow);
+
+  Assert.equal(
+    snapshot.insertAfter,
+    sourceHint,
+    "The snapshot has an external hint"
+  );
+  Assert.equal(
+    TreeTabsService.restoreSubtreeSnapshot(
+      snapshot,
+      new Map([[sourceHint, targetHint]])
+    ),
+    null,
+    "A map containing only external hints has no subtree to restore"
+  );
+  assertTabOrder(
+    TreeTabsService.getRootTabs(targetWindow),
+    [targetHint],
+    "The target tree is unchanged"
+  );
 });
