@@ -147,12 +147,12 @@ function migratePrefs() {
       valueMap: { "-1": 0, 0: 0, 1: 1, 5: 1, 6: 1, 7: 1, 2: 2, 3: 2, 4: 2 },
     },
     // TST kPARENT_TAB_OPERATION_BEHAVIOR_* values: 0 promote all, 1 and 4
-    // detach, 2 close tree, 3 promote first, 5 replace with group tab and
-    // 6 promote intelligently, which both come closest to promote all.
+    // detach, 2 close tree, 3 promote first, 5 replace with group tab, and
+    // 6 promote intelligently, which comes closest to promote all.
     "browser.sidebar.closeParentBehavior_outsideSidebar_expanded": {
       newKey: "browser.tabs.verticalTabs.tree.closeParentBehavior",
       type: "int",
-      valueMap: { 0: 1, 1: 3, 2: 2, 3: 0, 4: 3, 5: 1, 6: 1 },
+      valueMap: { 0: 1, 1: 3, 2: 2, 3: 0, 4: 3, 5: 4, 6: 1 },
     },
     "browser.sidebar.maxTreeLevel": {
       newKey: "browser.tabs.verticalTabs.tree.maxDepth",
