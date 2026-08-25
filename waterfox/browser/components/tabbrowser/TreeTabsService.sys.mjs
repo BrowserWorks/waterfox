@@ -620,6 +620,25 @@ export const TreeTabsService = {
     return null;
   },
 
+  getTabsClosingWith(tab, info = {}) {
+    if (!this._isEnabled()) {
+      return [tab].filter(Boolean);
+    }
+    const { state, window } = this._getStateForTab(tab);
+    const node = state?.nodes.get(tab);
+    if (!node) {
+      return [tab].filter(Boolean);
+    }
+    const behavior = this._getEffectiveCloseBehavior(
+      node,
+      window,
+      info.isUserTriggered !== false
+    );
+    return behavior === 2
+      ? [tab, ...this._getDescendantsFromState(state, tab)]
+      : [tab];
+  },
+
   onTabClosed(tab, info = {}) {
     if (!this._isEnabled()) {
       return [];
@@ -654,6 +673,7 @@ export const TreeTabsService = {
         this._notify("tree-tabs-close-requested", {
           window,
           tabs: descendants,
+          baseTab: tab,
         });
       }
       return descendants;
@@ -712,6 +732,14 @@ export const TreeTabsService = {
     this._notifyStructureChanged(window);
   },
 
+  snapshotSubtree(tab) {
+    if (!this._isEnabled()) {
+      return null;
+    }
+    const { state } = this._getStateForTab(tab);
+    return state && tab ? this._snapshotSubtree(state, tab) : null;
+  },
+
   onTabDetached(tab) {
     if (!this._isEnabled()) {
       return null;
@@ -725,6 +753,105 @@ export const TreeTabsService = {
     this._removeSubtree(state, tab);
     this._notifyStructureChanged(window);
     return snapshot;
+  },
+
+  restoreSubtreeSnapshot(snapshot, adoptedTabMap) {
+    if (!snapshot?.root || !snapshot.nodes?.length || !adoptedTabMap?.size) {
+      return null;
+    }
+    const firstMappedNode = snapshot.nodes.find(node =>
+      adoptedTabMap.has(node.tab)
+    );
+    const firstTab = adoptedTabMap.get(firstMappedNode?.tab);
+    const { window } = this._getStateForTab(firstTab, { create: true });
+    if (!window) {
+      return null;
+    }
+
+    const nodesByTab = new Map(snapshot.nodes.map(node => [node.tab, node]));
+    for (const node of snapshot.nodes) {
+      const tab = adoptedTabMap.get(node.tab);
+      if (tab?.documentGlobal == window) {
+        this.detachTab(tab);
+      }
+    }
+
+    const previousByParent = new Map();
+    const restoreNode = oldTab => {
+      const node = nodesByTab.get(oldTab);
+      if (!node) {
+        return;
+      }
+      const tab = adoptedTabMap.get(oldTab);
+      if (tab?.documentGlobal == window) {
+        let oldParent = node.parent;
+        while (oldParent && !adoptedTabMap.has(oldParent)) {
+          oldParent = nodesByTab.get(oldParent)?.parent || null;
+        }
+        const parent = adoptedTabMap.get(oldParent);
+        if (parent?.documentGlobal == window && parent != tab) {
+          let options;
+          if (oldTab == snapshot.root) {
+            const insertBefore = adoptedTabMap.get(snapshot.insertBefore);
+            const insertAfter = adoptedTabMap.get(snapshot.insertAfter);
+            options = {
+              insertBefore,
+              insertAfter,
+              index: snapshot.siblingIndex,
+              suppressAutoExpand: true,
+            };
+          } else {
+            const previous = previousByParent.get(parent);
+            options = previous
+              ? { insertAfter: previous, suppressAutoExpand: true }
+              : { index: 0, suppressAutoExpand: true };
+          }
+          this.attachTab(tab, parent, options);
+          previousByParent.set(parent, tab);
+        } else {
+          const previous = previousByParent.get(null);
+          const roots = this.getRootTabs(window);
+          const currentIndex = roots.indexOf(tab);
+          let targetIndex = 0;
+          if (oldTab == snapshot.root) {
+            const insertBefore = adoptedTabMap.get(snapshot.insertBefore);
+            const insertAfter = adoptedTabMap.get(snapshot.insertAfter);
+            if (insertBefore && roots.includes(insertBefore)) {
+              targetIndex = roots.indexOf(insertBefore);
+            } else if (insertAfter && roots.includes(insertAfter)) {
+              targetIndex = roots.indexOf(insertAfter) + 1;
+            } else if (Number.isInteger(snapshot.siblingIndex)) {
+              targetIndex = snapshot.siblingIndex;
+            }
+          } else if (previous && roots.includes(previous)) {
+            targetIndex = roots.indexOf(previous) + 1;
+          }
+          if (currentIndex >= 0 && currentIndex < targetIndex) {
+            targetIndex -= 1;
+          }
+          this.moveTabSubtree(tab, targetIndex);
+          previousByParent.set(null, tab);
+        }
+      }
+      for (const child of node.children || []) {
+        restoreNode(child);
+      }
+    };
+    restoreNode(snapshot.root);
+
+    for (const node of snapshot.nodes) {
+      const tab = adoptedTabMap.get(node.tab);
+      if (!tab || tab.documentGlobal != window) {
+        continue;
+      }
+      if (node.collapsed) {
+        this.collapseSubtree(tab);
+      } else {
+        this.expandSubtree(tab);
+      }
+    }
+    this._notifyStructureChanged(window);
+    return adoptedTabMap.get(snapshot.root) || firstTab;
   },
 
   onTabRestored(tab) {
@@ -1285,6 +1412,11 @@ export const TreeTabsService = {
   },
 
   _snapshotSubtree(state, tab) {
+    const rootNode = state.nodes.get(tab);
+    const siblings = rootNode?.parent
+      ? state.nodes.get(rootNode.parent)?.children || []
+      : state.roots;
+    const siblingIndex = siblings.indexOf(tab);
     const nodes = [];
     const stack = [tab];
     while (stack.length) {
@@ -1303,7 +1435,13 @@ export const TreeTabsService = {
         stack.push(child);
       }
     }
-    return { root: tab, nodes };
+    return {
+      root: tab,
+      nodes,
+      insertBefore: siblings[siblingIndex + 1] || null,
+      insertAfter: siblings[siblingIndex - 1] || null,
+      siblingIndex,
+    };
   },
 
   _getRootAncestor(state, tab) {
