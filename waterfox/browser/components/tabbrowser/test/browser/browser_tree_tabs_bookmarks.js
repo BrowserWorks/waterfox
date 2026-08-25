@@ -88,6 +88,167 @@ async function cleanupBookmarkTestTabs(originalTabs) {
   clearTreeTestPrefs();
 }
 
+async function checkNewWindowTreeBookmarkFolder(
+  duplicateURLs,
+  sourceWindow = window
+) {
+  await enableTreeTabs();
+  await SpecialPowers.pushPrefEnv({
+    set: [
+      [PREF_TREE_BOOKMARKS_RESTORE, true],
+      [PREF_TREE_BOOKMARKS_AUTO_GROUP, true],
+    ],
+  });
+
+  const id = Services.uuid.generateUUID().toString().slice(1, -1);
+  const titles = ["Root", "> First child", ">> Grandchild", "> Second child"];
+  const items = titles.map((title, index) => ({
+    uri: `https://example.com/?tree-bookmark-window=${id}-${duplicateURLs ? 0 : index}`,
+    isBookmark: true,
+  }));
+  let newWindow;
+  let initialTab;
+  let startupTabs;
+  const beforeShow = subject => {
+    if (!newWindow) {
+      newWindow = subject;
+      initialTab = newWindow.gBrowser.tabs[0];
+      is(
+        newWindow.gBrowser.tabs.length,
+        1,
+        "Startup begins with one initial tab"
+      );
+    }
+  };
+  const onStartup = subject => {
+    if (subject == newWindow) {
+      startupTabs = Array.from(newWindow.gBrowser.tabs);
+    }
+  };
+  Services.obs.addObserver(beforeShow, "browser-window-before-show");
+  Services.obs.addObserver(onStartup, "browser-delayed-startup-finished");
+
+  try {
+    const windowOpened = BrowserTestUtils.waitForNewWindow();
+    is(
+      PlacesUIUtils.openTabset(
+        items,
+        new sourceWindow.MouseEvent("click", {
+          button: 0,
+          shiftKey: true,
+          view: sourceWindow,
+        }),
+        sourceWindow,
+        {
+          treeBookmarkFolder: {
+            title: "New window tree",
+            items: titles.map(title => ({ title })),
+          },
+        }
+      ),
+      undefined,
+      "openTabset retains its void API when opening a window"
+    );
+    is(await windowOpened, newWindow, "The bookmark window finishes startup");
+
+    const tabbrowser = newWindow.gBrowser;
+    const service = tabbrowser.TreeTabsService;
+    const tabs = Array.from(tabbrowser.tabs);
+    const [root, child, grandchild, sibling] = tabs;
+    is(
+      startupTabs.length,
+      items.length,
+      "Bookmark tabs are created before delayed startup finishes"
+    );
+    Assert.deepEqual(
+      tabs,
+      startupTabs,
+      "Restoration uses the startup tab identities"
+    );
+    is(
+      tabs.length,
+      titles.length,
+      "No extra initial tab or wrapper is created"
+    );
+    is(root, initialTab, "The first bookmark reuses the existing initial tab");
+    is(tabbrowser.selectedTab, root, "The first bookmark stays selected");
+    is(
+      PrivateBrowsingUtils.isWindowPrivate(newWindow),
+      PrivateBrowsingUtils.isWindowPrivate(sourceWindow),
+      "The new window preserves the source window's private browsing mode"
+    );
+    ok(
+      !Object.hasOwn(newWindow, "_onInitialTabsLoaded"),
+      "The one-shot startup handoff has been consumed"
+    );
+
+    await waitForTreeCondition(
+      () =>
+        service.getParent(root) == null &&
+        service.getParent(child) == root &&
+        service.getParent(grandchild) == child &&
+        service.getParent(sibling) == root,
+      "Waiting for the new-window bookmark tree to restore by tab identity"
+    );
+    Assert.deepEqual(
+      service.getChildren(root),
+      [child, sibling],
+      "Root keeps ordered children"
+    );
+    Assert.deepEqual(
+      service.getChildren(child),
+      [grandchild],
+      "Grandchild belongs to the first child"
+    );
+    Assert.deepEqual(
+      Array.from(tabbrowser.tabs),
+      tabs,
+      "Restoring the tree preserves the bookmark folder's physical tab order"
+    );
+    await waitForTreeCondition(
+      () =>
+        tabs.every(
+          (tab, index) => TreeTabsGroups.getTabURL(tab) == items[index].uri
+        ),
+      "Waiting for distinct and repeated URLs in their ordered bookmark tabs"
+    );
+    await waitForTreeCondition(
+      () => tabs.slice(1).every(tab => tab.hasAttribute("discarded")),
+      "Waiting for background bookmark tabs to be discarded"
+    );
+    ok(
+      !root.hasAttribute("discarded"),
+      "The reused selected tab remains loaded"
+    );
+  } finally {
+    Services.obs.removeObserver(beforeShow, "browser-window-before-show");
+    Services.obs.removeObserver(onStartup, "browser-delayed-startup-finished");
+    if (newWindow && !newWindow.closed) {
+      await BrowserTestUtils.closeWindow(newWindow);
+    }
+    await SpecialPowers.popPrefEnv();
+  }
+}
+
+add_task(async function test_new_window_bookmark_tree_with_distinct_urls() {
+  await checkNewWindowTreeBookmarkFolder(false);
+});
+
+add_task(async function test_new_window_bookmark_tree_with_duplicate_urls() {
+  await checkNewWindowTreeBookmarkFolder(true);
+});
+
+add_task(async function test_private_new_window_bookmark_tree() {
+  const privateWindow = await BrowserTestUtils.openNewBrowserWindow({
+    private: true,
+  });
+  try {
+    await checkNewWindowTreeBookmarkFolder(true, privateWindow);
+  } finally {
+    await BrowserTestUtils.closeWindow(privateWindow);
+  }
+});
+
 add_task(async function test_open_tabset_restores_encoded_tree_without_group() {
   const originalTabs = new Set(gBrowser.tabs);
   await enableTreeTabs();
