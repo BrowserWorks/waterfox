@@ -2,6 +2,8 @@
 firefox-appdir = "browser"
 head = "head.js"
 
+["test_TreeTabsBookmarks.js"]
+
 ["test_TreeTabsGroups.js"]
 
 ["test_TreeTabsMigration.js"]
