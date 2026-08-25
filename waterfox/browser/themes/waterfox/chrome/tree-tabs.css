@@ -34,6 +34,10 @@
 }
 
 /* Disclosure control */
+.tab-tree-disclosure {
+  display: none;
+}
+
 #vertical-tabs[tree-tabs-enabled] .tabbrowser-tab[data-tree-has-children] {
   position: relative;
 }
@@ -55,14 +59,58 @@
   margin-inline-start: calc(var(--tab-inner-inline-margin) + var(--tree-twisty-size) + var(--tree-twisty-gap)) !important;
 }
 
-#vertical-tabs[tree-tabs-enabled] .tabbrowser-tab[data-tree-has-children]::before {
-  content: url("chrome://global/skin/icons/arrow-down-12.svg");
+#vertical-tabs[tree-tabs-enabled] #tabbrowser-tabs[expanded] .tab-tree-disclosure:not([hidden]) {
+  appearance: none;
+  box-sizing: border-box;
   display: block;
   position: absolute;
   inset-inline-start: var(--tab-inline-padding);
+  inset-block: 0;
+  inline-size: calc(var(--tree-twisty-size) + var(--tree-twisty-gap));
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  z-index: 2;
+
+  &:focus-visible {
+    outline: var(--focus-outline);
+    outline-offset: var(--focus-outline-inset);
+  }
+
+  @media (prefers-contrast), (forced-colors) {
+    border: 1px solid var(--border-color);
+
+    &::before {
+      inset-inline-start: -1px;
+    }
+  }
+}
+
+@media (forced-colors) {
+  #vertical-tabs[tree-tabs-enabled]
+    #tabbrowser-tabs[expanded]
+    tab-split-view-wrapper[hasactivetab]
+    > .tabbrowser-tab:not([selected])
+    > .tab-tree-disclosure:not([hidden]) {
+    border-color: var(--border-color-selected);
+
+    &:focus-visible {
+      outline-color: var(--border-color-selected);
+    }
+  }
+}
+
+.tab-tree-disclosure::before {
+  content: url("chrome://global/skin/icons/arrow-down-12.svg");
+  display: block;
+  position: absolute;
+  inset-inline-start: 0;
   inset-block-start: 50%;
-  width: var(--tree-twisty-size);
-  height: var(--tree-twisty-size);
+  inline-size: var(--tree-twisty-size);
+  block-size: var(--tree-twisty-size);
   -moz-context-properties: fill, fill-opacity;
   fill: currentColor;
   --tree-twisty-rotation: 0deg;
@@ -70,7 +118,6 @@
   transform: translateY(-50%) rotate(var(--tree-twisty-rotation)) scale(var(--tree-twisty-scale));
   transition: opacity 120ms ease;
   opacity: var(--opacity-deemphasized);
-  z-index: 2;
   pointer-events: none;
 
   @media (prefers-reduced-motion: no-preference) {
@@ -80,20 +127,16 @@
   }
 }
 
-#vertical-tabs[tree-tabs-enabled] #tabbrowser-tabs:not([expanded]) .tabbrowser-tab[data-tree-has-children]::before {
-  display: none;
-}
-
-#vertical-tabs[tree-tabs-enabled] .tabbrowser-tab[data-tree-has-children][data-tree-twisty-hover]::before {
+.tab-tree-disclosure:hover::before {
   --tree-twisty-scale: 1.08;
   opacity: 1;
 }
 
-#vertical-tabs[tree-tabs-enabled] .tabbrowser-tab[data-tree-collapsed]::before {
+.tab-tree-disclosure[aria-expanded="false"]::before {
   --tree-twisty-rotation: -90deg;
 }
 
-#vertical-tabs[tree-tabs-enabled] .tabbrowser-tab[data-tree-collapsed]:dir(rtl)::before {
+.tab-tree-disclosure[aria-expanded="false"]:dir(rtl)::before {
   --tree-twisty-rotation: 90deg;
 }
 

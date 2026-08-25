@@ -14,6 +14,12 @@ ChromeUtils.defineESModuleGetters(lazy, {
   TreeTabsStore: "resource:///modules/TreeTabsStore.sys.mjs",
 });
 
+ChromeUtils.defineLazyGetter(
+  lazy,
+  "l10n",
+  () => new Localization(["browser/waterfox/tree-tabs.ftl"], true)
+);
+
 const PREF_ENABLED = "browser.tabs.verticalTabs.tree.enabled";
 const PREF_INDENT_PX = "browser.tabs.verticalTabs.tree.indentPx";
 const PREF_AUTO_COLLAPSE_ON_SELECT =
@@ -944,13 +950,24 @@ function createTreeTabsController(window) {
 
   window.TreeTabsNav = TreeTabsNav;
 
+  const isolateDisclosureKeyEvent = event => {
+    if (
+      !controller._isEnabled() ||
+      !controller._tabContainer?.verticalMode ||
+      !["Enter", " "].includes(event.key) ||
+      !event.target?.closest?.(".tab-tree-disclosure")
+    ) {
+      return false;
+    }
+    event.stopPropagation();
+    return true;
+  };
+
   const controller = {
     _initialized: false,
     _tabContainer: null,
     _verticalTabsBox: null,
     _dropTargetTab: null,
-    _twistyHoverTab: null,
-    _twistyInlinePaddingPx: null,
     _resizeObserver: null,
     _orientationObserver: null,
     _tabContextMenu: null,
@@ -1024,10 +1041,9 @@ function createTreeTabsController(window) {
       this._tabContainer.addEventListener("TabShow", this);
       this._tabContainer.addEventListener("TabSelect", this);
       this._tabContainer.addEventListener("SSTabRestored", this);
-      this._tabContainer.addEventListener("mousemove", this);
-      this._tabContainer.addEventListener("mouseleave", this);
       this._tabContainer.addEventListener("mousedown", this, true);
       this._tabContainer.addEventListener("click", this, true);
+      this._tabContainer.addEventListener("dblclick", this, true);
       this._tabContainer.addEventListener("dblclick", this);
       this._tabContainer.addEventListener("keydown", this);
       this._tabContainer.addEventListener("dragover", this, true);
@@ -1035,9 +1051,15 @@ function createTreeTabsController(window) {
       this._tabContainer.addEventListener("drop", this, true);
       this._tabContainer.addEventListener("dragleave", this);
       this._tabContainer.addEventListener("dragend", this);
-      window.addEventListener("resize", this);
       window.addEventListener("keydown", this, true);
       window.addEventListener("keyup", this, true);
+      // Native tab key handlers run in the separate system event group.
+      for (const type of ["keydown", "keyup"]) {
+        window.addEventListener(type, isolateDisclosureKeyEvent, {
+          capture: true,
+          mozSystemGroup: true,
+        });
+      }
       this._newTabActionButton = document.getElementById(
         "waterfox-tree-newtab-action-button"
       );
@@ -1046,8 +1068,6 @@ function createTreeTabsController(window) {
 
       if (this._verticalTabsBox) {
         this._resizeObserver = new window.ResizeObserver(() => {
-          this._invalidateTwistyHitMetrics();
-          this._updateNewTabActionButton();
           if (this._isEnabled()) {
             this._updateAllTabs();
           }
@@ -1113,10 +1133,9 @@ function createTreeTabsController(window) {
       this._tabContainer?.removeEventListener("TabShow", this);
       this._tabContainer?.removeEventListener("TabSelect", this);
       this._tabContainer?.removeEventListener("SSTabRestored", this);
-      this._tabContainer?.removeEventListener("mousemove", this);
-      this._tabContainer?.removeEventListener("mouseleave", this);
       this._tabContainer?.removeEventListener("mousedown", this, true);
       this._tabContainer?.removeEventListener("click", this, true);
+      this._tabContainer?.removeEventListener("dblclick", this, true);
       this._tabContainer?.removeEventListener("dblclick", this);
       this._tabContainer?.removeEventListener("keydown", this);
       this._tabContainer?.removeEventListener("dragover", this, true);
@@ -1124,9 +1143,14 @@ function createTreeTabsController(window) {
       this._tabContainer?.removeEventListener("drop", this, true);
       this._tabContainer?.removeEventListener("dragleave", this);
       this._tabContainer?.removeEventListener("dragend", this);
-      window.removeEventListener("resize", this);
       window.removeEventListener("keydown", this, true);
       window.removeEventListener("keyup", this, true);
+      for (const type of ["keydown", "keyup"]) {
+        window.removeEventListener(type, isolateDisclosureKeyEvent, {
+          capture: true,
+          mozSystemGroup: true,
+        });
+      }
       this._newTabActionButton?.removeEventListener("command", this);
       this._newTabActionButton?.removeEventListener("popupshowing", this);
       this._newTabActionButton = null;
@@ -1140,7 +1164,6 @@ function createTreeTabsController(window) {
 
       this._restoreDragAutoExpandedTabs();
       this._clearDropTarget();
-      this._setTwistyHoverTab(null);
       this._setTreeContextMenuHidden(true);
       this._stopRestoreRetry({ clearGuard: true });
       TreeTabsNav.unpatch(this._tabContainer);
@@ -1148,9 +1171,6 @@ function createTreeTabsController(window) {
       this._tabContainer = null;
       this._verticalTabsBox = null;
       this._tabContextMenu = null;
-      this._twistyHoverTab = null;
-      this._twistyInlinePaddingPx = null;
-      this._resizeObserver = null;
       this._isWindowRestoring = false;
       this._deferringTreeRender = false;
       this._treeRenderPending = false;
@@ -1515,12 +1535,6 @@ function createTreeTabsController(window) {
         case "TabShow":
           this._handleTabHiddenChange(event.target);
           break;
-        case "mousemove":
-          this._handleTabTwistyMouseMove(event);
-          break;
-        case "mouseleave":
-          this._setTwistyHoverTab(null);
-          break;
         case "mousedown":
           this._handleTabTwistyMouseDown(event);
           break;
@@ -1535,7 +1549,11 @@ function createTreeTabsController(window) {
           this._handleTabTwistyClick(event);
           break;
         case "dblclick":
-          this._handleTabDoubleClick(event);
+          if (event.eventPhase == Event.CAPTURING_PHASE) {
+            this._handleTabTwistyMouseDown(event);
+          } else {
+            this._handleTabDoubleClick(event);
+          }
           break;
         case "keydown":
         case "keyup":
@@ -1547,10 +1565,6 @@ function createTreeTabsController(window) {
             return;
           }
           this._updateDropTarget(event);
-          break;
-        case "resize":
-          this._invalidateTwistyHitMetrics();
-          this._updateNewTabActionButton();
           break;
         case "dragleave":
           TreeTabsDnD._lastPreviewParent = null;
@@ -1974,7 +1988,6 @@ function createTreeTabsController(window) {
 
       // Hidden tabs keep their tree links; only the rendering changes.
       this._updateAllTabs();
-      this._updateHiddenTabs();
     },
 
     _handleTabPinned(tab) {
@@ -2327,12 +2340,12 @@ function createTreeTabsController(window) {
       if (changed.includes("openerTab")) {
         this._handleOpenerChange(event.target);
       }
-      if (changed.includes("label")) {
-        this._updateTab(event.target);
+      if (changed.includes("label") && this._isEnabled()) {
+        this._updateTabDisclosureLabel(event.target);
         for (const ancestor of lazy.TreeTabsService.getAncestors(
           event.target
         )) {
-          this._updateTab(ancestor);
+          this._updateTabTooltip(ancestor);
         }
       }
     },
@@ -2348,8 +2361,10 @@ function createTreeTabsController(window) {
 
     // A parent advertises the audio state of its subtree, so a collapsed
     // tree still shows that something inside it is playing or muted.
-    _updateTabSoundIndicator(tab) {
-      const descendants = lazy.TreeTabsService.getDescendants(tab);
+    _updateTabSoundIndicator(
+      tab,
+      descendants = lazy.TreeTabsService.getDescendants(tab)
+    ) {
       let hasSound = false;
       let hasMuted = false;
       for (const descendant of descendants) {
@@ -2414,6 +2429,9 @@ function createTreeTabsController(window) {
     },
 
     _handleKeyEvent(event) {
+      if (isolateDisclosureKeyEvent(event)) {
+        return;
+      }
       if (
         event.type == "keydown" &&
         event.currentTarget == window &&
@@ -2946,116 +2964,25 @@ function createTreeTabsController(window) {
       return null;
     },
 
-    _getTabFromClientY(clientY) {
-      if (typeof clientY != "number") {
-        return null;
-      }
-      for (const tab of window.gBrowser.tabs) {
-        if (!tab || tab.closing) {
-          continue;
-        }
-        const rect = tab.getBoundingClientRect();
-        if (rect.height && clientY >= rect.top && clientY <= rect.bottom) {
-          return tab;
-        }
-      }
-      return null;
-    },
-
-    _invalidateTwistyHitMetrics() {
-      this._twistyInlinePaddingPx = null;
-    },
-
-    _getTwistyInlinePadding(tab, computedStyle = null) {
-      if (this._twistyInlinePaddingPx !== null) {
-        return this._twistyInlinePaddingPx;
-      }
-
-      const style = computedStyle ?? window.getComputedStyle(tab);
-      this._twistyInlinePaddingPx =
-        parseFloat(style.getPropertyValue("--tab-inline-padding")) || 8;
-      return this._twistyInlinePaddingPx;
-    },
-
-    _getTwistyContentInlinePadding(tab) {
-      const tabContent = tab.querySelector(".tab-content");
-      if (!tabContent) {
-        return 0;
-      }
-      const padding = window.getComputedStyle(tabContent).paddingInlineStart;
-      return parseFloat(padding) || 0;
-    },
-
     _getTwistyTabFromEvent(event) {
       if (
         !this._isEnabled() ||
         !this._tabContainer?.verticalMode ||
-        (event?.type != "mousemove" &&
-          event?.type != "mouseleave" &&
-          event?.button != 0)
+        !this._tabContainer.hasAttribute("expanded") ||
+        event?.button != 0
       ) {
         return null;
       }
-
-      const tab =
-        this._getTabFromEvent(event) || this._getTabFromClientY(event.clientY);
-      if (!tab || !this._ownsTab(tab) || tab.closing) {
-        return null;
-      }
-
-      if (!lazy.TreeTabsService.getChildren(tab).length) {
-        return null;
-      }
-
-      const rect = tab.getBoundingClientRect();
-      if (!rect.width || !rect.height) {
-        return null;
-      }
-
-      if (event.clientY < rect.top || event.clientY > rect.bottom) {
-        return null;
-      }
-
-      const style = window.getComputedStyle(tab);
-      const inlinePadding = this._getTwistyInlinePadding(tab, style);
-      const contentInlinePadding = this._getTwistyContentInlinePadding(tab);
-      if (contentInlinePadding <= inlinePadding) {
-        return null;
-      }
-
-      const direction = style.direction;
-      if (direction == "rtl") {
-        const hitStart = rect.right - contentInlinePadding;
-        const hitEnd = rect.right - inlinePadding;
-        if (event.clientX < hitStart || event.clientX > hitEnd) {
-          return null;
-        }
-      } else {
-        const hitStart = rect.left + inlinePadding;
-        const hitEnd = rect.left + contentInlinePadding;
-        if (event.clientX < hitStart || event.clientX > hitEnd) {
-          return null;
-        }
-      }
-
-      return tab;
-    },
-
-    _setTwistyHoverTab(tab) {
-      if (this._twistyHoverTab == tab) {
-        return;
-      }
-      if (this._twistyHoverTab) {
-        this._twistyHoverTab.removeAttribute("data-tree-twisty-hover");
-      }
-      this._twistyHoverTab = tab || null;
-      if (this._twistyHoverTab) {
-        this._twistyHoverTab.dataset.treeTwistyHover = "true";
-      }
-    },
-
-    _handleTabTwistyMouseMove(event) {
-      this._setTwistyHoverTab(this._getTwistyTabFromEvent(event));
+      const disclosure = event.target?.closest?.(".tab-tree-disclosure");
+      const tab = disclosure?.closest(".tabbrowser-tab");
+      return disclosure &&
+        !disclosure.hidden &&
+        this._ownsTab(tab) &&
+        !tab.closing &&
+        !tab.pinned &&
+        lazy.TreeTabsService.getChildren(tab).length
+        ? tab
+        : null;
     },
 
     _handleTabTwistyMouseDown(event) {
@@ -3335,12 +3262,14 @@ function createTreeTabsController(window) {
       }
 
       const level = lazy.TreeTabsService.getLevel(tab);
-      const indent = indentPx ?? Services.prefs.getIntPref(PREF_INDENT_PX, 16);
-      const containerWidth =
-        this._verticalTabsBox?.getBoundingClientRect().width || 250;
-      const minContentWidth = 120;
-      const dynamicMaxIndent = Math.max(0, containerWidth - minContentWidth);
-      const maxLevel = maxVisualLevel ?? Math.floor(dynamicMaxIndent / indent);
+      const maxLevel =
+        maxVisualLevel ??
+        Math.floor(
+          Math.max(
+            0,
+            (this._verticalTabsBox?.getBoundingClientRect().width || 250) - 120
+          ) / (indentPx ?? Services.prefs.getIntPref(PREF_INDENT_PX, 16))
+        );
       const clampedLevel = Math.min(level, maxLevel);
       tab.dataset.treeLevel = String(level);
       tab.style.setProperty("--tree-level", clampedLevel);
@@ -3367,29 +3296,96 @@ function createTreeTabsController(window) {
         tab.removeAttribute("data-tree-has-children");
       }
 
-      this._updateTabSoundIndicator(tab);
+      const descendants = lazy.TreeTabsService.getDescendants(tab);
+      this._updateTabSoundIndicator(tab, descendants);
+      const collapsed = lazy.TreeTabsService.isCollapsed(tab);
+      this._updateTabDisclosure(tab, !!children.length, collapsed);
 
       const tabContent = tab.querySelector(".tab-content");
-      if (lazy.TreeTabsService.isCollapsed(tab)) {
-        const descendants = lazy.TreeTabsService.getDescendants(tab);
+      if (collapsed) {
         tab.dataset.treeCollapsed = "true";
         tabContent?.setAttribute(
           "data-tree-counter",
           String(descendants.length)
         );
-        tab._treeDescendantsTooltip = descendants
+      } else {
+        tab.removeAttribute("data-tree-collapsed");
+        tabContent?.removeAttribute("data-tree-counter");
+      }
+      this._updateTabTooltip(tab, descendants, level);
+    },
+
+    _updateTabDisclosure(tab, hasChildren, collapsed) {
+      const available =
+        hasChildren && !tab.pinned && this._tabContainer?.verticalMode;
+      if (available) {
+        tab.setAttribute("aria-expanded", String(!collapsed));
+      } else {
+        tab.removeAttribute("aria-expanded");
+      }
+      const disclosure = tab.querySelector(".tab-tree-disclosure");
+      if (!disclosure) {
+        return;
+      }
+      disclosure.hidden = !available;
+      if (!available) {
+        disclosure.removeAttribute("aria-expanded");
+        disclosure.removeAttribute("aria-label");
+      } else if (
+        disclosure.getAttribute("aria-expanded") != String(!collapsed)
+      ) {
+        disclosure.setAttribute("aria-expanded", String(!collapsed));
+        this._updateTabDisclosureLabel(tab, disclosure);
+      }
+    },
+
+    _updateTabDisclosureLabel(
+      tab,
+      disclosure = tab.querySelector(".tab-tree-disclosure")
+    ) {
+      if (!disclosure || disclosure.hidden) {
+        return;
+      }
+      disclosure.setAttribute(
+        "aria-label",
+        lazy.l10n.formatValueSync(
+          disclosure.getAttribute("aria-expanded") == "false"
+            ? "waterfox-tree-disclosure-expand"
+            : "waterfox-tree-disclosure-collapse",
+          { tabTitle: tab.label }
+        )
+      );
+    },
+
+    _updateTabTooltip(tab, descendants, level) {
+      if (this._deferTreeRender()) {
+        return;
+      }
+      const logicalTab = this._getLogicalTreeTab(tab);
+      let tooltip;
+      if (logicalTab != tab) {
+        tooltip = logicalTab?._treeDescendantsTooltip;
+      } else if (lazy.TreeTabsService.isCollapsed(tab)) {
+        descendants ??= lazy.TreeTabsService.getDescendants(tab);
+        level ??= lazy.TreeTabsService.getLevel(tab);
+        tooltip = descendants
           .map(descendant => {
             const relativeLevel =
               lazy.TreeTabsService.getLevel(descendant) - level;
             return `${"  ".repeat(relativeLevel)}${descendant.label}`;
           })
           .join("\n");
-        tab.dataset.treeDescendantsTooltip = "true";
-      } else {
-        delete tab._treeDescendantsTooltip;
-        tab.removeAttribute("data-tree-collapsed");
-        tab.removeAttribute("data-tree-descendants-tooltip");
-        tabContent?.removeAttribute("data-tree-counter");
+      }
+      for (const pane of logicalTab == tab
+        ? this._getTreeNodeTabs(tab)
+        : [tab]) {
+        if (tooltip !== undefined) {
+          pane._treeDescendantsTooltip = tooltip;
+          pane.dataset.treeDescendantsTooltip = "true";
+        } else {
+          delete pane._treeDescendantsTooltip;
+          pane.removeAttribute("data-tree-descendants-tooltip");
+        }
       }
     },
 
@@ -3449,10 +3445,10 @@ function createTreeTabsController(window) {
       tab.removeAttribute("data-tree-parent");
       tab.removeAttribute("data-tree-has-children");
       tab.removeAttribute("data-tree-collapsed");
+      this._updateTabDisclosure(tab, false, false);
       tab.querySelector(".tab-content")?.removeAttribute("data-tree-counter");
       tab.removeAttribute("data-tree-hidden");
       tab.removeAttribute("data-tree-drop-target");
-      tab.removeAttribute("data-tree-twisty-hover");
       tab.removeAttribute("data-tree-has-sound-member");
       tab.removeAttribute("data-tree-has-muted-member");
       delete tab._treeDescendantsTooltip;
@@ -3461,10 +3457,8 @@ function createTreeTabsController(window) {
         tab.splitview.removeAttribute("data-tree-level");
         tab.splitview.removeAttribute("data-tree-hidden");
         tab.splitview.style.removeProperty("--tree-level");
-      tab.style.removeProperty("--tree-level");
-      if (this._twistyHoverTab == tab) {
-        this._twistyHoverTab = null;
       }
+      tab.style.removeProperty("--tree-level");
     },
 
     _updateDropTarget(event) {
