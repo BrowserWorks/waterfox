@@ -24,6 +24,8 @@ prefs = [
 ]
 support-files = ["head.js"]
 
+["browser_tab_group_cross_window_order.js"]
+
 ["browser_tree_tabs_auto_collapse.js"]
 
 ["browser_tree_tabs_basic.js"]
@@ -47,6 +49,8 @@ support-files = ["head.js"]
 ["browser_tree_tabs_moves.js"]
 
 ["browser_tree_tabs_mute.js"]
+
+["browser_tree_tabs_native_groups.js"]
 
 ["browser_tree_tabs_rendering.js"]
 

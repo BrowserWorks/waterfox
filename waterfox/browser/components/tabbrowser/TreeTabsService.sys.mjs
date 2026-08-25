@@ -215,6 +215,9 @@ export const TreeTabsService = {
     if (parentWindow && parentWindow !== window) {
       return false;
     }
+    if ((child.group || null) !== (parent.group || null)) {
+      return false;
+    }
     if (this._isAncestor(state, child, parent)) {
       return false;
     }
