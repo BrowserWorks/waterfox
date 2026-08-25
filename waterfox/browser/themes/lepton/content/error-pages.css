@@ -49,7 +49,7 @@
 }
 @-moz-document url-prefix("about:neterror?e=blockedByPolicy"), url-prefix("about:neterror?e=deniedPortAccess"), url-prefix("about:neterror?e=malformedURI") {
   :root {
-    --uc-error-illustration: url(chrome://browser/skin/illustrations/error-malformed-url.svg);
+    --uc-error-illustration: url(chrome://global/skin/illustrations/error-malformed-url.svg);
   }
 }
 @-moz-document url-prefix("about:neterror?e=clockSkewError"), url-prefix("about:neterror?e=nssFailure") {
