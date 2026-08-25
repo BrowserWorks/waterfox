@@ -111,13 +111,16 @@ add_task(async function test_tree_tabs_context_menu_copy_links() {
   const childTwo = await openTabWithTree(parentTab, childTwoURL);
 
   let menu = await openTabContextMenu(parentTab);
+  const bookmarkTreeItem = document.getElementById("context_bookmarkTree");
   const copyTreeItem = document.getElementById("context_copyTreeLinks");
   const copyDescendantsItem = document.getElementById(
     "context_copyDescendantsLinks"
   );
 
+  ok(bookmarkTreeItem, "Bookmark Tree menu item exists");
   ok(copyTreeItem, "Copy Tree menu item exists");
   ok(copyDescendantsItem, "Copy Descendants menu item exists");
+  ok(!bookmarkTreeItem.hidden, "Bookmark Tree is visible for a tree");
   ok(!copyTreeItem.hidden, "Copy Tree is visible for a tree");
   ok(!copyDescendantsItem.hidden, "Copy Descendants is visible for a tree");
 

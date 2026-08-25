@@ -28,6 +28,8 @@ support-files = ["head.js"]
 
 ["browser_tree_tabs_basic.js"]
 
+["browser_tree_tabs_bookmarks.js"]
+
 ["browser_tree_tabs_collapse.js"]
 
 ["browser_tree_tabs_context_menu.js"]

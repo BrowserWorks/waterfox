@@ -247,6 +247,18 @@ const TREE_CONTROLS = [
     control: "moz-toggle",
   },
   {
+    id: "waterfox-tree-bookmark-restore",
+    l10nId: "waterfox-tabs-tree-bookmark-restore-toggle",
+    pref: "browser.tabs.verticalTabs.tree.bookmarks.restoreTree",
+    control: "moz-toggle",
+  },
+  {
+    id: "waterfox-tree-bookmark-group",
+    l10nId: "waterfox-tabs-tree-bookmark-group-toggle",
+    pref: "browser.tabs.verticalTabs.tree.bookmarks.autoGroup",
+    control: "moz-toggle",
+  },
+  {
     id: "waterfox-tree-sticky-active",
     l10nId: "waterfox-tabs-tree-sticky-active-toggle",
     pref: "browser.tabs.verticalTabs.tree.sticky.activeTab",

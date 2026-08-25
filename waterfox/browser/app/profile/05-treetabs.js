@@ -32,6 +32,8 @@ pref("browser.tabs.verticalTabs.tree.successorControl", true);
 // A link dropped onto a tab: 0 load in that tab, 1 ask, 2 open as child.
 pref("browser.tabs.verticalTabs.tree.dropLinksOnTab", 1);
 pref("browser.tabs.verticalTabs.tree.autoGroup.pinnedOpener", true);
+pref("browser.tabs.verticalTabs.tree.bookmarks.restoreTree", true);
+pref("browser.tabs.verticalTabs.tree.bookmarks.autoGroup", true);
 
 // Deepest nesting level allowed, -1 for no limit.
 pref("browser.tabs.verticalTabs.tree.maxDepth", -1);
