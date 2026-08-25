@@ -35,6 +35,9 @@ function createMockSessionStore() {
       tabValues.get(tab).set(key, value);
       writes.tab.push({ tab, key, value });
     },
+    deleteCustomTabValue(tab, key) {
+      tabValues.get(tab)?.delete(key);
+    },
     getCustomWindowValue(win, key) {
       return windowValues.get(win)?.get(key) || "";
     },
@@ -61,8 +64,16 @@ function clearTreeStoreState() {
     }
     TreeTabsStore._windowStates.clear();
     TreeTabsStore._restoringWindows = new WeakSet();
+    TreeTabsStore._sessionRestoringWindows = new WeakSet();
+    TreeTabsStore._pendingWindowRestores = new WeakSet();
     TreeTabsStore._restoreGuardTimers.clear();
     TreeTabsStore._manualRestoreCompleted = new WeakSet();
+    TreeTabsStore._activeClosedTreeSets.clear();
+    TreeTabsStore._closedTreeSets.clear();
+    TreeTabsStore._pendingClosedTreeRestores.clear();
+    TreeTabsStore._frozenCloseTabs = new WeakSet();
+    TreeTabsStore._restoringClosedTreeSets = new WeakSet();
+    TreeTabsStore._closedSetRestoringTabs = new WeakSet();
   }
   TreeTabsStore._tabGuids = new WeakMap();
   TreeTabsService._windowStates.clear();
@@ -115,6 +126,60 @@ function resetWrites(mockStore) {
 
 function waitForTimers(ms = 250) {
   return new Promise(resolve => do_timeout(ms, resolve));
+}
+
+function createStoredTab(
+  mockStore,
+  window,
+  guid,
+  { lazy = false, legacy = false } = {}
+) {
+  const tab = createMockTab(window);
+  if (lazy) {
+    tab.linkedPanel = "";
+  }
+  if (guid != null) {
+    putTabJSON(mockStore, tab, "data-persistent-id", guid, { legacy });
+  }
+  return tab;
+}
+
+function putTreeLink(mockStore, parent, child, key, { legacy = false } = {}) {
+  const [tab, target] = key == "ancestors" ? [child, parent] : [parent, child];
+  const prefix = legacy ? LEGACY_PREFIX : NATIVE_PREFIX;
+  const id = JSON.parse(
+    mockStore._tabValues.get(target).get(`${prefix}data-persistent-id`)
+  );
+  putTabJSON(mockStore, tab, key, [id], { legacy });
+}
+
+function getStoredData(mockStore) {
+  const entries = values =>
+    [...values].map(([target, data]) => [target, [...data]]);
+  return {
+    tabs: entries(mockStore._tabValues),
+    windows: entries(mockStore._windowValues),
+  };
+}
+
+function assertSavesBlocked(mockStore, window, savedData) {
+  for (const tab of window.gBrowser.tabs) {
+    TreeTabsStore.saveTabState(tab, { force: true });
+  }
+  TreeTabsStore.saveWindowStructure(window);
+  TreeTabsStore.onTreeEvent("tree-tabs-structure-changed", { window });
+  Assert.ok(!TreeTabsStore._pendingSaves.has(window), "No save is queued");
+  Assert.ok(
+    !TreeTabsStore._manualRestoreCompleted.has(window),
+    "Blocked saves cannot mark an incomplete restore as complete"
+  );
+  Assert.deepEqual(
+    getStoredData(mockStore),
+    savedData,
+    "Forced saves preserve all tab and window extData after guard timeout"
+  );
+  Assert.equal(mockStore._writes.tab.length, 0, "No tab writes");
+  Assert.equal(mockStore._writes.window.length, 0, "No window writes");
 }
 
 registerCleanupFunction(() => {
@@ -404,6 +469,52 @@ add_task(function test_tab_restore_replays_explicit_expanded_state() {
     false,
     "An explicitly saved expanded state replaces stale model collapse"
   );
+});
+
+add_task(function test_disclosure_changes_override_pending_restore_data() {
+  for (const initiallyCollapsed of [false, true]) {
+    for (const beforeRestoring of [false, true]) {
+      const mockStore = setupStore();
+      const window = createMockWindow();
+      const tab = createStoredTab(mockStore, window, "pending-parent");
+      TreeTabsStore.getTabGuid(tab);
+      putTabJSON(
+        mockStore,
+        tab,
+        "special-tab-states",
+        initiallyCollapsed ? ["subtree-collapsed"] : []
+      );
+      tab.hasAttribute = name => name == "pending" && beforeRestoring;
+      if (!beforeRestoring) {
+        TreeTabsStore.onTabRestoring(tab);
+      }
+      TreeTabsStore.onTreeEvent("tree-tabs-subtree-collapsed-changed", {
+        tab,
+        collapsed: !initiallyCollapsed,
+      });
+      if (beforeRestoring) {
+        TreeTabsStore.onTabRestoring(tab);
+      }
+      TreeTabsStore.onTabRestored(tab);
+      Assert.equal(
+        TreeTabsService.isCollapsed(tab),
+        !initiallyCollapsed,
+        "A disclosure choice before or during loading overrides saved metadata"
+      );
+      Assert.ok(
+        !TreeTabsStore._getWindowState(window).collapseStates.has(tab),
+        "The override is consumed when restoration finishes"
+      );
+
+      TreeTabsStore.onTabRestoring(tab);
+      TreeTabsStore.onTabRestored(tab);
+      Assert.equal(
+        TreeTabsService.isCollapsed(tab),
+        initiallyCollapsed,
+        "An independent later restore still applies its saved disclosure state"
+      );
+    }
+  }
 });
 
 add_task(
@@ -990,6 +1101,541 @@ add_task(
   }
 );
 
+function countGuidRestoreWork(callback) {
+  const counts = {
+    windowEnumerations: 0,
+    guidLookups: 0,
+    persistentIDReads: 0,
+  };
+  const methods = {
+    _getWindowTabs: "windowEnumerations",
+    _getTabGuid: "guidLookups",
+    _readLegacyUniqueId: "persistentIDReads",
+  };
+  const originals = new Map();
+  for (const [method, counter] of Object.entries(methods)) {
+    const original = TreeTabsStore[method];
+    originals.set(method, original);
+    TreeTabsStore[method] = function (...args) {
+      counts[counter]++;
+      return original.apply(this, args);
+    };
+  }
+  try {
+    callback();
+  } finally {
+    for (const [method, original] of originals) {
+      TreeTabsStore[method] = original;
+    }
+  }
+  return counts;
+}
+
+add_task(function test_bulk_guid_checks_refresh_ids_with_linear_work() {
+  for (const enabled of [false, true]) {
+    for (const count of [64, 128]) {
+      const mockStore = setupStore({ enabled });
+      const window = createMockWindow();
+      const tabs = Array.from({ length: count }, (_, index) => {
+        const tab = createStoredTab(mockStore, window, `previous-${index}`);
+        TreeTabsStore.getTabGuid(tab);
+        putTabJSON(mockStore, tab, "data-persistent-id", `unique-${index}`);
+        return tab;
+      });
+      const counts = countGuidRestoreWork(() =>
+        TreeTabsStore.ensureUniqueTabGuids(window)
+      );
+      info(`Bulk GUID work: ${JSON.stringify({ enabled, count, ...counts })}`);
+      Assert.deepEqual(
+        counts,
+        { windowEnumerations: 1, guidLookups: count, persistentIDReads: count },
+        "A bulk check enumerates once and reads each tab's current ID once"
+      );
+      Assert.equal(
+        mockStore._writes.tab.length,
+        0,
+        "Unique IDs are not rewritten"
+      );
+      for (const [index, tab] of tabs.entries()) {
+        Assert.equal(TreeTabsStore.getTabGuid(tab), `unique-${index}`);
+        putTabJSON(mockStore, tab, "data-persistent-id", "shared-guid");
+      }
+
+      const duplicates = countGuidRestoreWork(() =>
+        TreeTabsStore.ensureUniqueTabGuids(window)
+      );
+      Assert.deepEqual(
+        duplicates,
+        counts,
+        "Copied IDs require the same bounded work"
+      );
+      const guids = tabs.map(tab =>
+        getTabJSON(mockStore, tab, "data-persistent-id")
+      );
+      Assert.equal(new Set(guids).size, count);
+      Assert.equal(
+        guids[0],
+        "shared-guid",
+        "The first live owner keeps its ID"
+      );
+      Assert.equal(mockStore._writes.tab.length, count - 1);
+    }
+  }
+});
+
+add_task(
+  function test_many_copied_guids_remain_unique_after_repeated_restores() {
+    for (const enabled of [false, true]) {
+      const mockStore = setupStore({ enabled });
+      const window = createMockWindow();
+      const tabs = Array.from({ length: 64 }, () =>
+        createStoredTab(mockStore, window, "shared-guid")
+      );
+      for (const tab of tabs.toReversed()) {
+        TreeTabsStore.onTabRestoring(tab);
+      }
+      const guids = tabs.map(tab =>
+        getTabJSON(mockStore, tab, "data-persistent-id")
+      );
+      Assert.equal(
+        new Set(guids).size,
+        tabs.length,
+        "All copied tabs have distinct persistent IDs after their restore events"
+      );
+      Assert.equal(
+        guids.filter(guid => guid == "shared-guid").length,
+        1,
+        "Exactly one tab retains the copied ID"
+      );
+      resetWrites(mockStore);
+      for (const tab of tabs) {
+        TreeTabsStore.onTabRestoring(tab);
+      }
+      Assert.deepEqual(
+        tabs.map(tab => getTabJSON(mockStore, tab, "data-persistent-id")),
+        guids,
+        "Repeated restore notifications do not change the normalized IDs"
+      );
+      Assert.equal(mockStore._writes.tab.length, 0);
+    }
+  }
+);
+
+add_task(
+  function test_guid_checks_track_open_generated_and_closed_tabs_when_disabled() {
+    const mockStore = setupStore({ enabled: false });
+    const window = createMockWindow();
+    const original = createStoredTab(mockStore, window, "original-guid");
+    TreeTabsStore.onTabRestoring(original);
+
+    for (const generated of [false, true]) {
+      const opened = createMockTab(window);
+      TreeTabsStore.handleEvent({ type: "TabOpen", target: opened });
+      if (!generated) {
+        putTabJSON(mockStore, opened, "data-persistent-id", "opened-guid");
+      }
+      const guid = generated
+        ? TreeTabsStore.getTabGuid(opened, { create: true })
+        : "opened-guid";
+      const duplicate = createStoredTab(mockStore, window, guid);
+      TreeTabsStore.onTabRestoring(duplicate);
+      Assert.notEqual(
+        TreeTabsStore.getTabGuid(duplicate),
+        guid,
+        `${generated ? "Generated" : "Incoming"} IDs are owned before a restore event`
+      );
+    }
+
+    original.closing = true;
+    TreeTabsStore.handleEvent({ type: "TabClose", target: original });
+    const reopened = createStoredTab(mockStore, window, "original-guid");
+    TreeTabsStore.onTabRestoring(reopened);
+    Assert.equal(TreeTabsStore.getTabGuid(reopened), "original-guid");
+    Assert.ok(
+      !TreeTabsStore._tabGuids.has(original),
+      "Close clears the cached ID"
+    );
+    Assert.ok(
+      !TreeTabsStore._windowStates.has(window),
+      "Disabled checks do not create tree restore state"
+    );
+  }
+);
+
+add_task(function test_guid_cache_tracks_both_adoption_paths() {
+  for (const enabled of [false, true]) {
+    for (const type of ["TabOpen", "TabClose"]) {
+      const mockStore = setupStore({ enabled });
+      const sourceWindow = createMockWindow();
+      const targetWindow = createMockWindow();
+      const source = createStoredTab(mockStore, sourceWindow, "adopted-guid");
+      const target = createStoredTab(
+        mockStore,
+        targetWindow,
+        "placeholder-guid"
+      );
+      TreeTabsStore.onTabRestoring(source);
+      TreeTabsStore.onTabRestoring(target);
+
+      mockStore._tabValues.set(target, mockStore._tabValues.get(source));
+      mockStore._tabValues.delete(source);
+      TreeTabsStore.handleEvent(
+        type == "TabOpen"
+          ? { type, target, detail: { adoptedTab: source } }
+          : { type, target: source, detail: { adoptedBy: target } }
+      );
+      Assert.equal(
+        TreeTabsStore.getTabGuid(target),
+        "adopted-guid",
+        `${type} refreshes the target after SessionStore transfers metadata`
+      );
+      Assert.equal(TreeTabsStore.getTabGuid(source), null);
+      if (enabled) {
+        const sourceState = TreeTabsStore._windowStates.get(sourceWindow);
+        const targetState = TreeTabsStore._windowStates.get(targetWindow);
+        Assert.ok(!sourceState.uniqueIdToTab.has("adopted-guid"));
+        Assert.ok(
+          !sourceState.tabData.has(source),
+          "Adoption releases source restore data"
+        );
+        Assert.ok(!targetState.uniqueIdToTab.has("placeholder-guid"));
+        Assert.ok(
+          !targetState.tabData.has(target),
+          "Target restore data must be reloaded"
+        );
+        TreeTabsStore.onTabRestored(target);
+        Assert.ok(
+          !targetState.uniqueIdToTab.has("placeholder-guid"),
+          "A later restore cannot resurrect the target's superseded identity"
+        );
+      }
+
+      const sourceReplacement = createStoredTab(
+        mockStore,
+        sourceWindow,
+        "adopted-guid"
+      );
+      TreeTabsStore.onTabRestoring(sourceReplacement);
+      Assert.equal(
+        TreeTabsStore.getTabGuid(sourceReplacement),
+        "adopted-guid",
+        "The source window no longer reports a collision with the adopted tab"
+      );
+      source.closing = true;
+      TreeTabsStore.handleEvent({
+        type: "TabClose",
+        target: source,
+        detail: { adoptedBy: target },
+      });
+      const targetDuplicate = createStoredTab(
+        mockStore,
+        targetWindow,
+        "adopted-guid"
+      );
+      TreeTabsStore.onTabRestoring(targetDuplicate);
+      Assert.notEqual(
+        TreeTabsStore.getTabGuid(targetDuplicate),
+        "adopted-guid",
+        "The adopted tab owns its ID in the destination in both modes"
+      );
+      Assert.equal(TreeTabsStore.getTabGuid(target), "adopted-guid");
+    }
+  }
+});
+
+add_task(
+  function test_adoption_reloads_restore_data_even_when_guid_is_unchanged() {
+    for (const type of ["TabOpen", "TabClose"]) {
+      const mockStore = setupStore();
+      const source = createStoredTab(
+        mockStore,
+        createMockWindow(),
+        "shared-guid"
+      );
+      const targetWindow = createMockWindow();
+      const target = createStoredTab(mockStore, targetWindow, "shared-guid");
+      putTabJSON(mockStore, target, "special-tab-states", [
+        "subtree-collapsed",
+      ]);
+      TreeTabsStore.onTabRestoring(source);
+      TreeTabsStore.onTabRestoring(target);
+      mockStore._tabValues.set(target, mockStore._tabValues.get(source));
+      mockStore._tabValues.delete(source);
+      TreeTabsStore.handleEvent(
+        type == "TabOpen"
+          ? { type, target, detail: { adoptedTab: source } }
+          : { type, target: source, detail: { adoptedBy: target } }
+      );
+      Assert.ok(
+        !TreeTabsStore._windowStates.get(targetWindow).tabData.has(target),
+        "The transferred session data supersedes the placeholder even with the same ID"
+      );
+      TreeTabsStore.onTabRestored(target);
+      Assert.ok(
+        !TreeTabsService.isCollapsed(target),
+        "Old target metadata is not restored"
+      );
+      Assert.equal(TreeTabsStore.getTabGuid(target), "shared-guid");
+    }
+  }
+);
+
+add_task(function test_guid_checks_preserve_idless_restore_data_until_close() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  const tab = createMockTab(window);
+  const counts = countGuidRestoreWork(() => TreeTabsStore.onTabRestoring(tab));
+  Assert.equal(
+    counts.windowEnumerations,
+    0,
+    "ID-less tabs need no collision scan"
+  );
+  const state = TreeTabsStore._windowStates.get(window);
+  const tabData = state.tabData.get(tab);
+  const other = createStoredTab(mockStore, window, "other-guid");
+  TreeTabsStore.onTabRestoring(other);
+  Assert.equal(
+    state.tabData.get(tab),
+    tabData,
+    "Reading an unchanged missing ID does not invalidate restore data"
+  );
+  TreeTabsStore.handleEvent({ type: "TabClose", target: tab });
+  Assert.ok(
+    !state.tabData.has(tab),
+    "Close releases restore data even without an ID"
+  );
+
+  const restored = createStoredTab(mockStore, window, "directly-restored");
+  TreeTabsStore.onTabRestored(restored);
+  Assert.equal(state.uniqueIdToTab.get("directly-restored"), restored);
+  TreeTabsStore.handleEvent({ type: "TabClose", target: restored });
+  Assert.ok(
+    !state.uniqueIdToTab.has("directly-restored"),
+    "Close also releases references registered without an earlier restoring event"
+  );
+});
+
+add_task(function test_guid_cache_refreshes_reused_and_cleared_tab_ids() {
+  for (const enabled of [false, true]) {
+    const mockStore = setupStore({ enabled });
+    const window = createMockWindow();
+    const tab = createStoredTab(mockStore, window, "old-guid");
+    TreeTabsStore.onTabRestoring(tab);
+    putTabJSON(mockStore, tab, "data-persistent-id", "new-guid");
+    TreeTabsStore.onTabRestoring(tab);
+    Assert.equal(TreeTabsStore.getTabGuid(tab), "new-guid");
+
+    if (enabled) {
+      Assert.ok(
+        !TreeTabsStore._windowStates.get(window).uniqueIdToTab.has("old-guid"),
+        "A reused tab does not remain a restore reference for its old identity"
+      );
+    }
+    mockStore._tabValues.get(tab).delete("treeTabs:data-persistent-id");
+    TreeTabsStore.onTabRestoring(tab);
+    Assert.equal(TreeTabsStore.getTabGuid(tab), null);
+    Assert.ok(
+      !TreeTabsStore._tabGuids.has(tab),
+      "Restoring without an ID clears the cache"
+    );
+    if (enabled) {
+      Assert.ok(
+        !TreeTabsStore._windowStates.get(window).uniqueIdToTab.has("new-guid")
+      );
+    }
+    const replacement = createStoredTab(mockStore, window, "new-guid");
+    TreeTabsStore.onTabRestoring(replacement);
+    Assert.equal(TreeTabsStore.getTabGuid(replacement), "new-guid");
+  }
+});
+
+add_task(
+  function test_guid_checks_find_new_owners_before_their_restore_event() {
+    for (const enabled of [false, true]) {
+      for (const previousGuid of [null, "previous-guid"]) {
+        const mockStore = setupStore({ enabled });
+        const window = createMockWindow();
+        const owner = createStoredTab(mockStore, window, previousGuid, {
+          lazy: true,
+        });
+        const restored = createStoredTab(
+          mockStore,
+          window,
+          "restored-previous",
+          {
+            lazy: true,
+          }
+        );
+        TreeTabsStore.onTabRestoring(owner);
+        TreeTabsStore.onTabRestoring(restored);
+
+        putTabJSON(mockStore, owner, "data-persistent-id", {
+          id: "shared-guid",
+        });
+        putTabJSON(mockStore, restored, "data-persistent-id", "shared-guid");
+        TreeTabsStore.onTabRestoring(restored);
+        const restoredGuid = TreeTabsStore.getTabGuid(restored);
+        Assert.notEqual(
+          restoredGuid,
+          "shared-guid",
+          "A tab with cached metadata can acquire a matching GUID without a notification"
+        );
+        Assert.equal(
+          TreeTabsStore.getTabGuid(owner),
+          "shared-guid",
+          "The unactivated owner keeps its incoming session ID"
+        );
+        Assert.deepEqual(
+          getTabJSON(mockStore, owner, "data-persistent-id"),
+          { id: "shared-guid" },
+          "The owner's legacy-format value is not rewritten"
+        );
+        if (enabled) {
+          const state = TreeTabsStore._windowStates.get(window);
+          Assert.ok(!state.uniqueIdToTab.has("restored-previous"));
+          Assert.ok(
+            !state.tabData.has(owner),
+            "Superseded restore data is discarded"
+          );
+          TreeTabsStore.onTabRestored(owner);
+          Assert.ok(
+            !state.uniqueIdToTab.has("previous-guid"),
+            "Delayed completion cannot re-register the owner's previous ID"
+          );
+          Assert.equal(
+            TreeTabsStore._findTabByReference(window, "shared-guid", state),
+            owner
+          );
+        }
+        TreeTabsStore.onTabRestoring(owner);
+        TreeTabsStore.onTabRestoring(restored);
+        Assert.equal(TreeTabsStore.getTabGuid(owner), "shared-guid");
+        Assert.equal(
+          TreeTabsStore.getTabGuid(restored),
+          restoredGuid,
+          "Activating the owner later does not swap the two identities"
+        );
+      }
+    }
+  }
+);
+
+add_task(function test_guid_checks_revalidate_changed_collision_candidates() {
+  const mockStore = setupStore({ enabled: false });
+  const window = createMockWindow();
+  const original = createStoredTab(mockStore, window, "before-guid");
+  TreeTabsStore.onTabRestoring(original);
+  putTabJSON(mockStore, original, "data-persistent-id", "after-guid");
+  const restored = createStoredTab(mockStore, window, "before-guid");
+  TreeTabsStore.onTabRestoring(restored);
+  Assert.equal(
+    TreeTabsStore.getTabGuid(restored),
+    "before-guid",
+    "A candidate's superseded metadata cannot force an unnecessary replacement ID"
+  );
+  Assert.equal(
+    TreeTabsStore.getTabGuid(original),
+    "after-guid",
+    "The candidate is refreshed before its own restore event arrives"
+  );
+  const duplicate = createStoredTab(mockStore, window, "after-guid");
+  TreeTabsStore.onTabRestoring(duplicate);
+  Assert.notEqual(TreeTabsStore.getTabGuid(duplicate), "after-guid");
+});
+
+add_task(function test_guid_checks_ignore_no_longer_live_owners() {
+  for (const state of ["closing", "disconnected", "other-window"]) {
+    const mockStore = setupStore({ enabled: false });
+    const window = createMockWindow();
+    const old = createStoredTab(mockStore, window, "reusable-guid");
+    TreeTabsStore.onTabRestoring(old);
+    if (state == "closing") {
+      old.closing = true;
+    } else if (state == "disconnected") {
+      old.isConnected = false;
+    } else {
+      old.documentGlobal = createMockWindow();
+    }
+    const restored = createStoredTab(mockStore, window, "reusable-guid");
+    TreeTabsStore.ensureUniqueTabGuids(window);
+    Assert.equal(
+      TreeTabsStore.getTabGuid(restored),
+      "reusable-guid",
+      `Bulk checks ignore ${state} owners`
+    );
+    TreeTabsStore.onTabRestoring(restored);
+    Assert.equal(TreeTabsStore.getTabGuid(restored), "reusable-guid", state);
+  }
+});
+
+add_task(
+  function test_guid_checks_refresh_ids_across_window_restore_boundaries() {
+    for (const enabled of [false, true]) {
+      const mockStore = setupStore({ enabled });
+      const window = createMockWindow();
+      const tab = createStoredTab(mockStore, window, "previous-session");
+      TreeTabsStore.onTabRestoring(tab);
+      TreeTabsStore.onWindowRestoring(window);
+      putTabJSON(mockStore, tab, "data-persistent-id", "incoming-session");
+      const duplicate = createStoredTab(mockStore, window, "incoming-session");
+      TreeTabsStore.onTabRestoring(duplicate);
+      Assert.equal(
+        TreeTabsStore.getTabGuid(tab),
+        "incoming-session",
+        "Duplicate checks refresh reused tabs, including in disabled mode"
+      );
+      Assert.notEqual(TreeTabsStore.getTabGuid(duplicate), "incoming-session");
+      const duplicateGuid = TreeTabsStore.getTabGuid(duplicate);
+      TreeTabsStore.onWindowRestored(window);
+      TreeTabsStore.onTabRestoring(tab);
+      TreeTabsStore.onTabRestoring(duplicate);
+      Assert.equal(TreeTabsStore.getTabGuid(tab), "incoming-session");
+      Assert.equal(
+        TreeTabsStore.getTabGuid(duplicate),
+        duplicateGuid,
+        "Completing the window restore does not change the normalized IDs"
+      );
+    }
+  }
+);
+
+add_task(function test_guid_cache_window_listeners_and_teardown() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  const listeners = new Map();
+  window.addEventListener = (type, listener, capture = false) => {
+    listeners.set(type, { listener, capture });
+  };
+  window.removeEventListener = (type, listener, capture = false) => {
+    Assert.equal(listeners.get(type).listener, listener);
+    Assert.equal(listeners.get(type).capture, capture);
+    listeners.delete(type);
+  };
+  const tab = createStoredTab(mockStore, window, "teardown-guid");
+  TreeTabsStore.initWindow(window);
+  try {
+    Assert.equal(
+      listeners.get("TabOpen").capture,
+      false,
+      "Ownership is refreshed after SessionStore's capture listener transfers metadata"
+    );
+    Assert.equal(listeners.get("TabClose").capture, false);
+    TreeTabsStore.onTabRestoring(tab);
+    Assert.equal(TreeTabsStore.getTabGuid(tab), "teardown-guid");
+    const state = TreeTabsStore._windowStates.get(window);
+    tab.closing = true;
+    TreeTabsStore.handleEvent({ type: "TabClose", target: tab });
+    Assert.ok(!TreeTabsStore._tabGuids.has(tab));
+    Assert.ok(!state.uniqueIdToTab.has("teardown-guid"));
+    Assert.ok(!state.tabData.has(tab), "Close releases the tab's restore data");
+  } finally {
+    TreeTabsStore.uninitWindow(window);
+  }
+  Assert.ok(!TreeTabsStore._windowStates.has(window));
+  Assert.ok(!TreeTabsStore._restoreGuardTimers.has(window));
+  Assert.equal(listeners.size, 0, "All window listeners are removed");
+});
+
 add_task(function test_duplicate_tab_gets_a_fresh_persistent_id() {
   const mockStore = setupStore();
   const window = createMockWindow();
@@ -1032,5 +1678,73 @@ add_task(function test_references_resolve_by_persistent_id_for_lazy_tabs() {
     TreeTabsService.getParent(child),
     parent,
     "Ancestor reference resolves through the persistent id"
+  );
+});
+
+add_task(function test_external_restore_refreshes_all_tab_references() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  const surroundingParent = createMockTab(window);
+  const importedRoot = createMockTab(window);
+  const importedChild = createMockTab(window);
+
+  TreeTabsStore.saveTabState(surroundingParent);
+  TreeTabsService.attachTab(importedRoot, surroundingParent);
+  TreeTabsService.attachTab(importedChild, importedRoot);
+  TreeTabsStore.ensureRestoreGuard(window);
+  resetWrites(mockStore);
+
+  TreeTabsStore.completeExternalRestore(window);
+
+  const savedChildren = getTabJSON(mockStore, surroundingParent, "children");
+  Assert.equal(savedChildren.length, 1, "The surrounding parent is refreshed");
+  Assert.equal(
+    savedChildren[0].uniqueId,
+    getTabJSON(mockStore, importedRoot, "data-persistent-id"),
+    "The surrounding parent references the imported root"
+  );
+  Assert.ok(
+    !TreeTabsStore._restoringWindows.has(window),
+    "The external restore guard is cleared"
+  );
+  Assert.deepEqual(
+    getWindowJSON(mockStore, window, "tree-structure").map(
+      entry => entry.parent
+    ),
+    [null, 0, 1],
+    "The complete imported structure is persisted"
+  );
+});
+
+add_task(function test_partial_closed_set_restore_clears_consumed_set_id() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  const tab = createMockTab(window);
+  const guid = "partial-restore-guid";
+  const setId = "partial-restore-set";
+  putTabJSON(mockStore, tab, "data-persistent-id", guid);
+  putTabJSON(mockStore, tab, "closed-tree-set-id", setId);
+
+  const restore = {
+    requestedTab: tab,
+    snapshot: {
+      id: setId,
+      entries: [{ guid, collapsed: false }],
+      beforeGuid: null,
+      afterGuid: null,
+    },
+  };
+  TreeTabsStore._pendingClosedTreeRestores.set(window, restore);
+
+  TreeTabsStore._restoreClosedTreeSet(window, restore);
+
+  Assert.equal(
+    getTabJSON(mockStore, tab, "closed-tree-set-id"),
+    null,
+    "A consumed closed-set id is removed after partial recovery"
+  );
+  Assert.ok(
+    !TreeTabsStore._pendingClosedTreeRestores.has(window),
+    "The partial restore transaction is finished"
   );
 });
