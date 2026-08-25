@@ -5,10 +5,15 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 EXTRA_JS_MODULES += [
+    "TreeTabsGroups.sys.mjs",
     "TreeTabsMigration.sys.mjs",
     "TreeTabsService.sys.mjs",
     "TreeTabsStore.sys.mjs",
     "TreeTabsUI.sys.mjs",
+]
+
+JAR_MANIFESTS += [
+    "jar.mn",
 ]
 
 BROWSER_CHROME_MANIFESTS += ["test/browser/browser.toml"]

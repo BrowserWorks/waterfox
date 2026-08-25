@@ -34,7 +34,11 @@ support-files = ["head.js"]
 
 ["browser_tree_tabs_dblclick.js"]
 
+["browser_tree_tabs_groups.js"]
+
 ["browser_tree_tabs_hidden.js"]
+
+["browser_tree_tabs_horizontal.js"]
 
 ["browser_tree_tabs_keyboard.js"]
 
