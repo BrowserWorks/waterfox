@@ -167,6 +167,15 @@ const TREE_CONTROLS = [
     control: "moz-toggle",
   },
   {
+    id: "waterfox-tree-expand-native-group",
+    l10nId: "waterfox-tabs-tree-expand-native-group-toggle",
+    pref: "browser.tabs.verticalTabs.tree.expandNativeGroupOnTreeExpand",
+    control: "moz-toggle",
+    controlAttrs: {
+      searchkeywords: "expand open branch native tab group tree",
+    },
+  },
+  {
     id: "waterfox-tree-close-parent",
     l10nId: "waterfox-tabs-tree-close-parent-select",
     pref: "browser.tabs.verticalTabs.tree.closeParentBehavior",

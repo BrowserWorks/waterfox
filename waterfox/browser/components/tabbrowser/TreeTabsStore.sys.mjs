@@ -660,11 +660,16 @@ export const TreeTabsStore = {
     if (!this._isEnabled() || !window) {
       return;
     }
+    this._sessionRestoringWindows.add(window);
+    this._pendingWindowRestores.delete(window);
+    this._manualRestoreCompleted.delete(window);
     this.ensureRestoreGuard(window);
     lazy.TreeTabsService.init(window);
     this._cancelWindowSave(window);
     const state = this._getWindowState(window, { create: true });
-    state.structure = this.loadWindowStructure(window);
+    // SessionStore installs the incoming extData after SSWindowRestoring.
+    state.structure = null;
+    state.collapseStates = new WeakMap();
     state.tabData = new Map();
     state.uniqueIdToTab = new Map();
   },
@@ -1031,19 +1036,141 @@ export const TreeTabsStore = {
     if (!window) {
       return;
     }
+    this._sessionRestoringWindows.delete(window);
     if (!this._isEnabled()) {
       return;
     }
-    const state = this._getWindowState(window);
-    if (state) {
-      this._fixupWindowTree(window);
+    this.ensureRestoreGuard(window);
+    const state = this._getWindowState(window, { create: true });
+    state.structure = this.loadWindowStructure(window);
+    const tabs = this._getWindowTabs(window);
+    for (const tab of tabs) {
+      this._tabGuids.delete(tab);
     }
+    this.ensureUniqueTabGuids(window);
+    lazy.TreeTabsService.init(window);
+    state.tabData.clear();
+    state.uniqueIdToTab.clear();
 
-    // No save here: the restore guard is usually still up, and a save now
-    // would overwrite the stored structure before the manual restore path
-    // has read it.
+    // Lazy background tabs do not send SSTabRestoring until activation.
+    if (!this.tryManualRestore(window)) {
+      const resolved = Array.isArray(state.structure)
+        ? this._resolveStructureTabs(tabs, state.structure)
+        : null;
+      const unmatchedStructure =
+        this._pendingWindowRestores.has(window) && !resolved;
+      if (unmatchedStructure) {
+        state.structure = null;
+      }
+      const completeTabRestore = this._restoreTabMetadata(
+        window,
+        state,
+        tabs,
+        resolved,
+        { requireRestoredLink: unmatchedStructure }
+      );
+      if (unmatchedStructure && completeTabRestore) {
+        this._pendingWindowRestores.delete(window);
+      } else if (resolved && !completeTabRestore) {
+        this._pendingWindowRestores.add(window);
+        this._manualRestoreCompleted.delete(window);
+      }
+    }
+    if (!this._pendingWindowRestores.has(window)) {
+      this._manualRestoreCompleted.add(window);
+      this.clearRestoreGuard(window);
+    }
     this._cancelWindowSave(window);
     this._windowStates.delete(window);
+    lazy.TreeTabsService._notifyStructureChanged(window);
+  },
+
+  _restoreTabMetadata(
+    window,
+    state,
+    tabs,
+    resolved = null,
+    { requireRestoredLink = false } = {}
+  ) {
+    const structureEntries = new Map(
+      (resolved || [])
+        .filter(({ entry, tab }) => entry && tab)
+        .map(({ entry, tab }) => [tab, entry])
+    );
+    // Read metadata in bulk without per-tab duplicate scans.
+    for (const tab of tabs) {
+      this._recordTabRestoreState(window, tab, this.loadTabState(tab));
+    }
+    // Covered parents may name extra children, but metadata cannot reparent
+    // snapshot-covered tabs, including roots.
+    for (const tab of tabs) {
+      this.onTabRestored(tab, { structureEntries });
+    }
+    this._fixupWindowTree(window);
+    return this._hasCompleteTabRestore(window, state, tabs, {
+      structureEntries,
+      resolved,
+      requireRestoredLink,
+    });
+  },
+
+  _hasCompleteTabRestore(
+    window,
+    state,
+    tabs,
+    {
+      structureEntries = null,
+      resolved = null,
+      requireRestoredLink = true,
+    } = {}
+  ) {
+    let hasRestoredLink = false;
+    for (const tab of tabs) {
+      if (tab.closing || tab.pinned) {
+        continue;
+      }
+      const tabData = state.tabData.get(tab);
+      const entry = structureEntries?.get(tab);
+      const covered = structureEntries?.has(tab);
+      let parent = null;
+      if (covered) {
+        if (Number.isInteger(entry.parent) && entry.parent >= 0) {
+          parent = resolved?.[entry.parent]?.tab || null;
+        }
+      } else {
+        parent = this._resolveParentFromAncestors(window, state, tabData);
+      }
+      const restoredParent = lazy.TreeTabsService.getParent(tab);
+      if (
+        (parent &&
+          parent !== tab &&
+          !parent.pinned &&
+          (restoredParent !== parent ||
+            (covered && (parent.group || null) !== (tab.group || null)))) ||
+        (this._isPersistedAsRoot(tabData, entry) && restoredParent)
+      ) {
+        return false;
+      }
+      hasRestoredLink ||= !!parent && restoredParent === parent;
+      const children = (tabData?.children || [])
+        .map(ref => this._findTabByReference(window, ref, state))
+        .filter(
+          child =>
+            child &&
+            child !== tab &&
+            !child.closing &&
+            !child.pinned &&
+            !structureEntries?.has(child)
+        );
+      if (
+        children.some(child => lazy.TreeTabsService.getParent(child) !== tab)
+      ) {
+        return false;
+      }
+      hasRestoredLink ||= !!children.length;
+    }
+    // An unmatched saved tree cannot be replaced by a flat fallback.
+    return !requireRestoredLink || hasRestoredLink;
   },
 
   tryManualRestore(window) {
@@ -1052,6 +1179,7 @@ export const TreeTabsStore = {
     if (
       !this._isEnabled() ||
       !window ||
+      this._sessionRestoringWindows.has(window) ||
       this._manualRestoreCompleted.has(window)
     ) {
       return false;
@@ -1066,19 +1194,18 @@ export const TreeTabsStore = {
       return false;
     }
 
-    const resolved = this._resolveStructureTabs(tabs, structure);
-    if (!resolved) {
-      return false;
-    }
-
-    const hasParentRelationships = resolved.some(
-      pair =>
-        pair.tab &&
-        Number.isInteger(pair.entry?.parent) &&
-        pair.entry.parent >= 0 &&
-        pair.entry.parent < resolved.length
+    const hasParentRelationships = structure.some(
+      entry =>
+        Number.isInteger(entry?.parent) &&
+        entry.parent >= 0 &&
+        entry.parent < structure.length
     );
     if (!hasParentRelationships) {
+      return false;
+    }
+    this._pendingWindowRestores.add(window);
+    const resolved = this._resolveStructureTabs(tabs, structure);
+    if (!resolved) {
       return false;
     }
 
@@ -1088,15 +1215,65 @@ export const TreeTabsStore = {
     this.ensureRestoreGuard(window);
 
     lazy.TreeTabsService.init(window);
+    for (const { entry, tab } of resolved) {
+      if (tab && entry && (entry.parent == null || entry.parent < 0)) {
+        lazy.TreeTabsService.detachTab(tab);
+      }
+    }
 
+    const { restoredParentLinks, pendingParentLinks } =
+      this._restoreParentLinks(resolved);
+    if (!restoredParentLinks || pendingParentLinks) {
+      if (!pendingParentLinks) {
+        this._pendingWindowRestores.delete(window);
+      }
+      return false;
+    }
+
+    const coveredTabs = new Set(
+      resolved.filter(({ entry }) => entry).map(({ tab }) => tab)
+    );
+    if (tabs.some(tab => !coveredTabs.has(tab))) {
+      const state = this._getWindowState(window, { create: true });
+      state.structure = structure;
+      if (
+        !this._restoreTabMetadata(window, state, tabs, resolved, {
+          requireRestoredLink: false,
+        })
+      ) {
+        return false;
+      }
+    }
+
+    this._manualRestoreCompleted.add(window);
+    this._pendingWindowRestores.delete(window);
+
+    for (const { entry, tab } of resolved) {
+      if (!tab || typeof entry?.collapsed != "boolean") {
+        continue;
+      }
+      if (entry.collapsed) {
+        lazy.TreeTabsService.collapseSubtree(tab);
+      } else {
+        lazy.TreeTabsService.expandSubtree(tab);
+      }
+    }
+
+    this._fixupWindowTree(window);
+    this.clearRestoreGuard(window);
+    return true;
+  },
+
+  _restoreParentLinks(resolved) {
     let restoredParentLinks = false;
+    let pendingParentLinks = false;
     for (let index = 0; index < resolved.length; index += 1) {
       const { entry, tab } = resolved[index];
       if (!tab || !Number.isInteger(entry?.parent) || entry.parent < 0) {
         continue;
       }
       const parent = resolved[entry.parent]?.tab || null;
-      if (!parent || parent === tab || parent.pinned) {
+      if (!parent || parent === tab || parent.pinned || tab.pinned) {
         continue;
       }
 
@@ -1115,29 +1292,11 @@ export const TreeTabsStore = {
         })
       ) {
         restoredParentLinks = true;
-      }
-    }
-
-    if (!restoredParentLinks) {
-      return false;
-    }
-
-    this._manualRestoreCompleted.add(window);
-
-    for (const { entry, tab } of resolved) {
-      if (!tab || typeof entry?.collapsed != "boolean") {
-        continue;
-      }
-      if (entry.collapsed) {
-        lazy.TreeTabsService.collapseSubtree(tab);
       } else {
-        lazy.TreeTabsService.expandSubtree(tab);
+        pendingParentLinks = true;
       }
     }
-
-    this._fixupWindowTree(window);
-    this.clearRestoreGuard(window);
-    return true;
+    return { restoredParentLinks, pendingParentLinks };
   },
 
   // Match modern entries by persistent ID; only legacy ID-less entries depend

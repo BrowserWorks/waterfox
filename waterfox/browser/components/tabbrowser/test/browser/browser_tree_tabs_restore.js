@@ -63,6 +63,249 @@ add_task(async function test_tree_tabs_session_store_save_and_manual_restore() {
   BrowserTestUtils.removeTab(parentTab);
 });
 
+add_task(
+  async function test_window_restore_keeps_lazy_trees_in_native_groups() {
+    await enableTreeTabs();
+    await SpecialPowers.pushPrefEnv({
+      set: [
+        ["browser.tabs.groups.enabled", true],
+        ["browser.sessionstore.restore_on_demand", true],
+        ["browser.sessionstore.restore_tabs_lazily", true],
+        [PREF_TREE_AUTO_COLLAPSE_ON_SELECT, false],
+      ],
+    });
+    const { TreeTabsStore } = ChromeUtils.importESModule(
+      "resource:///modules/TreeTabsStore.sys.mjs"
+    );
+    const restoredWindow = await BrowserTestUtils.openNewBrowserWindow();
+    try {
+      const browser = restoredWindow.gBrowser;
+      for (const generation of [1, 2]) {
+        const structure = Array.from({ length: 4 }, (_, index) => ({
+          id: `restore-${generation}-${index}`,
+          parent: index % 2 ? index - 1 : null,
+          collapsed: index == 2,
+        }));
+        const state = {
+          windows: [
+            {
+              tabs: structure.map((entry, index) => ({
+                entries: [
+                  { url: `about:blank#tree-restore-${generation}-${index}` },
+                ],
+                index: 1,
+                ...(index >= 2 ? { groupId: "restored-native-group" } : {}),
+                extData: {
+                  "treeTabs:data-persistent-id": JSON.stringify(entry.id),
+                },
+              })),
+              selected: 1,
+              groups: [
+                {
+                  id: "restored-native-group",
+                  name: "Restored trees",
+                  color: "blue",
+                  collapsed: false,
+                },
+              ],
+              extData: { "treeTabs:tree-structure": JSON.stringify(structure) },
+            },
+          ],
+        };
+        const restored = BrowserTestUtils.waitForEvent(
+          restoredWindow,
+          "SSWindowRestored"
+        );
+        SessionStore.setWindowState(
+          restoredWindow,
+          JSON.stringify(state),
+          true
+        );
+        await restored;
+        await BrowserTestUtils.waitForCondition(
+          () =>
+            browser.tabs.length == 4 &&
+            browser.TreeTabsService.getParent(browser.tabs[1]) ==
+              browser.tabs[0] &&
+            browser.TreeTabsService.getParent(browser.tabs[3]) ==
+              browser.tabs[2],
+          "Both the ungrouped and native-group trees restore without activating lazy tabs"
+        );
+        const [outside, outsideChild, grouped, groupedChild] = browser.tabs;
+        is(
+          grouped.group,
+          groupedChild.group,
+          "The grouped tree stays in its native group"
+        );
+        ok(grouped.group, "The native group exists");
+        ok(
+          grouped.hasAttribute("pending"),
+          "The grouped parent is still pending"
+        );
+        ok(
+          groupedChild.hasAttribute("pending"),
+          "The grouped child is still pending"
+        );
+        ok(
+          browser.TreeTabsService.isCollapsed(grouped),
+          "Saved collapse is restored"
+        );
+        await BrowserTestUtils.waitForCondition(
+          () =>
+            outsideChild.dataset.treeLevel == "1" &&
+            grouped.dataset.treeHasChildren == "true" &&
+            groupedChild.dataset.treeHidden == "true",
+          "Lazy tabs have complete tree rendering state and an expandable parent"
+        );
+        ok(
+          !outside.hidden && !outsideChild.hidden,
+          "Expanded outside tabs remain visible"
+        );
+        is(
+          TreeTabsStore.getTabGuid(outside),
+          structure[0].id,
+          "Each new restore replaces cached identities from the previous session"
+        );
+        ok(
+          !TreeTabsStore.isRestorePending(restoredWindow),
+          "The complete restore releases the guard"
+        );
+        await BrowserTestUtils.switchTab(browser, groupedChild);
+        is(
+          browser.TreeTabsService.getParent(groupedChild),
+          grouped,
+          "Activating the lazy child does not flatten its tree"
+        );
+      }
+    } finally {
+      await BrowserTestUtils.closeWindow(restoredWindow);
+      await SpecialPowers.popPrefEnv();
+    }
+  }
+);
+
+add_task(
+  async function test_lazy_parent_keeps_disclosure_choice_after_loading() {
+    await enableTreeTabs();
+    await SpecialPowers.pushPrefEnv({
+      set: [
+        ["browser.sessionstore.restore_on_demand", true],
+        ["browser.sessionstore.restore_tabs_lazily", true],
+        ["sidebar.visibility", "always-show"],
+        [PREF_TREE_AUTO_COLLAPSE_ON_SELECT, false],
+      ],
+    });
+    const restoredWindow = await BrowserTestUtils.openNewBrowserWindow();
+    try {
+      const browser = restoredWindow.gBrowser;
+      const service = browser.TreeTabsService;
+      for (const [initiallyCollapsed, selectedIndex] of [
+        [false, 1],
+        [true, 1],
+        [false, 3],
+      ]) {
+        const structure = [null, null, 1].map((parent, index) => ({
+          id: `disclosure-${initiallyCollapsed}-${index}`,
+          parent,
+          collapsed: index == 1 && initiallyCollapsed,
+        }));
+        const windowRestored = BrowserTestUtils.waitForEvent(
+          restoredWindow,
+          "SSWindowRestored"
+        );
+        SessionStore.setWindowState(
+          restoredWindow,
+          JSON.stringify({
+            windows: [
+              {
+                tabs: structure.map(entry => ({
+                  entries: [{ url: `about:blank#${entry.id}` }],
+                  index: 1,
+                  extData: {
+                    "treeTabs:data-persistent-id": JSON.stringify(entry.id),
+                    "treeTabs:special-tab-states": JSON.stringify(
+                      entry.collapsed ? ["subtree-collapsed"] : []
+                    ),
+                  },
+                })),
+                selected: selectedIndex,
+                extData: {
+                  "treeTabs:tree-structure": JSON.stringify(structure),
+                },
+              },
+            ],
+          }),
+          true
+        );
+        await windowRestored;
+        const [outside, parent, child] = browser.tabs;
+        await BrowserTestUtils.waitForCondition(
+          () =>
+            service.getParent(child) == parent &&
+            parent.dataset.treeHasChildren == "true" &&
+            service.isCollapsed(parent) == initiallyCollapsed,
+          "The lazy branch restores its saved disclosure state"
+        );
+        await restoredWindow.SidebarController.waitUntilStable();
+        ok(parent.hasAttribute("pending"), "The parent starts unloaded");
+        const tabRestored = BrowserTestUtils.waitForEvent(
+          parent,
+          "SSTabRestored"
+        );
+        const rect = parent.getBoundingClientRect();
+        const padding =
+          parseFloat(
+            restoredWindow
+              .getComputedStyle(parent)
+              .getPropertyValue("--tab-inline-padding")
+          ) || 8;
+        EventUtils.synthesizeMouse(
+          parent,
+          padding + 4,
+          rect.height / 2,
+          {},
+          restoredWindow
+        );
+        is(
+          service.isCollapsed(parent),
+          !initiallyCollapsed,
+          "The arrow changes the branch disclosure state"
+        );
+        is(
+          browser.selectedTab,
+          selectedIndex == 3 ? parent : outside,
+          "Only hiding the active child moves selection to the parent"
+        );
+        is(
+          parent.hasAttribute("pending"),
+          selectedIndex != 3,
+          "The arrow only loads the parent when its active child is hidden"
+        );
+
+        if (browser.selectedTab != parent) {
+          await BrowserTestUtils.switchTab(browser, parent);
+        }
+        await tabRestored;
+        await waitForTreeUpdate();
+        is(
+          service.isCollapsed(parent),
+          !initiallyCollapsed,
+          "Loading the parent preserves the disclosure choice"
+        );
+        is(
+          child.dataset.treeHidden == "true",
+          !initiallyCollapsed,
+          "Child visibility matches the disclosure choice after loading"
+        );
+        is(service.getParent(child), parent, "Loading preserves the tree link");
+      }
+    } finally {
+      await BrowserTestUtils.closeWindow(restoredWindow);
+      await SpecialPowers.popPrefEnv();
+    }
+  }
+);
+
 add_task(async function test_undo_close_restores_tree_position() {
   await enableTreeTabs();
 

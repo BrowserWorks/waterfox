@@ -178,6 +178,202 @@ add_task(async function test_tree_auto_collapse_layout_and_binding() {
   }
 });
 
+add_task(async function test_ordinary_tree_bindings() {
+  const prefix = "browser.tabs.verticalTabs.tree.";
+  const bindings = [
+    ["auto-attach", "autoAttach", 1],
+    ["auto-collapse-on-select", "autoCollapse.onSelect", true],
+    ["auto-collapse-on-attach", "autoExpand.onAttach", true],
+    ["expand-native-group", "expandNativeGroupOnTreeExpand", true],
+    ["close-parent", "closeParentBehavior", 1],
+    ["successor", "successorControl", true],
+    ["drop-links", "dropLinksOnTab", 1],
+    ["double-click", "doubleClickBehavior", 1],
+    ["auto-group-pinned", "autoGroup.pinnedOpener", true],
+    ["bookmark-restore", "bookmarks.restoreTree", true],
+    ["bookmark-group", "bookmarks.autoGroup", true],
+    ["sticky-active", "sticky.activeTab", true],
+    ["propagate-muted", "propagateMutedState", true],
+  ];
+  await SpecialPowers.pushPrefEnv({
+    set: [
+      [prefix + "enabled", false],
+      ...bindings.map(([, name, value]) => [
+        prefix + name,
+        typeof value == "boolean" ? false : 0,
+      ]),
+    ],
+  });
+
+  let tab;
+  try {
+    tab = await openPrefsTab("tabsBrowsing");
+    const doc = tab.linkedBrowser.contentDocument;
+    const layout = await settingGroupRenders(doc, "browserLayout");
+    await layout.updateComplete;
+    const control = id => doc.getElementById(`waterfox-tree-${id}`);
+    await TestUtils.waitForCondition(
+      () => bindings.every(([id]) => control(id)?.disabled),
+      "All ordinary tree controls render disabled while tree tabs are off"
+    );
+
+    for (const [id, name, value] of bindings) {
+      const element = control(id);
+      const isToggle = typeof value == "boolean";
+      const readControl = () =>
+        isToggle ? element.pressed : Number(element.value);
+      await TestUtils.waitForCondition(
+        () => readControl() === (isToggle ? false : 0),
+        `${id} reflects its initial preference`
+      );
+      if (isToggle) {
+        Services.prefs.setBoolPref(prefix + name, value);
+      } else {
+        Services.prefs.setIntPref(prefix + name, value);
+      }
+      await TestUtils.waitForCondition(
+        () => readControl() === value,
+        `${id} observes external preference changes while disabled`
+      );
+    }
+
+    Services.prefs.setBoolPref(prefix + "enabled", true);
+    await TestUtils.waitForCondition(
+      () => bindings.every(([id]) => !control(id).disabled),
+      "All ordinary tree controls enable when the master preference turns on"
+    );
+    for (const [id, name, value] of bindings) {
+      const element = control(id);
+      const isToggle = typeof value == "boolean";
+      await element.updateComplete;
+      const changed = TestUtils.waitForPrefChange(prefix + name);
+      if (isToggle) {
+        synthesizeClick(element);
+      } else {
+        element.value = "0";
+        element.dispatchEvent(
+          new doc.defaultView.Event("change", { bubbles: true })
+        );
+      }
+      await changed;
+      is(
+        isToggle
+          ? Services.prefs.getBoolPref(prefix + name)
+          : Services.prefs.getIntPref(prefix + name),
+        isToggle ? false : 0,
+        `${id} writes its preference after a user change`
+      );
+    }
+
+    Services.prefs.setBoolPref(prefix + "enabled", false);
+    await TestUtils.waitForCondition(
+      () => bindings.every(([id]) => control(id).disabled),
+      "All ordinary tree controls disable when the master preference turns off"
+    );
+  } finally {
+    if (tab) {
+      BrowserTestUtils.removeTab(tab);
+    }
+    await SpecialPowers.popPrefEnv();
+  }
+});
+
+add_task(async function test_additional_tree_settings() {
+  const prefix = "browser.tabs.verticalTabs.tree.";
+  await SpecialPowers.pushPrefEnv({
+    set: [
+      [prefix + "enabled", true],
+      [prefix + "successorControl", true],
+      [prefix + "expandNativeGroupOnTreeExpand", true],
+      [prefix + "dropLinksOnTab", 2],
+      [prefix + "indentPx", 16],
+      [prefix + "maxDepth", -1],
+    ],
+  });
+  let tab;
+  try {
+    tab = await openPrefsTab("tabsBrowsing");
+    const doc = tab.linkedBrowser.contentDocument;
+    const layout = await settingGroupRenders(doc, "browserLayout");
+    await layout.updateComplete;
+    const control = id => doc.getElementById(`waterfox-tree-${id}`);
+    const input = async (element, value) => {
+      element.inputEl.value = String(value);
+      for (const type of ["input", "change"]) {
+        element.inputEl.dispatchEvent(
+          new doc.defaultView.Event(type, { bubbles: true })
+        );
+      }
+      await element.updateComplete;
+    };
+    const bindings = [
+      ["successor", "successorControl", false],
+      ["expand-native-group", "expandNativeGroupOnTreeExpand", false],
+      ["drop-links", "dropLinksOnTab", 1],
+      ["indent", "indentPx", 24],
+    ];
+    for (const [id, name, value] of bindings) {
+      const changed = TestUtils.waitForPrefChange(prefix + name);
+      if (typeof value == "boolean") {
+        synthesizeClick(control(id));
+      } else {
+        await input(control(id), value);
+      }
+      await changed;
+      const actual =
+        typeof value == "boolean"
+          ? Services.prefs.getBoolPref(prefix + name)
+          : Services.prefs.getIntPref(prefix + name);
+      is(
+        actual,
+        value,
+        `${id} writes its preference, including returning link drops to Ask`
+      );
+    }
+
+    await input(control("indent"), "");
+    is(
+      Services.prefs.getIntPref(prefix + "indentPx"),
+      24,
+      "Empty input does not overwrite indentation"
+    );
+    synthesizeClick(control("limit-depth"));
+    await TestUtils.waitForCondition(() => !control("max-depth").disabled);
+    for (const value of [0, 1, 12]) {
+      await input(control("max-depth"), value);
+      is(
+        Services.prefs.getIntPref(prefix + "maxDepth"),
+        value,
+        `Depth ${value} is available`
+      );
+    }
+    for (const value of [-1, 12]) {
+      const changed = TestUtils.waitForPrefChange(prefix + "maxDepth");
+      synthesizeClick(control("limit-depth"));
+      await changed;
+      is(
+        Services.prefs.getIntPref(prefix + "maxDepth"),
+        value,
+        "Unlimited nesting and the last finite limit can be restored"
+      );
+      await control("limit-depth").updateComplete;
+    }
+    Services.prefs.setBoolPref(prefix + "enabled", false);
+    await TestUtils.waitForCondition(
+      () =>
+        [...bindings.map(([id]) => id), "limit-depth", "max-depth"].every(
+          id => control(id).disabled
+        ),
+      "The new controls follow the tree master switch"
+    );
+  } finally {
+    if (tab) {
+      BrowserTestUtils.removeTab(tab);
+    }
+    await SpecialPowers.popPrefEnv();
+  }
+});
+
 add_task(async function test_grouping_placement_follows_master() {
   let tab = await openPrefsTab("tabsBrowsing");
   let doc = tab.linkedBrowser.contentDocument;
