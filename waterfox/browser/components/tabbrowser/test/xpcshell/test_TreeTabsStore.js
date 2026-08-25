@@ -59,17 +59,22 @@ function clearTreeStoreState() {
     TreeTabsStore.uninit();
   } else {
     TreeTabsStore._cancelAllPendingSaves();
-    for (const timeoutId of TreeTabsStore._restoreGuardTimers.values()) {
+    for (const timeoutId of TreeTabsStore._restoringWindows.values()) {
       clearTimeout(timeoutId);
     }
     TreeTabsStore._windowStates.clear();
-    TreeTabsStore._restoringWindows = new WeakSet();
+    TreeTabsStore._restoringWindows.clear();
     TreeTabsStore._sessionRestoringWindows = new WeakSet();
     TreeTabsStore._pendingWindowRestores = new WeakSet();
-    TreeTabsStore._restoreGuardTimers.clear();
+    clearTimeout(TreeTabsStore._closedTreeSetPruneTimer);
+    TreeTabsStore._closedTreeSetPruneTimer = null;
     TreeTabsStore._manualRestoreCompleted = new WeakSet();
+    TreeTabsStore._treeRestoredTabs = new WeakSet();
     TreeTabsStore._activeClosedTreeSets.clear();
     TreeTabsStore._closedTreeSets.clear();
+    for (const restore of TreeTabsStore._pendingClosedTreeRestores.values()) {
+      clearTimeout(restore.timerId);
+    }
     TreeTabsStore._pendingClosedTreeRestores.clear();
     TreeTabsStore._frozenCloseTabs = new WeakSet();
     TreeTabsStore._restoringClosedTreeSets = new WeakSet();
@@ -289,6 +294,124 @@ add_task(
     );
   }
 );
+
+add_task(function test_window_save_indexes_parents_without_repeated_scans() {
+  for (const count of [64, 128]) {
+    const mockStore = setupStore();
+    const window = createMockWindow();
+    const tabs = Array.from({ length: count }, (_, index) =>
+      createStoredTab(mockStore, window, `indexed-${index}`)
+    );
+    for (let index = 1; index < count; index += 2) {
+      Assert.ok(TreeTabsService.attachTab(tabs[index], tabs[index - 1]));
+    }
+    const original = TreeTabsStore._getWindowTabs;
+    let scans = 0;
+    tabs.indexOf = function (...args) {
+      scans++;
+      return Array.prototype.indexOf.apply(this, args);
+    };
+    TreeTabsStore._getWindowTabs = () => tabs;
+    try {
+      TreeTabsStore.saveWindowStructure(window);
+    } finally {
+      TreeTabsStore._getWindowTabs = original;
+    }
+    Assert.equal(
+      scans,
+      0,
+      "Parent indices use one local map, not indexOf per tab"
+    );
+    Assert.deepEqual(
+      getWindowJSON(mockStore, window, "tree-structure").map(
+        entry => entry.parent
+      ),
+      tabs.map((tab, index) => (index % 2 ? index - 1 : null))
+    );
+  }
+});
+
+add_task(function test_restore_parent_link_lookup_is_linear() {
+  for (const count of [64, 128]) {
+    setupStore();
+    const window = createMockWindow();
+    const pairs = Array.from({ length: count }, (_, index) => ({
+      tab: createMockTab(window),
+      entry: { parent: index ? index - 1 : null },
+    }));
+    let reads = 0;
+    const resolved = new Proxy(pairs, {
+      get(target, key, receiver) {
+        if (typeof key == "string" && /^\d+$/.test(key)) {
+          reads++;
+        }
+        return Reflect.get(target, key, receiver);
+      },
+    });
+    const original = TreeTabsService.attachTab;
+    let attachments = 0;
+    TreeTabsService.attachTab = (tab, parent, options) => {
+      attachments++;
+      Assert.equal(
+        options.insertAfter,
+        null,
+        "Every parent has only one child"
+      );
+      return true;
+    };
+    try {
+      Assert.deepEqual(TreeTabsStore._restoreParentLinks(resolved), {
+        restoredParentLinks: true,
+        pendingParentLinks: false,
+      });
+    } finally {
+      TreeTabsService.attachTab = original;
+    }
+    Assert.equal(attachments, count - 1);
+    Assert.lessOrEqual(
+      reads,
+      3 * count,
+      "Resolved entries are not scanned backward"
+    );
+  }
+});
+
+add_task(function test_restore_hints_include_rejected_and_pinned_siblings() {
+  setupStore();
+  const window = createMockWindow();
+  const [parent, pinned, rejected, child] = Array.from({ length: 4 }, () =>
+    createMockTab(window)
+  );
+  pinned.pinned = true;
+  const resolved = [
+    { entry: { parent: null }, tab: parent },
+    { entry: { parent: 0 }, tab: pinned },
+    { entry: { parent: 0 }, tab: null },
+    { entry: { parent: 0 }, tab: rejected },
+    { entry: null, tab: createMockTab(window) },
+    { entry: { parent: 0 }, tab: child },
+  ];
+  const original = TreeTabsService.attachTab;
+  const hints = [];
+  TreeTabsService.attachTab = (tab, target, options) => {
+    Assert.equal(target, parent);
+    hints.push(options.insertAfter);
+    return tab != rejected;
+  };
+  try {
+    Assert.deepEqual(TreeTabsStore._restoreParentLinks(resolved), {
+      restoredParentLinks: true,
+      pendingParentLinks: true,
+    });
+  } finally {
+    TreeTabsService.attachTab = original;
+  }
+  assertTabOrder(
+    hints,
+    [pinned, rejected],
+    "Hints use the previous resolved sibling"
+  );
+});
 
 add_task(
   function test_save_window_structure_is_skipped_when_tree_is_disabled() {
@@ -701,6 +824,142 @@ add_task(function test_window_restore_merges_extra_lazy_tree() {
   }
 });
 
+add_task(function test_late_tab_restore_preserves_completed_snapshot() {
+  for (const extraTab of [false, true]) {
+    for (const saveBetweenEvents of [false, true]) {
+      const mockStore = setupStore();
+      const window = createMockWindow();
+      const parent = createStoredTab(mockStore, window, "snapshot-parent");
+      const child = createStoredTab(mockStore, window, "snapshot-child", {
+        lazy: true,
+      });
+      child.hasAttribute = name => name == "pending";
+      if (extraTab) {
+        createStoredTab(mockStore, window, "extra-root");
+      }
+      putWindowJSON(mockStore, window, "tree-structure", [
+        { id: "snapshot-parent", parent: null, collapsed: true },
+        { id: "snapshot-child", parent: 0, collapsed: false },
+      ]);
+      putTabJSON(mockStore, child, "ancestors", []);
+      putTabJSON(mockStore, child, "special-tab-states", ["subtree-collapsed"]);
+
+      TreeTabsStore.onWindowRestoring(window);
+      TreeTabsStore.onWindowRestored(window);
+      Assert.equal(TreeTabsService.getParent(child), parent);
+      Assert.ok(!TreeTabsService.isCollapsed(child));
+      Assert.ok(TreeTabsStore._manualRestoreCompleted.has(window));
+      Assert.ok(!TreeTabsStore.isRestorePending(window));
+      Assert.ok(!TreeTabsStore._windowStates.has(window));
+      Assert.ok(TreeTabsStore._treeRestoredTabs.has(child));
+      Assert.ok(!TreeTabsStore._treeRestoredTabs.has(parent));
+
+      TreeTabsStore.onTabRestoring(child);
+      const state = TreeTabsStore._windowStates.get(window);
+      Assert.deepEqual(state.tabData.get(child).ancestors, []);
+      if (saveBetweenEvents) {
+        TreeTabsStore.saveTabState(child);
+        TreeTabsStore.saveWindowStructure(window);
+        Assert.equal(
+          getTabJSON(mockStore, child, "ancestors")[0].uniqueId,
+          "snapshot-parent"
+        );
+        Assert.deepEqual(
+          state.tabData.get(child).ancestors,
+          [],
+          "The pending restore still has the stale root metadata after a save"
+        );
+      }
+      child.hasAttribute = () => false;
+      TreeTabsStore.onTabRestored(child);
+      Assert.equal(
+        TreeTabsService.getParent(child),
+        parent,
+        `Late restore retains snapshot ancestry with intervening save=${saveBetweenEvents}`
+      );
+      Assert.ok(!TreeTabsService.isCollapsed(child));
+      Assert.ok(TreeTabsService.isCollapsed(parent));
+      Assert.ok(!TreeTabsStore._treeRestoredTabs.has(child));
+      Assert.ok(!state.tabData.has(child), "Stale metadata is discarded");
+      Assert.ok(!state.collapseStates.has(child));
+      TreeTabsStore.saveWindowStructure(window);
+      Assert.equal(
+        getWindowJSON(mockStore, window, "tree-structure")[1].parent,
+        0,
+        "The late notification cannot persist a flattened snapshot"
+      );
+
+      putTabJSON(mockStore, child, "ancestors", []);
+      putTabJSON(mockStore, child, "special-tab-states", ["subtree-collapsed"]);
+      TreeTabsStore.onTabRestoring(child);
+      TreeTabsStore.onTabRestored(child);
+      Assert.equal(
+        TreeTabsService.getParent(child),
+        null,
+        "An independent later restore still honors explicit root metadata"
+      );
+      Assert.ok(TreeTabsService.isCollapsed(child));
+    }
+  }
+});
+
+add_task(function test_completed_tree_restore_markers_follow_tab_lifetime() {
+  for (const boundary of [
+    "window-restore",
+    "identity",
+    "close",
+    "teardown",
+    "disabled-completion",
+  ]) {
+    const mockStore = setupStore();
+    const window = createMockWindow();
+    const parent = createStoredTab(mockStore, window, "marker-parent");
+    const child = createStoredTab(mockStore, window, "marker-child", {
+      lazy: true,
+    });
+    child.hasAttribute = name => name == "pending";
+    window.addEventListener = () => {};
+    window.removeEventListener = () => {};
+    TreeTabsStore.initWindow(window);
+    putWindowJSON(mockStore, window, "tree-structure", [
+      { id: "marker-parent", parent: null },
+      { id: "marker-child", parent: 0 },
+    ]);
+    putTabJSON(mockStore, child, "ancestors", []);
+    TreeTabsStore.onWindowRestoring(window);
+    TreeTabsStore.onWindowRestored(window);
+    Assert.ok(TreeTabsStore._treeRestoredTabs.has(child));
+    Assert.equal(TreeTabsService.getParent(child), parent);
+    try {
+      if (boundary == "window-restore") {
+        TreeTabsStore.onWindowRestoring(window);
+      } else if (boundary == "identity") {
+        putTabJSON(mockStore, child, "data-persistent-id", "replacement-child");
+        TreeTabsStore.onTabRestoring(child);
+        TreeTabsStore.onTabRestored(child);
+        Assert.equal(TreeTabsService.getParent(child), null);
+      } else if (boundary == "close") {
+        TreeTabsStore.handleEvent({ type: "TabClose", target: child });
+      } else if (boundary == "disabled-completion") {
+        Services.prefs.setBoolPref(TREE_PREF_ENABLED, false);
+        TreeTabsStore.onTabRestored(child);
+        Services.prefs.setBoolPref(TREE_PREF_ENABLED, true);
+        TreeTabsStore.onTabRestoring(child);
+        TreeTabsStore.onTabRestored(child);
+        Assert.equal(TreeTabsService.getParent(child), null);
+      } else {
+        TreeTabsStore.uninitWindow(window);
+      }
+      Assert.ok(
+        !TreeTabsStore._treeRestoredTabs.has(child),
+        `${boundary} clears the outstanding late-restore marker`
+      );
+    } finally {
+      TreeTabsStore.uninitWindow(window);
+    }
+  }
+});
+
 add_task(function test_window_restore_merges_cross_snapshot_metadata() {
   const mockStore = setupStore();
   const window = createMockWindow();
@@ -1084,6 +1343,136 @@ add_task(function test_empty_window_snapshot_saves_only_complete_metadata() {
   }
 });
 
+add_task(function test_metadata_restore_retries_after_native_group_recovery() {
+  for (const snapshot of ["absent", "empty", "unmatched", "idless"]) {
+    for (const referenceKey of ["ancestors", "children"]) {
+      for (const existingLink of [false, true]) {
+        info(`${snapshot}: ${referenceKey}, existing link=${existingLink}`);
+        const mockStore = setupStore();
+        const window = createMockWindow();
+        const parent = createStoredTab(mockStore, window, "retry-parent");
+        const child = createStoredTab(mockStore, window, "retry-child");
+        if (snapshot != "absent") {
+          const structure = {
+            empty: [],
+            unmatched: [
+              { id: "missing-parent", parent: null },
+              { id: "missing-child", parent: 0 },
+            ],
+            idless: [{ parent: -1 }, { parent: 0 }, { parent: 0 }],
+          }[snapshot];
+          putWindowJSON(mockStore, window, "tree-structure", structure);
+        }
+        putTreeLink(mockStore, parent, child, referenceKey);
+        putTabJSON(mockStore, parent, "ancestors", []);
+        putTabJSON(mockStore, parent, "special-tab-states", [
+          "subtree-collapsed",
+        ]);
+        if (existingLink) {
+          Assert.ok(TreeTabsService.attachTab(child, parent));
+        }
+        child.group = {};
+        const savedData = getStoredData(mockStore);
+
+        TreeTabsStore.onWindowRestoring(window);
+        TreeTabsStore.onWindowRestored(window);
+        Assert.ok(TreeTabsStore.isRestorePending(window));
+        TreeTabsStore.clearRestoreGuard(window);
+        assertSavesBlocked(mockStore, window, savedData);
+        Assert.ok(!TreeTabsStore.tryManualRestore(window));
+        TreeTabsStore.clearRestoreGuard(window);
+        assertSavesBlocked(mockStore, window, savedData);
+
+        child.group = parent.group;
+        Assert.ok(
+          TreeTabsStore.tryManualRestore(window),
+          "A retry applies and verifies metadata even without a matching snapshot"
+        );
+        Assert.equal(TreeTabsService.getParent(child), parent);
+        Assert.ok(TreeTabsService.isCollapsed(parent));
+        Assert.ok(!TreeTabsStore.isRestorePending(window));
+        Assert.ok(TreeTabsStore._manualRestoreCompleted.has(window));
+        Assert.deepEqual(getStoredData(mockStore), savedData);
+        TreeTabsStore.saveTabState(child, { force: true });
+        TreeTabsStore.saveWindowStructure(window);
+        Assert.equal(
+          getTabJSON(mockStore, child, "ancestors")[0].uniqueId,
+          "retry-parent"
+        );
+        Assert.deepEqual(
+          getWindowJSON(mockStore, window, "tree-structure").map(
+            entry => entry.parent
+          ),
+          [null, 0],
+          "Saves resume only after the recovered relationship is verified"
+        );
+      }
+    }
+  }
+});
+
+add_task(function test_metadata_retry_refreshes_lazy_ids_and_explicit_state() {
+  for (const explicitState of [false, true]) {
+    const mockStore = setupStore();
+    const window = createMockWindow();
+    const parent = createStoredTab(mockStore, window, "old-parent", {
+      lazy: true,
+    });
+    const child = createStoredTab(mockStore, window, "lazy-child", {
+      lazy: true,
+    });
+    putTreeLink(mockStore, parent, child, "ancestors");
+    TreeTabsService.collapseSubtree(parent);
+    child.group = {};
+    TreeTabsStore.onWindowRestoring(window);
+    TreeTabsStore.onWindowRestored(window);
+    Assert.ok(TreeTabsStore.isRestorePending(window));
+
+    putTabJSON(mockStore, parent, "data-persistent-id", "new-parent");
+    putTreeLink(mockStore, parent, child, "ancestors");
+    if (explicitState) {
+      putTabJSON(mockStore, parent, "special-tab-states", []);
+    }
+    child.group = parent.group;
+    Assert.ok(TreeTabsStore.tryManualRestore(window));
+    Assert.equal(TreeTabsService.getParent(child), parent);
+    Assert.equal(TreeTabsStore.getTabGuid(parent), "new-parent");
+    const state = TreeTabsStore._getWindowState(window);
+    Assert.ok(!state.uniqueIdToTab.has("old-parent"));
+    Assert.equal(state.uniqueIdToTab.get("new-parent"), parent);
+    Assert.ok(
+      state.tabData.has(parent),
+      "GUID refresh retains loaded metadata"
+    );
+    Assert.equal(
+      TreeTabsService.isCollapsed(parent),
+      !explicitState,
+      "Missing disclosure data is preserved, while an explicit empty list expands"
+    );
+    Assert.equal(mockStore._writes.tab.length, 0);
+    Assert.equal(mockStore._writes.window.length, 0);
+  }
+});
+
+add_task(function test_metadata_retry_can_complete_as_an_explicit_root() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  const parent = createStoredTab(mockStore, window, "root-parent");
+  const child = createStoredTab(mockStore, window, "root-child");
+  putTreeLink(mockStore, parent, child, "ancestors");
+  Assert.ok(TreeTabsService.attachTab(child, parent));
+  child.group = {};
+  TreeTabsStore.onWindowRestoring(window);
+  TreeTabsStore.onWindowRestored(window);
+  Assert.ok(TreeTabsStore.isRestorePending(window));
+
+  putTabJSON(mockStore, child, "ancestors", []);
+  Assert.ok(TreeTabsStore.tryManualRestore(window));
+  Assert.equal(TreeTabsService.getParent(child), null);
+  Assert.ok(!TreeTabsStore.isRestorePending(window));
+  Assert.equal(mockStore._writes.tab.length, 0);
+});
+
 add_task(function test_restore_completion_checks_snapshot_links() {
   const mockStore = setupStore();
   const window = createMockWindow();
@@ -1340,6 +1729,23 @@ add_task(function test_tab_restore_resolves_structure_by_id_not_position() {
   Assert.equal(TreeTabsService.getParent(unrelated), null);
 });
 
+add_task(function test_tab_restore_snapshot_root_overrides_stale_ancestors() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  const parent = createStoredTab(mockStore, window, "stale-parent");
+  const root = createStoredTab(mockStore, window, "saved-root");
+  putTreeLink(mockStore, parent, root, "ancestors");
+  Assert.ok(TreeTabsService.attachTab(root, parent));
+  const state = TreeTabsStore._getWindowState(window, { create: true });
+  state.structure = [{ id: "saved-root", parent: null }];
+  TreeTabsStore.onTabRestored(root);
+  Assert.equal(
+    TreeTabsService.getParent(root),
+    null,
+    "A snapshot root wins even outside the bulk metadata restore"
+  );
+});
+
 add_task(function test_persistent_reference_wins_over_reused_panel_id() {
   const mockStore = setupStore();
   const window = createMockWindow();
@@ -1353,6 +1759,99 @@ add_task(function test_persistent_reference_wins_over_reused_panel_id() {
     parent,
     "A previous session's panel id cannot override the persistent id"
   );
+});
+
+add_task(function test_reference_lookup_cached_guid_needs_no_window_scan() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  const unrelated = createMockTab(window);
+  const parent = createStoredTab(mockStore, window, "cached-parent");
+  const state = TreeTabsStore._getWindowState(window, { create: true });
+  state.uniqueIdToTab.set("cached-parent", parent);
+  const counts = countGuidRestoreWork(() => {
+    for (let index = 0; index < 128; index++) {
+      for (const ref of [
+        "cached-parent",
+        { id: "cached-parent" },
+        { id: unrelated.linkedPanel, uniqueId: "cached-parent" },
+      ]) {
+        Assert.equal(
+          TreeTabsStore._findTabByReference(window, ref, state),
+          parent
+        );
+      }
+    }
+  });
+  Assert.deepEqual(
+    counts,
+    { windowEnumerations: 0, guidLookups: 0, persistentIDReads: 0 },
+    "Mapped persistent references do no tab-array copies or GUID reads"
+  );
+});
+
+add_task(function test_reference_lookup_preserves_fallback_precedence() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  const first = createStoredTab(mockStore, window, "first-guid");
+  const numericPanel = createStoredTab(mockStore, window, "panel-guid");
+  const parent = createStoredTab(mockStore, window, "parent-guid");
+  numericPanel.linkedPanel = "0";
+  const state = TreeTabsStore._getWindowState(window, { create: true });
+  state.uniqueIdToTab.set("legacy-id", first);
+  for (const [ref, expected] of [
+    [{ id: "legacy-id", uniqueId: "parent-guid" }, parent],
+    [{ id: "legacy-id", uniqueId: "missing-guid" }, first],
+    [{ id: first.linkedPanel, uniqueId: numericPanel.linkedPanel }, first],
+    ["0", numericPanel],
+    [0, null],
+    [{ id: 0 }, first],
+    ["2", parent],
+    [{ uniqueId: first.linkedPanel }, first],
+    ["1legacy-missing", null],
+    [-1, null],
+  ]) {
+    Assert.equal(
+      TreeTabsStore._findTabByReference(window, ref, state),
+      expected,
+      `Reference precedence for ${JSON.stringify(ref)}`
+    );
+  }
+});
+
+add_task(function test_manual_restore_checks_eligibility_before_loading() {
+  setupStore();
+  const window = createMockWindow();
+  const original = TreeTabsStore.loadWindowStructure;
+  let loads = 0;
+  TreeTabsStore.loadWindowStructure = () => {
+    loads++;
+    return null;
+  };
+  try {
+    const counts = countGuidRestoreWork(() => {
+      Assert.ok(!TreeTabsStore.tryManualRestore(null));
+      Services.prefs.setBoolPref(TREE_PREF_ENABLED, false);
+      Assert.ok(!TreeTabsStore.tryManualRestore(window));
+      Services.prefs.setBoolPref(TREE_PREF_ENABLED, true);
+      TreeTabsStore._sessionRestoringWindows.add(window);
+      Assert.ok(!TreeTabsStore.tryManualRestore(window));
+      TreeTabsStore._sessionRestoringWindows.delete(window);
+      TreeTabsStore._manualRestoreCompleted.add(window);
+      Assert.ok(!TreeTabsStore.tryManualRestore(window));
+    });
+    Assert.equal(
+      loads,
+      0,
+      "Ineligible retries never read or parse window extData"
+    );
+    Assert.deepEqual(counts, {
+      windowEnumerations: 0,
+      guidLookups: 0,
+      persistentIDReads: 0,
+    });
+  } finally {
+    TreeTabsStore.loadWindowStructure = original;
+  }
 });
 
 add_task(function test_try_manual_restore_successfully_restores_parent_links() {
@@ -1581,6 +2080,72 @@ add_task(function test_restore_guard_clears_after_successful_manual_restore() {
   );
 });
 
+add_task(function test_restore_guard_renewal_and_independent_blockers() {
+  const mockStore = setupStore();
+  const firstWindow = createMockWindow();
+  const secondWindow = createMockWindow();
+  createStoredTab(mockStore, firstWindow, "first-timer");
+  createStoredTab(mockStore, secondWindow, "second-timer");
+  const savedData = getStoredData(mockStore);
+  TreeTabsStore.ensureRestoreGuard(firstWindow);
+  const firstTimer = TreeTabsStore._restoringWindows.get(firstWindow);
+  TreeTabsStore.ensureRestoreGuard(firstWindow);
+  Assert.notEqual(TreeTabsStore._restoringWindows.get(firstWindow), firstTimer);
+  Assert.equal(
+    TreeTabsStore._restoringWindows.size,
+    1,
+    "Renewal replaces one timer"
+  );
+  TreeTabsStore.ensureRestoreGuard(secondWindow);
+  const secondTimer = TreeTabsStore._restoringWindows.get(secondWindow);
+  Assert.equal(TreeTabsStore._restoringWindows.size, 2);
+  TreeTabsStore._sessionRestoringWindows.add(firstWindow);
+  TreeTabsStore._pendingWindowRestores.add(secondWindow);
+
+  TreeTabsStore.clearRestoreGuard(firstWindow);
+  TreeTabsStore.clearRestoreGuard(firstWindow);
+  Assert.equal(TreeTabsStore._restoringWindows.get(secondWindow), secondTimer);
+  TreeTabsStore.clearRestoreGuard(secondWindow);
+  TreeTabsStore._restoringWindows.set(firstWindow, 0);
+  TreeTabsStore.clearRestoreGuard(firstWindow);
+  Assert.equal(
+    TreeTabsStore._restoringWindows.size,
+    0,
+    "Timer ID zero is cleared"
+  );
+  for (const window of [firstWindow, secondWindow]) {
+    Assert.ok(TreeTabsStore.isRestorePending(window));
+    assertSavesBlocked(mockStore, window, savedData);
+  }
+});
+
+add_task(async function test_global_uninit_cancels_all_store_timers() {
+  setupStore();
+  const original = TreeTabsMigration.maybeMigrate;
+  TreeTabsMigration.maybeMigrate = () => {};
+  try {
+    TreeTabsStore.init();
+  } finally {
+    TreeTabsMigration.maybeMigrate = original;
+  }
+  const windows = [createMockWindow(), createMockWindow()];
+  for (const window of windows) {
+    TreeTabsStore.ensureRestoreGuard(window);
+    TreeTabsStore._scheduleWindowSave(window);
+  }
+  TreeTabsStore._closedTreeSets.set("uninit", { entries: [] });
+  TreeTabsStore.observe(null, "sessionstore-closed-objects-changed");
+  Assert.notEqual(TreeTabsStore._closedTreeSetPruneTimer, null);
+  TreeTabsStore.uninit();
+  Assert.equal(TreeTabsStore._restoringWindows.size, 0);
+  Assert.equal(TreeTabsStore._pendingSaves.size, 0);
+  Assert.equal(TreeTabsStore._closedTreeSetPruneTimer, null);
+  Assert.equal(TreeTabsStore._closedTreeSets.size, 0);
+  await waitForTimers(25);
+  Assert.equal(TreeTabsStore._restoringWindows.size, 0);
+  Assert.equal(TreeTabsStore._closedTreeSetPruneTimer, null);
+});
+
 add_task(async function test_restore_guard_clears_after_timeout() {
   const mockStore = setupStore();
   const window = createMockWindow();
@@ -1592,7 +2157,7 @@ add_task(async function test_restore_guard_clears_after_timeout() {
     "Restore guard is active"
   );
 
-  const timeoutId = TreeTabsStore._restoreGuardTimers.get(window);
+  const timeoutId = TreeTabsStore._restoringWindows.get(window);
   Assert.ok(timeoutId, "Restore guard timeout is scheduled");
   clearTimeout(timeoutId);
   do_timeout(25, () => {
@@ -2410,7 +2975,7 @@ add_task(function test_guid_cache_window_listeners_and_teardown() {
     TreeTabsStore.uninitWindow(window);
   }
   Assert.ok(!TreeTabsStore._windowStates.has(window));
-  Assert.ok(!TreeTabsStore._restoreGuardTimers.has(window));
+  Assert.ok(!TreeTabsStore._restoringWindows.has(window));
   Assert.equal(listeners.size, 0, "All window listeners are removed");
 });
 
@@ -2572,6 +3137,506 @@ add_task(function test_external_restore_refreshes_all_tab_references() {
     [null, 0, 1],
     "The complete imported structure is persisted"
   );
+});
+
+async function withClosedTreeUndoData(callback) {
+  const undoData = {
+    closedTabs: [],
+    restoringSetIds: new Set(),
+    nextClosedId: 0,
+  };
+  const originalUndoData = TreeTabsStore._getClosedTreeSetUndoData;
+  const originalClosedTabs = TreeTabsStore._getClosedTabsByGuid;
+  TreeTabsStore._getClosedTreeSetUndoData = () => undoData;
+  TreeTabsStore._getClosedTabsByGuid = window =>
+    new Map(
+      undoData.closedTabs
+        .filter(closed => closed.sourceWindow === window)
+        .map(closed => [TreeTabsStore.readClosedTabGuid(closed), closed])
+    );
+  try {
+    await callback(undoData);
+  } finally {
+    clearTimeout(TreeTabsStore._closedTreeSetPruneTimer);
+    TreeTabsStore._closedTreeSetPruneTimer = null;
+    TreeTabsStore._getClosedTreeSetUndoData = originalUndoData;
+    TreeTabsStore._getClosedTabsByGuid = originalClosedTabs;
+  }
+}
+
+function closeStoredTree(mockStore, window, undoData, name, recordCount = 2) {
+  const parent = createStoredTab(mockStore, window, `${name}-parent`);
+  const child = createStoredTab(mockStore, window, `${name}-child`);
+  Assert.ok(TreeTabsService.attachTab(child, parent));
+  TreeTabsService.collapseSubtree(parent);
+  const snapshot = TreeTabsStore.beginClosedTreeSet(window, [parent, child]);
+  for (const [index, entry] of snapshot.entries.entries()) {
+    entry.state = {
+      entries: [{ url: `https://example.com/${entry.guid}` }],
+      extData: Object.fromEntries(mockStore._tabValues.get(entry.tab)),
+    };
+    if (index < recordCount) {
+      undoData.closedTabs.unshift({
+        closedId: undoData.nextClosedId++,
+        state: entry.state,
+        sourceWindow: window,
+      });
+    }
+    entry.tab.closing = true;
+  }
+  window.gBrowser.tabs = window.gBrowser.tabs.filter(tab => !tab.closing);
+  TreeTabsStore.finishClosedTreeSet(window);
+  TreeTabsService.init(window);
+  Assert.ok(snapshot.entries.every(entry => entry.tab === null));
+  return snapshot;
+}
+
+add_task(async function test_closed_tree_sets_remain_independently_undoable() {
+  for (const order of [
+    [0, 1],
+    [1, 0],
+  ]) {
+    const mockStore = setupStore();
+    const window = createMockWindow();
+    window.gBrowser.moveTabTo = () => {};
+    await withClosedTreeUndoData(async undoData => {
+      const snapshots = [
+        closeStoredTree(mockStore, window, undoData, "older"),
+        closeStoredTree(mockStore, window, undoData, "newer"),
+      ];
+      Assert.equal(TreeTabsStore._closedTreeSets.size, 2);
+      for (const index of order) {
+        const snapshot = snapshots[index];
+        const tabs = snapshot.entries.map(entry => {
+          const tab = createStoredTab(mockStore, window, entry.guid);
+          putTabJSON(mockStore, tab, "closed-tree-set-id", snapshot.id);
+          tab.isConnected = true;
+          return tab;
+        });
+        undoData.closedTabs = undoData.closedTabs.filter(
+          closed =>
+            !snapshot.entries.some(entry => entry.closedId === closed.closedId)
+        );
+        TreeTabsStore._trackClosedTreeSetRestore(
+          window,
+          tabs[1],
+          snapshot.entries[1].guid,
+          snapshot.id
+        );
+        TreeTabsStore._restoreClosedTreeSet(
+          window,
+          TreeTabsStore._pendingClosedTreeRestores.get(window)
+        );
+        Assert.equal(TreeTabsService.getParent(tabs[1]), tabs[0]);
+        Assert.ok(TreeTabsService.isCollapsed(tabs[0]));
+        Assert.equal(window.gBrowser.selectedTab, tabs[1]);
+        Assert.ok(!TreeTabsStore._closedTreeSets.has(snapshot.id));
+        TreeTabsStore._pruneClosedTreeSets();
+      }
+      Assert.equal(TreeTabsStore._closedTreeSets.size, 0);
+      await waitForTimers(25);
+    });
+  }
+});
+
+add_task(async function test_closed_tree_sets_evict_only_exhausted_history() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  await withClosedTreeUndoData(undoData => {
+    const older = closeStoredTree(mockStore, window, undoData, "evicted");
+    const newer = closeStoredTree(mockStore, window, undoData, "retained");
+    undoData.closedTabs = undoData.closedTabs.filter(
+      closed => closed.closedId !== older.entries[0].closedId
+    );
+    TreeTabsStore._pruneClosedTreeSets();
+    Assert.ok(
+      TreeTabsStore._closedTreeSets.has(older.id),
+      "One surviving SessionStore record retains the entire older tree"
+    );
+    Assert.ok(older.entries.every(entry => entry.state.entries.length));
+    undoData.closedTabs = undoData.closedTabs.filter(
+      closed => closed.closedId !== older.entries[1].closedId
+    );
+    TreeTabsStore._pruneClosedTreeSets();
+    Assert.ok(!TreeTabsStore._closedTreeSets.has(older.id));
+    window.closed = true;
+    TreeTabsStore._pruneClosedTreeSets();
+    Assert.ok(
+      TreeTabsStore._closedTreeSets.has(newer.id),
+      "Undoable tabs in a retained closed window still retain their tree set"
+    );
+    undoData.closedTabs = [];
+    TreeTabsStore._pruneClosedTreeSets();
+    Assert.equal(TreeTabsStore._closedTreeSets.size, 0);
+  });
+});
+
+add_task(async function test_closed_tree_pruning_preserves_an_incoming_undo() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  await withClosedTreeUndoData(undoData => {
+    const snapshot = closeStoredTree(
+      mockStore,
+      window,
+      undoData,
+      "incoming",
+      1
+    );
+    Assert.equal(snapshot.entries[0].closedId, 0, "Closed ID zero is valid");
+    undoData.closedTabs = [];
+    undoData.restoringSetIds.add(snapshot.id);
+    TreeTabsStore._pruneClosedTreeSets();
+    Assert.ok(
+      TreeTabsStore._closedTreeSets.has(snapshot.id),
+      "Consuming the last undo record before SSTabRestoring does not evict its set"
+    );
+    undoData.restoringSetIds.clear();
+    TreeTabsStore._pruneClosedTreeSets();
+    Assert.ok(!TreeTabsStore._closedTreeSets.has(snapshot.id));
+  });
+});
+
+add_task(async function test_closed_tree_pruning_checks_set_identity() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  await withClosedTreeUndoData(undoData => {
+    const snapshot = closeStoredTree(mockStore, window, undoData, "reused", 1);
+    const state = JSON.parse(JSON.stringify(snapshot.entries[0].state));
+    state.extData[`${NATIVE_PREFIX}closed-tree-set-id`] =
+      JSON.stringify("other-set");
+    undoData.closedTabs = [{ closedId: snapshot.entries[0].closedId, state }];
+    TreeTabsStore._pruneClosedTreeSets();
+    Assert.ok(
+      !TreeTabsStore._closedTreeSets.has(snapshot.id),
+      "Reusing a GUID in another close cannot retain an exhausted snapshot"
+    );
+  });
+});
+
+add_task(async function test_closed_tree_pruning_separates_duplicate_guids() {
+  const mockStore = setupStore();
+  const firstWindow = createMockWindow();
+  const secondWindow = createMockWindow();
+  await withClosedTreeUndoData(undoData => {
+    const first = closeStoredTree(
+      mockStore,
+      firstWindow,
+      undoData,
+      "same-guid"
+    );
+    const second = closeStoredTree(
+      mockStore,
+      secondWindow,
+      undoData,
+      "same-guid"
+    );
+    Assert.equal(TreeTabsStore._closedTreeSets.size, 2);
+    undoData.closedTabs = undoData.closedTabs.filter(
+      closed => closed.sourceWindow !== firstWindow
+    );
+    TreeTabsStore._pruneClosedTreeSets();
+    Assert.ok(!TreeTabsStore._closedTreeSets.has(first.id));
+    Assert.ok(
+      TreeTabsStore._closedTreeSets.has(second.id),
+      "A different window's matching GUID does not hide an eligible set"
+    );
+  });
+});
+
+add_task(async function test_closed_tree_provisional_history_is_pref_bounded() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  const pref = "browser.sessionstore.max_tabs_undo";
+  Services.prefs.setIntPref(pref, 2);
+  try {
+    await withClosedTreeUndoData(undoData => {
+      const confirmed = closeStoredTree(
+        mockStore,
+        window,
+        undoData,
+        "confirmed"
+      );
+      const provisional = ["first", "second", "third"].map(name =>
+        closeStoredTree(mockStore, window, undoData, name, 0)
+      );
+      Assert.ok(!TreeTabsStore._closedTreeSets.has(provisional[0].id));
+      Assert.ok(TreeTabsStore._closedTreeSets.has(provisional[1].id));
+      Assert.ok(TreeTabsStore._closedTreeSets.has(provisional[2].id));
+      Assert.ok(TreeTabsStore._closedTreeSets.has(confirmed.id));
+
+      const delayed = provisional[1];
+      undoData.closedTabs.unshift({
+        closedId: undoData.nextClosedId++,
+        state: delayed.entries[0].state,
+        sourceWindow: window,
+      });
+      TreeTabsStore._pruneClosedTreeSets();
+      Assert.notEqual(delayed.entries[0].closedId, null);
+      Services.prefs.setIntPref(pref, 0);
+      TreeTabsStore._pruneClosedTreeSets();
+      Assert.ok(!TreeTabsStore._closedTreeSets.has(provisional[2].id));
+      Assert.ok(TreeTabsStore._closedTreeSets.has(delayed.id));
+      Assert.ok(
+        TreeTabsStore._closedTreeSets.has(confirmed.id),
+        "Eligible records, including native-group history, follow SessionStore's limits"
+      );
+      undoData.closedTabs = [];
+      TreeTabsStore._pruneClosedTreeSets();
+      Assert.equal(TreeTabsStore._closedTreeSets.size, 0);
+    });
+  } finally {
+    Services.prefs.clearUserPref(pref);
+  }
+});
+
+add_task(async function test_provisional_closed_tree_drops_closed_window() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  await withClosedTreeUndoData(undoData => {
+    closeStoredTree(mockStore, window, undoData, "closed-source", 0);
+    Assert.equal(TreeTabsStore._closedTreeSets.size, 1);
+    window.closed = true;
+    TreeTabsStore._pruneClosedTreeSets();
+    Assert.equal(TreeTabsStore._closedTreeSets.size, 0);
+  });
+});
+
+add_task(async function test_closed_tree_pruning_notifications_and_purge() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  const pref = "browser.sessionstore.max_tabs_undo";
+  const originalMigrate = TreeTabsMigration.maybeMigrate;
+  TreeTabsMigration.maybeMigrate = () => {};
+  try {
+    TreeTabsStore.init();
+  } finally {
+    TreeTabsMigration.maybeMigrate = originalMigrate;
+  }
+  try {
+    await withClosedTreeUndoData(async undoData => {
+      closeStoredTree(mockStore, window, undoData, "notified");
+      closeStoredTree(mockStore, window, undoData, "provisional", 0);
+      undoData.closedTabs = [];
+      const original = TreeTabsStore._pruneClosedTreeSets;
+      let prunes = 0;
+      TreeTabsStore._pruneClosedTreeSets = function () {
+        prunes++;
+        return original.call(this);
+      };
+      try {
+        Services.obs.notifyObservers(
+          null,
+          "sessionstore-closed-objects-changed"
+        );
+        Services.prefs.setIntPref(pref, 0);
+        Services.obs.notifyObservers(
+          null,
+          "sessionstore-closed-objects-changed"
+        );
+        Assert.equal(
+          prunes,
+          0,
+          "Pruning waits for SessionStore's pref observers"
+        );
+        await waitForTimers(25);
+        Assert.equal(prunes, 1, "Notifications share one deferred prune");
+        Assert.equal(TreeTabsStore._closedTreeSets.size, 0);
+      } finally {
+        TreeTabsStore._pruneClosedTreeSets = original;
+      }
+      Services.prefs.setIntPref(pref, 2);
+      closeStoredTree(mockStore, window, undoData, "purged");
+      closeStoredTree(mockStore, window, undoData, "purged-provisional", 0);
+      Assert.equal(TreeTabsStore._closedTreeSets.size, 2);
+      Services.obs.notifyObservers(null, "browser:purge-session-history");
+      Assert.equal(TreeTabsStore._closedTreeSets.size, 0);
+    });
+  } finally {
+    TreeTabsStore.uninit();
+    Services.prefs.clearUserPref(pref);
+  }
+});
+
+add_task(async function test_purge_cancels_queued_closed_tree_recovery() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  await withClosedTreeUndoData(async undoData => {
+    const snapshot = closeStoredTree(mockStore, window, undoData, "queued");
+    closeStoredTree(mockStore, window, undoData, "retained");
+    const parent = createStoredTab(mockStore, window, "live-parent");
+    const tab = createStoredTab(mockStore, window, snapshot.entries[1].guid);
+    putTabJSON(mockStore, tab, "closed-tree-set-id", snapshot.id);
+    putTabJSON(mockStore, tab, "ancestors", []);
+    Assert.ok(TreeTabsService.attachTab(tab, parent));
+    window.gBrowser.addTrustedTab = () => {
+      Assert.ok(false, "Purged fallback state must not recreate a closed tab");
+    };
+    TreeTabsStore.onTabRestoring(tab);
+    const restore = TreeTabsStore._pendingClosedTreeRestores.get(window);
+    Assert.equal(restore.snapshot, snapshot);
+    Assert.notEqual(restore.timerId, null);
+    Assert.ok(TreeTabsStore._closedSetRestoringTabs.has(tab));
+    TreeTabsStore._scheduleClosedTreeSetPrune();
+    Assert.notEqual(TreeTabsStore._closedTreeSetPruneTimer, null);
+
+    const originalRestore = TreeTabsStore._restoreClosedTreeSet;
+    let recoveries = 0;
+    TreeTabsStore._restoreClosedTreeSet = function (...args) {
+      recoveries++;
+      return originalRestore.apply(this, args);
+    };
+    try {
+      undoData.closedTabs = [];
+      resetWrites(mockStore);
+      TreeTabsStore.observe(null, "browser:purge-session-history");
+      Assert.equal(TreeTabsStore._closedTreeSets.size, 0);
+      Assert.equal(TreeTabsStore._pendingClosedTreeRestores.size, 0);
+      Assert.equal(TreeTabsStore._closedTreeSetPruneTimer, null);
+      Assert.equal(restore.timerId, null);
+      Assert.ok(!TreeTabsStore._closedSetRestoringTabs.has(tab));
+      Assert.ok(!TreeTabsStore.isRestoringClosedTreeSet(window));
+      Assert.equal(getTabJSON(mockStore, tab, "closed-tree-set-id"), null);
+      Assert.equal(
+        TreeTabsStore._windowStates.get(window).tabData.get(tab)
+          .closedTreeSetId,
+        null,
+        "Cached restore metadata no longer names the purged set"
+      );
+      originalRestore.call(TreeTabsStore, window, restore);
+      await waitForTimers(25);
+      Assert.equal(recoveries, 0, "The queued recovery timer was canceled");
+      assertTabOrder(window.gBrowser.tabs, [parent, tab], "No members reopen");
+      Assert.equal(mockStore._writes.tab.length, 0);
+      Assert.equal(mockStore._writes.window.length, 0);
+      TreeTabsStore.onTabRestored(tab);
+      Assert.equal(
+        TreeTabsService.getParent(tab),
+        null,
+        "Canceling recovery does not suppress ordinary tab restoration"
+      );
+      TreeTabsStore.onTabRestoring(tab);
+      Assert.ok(!TreeTabsStore._pendingClosedTreeRestores.has(window));
+    } finally {
+      TreeTabsStore._restoreClosedTreeSet = originalRestore;
+    }
+  });
+});
+
+add_task(async function test_purge_interrupts_closed_tree_recovery() {
+  const mockStore = setupStore();
+  const window = createMockWindow();
+  await withClosedTreeUndoData(undoData => {
+    const snapshot = closeStoredTree(
+      mockStore,
+      window,
+      undoData,
+      "interrupted"
+    );
+    const tab = createStoredTab(mockStore, window, snapshot.entries[0].guid);
+    putTabJSON(mockStore, tab, "closed-tree-set-id", snapshot.id);
+    TreeTabsStore.onTabRestoring(tab);
+    const restore = TreeTabsStore._pendingClosedTreeRestores.get(window);
+    const originalClosedTabs = TreeTabsStore._getClosedTabsByGuid;
+    TreeTabsStore._getClosedTabsByGuid = target => {
+      const closedTabs = originalClosedTabs.call(TreeTabsStore, target);
+      Assert.ok(TreeTabsStore.isRestoringClosedTreeSet(window));
+      undoData.closedTabs = [];
+      TreeTabsStore.observe(null, "browser:purge-session-history");
+      return closedTabs;
+    };
+    window.gBrowser.addTrustedTab = () => {
+      Assert.ok(false, "An interrupted recovery cannot reopen purged members");
+    };
+    resetWrites(mockStore);
+    try {
+      TreeTabsStore._restoreClosedTreeSet(window, restore);
+    } finally {
+      TreeTabsStore._getClosedTabsByGuid = originalClosedTabs;
+    }
+    Assert.equal(TreeTabsStore._pendingClosedTreeRestores.size, 0);
+    Assert.ok(!TreeTabsStore.isRestoringClosedTreeSet(window));
+    Assert.ok(!TreeTabsStore._closedSetRestoringTabs.has(tab));
+    Assert.equal(getTabJSON(mockStore, tab, "closed-tree-set-id"), null);
+    assertTabOrder(window.gBrowser.tabs, [tab], "Recovery stops after purge");
+    Assert.equal(mockStore._writes.tab.length, 0);
+    Assert.equal(mockStore._writes.window.length, 0);
+  });
+});
+
+add_task(async function test_purge_invalidates_active_closed_tree_capture() {
+  for (const phase of ["before-finish", "read-undo", "clean-open-tab"]) {
+    const mockStore = setupStore();
+    const window = createMockWindow();
+    await withClosedTreeUndoData(undoData => {
+      const parent = createStoredTab(mockStore, window, "closing-parent");
+      const child = createStoredTab(mockStore, window, "closing-child");
+      const kept = createStoredTab(mockStore, window, "kept-open");
+      const tabs = [parent, child, kept];
+      Assert.ok(TreeTabsService.attachTab(child, parent));
+      const snapshot = TreeTabsStore.beginClosedTreeSet(window, tabs);
+      for (const entry of snapshot.entries.slice(0, 2)) {
+        entry.state = {
+          entries: [{ url: `https://example.com/${entry.guid}` }],
+          extData: Object.fromEntries(mockStore._tabValues.get(entry.tab)),
+        };
+        undoData.closedTabs.push({
+          closedId: undoData.nextClosedId++,
+          state: entry.state,
+          sourceWindow: window,
+        });
+        entry.tab.closing = true;
+      }
+      Assert.ok(TreeTabsStore.hasActiveClosedTreeSet(window));
+      Assert.ok(tabs.every(tab => TreeTabsStore.isTabStateFrozen(tab)));
+      let purged = false;
+      const purge = () => {
+        purged = true;
+        undoData.closedTabs = [];
+        TreeTabsStore.observe(null, "browser:purge-session-history");
+      };
+      const originalClosedTabs = TreeTabsStore._getClosedTabsByGuid;
+      const originalDelete = mockStore.deleteCustomTabValue;
+      if (phase == "before-finish") {
+        purge();
+      } else if (phase == "read-undo") {
+        TreeTabsStore._getClosedTabsByGuid = target => {
+          const closedTabs = originalClosedTabs.call(TreeTabsStore, target);
+          purge();
+          return closedTabs;
+        };
+      } else {
+        mockStore.deleteCustomTabValue = function (tab, key) {
+          if (
+            !purged &&
+            tab === kept &&
+            key === `${NATIVE_PREFIX}closed-tree-set-id`
+          ) {
+            purge();
+          }
+          originalDelete.call(this, tab, key);
+        };
+      }
+      try {
+        Assert.equal(TreeTabsStore.finishClosedTreeSet(window), null);
+      } finally {
+        TreeTabsStore._getClosedTabsByGuid = originalClosedTabs;
+        mockStore.deleteCustomTabValue = originalDelete;
+      }
+      Assert.ok(purged, `Purge ran during ${phase}`);
+      Assert.ok(!TreeTabsStore.hasActiveClosedTreeSet(window));
+      Assert.equal(TreeTabsStore._closedTreeSets.size, 0);
+      for (const tab of tabs) {
+        Assert.ok(!TreeTabsStore.isTabStateFrozen(tab));
+        Assert.equal(getTabJSON(mockStore, tab, "closed-tree-set-id"), null);
+      }
+      Assert.equal(TreeTabsStore.finishClosedTreeSet(window), null);
+      const next = closeStoredTree(mockStore, window, undoData, "after-purge");
+      Assert.ok(
+        TreeTabsStore._closedTreeSets.has(next.id),
+        "A new close after purge remains independently undoable"
+      );
+    });
+  }
 });
 
 add_task(function test_partial_closed_set_restore_clears_consumed_set_id() {

@@ -5753,15 +5753,14 @@
         const closeSet = treeTabs.getTabsClosingWith(aTab, {
           isUserTriggered: treeCloseIsUserTriggered,
         });
-        if (!this.TreeTabsStore.hasActiveClosedTreeSet(window)) {
-          if (closeSet.length > 1) {
-            startedClosedTreeSet = !!this.TreeTabsStore.beginClosedTreeSet(
-              window,
-              closeSet
-            );
-          } else {
-            this.TreeTabsStore.invalidateClosedTreeSet(window);
-          }
+        if (
+          closeSet.length > 1 &&
+          !this.TreeTabsStore.hasActiveClosedTreeSet(window)
+        ) {
+          startedClosedTreeSet = !!this.TreeTabsStore.beginClosedTreeSet(
+            window,
+            closeSet
+          );
         }
         if (!this.TreeTabsStore.isTabStateFrozen(aTab)) {
           this.TreeTabsStore.saveTabState(aTab, { force: true });
