@@ -150,6 +150,7 @@
             return;
           }
           this._animateTabMove(event);
+          window.TreeTabsDnD?.updateDragOver?.(this._tabbrowserTabs, event);
           return;
         }
       }
@@ -288,12 +289,6 @@
         );
         if (Array.isArray(treeDropState?.movingTabs)) {
           movingTabs = treeDropState.movingTabs;
-        }
-        if (treeDropState?.cancel) {
-          this.finishAnimateTabMove();
-          this._tabDropIndicator.hidden = true;
-          event.stopPropagation();
-          return;
         }
       }
 
@@ -597,6 +592,7 @@
             selectedTab = tab;
             indexForSelectedTab = newIndex;
           } else if (isSplitViewWrapper(tab)) {
+            const oldSplitTabs = tab.tabs.slice();
             const droppedIntoPinnedArea = dropIndex < gBrowser.pinnedTabCount;
             const newSplitView = gBrowser.adoptSplitView(tab, {
               elementIndex: droppedIntoPinnedArea
@@ -605,6 +601,12 @@
               selectTab: true,
             });
             if (newSplitView) {
+              for (let index = 0; index < oldSplitTabs.length; index++) {
+                const adoptedTab = newSplitView.tabs[index];
+                if (adoptedTab) {
+                  adoptedTabMap.set(oldSplitTabs[index], adoptedTab);
+                }
+              }
               if (droppedIntoPinnedArea) {
                 unpinnedSplitViews.push(newSplitView);
               } else {
@@ -635,7 +637,9 @@
 
         if (targetGroup && adoptedTabMap.size) {
           targetGroup.addTabs(
-            Array.from(adoptedTabMap.values()),
+            Array.from(adoptedTabMap.values()).sort(
+              (a, b) => a._tPos - b._tPos
+            ),
             dropMetricsContext
           );
         }
@@ -646,7 +650,6 @@
           {
             draggedTab,
             dropEffect,
-            adoptedDraggedTab: adoptedTabMap.get(draggedTab) || null,
             adoptedTabMap,
             state: treeDropState,
           }
@@ -740,7 +743,9 @@
 
           let nextItem = this._tabbrowserTabs.dragAndDropElements[newIndex];
           let tabGroup =
-            targetTab?.group || (isTab(nextItem) && nextItem.group);
+            targetTab?.group ||
+            ((isTab(nextItem) || isSplitViewWrapper(nextItem)) &&
+              nextItem.group);
           gBrowser.loadTabs(urls, {
             inBackground,
             replace,
@@ -2434,6 +2439,17 @@
           dropElement = this._tabbrowserTabs.dragAndDropElements[numPinned - 1];
           dropBefore = false;
         }
+      }
+
+      const treeParent = window.TreeTabsDnD?.getAttachTarget?.(
+        this._tabbrowserTabs,
+        event,
+        draggedTab
+      );
+      if (treeParent) {
+        dropElement = treeParent.splitview || treeParent;
+        dropBefore = false;
+        newDropElementIndex = draggedTab.elementIndex;
       }
 
       if (
