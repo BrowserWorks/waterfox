@@ -19,13 +19,19 @@ const LEGACY_UNIQUE_ID_KEY = "data-persistent-id";
 const CLOSED_TREE_SET_ID_KEY = "closed-tree-set-id";
 const SAVE_DEBOUNCE_MS = 150;
 const RESTORE_GUARD_TIMEOUT_MS = 10000;
+const UNDO_PREFS = [
+  "browser.sessionstore.max_tabs_undo",
+  "browser.sessionstore.max_windows_undo",
+];
 
-// Custom topics the service raises through Services.obs. They are app wide.
-const TREE_EVENT_TOPICS = [
+// These Services.obs topics are app wide.
+const OBSERVER_TOPICS = [
   "tree-tabs-attached",
   "tree-tabs-detached",
   "tree-tabs-subtree-collapsed-changed",
   "tree-tabs-structure-changed",
+  "sessionstore-closed-objects-changed",
+  "browser:purge-session-history",
 ];
 
 // SessionStore restore notifications are DOM events that bubble to the chrome
@@ -78,14 +84,15 @@ export const TreeTabsStore = {
   _pendingSaves: new Map(),
   _initialized: false,
   _wiredWindows: new WeakSet(),
-  _restoringWindows: new WeakSet(),
+  _restoringWindows: new Map(),
   _sessionRestoringWindows: new WeakSet(),
   _pendingWindowRestores: new WeakSet(),
-  _restoreGuardTimers: new Map(),
   _manualRestoreCompleted: new WeakSet(),
+  _treeRestoredTabs: new WeakSet(),
   _tabGuids: new WeakMap(),
   _activeClosedTreeSets: new Map(),
   _closedTreeSets: new Map(),
+  _closedTreeSetPruneTimer: null,
   _pendingClosedTreeRestores: new Map(),
   _frozenCloseTabs: new WeakSet(),
   _restoringClosedTreeSets: new WeakSet(),
@@ -98,8 +105,11 @@ export const TreeTabsStore = {
 
     this._initialized = true;
     lazy.TreeTabsMigration.maybeMigrate();
-    for (const topic of TREE_EVENT_TOPICS) {
+    for (const topic of OBSERVER_TOPICS) {
       Services.obs.addObserver(this, topic);
+    }
+    for (const pref of UNDO_PREFS) {
+      Services.prefs.addObserver(pref, this);
     }
 
     for (const browserWindow of Services.wm.getEnumerator(
@@ -114,8 +124,11 @@ export const TreeTabsStore = {
       return;
     }
     this._initialized = false;
-    for (const topic of TREE_EVENT_TOPICS) {
+    for (const topic of OBSERVER_TOPICS) {
       Services.obs.removeObserver(this, topic);
+    }
+    for (const pref of UNDO_PREFS) {
+      Services.prefs.removeObserver(pref, this);
     }
     for (const browserWindow of Services.wm.getEnumerator(
       "navigator:browser"
@@ -123,23 +136,18 @@ export const TreeTabsStore = {
       this.uninitWindow(browserWindow);
     }
     this._cancelAllPendingSaves();
-    for (const timeoutId of this._restoreGuardTimers.values()) {
+    for (const timeoutId of this._restoringWindows.values()) {
       clearTimeout(timeoutId);
     }
     this._windowStates.clear();
     this._tabGuids = new WeakMap();
     this._wiredWindows = new WeakSet();
-    this._restoringWindows = new WeakSet();
+    this._restoringWindows.clear();
     this._sessionRestoringWindows = new WeakSet();
     this._pendingWindowRestores = new WeakSet();
-    this._restoreGuardTimers.clear();
     this._manualRestoreCompleted = new WeakSet();
-    this._activeClosedTreeSets.clear();
-    this._closedTreeSets.clear();
-    this._pendingClosedTreeRestores.clear();
-    this._frozenCloseTabs = new WeakSet();
-    this._restoringClosedTreeSets = new WeakSet();
-    this._closedSetRestoringTabs = new WeakSet();
+    this._treeRestoredTabs = new WeakSet();
+    this._purgeClosedTreeSets();
   },
 
   initWindow(window) {
@@ -176,7 +184,10 @@ export const TreeTabsStore = {
     this._cancelWindowSave(window);
     this.clearRestoreGuard(window);
     this.cancelClosedTreeSet(window);
-    this._pendingClosedTreeRestores.delete(window);
+    this._cancelClosedTreeSetRestore(window);
+    for (const tab of this._getWindowTabs(window)) {
+      this._treeRestoredTabs.delete(tab);
+    }
     this._sessionRestoringWindows.delete(window);
     this._pendingWindowRestores.delete(window);
     this._manualRestoreCompleted.delete(window);
@@ -226,6 +237,13 @@ export const TreeTabsStore = {
       case "tree-tabs-subtree-collapsed-changed":
       case "tree-tabs-structure-changed":
         this.onTreeEvent(topic, target);
+        break;
+      case "sessionstore-closed-objects-changed":
+      case "nsPref:changed":
+        this._scheduleClosedTreeSetPrune();
+        break;
+      case "browser:purge-session-history":
+        this._purgeClosedTreeSets();
         break;
       default:
         break;
@@ -314,16 +332,20 @@ export const TreeTabsStore = {
     }
     const window = this._getWindowForTab(tab);
     const restoreState = this._getWindowState(window);
-    if (previousGuid !== guid && restoreState) {
-      if (restoreState.uniqueIdToTab.get(previousGuid) === tab) {
-        restoreState.uniqueIdToTab.delete(previousGuid);
+    if (previousGuid !== guid) {
+      this._treeRestoredTabs.delete(tab);
+      if (restoreState) {
+        if (restoreState.uniqueIdToTab.get(previousGuid) === tab) {
+          restoreState.uniqueIdToTab.delete(previousGuid);
+        }
+        restoreState.tabData.delete(tab);
+        restoreState.collapseStates.delete(tab);
       }
-      restoreState.tabData.delete(tab);
-      restoreState.collapseStates.delete(tab);
     }
   },
 
   _forgetTabGuid(tab) {
+    this._treeRestoredTabs.delete(tab);
     this._cacheTabGuid(tab, null);
     const state = this._getWindowState(this._getWindowForTab(tab));
     state?.tabData.delete(tab);
@@ -452,6 +474,7 @@ export const TreeTabsStore = {
     const snapshot = {
       id,
       entries,
+      sourceWindow: new WeakRef(window),
       beforeGuid: this._getTabGuid(before, { create: true }),
       afterGuid: this._getTabGuid(after, { create: true }),
     };
@@ -479,8 +502,6 @@ export const TreeTabsStore = {
     if (!snapshot) {
       return null;
     }
-    this._activeClosedTreeSets.delete(window);
-
     const closedByGuid = this._getClosedTabsByGuid(window);
     snapshot.entries = snapshot.entries.filter(entry => {
       const closed = closedByGuid.get(entry.guid);
@@ -490,15 +511,134 @@ export const TreeTabsStore = {
         this._deleteTabJSON(entry.tab, CLOSED_TREE_SET_ID_KEY);
       }
       entry.closedId = closed?.closedId ?? null;
-      entry.tab = null;
       return actuallyClosed;
     });
 
+    if (this._activeClosedTreeSets.get(window) !== snapshot) {
+      return null;
+    }
+    this._activeClosedTreeSets.delete(window);
+    for (const entry of snapshot.entries) {
+      entry.tab = null;
+    }
     if (snapshot.entries.length > 1) {
       this._closedTreeSets.set(snapshot.id, snapshot);
+      this._pruneClosedTreeSets();
       return snapshot;
     }
     return null;
+  },
+
+  _purgeClosedTreeSets() {
+    clearTimeout(this._closedTreeSetPruneTimer);
+    this._closedTreeSetPruneTimer = null;
+    this._closedTreeSets.clear();
+    for (const window of this._activeClosedTreeSets.keys()) {
+      this.cancelClosedTreeSet(window);
+    }
+    for (const window of this._pendingClosedTreeRestores.keys()) {
+      this._cancelClosedTreeSetRestore(window);
+    }
+    this._frozenCloseTabs = new WeakSet();
+    this._restoringClosedTreeSets = new WeakSet();
+    this._closedSetRestoringTabs = new WeakSet();
+  },
+
+  _scheduleClosedTreeSetPrune() {
+    if (!this._closedTreeSets.size || this._closedTreeSetPruneTimer != null) {
+      return;
+    }
+    this._closedTreeSetPruneTimer = setTimeout(() => {
+      this._closedTreeSetPruneTimer = null;
+      this._pruneClosedTreeSets();
+    }, 0);
+  },
+
+  _isTabRestorePending(tab) {
+    return (
+      !tab.closing &&
+      (tab.hasAttribute?.("pending") || lazy.SessionStore.isTabRestoring(tab))
+    );
+  },
+
+  _getClosedTreeSetUndoData() {
+    const closedTabs = lazy.SessionStore.getClosedTabDataFromClosedWindows();
+    const restoringSetIds = new Set();
+    for (const isPrivate of [false, true]) {
+      for (const window of lazy.SessionStore.getWindows({
+        private: isPrivate,
+      })) {
+        closedTabs.push(...lazy.SessionStore.getClosedTabDataForWindow(window));
+        for (const tab of this._getWindowTabs(window)) {
+          if (this._isTabRestorePending(tab)) {
+            restoringSetIds.add(this._readTabJSON(tab, CLOSED_TREE_SET_ID_KEY));
+          }
+        }
+      }
+    }
+    return { closedTabs, restoringSetIds };
+  },
+
+  _pruneClosedTreeSets() {
+    if (!this._closedTreeSets.size) {
+      return;
+    }
+    let undoData;
+    try {
+      undoData = this._getClosedTreeSetUndoData();
+    } catch {
+      return;
+    }
+    const closedBySet = new Map();
+    const closedById = new Map();
+    for (const closed of undoData.closedTabs) {
+      const setId = parseJSON(
+        closed.state?.extData?.[`treeTabs:${CLOSED_TREE_SET_ID_KEY}`]
+      );
+      if (setId) {
+        if (!closedBySet.has(setId)) {
+          closedBySet.set(setId, new Map());
+        }
+        closedBySet.get(setId).set(this.readClosedTabGuid(closed), closed);
+      } else {
+        closedById.set(closed.closedId, closed);
+      }
+    }
+    const provisional = [];
+    for (const [id, snapshot] of this._closedTreeSets) {
+      let undoable = undoData.restoringSetIds.has(id);
+      for (const entry of snapshot.entries) {
+        const closed =
+          closedBySet.get(id)?.get(entry.guid) ||
+          closedById.get(entry.closedId);
+        if (closed && this.readClosedTabGuid(closed) === entry.guid) {
+          entry.closedId = closed.closedId;
+          undoable = true;
+        }
+      }
+      if (undoable) {
+        continue;
+      }
+      const sourceWindow = snapshot.sourceWindow?.deref();
+      if (
+        snapshot.entries.some(entry => entry.closedId != null) ||
+        !sourceWindow ||
+        sourceWindow.closed
+      ) {
+        this._closedTreeSets.delete(id);
+      } else {
+        provisional.push(id);
+      }
+    }
+    // Final content updates can make previously unsaveable tabs undoable.
+    // Bound those unconfirmed sets without evicting any eligible undo history.
+    const limit = Math.max(0, Services.prefs.getIntPref(UNDO_PREFS[0], 25));
+    for (const id of provisional.slice(
+      0,
+      Math.max(0, provisional.length - limit)
+    )) {
+      this._closedTreeSets.delete(id);
+    }
   },
 
   cancelClosedTreeSet(window) {
@@ -506,15 +646,11 @@ export const TreeTabsStore = {
     if (!snapshot) {
       return;
     }
+    this._activeClosedTreeSets.delete(window);
     for (const entry of snapshot.entries) {
       this._frozenCloseTabs.delete(entry.tab);
       this._deleteTabJSON(entry.tab, CLOSED_TREE_SET_ID_KEY);
     }
-    this._activeClosedTreeSets.delete(window);
-  },
-
-  invalidateClosedTreeSet() {
-    return null;
   },
 
   // The persistent ID inside a SessionStore closed-tab record, for matching
@@ -590,16 +726,12 @@ export const TreeTabsStore = {
     if (!tabs.length) {
       return;
     }
+    const tabIndices = new Map(tabs.map((tab, index) => [tab, index]));
     const structure = tabs.map(tab => {
       const parent = lazy.TreeTabsService.getParent(tab);
-      let parentIndex = null;
-      if (parent) {
-        const index = tabs.indexOf(parent);
-        parentIndex = index === -1 ? null : index;
-      }
       return {
         id: this._getTabGuid(tab, { create: true }),
-        parent: parentIndex,
+        parent: tabIndices.get(parent) ?? null,
         collapsed: lazy.TreeTabsService.isCollapsed(tab),
       };
     });
@@ -657,6 +789,9 @@ export const TreeTabsStore = {
   },
 
   onWindowRestoring(window) {
+    for (const tab of this._getWindowTabs(window)) {
+      this._treeRestoredTabs.delete(tab);
+    }
     if (!this._isEnabled() || !window) {
       return;
     }
@@ -750,11 +885,13 @@ export const TreeTabsStore = {
 
   onTabRestored(tab, { structureEntries = null } = {}) {
     if (!this._isEnabled() || !tab) {
+      this._treeRestoredTabs.delete(tab);
       return;
     }
     const window = this._getWindowForTab(tab);
     if (this._closedSetRestoringTabs.has(tab)) {
       this._closedSetRestoringTabs.delete(tab);
+      this._treeRestoredTabs.delete(tab);
       this._getWindowState(window)?.collapseStates.delete(tab);
       return;
     }
@@ -771,6 +908,12 @@ export const TreeTabsStore = {
       state.uniqueIdToTab.set(tabData.legacyUniqueId, tab);
     }
 
+    if (!structureEntries && this._treeRestoredTabs.delete(tab)) {
+      state.tabData.delete(tab);
+      state.collapseStates.delete(tab);
+      return;
+    }
+
     const structureEntry = structureEntries
       ? structureEntries.get(tab)
       : this._getStructureEntry(window, state, tab);
@@ -779,11 +922,18 @@ export const TreeTabsStore = {
     // references, which stop resolving once linkedPanel ids change. Only
     // detach when the data affirmatively says the tab was a root, or a
     // lazily restored child loses its parent on first activation.
-    if (structureEntries?.has(tab)) {
-      if (this._isPersistedAsRoot(tabData, structureEntry)) {
-        lazy.TreeTabsService.detachTab(tab);
+    if (this._isPersistedAsRoot(tabData, structureEntry)) {
+      lazy.TreeTabsService.detachTab(tab);
+      if (!structureEntries?.has(tab)) {
+        const rootIndex = this._getRootIndexFromStructure(window, state, tab);
+        if (Number.isFinite(rootIndex)) {
+          lazy.TreeTabsService.moveTabSubtree(tab, rootIndex);
+        }
       }
-    } else if (!lazy.TreeTabsService.getParent(tab)) {
+    } else if (
+      !structureEntries?.has(tab) &&
+      !lazy.TreeTabsService.getParent(tab)
+    ) {
       const parent =
         this._resolveParentFromStructure(window, state, tab, structureEntry) ||
         this._resolveParentFromAncestors(window, state, tabData);
@@ -813,12 +963,6 @@ export const TreeTabsStore = {
           insertAfter,
           suppressAutoExpand: true,
         });
-      } else if (this._isPersistedAsRoot(tabData, structureEntry)) {
-        lazy.TreeTabsService.detachTab(tab);
-        const rootIndex = this._getRootIndexFromStructure(window, state, tab);
-        if (Number.isFinite(rootIndex)) {
-          lazy.TreeTabsService.moveTabSubtree(tab, rootIndex);
-        }
       }
     }
 
@@ -856,16 +1000,45 @@ export const TreeTabsStore = {
       return;
     }
     this._closedTreeSets.delete(snapshot.id);
-    const restore = { snapshot, requestedTab: tab };
+    const restore = { snapshot, requestedTab: tab, timerId: null };
     this._pendingClosedTreeRestores.set(window, restore);
     this._closedSetRestoringTabs.add(tab);
-    setTimeout(() => this._restoreClosedTreeSet(window, restore), 0);
+    restore.timerId = setTimeout(
+      () => this._restoreClosedTreeSet(window, restore),
+      0
+    );
+  },
+
+  _cancelClosedTreeSetRestore(window) {
+    const restore = this._pendingClosedTreeRestores.get(window);
+    if (!restore) {
+      return;
+    }
+    this._pendingClosedTreeRestores.delete(window);
+    clearTimeout(restore.timerId);
+    restore.timerId = null;
+    this._restoringClosedTreeSets.delete(window);
+    const state = this._getWindowState(window);
+    for (const tab of this._getWindowTabs(window)) {
+      this._closedSetRestoringTabs.delete(tab);
+      const tabData = state?.tabData.get(tab);
+      if (tabData?.closedTreeSetId === restore.snapshot.id) {
+        tabData.closedTreeSetId = null;
+      }
+      if (
+        this._readTabJSON(tab, CLOSED_TREE_SET_ID_KEY) === restore.snapshot.id
+      ) {
+        this._deleteTabJSON(tab, CLOSED_TREE_SET_ID_KEY);
+      }
+    }
   },
 
   _restoreClosedTreeSet(window, restore) {
     if (this._pendingClosedTreeRestores.get(window) != restore) {
       return;
     }
+    clearTimeout(restore.timerId);
+    restore.timerId = null;
     const { snapshot, requestedTab } = restore;
     this._restoringClosedTreeSets.add(window);
     try {
@@ -882,21 +1055,17 @@ export const TreeTabsStore = {
 
       const closedByGuid = this._getClosedTabsByGuid(window);
       for (const entry of snapshot.entries) {
+        if (this._pendingClosedTreeRestores.get(window) !== restore) {
+          return;
+        }
         if (entry.closedId == null) {
           entry.closedId = closedByGuid.get(entry.guid)?.closedId ?? null;
         }
-        let tab = guidToTab.get(entry.guid);
-        if (!tab && entry.closedId != null) {
-          try {
-            tab = lazy.SessionStore.undoCloseById(entry.closedId, true, window);
-          } catch {}
-        }
-        if (!tab && entry.state) {
-          tab = window.gBrowser.addTrustedTab("about:blank", {
-            createLazyBrowser: true,
-            skipAnimation: true,
-          });
-          lazy.SessionStore.setTabState(tab, entry.state);
+        const tab =
+          guidToTab.get(entry.guid) ||
+          this._restoreClosedTreeTab(window, restore, entry);
+        if (this._pendingClosedTreeRestores.get(window) !== restore) {
+          return;
         }
         if (tab) {
           guidToTab.set(entry.guid, tab);
@@ -967,19 +1136,44 @@ export const TreeTabsStore = {
         }
       }
     } finally {
-      this._pendingClosedTreeRestores.delete(window);
-      this._restoringClosedTreeSets.delete(window);
-      for (const entry of snapshot.entries) {
-        const tab = this._getWindowTabs(window).find(
-          candidate => this._getTabGuid(candidate) == entry.guid
-        );
-        if (tab) {
-          this._deleteTabJSON(tab, CLOSED_TREE_SET_ID_KEY);
-          this.saveTabState(tab, { force: true });
+      if (this._pendingClosedTreeRestores.get(window) === restore) {
+        this._pendingClosedTreeRestores.delete(window);
+        this._restoringClosedTreeSets.delete(window);
+        for (const entry of snapshot.entries) {
+          const tab = this._getWindowTabs(window).find(
+            candidate => this._getTabGuid(candidate) == entry.guid
+          );
+          if (tab) {
+            this._deleteTabJSON(tab, CLOSED_TREE_SET_ID_KEY);
+            this.saveTabState(tab, { force: true });
+          }
         }
+        this.saveWindowStructure(window);
       }
-      this.saveWindowStructure(window);
     }
+  },
+
+  _restoreClosedTreeTab(window, restore, entry) {
+    let tab;
+    if (entry.closedId != null) {
+      try {
+        tab = lazy.SessionStore.undoCloseById(entry.closedId, true, window);
+      } catch {}
+    }
+    if (
+      !tab &&
+      entry.state &&
+      this._pendingClosedTreeRestores.get(window) === restore
+    ) {
+      tab = window.gBrowser.addTrustedTab("about:blank", {
+        createLazyBrowser: true,
+        skipAnimation: true,
+      });
+      if (this._pendingClosedTreeRestores.get(window) === restore) {
+        lazy.SessionStore.setTabState(tab, entry.state);
+      }
+    }
+    return tab;
   },
 
   _isPersistedAsRoot(tabData, structureEntry) {
@@ -1040,46 +1234,10 @@ export const TreeTabsStore = {
     if (!this._isEnabled()) {
       return;
     }
-    this.ensureRestoreGuard(window);
-    const state = this._getWindowState(window, { create: true });
-    state.structure = this.loadWindowStructure(window);
-    const tabs = this._getWindowTabs(window);
-    for (const tab of tabs) {
-      this._tabGuids.delete(tab);
-    }
-    this.ensureUniqueTabGuids(window);
-    lazy.TreeTabsService.init(window);
-    state.tabData.clear();
-    state.uniqueIdToTab.clear();
-
+    this._pendingWindowRestores.add(window);
+    this._manualRestoreCompleted.delete(window);
     // Lazy background tabs do not send SSTabRestoring until activation.
-    if (!this.tryManualRestore(window)) {
-      const resolved = Array.isArray(state.structure)
-        ? this._resolveStructureTabs(tabs, state.structure)
-        : null;
-      const unmatchedStructure =
-        this._pendingWindowRestores.has(window) && !resolved;
-      if (unmatchedStructure) {
-        state.structure = null;
-      }
-      const completeTabRestore = this._restoreTabMetadata(
-        window,
-        state,
-        tabs,
-        resolved,
-        { requireRestoredLink: unmatchedStructure }
-      );
-      if (unmatchedStructure && completeTabRestore) {
-        this._pendingWindowRestores.delete(window);
-      } else if (resolved && !completeTabRestore) {
-        this._pendingWindowRestores.add(window);
-        this._manualRestoreCompleted.delete(window);
-      }
-    }
-    if (!this._pendingWindowRestores.has(window)) {
-      this._manualRestoreCompleted.add(window);
-      this.clearRestoreGuard(window);
-    }
+    this.tryManualRestore(window);
     this._cancelWindowSave(window);
     this._windowStates.delete(window);
     lazy.TreeTabsService._notifyStructureChanged(window);
@@ -1098,8 +1256,12 @@ export const TreeTabsStore = {
         .map(({ entry, tab }) => [tab, entry])
     );
     // Read metadata in bulk without per-tab duplicate scans.
+    state.tabData.clear();
+    state.uniqueIdToTab.clear();
     for (const tab of tabs) {
-      this._recordTabRestoreState(window, tab, this.loadTabState(tab));
+      const tabData = this.loadTabState(tab);
+      this._cacheTabGuid(tab, tabData?.legacyUniqueId);
+      this._recordTabRestoreState(window, tab, tabData);
     }
     // Covered parents may name extra children, but metadata cannot reparent
     // snapshot-covered tabs, including roots.
@@ -1146,7 +1308,7 @@ export const TreeTabsStore = {
           parent !== tab &&
           !parent.pinned &&
           (restoredParent !== parent ||
-            (covered && (parent.group || null) !== (tab.group || null)))) ||
+            (parent.group || null) !== (tab.group || null))) ||
         (this._isPersistedAsRoot(tabData, entry) && restoredParent)
       ) {
         return false;
@@ -1163,7 +1325,11 @@ export const TreeTabsStore = {
             !structureEntries?.has(child)
         );
       if (
-        children.some(child => lazy.TreeTabsService.getParent(child) !== tab)
+        children.some(
+          child =>
+            lazy.TreeTabsService.getParent(child) !== tab ||
+            (child.group || null) !== (tab.group || null)
+        )
       ) {
         return false;
       }
@@ -1174,8 +1340,6 @@ export const TreeTabsStore = {
   },
 
   tryManualRestore(window) {
-    const structure = window ? this.loadWindowStructure(window) : null;
-
     if (
       !this._isEnabled() ||
       !window ||
@@ -1185,7 +1349,16 @@ export const TreeTabsStore = {
       return false;
     }
 
-    if (!Array.isArray(structure) || !structure.length) {
+    const structure = this.loadWindowStructure(window);
+    const hasParentRelationships =
+      Array.isArray(structure) &&
+      structure.some(
+        entry =>
+          Number.isInteger(entry?.parent) &&
+          entry.parent >= 0 &&
+          entry.parent < structure.length
+      );
+    if (!hasParentRelationships && !this._pendingWindowRestores.has(window)) {
       return false;
     }
 
@@ -1193,62 +1366,41 @@ export const TreeTabsStore = {
     if (!tabs.length) {
       return false;
     }
-
-    const hasParentRelationships = structure.some(
-      entry =>
-        Number.isInteger(entry?.parent) &&
-        entry.parent >= 0 &&
-        entry.parent < structure.length
-    );
-    if (!hasParentRelationships) {
-      return false;
-    }
     this._pendingWindowRestores.add(window);
-    const resolved = this._resolveStructureTabs(tabs, structure);
-    if (!resolved) {
-      return false;
-    }
+    // Refresh lazy tabs whose extData arrived without SSTabRestoring.
+    this.ensureUniqueTabGuids(window);
+    const resolved = Array.isArray(structure)
+      ? this._resolveStructureTabs(tabs, structure)
+      : null;
+    const state = this._getWindowState(window, { create: true });
+    state.structure = resolved?.length ? structure : null;
 
-    // Guard only once there is a structure to apply; arming on every failed
-    // attempt would keep suppressing saves and move fixups indefinitely in
-    // windows with nothing to restore.
     this.ensureRestoreGuard(window);
-
     lazy.TreeTabsService.init(window);
-    for (const { entry, tab } of resolved) {
+    for (const { entry, tab } of resolved || []) {
       if (tab && entry && (entry.parent == null || entry.parent < 0)) {
         lazy.TreeTabsService.detachTab(tab);
       }
     }
 
-    const { restoredParentLinks, pendingParentLinks } =
-      this._restoreParentLinks(resolved);
-    if (!restoredParentLinks || pendingParentLinks) {
-      if (!pendingParentLinks) {
-        this._pendingWindowRestores.delete(window);
-      }
-      return false;
-    }
-
+    const { pendingParentLinks } = this._restoreParentLinks(resolved || []);
     const coveredTabs = new Set(
-      resolved.filter(({ entry }) => entry).map(({ tab }) => tab)
+      (resolved || []).filter(({ entry }) => entry).map(({ tab }) => tab)
     );
-    if (tabs.some(tab => !coveredTabs.has(tab))) {
-      const state = this._getWindowState(window, { create: true });
-      state.structure = structure;
-      if (
-        !this._restoreTabMetadata(window, state, tabs, resolved, {
-          requireRestoredLink: false,
-        })
-      ) {
-        return false;
-      }
+    const completeTabRestore =
+      hasParentRelationships && tabs.every(tab => coveredTabs.has(tab))
+        ? true
+        : this._restoreTabMetadata(window, state, tabs, resolved, {
+            requireRestoredLink: hasParentRelationships && !resolved,
+          });
+    if (pendingParentLinks || !completeTabRestore) {
+      return false;
     }
 
     this._manualRestoreCompleted.add(window);
     this._pendingWindowRestores.delete(window);
 
-    for (const { entry, tab } of resolved) {
+    for (const { entry, tab } of resolved || []) {
       if (!tab || typeof entry?.collapsed != "boolean") {
         continue;
       }
@@ -1260,6 +1412,12 @@ export const TreeTabsStore = {
     }
 
     this._fixupWindowTree(window);
+    // The completed tree wins over stale metadata on first lazy activation.
+    for (const tab of tabs) {
+      if (this._isTabRestorePending(tab)) {
+        this._treeRestoredTabs.add(tab);
+      }
+    }
     this.clearRestoreGuard(window);
     return true;
   },
@@ -1267,22 +1425,16 @@ export const TreeTabsStore = {
   _restoreParentLinks(resolved) {
     let restoredParentLinks = false;
     let pendingParentLinks = false;
-    for (let index = 0; index < resolved.length; index += 1) {
-      const { entry, tab } = resolved[index];
+    const previousSiblings = new Map();
+    for (const { entry, tab } of resolved) {
       if (!tab || !Number.isInteger(entry?.parent) || entry.parent < 0) {
         continue;
       }
+      const insertAfter = previousSiblings.get(entry.parent) || null;
+      previousSiblings.set(entry.parent, tab);
       const parent = resolved[entry.parent]?.tab || null;
       if (!parent || parent === tab || parent.pinned || tab.pinned) {
         continue;
-      }
-
-      let insertAfter = null;
-      for (let i = index - 1; i >= 0; i -= 1) {
-        if (resolved[i].tab && resolved[i].entry?.parent === entry.parent) {
-          insertAfter = resolved[i].tab;
-          break;
-        }
       }
 
       if (
@@ -1343,17 +1495,15 @@ export const TreeTabsStore = {
       return;
     }
 
-    this._restoringWindows.add(window);
-
-    const existingTimer = this._restoreGuardTimers.get(window);
-    if (existingTimer) {
+    const existingTimer = this._restoringWindows.get(window);
+    if (existingTimer != null) {
       clearTimeout(existingTimer);
     }
 
     const timeoutId = setTimeout(() => {
       this.clearRestoreGuard(window);
     }, RESTORE_GUARD_TIMEOUT_MS);
-    this._restoreGuardTimers.set(window, timeoutId);
+    this._restoringWindows.set(window, timeoutId);
   },
 
   clearRestoreGuard(window) {
@@ -1361,11 +1511,10 @@ export const TreeTabsStore = {
       return;
     }
 
-    this._restoringWindows.delete(window);
-    const timeoutId = this._restoreGuardTimers.get(window);
-    if (timeoutId) {
+    const timeoutId = this._restoringWindows.get(window);
+    if (timeoutId != null) {
       clearTimeout(timeoutId);
-      this._restoreGuardTimers.delete(window);
+      this._restoringWindows.delete(window);
     }
   },
 
@@ -1576,18 +1725,20 @@ export const TreeTabsStore = {
       ref = { id: ref, uniqueId: typeof ref === "string" ? ref : null };
     }
 
-    if (!ref || typeof ref !== "object") {
+    if (typeof ref !== "object") {
       return null;
     }
 
-    const tabs = this._getWindowTabs(window);
     const uniqueIdMap = state?.uniqueIdToTab || null;
     const id = ref.id;
     const guid = ref.uniqueId || (typeof id === "string" ? id : null);
+    const cached = guid && uniqueIdMap?.get(guid);
+    if (cached) {
+      return cached;
+    }
+    const tabs = this._getWindowTabs(window);
     if (guid) {
-      const byGuid =
-        uniqueIdMap?.get(guid) ||
-        tabs.find(tab => this._getTabGuid(tab) === guid);
+      const byGuid = tabs.find(tab => this._getTabGuid(tab) === guid);
       if (byGuid) {
         return byGuid;
       }

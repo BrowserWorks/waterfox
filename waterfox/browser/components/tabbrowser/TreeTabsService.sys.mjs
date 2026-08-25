@@ -306,7 +306,6 @@ export const TreeTabsService = {
     }
     const node = this._ensureNode(state, tab);
     const children = node.children.slice();
-    node.children = [];
 
     const reparentTo = options.reparentTo || null;
     for (const child of children) {
@@ -786,7 +785,7 @@ export const TreeTabsService = {
     }
 
     if (info.detachChildren) {
-      this._detachChildrenForMove(state, tab);
+      this._promoteFirstChild(state, tab);
     }
 
     let newIndex = info.newIndex;
@@ -1361,38 +1360,25 @@ export const TreeTabsService = {
     }
   },
 
+  // Leave the original tab in its container for the caller to remove or move.
   _promoteFirstChild(state, tab) {
     const node = state.nodes.get(tab);
     if (!node || node.children.length === 0) {
       return;
     }
-    const children = node.children.slice();
+    const [first, ...rest] = node.children;
     node.children = [];
-    const [first, ...rest] = children;
-    const parent = node.parent;
-    let container = null;
-    if (parent) {
-      const parentNode = state.nodes.get(parent);
-      container = parentNode?.children || null;
-    } else {
-      container = state.roots;
-    }
-    if (container) {
-      const index = container.indexOf(tab);
-      if (index !== -1) {
-        container.splice(index, 1, first);
-      } else {
-        this._addRoot(state, first);
-      }
-    }
+    const parentNode = state.nodes.get(node.parent);
+    const container = parentNode?.children || state.roots;
+    const index = container.indexOf(tab);
+    container.splice(index === -1 ? container.length : index + 1, 0, first);
+
     const firstNode = this._ensureNode(state, first);
-    firstNode.parent = parent;
-    if (rest.length) {
-      firstNode.children = firstNode.children.concat(rest);
-      for (const child of rest) {
-        const childNode = this._ensureNode(state, child);
-        childNode.parent = first;
-      }
+    firstNode.parent = parentNode ? node.parent : null;
+    firstNode.children = firstNode.children.concat(rest);
+    for (const child of rest) {
+      const childNode = this._ensureNode(state, child);
+      childNode.parent = first;
     }
   },
 
@@ -1431,36 +1417,6 @@ export const TreeTabsService = {
       childNode.parent = null;
       this._addRoot(state, child, insertIndex);
       insertIndex += 1;
-    }
-  },
-
-  // The children stay behind when their parent moves away: the first child
-  // takes the parent's place in the tree and the rest become its children.
-  _detachChildrenForMove(state, tab) {
-    const node = state.nodes.get(tab);
-    if (!node || node.children.length === 0) {
-      return;
-    }
-    const children = node.children.slice();
-    node.children = [];
-    const [first, ...rest] = children;
-
-    const parent = node.parent;
-    const container = parent ? state.nodes.get(parent)?.children : state.roots;
-    if (container) {
-      let insertIndex = container.indexOf(tab);
-      insertIndex = insertIndex === -1 ? container.length : insertIndex + 1;
-      container.splice(insertIndex, 0, first);
-    }
-
-    const firstNode = this._ensureNode(state, first);
-    firstNode.parent = parent;
-    if (rest.length) {
-      firstNode.children = firstNode.children.concat(rest);
-      for (const child of rest) {
-        const childNode = this._ensureNode(state, child);
-        childNode.parent = first;
-      }
     }
   },
 
