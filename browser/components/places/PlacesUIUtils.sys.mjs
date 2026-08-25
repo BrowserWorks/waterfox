@@ -21,6 +21,9 @@ ChromeUtils.defineESModuleGetters(lazy, {
     "moz-src:///browser/components/tabbrowser/OpenInTabsUtils.sys.mjs",
   PlacesTransactions: "resource://gre/modules/PlacesTransactions.sys.mjs",
   PlacesUtils: "resource://gre/modules/PlacesUtils.sys.mjs",
+  TreeTabsBookmarks: "resource:///modules/TreeTabsBookmarks.sys.mjs",
+  TreeTabsGroups: "resource:///modules/TreeTabsGroups.sys.mjs",
+  TreeTabsStore: "resource:///modules/TreeTabsStore.sys.mjs",
   PrivateBrowsingUtils: "resource://gre/modules/PrivateBrowsingUtils.sys.mjs",
   Weave: "resource://services-sync/main.sys.mjs",
   WebNavigationManager: "resource://gre/modules/WebNavigation.sys.mjs",
@@ -744,6 +747,87 @@ export var PlacesUIUtils = {
     );
   },
 
+  _applyTreeBookmarkFolder(browserWindow, tabs, folder) {
+    if (
+      !folder ||
+      !Services.prefs.getBoolPref(
+        "browser.tabs.verticalTabs.tree.enabled",
+        false
+      ) ||
+      tabs.length != folder.items.length
+    ) {
+      return;
+    }
+
+    const restoreTree = Services.prefs.getBoolPref(
+      "browser.tabs.verticalTabs.tree.bookmarks.restoreTree",
+      true
+    );
+    const autoGroup = Services.prefs.getBoolPref(
+      "browser.tabs.verticalTabs.tree.bookmarks.autoGroup",
+      true
+    );
+    if (!restoreTree && !autoGroup) {
+      return;
+    }
+
+    const importedTabs = new Set(tabs);
+    const orderedTabs = tabs.toSorted((a, b) => a._tPos - b._tPos);
+    const allTabs = Array.from(browserWindow.gBrowser.tabs);
+    const firstIndex = allTabs.indexOf(orderedTabs[0]);
+    const lastIndex = allTabs.indexOf(orderedTabs.at(-1));
+    const previousTab = allTabs
+      .slice(0, firstIndex)
+      .findLast(tab => !importedTabs.has(tab));
+    const nextTab = allTabs
+      .slice(lastIndex + 1)
+      .find(tab => !importedTabs.has(tab));
+
+    const structure = restoreTree
+      ? lazy.TreeTabsBookmarks.parseStructure(folder.items)
+      : folder.items.map(item => ({ parent: null, title: item.title || "" }));
+    const root = lazy.TreeTabsBookmarks.applyStructure(
+      browserWindow,
+      tabs,
+      structure,
+      {
+        group: autoGroup,
+        groupTitle: folder.title || null,
+      }
+    );
+    if (root && previousTab) {
+      const service = browserWindow.gBrowser.TreeTabsService;
+      const previous = previousTab;
+      const next = nextTab;
+      let parent = service.getParent(previous);
+      let options = { insertAfter: previous, suppressAutoExpand: true };
+      if (next && service.getParent(next) == previous) {
+        parent = previous;
+        options = { index: 0, suppressAutoExpand: true };
+      }
+      if (parent && parent.group === root.group) {
+        service.attachTab(root, parent, options);
+      } else if (!parent) {
+        const roots = service.getRootTabs(browserWindow);
+        const previousIndex = roots.indexOf(previous);
+        if (previousIndex >= 0) {
+          service.moveTabSubtree(root, previousIndex + 1);
+        }
+      }
+    }
+
+    lazy.TreeTabsStore.completeExternalRestore(browserWindow);
+    for (const tab of tabs) {
+      if (tab != browserWindow.gBrowser.selectedTab && !tab.pinned) {
+        void browserWindow.gBrowser.prepareDiscardBrowser(tab).then(() => {
+          if (tab.isConnected && !tab.selected && !tab.closing) {
+            browserWindow.gBrowser.discardBrowser(tab, true);
+          }
+        });
+      }
+    }
+  },
+
   /**
    * @param {Array<object>} aItemsToOpen
    *   needs to be an array of objects of the form:
@@ -752,8 +836,12 @@ export var PlacesUIUtils = {
    *   The associated event triggering the open.
    * @param {Window} aWindow
    *   The window associated with the event.
+   * @param {object} [options]
+   *   Additional data for the open operation.
+   * @param {object} [options.treeBookmarkFolder]
+   *   Ordered bookmark-folder data used to restore tree structure.
    */
-  openTabset(aItemsToOpen, aEvent, aWindow) {
+  openTabset(aItemsToOpen, aEvent, aWindow, { treeBookmarkFolder } = {}) {
     if (!aItemsToOpen.length) {
       return;
     }
@@ -803,6 +891,40 @@ export var PlacesUIUtils = {
         features,
         args
       );
+      if (treeBookmarkFolder) {
+        const openedTabs = [];
+        const onTabOpen = event => openedTabs.push(event.target);
+        browserWindow.addEventListener("TabOpen", onTabOpen, true);
+        const onStartup = subject => {
+          if (subject != browserWindow) {
+            return;
+          }
+          Services.obs.removeObserver(
+            onStartup,
+            "browser-delayed-startup-finished"
+          );
+          browserWindow.removeEventListener("TabOpen", onTabOpen, true);
+          const availableTabs = openedTabs.filter(
+            tab => tab.isConnected && tab.documentGlobal == browserWindow
+          );
+          const tabs = [];
+          for (const url of urls) {
+            const index = availableTabs.findIndex(
+              tab => lazy.TreeTabsGroups.getTabURL(tab) == url
+            );
+            if (index < 0) {
+              break;
+            }
+            tabs.push(availableTabs.splice(index, 1)[0]);
+          }
+          this._applyTreeBookmarkFolder(
+            browserWindow,
+            tabs,
+            treeBookmarkFolder
+          );
+        };
+        Services.obs.addObserver(onStartup, "browser-delayed-startup-finished");
+      }
       return;
     }
 
@@ -825,6 +947,7 @@ export var PlacesUIUtils = {
         );
       }
     }
+    this._applyTreeBookmarkFolder(browserWindow, tabs, treeBookmarkFolder);
   },
 
   /**
@@ -843,6 +966,8 @@ export var PlacesUIUtils = {
   openMultipleLinksInTabs(nodeOrNodes, event, view) {
     let window = view.ownerWindow;
     let urlsToOpen = [];
+    const isBookmarkFolder =
+      lazy.PlacesUtils.nodeIsFolderOrShortcut(nodeOrNodes);
 
     if (lazy.PlacesUtils.nodeIsContainer(nodeOrNodes)) {
       urlsToOpen = lazy.PlacesUtils.getURLsForContainerNode(nodeOrNodes);
@@ -861,7 +986,15 @@ export var PlacesUIUtils = {
       if (window.updateTelemetry) {
         window.updateTelemetry(urlsToOpen, true);
       }
-      this.openTabset(urlsToOpen, event, window);
+      const treeBookmarkFolder = isBookmarkFolder
+        ? {
+            title: nodeOrNodes.title || "",
+            items: urlsToOpen.map(item => ({
+              title: item.title || "",
+            })),
+          }
+        : null;
+      this.openTabset(urlsToOpen, event, window, { treeBookmarkFolder });
     }
   },
 

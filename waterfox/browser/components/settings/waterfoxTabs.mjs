@@ -28,6 +28,10 @@ const TREE_PROPAGATE_MUTED_PREF =
 const TREE_MAX_DEPTH_PREF = "browser.tabs.verticalTabs.tree.maxDepth";
 const TREE_AUTO_GROUP_PINNED_PREF =
   "browser.tabs.verticalTabs.tree.autoGroup.pinnedOpener";
+const TREE_BOOKMARK_RESTORE_PREF =
+  "browser.tabs.verticalTabs.tree.bookmarks.restoreTree";
+const TREE_BOOKMARK_GROUP_PREF =
+  "browser.tabs.verticalTabs.tree.bookmarks.autoGroup";
 
 const TOGGLES = [
   {
@@ -116,6 +120,8 @@ Preferences.addAll([
   { id: TREE_PROPAGATE_MUTED_PREF, type: "bool" },
   { id: TREE_MAX_DEPTH_PREF, type: "int" },
   { id: TREE_AUTO_GROUP_PINNED_PREF, type: "bool" },
+  { id: TREE_BOOKMARK_RESTORE_PREF, type: "bool" },
+  { id: TREE_BOOKMARK_GROUP_PREF, type: "bool" },
   ...TOGGLES.map(toggle => ({
     id: toggle.pref,
     type: "bool",
@@ -190,6 +196,8 @@ for (let [id, pref] of [
   ["waterfox-tree-propagate-muted", TREE_PROPAGATE_MUTED_PREF],
   ["waterfox-tree-max-depth", TREE_MAX_DEPTH_PREF],
   ["waterfox-tree-auto-group-pinned", TREE_AUTO_GROUP_PINNED_PREF],
+  ["waterfox-tree-bookmark-restore", TREE_BOOKMARK_RESTORE_PREF],
+  ["waterfox-tree-bookmark-group", TREE_BOOKMARK_GROUP_PREF],
 ]) {
   Preferences.addSetting({
     id,
@@ -431,6 +439,16 @@ SettingGroupManager.registerGroups({
           {
             id: "waterfox-tree-auto-group-pinned",
             l10nId: "waterfox-tabs-tree-auto-group-pinned-toggle",
+            control: "moz-toggle",
+          },
+          {
+            id: "waterfox-tree-bookmark-restore",
+            l10nId: "waterfox-tabs-tree-bookmark-restore-toggle",
+            control: "moz-toggle",
+          },
+          {
+            id: "waterfox-tree-bookmark-group",
+            l10nId: "waterfox-tabs-tree-bookmark-group-toggle",
             control: "moz-toggle",
           },
           {

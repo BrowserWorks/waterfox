@@ -26,6 +26,8 @@ const TREE_TEST_PREFS = [
   PREF_TREE_INDENT_PX,
   PREF_TREE_PROPAGATE_MUTED_STATE,
   "browser.tabs.verticalTabs.tree.autoGroup.pinnedOpener",
+  "browser.tabs.verticalTabs.tree.bookmarks.restoreTree",
+  "browser.tabs.verticalTabs.tree.bookmarks.autoGroup",
 ];
 const WAIT_FOR_CONDITION_INTERVAL_MS = 200;
 const WAIT_FOR_CONDITION_MAX_TRIES = 50;
