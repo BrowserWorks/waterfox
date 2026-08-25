@@ -8,6 +8,7 @@ const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
   SessionStore: "resource:///modules/sessionstore/SessionStore.sys.mjs",
+  TreeTabsGroups: "resource:///modules/TreeTabsGroups.sys.mjs",
   TreeTabsService: "resource:///modules/TreeTabsService.sys.mjs",
   TreeTabsMigration: "resource:///modules/TreeTabsMigration.sys.mjs",
 });
@@ -990,21 +991,39 @@ export const TreeTabsStore = {
     if (!tabData?.children?.length) {
       return;
     }
+    const replacementGroups = new Set();
     for (const childRef of tabData.children) {
       const childTab = this._findTabByReference(window, childRef, state);
       if (structureEntries?.has(childTab)) {
         continue;
       }
+      const currentParent = childTab
+        ? lazy.TreeTabsService.getParent(childTab)
+        : null;
+      const replacementParent =
+        currentParent &&
+        lazy.TreeTabsGroups.isGroupTab(currentParent) &&
+        lazy.TreeTabsGroups.getReplacedParentCount(currentParent)
+          ? currentParent
+          : null;
       if (
         childTab &&
         childTab !== tab &&
         !childTab.closing &&
-        !lazy.TreeTabsService.getParent(childTab)
+        (!currentParent || replacementParent)
       ) {
         lazy.TreeTabsService.attachTab(childTab, tab, {
           suppressAutoExpand: true,
         });
+        if (replacementParent) {
+          replacementGroups.add(replacementParent);
+        }
       }
+    }
+    if (replacementGroups.size) {
+      lazy.TreeTabsGroups.cleanupNeedlessGroupTabs(window, [
+        ...replacementGroups,
+      ]);
     }
   },
 

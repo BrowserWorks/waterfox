@@ -91,3 +91,144 @@ add_task(async function test_tree_tabs_context_menu_commands() {
 
   await closeTabContextMenu();
 });
+
+add_task(async function test_tree_tabs_context_menu_copy_links() {
+  await enableTreeTabs();
+
+  const parentURL = "https://example.com/?waterfox-tree-context-copy-parent";
+  const childOneURL = "https://example.com/?waterfox-tree-context-copy-child-1";
+  const grandchildURL =
+    "https://example.com/?waterfox-tree-context-copy-grandchild";
+  const childTwoURL = "https://example.com/?waterfox-tree-context-copy-child-2";
+  const parentTab = BrowserTestUtils.addTab(gBrowser, parentURL);
+  await BrowserTestUtils.browserLoaded(
+    parentTab.linkedBrowser,
+    false,
+    parentURL
+  );
+  const childOne = await openTabWithTree(parentTab, childOneURL);
+  const grandchild = await openTabWithTree(childOne, grandchildURL);
+  const childTwo = await openTabWithTree(parentTab, childTwoURL);
+
+  let menu = await openTabContextMenu(parentTab);
+  const copyTreeItem = document.getElementById("context_copyTreeLinks");
+  const copyDescendantsItem = document.getElementById(
+    "context_copyDescendantsLinks"
+  );
+
+  ok(copyTreeItem, "Copy Tree menu item exists");
+  ok(copyDescendantsItem, "Copy Descendants menu item exists");
+  ok(!copyTreeItem.hidden, "Copy Tree is visible for a tree");
+  ok(!copyDescendantsItem.hidden, "Copy Descendants is visible for a tree");
+
+  let hidden = BrowserTestUtils.waitForPopupEvent(menu, "hidden");
+  menu.activateItem(copyTreeItem);
+  await hidden;
+
+  is(
+    SpecialPowers.getClipboardData("text/plain"),
+    [
+      `* ${parentURL}`,
+      `  * ${childOneURL}`,
+      `    * ${grandchildURL}`,
+      `  * ${childTwoURL}`,
+    ].join("\n"),
+    "Copy Tree writes the exact recursive plain-text tree"
+  );
+
+  menu = await openTabContextMenu(parentTab);
+  hidden = BrowserTestUtils.waitForPopupEvent(menu, "hidden");
+  menu.activateItem(copyDescendantsItem);
+  await hidden;
+
+  const copiedDescendants = SpecialPowers.getClipboardData("text/plain");
+  is(
+    copiedDescendants,
+    [`* ${childOneURL}`, `  * ${grandchildURL}`, `* ${childTwoURL}`].join("\n"),
+    "Copy Descendants writes the exact recursive descendants"
+  );
+  ok(
+    !copiedDescendants.includes(parentURL),
+    "Copy Descendants omits the parent"
+  );
+
+  await closeTabContextMenu();
+  BrowserTestUtils.removeTab(childTwo);
+  BrowserTestUtils.removeTab(grandchild);
+  BrowserTestUtils.removeTab(childOne);
+  BrowserTestUtils.removeTab(parentTab);
+});
+
+add_task(async function test_recursive_and_native_tree_context_actions() {
+  await enableTreeTabs();
+
+  const rootTab = BrowserTestUtils.addTab(
+    gBrowser,
+    "about:blank?waterfox-tree-context-actions-root"
+  );
+  const childTab = await openTabWithTree(
+    rootTab,
+    "about:blank?waterfox-tree-context-actions-child"
+  );
+  const grandchildTab = await openTabWithTree(
+    childTab,
+    "about:blank?waterfox-tree-context-actions-grandchild"
+  );
+  const collapseRecursive = document.getElementById(
+    "context_collapseTreeRecursively"
+  );
+  const expandRecursive = document.getElementById(
+    "context_expandTreeRecursively"
+  );
+  const unloadTree = document.getElementById("context_unloadTree");
+
+  let menu = await openTabContextMenu(rootTab);
+  let hidden = BrowserTestUtils.waitForPopupEvent(menu, "hidden");
+  menu.activateItem(collapseRecursive);
+  await hidden;
+  await waitForTreeCondition(
+    () =>
+      gBrowser.TreeTabsService.isCollapsed(rootTab) &&
+      gBrowser.TreeTabsService.isCollapsed(childTab),
+    "Waiting for recursive collapse"
+  );
+  ok(
+    gBrowser.TreeTabsService.isCollapsed(childTab),
+    "Recursive collapse folds nested branches"
+  );
+
+  menu = await openTabContextMenu(rootTab);
+  hidden = BrowserTestUtils.waitForPopupEvent(menu, "hidden");
+  menu.activateItem(expandRecursive);
+  await hidden;
+  await waitForTreeCondition(
+    () =>
+      !gBrowser.TreeTabsService.isCollapsed(rootTab) &&
+      !gBrowser.TreeTabsService.isCollapsed(childTab),
+    "Waiting for recursive expansion"
+  );
+
+  const originalExplicitUnloadTabs = gBrowser.explicitUnloadTabs;
+  let unloadedTabs = null;
+  gBrowser.explicitUnloadTabs = tabs => {
+    unloadedTabs = tabs;
+    return Promise.resolve();
+  };
+  try {
+    menu = await openTabContextMenu(rootTab);
+    hidden = BrowserTestUtils.waitForPopupEvent(menu, "hidden");
+    menu.activateItem(unloadTree);
+    await hidden;
+    Assert.deepEqual(
+      unloadedTabs,
+      [rootTab, childTab, grandchildTab],
+      "Unload Tree delegates the complete tree to Firefox's explicit unload path"
+    );
+  } finally {
+    gBrowser.explicitUnloadTabs = originalExplicitUnloadTabs;
+  }
+
+  BrowserTestUtils.removeTab(grandchildTab);
+  BrowserTestUtils.removeTab(childTab);
+  BrowserTestUtils.removeTab(rootTab);
+});

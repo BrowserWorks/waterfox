@@ -7,6 +7,7 @@ const lazy = {};
 ChromeUtils.defineESModuleGetters(lazy, {
   OpenInTabsUtils:
     "moz-src:///browser/components/tabbrowser/OpenInTabsUtils.sys.mjs",
+  TreeTabsGroups: "resource:///modules/TreeTabsGroups.sys.mjs",
   TreeTabsService: "resource:///modules/TreeTabsService.sys.mjs",
   TreeTabsStore: "resource:///modules/TreeTabsStore.sys.mjs",
 });
@@ -22,12 +23,26 @@ const PREF_STICKY_ACTIVE_TAB =
 const PREF_PROPAGATE_MUTED_STATE =
   "browser.tabs.verticalTabs.tree.propagateMutedState";
 const PREF_DROP_LINKS_ON_TAB = "browser.tabs.verticalTabs.tree.dropLinksOnTab";
+const PREF_AUTO_GROUP_PINNED_OPENER =
+  "browser.tabs.verticalTabs.tree.autoGroup.pinnedOpener";
 const TAB_DROP_TYPE = "application/x-moz-tabbrowser-tab";
 const RESTORE_RETRY_TIMEOUT_MS = 10000;
 
 const TREE_CONTEXT_MENU = {
   separator: "context_treeTabCommandsSeparator",
   items: [
+    {
+      id: "context_reloadTree",
+      l10nId: "waterfox-tab-context-reload-tree",
+    },
+    {
+      id: "context_toggleMuteTree",
+      l10nId: "waterfox-tab-context-mute-tree",
+    },
+    {
+      id: "context_unloadTree",
+      l10nId: "waterfox-tab-context-unload-tree",
+    },
     {
       id: "context_collapseTree",
       l10nId: "waterfox-tab-context-collapse-tree",
@@ -37,12 +52,28 @@ const TREE_CONTEXT_MENU = {
       l10nId: "waterfox-tab-context-expand-tree",
     },
     {
+      id: "context_collapseTreeRecursively",
+      l10nId: "waterfox-tab-context-collapse-tree-recursively",
+    },
+    {
+      id: "context_expandTreeRecursively",
+      l10nId: "waterfox-tab-context-expand-tree-recursively",
+    },
+    {
       id: "context_closeTree",
       l10nId: "waterfox-tab-context-close-tree",
     },
     {
       id: "context_closeDescendants",
       l10nId: "waterfox-tab-context-close-descendants",
+    },
+    {
+      id: "context_copyTreeLinks",
+      l10nId: "waterfox-tab-context-copy-tree-links",
+    },
+    {
+      id: "context_copyDescendantsLinks",
+      l10nId: "waterfox-tab-context-copy-descendants-links",
     },
     {
       id: "context_collapseAll",
@@ -719,6 +750,9 @@ function createTreeTabsController(window) {
     _dragAutoExpandedTabs: new Set(),
     _dragHoverExpandTab: null,
     _dragHoverExpandTimer: null,
+    _groupCleanupTabs: new Set(),
+    _groupCleanupScanAll: false,
+    _groupCleanupTimer: null,
     _switchingExpandTimer: null,
     _switchingModifierHeld: false,
 
@@ -748,6 +782,7 @@ function createTreeTabsController(window) {
       Services.obs.addObserver(this, "tree-tabs-subtree-collapsed-changed");
       Services.obs.addObserver(this, "tree-tabs-structure-changed");
       Services.obs.addObserver(this, "tree-tabs-close-requested");
+      Services.obs.addObserver(this, "tree-tabs-group-replace-requested");
       window.addEventListener("SSWindowRestoring", this, true);
       window.addEventListener("SSWindowRestored", this, true);
 
@@ -811,10 +846,10 @@ function createTreeTabsController(window) {
       this._tabContextMenu?.addEventListener("popupshowing", this);
       this._tabContextMenu?.addEventListener("command", this);
 
-      this._maybeRestoreTreeStructure();
       this._updateEnabledState();
     },
 
+    // eslint-disable-next-line complexity
     destroy() {
       if (!this._initialized) {
         return;
@@ -832,6 +867,7 @@ function createTreeTabsController(window) {
       Services.obs.removeObserver(this, "tree-tabs-subtree-collapsed-changed");
       Services.obs.removeObserver(this, "tree-tabs-structure-changed");
       Services.obs.removeObserver(this, "tree-tabs-close-requested");
+      Services.obs.removeObserver(this, "tree-tabs-group-replace-requested");
       window.removeEventListener("SSWindowRestoring", this, true);
       window.removeEventListener("SSWindowRestored", this, true);
 
@@ -891,6 +927,12 @@ function createTreeTabsController(window) {
       this._restoreRetryTimerId = null;
       this._inheritedMuteTabs = new WeakSet();
       this._manuallyExpandedTabs = new WeakSet();
+      if (this._groupCleanupTimer) {
+        window.clearTimeout(this._groupCleanupTimer);
+        this._groupCleanupTimer = null;
+      }
+      this._groupCleanupTabs.clear();
+      this._groupCleanupScanAll = false;
 
       if (window.TreeTabsDnD == TreeTabsDnD) {
         delete window.TreeTabsDnD;
@@ -914,6 +956,11 @@ function createTreeTabsController(window) {
       if (!this._isEnabled()) {
         return;
       }
+      const cleanupChain =
+        event.target._treeTabsCleanupAncestors ||
+        lazy.TreeTabsService.getAncestors(event.target);
+      delete event.target._treeTabsCleanupAncestors;
+      this._scheduleGroupCleanup(cleanupChain);
       if (event.detail?.adoptedBy) {
         // Adoption closes the source tab through _beginRemoveTab and skips
         // removeTab, so the model never hears about it there.
@@ -943,6 +990,7 @@ function createTreeTabsController(window) {
           break;
         case "SSTabRestored":
           this._maybeTryManualRestore();
+          this._scheduleAllGroupCleanup(1000);
           break;
         case "SSWindowRestoring":
           this._isWindowRestoring = true;
@@ -950,6 +998,7 @@ function createTreeTabsController(window) {
         case "SSWindowRestored":
           this._isWindowRestoring = false;
           this._maybeRestoreTreeStructure();
+          this._scheduleAllGroupCleanup(1000);
           break;
         case "TabSelect":
           this._handleTabSelect(event);
@@ -1039,6 +1088,7 @@ function createTreeTabsController(window) {
       }
     },
 
+    // eslint-disable-next-line complexity
     observe(subject, topic, data) {
       if (topic == "nsPref:changed") {
         if (data == PREF_ENABLED) {
@@ -1047,6 +1097,30 @@ function createTreeTabsController(window) {
           this._updateAllTabs();
         } else if (data == PREF_STICKY_ACTIVE_TAB && this._isEnabled()) {
           this._updateHiddenTabs();
+        }
+        return;
+      }
+
+      if (topic == "tree-tabs-group-replace-requested") {
+        const payload = subject?.wrappedJSObject ?? subject;
+        if (payload?.window != window || !this._isEnabled()) {
+          return;
+        }
+        const groupTab = lazy.TreeTabsGroups.groupTabs(
+          window,
+          payload.children || [],
+          {
+            title: payload.title,
+            temporaryAggressive: true,
+            replacedParentCount: payload.replacedParentCount,
+            parent: payload.parent,
+            insertBefore: payload.insertBefore,
+            insertAfter: payload.insertAfter,
+            siblingIndex: payload.siblingIndex,
+          }
+        );
+        if (groupTab) {
+          this._scheduleGroupCleanup([groupTab], 1000);
         }
         return;
       }
@@ -1073,6 +1147,15 @@ function createTreeTabsController(window) {
       switch (topic) {
         case "tree-tabs-attached":
         case "tree-tabs-detached":
+          if (
+            payload?.previousParent &&
+            this._ownsTab(payload.previousParent)
+          ) {
+            this._scheduleGroupCleanup([
+              payload.previousParent,
+              ...lazy.TreeTabsService.getAncestors(payload.previousParent),
+            ]);
+          }
           if (payload?.tab && this._ownsTab(payload.tab)) {
             this._syncOpenerTab(topic == "tree-tabs-attached", payload);
             this._updateTab(payload.tab);
@@ -1109,6 +1192,42 @@ function createTreeTabsController(window) {
 
     _isEnabled() {
       return Services.prefs.getBoolPref(PREF_ENABLED, false);
+    },
+
+    _getTreeCommandTabs(tab, { descendantsOnly = false } = {}) {
+      if (!tab) {
+        return [];
+      }
+      return descendantsOnly
+        ? lazy.TreeTabsService.getDescendants(tab)
+        : [tab, ...lazy.TreeTabsService.getDescendants(tab)];
+    },
+
+    _getTreeContextRoots() {
+      const contextMenu = window.TabContextMenu;
+      const tabs = contextMenu?.multiselected
+        ? contextMenu.contextTabs
+        : [contextMenu?.contextTab];
+      const roots = [
+        ...new Set(
+          tabs.filter(tab => tab && !tab.closing && !tab.pinned)
+        ),
+      ];
+      const rootSet = new Set(roots);
+      return roots.filter(
+        tab =>
+          !lazy.TreeTabsService.getAncestors(tab).some(ancestor =>
+            rootSet.has(ancestor)
+          )
+      );
+    },
+
+    _getTreeContextTabs(roots, options) {
+      return [
+        ...new Set(
+          roots.flatMap(root => this._getTreeCommandTabs(root, options))
+        ),
+      ];
     },
 
     _setManuallyExpanded(tab, expanded) {
@@ -1325,20 +1444,108 @@ function createTreeTabsController(window) {
       this._updateHiddenTabs();
     },
 
-    // Pinned tabs live in their own container and cannot collapse, so a
-    // pinned tab leaves the tree and its children take its place.
     _handleTabPinned(tab) {
       if (!this._isEnabled() || !tab || !this._ownsTab(tab)) {
         return;
       }
       this._withAutoCollapseSuppressed(() => {
         const service = lazy.TreeTabsService;
-        service.expandSubtree(tab);
+        const groups = lazy.TreeTabsGroups;
         const parent = service.getParent(tab);
-        service.detachAllChildren(tab, parent ? { reparentTo: parent } : {});
+        if (!service.isActive(window)) {
+          service.detachAllChildren(tab, parent ? { reparentTo: parent } : {});
+          service.detachTab(tab);
+          return;
+        }
+        service.expandSubtree(tab);
+        const children = service.getChildren(tab);
+        const siblings = parent
+          ? service.getChildren(parent)
+          : service.getRootTabs(window);
+        const siblingIndex = siblings.indexOf(tab);
+        const options = {
+          automaticTitle: true,
+          parent,
+          insertBefore: siblings[siblingIndex + 1] || null,
+          insertAfter: siblings[siblingIndex - 1] || null,
+          siblingIndex,
+        };
+
+        if (children.length && groups.isGroupTab(tab)) {
+          const alias = groups.groupTabs(window, children, {
+            ...options,
+            temporary: false,
+          });
+          if (alias) {
+            groups.updateGroupTabURI(tab, {
+              temporary: null,
+              temporaryAggressive: null,
+              aliasGuid: lazy.TreeTabsStore.getTabGuid(alias, { create: true }),
+            });
+          }
+        } else if (
+          children.length &&
+          Services.prefs.getBoolPref(PREF_AUTO_GROUP_PINNED_OPENER, true)
+        ) {
+          groups.groupTabs(window, children, {
+            ...options,
+            openerGuid: lazy.TreeTabsStore.getTabGuid(tab, { create: true }),
+            temporary: true,
+          });
+        } else {
+          service.detachAllChildren(tab, parent ? { reparentTo: parent } : {});
+        }
         service.detachTab(tab);
       });
       this._updateAllTabs();
+    },
+
+    _scheduleAllGroupCleanup(delay = 100) {
+      if (!lazy.TreeTabsService.isActive(window)) {
+        return;
+      }
+      this._groupCleanupScanAll = true;
+      this._scheduleGroupCleanup([], delay);
+    },
+
+    _scheduleGroupCleanup(tabs, delay = 100) {
+      if (!lazy.TreeTabsService.isActive(window)) {
+        return;
+      }
+      for (const tab of tabs) {
+        if (tab && !tab.closing && this._ownsTab(tab)) {
+          this._groupCleanupTabs.add(tab);
+        }
+      }
+      if (!this._groupCleanupScanAll && !this._groupCleanupTabs.size) {
+        return;
+      }
+      if (this._groupCleanupTimer) {
+        window.clearTimeout(this._groupCleanupTimer);
+      }
+      this._groupCleanupTimer = window.setTimeout(() => {
+        this._groupCleanupTimer = null;
+        const scanAll = this._groupCleanupScanAll;
+        this._groupCleanupScanAll = false;
+        const pending = this._groupCleanupTabs;
+        this._groupCleanupTabs = new Set();
+        if (!lazy.TreeTabsService.isActive(window)) {
+          return;
+        }
+        if (scanAll) {
+          for (const tab of window.gBrowser.tabs) {
+            if (!tab.closing && lazy.TreeTabsGroups.isGroupTab(tab)) {
+              pending.add(tab);
+            }
+          }
+        }
+        if (pending.size) {
+          lazy.TreeTabsGroups.cleanupNeedlessGroupTabs(
+            window,
+            Array.from(pending)
+          );
+        }
+      }, delay);
     },
 
     _hasTreeStructure() {
@@ -2294,16 +2501,21 @@ function createTreeTabsController(window) {
     },
 
     _closeTreeTabs(tab) {
-      const tabsToClose = [
-        tab,
-        ...lazy.TreeTabsService.getDescendants(tab),
-      ].filter(tabToClose => tabToClose && !tabToClose.closing);
+      this._closeTrees([tab]);
+    },
+
+    _closeTrees(roots) {
+      const tabsToClose = this._getTreeContextTabs(roots).filter(
+        tab => tab && !tab.closing
+      );
       const snapshot = lazy.TreeTabsStore.beginClosedTreeSet(
         window,
         tabsToClose
       );
       try {
-        lazy.TreeTabsService.closeTree(tab);
+        for (const root of roots) {
+          lazy.TreeTabsService.closeTree(root);
+        }
         this._removeTreeTabs(tabsToClose);
       } finally {
         if (snapshot) {
@@ -2457,10 +2669,8 @@ function createTreeTabsController(window) {
 
       this._clearDropTarget();
       if (enabled) {
-        this._updateAllTabs();
-        // Covers enabling mid-session in a window that started with the
-        // pref off, where the startup restore never ran.
         this._maybeRestoreTreeStructure();
+        this._scheduleAllGroupCleanup(1000);
       } else {
         // Keep the model so toggling the pref back on brings the tree back.
         this._inheritedMuteTabs = new WeakSet();
@@ -2720,23 +2930,33 @@ function createTreeTabsController(window) {
       }
 
       const treeService = window.gBrowser?.TreeTabsService;
-      const contextTab = window.TabContextMenu?.contextTab;
+      const contextRoots = this._getTreeContextRoots();
       const treeContextEnabled =
         this._isEnabled() &&
         this._tabContainer?.verticalMode &&
-        !window.TabContextMenu?.multiselected &&
         !!treeService &&
-        !!contextTab;
+        !!contextRoots.length;
 
       if (!treeContextEnabled) {
         this._setTreeContextMenuHidden(true);
         return;
       }
 
+      const contextReloadTree = document.getElementById("context_reloadTree");
+      const contextToggleMuteTree = document.getElementById(
+        "context_toggleMuteTree"
+      );
+      const contextUnloadTree = document.getElementById("context_unloadTree");
       const contextCollapseTree = document.getElementById(
         "context_collapseTree"
       );
       const contextExpandTree = document.getElementById("context_expandTree");
+      const contextCollapseTreeRecursively = document.getElementById(
+        "context_collapseTreeRecursively"
+      );
+      const contextExpandTreeRecursively = document.getElementById(
+        "context_expandTreeRecursively"
+      );
       const contextCloseTree = document.getElementById("context_closeTree");
       const contextCloseDescendants = document.getElementById(
         "context_closeDescendants"
@@ -2744,9 +2964,27 @@ function createTreeTabsController(window) {
       const contextCollapseAll = document.getElementById("context_collapseAll");
       const contextExpandAll = document.getElementById("context_expandAll");
 
-      const hasChildren = !!treeService.getChildren(contextTab).length;
-      const hasDescendants = !!treeService.getDescendants(contextTab).length;
-      const isCollapsed = treeService.isCollapsed(contextTab);
+      const contextCopyTreeLinks = document.getElementById(
+        "context_copyTreeLinks"
+      );
+      const contextCopyDescendantsLinks = document.getElementById(
+        "context_copyDescendantsLinks"
+      );
+
+      const descendantNodes = [
+        ...new Set(
+          contextRoots.flatMap(root => treeService.getDescendants(root))
+        ),
+      ];
+      const hasDescendants = !!descendantNodes.length;
+      const treeTabs = this._getTreeContextTabs(contextRoots);
+      const allMuted = treeTabs.every(tab => tab.linkedBrowser?.audioMuted);
+      document.l10n.setAttributes(
+        contextToggleMuteTree,
+        allMuted
+          ? "waterfox-tab-context-unmute-tree"
+          : "waterfox-tab-context-mute-tree"
+      );
 
       let hasAnyTree = false;
       let hasAnyCollapsed = false;
@@ -2762,18 +3000,45 @@ function createTreeTabsController(window) {
         }
       }
 
-      contextCollapseTree.hidden = !hasChildren || isCollapsed;
-      contextExpandTree.hidden = !hasChildren || !isCollapsed;
+      contextReloadTree.hidden = false;
+      contextToggleMuteTree.hidden = false;
+      contextUnloadTree.hidden = !treeTabs.some(
+        tab => !tab.pinned && !tab.discarded
+      );
+      contextCollapseTree.hidden = !contextRoots.some(
+        root =>
+          treeService.getChildren(root).length && !treeService.isCollapsed(root)
+      );
+      contextExpandTree.hidden = !contextRoots.some(
+        root =>
+          treeService.getChildren(root).length && treeService.isCollapsed(root)
+      );
+      contextCollapseTreeRecursively.hidden = !hasDescendants;
+      contextExpandTreeRecursively.hidden = ![
+        ...contextRoots,
+        ...descendantNodes,
+      ].some(tab => treeService.isCollapsed(tab));
       contextCloseTree.hidden = !hasDescendants;
       contextCloseDescendants.hidden = !hasDescendants;
+
+      contextCopyTreeLinks.hidden = !hasDescendants;
+      contextCopyDescendantsLinks.hidden = !hasDescendants;
       contextCollapseAll.hidden = !hasAnyTree;
       contextExpandAll.hidden = !hasAnyCollapsed;
 
       separator.hidden =
+        contextReloadTree.hidden &&
+        contextToggleMuteTree.hidden &&
+        contextUnloadTree.hidden &&
         contextCollapseTree.hidden &&
         contextExpandTree.hidden &&
+        contextCollapseTreeRecursively.hidden &&
+        contextExpandTreeRecursively.hidden &&
         contextCloseTree.hidden &&
         contextCloseDescendants.hidden &&
+
+        contextCopyTreeLinks.hidden &&
+        contextCopyDescendantsLinks.hidden &&
         contextCollapseAll.hidden &&
         contextExpandAll.hidden;
     },
@@ -2793,39 +3058,85 @@ function createTreeTabsController(window) {
       }
 
       const treeService = window.gBrowser.TreeTabsService;
-      const contextTab = window.TabContextMenu?.contextTab;
+      const contextRoots = this._getTreeContextRoots();
       if (
-        !contextTab &&
+        !contextRoots.length &&
         commandId != "context_collapseAll" &&
         commandId != "context_expandAll"
       ) {
         return;
       }
+      const treeNodes = [
+        ...new Set(
+          contextRoots.flatMap(root => [
+            root,
+            ...treeService.getDescendants(root),
+          ])
+        ),
+      ];
+      const treeTabs = this._getTreeContextTabs(contextRoots);
 
       this._withAutoCollapseSuppressed(() => {
         switch (commandId) {
+          case "context_reloadTree":
+            window.gBrowser.reloadTabs(treeTabs);
+            break;
+          case "context_toggleMuteTree": {
+            const mute = treeTabs.some(tab => !tab.linkedBrowser?.audioMuted);
+            for (const tab of treeTabs.toReversed()) {
+              if (!!tab.linkedBrowser?.audioMuted != mute) {
+                tab.toggleMuteAudio();
+              }
+            }
+            break;
+          }
+          case "context_unloadTree":
+            void window.gBrowser.explicitUnloadTabs(
+              treeTabs.filter(tab => !tab.pinned && !tab.discarded)
+            );
+            break;
           case "context_collapseTree":
-            treeService.collapseSubtree(contextTab);
-            this._setManuallyExpanded(contextTab, false);
+            for (const root of contextRoots) {
+              treeService.collapseSubtree(root);
+              this._setManuallyExpanded(root, false);
+            }
             break;
           case "context_expandTree":
-            treeService.expandSubtree(contextTab);
-            this._setManuallyExpanded(contextTab, true);
+            for (const root of contextRoots) {
+              treeService.expandSubtree(root);
+              this._setManuallyExpanded(root, true);
+            }
+            break;
+          case "context_collapseTreeRecursively":
+            for (const tab of treeNodes.toReversed()) {
+              if (treeService.getChildren(tab).length) {
+                treeService.collapseSubtree(tab);
+                this._setManuallyExpanded(tab, false);
+              }
+            }
+            break;
+          case "context_expandTreeRecursively":
+            for (const tab of treeNodes) {
+              treeService.expandSubtree(tab);
+              this._setManuallyExpanded(tab, true);
+            }
             break;
           case "context_closeTree": {
-            this._closeTreeTabs(contextTab);
+            this._closeTrees(contextRoots);
             break;
           }
           case "context_closeDescendants": {
-            const tabsToClose = treeService
-              .getDescendants(contextTab)
-              .filter(tab => tab && !tab.closing);
+            const tabsToClose = this._getTreeContextTabs(contextRoots, {
+              descendantsOnly: true,
+            }).filter(tab => tab && !tab.closing);
             const snapshot = lazy.TreeTabsStore.beginClosedTreeSet(
               window,
               tabsToClose
             );
             try {
-              treeService.closeDescendants(contextTab);
+              for (const root of contextRoots) {
+                treeService.closeDescendants(root);
+              }
               this._removeTreeTabs(tabsToClose);
             } finally {
               if (snapshot) {
@@ -2834,6 +3145,13 @@ function createTreeTabsController(window) {
             }
             break;
           }
+
+          case "context_copyTreeLinks":
+            this._copyTreeAsLinks(contextRoots);
+            break;
+          case "context_copyDescendantsLinks":
+            this._copyTreeAsLinks(contextRoots, { descendantsOnly: true });
+            break;
           case "context_collapseAll":
             treeService.collapseAll(window);
             for (const tab of window.gBrowser.tabs) {
@@ -2850,6 +3168,75 @@ function createTreeTabsController(window) {
             break;
         }
       });
+    },
+
+    // The whole tree as an indented link list: plain text gets a bullet
+    // outline of URLs, HTML a nested list of titled links, like TST's
+    // "Copy this Tree as Links". Collapsed descendants are included.
+    _copyTreeAsLinks(contextRoots, { descendantsOnly = false } = {}) {
+      const service = lazy.TreeTabsService;
+      contextRoots = Array.isArray(contextRoots) ? contextRoots : [contextRoots];
+      const roots = descendantsOnly
+        ? contextRoots.flatMap(tab => service.getChildren(tab))
+        : contextRoots;
+      if (!roots.length) {
+        return;
+      }
+
+      const escapeForHTML = text =>
+        String(text).replace(
+          /[&<>"']/g,
+          ch =>
+            ({
+              "&": "&amp;",
+              "<": "&lt;",
+              ">": "&gt;",
+              '"': "&quot;",
+              "'": "&#39;",
+            })[ch]
+        );
+
+      const buildItem = itemTab => {
+        const url = itemTab.linkedBrowser?.currentURI?.spec || "";
+        let plain = `* ${url}`;
+        let rich = `<li><a href="${escapeForHTML(url)}">${escapeForHTML(
+          itemTab.label
+        )}</a>`;
+        const children = service.getChildren(itemTab).map(buildItem);
+        if (children.length) {
+          plain +=
+            "\n" +
+            children.map(child => child.plain.replace(/^/gm, "  ")).join("\n");
+          rich += `\n<ul>\n${children.map(child => child.rich).join("\n")}\n</ul>`;
+        }
+        rich += "</li>";
+        return { plain, rich };
+      };
+
+      const items = roots.map(buildItem);
+      const plainText = items.map(item => item.plain).join("\n");
+      const richText = `<ul>\n${items.map(item => item.rich).join("\n")}\n</ul>`;
+
+      const transferable = Cc[
+        "@mozilla.org/widget/transferable;1"
+      ].createInstance(Ci.nsITransferable);
+      transferable.init(window.docShell.QueryInterface(Ci.nsILoadContext));
+      for (const [flavor, data] of [
+        ["text/html", richText],
+        ["text/plain", plainText],
+      ]) {
+        const supportsString = Cc[
+          "@mozilla.org/supports-string;1"
+        ].createInstance(Ci.nsISupportsString);
+        supportsString.data = data;
+        transferable.addDataFlavor(flavor);
+        transferable.setTransferData(flavor, supportsString);
+      }
+      Services.clipboard.setData(
+        transferable,
+        null,
+        Services.clipboard.kGlobalClipboard
+      );
     },
   };
 
