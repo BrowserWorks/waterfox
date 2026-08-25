@@ -30,6 +30,8 @@ const TREE_MAX_DEPTH_PREF = "browser.tabs.verticalTabs.tree.maxDepth";
 const TREE_INDENT_PREF = "browser.tabs.verticalTabs.tree.indentPx";
 const TREE_SUCCESSOR_PREF = "browser.tabs.verticalTabs.tree.successorControl";
 const TREE_DROP_LINKS_PREF = "browser.tabs.verticalTabs.tree.dropLinksOnTab";
+const TREE_EXPAND_NATIVE_GROUP_PREF =
+  "browser.tabs.verticalTabs.tree.expandNativeGroupOnTreeExpand";
 const TREE_AUTO_GROUP_PINNED_PREF =
   "browser.tabs.verticalTabs.tree.autoGroup.pinnedOpener";
 const TREE_BOOKMARK_RESTORE_PREF =
@@ -165,6 +167,7 @@ Preferences.addAll([
   { id: TREE_INDENT_PREF, type: "int" },
   { id: TREE_SUCCESSOR_PREF, type: "bool" },
   { id: TREE_DROP_LINKS_PREF, type: "int" },
+  { id: TREE_EXPAND_NATIVE_GROUP_PREF, type: "bool" },
   { id: TREE_AUTO_GROUP_PINNED_PREF, type: "bool" },
   { id: TREE_BOOKMARK_RESTORE_PREF, type: "bool" },
   { id: TREE_BOOKMARK_GROUP_PREF, type: "bool" },
@@ -242,6 +245,7 @@ for (let [id, pref] of [
   ["waterfox-tree-propagate-muted", TREE_PROPAGATE_MUTED_PREF],
   ["waterfox-tree-successor", TREE_SUCCESSOR_PREF],
   ["waterfox-tree-drop-links", TREE_DROP_LINKS_PREF],
+  ["waterfox-tree-expand-native-group", TREE_EXPAND_NATIVE_GROUP_PREF],
   ["waterfox-tree-auto-group-pinned", TREE_AUTO_GROUP_PINNED_PREF],
   ["waterfox-tree-bookmark-restore", TREE_BOOKMARK_RESTORE_PREF],
   ["waterfox-tree-bookmark-group", TREE_BOOKMARK_GROUP_PREF],
@@ -479,6 +483,14 @@ SettingGroupManager.registerGroups({
             id: "waterfox-tree-auto-collapse-on-attach",
             l10nId: "waterfox-tabs-tree-auto-collapse-on-attach-toggle",
             control: "moz-toggle",
+          },
+          {
+            id: "waterfox-tree-expand-native-group",
+            l10nId: "waterfox-tabs-tree-expand-native-group-toggle",
+            control: "moz-toggle",
+            controlAttrs: {
+              searchkeywords: "expand open branch native tab group tree",
+            },
           },
           {
             id: "waterfox-tree-close-parent",

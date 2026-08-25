@@ -48,6 +48,8 @@ support-files = ["head.js"]
 
 ["browser_tree_tabs_mute.js"]
 
+["browser_tree_tabs_native_groups.js"]
+
 ["browser_tree_tabs_rendering.js"]
 
 ["browser_tree_tabs_restore.js"]
