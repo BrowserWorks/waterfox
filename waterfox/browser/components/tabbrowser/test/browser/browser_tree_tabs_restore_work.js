@@ -377,6 +377,21 @@ add_task(async function test_late_split_tree_links_still_normalize() {
       main.dataset.treeLevel,
       "The wrapper still mirrors the main pane's rendered tree level"
     );
+    TreeTabsService.collapseSubtree(main);
+    child.label = "Late split descendant title";
+    controller._handleTabAttrModified({
+      target: child,
+      detail: { changed: ["label"] },
+    });
+    ok(
+      main._treeDescendantsTooltip.includes(child.label),
+      "A label-only update refreshes the shared row's tooltip"
+    );
+    is(
+      secondary._treeDescendantsTooltip,
+      main._treeDescendantsTooltip,
+      "The secondary pane receives the same updated tooltip"
+    );
   } finally {
     if (splitView?.isConnected) {
       const removed = BrowserTestUtils.waitForEvent(
@@ -396,3 +411,145 @@ add_task(async function test_late_split_tree_links_still_normalize() {
   }
 });
 
+add_task(async function test_real_window_restore_has_one_final_projection() {
+  await enableTreeTabs();
+  await SpecialPowers.pushPrefEnv({
+    set: [
+      ["browser.tabs.groups.enabled", true],
+      ["browser.sessionstore.restore_on_demand", true],
+      ["browser.sessionstore.restore_tabs_lazily", true],
+      [PREF_TREE_AUTO_COLLAPSE_ON_SELECT, false],
+    ],
+  });
+  const { TreeTabsStore } = ChromeUtils.importESModule(
+    "resource:///modules/TreeTabsStore.sys.mjs"
+  );
+  const win = await BrowserTestUtils.openNewBrowserWindow();
+  const browser = win.gBrowser;
+  const controller = TreeTabsUI._controllers.get(win);
+  const box = win.document.getElementById("vertical-tabs");
+  const originalRestoring = TreeTabsStore.onWindowRestoring;
+  const originalRect = box.getBoundingClientRect;
+  const originals = new Map();
+  let counts;
+  let completed;
+  let projecting = false;
+  const onRestored = () => {
+    completed = counts;
+    counts = null;
+  };
+  try {
+    TreeTabsStore.onWindowRestoring = function (target) {
+      if (target == win) {
+        counts = { full: 0, rows: 0, hidden: 0, measurements: 0 };
+      }
+      return originalRestoring.call(this, target);
+    };
+    box.getBoundingClientRect = function () {
+      if (counts && projecting) {
+        counts.measurements++;
+      }
+      return originalRect.call(this);
+    };
+    for (const [method, counter] of [
+      ["_updateAllTabs", "full"],
+      ["_updateTab", "rows"],
+      ["_updateHiddenTabs", "hidden"],
+    ]) {
+      const original = controller[method];
+      originals.set(method, original);
+      controller[method] = function (...args) {
+        const wasProjecting = projecting;
+        if (counts && !this._deferringTreeRender && !this._isWindowRestoring) {
+          counts[counter]++;
+          projecting = true;
+        }
+        try {
+          return original.apply(this, args);
+        } finally {
+          projecting = wasProjecting;
+        }
+      };
+    }
+    win.addEventListener("SSWindowRestored", onRestored, true);
+    for (const tabCount of [8, 32]) {
+      const structure = Array.from({ length: tabCount }, (_, index) => ({
+        id: `bounded-restore-${tabCount}-${index}`,
+        parent: index % 2 ? index - 1 : null,
+        collapsed: index % 2 == 0,
+      }));
+      const restored = BrowserTestUtils.waitForEvent(win, "SSWindowRestored");
+      SessionStore.setWindowState(
+        win,
+        JSON.stringify({
+          windows: [
+            {
+              tabs: structure.map((entry, index) => ({
+                entries: [{ url: `about:blank#${entry.id}` }],
+                index: 1,
+                ...(index >= tabCount / 2 ? { groupId: "bounded-group" } : {}),
+                extData: {
+                  "treeTabs:data-persistent-id": JSON.stringify(entry.id),
+                },
+              })),
+              selected: 1,
+              groups: [
+                {
+                  id: "bounded-group",
+                  name: "Lazy restored trees",
+                  color: "blue",
+                  collapsed: false,
+                },
+              ],
+              extData: { "treeTabs:tree-structure": JSON.stringify(structure) },
+            },
+          ],
+        }),
+        true
+      );
+      await restored;
+      is(completed.full, 1, "The real restore pipeline has one final render");
+      is(completed.rows, tabCount, "Each restored row is projected once");
+      is(
+        completed.hidden,
+        1,
+        "Visibility is projected once at restore completion"
+      );
+      is(completed.measurements, 1, "The final render shares one measurement");
+      for (let index = 1; index < tabCount; index += 2) {
+        const parent = browser.tabs[index - 1];
+        const child = browser.tabs[index];
+        is(
+          TreeTabsService.getParent(child),
+          parent,
+          "The real stored link restores"
+        );
+        is(
+          child.dataset.treeHidden,
+          "true",
+          "Restored visibility is synchronous"
+        );
+        is(
+          parent.getAttribute("aria-expanded"),
+          "false",
+          "Disclosure state restores"
+        );
+      }
+      ok(browser.tabs.at(-1).group, "Lazy children keep their native group");
+      ok(
+        browser.tabs.at(-1).hasAttribute("pending"),
+        "The last child stays lazy"
+      );
+    }
+  } finally {
+    counts = null;
+    TreeTabsStore.onWindowRestoring = originalRestoring;
+    box.getBoundingClientRect = originalRect;
+    for (const [method, original] of originals) {
+      controller[method] = original;
+    }
+    win.removeEventListener("SSWindowRestored", onRestored, true);
+    await BrowserTestUtils.closeWindow(win);
+    await SpecialPowers.popPrefEnv();
+  }
+});
