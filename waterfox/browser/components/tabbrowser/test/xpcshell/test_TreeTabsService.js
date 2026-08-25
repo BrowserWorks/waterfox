@@ -352,8 +352,11 @@ add_task(function test_detach_all_children_without_reparent() {
     "Second child is now a root"
   );
 
-  const roots = TreeTabsService.getRootTabs(win);
-  assertSameTabSet(roots, [root, a, b], "All tabs become roots");
+  assertTabOrder(
+    TreeTabsService.getRootTabs(win),
+    [root, b, a],
+    "Each detached child is inserted immediately after the original root"
+  );
 });
 
 add_task(function test_detach_all_children_with_reparent() {
@@ -391,6 +394,121 @@ add_task(function test_detach_all_children_with_reparent() {
     TreeTabsService.getParent(b),
     reparentTo,
     "Second child reparented"
+  );
+});
+
+add_task(function test_detach_all_children_rejected_reparent_keeps_links() {
+  setupTreeService();
+
+  const win = createMockWindow();
+  const root = createMockTab(win);
+  const reparentTo = createMockTab(win, { pinned: true });
+  const a = createMockTab(win);
+  const b = createMockTab(win);
+
+  TreeTabsService.init(win);
+  TreeTabsService.attachTab(a, root);
+  TreeTabsService.attachTab(b, root);
+
+  TreeTabsService.detachAllChildren(root, { reparentTo });
+
+  assertTabOrder(
+    TreeTabsService.getChildren(root),
+    [a, b],
+    "Rejected children remain in the original child list in order"
+  );
+  Assert.equal(
+    TreeTabsService.getParent(a),
+    root,
+    "First child stays attached"
+  );
+  Assert.equal(
+    TreeTabsService.getParent(b),
+    root,
+    "Second child stays attached"
+  );
+  assertTabOrder(
+    TreeTabsService.getChildren(reparentTo),
+    [],
+    "The pinned target receives no children"
+  );
+  assertTabOrder(
+    TreeTabsService.getRootTabs(win),
+    [root, reparentTo],
+    "Rejected reparenting leaves roots unchanged"
+  );
+});
+
+add_task(function test_detach_all_children_partial_reparent_at_lower_depth() {
+  setupTreeService({ maxDepth: 3 });
+
+  const win = createMockWindow();
+  const grandparent = createMockTab(win);
+  const parent = createMockTab(win);
+  const a = createMockTab(win);
+  const b = createMockTab(win);
+  const c = createMockTab(win);
+  const grandchild = createMockTab(win);
+
+  TreeTabsService.init(win);
+  TreeTabsService.attachTab(parent, grandparent);
+  TreeTabsService.attachTab(a, parent);
+  TreeTabsService.attachTab(b, parent);
+  TreeTabsService.attachTab(c, parent);
+  TreeTabsService.attachTab(grandchild, b);
+  Assert.equal(
+    TreeTabsService.getLevel(grandchild),
+    3,
+    "The existing subtree fits the original depth limit"
+  );
+
+  Services.prefs.setIntPref(TREE_PREF_MAX_DEPTH, 1);
+  TreeTabsService.detachAllChildren(parent, { reparentTo: grandparent });
+
+  assertTabOrder(
+    TreeTabsService.getChildren(parent),
+    [b],
+    "Only the child whose subtree exceeds the lowered limit stays behind"
+  );
+  Assert.equal(
+    TreeTabsService.getParent(b),
+    parent,
+    "Rejected child keeps its parent"
+  );
+  assertTabOrder(
+    TreeTabsService.getChildren(grandparent),
+    [parent, a, c],
+    "Children before and after the rejection are reparented in order"
+  );
+  Assert.equal(
+    TreeTabsService.getParent(parent),
+    grandparent,
+    "Source stays attached"
+  );
+  Assert.equal(
+    TreeTabsService.getParent(a),
+    grandparent,
+    "First child is reparented"
+  );
+  Assert.equal(
+    TreeTabsService.getParent(c),
+    grandparent,
+    "Last child is reparented"
+  );
+  assertTabOrder(
+    TreeTabsService.getChildren(b),
+    [grandchild],
+    "Rejected child retains its subtree"
+  );
+  Assert.equal(
+    TreeTabsService.getParent(grandchild),
+    b,
+    "The grandchild's parent link is unchanged"
+  );
+  assertTabOrder(
+    TreeTabsService.getRootTabs(win),
+    [grandparent],
+    "Partial reparenting does not create extra roots"
   );
 });
 
@@ -741,12 +859,21 @@ add_task(function test_on_tab_closed_behavior_promote_first() {
   setupTreeService({ closeParentBehavior: 0 });
 
   const win = createMockWindow();
+  const before = createMockTab(win);
   const parent = createMockTab(win);
   const a = createMockTab(win);
   const b = createMockTab(win);
+  const c = createMockTab(win);
+  const grandchild = createMockTab(win);
+  const greatGrandchild = createMockTab(win);
+  const after = createMockTab(win);
 
+  TreeTabsService.init(win);
   TreeTabsService.attachTab(a, parent);
   TreeTabsService.attachTab(b, parent);
+  TreeTabsService.attachTab(c, parent);
+  TreeTabsService.attachTab(grandchild, a);
+  TreeTabsService.attachTab(greatGrandchild, grandchild);
 
   const result = TreeTabsService.onTabClosed(parent);
   Assert.equal(result.length, 0, "No close request for descendants");
@@ -755,20 +882,37 @@ add_task(function test_on_tab_closed_behavior_promote_first() {
     null,
     "First child promoted to root"
   );
-  Assert.equal(
-    TreeTabsService.getParent(b),
-    a,
-    "Other child reparented under first"
-  );
+  for (const child of [b, c]) {
+    Assert.equal(
+      TreeTabsService.getParent(child),
+      a,
+      "Other children are reparented under the first"
+    );
+  }
   assertTabOrder(
     TreeTabsService.getChildren(a),
-    [b],
-    "First child adopts siblings"
+    [grandchild, b, c],
+    "First child adopts siblings after its existing children"
+  );
+  Assert.equal(
+    TreeTabsService.getParent(grandchild),
+    a,
+    "Existing child stays attached"
+  );
+  Assert.equal(
+    TreeTabsService.getParent(greatGrandchild),
+    grandchild,
+    "Deeper descendants stay attached"
+  );
+  assertTabOrder(
+    TreeTabsService.getDescendants(a),
+    [grandchild, greatGrandchild, b, c],
+    "Promotion preserves descendant preorder"
   );
   assertTabOrder(
     TreeTabsService.getRootTabs(win),
-    [a],
-    "Only promoted tab is root"
+    [before, a, after],
+    "The promoted child replaces the closed root without reordering other roots"
   );
 });
 
@@ -777,14 +921,18 @@ add_task(function test_on_tab_closed_promote_first_with_grandparent() {
 
   const win = createMockWindow();
   const grandparent = createMockTab(win);
+  const before = createMockTab(win);
   const parent = createMockTab(win);
   const childA = createMockTab(win);
   const childB = createMockTab(win);
+  const grandchild = createMockTab(win);
   const sibling = createMockTab(win);
 
+  TreeTabsService.attachTab(before, grandparent);
   TreeTabsService.attachTab(parent, grandparent);
   TreeTabsService.attachTab(childA, parent);
   TreeTabsService.attachTab(childB, parent);
+  TreeTabsService.attachTab(grandchild, childA);
   TreeTabsService.attachTab(sibling, grandparent);
 
   TreeTabsService.onTabClosed(parent);
@@ -800,14 +948,31 @@ add_task(function test_on_tab_closed_promote_first_with_grandparent() {
     "Second child reparented under promoted first child"
   );
   Assert.equal(
-    TreeTabsService.getParent(sibling),
-    grandparent,
-    "Sibling of closed parent unchanged"
+    TreeTabsService.getParent(grandchild),
+    childA,
+    "Existing grandchild stays under the promoted child"
   );
   assertTabOrder(
+    TreeTabsService.getChildren(childA),
+    [grandchild, childB],
+    "The adopted sibling follows existing children"
+  );
+  for (const tab of [before, sibling]) {
+    Assert.equal(
+      TreeTabsService.getParent(tab),
+      grandparent,
+      "Siblings of the closed parent are unchanged"
+    );
+  }
+  assertTabOrder(
     TreeTabsService.getChildren(grandparent),
-    [childA, sibling],
+    [before, childA, sibling],
     "Promoted child takes closed parent's position among siblings"
+  );
+  assertTabOrder(
+    TreeTabsService.getRootTabs(win),
+    [grandparent],
+    "Nested promotion does not add roots"
   );
 });
 
@@ -1015,13 +1180,17 @@ add_task(
 
     const win = createMockWindow();
     const grandparent = createMockTab(win);
+    const sibling = createMockTab(win);
     const parent = createMockTab(win);
     const childA = createMockTab(win);
     const childB = createMockTab(win);
+    const grandchild = createMockTab(win);
 
+    TreeTabsService.attachTab(sibling, grandparent);
     TreeTabsService.attachTab(parent, grandparent);
     TreeTabsService.attachTab(childA, parent);
     TreeTabsService.attachTab(childB, parent);
+    TreeTabsService.attachTab(grandchild, childA);
 
     TreeTabsService.onTabClosed(parent);
 
@@ -1037,8 +1206,18 @@ add_task(
     );
     assertTabOrder(
       TreeTabsService.getChildren(grandparent),
-      [childA, childB],
+      [sibling, childA, childB],
       "All children take the closed parent's position in order"
+    );
+    assertTabOrder(
+      TreeTabsService.getChildren(childA),
+      [grandchild],
+      "The first child keeps its descendants without adopting its sibling"
+    );
+    Assert.equal(
+      TreeTabsService.getParent(grandchild),
+      childA,
+      "The grandchild stays attached"
     );
   }
 );
@@ -1440,17 +1619,22 @@ add_task(function test_on_tab_moved_with_and_without_detach_children() {
   setupTreeService();
 
   win = createMockWindow();
+  const before = createMockTab(win);
   a = createMockTab(win);
   b = createMockTab(win);
   c = createMockTab(win);
   const childA = createMockTab(win);
   const childB = createMockTab(win);
+  const grandchild = createMockTab(win);
+  const greatGrandchild = createMockTab(win);
 
   TreeTabsService.init(win);
   TreeTabsService.attachTab(childA, a);
   TreeTabsService.attachTab(childB, a);
+  TreeTabsService.attachTab(grandchild, childA);
+  TreeTabsService.attachTab(greatGrandchild, grandchild);
 
-  TreeTabsService.onTabMoved(a, { detachChildren: true, newIndex: 2 });
+  TreeTabsService.onTabMoved(a, { detachChildren: true, newIndex: 3 });
   assertTabOrder(
     TreeTabsService.getChildren(a),
     [],
@@ -1467,10 +1651,149 @@ add_task(function test_on_tab_moved_with_and_without_detach_children() {
     "Second child is reparented under the promoted first child"
   );
   assertTabOrder(
+    TreeTabsService.getChildren(childA),
+    [grandchild, childB],
+    "The remaining sibling follows the promoted child's existing children"
+  );
+  Assert.equal(
+    TreeTabsService.getParent(grandchild),
+    childA,
+    "Existing child remains attached"
+  );
+  Assert.equal(
+    TreeTabsService.getParent(greatGrandchild),
+    grandchild,
+    "Deeper descendants remain attached"
+  );
+  assertTabOrder(
+    TreeTabsService.getDescendants(childA),
+    [grandchild, greatGrandchild, childB],
+    "Moving the original parent preserves the promoted subtree's preorder"
+  );
+  assertTabOrder(
     TreeTabsService.getRootTabs(win),
-    [childA, b, a, c],
+    [before, childA, b, a, c],
     "Promoted first child takes the moved tab's root slot"
   );
+});
+
+add_task(function test_on_tab_moved_last_child_promotes_first() {
+  setupTreeService({ closeParentBehavior: 0 });
+
+  const win = createMockWindow();
+  const grandparent = createMockTab(win);
+  const sibling = createMockTab(win);
+  const parent = createMockTab(win);
+  const childA = createMockTab(win);
+  const childB = createMockTab(win);
+  const grandchild = createMockTab(win);
+  const otherRoot = createMockTab(win);
+
+  TreeTabsService.init(win);
+  TreeTabsService.attachTab(sibling, grandparent);
+  TreeTabsService.attachTab(parent, grandparent);
+  TreeTabsService.attachTab(childA, parent);
+  TreeTabsService.attachTab(childB, parent);
+  TreeTabsService.attachTab(grandchild, childA);
+
+  TreeTabsService.onTabMoved(parent, { detachChildren: true, newIndex: 0 });
+
+  assertTabOrder(
+    TreeTabsService.getChildren(grandparent),
+    [parent, sibling, childA],
+    "The original parent moves while its first child stays in its old slot"
+  );
+  Assert.equal(
+    TreeTabsService.getParent(parent),
+    grandparent,
+    "The moved tab remains attached to its parent"
+  );
+  assertTabOrder(
+    TreeTabsService.getChildren(parent),
+    [],
+    "Moved tab has no children"
+  );
+  Assert.equal(
+    TreeTabsService.getParent(childA),
+    grandparent,
+    "First child is promoted under the grandparent"
+  );
+  Assert.equal(
+    TreeTabsService.getParent(childB),
+    childA,
+    "Moving a last child does not apply the close-only promote-all policy"
+  );
+  Assert.equal(
+    TreeTabsService.getParent(grandchild),
+    childA,
+    "The existing grandchild remains attached"
+  );
+  assertTabOrder(
+    TreeTabsService.getChildren(childA),
+    [grandchild, childB],
+    "The promoted child keeps its descendants before its adopted sibling"
+  );
+  assertTabOrder(
+    TreeTabsService.getRootTabs(win),
+    [grandparent, otherRoot],
+    "Nested promotion and movement leave root order unchanged"
+  );
+});
+
+add_task(function test_promote_first_child_with_malformed_container() {
+  for (const missing of ["tab", "parent"]) {
+    setupTreeService({ closeParentBehavior: 0 });
+
+    const win = createMockWindow();
+    const otherRoot = createMockTab(win);
+    const grandparent = createMockTab(win);
+    const parent = createMockTab(win);
+    const childA = createMockTab(win);
+    const childB = createMockTab(win);
+
+    TreeTabsService.init(win);
+    TreeTabsService.attachTab(parent, grandparent);
+    TreeTabsService.attachTab(childA, parent);
+    TreeTabsService.attachTab(childB, parent);
+
+    const state = TreeTabsService._windowStates.get(win);
+    if (missing === "parent") {
+      state.nodes.delete(grandparent);
+      state.roots.splice(state.roots.indexOf(grandparent), 1);
+    } else {
+      state.nodes.get(grandparent).children = [];
+    }
+
+    TreeTabsService.onTabClosed(parent);
+
+    Assert.equal(
+      TreeTabsService.getParent(childA),
+      missing === "parent" ? null : grandparent,
+      `Missing ${missing}: promoted child points to its surviving container`
+    );
+    assertTabOrder(
+      TreeTabsService.getRootTabs(win),
+      missing === "parent" ? [otherRoot, childA] : [otherRoot, grandparent],
+      `Missing ${missing}: promotion preserves other roots`
+    );
+    if (missing === "tab") {
+      assertTabOrder(
+        TreeTabsService.getChildren(grandparent),
+        [childA],
+        "A missing sibling slot falls back to appending to the same parent"
+      );
+    }
+    Assert.equal(
+      TreeTabsService.getParent(childB),
+      childA,
+      `Missing ${missing}: the remaining child is reparented`
+    );
+    assertTabOrder(
+      TreeTabsService.getChildren(childA),
+      [childB],
+      `Missing ${missing}: the promoted child adopts its sibling`
+    );
+  }
 });
 
 add_task(function test_bulk_close_tree_removes_root_and_descendants() {
