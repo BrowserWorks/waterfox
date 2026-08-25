@@ -252,17 +252,8 @@ add_task(
           parent,
           "SSTabRestored"
         );
-        const rect = parent.getBoundingClientRect();
-        const padding =
-          parseFloat(
-            restoredWindow
-              .getComputedStyle(parent)
-              .getPropertyValue("--tab-inline-padding")
-          ) || 8;
-        EventUtils.synthesizeMouse(
-          parent,
-          padding + 4,
-          rect.height / 2,
+        EventUtils.synthesizeMouseAtCenter(
+          parent.querySelector(".tab-tree-disclosure"),
           {},
           restoredWindow
         );

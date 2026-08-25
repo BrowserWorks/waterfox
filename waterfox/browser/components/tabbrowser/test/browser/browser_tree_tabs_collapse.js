@@ -155,6 +155,105 @@ add_task(async function test_programmatic_close_of_collapsed_parent_promotes() {
   BrowserTestUtils.removeTab(childA);
 });
 
+add_task(
+  async function test_disclosure_does_not_select_or_load_a_lazy_parent() {
+    await enableTreeTabs();
+    SidebarController._state.launcherExpanded = true;
+    await waitForTreeCondition(
+      () => gBrowser.tabContainer.hasAttribute("expanded"),
+      "Waiting for expanded rows"
+    );
+    const selected = gBrowser.selectedTab;
+    const parent = BrowserTestUtils.addTab(gBrowser, "", {
+      createLazyBrowser: true,
+      skipAnimation: true,
+    });
+    const child = BrowserTestUtils.addTab(gBrowser, "about:blank", {
+      skipAnimation: true,
+    });
+    const service = gBrowser.TreeTabsService;
+    try {
+      service.detachTab(parent);
+      service.attachTab(child, parent);
+      const disclosure = parent.querySelector(".tab-tree-disclosure");
+      ok(!parent.linkedPanel, "The background parent has no inserted browser");
+      is(disclosure.tabIndex, -1, "The disclosure adds no sequential tab stop");
+      const collapseName = disclosure.getAttribute("aria-label");
+      ok(collapseName, "The expanded disclosure has a localized action name");
+      for (const modifiers of [{}, { accelKey: true }, { shiftKey: true }]) {
+        const collapsed = service.isCollapsed(parent);
+        EventUtils.synthesizeMouseAtCenter(disclosure, {
+          ...modifiers,
+          type: "mousedown",
+          button: 0,
+        });
+        is(
+          gBrowser.selectedTab,
+          selected,
+          "Capture mousedown prevents selection"
+        );
+        ok(
+          !parent.linkedPanel,
+          "Capture mousedown does not insert the lazy browser"
+        );
+        EventUtils.synthesizeMouseAtCenter(disclosure, {
+          ...modifiers,
+          type: "mouseup",
+          button: 0,
+        });
+        is(
+          service.isCollapsed(parent),
+          !collapsed,
+          "The disclosure toggles its tree"
+        );
+        is(
+          isTreeHidden(child),
+          !collapsed,
+          "Visibility changes before click returns"
+        );
+        is(
+          disclosure.getAttribute("aria-expanded"),
+          String(collapsed),
+          "Button state follows the tree"
+        );
+        is(
+          parent.getAttribute("aria-expanded"),
+          String(collapsed),
+          "The keyboard row exposes the same state"
+        );
+        is(gBrowser.selectedTab, selected, "Click does not select the parent");
+        ok(!parent.linkedPanel, "Click does not insert the lazy browser");
+        ok(
+          !parent.multiselected,
+          "Modified disclosure clicks do not multiselect"
+        );
+      }
+      isnot(
+        disclosure.getAttribute("aria-label"),
+        collapseName,
+        "Collapsed state names the expand action"
+      );
+      service.detachTab(child);
+      ok(disclosure.hidden, "Removing the last child removes the hit target");
+      ok(
+        !parent.hasAttribute("aria-expanded"),
+        "Leaf rows have no disclosure state"
+      );
+      service.attachTab(child, parent);
+      await disableTreeTabs();
+      ok(disclosure.hidden, "Disabling trees hides the disclosure");
+      ok(
+        !disclosure.hasAttribute("aria-expanded"),
+        "Disabling clears button state"
+      );
+      ok(!parent.hasAttribute("aria-expanded"), "Disabling clears row state");
+    } finally {
+      await BrowserTestUtils.removeTab(child);
+      await BrowserTestUtils.removeTab(parent);
+    }
+  }
+);
+
 add_task(async function test_close_commands_own_or_borrow_one_snapshot() {
   await enableTreeTabs();
   const { TreeTabsUI } = ChromeUtils.importESModule(
