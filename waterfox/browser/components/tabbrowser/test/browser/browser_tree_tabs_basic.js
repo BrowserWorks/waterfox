@@ -378,3 +378,48 @@ add_task(
     BrowserTestUtils.removeTab(parentTab);
   }
 );
+
+add_task(async function test_new_tab_relationship_chooser() {
+  await enableTreeTabs();
+
+  const parentTab = BrowserTestUtils.addTab(
+    gBrowser,
+    "about:blank?waterfox-tree-new-tab-chooser-parent"
+  );
+  await BrowserTestUtils.switchTab(gBrowser, parentTab);
+  const button = document.getElementById("waterfox-tree-newtab-action-button");
+  const childItem = document.getElementById("waterfox-tree-newtab-child");
+  const independentItem = document.getElementById(
+    "waterfox-tree-newtab-independent"
+  );
+
+  ok(!button.hidden, "Relationship chooser is visible in vertical tree mode");
+  const childCount = gBrowser.tabs.length;
+  childItem.doCommand();
+  await waitForTreeCondition(
+    () => gBrowser.tabs.length == childCount + 1,
+    "Waiting for the chooser to open a child tab"
+  );
+  const childTab = gBrowser.selectedTab;
+  is(getTreeParent(childTab), parentTab, "Child action creates a tree child");
+
+  await BrowserTestUtils.switchTab(gBrowser, parentTab);
+  gBrowser.pinTab(parentTab);
+  const independentCount = gBrowser.tabs.length;
+  independentItem.doCommand();
+  await waitForTreeCondition(
+    () => gBrowser.tabs.length == independentCount + 1,
+    "Waiting for the chooser to open an independent tab"
+  );
+  const independentTab = gBrowser.selectedTab;
+  is(
+    getTreeParent(independentTab),
+    null,
+    "Independent action works while a pinned tab is selected"
+  );
+
+  gBrowser.unpinTab(parentTab);
+  BrowserTestUtils.removeTab(independentTab);
+  BrowserTestUtils.removeTab(childTab);
+  BrowserTestUtils.removeTab(parentTab);
+});

@@ -831,6 +831,20 @@ tab-split-view-wrapper[dragtarget] {
   }
 }
 
+#vertical-tabs[tree-tabs-enabled]
+  #tabbrowser-tabs[expanded]
+  .tabbrowser-tab[data-tree-collapsed][data-tree-has-muted-member]
+  .tab-audio-button:not([soundplaying], [muted], [activemedia-blocked])::part(button) {
+  background-image: url("chrome://browser/skin/tabbrowser/tab-audio-muted-small.svg");
+}
+
+#vertical-tabs[tree-tabs-enabled]
+  #tabbrowser-tabs[expanded]
+  .tabbrowser-tab[data-tree-collapsed][data-tree-has-sound-member]
+  .tab-audio-button:not([soundplaying], [muted], [activemedia-blocked])::part(button) {
+  background-image: url("chrome://browser/skin/tabbrowser/tab-audio-playing-small.svg");
+}
+
 .tab-label-container {
   overflow: hidden;
 
