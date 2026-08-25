@@ -67,6 +67,18 @@ function setWindowValue(window, key, value) {
   }
 }
 
+function deleteTabValue(tab, key) {
+  const sessionStore = getSessionStore();
+  if (!sessionStore) {
+    return;
+  }
+  try {
+    sessionStore.deleteCustomTabValue(tab, key);
+  } catch (error) {
+    // Ignore store failures during early startup/shutdown.
+  }
+}
+
 export function maybeMigrate() {
   if (Services.prefs.getBoolPref(MIGRATION_PREF, false)) {
     return;
@@ -103,6 +115,10 @@ export function writeTabKey(tab, key, value) {
 
 export function writeWindowKey(window, key, value) {
   setWindowValue(window, `${NEW_PREFIX}${key}`, value);
+}
+
+export function deleteTabKey(tab, key) {
+  deleteTabValue(tab, `${NEW_PREFIX}${key}`);
 }
 
 function migratePrefs() {
@@ -182,6 +198,7 @@ export const TreeTabsMigration = {
   readWindowKey,
   writeTabKey,
   writeWindowKey,
+  deleteTabKey,
   _setSessionStoreForTests(sessionStore) {
     gTestSessionStore = sessionStore;
   },
