@@ -1,0 +1,83 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+body {
+  margin: 2em auto;
+  max-width: 40em;
+  padding: 0 2em;
+  font: message-box;
+}
+
+h1 {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-size: var(--font-size-xlarge);
+  font-weight: var(--font-weight-semibold);
+}
+
+h1::before {
+  content: "";
+  width: 1em;
+  height: 1em;
+  background: url("chrome://global/skin/icons/folder.svg") no-repeat center / contain;
+  -moz-context-properties: fill;
+  fill: currentColor;
+}
+
+#title {
+  cursor: text;
+}
+
+#title-field {
+  font: inherit;
+  flex: 1;
+}
+
+#options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+  margin-block: 1em;
+  color: var(--text-color-deemphasized);
+}
+
+#tabs {
+  margin-block-start: 1.5em;
+}
+
+#tabs .item {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.35em 0.5em;
+  padding-inline-start: calc(0.5em + 1.25em * var(--level, 0));
+  border-radius: var(--border-radius-small);
+  cursor: pointer;
+}
+
+#tabs .item:hover {
+  background-color: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+#tabs .item.associated {
+  margin-block-end: 0.25em;
+  border-block-end: 1px solid color-mix(in srgb, currentColor 15%, transparent);
+}
+
+#tabs .item:is(.associated, .group-tab) .label {
+  font-weight: var(--font-weight-semibold);
+}
+
+#tabs .favicon {
+  width: var(--size-item-small);
+  height: var(--size-item-small);
+  flex-shrink: 0;
+}
+
+#tabs .label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

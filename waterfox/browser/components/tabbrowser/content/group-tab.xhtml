@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="stylesheet" href="chrome://global/skin/global.css" />
+    <link
+      rel="stylesheet"
+      href="chrome://browser/content/treegroup/group-tab.css"
+    />
+    <link rel="localization" href="browser/waterfox/tree-tabs.ftl" />
+    <script
+      defer="defer"
+      src="chrome://browser/content/treegroup/group-tab.js"
+    />
+  </head>
+  <body>
+    <h1 id="heading">
+      <span id="title" tabindex="0"></span>
+      <input id="title-field" hidden="hidden" />
+    </h1>
+    <div id="options">
+      <label>
+        <input type="checkbox" id="temporary" />
+        <span data-l10n-id="waterfox-tree-group-temporary-label"></span>
+      </label>
+      <label>
+        <input type="checkbox" id="temporaryAggressive" />
+        <span
+          data-l10n-id="waterfox-tree-group-temporary-aggressive-label"
+        ></span>
+      </label>
+    </div>
+    <div id="tabs"></div>
+  </body>
+</html>
