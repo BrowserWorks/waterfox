@@ -117,3 +117,49 @@ add_task(async function test_tree_tabs_visual_attributes_and_indent_capping() {
     "Deeply nested tab does not exceed dynamic max indent"
   );
 });
+
+add_task(async function test_collapsed_tree_uses_native_tab_tooltip() {
+  await enableTreeTabs();
+
+  const parentTab = BrowserTestUtils.addTab(
+    gBrowser,
+    "about:blank?waterfox-tree-tooltip-parent"
+  );
+  parentTab.label = "Tree tooltip parent";
+  const childTab = await openTabWithTree(
+    parentTab,
+    "about:blank?waterfox-tree-tooltip-child"
+  );
+  childTab.label = "Tree tooltip child";
+  gBrowser.TreeTabsService.collapseSubtree(parentTab);
+
+  await waitForTreeCondition(
+    () => parentTab.hasAttribute("data-tree-descendants-tooltip"),
+    "Waiting for collapsed descendant tooltip data"
+  );
+  const tabContent = parentTab.querySelector(".tab-content");
+  is(
+    tabContent?.getAttribute("data-tree-counter"),
+    "1",
+    "Descendant count is attached to the content before the favicon"
+  );
+  ok(
+    !parentTab
+      .querySelector(".tab-label-container")
+      ?.hasAttribute("data-tree-counter"),
+    "Descendant count is not attached to the title container"
+  );
+  const tooltip = gBrowser.getTabTooltip(parentTab, true);
+  ok(
+    tooltip.includes(parentTab._fullLabel),
+    "Native tooltip includes the parent"
+  );
+  ok(tooltip.includes(childTab.label), "Native tooltip includes descendants");
+  ok(
+    !parentTab.hasAttribute("tooltiptext"),
+    "Tree tooltip does not replace Firefox's native tooltip provider"
+  );
+
+  BrowserTestUtils.removeTab(childTab);
+  BrowserTestUtils.removeTab(parentTab);
+});
