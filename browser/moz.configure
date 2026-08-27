@@ -24,32 +24,5 @@ with only_when(target_has_linux_kernel & compile_environment):
     set_config("MOZ_NO_PIE_COMPAT", depends_if("MOZ_NO_PIE_COMPAT")(lambda _: True))
 
 
-@depends(target, update_channel, have_64_bit, moz_debug, moz_automation)
-@imports(_from="os", _import="environ")
-def requires_stub_installer(
-    target, update_channel, have_64_bit, moz_debug, moz_automation
-):
-    if target.kernel != "WINNT":
-        return False
-    if have_64_bit:
-        return False
-    if update_channel not in ("nightly", "nightly-try", "aurora", "beta", "release"):
-        return False
-
-    if moz_debug:
-        return False
-
-    # Expect USE_STUB_INSTALLER from taskcluster for downstream task consistency
-    if moz_automation and not environ.get("USE_STUB_INSTALLER"):
-        die(
-            "STUB installer expected to be enabled but "
-            "USE_STUB_INSTALLER is not specified in the environment"
-        )
-
-    return True
-
-
-imply_option("MOZ_STUB_INSTALLER", True, when=requires_stub_installer)
-
 include("../toolkit/moz.configure")
 include("../waterfox/moz.configure")
