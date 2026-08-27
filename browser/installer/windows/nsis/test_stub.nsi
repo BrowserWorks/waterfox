@@ -202,6 +202,8 @@ Function .onInit
 
     ${UnitTest} TestShouldInstallDesktopLauncherFailure
     ${UnitTest} TestShouldInstallDesktopLauncherSuccess
+    ${UnitTest} TestMigrateDesktopLauncher
+    ${UnitTest} TestMigrateDesktopLauncherPreservesConflict
 
     Call TelemetryTests
 
@@ -887,6 +889,87 @@ Function TestShouldInstallDesktopLauncherSuccess
   Call ShouldInstallDesktopLauncher
   Pop $0
   ${AssertEqual} 0 "1"
+FunctionEnd
+
+Function TestMigrateDesktopLauncher
+  Push $INSTDIR
+  GetTempFileName $0
+  Delete "$0"
+  CreateDirectory "$0"
+  CreateDirectory "$0\install"
+  StrCpy $INSTDIR "$0\install"
+  StrCpy $7 "$INSTDIR\${FileMainEXE}"
+
+  FileOpen $1 "$7" w
+  FileClose $1
+  FileOpen $1 "$0\${BrandShortName}.exe" w
+  FileClose $1
+
+  Push "$0"
+  Call MigrateDesktopLauncher
+  Pop $2
+  Push "$0"
+  Call MigrateDesktopLauncher
+  Pop $3
+
+  StrCpy $4 0
+  ${If} ${FileExists} "$0\${BrandShortName}.exe"
+    StrCpy $4 1
+  ${EndIf}
+  StrCpy $5 0
+  ${If} ${FileExists} "$0\${BrandShortName}.lnk"
+    StrCpy $5 1
+  ${EndIf}
+  ShellLink::GetShortCutTarget "$0\${BrandShortName}.lnk"
+  Pop $6
+  ${GetLongPath} "$6" $6
+
+  RmDir /r "$0"
+  Pop $INSTDIR
+
+  ${AssertEqual} 2 "1"
+  ${AssertEqual} 3 "0"
+  ${AssertEqual} 4 "0"
+  ${AssertEqual} 5 "1"
+  ${AssertEqual} 6 "$7"
+FunctionEnd
+
+Function TestMigrateDesktopLauncherPreservesConflict
+  Push $INSTDIR
+  GetTempFileName $0
+  Delete "$0"
+  CreateDirectory "$0"
+  CreateDirectory "$0\install"
+  StrCpy $INSTDIR "$0\install"
+  StrCpy $5 "$0\other.exe"
+
+  FileOpen $1 "$INSTDIR\${FileMainEXE}" w
+  FileClose $1
+  FileOpen $1 "$0\${BrandShortName}.exe" w
+  FileClose $1
+  FileOpen $1 "$5" w
+  FileClose $1
+  CreateShortCut "$0\${BrandShortName}.lnk" "$5"
+
+  Push "$0"
+  Call MigrateDesktopLauncher
+  Pop $2
+
+  StrCpy $3 0
+  ${If} ${FileExists} "$0\${BrandShortName}.exe"
+    StrCpy $3 1
+  ${EndIf}
+  ShellLink::GetShortCutTarget "$0\${BrandShortName}.lnk"
+  Pop $4
+  ${GetLongPath} "$4" $4
+  ${GetLongPath} "$5" $5
+
+  RmDir /r "$0"
+  Pop $INSTDIR
+
+  ${AssertEqual} 2 "0"
+  ${AssertEqual} 3 "1"
+  ${AssertEqual} 4 "$5"
 FunctionEnd
 
 Section
