@@ -17,6 +17,7 @@ TEST_STUB_INSTALLER_DEPS := \
 	$(topsrcdir)/toolkit/mozapps/installer/windows/nsis/common.nsh \
 	shared.nsh \
 	control_utils.nsh \
+	desktop_launcher_helpers.nsh \
 	install_dir_helpers.nsh \
 	postupdate_helper.nsh \
 	telemetry.nsh \
