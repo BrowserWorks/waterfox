@@ -473,17 +473,6 @@ win32-shippable/opt:
     attributes:
         shippable: true
         enable-full-crashsymbols: true
-    stub-installer:
-        by-release-type:
-            nightly: true
-            beta: true
-            release: true
-            esr.*: false
-            default:
-                by-project:
-                    # browser/confvars.sh looks for nightly-try
-                    try: true
-                    default: false
     shipping-phase: build
     shipping-product: firefox
     treeherder:
@@ -1265,16 +1254,6 @@ win32-devedition/opt:
     attributes:
         shippable: true
         enable-full-crashsymbols: true
-    stub-installer:
-        by-release-type:
-            nightly: true
-            beta: true
-            release: true
-            default:
-                by-project:
-                    # browser/confvars.sh looks for nightly-try
-                    try: true
-                    default: false
     shipping-phase: build
     shipping-product: devedition
     treeherder:
