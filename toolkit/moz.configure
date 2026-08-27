@@ -3327,6 +3327,12 @@ confvar(
 )
 
 confvar(
+    "MOZ_DISABLE_DESKTOP_LAUNCHER",
+    nargs=1,
+    help="Disable the Windows desktop launcher for this branding",
+)
+
+confvar(
     "MOZ_MACBUNDLE_ID",
     nargs=1,
     set_as_config=False,
@@ -4513,9 +4519,9 @@ set_define(
 # ==============================================================
 with only_when(target_is_windows):
 
-    @depends(target.abi)
-    def desktop_launcher_enabled(abi):
-        return abi == "msvc"
+    @depends(target.abi, "MOZ_DISABLE_DESKTOP_LAUNCHER")
+    def desktop_launcher_enabled(abi, disabled):
+        return abi == "msvc" and not disabled
 
     set_config("DESKTOP_LAUNCHER_ENABLED", True, when=desktop_launcher_enabled)
     set_define("DESKTOP_LAUNCHER_ENABLED", True, when=desktop_launcher_enabled)
