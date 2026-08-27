@@ -2399,12 +2399,16 @@ bool LaunchWinPostProcess(const WCHAR* installationDir,
   wcsncpy(dummyArg, L"argv0ignored ",
           sizeof(dummyArg) / sizeof(dummyArg[0]) - 1);
 
+#  ifdef DESKTOP_LAUNCHER_ENABLED
   const bool addDesktopLauncher{
       !EnterprisePoliciesFlagFile::Exists(gPatchDirPath)};
   if (addDesktopLauncher) {
     LOG(("Add /DesktopLauncher argument to helper.exe"));
   }
   LPCWSTR desktopLauncherArg{addDesktopLauncher ? L" /DesktopLauncher" : L""};
+#  else
+  LPCWSTR desktopLauncherArg{L""};
+#  endif
   size_t len{wcslen(exearg) + wcslen(dummyArg) + wcslen(desktopLauncherArg)};
   WCHAR* cmdline = (WCHAR*)malloc((len + 1) * sizeof(WCHAR));
   if (!cmdline) {
