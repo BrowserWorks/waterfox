@@ -354,6 +354,31 @@
 
   !ifdef DESKTOP_LAUNCHER_ENABLED
     Call OnUpdateDesktopLauncherHandler
+  !else
+    !ifdef MOZ_WATERFOX_DESKTOP_LAUNCHER_MIGRATION
+      ${If} $RegHive == "HKCU"
+        Push $0
+        Push $1
+        ClearErrors
+        ReadRegDWORD $1 HKCU "Software\BrowserWorks\${BrandFullNameInternal}" \
+                            "DesktopLauncherAppInstalled"
+        ${IfNot} ${Errors}
+        ${AndIf} $1 == 1
+          ${SwapShellVarContext} current $0
+          Push "$DESKTOP"
+          Call MigrateDesktopLauncher
+          Pop $1
+          ${SetShellVarContextToValue} $0
+          ${If} $1 == 1
+            DeleteRegValue HKCU "Software\BrowserWorks\${BrandFullNameInternal}" \
+                               "DesktopLauncherAppInstalled"
+            ${LogDesktopShortcut} "${BrandShortName}.lnk"
+          ${EndIf}
+        ${EndIf}
+        Pop $1
+        Pop $0
+      ${EndIf}
+    !endif
   !endif
 
   ; Update the name/icon/AppModelID of our shortcuts as needed, then update the
