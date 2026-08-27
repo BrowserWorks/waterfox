@@ -2,7 +2,7 @@
   <service name="download_url">
     <param name="protocol">https</param>
     <param name="host">cdn.waterfox.com</param>
-    <param name="path">waterfox/releases/6.7.0/Linux_x86_64/waterfox-6.7.0.tar.bz2</param>
-    <param name="filename">waterfox-6.7.0.tar.bz2</param>
+    <param name="path">waterfox/releases/6.7.1/Linux_x86_64/waterfox-6.7.1.tar.bz2</param>
+    <param name="filename">waterfox-6.7.1.tar.bz2</param>
   </service>
 </services>

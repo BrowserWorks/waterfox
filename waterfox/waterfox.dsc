@@ -1,6 +1,6 @@
 Format: 1.0
 Source: waterfox
-Version: 6.7.0-0
+Version: 6.7.1-0
 Binary: waterfox
 Maintainer: BrowserWorks <MrAlex94@users.noreply.github.com>
 Architecture: amd64
@@ -31,4 +31,4 @@ Build-Depends: debhelper (>= 9),
  libxi6,
  libxrender1
 Files:
- 0 0 waterfox-6.7.0.tar.bz2
+ 0 0 waterfox-6.7.1.tar.bz2
