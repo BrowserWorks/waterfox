@@ -2754,7 +2754,7 @@
           sourceNode.ownerDocument.documentElement.getAttribute("windowtype") ==
             "navigator:browser"
         ) {
-          // Do not allow transfering a private tab to a non-private window
+          // Do not allow transferring a private tab to a non-private window
           // and vice versa.
           if (
             PrivateBrowsingUtils.isWindowPrivate(window) !=

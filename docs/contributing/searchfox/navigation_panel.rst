@@ -17,7 +17,7 @@ Clicking the triangle icon at the left end expands/collapses the navigation pane
     :alt: The navigation panel in a closed state
     :width: 193px
 
-If the window width is less than 1024px, the panle is collapsed by default also in the source listing.
+If the window width is less than 1024px, the panel is collapsed by default also in the source listing.
 This behavior can be configured in the `settings page <https://searchfox.org/firefox-main/pages/settings.html>`_.
 
 Header
@@ -56,7 +56,7 @@ Go to header file/Go to source file
 File a bug in ...
   Open the Bugzilla new bug page for the associated Bugzilla component.
 
-  This item is shown whwn the current file/directory has an associated Bugzilla component.
+  This item is shown when the current file/directory has an associated Bugzilla component.
 
 Revision control
 ----------------
@@ -230,10 +230,10 @@ For the files in the tree configured there, this section is shown in the panel.
 Other Tools
 -----------
 
-This section shows links to externsion tools.
+This section shows links to extension tools.
 
 HG Web
-  Open the the current file on ``hg.mozilla.org``.
+  Open the current file on ``hg.mozilla.org``.
 
   This item is shown when the current repository is hosted on ``hg.mozilla.org``.
 

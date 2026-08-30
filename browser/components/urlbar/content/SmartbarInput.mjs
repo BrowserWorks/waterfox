@@ -974,7 +974,7 @@ ${
       case "keyword.enabled":
         this._updatePlaceholderFromDefaultEngine().catch(e =>
           // This can happen if the search service failed.
-          console.warn("Falied to update urlbar placeholder:", e)
+          console.warn("Failed to update urlbar placeholder:", e)
         );
         break;
       case "browser.search.widget.new": {
@@ -1103,7 +1103,7 @@ ${
    * @param {boolean} [options.dueToSessionRestore=false]
    *        Whether this is being called due to session restore.
    * @param {boolean} [options.hideSearchTerms=false]
-   *        True if userTypedValue should not be overidden by search terms
+   *        True if userTypedValue should not be overridden by search terms
    *        and false otherwise.
    * @param {boolean} [options.isSameDocument=false]
    *        Whether the caller loaded a new document or not (e.g. location
@@ -2868,7 +2868,7 @@ ${
    *   If true, the urlbar will be focused.  If false, the focus will remain
    *   unchanged.
    * @param {boolean} [options.startQuery]
-   *   If true, start query to show urlbar result by fireing input event. If
+   *   If true, start query to show urlbar result by firing input event. If
    *   false, not fire the event.
    */
   search(value, options = {}) {
@@ -3111,7 +3111,7 @@ ${
    *   the values in UrlbarUtils.SEARCH_MODE_ENTRY.
    * @param {boolean} [searchMode.isPreview]
    *   If true, we will preview search mode. Search mode preview does not record
-   *   telemetry and has slighly different UI behavior. The preview is exited in
+   *   telemetry and has slightly different UI behavior. The preview is exited in
    *   favor of full search mode when a query is executed. False should be
    *   passed if the caller needs to enter search mode but expects it will not
    *   be interacted with right away. Defaults to true.
@@ -3591,7 +3591,7 @@ ${
    *
    * @param {string} state
    *        The string "valid" indicates that the security indicators and other
-   *        related user interface elments should be shown because the URI in
+   *        related user interface elements should be shown because the URI in
    *        the location bar matches the loaded page. The string "invalid"
    *        indicates that the URI in the location bar is different than the
    *        loaded page.
@@ -3601,7 +3601,7 @@ ${
    *        being handled somewhere else.
    * @param {boolean} [forceUnifiedSearchButtonAvailable]
    *        If this parameter is true, force to make Unified Search Button available.
-   *        Otherwise, the availability will be depedent on the proxy state.
+   *        Otherwise, the availability will be dependent on the proxy state.
    *        Default value is false.
    */
   setPageProxyState(
@@ -3829,7 +3829,7 @@ ${
       return Services.uriFixup.getFixupURIInfo(searchString, flags);
     } catch (ex) {
       console.error(
-        `An error occured while trying to fixup "${searchString}"`,
+        `An error occurred while trying to fixup "${searchString}"`,
         ex
       );
     }
@@ -4576,7 +4576,7 @@ ${
       );
       value = info.fixedURI.spec;
     } catch (ex) {
-      console.error(`An error occured while trying to fixup "${value}"`, ex);
+      console.error(`An error occurred while trying to fixup "${value}"`, ex);
     }
 
     this.value = value;
@@ -4711,7 +4711,7 @@ ${
    *   Where we expect the result to be opened.
    * @param {object} params
    *   The parameters related to how and where the result will be opened.
-   *   Further supported paramters are listed in _loadURL.
+   *   Further supported parameters are listed in _loadURL.
    * @param {object} [params.triggeringPrincipal]
    *   The principal that the action was triggered from.
    * @param {object} [resultDetails]

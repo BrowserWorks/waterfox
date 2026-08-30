@@ -97,7 +97,7 @@ export class FormAutofillHandler {
   #refillTimeoutId = null;
 
   /**
-   * Flag to indicate whethere there is an ongoing autofilling/clearing process.
+   * Flag to indicate whether there is an ongoing autofilling/clearing process.
    */
   #isAutofillInProgress = false;
 
@@ -319,7 +319,7 @@ export class FormAutofillHandler {
    * @param {boolean} ignoreInvisibleInput
    *        True to NOT run heuristics on invisible <input> fields.
    *
-   * @returns {Array<FieldDeail>}
+   * @returns {Array<FieldDetail>}
    *        An array containing eligible fields for autofill, also
    *        including iframe.
    */
@@ -739,11 +739,11 @@ export class FormAutofillHandler {
   /**
    * Listens for dynamic form changes by setting up two observer types:
    *      1. IntersectionObserver(s) that observe(s) intersections between
-   *         (in-)visibile elements and an intersection target (the form/document of interest).
+   *         (in-)visible elements and an intersection target (the form/document of interest).
    *         (see this.setUpElementVisibilityObserver)
    *      2. MutationsObserver that observes child node additions and removals
    *         in the form/document of interest (see this.setUpNodesObserver)
-   * If a form change is observed, a "form-changed" event gets dispatched transfering
+   * If a form change is observed, a "form-changed" event gets dispatched transferring
    * the changed fields and the reason for the form change (see FORM_CHANGE_REASON).
    */
   setUpDynamicFormChangeObserver() {
@@ -947,7 +947,7 @@ export class FormAutofillHandler {
 
   /**
    * After the form was submitted, disconnect all IntersectionObserver that
-   * are still observing form's elements and disconnect the MutationsOberver
+   * are still observing form's elements and disconnect the MutationsObserver
    * that is observing the form.
    */
   clearFormChangeObservers() {
@@ -1483,7 +1483,7 @@ class ProfileTransformer {
       }
       const labels = lazy.LabelUtils.findLabelElements(element);
       if (labels) {
-        // Not consider multiple lable for now.
+        // Not consider multiple label for now.
         possibleExpiryStrings.push(element.labels[0]?.textContent);
       }
       if (element.previousElementSibling?.localName == "label") {

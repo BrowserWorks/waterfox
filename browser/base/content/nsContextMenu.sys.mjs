@@ -1926,7 +1926,7 @@ export class nsContextMenu {
 
         timer.cancel();
 
-        // some other error occured; notify the user...
+        // some other error occurred; notify the user...
         if (!Components.isSuccessCode(aRequest.status)) {
           try {
             const l10n = new Localization(["browser/downloads.ftl"], true);
@@ -2438,7 +2438,7 @@ export class nsContextMenu {
   }
 
   /**
-   * Checks if a webpage is a secure interal webpage
+   * Checks if a webpage is a secure internal webpage
    *
    * @returns {boolean}
    */

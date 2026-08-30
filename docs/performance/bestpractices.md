@@ -227,7 +227,7 @@ The worst-case scenario is that none of the layout can be skipped
 despite being interrupted, and the entire layout calculation occurs.
 
 Reflows that are triggered "naturally" by the 16ms tick are all
-considered interruptible. Despite not actually being interuptible when
+considered interruptible. Despite not actually being interruptible when
 laying out chrome UI, striving for interruptible layout is always good
 practice because uninterruptible layout has the potential to be much
 worse (see next section).

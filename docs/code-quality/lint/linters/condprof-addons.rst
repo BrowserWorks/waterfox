@@ -66,8 +66,8 @@ to avoid re-downloading the same xpi from a remote urls every time the condition
 (which for tp6/tp6m perftests will happen once per job being executed) condprof is going to look first if the expected xpi file
 names are already available in `$MOZ_FETCHES_DIR/firefox-addons`.
 
-firefox-addons taskcluser fetch config section not found
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+firefox-addons taskcluster fetch config section not found
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This linting error is hit if the linter does not find the expected `firefox-addons` task defined in :searchfox:`taskcluster/kinds/fetch/browsertime.yml`
 or it is missing the expected `fetch` attribute.

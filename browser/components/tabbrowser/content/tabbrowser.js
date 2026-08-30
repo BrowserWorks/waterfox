@@ -838,7 +838,7 @@
         const url = browser.currentURI;
         const urlSpec = url.spec;
         // We need to cache the content principal here because the browser will be
-        // reconstructed when the remoteness changes and the content prinicpal will
+        // reconstructed when the remoteness changes and the content principal will
         // be cleared after reconstruction.
         const principal = tab.linkedBrowser.contentPrincipal;
         if (this.updateBrowserRemotenessByURL(browser, urlSpec)) {
@@ -6481,7 +6481,7 @@
      *   False if swapping isn't permitted, true otherwise.
      */
     swapBrowsersAndCloseOther(aOurTab, aOtherTab) {
-      // Do not allow transfering a private tab to a non-private window
+      // Do not allow transferring a private tab to a non-private window
       // and vice versa.
       if (
         PrivateBrowsingUtils.isWindowPrivate(window) !=
@@ -6490,7 +6490,7 @@
         return false;
       }
 
-      // Do not allow transfering a useRemoteSubframes tab to a
+      // Do not allow transferring a useRemoteSubframes tab to a
       // non-useRemoteSubframes window and vice versa.
       if (gFissionBrowser != aOtherTab.documentGlobal.gFissionBrowser) {
         return false;
@@ -6994,7 +6994,7 @@
     }
 
     /**
-     * Move contextTab (or selected tabs in a mutli-select context)
+     * Move contextTab (or selected tabs in a multi-select context)
      * to a new browser window, unless it is (they are) already the only tab(s)
      * in the current window, in which case this will do nothing.
      */
@@ -8100,7 +8100,7 @@
      *
      *
      * Single selected tab could even happen with a none-focused tab.
-     * For exemple with the menu "Close other tabs", it could happen
+     * For example with the menu "Close other tabs", it could happen
      * with a multi-selected pinned tab.
      * For illustration, consider 4 tabs A,B,C,D with B active
      * 1. pin A and Ctrl-select it
@@ -9758,7 +9758,7 @@
             // using isNavigating for now, and remove it when SHIP is enabled
             // by default.
             // Bug 1725716 has been filed to consider removing isNavigating
-            // field alltogether.
+            // field altogether.
             let isNavigating = this._browser.isNavigating;
             if (
               this._tab.selected &&
@@ -10428,7 +10428,7 @@ var TabBarVisibility = {
       this._initialUpdateDone
     ) {
       // No further updates needed, `TabsToolbar` already matches the expected
-      // visibilty.
+      // visibility.
       return;
     }
     this._initialUpdateDone = true;

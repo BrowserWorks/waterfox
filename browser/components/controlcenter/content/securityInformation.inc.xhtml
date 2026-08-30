@@ -9,7 +9,7 @@
                        when-connection="not-secure secure-cert-user-overridden cert-error-page net-error-page https-only-error-page" data-l10n-id="identity-connection-not-secure-security-view"></description>
           <description class="identity-popup-connection-secure security-view"
                        when-connection="secure secure-ev secure-etsi" data-l10n-id="identity-connection-verified"></description>
-          <!-- These descriptions are shown on a seperate subview when trustpanel is disabled and
+          <!-- These descriptions are shown on a separate subview when trustpanel is disabled and
                are only visible here under the trustpanel -->
           <box class="only-trustpanel">
             <description when-connection="chrome" data-l10n-id="identity-connection-internal"></description>
@@ -106,7 +106,7 @@
           </hbox>
 
           <!-- This section is only shown here when the trustpanel is active, otherwise it
-               is shown in a seperate subview inside the identityPanel -->
+               is shown in a separate subview inside the identityPanel -->
           <vbox id="trustpanel-popup-security-httpsonlymode" when-httpsonlystatus="exception upgraded failed-top failed-sub" class="only-trustpanel">
             <label flex="1" data-l10n-id="identity-https-only-label2"></label>
             <menulist id="trustpanel-popup-security-httpsonlymode-menulist" sizetopopup="none">

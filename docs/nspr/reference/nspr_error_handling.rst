@@ -120,13 +120,13 @@ Error codes defined in ``prerror.h``:
 ``PR_NOT_TCP_SOCKET_ERROR``
    Attempt to perform a TCP specific function on a non-TCP file
    descriptor.
-``PR_SOCKET_ADDRESS_IS_BOUND_ERRO``
+``PR_SOCKET_ADDRESS_IS_BOUND_ERROR``
    Attempt to bind an address to a TCP file descriptor that is already
    bound.
 ``PR_NO_ACCESS_RIGHTS_ERROR``
    Calling thread does not have privilege to perform the operation
    requested.
-``PR_OPERATION_NOT_SUPPORTED_ERRO``
+``PR_OPERATION_NOT_SUPPORTED_ERROR``
    The requested operation is not supported by the platform.
 ``PR_PROTOCOL_NOT_SUPPORTED_ERROR``
    The host operating system does not support the protocol requested.

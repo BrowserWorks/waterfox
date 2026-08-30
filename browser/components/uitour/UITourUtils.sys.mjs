@@ -20,7 +20,7 @@ export let UITourUtils = {
       return false;
     }
 
-    // Allow any testing origins (comma-seperated).
+    // Allow any testing origins (comma-separated).
     for (let origin of testingOrigins.split(/\s*,\s*/)) {
       try {
         let testingURI = Services.io.newURI(origin);

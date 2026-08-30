@@ -851,7 +851,7 @@ function prompt(aActor, aBrowser, aRequest) {
         }
 
         // Removing the child nodes of a menupopup doesn't clear the value
-        // attribute of its menulist. Similary for richlistbox state. This can
+        // attribute of its menulist. Similarly for richlistbox state. This can
         // have unfortunate side effects when the list is rebuilt with a
         // different content, so we set the selectedIndex explicitly to reset
         // state.
@@ -1557,7 +1557,7 @@ function clearTemporaryGrants(browser, clearCamera, clearMicrophone) {
     .filter(perm => {
       let [id, key] = perm.id.split(lazy.SitePermissions.PERM_KEY_DELIMITER);
       // We only want to clear WebRTC grace periods. These are temporary, device
-      // specifc (double-keyed) microphone or camera permissions.
+      // specific (double-keyed) microphone or camera permissions.
       return (
         key &&
         perm.state == lazy.SitePermissions.ALLOW &&

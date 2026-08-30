@@ -147,7 +147,7 @@ export const SearchService = new (class SearchService {
 
   /**
    * A reason that is used in the change of default search engine event telemetry.
-   * These are mutally exclusive.
+   * These are mutually exclusive.
    */
   CHANGE_REASON = Object.freeze({
     // The cause of the change is unknown.
@@ -321,9 +321,9 @@ export const SearchService = new (class SearchService {
    * Determine whether initialization has been successfully completed.
    *
    * @returns {boolean}
-   *  |true | if the search service has succesfully initialized.
+   *  |true | if the search service has successfully initialized.
    *  |false| if initialization has not been started yet, initialization is
-   *          still ongoing or initializaiton has failed.
+   *          still ongoing or initialization has failed.
    */
   get hasSuccessfullyInitialized() {
     return this.#initializationStatus == "success";
@@ -334,7 +334,7 @@ export const SearchService = new (class SearchService {
    * trigger initialization to begin.
    *
    * @returns {Promise<void>}
-   *   Resolved when initalization has successfully finished, and rejected if it
+   *   Resolved when initialization has successfully finished, and rejected if it
    *   has failed.
    */
   get promiseInitialized() {
@@ -540,23 +540,23 @@ export const SearchService = new (class SearchService {
    *   Whether or not to show the prompt.
    */
   async shouldShowInstallPrompt(engine) {
-    let identifer = engine._loadPath;
+    let identifier = engine._loadPath;
     let seenEngines =
       this._settings.getMetaDataAttribute(ENGINES_SEEN_KEY) ?? {};
 
-    if (!(identifer in seenEngines)) {
-      seenEngines[identifer] = 1;
+    if (!(identifier in seenEngines)) {
+      seenEngines[identifier] = 1;
       this._settings.setMetaDataAttribute(ENGINES_SEEN_KEY, seenEngines);
       return false;
     }
 
-    let value = seenEngines[identifer];
+    let value = seenEngines[identifier];
     if (value == DONT_SHOW_PROMPT) {
       return false;
     }
 
     if (value == ENGINES_SEEN_FOR_PROMPT) {
-      seenEngines[identifer] = DONT_SHOW_PROMPT;
+      seenEngines[identifier] = DONT_SHOW_PROMPT;
       this._settings.setMetaDataAttribute(ENGINES_SEEN_KEY, seenEngines);
       return true;
     }
@@ -1248,7 +1248,7 @@ export const SearchService = new (class SearchService {
   /**
    * A deferred promise that is resolved when initialization has finished.
    *
-   * Resolved when initalization has successfully finished, and rejected if it
+   * Resolved when initialization has successfully finished, and rejected if it
    * has failed.
    *
    * @type {PromiseWithResolvers<void>}
@@ -1261,7 +1261,7 @@ export const SearchService = new (class SearchService {
    *
    * These are the statuses:
    *   "not initialized" - The SearchService has not started initialization.
-   *   "started" - The SearchService has started initializaiton.
+   *   "started" - The SearchService has started initialization.
    *   "success" - The SearchService successfully completed initialization.
    *   "failed" - The SearchService failed during initialization.
    *
@@ -1350,7 +1350,7 @@ export const SearchService = new (class SearchService {
 
   /**
    * A Set of installed search extensions reported by AddonManager
-   * startup before SearchSevice has started. Will be installed
+   * startup before SearchService has started. Will be installed
    * during init(). Does not contain application provided engines.
    *
    * @type {Set<object>}
@@ -1359,7 +1359,7 @@ export const SearchService = new (class SearchService {
 
   /**
    * A Set of removed search extensions reported by AddonManager
-   * startup before SearchSevice has started. Will be removed
+   * startup before SearchService has started. Will be removed
    * during init().
    *
    * @type {Set<object>}
@@ -1627,7 +1627,7 @@ export const SearchService = new (class SearchService {
    * with it.
    *
    * This function sets #initDeferredPromise to resolve or reject.
-   *   | Resolved | when initalization has successfully finished.
+   *   | Resolved | when initialization has successfully finished.
    *   | Rejected | when initialization has failed.
    */
   async #init() {
@@ -2057,7 +2057,7 @@ export const SearchService = new (class SearchService {
     // If the user's previous engine id is different than the new current
     // engine id, or if the user was using the app default engine and the
     // app default engine id is different than the new current engine id,
-    // we check if the user's settings metadata has been upddated.
+    // we check if the user's settings metadata has been updated.
     if (
       (prevCurrentEngineId && prevCurrentEngineId !== newCurrentEngineId) ||
       (!prevCurrentEngineId &&
@@ -2262,7 +2262,7 @@ export const SearchService = new (class SearchService {
    * the default engines, so that we're not removing active defaults or trying
    * to set a default to something that hasn't been added yet. The order is:
    *
-   * 1) Update exising engines that are in both the old and new configuration.
+   * 1) Update existing engines that are in both the old and new configuration.
    * 2) Add any new engines from the new configuration.
    * 3) Check for changes needed to the default engines due to environment changes
    *    and potentially overriding engines as per the override allowlist.
@@ -3473,7 +3473,7 @@ export const SearchService = new (class SearchService {
     // set to the build's app default engine, so that the currentEngine getter
     // falls back to whatever the default is.
     // However, we do not do this whilst we are running an experiment - an
-    // experiment must preseve the user's choice of default engine during it's
+    // experiment must preserve the user's choice of default engine during it's
     // runtime and when it ends. Once the experiment ends, we will reset the
     // attribute elsewhere.
     let newId = newCurrentEngine.id;
@@ -3493,7 +3493,7 @@ export const SearchService = new (class SearchService {
     );
 
     // Only do this if we're initialized though - this function can get called
-    // during initalization.
+    // during initialization.
     if (this.isInitialized) {
       this.#updateTelemetryDueToDefaultEngineChange(
         privateMode,
@@ -4059,7 +4059,7 @@ class SearchDefaultOverrideAllowlistHandler {
    *   The extension object (from add-on manager) that will override the
    *   app provided search engine.
    * @param {string} appProvidedEngineId
-   *   The id of the search engine that will be overriden.
+   *   The id of the search engine that will be overridden.
    * @returns {Promise<boolean>}
    *   Returns true if the search engine extension may override the app provided
    *   instance.
@@ -4094,7 +4094,7 @@ class SearchDefaultOverrideAllowlistHandler {
    * @param {SearchEngine} engine
    *   The existing search engine.
    * @param {string} appProvidedEngineId
-   *   The id of the search engine that will be overriden.
+   *   The id of the search engine that will be overridden.
    * @returns {Promise<boolean>}
    *   Returns true if the existing search engine is allowed to override the
    *   app provided instance.

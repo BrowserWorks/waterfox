@@ -120,7 +120,7 @@ export class AboutTranslationsChild extends JSWindowActorChild {
           return;
         }
         // Create an error in the content window, if the content window is still around.
-        let message = "An error occured in the AboutTranslations actor.";
+        let message = "An error occurred in the AboutTranslations actor.";
         if (typeof error === "string") {
           message = error;
         }

@@ -308,7 +308,7 @@ Firefox for Windows, Mac, Linux, and Android.
 .. _chemspill:
 
 **Chemspill** - Short for Chemical Spill. A chemspill is a rapid
-security-driven or critical stsbility dot release of our product.
+security-driven or critical stability dot release of our product.
 
 .. _channel meeting:
 

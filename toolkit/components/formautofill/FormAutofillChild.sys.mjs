@@ -356,7 +356,7 @@ export class FormAutofillChild extends JSWindowActorChild {
 
     if (detectedFields.length) {
       // This actor should receive `onFieldsDetectedComplete`message after
-      // `idenitfyFields` is called
+      // `identifyFields` is called
       this.#handlerWaitingForDetectedComplete.set(handler, null);
     }
 
@@ -582,10 +582,10 @@ export class FormAutofillChild extends JSWindowActorChild {
     }
 
     this.debug(
-      `Handling form change - infered by reason(s): ${Object.keys(changes)}`
+      `Handling form change - inferred by reason(s): ${Object.keys(changes)}`
     );
 
-    // Ignore "form-changed" events with reason "visibile-element-became-invisible" if
+    // Ignore "form-changed" events with reason "visible-element-became-invisible" if
     // the affected element is disconnected. This element change is already handled by a
     // "form-changed" event with reason "nodes-removed".
     const invisibleElement =
@@ -839,10 +839,10 @@ export class FormAutofillChild extends JSWindowActorChild {
    * @param {HTMLElement} formElement Root element which receives submit event.
    * @param {string} formSubmissionReason Reason for invoking the form submission
    *                 (see options for FORM_SUBMISSION_REASON in FormAutofillUtils))
-   * @param {object} handler FormAutofillHander, if known by caller
+   * @param {object} handler FormAutofillHandler, if known by caller
    */
   formSubmitted(formElement, formSubmissionReason, handler = undefined) {
-    this.debug(`Handling form submission - infered by ${formSubmissionReason}`);
+    this.debug(`Handling form submission - inferred by ${formSubmissionReason}`);
 
     lazy.AutofillTelemetry.recordFormSubmissionHeuristicCount(
       formSubmissionReason
@@ -954,7 +954,7 @@ export class FormAutofillChild extends JSWindowActorChild {
 
   /**
    * Caches necessary data in handler.fillOnFormChangeData in order to fill any fields that
-   * are additonally detected after a form changed dynamically. This data is cleared after
+   * are additionally detected after a form changed dynamically. This data is cleared after
    * a predefined timeout threshold (see lazy.FormAutofill.fillOnDynamicFormChangeTimeout).
    * The timeout gets cancelled early and the data cleared if a "click" or "keydown" event
    * is dispatched on the form.
@@ -987,8 +987,8 @@ export class FormAutofillChild extends JSWindowActorChild {
         }
       },
       // Note: The longer the timeout, the higher the possibility that all dynamic form
-      //       changes have occured. Default timeout is 1000ms and should not be increased
-      //       to avoid accidentially filling on non-script/user actions.
+      //       changes have occurred. Default timeout is 1000ms and should not be increased
+      //       to avoid accidentally filling on non-script/user actions.
       lazy.FormAutofill.fillOnDynamicFormChangeTimeout
     );
 
@@ -1098,7 +1098,7 @@ export class FormAutofillChild extends JSWindowActorChild {
    * for the given input.
    *
    * @param {HTMLElement} input - The input or textarea element to search for autocomplete entries
-   * @returns {boolean} true if we shold search for autocomplete entries
+   * @returns {boolean} true if we should search for autocomplete entries
    */
   shouldSearchForAutoComplete(input) {
     const fieldDetail = this._fieldDetailsManager

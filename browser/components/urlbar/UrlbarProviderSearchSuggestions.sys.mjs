@@ -334,7 +334,7 @@ export class UrlbarProviderSearchSuggestions extends UrlbarProvider {
    * Returns the menu commands to be shown for trending results.
    *
    * @param {UrlbarResult} result
-   *   The result to get menu comands for.
+   *   The result to get menu commands for.
    */
   getResultCommands(result) {
     if (result.payload.trending) {
@@ -628,7 +628,7 @@ export class UrlbarProviderSearchSuggestions extends UrlbarProvider {
   /**
    * Whether we should show trending suggestions. These are shown when the
    * user enters a specific engines searchMode when enabled, the
-   * seperate `requireSearchMode` pref controls whether they are visible
+   * separate `requireSearchMode` pref controls whether they are visible
    * when the urlbar is first opened without any search mode.
    *
    * @param {UrlbarQueryContext} queryContext
