@@ -3829,7 +3829,7 @@ ${
       return Services.uriFixup.getFixupURIInfo(searchString, flags);
     } catch (ex) {
       console.error(
-        `An error occurred while trying to fixup "${searchString}"`,
+        `An error occurred while trying to fix "${searchString}"`,
         ex
       );
     }
@@ -4576,7 +4576,7 @@ ${
       );
       value = info.fixedURI.spec;
     } catch (ex) {
-      console.error(`An error occurred while trying to fixup "${value}"`, ex);
+      console.error(`An error occurred while trying to fix "${value}"`, ex);
     }
 
     this.value = value;
