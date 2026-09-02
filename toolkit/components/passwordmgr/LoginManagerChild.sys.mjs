@@ -2273,7 +2273,7 @@ export class LoginManagerChild extends JSWindowActorChild {
    * @param {string} reason form submission reason
    */
   _onFormSubmit(form, reason) {
-    lazy.log(`Handling form submission - infered by ${reason}`);
+    lazy.log(`Handling form submission - inferred by ${reason}`);
 
     this._maybeSendFormInteractionMessage(
       form,
