@@ -1093,7 +1093,7 @@ export class AddonWrapper {
     return this.recommendationStates.includes("recommended");
   }
 
-  get canBypassThirdParyInstallPrompt() {
+  get canBypassThirdPartyInstallPrompt() {
     // We only bypass if the extension is signed (to support distributions
     // that turn off the signing requirement) and has recommendation states,
     // or the extension is signed as privileged.

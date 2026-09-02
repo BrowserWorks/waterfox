@@ -490,7 +490,7 @@ function makeTimeout(alertName) {
     // stop waiting for it.
     let timeoutMs = kNotificationTimeoutMs;
 
-    // Allow overriding the notification timeout fron an environment variable.
+    // Allow overriding the notification timeout from an environment variable.
     const envTimeoutKey = "MOZ_NOTIFICATION_TIMEOUT_MS";
     if (Services.env.exists(envTimeoutKey)) {
       let envTimeoutValue = Services.env.get(envTimeoutKey);

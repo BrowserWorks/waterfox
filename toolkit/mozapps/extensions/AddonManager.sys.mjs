@@ -3371,7 +3371,7 @@ var AddonManagerInternal = {
     }
 
     // Some addons such as recommended addons do not result in this prompt.
-    if (info.addon.canBypassThirdParyInstallPrompt) {
+    if (info.addon.canBypassThirdPartyInstallPrompt) {
       return Promise.resolve();
     }
 
@@ -5624,7 +5624,7 @@ AMTelemetry = {
    *        The AddonInstall instance to retrieve the source from.
    *
    * @returns {object | null}
-   *          The telemetry infor ({source, method}) from the given AddonInstall instance.
+   *          The telemetry info ({source, method}) from the given AddonInstall instance.
    */
   getInstallTelemetryInfo(install) {
     if (install.installTelemetryInfo) {
