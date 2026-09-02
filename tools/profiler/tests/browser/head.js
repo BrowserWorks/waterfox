@@ -12,7 +12,7 @@ const BASE_URL_HTTPS =
 registerCleanupFunction(async () => {
   if (Services.profiler.IsActive()) {
     info(
-      "The profiler was found to still be running at the end of the test, which means that some error likely occured. Let's stop it to prevent issues with following tests!"
+      "The profiler was found to still be running at the end of the test, which means that some error likely occurred. Let's stop it to prevent issues with following tests!"
     );
     await Services.profiler.StopProfiler();
   }

@@ -74,7 +74,7 @@ decorate_task(ensureAddonCleanup(), async function id_mismatch() {
     );
   }
 
-  ok(error, "an error occured");
+  ok(error, "an error occurred");
 
   // Ensure applyNormandyChanges was called
   await applyDeferred;
@@ -176,7 +176,7 @@ decorate_task(ensureAddonCleanup(), async function download_failure() {
     );
   }
 
-  ok(error, "an error occured");
+  ok(error, "an error occurred");
 
   // Ensure applyNormandyChanges was called
   await applyDeferred;

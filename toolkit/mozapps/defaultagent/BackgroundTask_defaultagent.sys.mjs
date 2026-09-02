@@ -470,7 +470,7 @@ function makeObserver(actions) {
             action: kNotificationAction.dismissedToActionCenter,
           });
         } else {
-          // Being dismissed without shown means an error occured
+          // Being dismissed without shown means an error occurred
           lazy.log.error("Error showing notification.");
           shownPromise.resolve({
             shown: kNotificationShown.error,

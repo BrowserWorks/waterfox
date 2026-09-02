@@ -413,7 +413,7 @@ const SORT_BY = Object.freeze({
    *
    * Cache structure: `Map<string, HistoryVisit[]>`
    * - Key: Timestamp for visit date.
-   * - Value: Array of visits that occured on that day, sorted newest first.
+   * - Value: Array of visits that occurred on that day, sorted newest first.
    */
   DATE: "date",
 

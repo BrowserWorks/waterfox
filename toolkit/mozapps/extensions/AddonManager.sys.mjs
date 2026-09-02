@@ -5141,7 +5141,7 @@ export class EnvironmentAddonBuilder {
    *
    * @returns Promise<Object> This returns a Promise resolved with a status object with the following members:
    *   changed - Whether the environment changed.
-   *   oldEnvironment - Only set if a change occured, contains the environment data before the change.
+   *   oldEnvironment - Only set if a change occurred, contains the environment data before the change.
    */
   async _updateAddons() {
     this._log.trace("_updateAddons");
