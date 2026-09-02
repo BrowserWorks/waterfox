@@ -261,7 +261,7 @@ function testInvalidUDPOptions() {
 }
 
 function testOpenFailed() {
-  info('test for falied on open');
+  info('test for failed on open');
 
   //according to RFC5737, address block 192.0.2.0/24 should not be used in both local and public contexts
   let socket = new UDPSocket({localAddress: '192.0.2.0'});
