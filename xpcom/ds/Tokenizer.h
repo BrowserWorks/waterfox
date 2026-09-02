@@ -286,7 +286,7 @@ class TTokenizer : public TokenizerBase<TChar> {
   };
 
   /**
-   * Skips any occurence of whitespaces specified in mWhitespaces member,
+   * Skips any occurrence of whitespaces specified in mWhitespaces member,
    * optionally skip also new lines.
    */
   void SkipWhites(WhiteSkipping aIncludeNewLines = DONT_INCLUDE_NEW_LINE);
@@ -499,7 +499,7 @@ class TTokenizer : public TokenizerBase<TChar> {
    * Returns the read cursor position back as it was before the last call of any
    * parsing method of TTokenizer (Next, Check*, Skip*, Read*) so that the last
    * operation can be repeated. Rollback cannot be used multiple times, it only
-   * reverts the last successfull parse operation.  It also cannot be used
+   * reverts the last successful parse operation.  It also cannot be used
    * before any parsing operation has been called on the TTokenizer.
    */
   void Rollback();

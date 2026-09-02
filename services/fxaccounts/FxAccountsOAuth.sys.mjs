@@ -53,7 +53,7 @@ export class FxAccountsOAuth {
    * @param {object} value: The data needed to complete a flow, once the oauth code is available.
    * in practice, `value` is:
    *  - `verifier`: A base=64 URL-safe string representing the PKCE code verifier
-   *  - `key`: The private key need to decrypt the JWE we recieve from the auth server
+   *  - `key`: The private key need to decrypt the JWE we receive from the auth server
    *  - `requestedScopes`: The scopes the caller requested, meant to be compared against the scopes the server authorized
    */
   addFlow(state, value) {
@@ -74,7 +74,7 @@ export class FxAccountsOAuth {
    * @returns {object}: The values initially stored when startign th eoauth flow
    * in practice, the return value is:
    *  - `verifier`: A base=64 URL-safe string representing the PKCE code verifier
-   *  - `key`: The private key need to decrypt the JWE we recieve from the auth server
+   *  - `key`: The private key need to decrypt the JWE we receive from the auth server
    *  - ``requestedScopes`: The scopes the caller requested, meant to be compared against the scopes the server authorized
    */
   getFlow(state) {
@@ -100,7 +100,7 @@ export class FxAccountsOAuth {
    *     added to the FxA authorization URL to initialize an oAuth flow.
    *     In practice, the query parameters are:
    *       - `client_id`: The OAuth client ID for Firefox Desktop
-   *       - `scope`: The scopes given by the caller, space seperated
+   *       - `scope`: The scopes given by the caller, space separated
    *       - `action`: This will always be `email`
    *       - `response_type`: This will always be `code`
    *       - `access_type`: This will always be `offline`

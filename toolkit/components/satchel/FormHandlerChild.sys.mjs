@@ -96,7 +96,7 @@ export class FormHandlerChild extends JSWindowActorChild {
 
   /**
    * Process the DOMDocFetchSuccess event that is dispatched
-   * after a successfull xhr/fetch request and start listening for
+   * after a successful xhr/fetch request and start listening for
    * the events DOMFormRemoved and DOMInputPasswordRemoved
    */
   processDOMDocFetchSuccessEvent() {

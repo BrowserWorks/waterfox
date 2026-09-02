@@ -218,7 +218,7 @@ enum nsChangeHint : uint32_t {
   nsChangeHint_UpdateTableCellSpans = 1 << 26,
 
   /**
-   * Indicates that the visiblity property changed.
+   * Indicates that the visibility property changed.
    * This change hint is used for skip restyling for animations on
    * visibility:hidden elements in the case where the elements have no visible
    * descendants.

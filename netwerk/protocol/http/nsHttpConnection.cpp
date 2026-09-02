@@ -642,8 +642,8 @@ nsresult nsHttpConnection::Activate(nsAHttpTransaction* trans, uint32_t caps,
   SetSecurityCallbacks(callbacks);
   mTlsHandshaker->SetupSSL(mInSpdyTunnel, mForcePlainText);
   if (mTlsHandshaker->NPNComplete()) {
-    // For non-HTTPS connection, change the state to TRANSFERING directly.
-    ChangeConnectionState(ConnectionState::TRANSFERING);
+    // For non-HTTPS connection, change the state to TRANSFERRING directly.
+    ChangeConnectionState(ConnectionState::TRANSFERRING);
   } else {
     ChangeConnectionState(ConnectionState::TLS_HANDSHAKING);
   }
@@ -2561,7 +2561,7 @@ void nsHttpConnection::HandshakeDoneInternal() {
     return;
   }
 
-  ChangeConnectionState(ConnectionState::TRANSFERING);
+  ChangeConnectionState(ConnectionState::TRANSFERRING);
 
   nsCOMPtr<nsITLSSocketControl> tlsSocketControl;
   GetTLSSocketControl(getter_AddRefs(tlsSocketControl));

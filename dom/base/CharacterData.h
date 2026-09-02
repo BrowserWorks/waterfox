@@ -254,7 +254,7 @@ class CharacterData : public nsIContent {
       CharacterDataChangeInfo::Details* aDetails = nullptr);
 
   /**
-   * Method to clone this node. This needs to be overriden by all derived
+   * Method to clone this node. This needs to be overridden by all derived
    * classes. If aCloneText is true the text content will be cloned too.
    *
    * @param aOwnerDocument the ownerDocument of the clone

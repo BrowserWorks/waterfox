@@ -1232,7 +1232,7 @@ class UpdateIsOnContentBlockingAllowListOp final : public ExtendableEventOp {
 };
 
 /**
- * Used for ScopeExit-style network request cancelation in
+ * Used for ScopeExit-style network request cancellation in
  * `ResolvedCallback()` (e.g. if `FetchEvent::RespondWith()` is resolved with
  * a non-JS object).
  */

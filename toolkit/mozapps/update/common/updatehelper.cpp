@@ -333,7 +333,7 @@ BOOL StartServiceUpdate(LPCWSTR installDir) {
   wcsncpy(newMaintServicePath, installDir, MAX_PATH);
   PathAppendSafe(newMaintServicePath, L"maintenanceservice.exe");
 
-  // Copy the temp file in alongside the maintenace service.
+  // Copy the temp file in alongside the maintenance service.
   // This is a requirement for maintenance service upgrades.
   if (!CopyFileW(newMaintServicePath, tmpService, FALSE)) {
     LOG(("StartServiceUpdate: Failed to copy temp MMS"));
@@ -628,7 +628,7 @@ WaitForServiceStop(LPCWSTR serviceName, DWORD maxWaitSeconds) {
  * Determines if there is at least one process running for the specified
  * application. A match will be found across any session for any user.
  *
- * @param process The process to check for existance
+ * @param process The process to check for existence
  * @return ERROR_NOT_FOUND if the process was not found
  *         ERROR_SUCCESS if the process was found and there were no errors
  *         Other Win32 system error code for other errors
@@ -741,7 +741,7 @@ static BOOL GetDWORDValue(HKEY key, LPCWSTR valueName, DWORD& retValue) {
 
 /**
  * Determines if the the system's elevation type allows
- * unprmopted elevation.
+ * unprompted elevation.
  *
  * @param isUnpromptedElevation Out parameter which specifies if unprompted
  *                              elevation is allowed.

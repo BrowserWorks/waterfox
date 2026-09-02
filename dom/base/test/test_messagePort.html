@@ -26,9 +26,9 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=912456
 
       try {
         evt.data.port.postMessage({port: a1.port2});
-        ok(false, "PostMessage should throw! - no transfered port");
+        ok(false, "PostMessage should throw! - no transferred port");
       } catch(e) {
-        ok(true, "PostMessage should throw! - no transfered port");
+        ok(true, "PostMessage should throw! - no transferred port");
       }
 
       try {
@@ -49,9 +49,9 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=912456
 
     try {
       postMessage({ port: a.port2}, 42, '*');
-      ok(false, "PostMessage should throw! - no transfered port");
+      ok(false, "PostMessage should throw! - no transferred port");
     } catch(e) {
-      ok(true, "PostMessage should throw! - no transfered port");
+      ok(true, "PostMessage should throw! - no transferred port");
     }
 
     try {

@@ -1458,7 +1458,7 @@ var gBlocklistLevel = DEFAULT_LEVEL;
 /**
  * @function prompt
  *
- * Prompt the user about newly blocked addons. The prompt is then resposible
+ * Prompt the user about newly blocked addons. The prompt is then responsible
  * for soft-blocking any addons that need to be afterwards
  *
  * @param {object[]} aAddons

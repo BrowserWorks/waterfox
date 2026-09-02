@@ -359,7 +359,7 @@ class nsSHistory : public mozilla::LinkedListElement<nsSHistory>,
   // Max viewers allowed total, across all SHistory objects
   static int32_t sHistoryMaxTotalViewers;
 
-  // The epoch (and id) tell us what navigations occured within the same
+  // The epoch (and id) tell us what navigations occurred within the same
   // event-loop spin in the child.  We need to know this in order to
   // implement spec requirements for dropping pending navigations when we
   // do a history navigation, if it's not same-document.  Content processes

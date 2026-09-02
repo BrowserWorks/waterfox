@@ -477,7 +477,7 @@ function promiseDownloadMidway(aDownload) {
  *        The Download object to wait upon.
  *
  * @returns {Promise<void>}
- *   Resolves when the download has transfered any number of bytes.
+ *   Resolves when the download has transferred any number of bytes.
  * @rejects Never.
  */
 function promiseDownloadStarted(aDownload) {

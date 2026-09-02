@@ -576,7 +576,7 @@ Download.prototype = {
 
           // An HTTP 450 error code is used by Windows to indicate that a uri is
           // blocked by parental controls. This will prevent the download from
-          // occuring, so an error needs to be raised. This is not performed
+          // occurring, so an error needs to be raised. This is not performed
           // during the parental controls check above as it requires the request
           // to start.
           if (this._blockedByParentalControls) {

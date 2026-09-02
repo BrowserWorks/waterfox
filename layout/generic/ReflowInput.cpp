@@ -323,7 +323,7 @@ ReflowInput::ReflowInput(nsPresContext* aPresContext,
                    "nsPageContentFrame should not be in non-paginated reflow");
         MOZ_ASSERT(!mFlags.mCanHaveClassABreakpoints,
                    "mFlags.mCanHaveClassABreakpoints should have been "
-                   "initalized to false before we found nsPageContentFrame");
+                   "initialized to false before we found nsPageContentFrame");
         mFlags.mCanHaveClassABreakpoints = true;
         break;
       case LayoutFrameType::Block:          // FALLTHROUGH

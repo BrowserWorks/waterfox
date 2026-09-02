@@ -4233,7 +4233,7 @@ goog.require("goog.dom.NodeType");
 goog.require("goog.dom.SavedCaretRange");
 goog.require("goog.dom.TagIterator");
 goog.require("goog.userAgent");
-goog.dom.RangeType = {TEXT:"text", CONTROL:"control", MULTI:"mutli"};
+goog.dom.RangeType = {TEXT:"text", CONTROL:"control", MULTI:"multi"};
 goog.dom.AbstractRange = function() {
 };
 goog.dom.AbstractRange.getBrowserSelectionForWindow = function(win) {

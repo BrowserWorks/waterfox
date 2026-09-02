@@ -318,7 +318,7 @@ class TextDrawTarget : public DrawTarget {
     mBuilder.PushLine(ClipRect(), mBackfaceVisible, decoration);
   }
 
-  // Seperated out from AppendDecoration because Wavy Lines are completely
+  // Separated out from AppendDecoration because Wavy Lines are completely
   // different, and trying to merge the concept is more of a mess than it's
   // worth.
   void AppendWavyDecoration(const Rect& aBounds, const float aThickness,

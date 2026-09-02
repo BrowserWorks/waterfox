@@ -85,16 +85,16 @@ void NativeThreadHandle::CancelBlockingIO(Monitor& aMonitor) {
   LOG(("CacheIOThread: Attempting to cancel a long blocking IO operation"));
   BOOL result = ::CancelSynchronousIo(thread);
   if (result) {
-    LOG(("  cancelation signal succeeded"));
+    LOG(("  cancellation signal succeeded"));
   } else {
     DWORD error = GetLastError();
-    LOG(("  cancelation signal failed with GetLastError=%lu", error));
+    LOG(("  cancellation signal failed with GetLastError=%lu", error));
   }
 }
 
 #else  // WIN
 
-// Stub code only (we don't implement IO cancelation for this platform)
+// Stub code only (we don't implement IO cancellation for this platform)
 
 void NativeThreadHandle::InitThread() {}
 void NativeThreadHandle::CancelBlockingIO(Monitor&) {}

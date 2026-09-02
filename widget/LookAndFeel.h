@@ -47,7 +47,7 @@ class LookAndFeel {
   // When modifying this list, also modify nsXPLookAndFeel::sIntPrefs
   // in widget/xpwidgts/nsXPLookAndFeel.cpp.
   enum class IntID {
-    // default, may be overriden by OS
+    // default, may be overridden by OS
     CaretBlinkTime,
     // Amount of blinks that happen before the caret stops blinking.
     CaretBlinkCount,

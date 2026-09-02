@@ -192,7 +192,7 @@ class nsMemoryReporterManager final : public nsIMemoryReporterManager,
 #endif  // XP_{WIN, MACOSX, LINUX, *}
 
 #ifdef XP_MACOSX
-  // Retrive the "phys_footprint" memory statistic on MacOS.
+  // Retrieve the "phys_footprint" memory statistic on MacOS.
   static int64_t PhysicalFootprint(mach_port_t aPort = 0);
 #endif
 

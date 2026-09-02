@@ -28,7 +28,7 @@ function dirtyFrame(win) {
 
 /**
  * Async utility function to collect the stacks of uninterruptible reflows
- * occuring during some period of time in a window.
+ * occurring during some period of time in a window.
  *
  * @param testPromise (Promise)
  *        A promise that is resolved when the data collection should stop.
@@ -377,7 +377,7 @@ function computeMaxTabCount() {
   Assert.greater(
     maxTabCount,
     0,
-    "Tabstrip needs to be wide enough to accomodate at least 1 more tab " +
+    "Tabstrip needs to be wide enough to accommodate at least 1 more tab " +
       "without overflowing."
   );
   return maxTabCount;

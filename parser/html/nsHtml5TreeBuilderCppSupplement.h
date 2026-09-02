@@ -1801,7 +1801,7 @@ nsIContentHandle* nsHtml5TreeBuilder::getFormPointerForContext(
   nsIContent* currentAncestor = contextNode;
 
   // We traverse the ancestors of the context node to find the nearest
-  // form pointer. This traversal is why aContext must not be an emtpy handle.
+  // form pointer. This traversal is why aContext must not be an empty handle.
   nsIContent* nearestForm = nullptr;
   while (currentAncestor) {
     if (currentAncestor->IsHTMLElement(nsGkAtoms::form)) {

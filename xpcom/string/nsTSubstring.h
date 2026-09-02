@@ -665,7 +665,7 @@ class nsTSubstring : public mozilla::detail::nsTStringRepr<T> {
   void StripCRLF();
 
   /**
-   * swaps occurence of 1 string for another
+   * swaps occurrence of 1 string for another
    */
   void ReplaceChar(char_type aOldChar, char_type aNewChar);
   void ReplaceChar(const string_view& aSet, char_type aNewChar);

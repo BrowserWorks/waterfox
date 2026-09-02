@@ -181,7 +181,7 @@ def test_perfherder_test_settings():
             assert subtest.get("unit") == "metric-unit"
             checked += 1
         elif subtest["name"] == "mochitest-metric3":
-            # CLI args should be overriden
+            # CLI args should be overridden
             assert not subtest.get("shouldAlert")
             assert not subtest.get("lowerIsBetter")
             checked += 1

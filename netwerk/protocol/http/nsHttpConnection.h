@@ -327,7 +327,7 @@ class nsHttpConnection final : public HttpConnectionBase,
   bool mInSpdyTunnel{false};
   bool mForcePlainText{false};
 
-  // A snapshot of current number of transfered bytes
+  // A snapshot of current number of transferred bytes
   int64_t mTrafficCount{0};
   bool mTrafficStamp{false};  // true then the above is set
 
@@ -370,7 +370,7 @@ class nsHttpConnection final : public HttpConnectionBase,
 
   bool mResponseTimeoutEnabled{false};
 
-  // Flag to indicate connection is in inital keepalive period (fast detect).
+  // Flag to indicate connection is in initial keepalive period (fast detect).
   uint32_t mTCPKeepaliveConfig{kTCPKeepaliveDisabled};
   nsCOMPtr<nsITimer> mTCPKeepaliveTransitionTimer;
 

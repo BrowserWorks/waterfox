@@ -64,7 +64,7 @@ function closeTest(msg) {
 
 function emptyTest(msg) {
   let portSize = msg.ports.length;
-  is(portSize, 0, "transfered port size is zero.");
+  is(portSize, 0, "transferred port size is zero.");
 
   sendAsyncMessage("EmptyTest:FinishPrepare", { message: "OK" });
 }

@@ -243,7 +243,7 @@ export class AutoCompleteChild extends JSWindowActorChild {
   #ongoingSearches = new Set();
 
   async startSearch(searchString, input, listener) {
-    // For all the autocomplete entry providers that previsouly marked
+    // For all the autocomplete entry providers that previously marked
     // this <input> as autocompletable, ask the provider whether we should
     // search for autocomplete entries in the parent. This is because the current
     // design doesn't rely on the provider constantly monitor the <input> and

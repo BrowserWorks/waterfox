@@ -1089,7 +1089,7 @@ void CacheEntry::OnHandleClosed(CacheEntryHandle const* aHandle) {
     // entry itself when RECHECK_AFTER_WRITE is returned from onCacheEntryCheck.
     LOG(
         ("  we are in READY state, pretend we have data regardless it"
-         " has actully been never touched"));
+         " has actually been never touched"));
     mHasData = true;
   }
 }

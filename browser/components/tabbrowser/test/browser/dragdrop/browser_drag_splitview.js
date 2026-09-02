@@ -553,7 +553,7 @@ add_task(async function test_dragstart_below_splitview_does_not_grab() {
     (splitViewRect.bottom + scrollboxRect.bottom) / 2 - scrollboxRect.top;
 
   info("Drag horizontally through the bottom margin of split view wrapper.");
-  // FIXME Bug 2044440 - synthesizePlainDragAndDrop() should supress a11y checks for expectCancelDragStart
+  // FIXME Bug 2044440 - synthesizePlainDragAndDrop() should suppress a11y checks for expectCancelDragStart
   AccessibilityUtils.setEnv({ mustHaveAccessibleRule: false });
   await EventUtils.synthesizePlainDragAndDrop({
     srcElement: arrowScrollbox,

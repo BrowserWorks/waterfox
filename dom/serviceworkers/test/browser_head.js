@@ -124,7 +124,7 @@ function swm_lookup_reg(swDesc) {
  *   there are (security) checks if the scope is more generic than the page
  *   URL, you almost never would want to specify an absolute scope here.
  * - script: The script, which usually just wants to be a relative path.
- * - origin: Requred, the origin (which should not include a trailing slash).
+ * - origin: Required, the origin (which should not include a trailing slash).
  */
 async function install_sw(swDesc) {
   info(

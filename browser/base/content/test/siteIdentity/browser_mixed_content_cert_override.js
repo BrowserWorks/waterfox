@@ -1,5 +1,5 @@
 /*
- * Bug 1253771 - check mixed content blocking in combination with overriden certificates
+ * Bug 1253771 - check mixed content blocking in combination with overridden certificates
  */
 
 "use strict";

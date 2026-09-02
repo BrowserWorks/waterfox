@@ -672,7 +672,7 @@ class JSONPoliciesProvider {
     let alternatePath = Services.prefs.getStringPref(PREF_ALTERNATE_PATH, "");
 
     // Check if we are in automation *before* we use the synchronous
-    // nsIFile.exists() function or allow the config file to be overriden
+    // nsIFile.exists() function or allow the config file to be overridden
     // An alternate policy path can also be used in Nightly builds (for
     // testing purposes), but the Background Update Agent will be unable to
     // detect the alternate policy file so the DisableAppUpdate policy may not

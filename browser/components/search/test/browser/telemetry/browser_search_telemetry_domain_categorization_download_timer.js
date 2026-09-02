@@ -231,7 +231,7 @@ add_task(async function test_download_after_multiple_failures() {
   ).then(() => (timeout = true));
   await Promise.race([firstPromise, secondPromise]);
   Assert.equal(consoleObserved, false, "Encountered download failure");
-  Assert.equal(timeout, true, "Timeout occured");
+  Assert.equal(timeout, true, "Timeout occurred");
 
   Assert.ok(SERPDomainToCategoriesMap.empty, "Map is empty");
 
@@ -284,7 +284,7 @@ add_task(async function test_cancel_download_timer() {
   ).then(() => (timeout = true));
   await Promise.race([firstPromise, secondPromise]);
   Assert.equal(consoleObserved, false, "Encountered download failure");
-  Assert.equal(timeout, true, "Timeout occured");
+  Assert.equal(timeout, true, "Timeout occurred");
   Assert.ok(SERPDomainToCategoriesMap.empty, "Map is empty");
 
   // Clean up.
@@ -326,7 +326,7 @@ add_task(async function test_download_adjust() {
     setTimeout(resolve, 250)
   ).then(() => (timeout = true));
   await Promise.race([firstPromise, secondPromise]);
-  Assert.equal(timeout, true, "Timeout occured");
+  Assert.equal(timeout, true, "Timeout occurred");
   Assert.equal(consoleObserved, false, "Encountered download failure");
 
   await firstPromise;

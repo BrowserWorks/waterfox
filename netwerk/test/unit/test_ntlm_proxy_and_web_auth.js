@@ -333,7 +333,7 @@ function setupTest(path, handler, requests, response, clearCache) {
 }
 
 // Happy code path
-// Succesful proxy and web server auth.
+// Successful proxy and web server auth.
 add_task(async function test_happy_path() {
   dump("RUNNING TEST: test_happy_path");
   await setupTest("/auth", authHandler, 5, 200, 1);

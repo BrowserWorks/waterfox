@@ -1513,7 +1513,7 @@ class HTMLMediaElement : public nsGenericHTMLElement,
       false, "HTMLMediaElement::mSrcStreamPlaybackEnded"};
 
   // Mirrors mSrcStreamPlaybackEnded after a tail dispatch when set to true,
-  // but may be be forced to false directly. To accomodate when an application
+  // but may be be forced to false directly. To accommodate when an application
   // ends playback synchronously by manipulating mSrcStream or its tracks,
   // e.g., through MediaStream.removeTrack(), or MediaStreamTrack.stop().
   bool mSrcStreamReportPlaybackEnded = false;

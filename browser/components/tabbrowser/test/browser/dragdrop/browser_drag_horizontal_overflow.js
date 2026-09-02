@@ -35,7 +35,7 @@ add_task(async function test_dragstart_on_scroll_button_does_not_grab_tab() {
   const tabOrder = [...gBrowser.tabs];
 
   info("Attempt to hold, then drag, the enabled scroll button.");
-  // FIXME Bug 2044440 - synthesizePlainDragAndDrop() should supress a11y checks for expectCancelDragStart
+  // FIXME Bug 2044440 - synthesizePlainDragAndDrop() should suppress a11y checks for expectCancelDragStart
   AccessibilityUtils.setEnv({ mustHaveAccessibleRule: false });
   await EventUtils.synthesizePlainDragAndDrop({
     srcElement: button,

@@ -89,7 +89,7 @@ add_task(async function test_results_as_visit() {
     );
   }
 
-  // Check our inital result set
+  // Check our initial result set
   compareArrayToResult(testData, root);
 
   // If that passes, check liveupdate

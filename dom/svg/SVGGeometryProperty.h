@@ -145,7 +145,7 @@ float ResolveImpl(ComputedStyle const& aStyle, const SVGElement* aElement,
     }
 
     if (valueOther->IsLengthPercentage()) {
-      // We are |auto|, but the other side has specifed length.
+      // We are |auto|, but the other side has specified length.
       float lengthOther = ResolvePureLengthPercentage<Other::Axis>(
           aElement, valueOther->AsLengthPercentage());
 

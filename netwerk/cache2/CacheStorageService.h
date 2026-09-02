@@ -258,7 +258,7 @@ class CacheStorageService final : public nsICacheStorageService,
                            CacheEntryHandle** aResult);
 
   /**
-   * Check existance of an entry.  This may throw NS_ERROR_NOT_AVAILABLE
+   * Check existence of an entry.  This may throw NS_ERROR_NOT_AVAILABLE
    * when the information cannot be obtained synchronously w/o blocking.
    */
   nsresult CheckStorageEntry(CacheStorage const* aStorage,

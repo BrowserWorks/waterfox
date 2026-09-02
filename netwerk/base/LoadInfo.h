@@ -372,7 +372,7 @@ class LoadInfo final : public nsILoadInfo {
   // loadinfo. Within Document::InitCSP() we check if the newly created
   // document needs to inherit the CSP. If so, we call
   // GetCSPToInherit() and set the inherited CSP as the CSP for the new
-  // document. Please note that any additonal Meta CSP in that document
+  // document. Please note that any additional Meta CSP in that document
   // will be merged into that CSP. Any subresource loads within that
   // document subesquently will receive the correct CSP by querying
   // loadinfo->GetCsp() from that point on.

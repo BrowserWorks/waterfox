@@ -46,7 +46,7 @@ function createTestingEnvironment(markerFileOnly = false) {
  * operation fails for some reasons. P1 introduces the mark-file to let the
  * future operation understand whether there might be unexpected files in idb
  * directory. And, this test verifies these three things work fine if a
- * marker-file, a databse file, and a directory exist in current idb directory.
+ * marker-file, a database file, and a directory exist in current idb directory.
  */
 
 /* exported testSteps */

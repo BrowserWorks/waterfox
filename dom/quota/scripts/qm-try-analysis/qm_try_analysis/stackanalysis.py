@@ -240,7 +240,7 @@ def collectRawStacks(rows):
     return raw_stacks
 
 
-# Merge all stacks that have the same hash key and count occurences.
+# Merge all stacks that have the same hash key and count occurrences.
 # Relys on the ordering per client_id/session_id for correct counting.
 def mergeEqualStacks(raw_stacks):
     merged_stacks = {}

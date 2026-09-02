@@ -876,7 +876,7 @@ void nsContentSink::DropParserAndPerfHint(void) {
 
   // Ref. Bug 49115
   // Do this hack to make sure that the parser
-  // doesn't get destroyed, accidently, before
+  // doesn't get destroyed, accidentally, before
   // the circularity, between sink & parser, is
   // actually broken.
   // Drop our reference to the parser to get rid of a circular

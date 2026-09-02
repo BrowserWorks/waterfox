@@ -164,7 +164,7 @@ class MOZ_STACK_CLASS MayConsumeMicroTask {
 };
 
 // A gecko wrapper for the JS::MicroTask type. Used to enforce both
-// that this is handled move only, but also that we have succesfully
+// that this is handled move only, but also that we have successfully
 // consumed this microtask before destruction.
 //
 // This type must be rooted, it holds onto a JS reference.
@@ -207,7 +207,7 @@ class MOZ_STACK_CLASS MustConsumeMicroTask : public MayConsumeMicroTask {
   explicit operator bool() const { return !IsConsumed(); }
 
   // Take ownership of a non-JS task inside a JS::GenericMicroTask - This clears
-  // the contents of the value to make it clear that we've transfered ownership.
+  // the contents of the value to make it clear that we've transferred ownership.
   // `this` is marked is only edited if unwrapping succeeds, and so
   // you can conditionally try to consume as owned;
   //

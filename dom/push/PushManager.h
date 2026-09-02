@@ -15,7 +15,7 @@
  *
  * On the main thread, PushManager wraps a JS-implemented PushManagerImpl
  * instance. The C++ wrapper is necessary because our bindings code cannot
- * accomodate "JS-implemented on the main thread, C++ on the worker" bindings.
+ * accommodate "JS-implemented on the main thread, C++ on the worker" bindings.
  *
  * PushSubscription is in C++ on both threads since it isn't particularly
  * verbose to implement in C++ compared to JS.

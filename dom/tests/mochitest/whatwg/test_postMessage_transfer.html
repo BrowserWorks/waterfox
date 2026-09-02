@@ -40,7 +40,7 @@ function testFunc(target, origin) {
   is(cd.byteLength, 1, "cd should not be detached");
 
   onmessage = function(e) {
-    is(e.data[0].byteLength, 1, "ab should be transfered");
+    is(e.data[0].byteLength, 1, "ab should be transferred");
     is(e.data[1].byteLength, 1, "cd should be cloned");
     nextTest();
   };

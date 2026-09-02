@@ -918,7 +918,7 @@ export var DownloadIntegration = {
     // system handler, but it could also be an executable type, and we
     // don't have an exhaustive list with all of them.
     if (!fileExtension && AppConstants.platform == "win") {
-      // We can't check for the existance of a same-name file with every
+      // We can't check for the existence of a same-name file with every
       // possible executable extension, so this is a catch-all.
       this.showContainingDirectory(aDownload.target.path);
       return;

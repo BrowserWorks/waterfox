@@ -413,7 +413,7 @@ Finder.prototype = {
     let selText;
 
     // If this is a remote subframe, return an empty string but
-    // indiciate which browsing context was focused.
+    // indicate which browsing context was focused.
     if (
       focusedElement &&
       "frameLoader" in focusedElement &&

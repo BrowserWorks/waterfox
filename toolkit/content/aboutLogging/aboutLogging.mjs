@@ -877,7 +877,7 @@ function startLogging() {
         );
       }
     } else {
-      // a baseline set of threads, and possibly others, overriden by the URL
+      // a baseline set of threads, and possibly others, overridden by the URL
       lazy.ProfilerPrefsPresets.changePreset(
         "aboutlogging",
         "firefox-platform",

@@ -304,7 +304,7 @@ BasePromiseWorker.prototype = {
    * @param {string} fun The name of the function to call.
    * @param {Array} args The arguments to pass to `fun`. If any
    * of the arguments is a Promise, it is resolved before posting the
-   * message. If any of the arguments needs to be transfered instead
+   * message. If any of the arguments needs to be transferred instead
    * of copied, this may be specified by making the argument an instance
    * of `BasePromiseWorker.Meta` or by using the `transfers` argument.
    * By convention, the last argument may be an object `options`
@@ -313,7 +313,7 @@ BasePromiseWorker.prototype = {
    *   duration of the off main thread execution for this call.
    * @param {*=} closure An object holding references that should not be
    * garbage-collected before the message treatment is complete.
-   * @param {Array=} transfers An array of objects that should be transfered
+   * @param {Array=} transfers An array of objects that should be transferred
    * to the worker instead of being copied. If any of the objects is a Promise,
    * it is resolved before posting the message.
    *

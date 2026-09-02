@@ -35,7 +35,7 @@ var glFragmentShader = wtu.loadShader(gl, wtu.simpleColorFragmentShader, gl.FRAG
 // The vertex shader has numVector number of vectors and a matrix with numMatrixDimensions
 // dimensions at location numMatrixPosition in the list of attributes.
 // Ensures that every vector and matrix is used by the program.
-// Returns a valid program on successfull link; null on link failure.
+// Returns a valid program on successful link; null on link failure.
 function prepareMatrixProgram(numVectors, numMatrixDimensions, numMatrixPosition) {
     // Add the matrix and vector attribute declarations. Declare the vectors
     // to have the same number of components as the matrix so we can perform

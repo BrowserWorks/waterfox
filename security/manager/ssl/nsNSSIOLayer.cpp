@@ -1128,7 +1128,7 @@ void nsSSLIOLayerHelpers::loadVersionFallbackLimit() {
   if (tlsFlagsFallbackLimit) {
     limit = tlsFlagsFallbackLimit;
     MOZ_LOG(gPIPNSSLog, LogLevel::Debug,
-            ("loadVersionFallbackLimit overriden by tlsFlags %d\n", limit));
+            ("loadVersionFallbackLimit overridden by tlsFlags %d\n", limit));
   }
 
   SSLVersionRange defaults = {SSL_LIBRARY_VERSION_TLS_1_2,
@@ -1683,7 +1683,7 @@ static nsresult nsSSLIOLayerSetOptions(PRFileDesc* fd, bool forSTARTTLS,
     std::vector<uint16_t> ciphers(SSL_GetNumImplementedCiphers());
 
     // Returns only the enabled (reflecting prefs) ciphers, ordered
-    // by their occurence in
+    // by their occurrence in
     // https://hg.mozilla.org/projects/nss/file/a75ea4cdacd95282c6c245ebb849c25e84ccd908/lib/ssl/ssl3con.c#l87
     if (SSL_CipherSuiteOrderGet(fd, ciphers.data(), &enabledCiphers) !=
         SECSuccess) {

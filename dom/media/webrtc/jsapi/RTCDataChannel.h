@@ -72,7 +72,7 @@ class RTCDataChannel final : public DOMEventTargetHelper {
   Nullable<uint16_t> GetId() const;
 
   // Transferable support, see
-  // https://w3c.github.io/webrtc-pc/#transfering-a-data-channel
+  // https://w3c.github.io/webrtc-pc/#transferring-a-data-channel
 
   // - Implementation of 'dataHolder'
   struct DataHolder {

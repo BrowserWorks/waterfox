@@ -351,7 +351,7 @@ add_task(async function test_settings_write_when_settings_changed() {
 
   Assert.ok(
     SearchService._settings.isCurrentAndCachedSettingsEqual(),
-    "Settings and cached settings should be the same after search service initializaiton."
+    "Settings and cached settings should be the same after search service initialization."
   );
 
   const settingsFileWritten2 = promiseAfterSettings();
@@ -422,7 +422,7 @@ add_task(
 
     Assert.ok(
       SearchService._settings.isCurrentAndCachedSettingsEqual(),
-      "Settings and cached settings should be the same after search service initializaiton."
+      "Settings and cached settings should be the same after search service initialization."
     );
 
     // Update settings.

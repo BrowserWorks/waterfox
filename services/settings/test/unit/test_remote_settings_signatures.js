@@ -608,7 +608,7 @@ add_task(async function test_check_synchronization_with_signatures() {
   // was not sent.
   equal(syncEventSent, false);
 
-  // ensure that the failure count is incremented for a succesful sync with an
+  // ensure that the failure count is incremented for a successful sync with an
   // (initial) bad signature - only SERVICES_SETTINGS_SYNC_SIG_FAIL should
   // increment.
   assertTelemetryEvents([

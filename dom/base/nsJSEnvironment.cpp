@@ -1767,7 +1767,7 @@ static bool DispatchToEventLoop(
 
   nsCOMPtr<nsIEventTarget> mainTarget = GetMainThreadSerialEventTarget();
   if (!mainTarget) {
-    // if we have not transfered ownership of the dispatchable to the
+    // if we have not transferred ownership of the dispatchable to the
     // dispatchable runnable, release it here, so that the JS engine will
     // handle deleting it on JS context shutdown.
     JS::Dispatchable::ReleaseFailedTask(std::move(aDispatchable));

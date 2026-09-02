@@ -103,7 +103,7 @@ public:
     }
   }
 
-  // Return the field value. This must be called after a succesful
+  // Return the field value. This must be called after a successful
   // call to GetNextField().
   const char* GetValue() {
     assert(value_);

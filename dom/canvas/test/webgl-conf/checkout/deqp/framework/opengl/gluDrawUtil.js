@@ -89,7 +89,7 @@ gluDrawUtil.namedBindingsToProgramLocations = function(gl, program, inputArray, 
             if (location >= 0) {
                 if (cur.location >= 0)
                     location += cur.location;
-                // Add binding.location as an offset to accomodate matrices.
+                // Add binding.location as an offset to accommodate matrices.
                 outputArray.push(new gluDrawUtil.VertexArrayBinding(cur.type, location, cur.components, cur.elements, cur.data, cur.stride, cur.offset));
             }
         } else {

@@ -47,7 +47,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=1107443
 
   retval = Object.defineProperty(window, "nosuchprop2", { value: 6 });
   is(retval, window,
-     "Should return object when succesfully defining 'nosuchprop2'");
+     "Should return object when successfully defining 'nosuchprop2'");
   desc = Object.getOwnPropertyDescriptor(window, "nosuchprop2");
   is(typeof(desc), "object", "Should have a property 'nosuchprop2' now");
   todo_is(desc.configurable, true,
@@ -58,7 +58,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=1107443
   retval = Object.defineProperty(window, "nosuchprop3",
                                  { value: 7, configurable: true });
   is(retval, window,
-     "Should return object when succesfully defining 'nosuchprop3'");
+     "Should return object when successfully defining 'nosuchprop3'");
   desc = Object.getOwnPropertyDescriptor(window, "nosuchprop3");
   is(typeof(desc), "object", "Should have a property 'nosuchprop3' now");
   is(desc.configurable, true,

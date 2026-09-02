@@ -1190,7 +1190,7 @@ class nsPresContext : public nsISupports,
   void AdjustSizeForViewportUnits();
 
   // Call in response to prefs changes that might affect what fonts should be
-  // visibile to CSS. Returns whether the current visibility value actually
+  // visible to CSS. Returns whether the current visibility value actually
   // changed (in which case content should be reflowed).
   bool UpdateFontVisibility();
 

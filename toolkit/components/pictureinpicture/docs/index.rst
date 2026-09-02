@@ -231,7 +231,7 @@ The file must meet several requirements to get the wrapper working.
 
 * Implementation of at least one overridable method (see :ref:`picture_in_picture_child_video_wrapper_api`)
 
-**Overriden method requirements**:
+**Overridden method requirements**:
 
 * Return value with a type that corresponds to ``validateRetVal`` in ``PictureInPictureChildVideoWrapper.#callWrapperMethod()``
 
@@ -304,7 +304,7 @@ The new method passes to ``#callWrapperMethod()``:
 #. A fallback function
 #. A conditional expression that validates the return value
 
-The fallback function only executes if a wrapper script fails or if the method is not overriden.
+The fallback function only executes if a wrapper script fails or if the method is not overridden.
 ``validateRetVal`` checks the type of the return value and ensures it matches the expected type. If there is no return value, simply validate if type is ``null``.
 
 .. note::

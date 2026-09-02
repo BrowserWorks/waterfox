@@ -37,7 +37,7 @@ add_task(async function test_initWithIgnoredPageCausesReset() {
     "browser.startup.homepage",
     "http://bad/?ignore=me"
   );
-  Assert.ok(HomePage.overridden, "Should have overriden the homepage");
+  Assert.ok(HomePage.overridden, "Should have overridden the homepage");
 
   await HomePage.delayedStartup();
 
@@ -65,7 +65,7 @@ add_task(async function test_updateIgnoreListCausesReset() {
     "browser.startup.homepage",
     "http://bad/?new=ignore"
   );
-  Assert.ok(HomePage.overridden, "Should have overriden the homepage");
+  Assert.ok(HomePage.overridden, "Should have overridden the homepage");
 
   // Simulate an ignore list update.
   await RemoteSettings("hijack-blocklists").emit("sync", {
@@ -100,7 +100,7 @@ add_task(async function test_updateIgnoreListCausesReset() {
 });
 
 async function testSetIgnoredUrl(url) {
-  Assert.ok(!HomePage.overriden, "Should not be overriding the homepage");
+  Assert.ok(!HomePage.overridden, "Should not be overriding the homepage");
 
   await HomePage.set(url);
 
@@ -109,7 +109,7 @@ async function testSetIgnoredUrl(url) {
     HomePage.getDefault(),
     "Should still have the default homepage."
   );
-  Assert.ok(!HomePage.overriden, "Should not be overriding the homepage.");
+  Assert.ok(!HomePage.overridden, "Should not be overriding the homepage.");
   TelemetryTestUtils.assertEvents(
     [{ object: "ignore", value: "set_blocked" }],
     {

@@ -65,7 +65,7 @@ add_task(async function test_pushChanges() {
   let guid = address.guid;
   let changeCounter = getSyncChangeCounter(profileStorage.addresses, guid);
 
-  // Pretend we're doing a sync now, and an update occured mid-sync.
+  // Pretend we're doing a sync now, and an update occurred mid-sync.
   let changes = {
     [guid]: {
       profile: address,

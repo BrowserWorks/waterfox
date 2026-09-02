@@ -8,7 +8,7 @@ function testScript(script) {
   // The framework runs the entire test in many different configurations.
   // On slow platforms and builds this can make the tests likely to
   // timeout while they are still running.  Lengthen the timeout to
-  // accomodate this.
+  // accommodate this.
   SimpleTest.requestLongerTimeout(4);
 
   // reroute.html should have set this variable if a service worker is present!

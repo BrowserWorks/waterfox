@@ -111,7 +111,7 @@ already_AddRefed<MediaByteBuffer> RemoteArrayOfByteBuffer::MediaByteBufferAt(
 /*static */ void IPC::ParamTraits<mozilla::RemoteArrayOfByteBuffer>::Write(
     IPC::MessageWriter* aWriter, const mozilla::RemoteArrayOfByteBuffer& aVar) {
   WriteParam(aWriter, aVar.mIsValid);
-  // We need the following gymnastic as the Shmem transfered over IPC will be
+  // We need the following gymnastic as the Shmem transferred over IPC will be
   // revoked. We must create a temporary one instead so that it can be recycled
   // later back into the original ShmemPool.
   if (aVar.mBuffers) {

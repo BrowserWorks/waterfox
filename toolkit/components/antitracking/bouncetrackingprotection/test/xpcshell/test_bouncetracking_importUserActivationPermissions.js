@@ -108,7 +108,7 @@ add_task(async function test_user_activation_perm_migration() {
   );
 
   // A permission for PBM. Ideally we'd test a more persistent permission type
-  // here with custom oa, but permission seperation by userContextId isn't
+  // here with custom oa, but permission separation by userContextId isn't
   // enabled yet (Bug 1641584).
   PermissionTestUtils.addWithModificationTime(
     PRINCIPAL_C_PBM,

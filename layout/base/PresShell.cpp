@@ -394,7 +394,7 @@ class ReflowCountMgr {
 // The upper bound on the amount of time to spend reflowing, in
 // microseconds.  When this bound is exceeded and reflow commands are
 // still queued up, a reflow event is posted.  The idea is for reflow
-// to not hog the processor beyond the time specifed in
+// to not hog the processor beyond the time specified in
 // gMaxRCProcessingTime.  This data member is initialized from the
 // layout.reflow.timeslice pref.
 #define NS_MAX_REFLOW_TIME 1000000

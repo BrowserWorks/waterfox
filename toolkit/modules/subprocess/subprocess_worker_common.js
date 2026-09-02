@@ -178,7 +178,7 @@ let requests = {
     );
   },
 
-  // It is the caller's responsability to make sure dup() is called on the FDs
+  // It is the caller's responsibility to make sure dup() is called on the FDs
   // returned here.
   getFds(processId) {
     // fd is a unix.Fd aka CDataFinalizer that wraps the actual integer. We can

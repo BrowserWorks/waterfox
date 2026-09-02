@@ -106,7 +106,7 @@ add_task(async function test_searchterms_uri() {
     );
   }
 
-  // Check our inital result set
+  // Check our initial result set
   compareArrayToResult(testData, root);
 
   // live update.

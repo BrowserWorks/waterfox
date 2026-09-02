@@ -1851,7 +1851,7 @@ var Links = {
 
   /**
    * Adds a sanitization observer and turns itself into a no-op after the first
-   * invokation.
+   * invocation.
    */
   _addObserver: function Links_addObserver() {
     Services.obs.addObserver(this, "browser:purge-session-history");

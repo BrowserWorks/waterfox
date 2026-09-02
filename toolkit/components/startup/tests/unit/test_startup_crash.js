@@ -219,7 +219,7 @@ function test_trackStartupCrashEnd() {
   prefService.setIntPref(pref_last_success, ms_to_s(replacedLockTime));
   appStartup.trackStartupCrashBegin(); // required to be called before end
   appStartup.trackStartupCrashEnd();
-  // ensure last_success was set since we have declared a succesful startup
+  // ensure last_success was set since we have declared a successful startup
   // main timestamp doesn't get set in XPCShell so approximate with now
   Assert.lessOrEqual(prefService.getIntPref(pref_last_success), now_seconds());
   Assert.greaterOrEqual(
@@ -234,7 +234,7 @@ function test_trackStartupCrashEnd() {
   prefService.setIntPref(pref_recent_crashes, 1);
   appStartup.trackStartupCrashBegin(); // required to be called before end
   appStartup.trackStartupCrashEnd();
-  // ensure recent_crashes was cleared since we have declared a succesful startup
+  // ensure recent_crashes was cleared since we have declared a successful startup
   Assert.ok(!prefService.prefHasUserValue(pref_recent_crashes));
 }
 

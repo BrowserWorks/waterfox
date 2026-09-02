@@ -32,7 +32,7 @@ class nsContentAreaDragDrop {
    * aTarget - the mousedown event target that started the drag
    * aSelectionTargetNode - the node where the drag event should be fired
    * aIsAltKeyPressed - true if the Alt key is pressed. In some cases, this
-   *                    will prevent the drag from occuring. For example,
+   *                    will prevent the drag from occurring. For example,
    *                    holding down Alt over a link should select the text,
    *                    not drag the link.
    * aDataTransfer - the dataTransfer for the drag event.

@@ -258,7 +258,7 @@ void HTMLScriptElement::SetSrc(const TrustedScriptURLOrUSVString& aSrc,
 }
 
 // variation of this code in SVGScriptElement - check if changes
-// need to be transfered when modifying
+// need to be transferred when modifying
 
 void HTMLScriptElement::GetScriptText(nsAString& text) const {
   GetText(text, IgnoreErrors());
@@ -277,7 +277,7 @@ void HTMLScriptElement::FreezeExecutionAttrs(const Document* aOwnerDoc) {
   DetermineKindFromType(aOwnerDoc);
 
   // variation of this code in SVGScriptElement - check if changes
-  // need to be transfered when modifying.  Note that we don't use GetSrc here
+  // need to be transferred when modifying.  Note that we don't use GetSrc here
   // because it will return the base URL when the attr value is "".
   nsAutoString src;
   if (GetAttr(nsGkAtoms::src, src)) {

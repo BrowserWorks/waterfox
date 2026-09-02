@@ -1972,7 +1972,7 @@ export class CustomizeMode {
     Services.prefs.setIntPref(gUIDensity.uiDensityPref, mode);
 
     // If the user is choosing a different UI density mode while
-    // the mode is overriden to Touch, remove the override.
+    // the mode is overridden to Touch, remove the override.
     if (currentDensity.overridden) {
       Services.prefs.setBoolPref(gUIDensity.autoTouchModePref, false);
     }
@@ -3455,7 +3455,7 @@ export class CustomizeMode {
    * can be found.
    *
    * @param {DOMNode} aReferenceNode
-   *   The toolbarpaletteitem node to check the prior siblings for visibilty.
+   *   The toolbarpaletteitem node to check the prior siblings for visibility.
    *   If aReferenceNode is not a toolbarpaletteitem, this just returns the
    *   aReferenceNode immediately.
    * @returns {DOMNode|null}

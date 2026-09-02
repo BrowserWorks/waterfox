@@ -300,7 +300,7 @@ export var AboutHomeStartupCache = {
       this._finalized = true;
 
       // To avoid hanging shutdowns, we'll ensure that we wait a maximum of
-      // SHUTDOWN_CACHE_WRITE_TIMEOUT_MS millseconds before giving up.
+      // SHUTDOWN_CACHE_WRITE_TIMEOUT_MS milliseconds before giving up.
       const TIMED_OUT = Symbol();
       let timeoutID = 0;
 

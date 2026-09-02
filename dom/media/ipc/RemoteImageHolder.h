@@ -38,7 +38,7 @@ class RemoteImageHolder final {
 
   bool IsEmpty() const { return mSD.isNothing(); }
   // Move content of RemoteImageHolder into a usable Image. Ownership is
-  // transfered to that Image.
+  // transferred to that Image.
   already_AddRefed<layers::Image> TransferToImage(
       layers::BufferRecycleBin* aBufferRecycleBin = nullptr);
 

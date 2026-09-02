@@ -944,7 +944,7 @@ let PromoInfo = {
   [BrowserUtils.PromoType.FOCUS]: {
     enabledPref: "browser.promo.focus.enabled",
     lazyStringSetPrefs: {
-      // there are no particular limitions to where it is "supported",
+      // there are no particular limitations to where it is "supported",
       // so we leave out the supported pref
       disallowedRegions: {
         name: "browser.promo.focus.disallowed_regions",

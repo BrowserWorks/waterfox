@@ -170,7 +170,7 @@ add_task(async function () {
     gURLBar.value = keyword;
     EventUtils.sendString(" ");
     await expectEvent("on-input-started-fired");
-    // Always use a different input at every invokation, so that
+    // Always use a different input at every invocation, so that
     // waitForResult can distinguish different cases.
     let char = (inputSessionSerial++ % 10).toString();
     EventUtils.sendString(char);

@@ -67,9 +67,9 @@ const PREF_APP_UPDATE_BACKGROUNDMAXERRORS = "app.update.backgroundMaxErrors";
 const PREF_APP_UPDATE_BACKGROUND_ALLOWDOWNLOADSWITHOUTBITS =
   "app.update.background.allowDownloadsWithoutBITS";
 const PREF_APP_UPDATE_BITS_ENABLED = "app.update.BITS.enabled";
-const PREF_APP_UPDATE_CANCELATIONS = "app.update.cancelations";
-const PREF_APP_UPDATE_CANCELATIONS_OSX = "app.update.cancelations.osx";
-const PREF_APP_UPDATE_CANCELATIONS_OSX_MAX = "app.update.cancelations.osx.max";
+const PREF_APP_UPDATE_CANCELATIONS = "app.update.cancellations";
+const PREF_APP_UPDATE_CANCELATIONS_OSX = "app.update.cancellations.osx";
+const PREF_APP_UPDATE_CANCELATIONS_OSX_MAX = "app.update.cancellations.osx.max";
 const PREF_APP_UPDATE_CHECK_ONLY_INSTANCE_ENABLED =
   "app.update.checkOnlyInstance.enabled";
 const PREF_APP_UPDATE_CHECK_ONLY_INSTANCE_INTERVAL =
@@ -269,7 +269,7 @@ const DEFAULT_SOCKET_MAX_ERRORS = 10;
 // The number of milliseconds to wait before retrying a connection error.
 const DEFAULT_SOCKET_RETRYTIMEOUT = 2000;
 
-// Default maximum number of elevation cancelations per update version before
+// Default maximum number of elevation cancellations per update version before
 // giving up.
 const DEFAULT_CANCELATIONS_OSX_MAX = 3;
 
@@ -1227,7 +1227,7 @@ function writeVersionFile(dir, version) {
  * @return  true if the service should be used for updates.
  */
 function shouldUseService() {
-  // This function will return true if the mantenance service should be used if
+  // This function will return true if the maintenance service should be used if
   // all of the following conditions are met:
   // 1) This build was done with the maintenance service enabled
   // 2) The maintenance service is installed
@@ -1692,12 +1692,12 @@ function handleUpdateFailure(update) {
       );
     }
 
-    let cancelations = Services.prefs.getIntPref(
+    let cancellations = Services.prefs.getIntPref(
       PREF_APP_UPDATE_CANCELATIONS,
       0
     );
-    cancelations++;
-    Services.prefs.setIntPref(PREF_APP_UPDATE_CANCELATIONS, cancelations);
+    cancellations++;
+    Services.prefs.setIntPref(PREF_APP_UPDATE_CANCELATIONS, cancellations);
     if (AppConstants.platform == "macosx") {
       let osxCancelations = Services.prefs.getIntPref(
         PREF_APP_UPDATE_CANCELATIONS_OSX,

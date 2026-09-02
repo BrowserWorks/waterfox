@@ -131,7 +131,7 @@ export const FormAutofillHeuristics = {
   },
 
   /**
-   * Return a set of additonal attributes related to a field.
+   * Return a set of additional attributes related to a field.
    *
    * @param {Element} element
    *        Form element to examine.

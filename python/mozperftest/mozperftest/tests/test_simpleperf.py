@@ -615,7 +615,7 @@ def test_local_simpleperf_symbolicate_timeout(tmp_path):
         )
 
         # Check if timeout error has been thrown and caught by checking if
-        # subsequent profiler-edit call has not occured.
+        # subsequent profiler-edit call has not occurred.
         assert expected_profiler_edit not in mock_popen.call_args_list
 
         # Check for clean exit
@@ -885,7 +885,7 @@ def test_ci_simpleperf_symbolicate_timeout(tmp_path):
         )
 
         # Check if timeout error has been thrown and caught by checking if
-        # subsequent profiler-edit call has not occured.
+        # subsequent profiler-edit call has not occurred.
         assert expected_profiler_edit not in mock_popen.call_args_list
 
         # Check for clean exit

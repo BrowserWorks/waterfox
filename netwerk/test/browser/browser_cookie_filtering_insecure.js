@@ -46,7 +46,7 @@ async function test_insecure_suite_insecure_com() {
   var expected = [];
   expected.push("test-cookie=png1");
   expected.push("test-cookie=png2");
-  // insecure com will not recieve the secure com request with secure cookie
+  // insecure com will not receive the secure com request with secure cookie
   expected.push(""); // insecure com will lose visibility of secure com cookie
   expected.push("test-cookie=png3");
   info(expected);
@@ -65,7 +65,7 @@ async function test_insecure_suite_insecure_com() {
 }
 
 // TEST: In/Secure (secure com)
-// * secure page will recieve all secure/insecure cookies
+// * secure page will receive all secure/insecure cookies
 async function test_insecure_suite_secure_com() {
   var expected = [];
   expected.push("test-cookie=png1");

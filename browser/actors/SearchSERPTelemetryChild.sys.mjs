@@ -427,7 +427,7 @@ class SearchAdImpression {
       }
 
       // If proxy children were found, check the visibility of all of them
-      // otherwise just check the visiblity of the first child.
+      // otherwise just check the visibility of the first child.
       let childElements;
       if (data.proxyChildElements.length) {
         childElements = data.proxyChildElements;

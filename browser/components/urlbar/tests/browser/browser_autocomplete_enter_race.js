@@ -173,7 +173,7 @@ add_task(
           gURLBar.controller.removeListener(this);
           Assert.ok(
             queryContext.heuristicResult,
-            "Recieved a heuristic result."
+            "Received a heuristic result."
           );
           Assert.equal(
             queryContext.searchString,

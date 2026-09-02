@@ -817,7 +817,7 @@ add_task(async function test_getStudiesEnabled() {
 add_task(async function test_forceEnroll() {
   let sandbox = sinon.createSandbox();
 
-  // This simulates a succesful enrollment
+  // This simulates a successful enrollment
   let stub = sandbox.stub(ExperimentAPI, "optInToExperiment");
 
   await BrowserTestUtils.withNewTab(

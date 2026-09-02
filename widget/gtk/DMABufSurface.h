@@ -231,7 +231,7 @@ class DMABufSurface {
 #endif
 
 #ifdef MOZ_WAYLAND
-  // Create wl_buffer over DMABuf surface, ownership is transfered to caller.
+  // Create wl_buffer over DMABuf surface, ownership is transferred to caller.
   // If underlying DMABuf surface is deleted before wl_buffer destroy,
   // behaviour is undefined and may lead to rendering artifacts as
   // GPU memory may be reused.

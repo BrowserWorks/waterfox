@@ -341,7 +341,7 @@ add_task(async function test_remote_settings_pref() {
 
     for (let expect of test.expects) {
       try {
-        // Check for the existance of RFP overrides
+        // Check for the existence of RFP overrides
         Services.rfp.getFingerprintingOverrides(expect.domain + ",0");
         ok(
           false,

@@ -16,7 +16,7 @@
 // The subclass typically overrides the default Available, ReadSegments and
 // CloseWithStatus methods.  By default, Read is implemented in terms of
 // ReadSegments, and Close is implemented in terms of CloseWithStatus.  If
-// CloseWithStatus is overriden, then the subclass will usually want to call
+// CloseWithStatus is overridden, then the subclass will usually want to call
 // the base class' CloseWithStatus method before returning.
 //
 // If the stream is non-blocking, then readSegments may return the exception

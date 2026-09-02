@@ -1487,7 +1487,7 @@ class nsINode : public mozilla::dom::EventTarget {
                                   mozilla::ErrorResult& aError);
 
   /**
-   * Clones this node. This needs to be overriden by all node classes. aNodeInfo
+   * Clones this node. This needs to be overridden by all node classes. aNodeInfo
    * should be identical to this node's nodeInfo, except for the document which
    * may be different. When cloning an element, all attributes of the element
    * will be cloned. The children of the node will not be cloned.
@@ -1903,7 +1903,7 @@ class nsINode : public mozilla::dom::EventTarget {
    * the node is apz aware (such as HTMLInputElement with number type). The
    * other is that the node has apz aware listeners. This is a non-virtual
    * function which calls IsNodeApzAwareInternal only when the MayBeApzAware is
-   * set. We check the details in IsNodeApzAwareInternal which may be overriden
+   * set. We check the details in IsNodeApzAwareInternal which may be overridden
    * by child classes
    */
   bool IsNodeApzAware() const {

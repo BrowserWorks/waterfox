@@ -2283,7 +2283,7 @@ class nsContentUtils {
       Document* aDocument);
 
   /**
-   * Retrieve the current drag session, or null if no drag is currently occuring
+   * Retrieve the current drag session, or null if no drag is currently occurring
    */
   static already_AddRefed<nsIDragSession> GetDragSession(nsIWidget* aWidget);
 

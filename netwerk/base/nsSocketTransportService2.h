@@ -249,7 +249,7 @@ class nsSocketTransportService final : public nsPISocketTransportService,
 
   void InitMaxCount();
 
-  // Total bytes number transfered through all the sockets except active ones
+  // Total bytes number transferred through all the sockets except active ones
   uint64_t mSentBytesCount{0};
   uint64_t mReceivedBytesCount{0};
   //-------------------------------------------------------------------------

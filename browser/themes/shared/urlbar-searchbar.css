@@ -334,7 +334,7 @@ toolbar[inactive="true"] .urlbar,
   }
 
   /* The following rules apply overflow masks to the unfocused urlbar
-     This mask may be overriden when a Contextual Feature Recommendation is shown. */
+     This mask may be overridden when a Contextual Feature Recommendation is shown. */
   .urlbar:not([focused])[textoverflow="both"] > .urlbar-input-container > .urlbar-input-box > & {
     mask-image: linear-gradient(to right, transparent, black 3ch, black calc(100% - 3ch), transparent);
   }

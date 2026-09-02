@@ -30,7 +30,7 @@
           "type": {
             "type": "string",
             "enum": ["unknown", "ethernet", "usb", "wifi", "wimax", "mobile"],
-            "description": "If known, the type of network connection that is avialable."
+            "description": "If known, the type of network connection that is available."
           },
           "id": {
             "type": "string",

@@ -228,7 +228,7 @@ add_task(async function test_history_searchbox_focused_with_history_pending() {
   );
 
   // Clean-up by hiding the sidebar, because the instance associated with this
-  // History Sidebar remains overidden and the sandbox.restore() only affects
+  // History Sidebar remains overridden and the sandbox.restore() only affects
   // new instances that are created.
   SidebarController.hide();
   sandbox.restore();

@@ -552,7 +552,7 @@ async function browseraction_contextmenu_report_extension_helper() {
       : ".customize-context-reportExtension";
     let reportExtension = menu.querySelector(reportItemQuery);
 
-    ok(!reportExtension.hidden, "Report extension should be visibile");
+    ok(!reportExtension.hidden, "Report extension should be visible");
 
     let aboutAddonsBrowser;
 

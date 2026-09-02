@@ -114,7 +114,7 @@ class nsHostResolver : public nsISupports, public AHostResolver {
    * resolve the given hostname and originAttributes asynchronously.  the caller
    * can synthesize a synchronous host lookup using a lock and a cvar.  as noted
    * above the callback will occur re-entrantly from an unspecified thread.  the
-   * host lookup cannot be canceled (cancelation can be layered above this by
+   * host lookup cannot be canceled (cancellation can be layered above this by
    * having the callback implementation return without doing anything).
    */
   nsresult ResolveHost(const nsACString& aHost, const nsACString& trrServer,

@@ -627,7 +627,7 @@ add_task(async function test_autoconnect_mp_locked() {
 
   let origEnsureMPUnlocked = Utils.ensureMPUnlocked;
   Utils.ensureMPUnlocked = () => {
-    _("Faking Master Password entry cancelation.");
+    _("Faking Master Password entry cancellation.");
     return false;
   };
   let origFxA = Service.identity._fxaService;

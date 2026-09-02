@@ -664,7 +664,7 @@ mozilla::ipc::IPCResult HangMonitorChild::RecvSetMainThreadQoSPriority(
     const nsIThread::QoSPriority& aQoSPriority) {
   MOZ_RELEASE_ASSERT(IsOnThread());
   MOZ_LOG(gQoSLog, LogLevel::Debug,
-          ("Priority change %s recieved by content process.",
+          ("Priority change %s received by content process.",
            DefineQoS(aQoSPriority)));
 
 #ifdef XP_MACOSX

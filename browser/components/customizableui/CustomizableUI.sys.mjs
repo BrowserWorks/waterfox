@@ -3215,7 +3215,7 @@ var CustomizableUIInternal = {
   },
 
   /**
-   * Check for the current existance of a widget by ID.
+   * Check for the current existence of a widget by ID.
    *
    * @see CustomizableUIInternal.isSpecialWidget
    * @param {string} aWidgetId
@@ -6929,7 +6929,7 @@ export var CustomizableUI = {
           subviewItem.setAttribute(attr, attrVal);
         }
       }
-      // We do this after so the .subviewbutton class doesn't get overriden.
+      // We do this after so the .subviewbutton class doesn't get overridden.
       if (menuChild.localName == "menuitem") {
         subviewItem.classList.add("subviewbutton");
       }

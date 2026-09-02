@@ -51,7 +51,7 @@ function testFrameLoad() {
 }
 
 // Test that we can perform network requests while a timer flood
-// is occuring.
+// is occurring.
 function testFetch(url) {
   return fetch(url).then(response => {
     return response.text();
@@ -59,7 +59,7 @@ function testFetch(url) {
 }
 
 // Test that we can run animations for 5 seconds while a timer
-// flood is occuring.
+// flood is occurring.
 function testRequestAnimationFrame() {
   return new Promise(resolve => {
     let remainingFrames = 5 * 60;

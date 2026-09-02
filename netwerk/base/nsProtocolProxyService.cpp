@@ -346,7 +346,7 @@ class nsAsyncResolveRequest final : public nsIRunnable,
       mPACURL = newPACURL;
     }
 
-    // In the cancelation case, we may still have another PLEvent in
+    // In the cancellation case, we may still have another PLEvent in
     // the queue that wants to call DoCallback.  No need to wait for
     // it, just run the callback now.
     DoCallback();

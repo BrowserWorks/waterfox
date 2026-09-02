@@ -107,7 +107,7 @@ struct WorkerLoadInfoData {
     nsTArray<nsWeakPtr> mBrowserChildList;
   };
 
-  // Only set if we have a custom overriden load group
+  // Only set if we have a custom overridden load group
   RefPtr<InterfaceRequestor> mInterfaceRequestor;
 
   UniquePtr<mozilla::ipc::PrincipalInfo> mPrincipalInfo;

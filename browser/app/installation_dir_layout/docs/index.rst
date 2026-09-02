@@ -22,7 +22,7 @@ What this involves is:
 - Under the "base" install directory, there will be one or more "versioned" install directories,
   with names based on the version of Firefox installed in them.
 - Each versioned directory contains a complete installation of Firefox at the approapriate version.
-- In the base install directory, there will be a launcher exectuable that launches the Firefox
+- In the base install directory, there will be a launcher executable that launches the Firefox
     executable in the appropriate versioned directory for the current Firefox version,
 
 Example of "single" layout

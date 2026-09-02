@@ -1124,7 +1124,7 @@ add_task(async function hideLocalSearchModes() {
     set: [["browser.urlbar.shortcuts.bookmarks", false]],
   });
 
-  // Seperate call, so that it can be popped on its own.
+  // Separate call, so that it can be popped on its own.
   await SpecialPowers.pushPrefEnv({
     set: [["browser.settings-redesign.enabled", false]],
   });

@@ -53,7 +53,7 @@ class AsyncExecuteStatements final : public Runnable,
    *
    * @param aStatements
    *        The statements to execute and possibly bind in the background.
-   *        Ownership is transfered from the caller.
+   *        Ownership is transferred from the caller.
    * @param aConnection
    *        The connection that created the statements to execute.
    * @param aNativeConnection
@@ -213,7 +213,7 @@ class AsyncExecuteStatements final : public Runnable,
   ExecutionState mState;
 
   /**
-   * Indicates if we should try to cancel at a cancelation point.
+   * Indicates if we should try to cancel at a cancellation point.
    */
   bool mCancelRequested;
 

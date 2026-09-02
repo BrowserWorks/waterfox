@@ -838,7 +838,7 @@ class SitePermsAddonInstallRequest extends PermissionPromptForRequest {
 
   /**
    * Returns an error message that will be printed to the console given a passed Component.Exception.
-   * This should be overriden by children classes.
+   * This should be overridden by children classes.
    *
    * @param {Components.Exception} err
    * @returns {string} The error message

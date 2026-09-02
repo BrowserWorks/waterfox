@@ -40,7 +40,7 @@ class HTMLButtonElement final : public nsGenericHTMLFormControlElementWithState,
   void SaveState() override;
   bool RestoreState(PresState* aState) override;
 
-  // overriden nsIFormControl methods
+  // overridden nsIFormControl methods
   NS_IMETHOD Reset() override;
   NS_IMETHOD SubmitNamesValues(FormData* aFormData) override;
 

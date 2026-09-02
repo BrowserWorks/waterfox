@@ -57,7 +57,7 @@ int wmain(int argc, wchar_t** argv) {
   childArgv.push_back(programPath.c_str());
   childArgv.push_back(L"--backgroundtask");
   childArgv.push_back(L"defaultagent");
-  // Skip argv[0], path to this exectuable.
+  // Skip argv[0], path to this executable.
   for (int i = 1; i < argc; i++) {
     childArgv.push_back(argv[i]);
   }

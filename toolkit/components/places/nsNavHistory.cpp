@@ -881,7 +881,7 @@ nsresult PlacesSQLQueryBuilder::SelectAsURI() {
           "  h.frecency, h.hidden, h.guid, null, null, null, "
           "  null, null, null, null, null, null, null "
           "FROM moz_places h "
-          // WHERE 1 is a no-op since additonal conditions will
+          // WHERE 1 is a no-op since additional conditions will
           // start with AND.
           "WHERE 1 "
           "{QUERY_OPTIONS_VISITS} {QUERY_OPTIONS_PLACES} "
@@ -927,7 +927,7 @@ nsresult PlacesSQLQueryBuilder::SelectAsVisit() {
       "  null, null, null, null, null, null, null "
       "FROM moz_places h "
       "JOIN moz_historyvisits v ON h.id = v.place_id "
-      // WHERE 1 is a no-op since additonal conditions will start with AND.
+      // WHERE 1 is a no-op since additional conditions will start with AND.
       "WHERE 1 "
       "{QUERY_OPTIONS_VISITS} {QUERY_OPTIONS_PLACES} "
       "{ADDITIONAL_CONDITIONS} "_ns;

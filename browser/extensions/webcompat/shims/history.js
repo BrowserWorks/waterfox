@@ -8,7 +8,7 @@
  * Bug 1624853 - Shim Storage Access API on history.com
  *
  * history.com uses Adobe as a necessary third party to authenticating
- * with a TV provider. In order to accomodate this, we grant storage access
+ * with a TV provider. In order to accommodate this, we grant storage access
  * to the Adobe domain via the Storage Access API when the login or logout
  * buttons are clicked, then forward the click to continue as normal.
  */

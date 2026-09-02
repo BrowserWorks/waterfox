@@ -917,7 +917,7 @@ NS_IMETHODIMP nsWebBrowserPersist::OnStopRequest(nsIRequest* request,
 
     // If there is a stream ref and we weren't canceled,
     // close it away from the main thread.
-    // We don't do this when there's an error/cancelation,
+    // We don't do this when there's an error/cancellation,
     // because our consumer may try to delete the file, which will error
     // if we're still holding on to it, so we have to close it pronto.
     {

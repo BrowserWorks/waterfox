@@ -927,10 +927,10 @@ void nsPresContext::RecomputeBrowsingContextDependentData() {
 
   auto* top = browsingContext->Top();
   SetColorSchemeOverride([&] {
-    auto overriden = top->PrefersColorSchemeOverride();
+    auto overridden = top->PrefersColorSchemeOverride();
     if (browsingContext == top &&
-        overriden != PrefersColorSchemeOverride::None) {
-      return overriden;
+        overridden != PrefersColorSchemeOverride::None) {
+      return overridden;
     }
     return browsingContext->GetEmbedderColorSchemes().mPreferred;
   }());
@@ -1201,7 +1201,7 @@ bool nsPresContext::UserInputEventsAllowed() {
 
   if (mRefreshDriver->IsThrottled()) {
     MOZ_ASSERT(!mPresShell->IsVisible());
-    // This implies that the BC is not visibile and users can't
+    // This implies that the BC is not visible and users can't
     // interact with it, so we are okay with handling user inputs here.
     return true;
   }

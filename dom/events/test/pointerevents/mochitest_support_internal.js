@@ -85,7 +85,7 @@ function addListeners(elem) {
 
       // Compare the pointerId.
       resultCallback({
-        name: "Mismatched event.pointerId recieved.",
+        name: "Mismatched event.pointerId received.",
         status: event.pointerId,
         PASS: pointerId,
       });

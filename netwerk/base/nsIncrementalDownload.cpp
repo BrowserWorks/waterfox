@@ -358,7 +358,7 @@ NS_IMETHODIMP
 nsIncrementalDownload::Cancel(nsresult status) {
   NS_ENSURE_ARG(NS_FAILED(status));
 
-  // Ignore this cancelation if we're already canceled.
+  // Ignore this cancellation if we're already canceled.
   if (NS_FAILED(mStatus)) return NS_OK;
 
   mStatus = status;

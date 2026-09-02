@@ -45,7 +45,7 @@ add_task(async function test_address_captured_after_form_removal() {
         false
       );
 
-      info("Infer a successfull fetch request");
+      info("Infer a successful fetch request");
       await SpecialPowers.spawn(browser, [], async () => {
         await content.fetch(
           "https://example.org/browser/browser/extensions/formautofill/test/browser/empty.html"
@@ -147,7 +147,7 @@ add_task(
             "before-form-submission"
           );
 
-        info("Infer a successfull fetch request");
+        info("Infer a successful fetch request");
         await SpecialPowers.spawn(browser, [], async () => {
           await content.fetch(
             "https://example.org/browser/browser/extensions/formautofill/test/browser/empty.html"
@@ -206,7 +206,7 @@ add_task(
         });
 
         info(
-          "Infer another successfull fetch request and remove another form form the DOM"
+          "Infer another successful fetch request and remove another form form the DOM"
         );
         await SpecialPowers.spawn(browser, [], async () => {
           await content.fetch(

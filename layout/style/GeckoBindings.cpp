@@ -1150,7 +1150,7 @@ Keyframe* Gecko_GetOrCreateKeyframeAtStart(
   MOZ_ASSERT(aKeyframes->IsEmpty() ||
                  aKeyframes->ElementAt(0).mOffset->mPercentage >= aOffset,
              "The percentage offset should be less than or equal to the first "
-             "keyframe's offset if there are exisiting keyframes");
+             "keyframe's offset if there are existing keyframes");
   return GetOrCreateKeyframe(aKeyframes, StyleTimelineRangeName::None, aOffset,
                              aTimingFunction, aComposition,
                              KeyframeSearchDirection::Forwards,

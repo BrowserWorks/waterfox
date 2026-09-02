@@ -343,7 +343,7 @@ add_task(async function test_list_init_data() {
     "Second item is social.example.com"
   );
 
-  // Test registering a feature after ExceptionListService recieved the synced data.
+  // Test registering a feature after ExceptionListService received the synced data.
   records.push(
     {
       id: "5",

@@ -2578,7 +2578,7 @@ nsresult ContentEventHandler::OnQueryTextRect(WidgetQueryContentEvent* aEvent) {
     }
     frameRect = rect;
   }
-  // UnionRect() requires non-empty rect.  So, let's make sure to get non-emtpy
+  // UnionRect() requires non-empty rect.  So, let's make sure to get non-empty
   // rect from the first frame.
   EnsureNonEmptyRect(rect);
 
@@ -2635,7 +2635,7 @@ nsresult ContentEventHandler::OnQueryTextRect(WidgetQueryContentEvent* aEvent) {
       return rv;
     }
     // UnionRect() requires non-empty rect.  So, let's make sure to get
-    // non-emtpy rect from the frame.
+    // non-empty rect from the frame.
     EnsureNonEmptyRect(frameRect);
     if (frame != lastFrame) {
       // not last frame, so just add rect to previous result

@@ -871,7 +871,7 @@ void ScreenOrientation::MaybeDispatchEventsForOverride(
   Document* doc = aBrowsingContext->GetExtantDocument();
   nsCOMPtr<nsPIDOMWindowOuter> outerWindow = doc->GetWindow();
 
-  // Send the event if the orientation was already overriden or different
+  // Send the event if the orientation was already overridden or different
   // from device metrics or the override was reset and it is different from
   // device metrics.
   if ((aBrowsingContext->HasOrientationOverride() &&

@@ -106,11 +106,11 @@ export const CATEGORIZATION_SETTINGS = {
  * @property {string} num_ads_clicked
  *  The total number of ads clicked on a SERP.
  * @property {string} num_ads_hidden
- *  The total number of ads hidden from the user when categorization occured.
+ *  The total number of ads hidden from the user when categorization occurred.
  * @property {string} num_ads_loaded
- *  The total number of ads loaded when categorization occured.
+ *  The total number of ads loaded when categorization occurred.
  * @property {string} num_ads_visible
- *  The total number of ads visible to the user when categorization occured.
+ *  The total number of ads visible to the user when categorization occurred.
  */
 
 /* eslint-disable jsdoc/valid-types */
@@ -1225,7 +1225,7 @@ export class DomainToCategoriesStore {
     lazy.logConsole.debug("Initializing domain-to-categories store.");
 
     // Attempts to cache a connection to the store.
-    // If a failure occured, try to re-build the store.
+    // If a failure occurred, try to re-build the store.
     let rebuiltStore = false;
     try {
       await this.#initConnection();

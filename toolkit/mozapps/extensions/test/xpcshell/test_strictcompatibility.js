@@ -70,7 +70,7 @@ const ADDONS = [
     },
   },
 
-  // Addon from the future - would be marked as compatibile-by-default,
+  // Addon from the future - would be marked as compatible-by-default,
   // but minVersion is higher than the app version
   {
     manifest: {

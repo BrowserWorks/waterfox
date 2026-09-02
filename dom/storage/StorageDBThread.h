@@ -115,7 +115,7 @@ public:
 
 // The implementation of the the database engine, this directly works
 // with the sqlite or any other db API we are based on
-// This class is resposible for collecting and processing asynchronous
+// This class is responsible for collecting and processing asynchronous
 // DB operations over caches (LocalStorageCache) communicating though
 // LocalStorageCacheBridge interface class
 class StorageDBThread final {

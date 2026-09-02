@@ -360,7 +360,7 @@ describe("ASRouterTriggerListeners", () => {
         // Fails with an empty MatchPatternSet
         assert.property(frequentVisitsListener._matchPatternSet, "patterns");
 
-        // Second try is succesful
+        // Second try is successful
         frequentVisitsListener.init(_triggerHandler, hosts, ["foo"]);
 
         assert.property(frequentVisitsListener._matchPatternSet, "patterns");

@@ -72,7 +72,7 @@
 /*
  * Note that these structures *do not* map directly to the CONTEXT
  * structure defined in WinNT.h in the Windows Mobile SDK. That structure
- * does not accomodate VFPv3, and I'm unsure if it was ever used in the
+ * does not accommodate VFPv3, and I'm unsure if it was ever used in the
  * wild anyway, as Windows CE only seems to produce "cedumps" which
  * are not exactly minidumps.
  */

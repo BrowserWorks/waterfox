@@ -262,7 +262,7 @@ function runTests(obj) {
       });
     })
 
-    // transfering tests
+    // transferring tests
     .then(function () {
       if (!obj.transferableObjects) {
         return Promise.resolve();
@@ -282,7 +282,7 @@ function runTests(obj) {
       });
     })
 
-    // no dup transfering
+    // no dup transferring
     .then(function () {
       if (!obj.transferableObjects) {
         return Promise.resolve();
@@ -353,7 +353,7 @@ function runTests(obj) {
       });
     })
 
-    // non transfering tests
+    // non transferring tests
     .then(function () {
       if (obj.transferableObjects) {
         return Promise.resolve();

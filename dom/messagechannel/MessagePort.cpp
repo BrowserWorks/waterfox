@@ -633,7 +633,7 @@ void MessagePort::CloneAndDisentangle(UniqueMessagePortId& aIdentifier) {
 
   mHasBeenTransferredOrClosed = true;
 
-  // We can clone a port that has already been transfered. In this case, on the
+  // We can clone a port that has already been transferred. In this case, on the
   // otherside will have a neutered port. Here we set neutered to true so that
   // we are safe in case a early return.
   aIdentifier.neutered() = true;

@@ -335,7 +335,7 @@ void MediaControlService::ControllerManager::UpdateMainControllerIfNeeded(
   MOZ_DIAGNOSTIC_ASSERT(aController);
 
   if (GetMainController() == aController) {
-    LOG_MAINCONTROLLER("This controller is alreay the main controller");
+    LOG_MAINCONTROLLER("This controller is already the main controller");
     return;
   }
 

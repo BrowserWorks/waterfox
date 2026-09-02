@@ -207,8 +207,8 @@ class nsMathMLContainerFrame : public nsContainerFrame, public nsMathMLFrame {
   /*
    * Helper to call ReportErrorToConsole for parse errors involving
    * attribute/value pairs.
-   * @param aAttribute The attribute for which the parse error occured.
-   * @param aValue The value for which the parse error occured.
+   * @param aAttribute The attribute for which the parse error occurred.
+   * @param aValue The value for which the parse error occurred.
    */
   nsresult ReportParseError(const char16_t* aAttribute, const char16_t* aValue);
 

@@ -1069,11 +1069,11 @@ test("is(String)", function() {
 	ok( !$('#foo').is(''), 'Expected false for an invalid expression - ""' );
 	ok( !$('#foo').is(undefined), 'Expected false for an invalid expression - undefined' );
 
-	// test is() with comma-seperated expressions
-	ok( $('#en').is('[lang="en"],[lang="de"]'), 'Comma-seperated; Check for lang attribute: Expect en or de' );
-	ok( $('#en').is('[lang="de"],[lang="en"]'), 'Comma-seperated; Check for lang attribute: Expect en or de' );
-	ok( $('#en').is('[lang="en"] , [lang="de"]'), 'Comma-seperated; Check for lang attribute: Expect en or de' );
-	ok( $('#en').is('[lang="de"] , [lang="en"]'), 'Comma-seperated; Check for lang attribute: Expect en or de' );
+	// test is() with comma-separated expressions
+	ok( $('#en').is('[lang="en"],[lang="de"]'), 'Comma-separated; Check for lang attribute: Expect en or de' );
+	ok( $('#en').is('[lang="de"],[lang="en"]'), 'Comma-separated; Check for lang attribute: Expect en or de' );
+	ok( $('#en').is('[lang="en"] , [lang="de"]'), 'Comma-separated; Check for lang attribute: Expect en or de' );
+	ok( $('#en').is('[lang="de"] , [lang="en"]'), 'Comma-separated; Check for lang attribute: Expect en or de' );
 });
 
 test("$.extend(Object, Object)", function() {
@@ -1635,9 +1635,9 @@ test("map()", function() {
 test("contents()", function() {
 	expect(12);
 	equals( $("#ap").contents().length, 9, "Check element contents" );
-	ok( $("#iframe").contents()[0], "Check existance of IFrame document" );
+	ok( $("#iframe").contents()[0], "Check existence of IFrame document" );
 	var ibody = $("#loadediframe").contents()[0].body;
-	ok( ibody, "Check existance of IFrame body" );
+	ok( ibody, "Check existence of IFrame body" );
 
 	equals( $("span", ibody).text(), "span text", "Find span in IFrame and check its text" );
 

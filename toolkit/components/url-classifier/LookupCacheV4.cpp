@@ -99,7 +99,7 @@ nsresult LookupCacheV4::Has(const Completion& aCompletion, bool* aHas,
 
   // It is tricky that we use BigEndian read for V4 while use
   // Completion.ToUint32 for V2. This is because in V2, prefixes are converted
-  // to integers and then sorted internally. In V4, prefixes recieved are
+  // to integers and then sorted internally. In V4, prefixes received are
   // already lexicographical order sorted, so when we manipulate these prefixes
   // with integer form, we always use big endian so prefixes remain the same
   // order.

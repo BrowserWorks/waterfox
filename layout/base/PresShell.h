@@ -1824,7 +1824,7 @@ class PresShell final : public nsStubDocumentObserver,
   bool ReflowForHiddenContentIfNeeded();
   void UpdateHiddenContentInForcedLayout(nsIFrame*);
   /**
-   * If this frame has content hidden via `content-visibilty` that has a pending
+   * If this frame has content hidden via `content-visibility` that has a pending
    * reflow, force the content to reflow immediately.
    */
   void EnsureReflowIfFrameHasHiddenContent(nsIFrame*);

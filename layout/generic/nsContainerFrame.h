@@ -360,7 +360,7 @@ class nsContainerFrame : public nsSplittableFrame {
    *   1. Pulls excess overflow containers from the prev-in-flow and adds
    *      them to our overflow container list
    *   2. Reflows all our overflow container kids
-   *   3. Expands aOverflowRect as necessary to accomodate these children.
+   *   3. Expands aOverflowRect as necessary to accommodate these children.
    *   4. Sets aStatus's mOverflowIncomplete flag (along with
    *      mNextInFlowNeedsReflow as necessary) if any overflow children
    *      are incomplete and

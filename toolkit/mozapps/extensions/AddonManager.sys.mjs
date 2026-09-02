@@ -1766,7 +1766,7 @@ var AddonManagerInternal = {
    * Asynchronously gets an AddonInstall for a URL.
    *
    * @param  aUrl
-   *         The string represenation of the URL where the add-on is located
+   *         The string representation of the URL where the add-on is located
    * @param  {object} [aOptions = {}]
    *         Additional options for this install
    * @param  {string} [aOptions.hash]
@@ -3461,7 +3461,7 @@ var AddonManagerInternal = {
               });
 
               // Check for a custom installation prompt that may be provided by the
-              // applicaton
+              // application
               if ("@mozilla.org/addons/web-install-prompt;1" in Cc) {
                 try {
                   let prompt = Cc[
@@ -4173,7 +4173,7 @@ export var AddonManager = {
   // Constants to indicate why an update check is being performed
   // Update check has been requested by the user.
   UPDATE_WHEN_USER_REQUESTED: 1,
-  // Update check is necessary to see if the Addon is compatibile with a new
+  // Update check is necessary to see if the Addon is compatible with a new
   // version of the application.
   UPDATE_WHEN_NEW_APP_DETECTED: 2,
   // Update check is necessary because a new application has been installed.
@@ -5127,7 +5127,7 @@ export class EnvironmentAddonBuilder {
     // At startup, _pendingTask is set to a Promise that does not resolve
     // until the addons database has been read so complete details about
     // addons are available.  Returning it here will cause it to block
-    // profileBeforeChange, guranteeing that full information will be
+    // profileBeforeChange, guaranteeing that full information will be
     // available by the time profileBeforeChangeTelemetry is fired.
     await this._pendingTask;
     this._shutdownCompleted = true;

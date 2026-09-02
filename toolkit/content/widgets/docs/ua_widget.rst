@@ -15,7 +15,7 @@ When the element is appended to the tree, a chrome-only ``UAWidgetSetupOrChange`
 
 UAWidgetsChild then grabs the sandbox for that origin (lazily creating it as needed), loads the script as needed, and initializes an instance by calling the JS constructor with a reference to the UA Widget Shadow Root created by the DOM. We will discuss the sandbox in the latter section.
 
-The ``onsetup`` method is called right after the instance is constructed. The call to constructor must not throw, or UAWidgetsChild will be confused since an instance of the widget will not be returned, but the widget is already half-initalized. If the ``onsetup`` method call throws, UAWidgetsChild will still be able to hold the reference of the widget and call the teardown method later on.
+The ``onsetup`` method is called right after the instance is constructed. The call to constructor must not throw, or UAWidgetsChild will be confused since an instance of the widget will not be returned, but the widget is already half-initialized. If the ``onsetup`` method call throws, UAWidgetsChild will still be able to hold the reference of the widget and call the teardown method later on.
 
 When the element is removed from the tree, ``UAWidgetTeardown`` is dispatched so UAWidgetsChild can destroy the widget, if it exists. If so, the UAWidgetsChild calls the ``teardown()`` method on the widget, causing the widget to destruct itself.
 

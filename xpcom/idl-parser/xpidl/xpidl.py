@@ -726,7 +726,7 @@ class Native:
             prefix = "*mut " + prefix
 
         if self.specialtype:
-            # The string types are very special, and need to be handled seperately.
+            # The string types are very special, and need to be handled separately.
             if self.specialtype in ["cstring", "utf8string"]:
                 if calltype == "in":
                     return "*const ::nsstring::nsACString"

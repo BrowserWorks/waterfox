@@ -27,7 +27,7 @@ class TableUpdate {
 
   NS_INLINE_DECL_THREADSAFE_REFCOUNTING(TableUpdate);
 
-  // To be overriden.
+  // To be overridden.
   virtual bool Empty() const = 0;
 
   // Common interfaces.

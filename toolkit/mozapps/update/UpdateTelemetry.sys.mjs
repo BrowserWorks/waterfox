@@ -83,7 +83,7 @@ export var AUSTLMY = {
   CHK_NO_OS_ABI: 31,
   // Invalid update url (no notification)
   CHK_INVALID_DEFAULT_URL: 32,
-  // Update elevation failures or cancelations threshold reached for this
+  // Update elevation failures or cancellations threshold reached for this
   // version, OSX only (no notification)
   CHK_ELEVATION_DISABLED_FOR_VERSION: 35,
   // User opted out of elevated updates for the available update version, OSX

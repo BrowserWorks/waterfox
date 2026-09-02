@@ -996,7 +996,7 @@ export class _ASRouter {
    * Fetch all message groups and update Router.state.groups.
    * There are two cases to consider:
    * 1. The provider needs to update as determined by the update cycle
-   * 2. Some pref change occured which could invalidate one of the existing
+   * 2. Some pref change occurred which could invalidate one of the existing
    *    groups.
    */
   async loadAllMessageGroups() {
@@ -2416,7 +2416,7 @@ export class _ASRouter {
    * Simple wrapper to make test mocking easier
    *
    * @returns {Promise} resolves when the attribution string has been set
-   * succesfully.
+   * successfully.
    */
   setAttributionString(attrStr) {
     return lazy.MacAttribution.setAttributionString(attrStr);

@@ -129,7 +129,7 @@ export function checkExpectedCookies(expected, browserName) {
 
   // setup observer that continues listening/testing
   function obs(subject, topic) {
-    // cleanup trigger recieved -> tear down the observer
+    // cleanup trigger received -> tear down the observer
     if (topic == COOKIE_FILTER_TEST_CLEANUP) {
       info("cleaning up: " + browserName);
       Services.obs.removeObserver(obs, COOKIE_FILTER_TEST_MESSAGE);

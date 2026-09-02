@@ -1174,7 +1174,7 @@ RefPtr<MediaDataDecoder::InitPromise> ChromiumCDMParent::InitializeVideoDecoder(
   // than required. The exact formula the CDM uses to calculate their frame
   // sizes isn't obvious, but they normally request around or slightly more
   // than 1.5X the optimal amount. So pad the size of buffers we allocate so
-  // that we're likely to have buffers big enough to accomodate the CDM's weird
+  // that we're likely to have buffers big enough to accommodate the CDM's weird
   // frame size calculation.
   const size_t bufferSize =
       1.7 * I420FrameBufferSizePadded(aInfo.mImage.width, aInfo.mImage.height);

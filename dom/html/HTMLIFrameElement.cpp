@@ -184,7 +184,7 @@ void HTMLIFrameElement::AfterSetAttr(int32_t aNameSpaceID, nsAtom* aName,
       if (mFrameLoader) {
         // If we have an nsFrameLoader, apply the new sandbox flags.
         // Since this is called after the setter, the sandbox flags have
-        // alreay been updated.
+        // already been updated.
         mFrameLoader->ApplySandboxFlags(GetSandboxFlags());
       }
     }

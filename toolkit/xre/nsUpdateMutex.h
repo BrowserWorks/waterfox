@@ -29,7 +29,7 @@
  *  - a call to Unlock() must only occur after a matching successful call to
  *    TryLock();
  *  - no second call to TryLock() should ever occur after a successful first
- *    call to TryLock(), unless a call to Unlock() occured in the middle.
+ *    call to TryLock(), unless a call to Unlock() occurred in the middle.
  */
 class MOZ_CAPABILITY("mutex") UpdateMutexImpl {
  public:

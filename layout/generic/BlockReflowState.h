@@ -165,7 +165,7 @@ class BlockReflowState {
 
   // Returns the first coordinate >= aBCoord that clears the
   // floats indicated by aClearType and has enough inline size between floats
-  // (or no floats remaining) to accomodate aFloatAvoidingBlock.
+  // (or no floats remaining) to accommodate aFloatAvoidingBlock.
   enum class ClearFloatsResult : uint8_t {
     BCoordNoChange,
     BCoordAdvanced,

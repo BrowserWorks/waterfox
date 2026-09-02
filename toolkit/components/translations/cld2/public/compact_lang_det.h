@@ -32,7 +32,7 @@
 // The languages X_PIG_LATIN and X_KLINGON are detected in the
 //  extended calls ExtDetectLanguageSummary().
 //
-// UNKNOWN_LANGUAGE is returned if no language's internal reliablity measure
+// UNKNOWN_LANGUAGE is returned if no language's internal reliability measure
 //  is high enough. This happens with non-text input such as the bytes of a
 //  JPEG, and also with text in languages outside training set.
 //

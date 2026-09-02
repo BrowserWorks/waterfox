@@ -259,7 +259,7 @@ TEST(TestAudioDriftCorrection, LargerTransmitterBlockSizeThanDesiredBuffering)
   // Input is stable so no corrections should occur.
   EXPECT_EQ(ad.NumCorrectionChanges(), 0U);
   // The desired buffering and pre-buffering level was
-  // transmitterBlockSize * 11 / 10 to accomodate the large input block size.
+  // transmitterBlockSize * 11 / 10 to accommodate the large input block size.
   // The buffer size was twice the pre-buffering level.
   EXPECT_EQ(ad.BufferSize(), transmitterBlockSize * 11 / 10 * 2);
 }
@@ -295,7 +295,7 @@ TEST(TestAudioDriftCorrection, LargerReceiverBlockSizeThanDesiredBuffering)
   EXPECT_EQ(ad.NumCorrectionChanges(), 0U);
   EXPECT_EQ(ad.NumUnderruns(), 0U);
   // The drift correction buffer size had to be larger than the desired (the
-  // buffer size is twice the initial buffering level), to accomodate the large
+  // buffer size is twice the initial buffering level), to accommodate the large
   // input block size that gets buffered in the resampler only when processing
   // output.
   EXPECT_EQ(ad.BufferSize(), 9600U);
@@ -493,7 +493,7 @@ TEST(TestAudioDriftCorrection, DriftStepResponseUnderrunHighLatencyInput)
       // While the DynamicResampler has not set its pre-buffer after the
       // underrun, InFramesBuffered() reports the pre-buffer size.
       // The initial desired buffer and pre-buffer size was
-      // inputInterval1 * 11 / 10 to accomodate the large input block size.
+      // inputInterval1 * 11 / 10 to accommodate the large input block size.
       // This was doubled when the underrun occurred.
       EXPECT_EQ(ad.CurrentBuffering(), inputInterval1 * 11 / 10 * 2)
           << "for i=" << i;
@@ -508,7 +508,7 @@ TEST(TestAudioDriftCorrection, DriftStepResponseUnderrunHighLatencyInput)
   }
 
   // The initial desired buffering and pre-buffering level was
-  // inputInterval1 * 11 / 10 to accomodate the large input block size.
+  // inputInterval1 * 11 / 10 to accommodate the large input block size.
   // The buffer size was initially twice the pre-buffering level, and then
   // doubled when the underrun occurred.
   EXPECT_EQ(ad.BufferSize(), inputInterval1 * 11 / 10 * 2 * 2);
@@ -555,7 +555,7 @@ TEST(TestAudioDriftCorrection, DriftStepResponseOverrun)
   }
 
   // The desired buffering and pre-buffering levels were increased to
-  // inputInterval * 11 / 10 to accomodate the large input block size.
+  // inputInterval * 11 / 10 to accommodate the large input block size.
   // The buffer size was increased to twice the pre-buffering level.
   EXPECT_EQ(ad.BufferSize(), inputInterval * 11 / 10 * 2);
   EXPECT_EQ(ad.NumUnderruns(), 1u);

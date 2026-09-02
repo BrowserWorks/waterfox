@@ -3607,7 +3607,7 @@ export class NssKeyManager extends NssKeyManagerInterface {
     }
     /**
      * Initialize new `NSSKeyManager` with a given `PrimaryPasswordAuthenticator`.
-     * There must be a previous initializiation of NSS before initializing
+     * There must be a previous initialization of NSS before initializing
      * `NSSKeyManager`, otherwise this panics.
      * @param {PrimaryPasswordAuthenticator} primaryPasswordAuthenticator
      * @returns {NssKeyManager}

@@ -206,7 +206,7 @@ async function dropLinksOnBrowser(browser, type) {
       content.window.stopMode = true;
     });
 
-    // stopPropagation should not prevent the browser link handling from occuring
+    // stopPropagation should not prevent the browser link handling from occurring
     await expectLink(browser,
                       [ { url: "http://www.mozilla.org/",
                           name: "http://www.mozilla.org/" } ],

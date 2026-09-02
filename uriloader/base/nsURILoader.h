@@ -105,9 +105,9 @@ class nsDocumentOpenInfo : public nsIThreadRetargetableStreamListener {
 
   /**
    * Virtual helper functions for content that we expect to be
-   * overriden when running in the parent process on behalf of
+   * overridden when running in the parent process on behalf of
    * a content process docshell.
-   * We also expect nsIStreamListener functions to be overriden
+   * We also expect nsIStreamListener functions to be overridden
    * to add functionality.
    */
 

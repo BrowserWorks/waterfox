@@ -902,7 +902,7 @@ export var DiscoveryAPI = {
    *
    * Pending requests are coalesced, so there is only one request at any given
    * time. If a request fails, the pending promises are rejected, but a new
-   * call will result in a new request. A succesful response is cached for the
+   * call will result in a new request. A successful response is cached for the
    * lifetime of the document.
    *
    * @param {boolean} preferClientId

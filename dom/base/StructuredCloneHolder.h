@@ -85,7 +85,7 @@ class StructuredCloneHolderBase {
   // point we cannot use the overridden methods.
   void Clear();
 
-  // If these 3 methods are not implement, transfering objects will not be
+  // If these 3 methods are not implement, transferring objects will not be
   // allowed. Otherwise only arrayBuffers will be transferred.
 
   virtual bool CustomReadTransferHandler(

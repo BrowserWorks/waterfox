@@ -42,7 +42,7 @@ goog.scope(function() {
 	es3fIndexedStateQueryTests.TransformFeedbackCase.prototype.constructor = es3fIndexedStateQueryTests.TransformFeedbackCase;
 
 	es3fIndexedStateQueryTests.TransformFeedbackCase.prototype.testTransformFeedback = function() {
-		throw new Error('This method should be overriden.');
+		throw new Error('This method should be overridden.');
 	};
 
 	es3fIndexedStateQueryTests.TransformFeedbackCase.prototype.test = function() {
@@ -202,7 +202,7 @@ goog.scope(function() {
 	es3fIndexedStateQueryTests.UniformBufferCase.prototype.constructor = es3fIndexedStateQueryTests.UniformBufferCase;
 
 	es3fIndexedStateQueryTests.UniformBufferCase.prototype.testUniformBuffers = function() {
-		throw new Error('This method should be overriden.');
+		throw new Error('This method should be overridden.');
 	};
 
 	es3fIndexedStateQueryTests.UniformBufferCase.prototype.test = function() {

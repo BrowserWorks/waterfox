@@ -42,7 +42,7 @@ dom.quota.try:
         type: string
       process_id:
         description: >
-          Optionally, the process in which the error occured.
+          Optionally, the process in which the error occurred.
         type: string
       result:
         description: >

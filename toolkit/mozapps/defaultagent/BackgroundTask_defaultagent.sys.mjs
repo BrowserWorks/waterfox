@@ -35,7 +35,7 @@ ChromeUtils.defineLazyGetter(lazy, "log", () => {
 });
 
 // Should be slightly longer than kNotificationTimeoutMs and kGleanSendWait below
-// (divided by 1000 to convert millseconds to seconds) to not cause race
+// (divided by 1000 to convert milliseconds to seconds) to not cause race
 // between timeouts.
 //
 // Additionally, should be less than the Windows Scheduled Task timeout

@@ -182,7 +182,7 @@ export class nsUnknownContentTypeDialog {
       );
       /*
        * There were some concerns that this load might be triggered by an
-       * inital about:blank in the window. This seems unlikely because:
+       * initial about:blank in the window. This seems unlikely because:
        * 1. Loading about:blank takes a tick and would therefore be canceled by
        *    a consecutive chrome URI load.
        * 2. With recent about:blank changes, the load event is fired when we

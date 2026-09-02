@@ -267,7 +267,7 @@ and is suitable for uniquely identifying the particular Firefox installation
 that is running.
 
 On first launch, this location will be written to the registry, and can be
-overriden by setting that key to a different file location. The registry key is
+overridden by setting that key to a different file location. The registry key is
 `HKEY_CURRENT_USER\Software\Mozilla\Firefox\Launcher`, and the name is the
 full path to firefox.exe with "|Blocklist" appended. This code is in
 {searchfox}`LauncherRegistryInfo <toolkit/xre/LauncherRegistryInfo.cpp>`.

@@ -70,7 +70,7 @@ export var PropertyListUtils = Object.freeze({
    *        to the root object of the property list.
    *        Use getPropertyListObjectType to detect its type.
    *        If it's not read successfully, aPropertyListRoot is set to null.
-   *        The reaon for failure is reported to the Error Console.
+   *        The reason for failure is reported to the Error Console.
    */
   read: function PLU_read(aFile, aCallback) {
     if (!(aFile instanceof Ci.nsIFile || File.isInstance(aFile))) {
@@ -193,7 +193,7 @@ export var PropertyListUtils = Object.freeze({
 
   /**
    * Wraps a 64-bit stored in the form of a string primitive as a String object,
-   * which we can later distiguish from regular string values.
+   * which we can later distinguish from regular string values.
    *
    * @param aPrimitive
    *        a number in the form of either a primitive string or a primitive number.
@@ -574,7 +574,7 @@ BinaryPropertyListReader.prototype = {
   },
 
   /**
-   * Reads an object at the spcified index in the object table
+   * Reads an object at the specified index in the object table
    *
    * @param aObjectIndex
    *        index at the object table

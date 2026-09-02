@@ -584,7 +584,7 @@ policies and contribution forms [3].
 
         /**
          * Returns a Promise that will resolve after the specified event or
-         * series of events has occured.
+         * series of events has occurred.
          */
         this.wait_for = function(types) {
             if (waitingFor) {

@@ -861,7 +861,7 @@
           // Initially the panel used for the searchbar (PopupSearchAutoComplete
           // in browser.xhtml) is hidden to avoid impacting startup / new
           // window performance. The base binding's openPopup would normally
-          // call the overriden openAutocompletePopup in
+          // call the overridden openAutocompletePopup in
           // browser-search-autocomplete-result-popup binding to unhide the popup,
           // but since we're overriding openPopup we need to unhide the panel
           // ourselves.

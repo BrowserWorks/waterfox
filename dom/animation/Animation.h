@@ -132,7 +132,7 @@ class Animation : public DOMEventTargetHelper,
   virtual bool TimelineOverridenByJS() const { return false; }
   void SetTimelineFromJS(AnimationTimeline* aTimeline);
   AnimationTimeline* GetTimeline() const { return mTimeline; }
-  // Timeline may be overriden through JS, any update from the CSS side
+  // Timeline may be overridden through JS, any update from the CSS side
   // will not take effect. Returns true if the timeline did update.
   bool SetTimeline(AnimationTimeline* aTimeline, const nsAtom* aTimelineName,
                    FromJS aFromJS);

@@ -47,7 +47,7 @@ struct ParamTraits<nsIDOMGeoPositionCoords*> {
   // Function to de-serialize a geoposition
   static bool Read(MessageReader* aReader,
                    RefPtr<nsIDOMGeoPositionCoords>* aResult) {
-    // Check if it is the null pointer we have transfered
+    // Check if it is the null pointer we have transferred
     bool isNull;
     if (!ReadParam(aReader, &isNull)) return false;
 
@@ -104,7 +104,7 @@ struct ParamTraits<nsIDOMGeoPosition*> {
 
   // Function to de-serialize a geoposition
   static bool Read(MessageReader* aReader, RefPtr<nsIDOMGeoPosition>* aResult) {
-    // Check if it is the null pointer we have transfered
+    // Check if it is the null pointer we have transferred
     bool isNull;
     if (!ReadParam(aReader, &isNull)) return false;
 

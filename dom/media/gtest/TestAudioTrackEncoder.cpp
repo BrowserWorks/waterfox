@@ -66,7 +66,7 @@ TEST(OpusAudioTrackEncoder, InitRaw)
 TEST(OpusAudioTrackEncoder, Init)
 {
   {
-    // The encoder does not normally recieve enough info from null data to
+    // The encoder does not normally receive enough info from null data to
     // init. However, multiple attempts to do so, with sufficiently long
     // duration segments, should result in a default-init. The first attempt
     // should never do this though, even if the duration is long:

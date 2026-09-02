@@ -52,7 +52,7 @@ using namespace mozilla::ipc;
  * NOTE: This function performs percent-decoding on the argument unlike
  * the other `NS_DomainTo` functions!
  *
- * If upon successfull return `aASCII` is empty, it is the caller's
+ * If upon successful return `aASCII` is empty, it is the caller's
  * responsibility to treat the value of `aDisplay` also as the value of
  * `aASCII`. (The weird semantics avoid useless allocation / copying.)
  *
@@ -133,7 +133,7 @@ int32_t nsStandardURL::nsSegmentEncoder::EncodeSegmentCount(
         // CHARACTER.
         UTF_8_ENCODING->Decode(
             nsDependentCSubstring(span.Elements(), span.Length()), valid);
-        // This assigment is OK. `span` can't be used after `valid` has
+        // This assignment is OK. `span` can't be used after `valid` has
         // been destroyed because the only way out of the scope that `valid`
         // was declared in is via return inside the loop below. Specifically,
         // the return is the only way out of the loop.
@@ -367,7 +367,7 @@ void nsStandardURL::ShutdownGlobalObjects() {
 
 #ifdef DEBUG_DUMP_URLS_AT_SHUTDOWN
   if (gInitialized) {
-    // This instanciates a dummy class, and will trigger the class
+    // This instantiates a dummy class, and will trigger the class
     // destructor when libxul is unloaded. This is equivalent to atexit(),
     // but gracefully handles dlclose().
     StaticMutexAutoLock lock(gAllURLsMutex);

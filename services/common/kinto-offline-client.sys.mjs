@@ -941,7 +941,7 @@ async function migrationRequired(dbName) {
         return { records, timestamp };
     }
     catch (e) {
-        console.error("Error occured during migration", e);
+        console.error("Error occurred during migration", e);
         return null;
     }
     finally {
@@ -2117,7 +2117,7 @@ class Collection {
                     }));
                     await this.pushChanges(client, resolvedEncoded, result, options);
                 }
-                // Perform a last pull to catch changes that occured after the last pull,
+                // Perform a last pull to catch changes that occurred after the last pull,
                 // while local changes were pushed. Do not do it nothing was pushed.
                 if (result.published.length > 0) {
                     // Avoid redownloading our own changes during the last pull.
@@ -2125,9 +2125,9 @@ class Collection {
                     await this.pullChanges(client, result, pullOpts);
                 }
             }
-            // Don't persist lastModified value if any conflict or error occured
+            // Don't persist lastModified value if any conflict or error occurred
             if (result.ok) {
-                // No conflict occured, persist collection's lastModified value
+                // No conflict occurred, persist collection's lastModified value
                 this._lastModified = await this.db.saveLastModified(result.lastModified);
             }
         }

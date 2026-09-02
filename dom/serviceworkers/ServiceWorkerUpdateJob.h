@@ -35,7 +35,7 @@ class ServiceWorkerUpdateJob : public ServiceWorkerJob {
   already_AddRefed<ServiceWorkerRegistrationInfo> GetRegistration() const;
 
  protected:
-  // Construct an update job that is overriden as another job type.
+  // Construct an update job that is overridden as another job type.
   ServiceWorkerUpdateJob(
       Type aType, nsIPrincipal* aPrincipal, const nsACString& aScope,
       nsCString aScriptSpec, ServiceWorkerUpdateViaCache aUpdateViaCache,
@@ -59,7 +59,7 @@ class ServiceWorkerUpdateJob : public ServiceWorkerJob {
   void SetRegistration(ServiceWorkerRegistrationInfo* aRegistration);
 
   // Execute the bulk of the update job logic using the registration defined
-  // by a previous SetRegistration() call.  This can be called by the overriden
+  // by a previous SetRegistration() call.  This can be called by the overridden
   // AsyncExecute() to complete the job.  The Update() method will always call
   // Finish().  This method corresponds to the spec Update algorithm.
   void Update();

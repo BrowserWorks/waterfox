@@ -11,7 +11,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   UpdateUtils: "resource://gre/modules/UpdateUtils.sys.mjs",
 });
 
-const PREF_APP_UPDATE_CANCELATIONS_OSX = "app.update.cancelations.osx";
+const PREF_APP_UPDATE_CANCELATIONS_OSX = "app.update.cancellations.osx";
 const PREF_APP_UPDATE_ELEVATE_NEVER = "app.update.elevate.never";
 
 class AbortError extends Error {

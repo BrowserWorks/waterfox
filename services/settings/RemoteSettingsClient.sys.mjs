@@ -648,7 +648,7 @@ export class RemoteSettingsClient extends EventEmitter {
       const timestamp = await this.db.getLastModified();
       let metadata = await this.db.getMetadata();
       if (syncIfEmpty && lazy.ObjectUtils.isEmpty(metadata)) {
-        // No sync occured yet, may have records from dump but no metadata.
+        // No sync occurred yet, may have records from dump but no metadata.
         // We don't want the "sync" event to be sent, since some consumers use `.get()`
         // in "sync" callbacks. See Bug 1761953
         await this.sync({ loadDump: false, sendEvents: false });
@@ -909,7 +909,7 @@ export class RemoteSettingsClient extends EventEmitter {
               { retry: true }
             );
           } catch (ex) {
-            // If the signature fails again, or if an error occured during wiping out the
+            // If the signature fails again, or if an error occurred during wiping out the
             // local data, then we report it as a *signature retry* error.
             reportStatus = lazy.UptakeTelemetry.STATUS.SIGNATURE_RETRY_ERROR;
             throw ex;

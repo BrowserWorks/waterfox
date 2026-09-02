@@ -738,7 +738,7 @@ add_task(
       visitDate: timestamp,
     });
 
-    // Verify that referrer state matches the specifed bucket for the first url
+    // Verify that referrer state matches the specified bucket for the first url
     const incrDb = await openIncrDatabase();
     let state = await getReferrerState(incrDb, TASK_ID);
     Assert.strictEqual(state.bucket, 1, "Referrer state should be 1");
@@ -751,7 +751,7 @@ add_task(
       visitDate: timestamp,
     });
 
-    // Verify that referrer state matches the specifed bucket for the second url
+    // Verify that referrer state matches the specified bucket for the second url
     state = await getReferrerState(incrDb, TASK_ID);
     Assert.strictEqual(state.bucket, 2, "Referrer state should be 2");
 

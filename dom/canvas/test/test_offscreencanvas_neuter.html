@@ -40,26 +40,26 @@ function runTest() {
 
   worker.postMessage(offscreenCanvas, [offscreenCanvas]);
 
-  /* check parent offscreencanvas is neutered after being transfered */
+  /* check parent offscreencanvas is neutered after being transferred */
   SimpleTest.doesThrow(
     function() { offscreenCanvas.width = 128; },
-    "Can't change transfered worker canvas width");
+    "Can't change transferred worker canvas width");
 
   SimpleTest.doesThrow(
     function() { offscreenCanvas.height = 128; },
-    "Can't change transfered worker canvas height");
+    "Can't change transferred worker canvas height");
 
   SimpleTest.doesThrow(
     function() { offscreenCanvas.getContext("2d") },
-    "Can't getContext on transfered worker canvas");
+    "Can't getContext on transferred worker canvas");
 
   SimpleTest.doesThrow(
     function() { offscreenCanvas.getContext("webgl") },
-    "Can't getContext on transfered worker canvas");
+    "Can't getContext on transferred worker canvas");
 
   SimpleTest.doesThrow(
     function() { offscreenCanvas.getContext("webgl2") },
-    "Can't getContext on transfered worker canvas");
+    "Can't getContext on transferred worker canvas");
 
   // Transfer a neutered offscreencanvas should be ok.
   worker.postMessage(offscreenCanvas, [offscreenCanvas]);

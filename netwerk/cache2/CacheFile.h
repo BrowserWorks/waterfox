@@ -221,7 +221,7 @@ class MOZ_CAPABILITY("mutex") CacheFile final
   bool mPreloadWithoutInputStreams MOZ_GUARDED_BY(this){true};
   uint32_t mPreloadChunkCount MOZ_GUARDED_BY(this){0};
   nsresult mStatus MOZ_GUARDED_BY(this){NS_OK};
-  // Size of the whole data including eventual alternative data represenation.
+  // Size of the whole data including eventual alternative data representation.
   int64_t mDataSize MOZ_GUARDED_BY(this){-1};
 
   // If there is alternative data present, it contains size of the original

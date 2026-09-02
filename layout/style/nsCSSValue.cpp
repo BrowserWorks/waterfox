@@ -51,7 +51,7 @@ nsCSSValue& nsCSSValue::operator=(const nsCSSValue& aCopy) {
 }
 
 nsCSSValue& nsCSSValue::operator=(nsCSSValue&& aOther) {
-  MOZ_ASSERT(this != &aOther, "Self assigment with rvalue reference");
+  MOZ_ASSERT(this != &aOther, "Self assignment with rvalue reference");
 
   Reset();
   mUnit = aOther.mUnit;

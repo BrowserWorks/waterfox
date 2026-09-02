@@ -663,7 +663,7 @@ nsresult nsNavHistoryContainerResultNode::OpenContainerAsync() {
 /**
  * Cancels the pending asynchronous Storage execution triggered by
  * FillChildrenAsync, if it exists.  This method doesn't do much, because after
- * cancelation Storage will call this node's HandleCompletion callback, where
+ * cancellation Storage will call this node's HandleCompletion callback, where
  * the real work is done.
  *
  * @param aRestart
@@ -2291,7 +2291,7 @@ nsresult nsNavHistoryQueryResultNode::OnPageRemovedVisits(
 
   if (!aPartialRemoval) {
     // All visits for this uri have been removed, but the uri won't be removed
-    // from the databse, most likely because it's a bookmark.  For a history
+    // from the database, most likely because it's a bookmark.  For a history
     // query this is equivalent to a OnPageRemovedFromStore notification.
     nsresult rv = OnPageRemovedFromStore(aURI, aGUID, aReason);
     NS_ENSURE_SUCCESS(rv, rv);

@@ -77,7 +77,7 @@ function* runTest([imgFile, audioFile, docFile, xhrFile]) {
 
   // Revoke url and attempt to load a image in this document
   img.src = "file_mozfiledataurl_img.jpg";
-  is((yield).type, "load", "successfull reset image");
+  is((yield).type, "load", "successful reset image");
   URL.revokeObjectURL(fileurl);
   todo(false, "urls need to act like 404s, not fail to parse");
 /*  img.src = fileurl;

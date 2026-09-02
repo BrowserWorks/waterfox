@@ -386,7 +386,7 @@ add_task(async function window_open_iframe_test() {
       );
 
       // The document is https://example.com/browser/browser/components/originattributes/test/browser/test_firstParty.html
-      // so the firstPartyDomain will be overriden to 'example.com'.
+      // so the firstPartyDomain will be overridden to 'example.com'.
       Assert.equal(
         content.document.nodePrincipal.originAttributes.firstPartyDomain,
         "example.com",

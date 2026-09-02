@@ -90,7 +90,7 @@ add_task(async function test_cache_api_http_resource_allowed() {
 
 // This test is similar to `test_cache_api_http_resource_allowed` but it does
 // exercise the Cache API from a moz-extension shared worker.
-// We expect the cache API calls to be successfull when it is being used to
+// We expect the cache API calls to be successful when it is being used to
 // cache an HTTP url that is allowed for the extensions based on its host
 // permission, but to fail if the extension doesn't have the required host
 // permission to fetch data from that url.

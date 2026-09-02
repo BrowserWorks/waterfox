@@ -295,7 +295,7 @@ export class NewTabContentPing {
   /**
    * Generate a random delay to submit the ping from the point of
    * scheduling. This uses a cryptographically secure mechanism for
-   * generating the random delay and returns it in millseconds.
+   * generating the random delay and returns it in milliseconds.
    *
    * @returns {number}
    *   A random number between 1000 and the max new content ping submission

@@ -55,7 +55,7 @@
  * Since the interface is not declared formally, the registrations can happen
  * at startup without loading the component, so they do not affect performance.
  *
- * Hovever, this module does not provide a startup registry, this means that the
+ * However, this module does not provide a startup registry, this means that the
  * code that registers and implements the override must be loaded at startup.
  *
  * If performance for the override code is a concern, you can take advantage of

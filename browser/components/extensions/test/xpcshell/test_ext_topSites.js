@@ -23,7 +23,7 @@ add_task(async function test_topSites() {
   // `getTopFrecentSites` uses a threshold to filter low frecency results.
   // The minimum visit threshold is meant to mimic meaningful user engagement.
   // The date cutoff is to ensure visits in the recent past are still visible.
-  // Both values are meant to accomodate variations in the frecency scoring
+  // Both values are meant to accommodate variations in the frecency scoring
   // algorithm.
   const numVisits = 5;
   let visitDate = new Date();

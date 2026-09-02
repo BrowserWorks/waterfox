@@ -105,7 +105,7 @@ async function generateRequestOnNewSessionCreatedBySameMediaKeys() {
   const session = gMediaKeys.createSession(sessionType);
   try {
     await session.generateRequest('keyids', new TextEncoder().encode(keyIdJson));
-    ok(true, "Generated request succesfully on a new session!");
+    ok(true, "Generated request successfully on a new session!");
   } catch (error) {
     ok(false, "Failed to generate request again!");
   }

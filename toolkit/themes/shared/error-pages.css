@@ -11,7 +11,7 @@ body {
   padding: 0;
   /* info-pages.css sets a minimum width of 13em to the content
    * container. If we don't set a min-width here, the content
-   * gets clipped in iframes with small width. We don't accomodate
+   * gets clipped in iframes with small width. We don't accommodate
    * any padding to prioritize real estate in the small viewport. */
   min-width: 13em;
 }

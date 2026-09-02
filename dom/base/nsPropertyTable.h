@@ -67,7 +67,7 @@ class nsPropertyTable {
    * destructor is global for each property name regardless of node; it is an
    * error to set a given property with a different destructor than was used
    * before (this will return NS_ERROR_INVALID_ARG). If |aTransfer| is true
-   * the property will be transfered to the new table when the property table
+   * the property will be transferred to the new table when the property table
    * for |aObject| changes (currently the tables for nodes are owned by their
    * ownerDocument, so if the ownerDocument for a node changes, its property
    * table changes too). If |aTransfer| is false the property will just be
@@ -106,7 +106,7 @@ class nsPropertyTable {
    * Transfers all properties for object |aObject| that were set with the
    * |aTransfer| argument as true to |aTable|. Removes the other properties for
    * object |aObject|, calling the destructor function for each property.
-   * If transfering a property fails, this deletes all the properties for object
+   * If transferring a property fails, this deletes all the properties for object
    * |aObject|.
    */
   nsresult TransferOrRemoveAllPropertiesFor(nsPropertyOwner aObject,

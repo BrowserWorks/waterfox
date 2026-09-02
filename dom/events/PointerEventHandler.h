@@ -433,10 +433,10 @@ class PointerEventHandler final {
 
   /**
    * Return pending capture element of for the pointerId (of the event).
-   * - If the element has already overriden the pointer capture and there is no
+   * - If the element has already overridden the pointer capture and there is no
    * new pending capture element, the result is what captures the pointer right
    * now.
-   * - If the element has not overriden the pointer capture, the result will
+   * - If the element has not overridden the pointer capture, the result will
    * start capturing the pointer once the pending pointer capture is processed
    * at dispatching a pointer event later.
    *

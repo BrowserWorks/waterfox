@@ -238,7 +238,7 @@ add_task(async function test_save_and_delete() {
 });
 
 // This tests that content blocking events encountered on the same day get aggregated,
-// and those on different days get seperate entries
+// and those on different days get separate entries
 add_task(async function test_timestamp_aggragation() {
   // This creates the schema.
   await TrackingDBService.saveEvents(JSON.stringify({}));

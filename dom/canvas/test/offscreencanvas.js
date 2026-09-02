@@ -208,7 +208,7 @@
     }
 
     if (test != "subworker") {
-      ok(canvas, "Canvas successfully transfered to worker");
+      ok(canvas, "Canvas successfully transferred to worker");
       ok(canvas.getContext, "Canvas has getContext");
 
       if (test != "webgl_todataurl_stride") {

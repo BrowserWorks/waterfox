@@ -96,7 +96,7 @@ MFBT_API void profiler_shutdown();
 // circular buffer.
 //   "aCapacity" is the maximum number of 8-byte entries in the profiler's
 //               circular buffer.
-//   "aInterval" the sampling interval, measured in millseconds.
+//   "aInterval" the sampling interval, measured in milliseconds.
 //   "aFeatures" is the feature set. Features unsupported by this
 //               platform/configuration are ignored.
 //   "aFilters" is the list of thread filters. Threads that do not match any

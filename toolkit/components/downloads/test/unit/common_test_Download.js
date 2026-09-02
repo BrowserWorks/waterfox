@@ -386,7 +386,7 @@ add_task(async function test_macos_xattrItemWhereFroms() {
  */
 add_task(async function test_windows_zoneInformation() {
   // This test is only executed on Windows, and in order to work correctly it
-  // requires the local user applicaton data directory to be on an NTFS file
+  // requires the local user application data directory to be on an NTFS file
   // system. We use this directory because it is more likely to be on the local
   // system installation drive, while the temporary directory used by the test
   // environment is on the same drive as the test sources.

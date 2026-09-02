@@ -18,7 +18,7 @@ const PREF_INSTALL_REQUIREBUILTINCERTS =
 
 export var AddonSettings = {};
 
-// Make a non-changable property that can't be manipulated from other
+// Make a non-changeable property that can't be manipulated from other
 // code in the app.
 function makeConstant(name, value) {
   Object.defineProperty(AddonSettings, name, {
@@ -85,7 +85,7 @@ if (Cu.isInAutomation) {
  *
  * Experimental APIs are always available to privileged signed addons.
  * This constant makes an optional preference available to enable experimental
- * APIs for developement purposes.
+ * APIs for development purposes.
  *
  * Two features are toggled with this preference:
  *

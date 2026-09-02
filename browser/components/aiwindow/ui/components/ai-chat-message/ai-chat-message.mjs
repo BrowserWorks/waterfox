@@ -657,7 +657,7 @@ export class AIChatMessage extends MozLitElement {
   /**
    * Render the assistant message by parsing parsing the markdown and then manually
    * unfurl any unseen links. This function is memoized based on the message contents
-   * and seen links Set to guard against unneccessary re-renders.
+   * and seen links Set to guard against unnecessary re-renders.
    *
    * @returns {HTMLElement}
    */

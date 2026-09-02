@@ -718,7 +718,7 @@ void ServiceWorkerRegistrationInfo::SetActive(
     mActiveWorker->UpdateRedundantTime();
   }
 
-  // The active worker is being overriden due to initial load or
+  // The active worker is being overridden due to initial load or
   // another process activating a worker.  Move straight to the
   // Activated state.
   mActiveWorker = aServiceWorker;

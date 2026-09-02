@@ -231,7 +231,7 @@ add_task(async function test_install_source_allowed_mozAddonManager() {
       throw res;
     }
     throw new Error(
-      "Unxpected mozAddonManager install promise resolved as successfull"
+      "Unxpected mozAddonManager install promise resolved as successful"
     );
   });
   BrowserTestUtils.removeTab(tab);

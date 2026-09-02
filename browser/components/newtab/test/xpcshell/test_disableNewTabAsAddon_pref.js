@@ -130,7 +130,7 @@ add_task(async function test_parentprocess_fetch() {
   Assert.equal(
     cssChromeReq.status,
     200,
-    "chrome://newtab fetch should be successfull"
+    "chrome://newtab fetch should be successful"
   );
 
   Assert.equal(

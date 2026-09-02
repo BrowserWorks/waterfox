@@ -363,7 +363,7 @@ describe("ToolbarBadgeHub", () => {
       assert.notCalled(fakeEvent.target.removeEventListener);
       assert.notCalled(everyWindowStub.unregisterCallback);
     });
-    it("should remove the event listeners after succesfully focusing the element", () => {
+    it("should remove the event listeners after successfully focusing the element", () => {
       fakeEvent.type = "click";
       fakeEvent.button = 0;
 
@@ -393,7 +393,7 @@ describe("ToolbarBadgeHub", () => {
         id: "FXA_ACCOUNTS_BADGE",
       });
     });
-    it("should remove the event listeners after succesfully focusing the element", () => {
+    it("should remove the event listeners after successfully focusing the element", () => {
       fakeEvent.type = "keypress";
       fakeEvent.key = "Enter";
 

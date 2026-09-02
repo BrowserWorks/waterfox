@@ -327,7 +327,7 @@ class TestHTTPAnswerRunnable final : public mozilla::Runnable,
 /**
  * Data about a HTTPS-First downgrade used for Telemetry. We need to store this
  * instead of directly submitting it when deciding to downgrade, because it is
- * only interesting for us if the downgraded load is actually succesful.
+ * only interesting for us if the downgraded load is actually successful.
  */
 struct HTTPSFirstDowngradeData
     : public mozilla::RefCounted<HTTPSFirstDowngradeData> {

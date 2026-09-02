@@ -88,7 +88,7 @@ describe("detectUserSessionStart", () => {
   });
 
   describe("_onVisibilityChange", () => {
-    it("should not send an event if visiblity is not visible", () => {
+    it("should not send an event if visibility is not visible", () => {
       const instance = new DetectUserSessionStart(store, {
         document: { visibilityState: "hidden" },
       });

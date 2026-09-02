@@ -4347,7 +4347,7 @@ HRESULT TSFTextStore::MouseTracker::AdviseSink(TSFTextStore* aTextStore,
           ("0x%p   TSFTextStore::MouseTracker::AdviseSink(aTextStore=0x%p, "
            "aTextRange=0x%p, aMouseSink=0x%p), mCookie=%ld, mSink=0x%p",
            this, aTextStore, aTextRange, aMouseSink, mCookie, mSink.get()));
-  MOZ_ASSERT(mCookie != kInvalidCookie, "This hasn't been initalized?");
+  MOZ_ASSERT(mCookie != kInvalidCookie, "This hasn't been initialized?");
 
   if (mSink) {
     MOZ_LOG(gIMELog, LogLevel::Error,

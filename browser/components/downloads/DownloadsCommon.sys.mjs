@@ -670,7 +670,7 @@ export var DownloadsCommon = {
     let s = DownloadsCommon.strings;
 
     // All the dialogs have an action button and a cancel button, while only
-    // some of them have an additonal button to remove the file. The cancel
+    // some of them have an additional button to remove the file. The cancel
     // button must always be the one at BUTTON_POS_1 because this is the value
     // returned by confirmEx when using ESC or closing the dialog (bug 345067).
     let title = s.unblockHeaderUnblock;

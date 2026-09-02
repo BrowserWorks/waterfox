@@ -35,7 +35,7 @@ SerializedLoadContext::SerializedLoadContext(nsIChannel* aChannel)
 
   if (!loadContext) {
     // Attempt to retrieve the private bit from the channel if it has been
-    // overriden.
+    // overridden.
     bool isPrivate = false;
     bool isOverriden = false;
     nsCOMPtr<nsIPrivateBrowsingChannel> pbChannel = do_QueryInterface(aChannel);

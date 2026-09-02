@@ -370,7 +370,7 @@ bool MessagePortService::ForceClose(const nsID& aUUID,
 
   // If StructuredCloneData includes a MessagePort, StructuredCloneData
   // serialization failure in postMessage can trigger MessagePort::ForceClose().
-  // And since the serialized port transfered has started but not finished yet,
+  // And since the serialized port transferred has started but not finished yet,
   // the SequenceID will not be synchronized to the parent side, which will
   // cause the SequenceID to mismatch here. See bug 1872770.
   NS_WARNING_ASSERTION(data->mSequenceID == aSequenceID,

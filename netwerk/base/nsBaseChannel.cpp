@@ -355,7 +355,7 @@ NS_IMETHODIMP nsBaseChannel::CancelWithReason(nsresult aStatus,
 
 NS_IMETHODIMP
 nsBaseChannel::Cancel(nsresult status) {
-  // Ignore redundant cancelation
+  // Ignore redundant cancellation
   if (mCanceled) {
     return NS_OK;
   }

@@ -480,7 +480,7 @@ function onShortcutChange(e) {
   e.preventDefault();
   e.stopPropagation();
 
-  // Some system actions aren't in the keyset, handle them independantly.
+  // Some system actions aren't in the keyset, handle them independently.
   if (lazy.ShortcutUtils.getSystemActionForEvent(e)) {
     e.defaultCancelled = true;
     setError(input, "shortcuts-system");

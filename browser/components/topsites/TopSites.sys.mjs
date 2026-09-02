@@ -976,7 +976,7 @@ class _TopSites {
 
   /**
    * Reduces the given pinning index by the number of preceding sponsored
-   * sites, to accomodate for sponsored sites pushing pinned ones to the side,
+   * sites, to accommodate for sponsored sites pushing pinned ones to the side,
    * effectively increasing their index again.
    */
   _adjustPinIndexForSponsoredLinks(site, index) {

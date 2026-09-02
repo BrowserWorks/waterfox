@@ -107,7 +107,7 @@ static int ChildMain(DWORD aExpectedParentPid) {
 
   // Querying a pid on a terminated process may still succeed some time after
   // that process has been terminated. For the purposes of this test, we'll poll
-  // the OS until we cannot succesfully open the parentPid anymore.
+  // the OS until we cannot successfully open the parentPid anymore.
   const uint32_t kMaxAttempts = 100;
   uint32_t curAttempt = 0;
   while (HANDLE p = ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE,

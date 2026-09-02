@@ -1371,7 +1371,7 @@ add_task(async function test_getScreenshotPreview() {
   let sandbox = sinon.createSandbox();
 
   info(
-    "TopSitesFeed.getScreenshotPreview should dispatch preview if request is succesful"
+    "TopSitesFeed.getScreenshotPreview should dispatch preview if request is successful"
   );
 
   let feed = getTopSitesFeedForTest(sandbox);

@@ -77,7 +77,7 @@ add_task(async function () {
   // The reasons that here just call the `openPreferences` API without the helping function are
   //   - already opened one about:preferences tab up there and
   //   - the goal is to test on the existing tab and
-  //   - using `openPreferencesViaOpenPreferencesAPI` would introduce more handling of additional about:blank and unneccessary event
+  //   - using `openPreferencesViaOpenPreferencesAPI` would introduce more handling of additional about:blank and unnecessary event
   await openPreferences("privacy-reports");
   let selectedPane = gBrowser.contentWindow.gLastCategory?.category;
   is(selectedPane, kPrivacyPane, "Privacy pane should be selected");

@@ -458,7 +458,7 @@ IPCResult WebTransportParent::RecvCreateBidirectionalStream(
   return IPC_OK();
 }
 
-// We recieve this notification from the WebTransportSessionProxy if session was
+// We receive this notification from the WebTransportSessionProxy if session was
 // successfully created at the end of
 // WebTransportSessionProxy::OnStopRequest
 NS_IMETHODIMP

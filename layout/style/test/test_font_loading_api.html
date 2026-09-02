@@ -312,7 +312,7 @@ function runTest() {
             is(face[desc], defaultValues[desc], "default value of FontFace." + desc + " (TEST 14) (" + what + ")");
           }
         }, function(aError) {
-          ok(false, "FontFace should have loaded succesfully (TEST 14) (" + what + ")");
+          ok(false, "FontFace should have loaded successfully (TEST 14) (" + what + ")");
         });
       });
     });
@@ -336,7 +336,7 @@ function runTest() {
             return face.loaded.then(function() {
               ok_todo(face[aDesc] == nonDefaultValues[aDesc][1], "specified valid non-default value of FontFace." + aDesc + " (TEST 15) (" + what + ")");
             }, function(aError) {
-              ok(false, "FontFace should have loaded succesfully (TEST 15) (" + what + ")");
+              ok(false, "FontFace should have loaded successfully (TEST 15) (" + what + ")");
             });
           });
         });
@@ -503,7 +503,7 @@ function runTest() {
               face[aDesc] = nonDefaultValues[aDesc][0];
               ok_todo(face[aDesc] == nonDefaultValues[aDesc][1], "assigned valid non-default value to FontFace." + aDesc + " (TEST 22) (" + what + ")");
             }, function(aError) {
-              ok(false, "FontFace should have loaded succesfully (TEST 22) (" + what + ")");
+              ok(false, "FontFace should have loaded successfully (TEST 22) (" + what + ")");
             });
           });
         });
@@ -532,7 +532,7 @@ function runTest() {
               }
               ok_todo(exceptionName == "SyntaxError", "assigning invalid value to FontFace." + aDesc + " should throw a SyntaxError (TEST 23) (" + what + ")");
             }, function(aError) {
-              ok(false, "FontFace should have loaded succesfully (TEST 23) (" + what + ")");
+              ok(false, "FontFace should have loaded successfully (TEST 23) (" + what + ")");
             });
           });
         });
@@ -1601,14 +1601,14 @@ function runTest() {
       p = p.then(function() {
         // No matching font family names => return true.
         return doc.fonts.load("16px NonExistentFont1, NonExistentFont2").then(function(result) {
-          is(result.length, 0, "load resolves with an emtpy array when no matching font family names are used (TEST 45) (" + what + ")");
+          is(result.length, 0, "load resolves with an empty array when no matching font family names are used (TEST 45) (" + what + ")");
         });
       });
 
       p = p.then(function() {
         // Matching platform font family name => return true.
         return doc.fonts.load("16px NonExistentFont1, " + likelyPlatformFonts).then(function(result) {
-          is(result.length, 0, "load resolves with an emtpy array when no matching font family names are used (TEST 45) (" + what + ")");
+          is(result.length, 0, "load resolves with an empty array when no matching font family names are used (TEST 45) (" + what + ")");
         });
       });
 

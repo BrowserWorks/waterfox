@@ -359,7 +359,7 @@ nsresult MediaEngineWebRTCMicrophoneSource::Deallocate() {
   mTrack = nullptr;
   mPrincipal = PRINCIPAL_HANDLE_NONE;
 
-  // If empty, no callbacks to deliver data should be occuring
+  // If empty, no callbacks to deliver data should be occurring
   MOZ_ASSERT(mState != kReleased, "Source not allocated");
   MOZ_ASSERT(mState != kStarted, "Source not stopped");
 

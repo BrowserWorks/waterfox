@@ -6425,7 +6425,7 @@ var SessionStoreInternal = {
       // Remove all previous tab data.
       tabsDataArray.length = 0;
     } else {
-      // Remove all previous tab data except tabs that should not be overriden.
+      // Remove all previous tab data except tabs that should not be overridden.
       tabsDataArray.splice(numTabsInWindow - numTabsToRestore);
     }
 

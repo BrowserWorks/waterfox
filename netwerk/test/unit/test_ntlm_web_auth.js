@@ -234,7 +234,7 @@ function setupTest(path, handler, requests, response, clearCache) {
 }
 
 // Happy code path
-// Succesful web server auth.
+// Successful web server auth.
 function test_happy_path() {
   dump("RUNNING TEST: test_happy_path");
   setupTest("/auth", successfulAuth, 3, 200, 1);

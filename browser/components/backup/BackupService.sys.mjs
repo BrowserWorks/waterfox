@@ -667,7 +667,7 @@ export class BackupService extends EventTarget {
   static #backupFileName = null;
 
   /**
-   * Number of retries that have occured in this session on error
+   * Number of retries that have occurred in this session on error
    */
   static #errorRetries = 0;
 

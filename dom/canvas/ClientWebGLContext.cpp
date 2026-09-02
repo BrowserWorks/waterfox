@@ -4370,7 +4370,7 @@ void ClientWebGLContext::TexImage(uint8_t funcDims, GLenum imageTarget,
               nogc.reset();  // aData will not be used.
               EnqueueError(
                   LOCAL_GL_INVALID_VALUE,
-                  "ImageData.data.buffer is Detached. (Maybe you Transfered "
+                  "ImageData.data.buffer is Detached. (Maybe you Transferred "
                   "it to a Worker?");
               return {};
             }

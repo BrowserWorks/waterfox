@@ -95,7 +95,7 @@ static void ConcatArray(nsACString& aOutputStr, const char** aStringArray) {
 void DBusHandleResultSet(RefPtr<nsGNOMEShellHistorySearchResult> aSearchResult,
                          GVariant* aParameters, bool aInitialSearch,
                          GDBusMethodInvocation* aReply) {
-  // Inital search has params (as), any following one has (as,as) and we want
+  // Initial search has params (as), any following one has (as,as) and we want
   // the second string array.
   fprintf(stderr, "%s\n", g_variant_get_type_string(aParameters));
   RefPtr<GVariant> variant = dont_AddRef(
