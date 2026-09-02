@@ -526,7 +526,7 @@ Calculator.addNumberSystem({
   /**
    * parseFloat will only handle numbers that use periods as decimal
    * separators, various countries use commas. This function attempts
-   * to fixup the number so parseFloat will accept it.
+   * to fix the number so parseFloat will accept it.
    *
    * @param {string} num
    */
@@ -536,7 +536,7 @@ Calculator.addNumberSystem({
 
     if (firstPeriod != -1 && firstComma != -1 && firstPeriod < firstComma) {
       // Contains both a period and a comma and the period came first
-      // so using comma as decimal seperator, strip . and replace , with .
+      // so using comma as decimal separator, strip . and replace , with .
       // (ie 1.999,5).
       num = num.replace(/\./g, "");
       num = num.replace(/,/g, ".");
@@ -551,7 +551,7 @@ Calculator.addNumberSystem({
       // Contains multiple periods and no commas, strip periods
       num = num.replace(/\./g, "");
     } else if (firstComma != -1) {
-      // Has a single comma and no periods, treat comma as decimal seperator
+      // Has a single comma and no periods, treat comma as decimal separator
       num = num.replace(/,/g, ".");
     }
     return num;

@@ -20,7 +20,7 @@ const Preferences = Object.freeze({
 });
 
 /**
- * Setup Telemetry logging. This function also gets called when loggin related
+ * Setup Telemetry logging. This function also gets called when logging related
  * preferences change.
  */
 var gLogger = null;
