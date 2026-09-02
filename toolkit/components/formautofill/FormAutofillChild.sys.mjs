@@ -842,7 +842,9 @@ export class FormAutofillChild extends JSWindowActorChild {
    * @param {object} handler FormAutofillHandler, if known by caller
    */
   formSubmitted(formElement, formSubmissionReason, handler = undefined) {
-    this.debug(`Handling form submission - inferred by ${formSubmissionReason}`);
+    this.debug(
+      `Handling form submission - inferred by ${formSubmissionReason}`
+    );
 
     lazy.AutofillTelemetry.recordFormSubmissionHeuristicCount(
       formSubmissionReason
