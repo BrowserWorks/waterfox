@@ -106,7 +106,7 @@ export var ToolbarDropHandler = {
     for (let link of links) {
       if (link.url) {
         let data = await lazy.UrlbarUtils.getShortcutOrURIAndPostData(link.url);
-        // Allow third-party services to fix up this URL.
+        // Allow third-party services to fix this URL.
         lazy.URILoadingHelper.openLinkIn(win, data.url, where, {
           postData: data.postData,
           allowThirdPartyFixup: true,
@@ -141,7 +141,7 @@ export var ToolbarDropHandler = {
     for (let link of links) {
       if (link.url) {
         let data = await lazy.UrlbarUtils.getShortcutOrURIAndPostData(link.url);
-        // Allow third-party services to fix up this URL.
+        // Allow third-party services to fix this URL.
         lazy.URILoadingHelper.openLinkIn(win, data.url, "window", {
           // TODO fix allowInheritPrincipal
           // (this is required by javascript: drop to the new window) Bug 1475201

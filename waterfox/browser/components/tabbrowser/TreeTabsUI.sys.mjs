@@ -582,7 +582,7 @@ function createTreeTabsController(window) {
 
       if (changed) {
         // A child attach only fires events for the moved tab and its parents,
-        // so announce a structure change to refresh every row and fix up the
+        // so announce a structure change to refresh every row and fix the
         // indentation of any descendants that came along with it.
         Services.obs.notifyObservers(
           { wrappedJSObject: { window } },

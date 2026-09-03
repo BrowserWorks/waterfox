@@ -4148,7 +4148,7 @@
       try {
         aURIObject = Services.io.newURI(uriString);
       } catch (ex) {
-        /* we'll try to fix up this URL later */
+        /* we'll try to fix this URL later */
       }
 
       let lazyBrowserURI;

@@ -192,7 +192,7 @@ ProgressTracker.STEPS = {
  * the child's `parentid` entirely. We also ignore missing children, and
  * temporarily reparent bookmarks with missing parents to "unfiled". When we
  * eventually see the missing items, either during a later sync or as part of
- * repair, we'll fill in the mirror's gaps and fix up the local tree.
+ * repair, we'll fill in the mirror's gaps and fix the local tree.
  *
  * During merging, we won't intentionally try to fix inconsistencies on the
  * server, and opt to build as complete a tree as we can from the remote state,

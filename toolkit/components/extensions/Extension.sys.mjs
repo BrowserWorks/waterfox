@@ -4403,7 +4403,7 @@ export class Extension extends ExtensionData {
 
       // ExtensionPermissions.add asynchronously updates this.allowedOrigins
       // and this.permissions as needed, but that is too late for us, so we
-      // fix up the permissions here based on what we know.
+      // fix the permissions here based on what we know.
 
       let allowed = this.allowedOrigins.patterns.map(p => p.pattern);
       this.allowedOrigins = new MatchPatternSet(origins.concat(allowed), {

@@ -235,11 +235,11 @@ tag name, and styles, and some data about what sort of frame will be
 created. This list of frame construction items is then analyzed to see
 whether constructing frames based on it and inserting them at the chosen
 insertion point will produce a valid frame tree. If it will not, the
-frame constructor either fixes up the list of frame construction items
+frame constructor either fixes the list of frame construction items
 so that the resulting frame tree would be valid or throws away the list
 of frame construction items and requests the destruction and re-creation
 of the frame for the parent element so that it has a chance to create a
-list of frame construction items that it _can_ fix up. The re-creation
+list of frame construction items that it _can_ fix. The re-creation
 for the parent element is called "reframing", which is an expensive
 operation, and we'd love to avoid it if possible.
 
@@ -259,7 +259,7 @@ into one of these categories:
   This involves some searches through static data tables for metadata
   about the frame to be created.
 - Code to analyze the list of frame construction items.
-- Code to fix up the list of frame construction items.
+- Code to fix the list of frame construction items.
 - Code to create frames from frame construction items.
 
 ## Reflow

@@ -393,7 +393,7 @@ function _parseCustomCharacterClass(input, position) {
     (position < length && input[position] !== CHARACTER_CLASS_END_SENTINEL) ||
     (position == length && input[position - 1] == CHARACTER_CLASS_END_SENTINEL)
   ) {
-    // Fix up result; we over consumed.
+    // Fix result; we over consumed.
     result.pop();
     return [result, position];
   }

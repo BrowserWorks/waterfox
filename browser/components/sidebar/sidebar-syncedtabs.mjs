@@ -75,7 +75,7 @@ class SyncedTabsInSidebar extends SidebarPage {
     for (let selector of selectorsToHide) {
       contextMenu.querySelector(selector).hidden = true;
     }
-    // Fix up separators, ensuring we only show them if there's visible items
+    // Fix separators, ensuring we only show them if there's visible items
     // before and after
     let visibleItemBefore = false,
       lastSeparator = null;
