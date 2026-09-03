@@ -77,7 +77,7 @@ void SharedStyleSheetCache::InsertIfNeeded(css::SheetLoadData& aData) {
   LOG("SharedStyleSheetCache::InsertIfNeeded");
   // If we ever start doing this for failed loads, we'll need to adjust the
   // PostLoadEvent code that thinks anything already complete must have loaded
-  // succesfully.
+  // successfully.
   if (aData.mLoadFailed) {
     LOG("  Load failed, bailing");
     return;

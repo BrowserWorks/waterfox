@@ -85,7 +85,7 @@ enum ExploitabilityRating {
                                        // not have a exploitability engine
                                        // associated with it.
 
-  EXPLOITABILITY_ERR_PROCESSING        // An error occured within the
+  EXPLOITABILITY_ERR_PROCESSING        // An error occurred within the
                                        // exploitability engine and no rating
                                        // was calculated.
 };

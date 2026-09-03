@@ -267,7 +267,7 @@ def ast_get_source_segment(code, node):
     )
 
 
-# Overwrite it so we don't accidently use it
+# Overwrite it so we don't accidentally use it
 ast.original_get_source_segment = ast.get_source_segment
 ast.get_source_segment = ast_get_source_segment
 

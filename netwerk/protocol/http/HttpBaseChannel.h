@@ -941,7 +941,7 @@ class HttpBaseChannel : public nsHashPropertyBag,
     // real cross-origin *network* redirect as a trust-boundary crossing.
     (uint32_t, AllRedirectsSameOriginIgnoringInternal, 1),
 
-    // Is 1 if no redirects have occured or if all redirects
+    // Is 1 if no redirects have occurred or if all redirects
     // pass the Resource Timing timing-allow-check
     (uint32_t, AllRedirectsPassTimingAllowCheck, 1),
 

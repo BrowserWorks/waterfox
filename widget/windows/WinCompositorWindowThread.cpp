@@ -250,7 +250,7 @@ WinCompositorWnds WinCompositorWindowThread::CreateCompositorWindow() {
                              nullptr, WS_POPUP | WS_DISABLED, 0, 0, 1, 1,
                              nullptr, 0, GetModuleHandle(nullptr), 0);
         if (!initialParentWnd) {
-          gfxCriticalNoteOnce << "Inital parent window failed "
+          gfxCriticalNoteOnce << "Initial parent window failed "
                               << ::GetLastError();
           return;
         }

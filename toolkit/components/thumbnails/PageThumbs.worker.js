@@ -31,7 +31,7 @@ self.addEventListener("unhandledrejection", function (error) {
 
 var Agent = {
   // Checks if the specified file exists and has an age less than as
-  // specifed (in seconds).
+  // specified (in seconds).
   async isFileRecent(path, maxAge) {
     try {
       let stat = await IOUtils.stat(path);

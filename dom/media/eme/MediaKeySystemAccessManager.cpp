@@ -271,7 +271,7 @@ void MediaKeySystemAccessManager::CheckDoesAppAllowProtectedMedia(
     // and the result from that will be used to handle the current request.
     MKSAM_LOG_DEBUG(
         "mAppAllowsProtectedMediaPromiseRequest already exists. aRequest "
-        "addded to queue and will be handled when exising permission request "
+        "addded to queue and will be handled when existing permission request "
         "is serviced.");
     mPendingAppApprovalRequests.AppendElement(std::move(aRequest));
     return;

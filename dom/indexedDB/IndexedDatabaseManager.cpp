@@ -127,7 +127,7 @@ const int32_t kDefaultDataThresholdBytes = 1024 * 1024;  // 1MB
 // This limit might be increased after bug 1944231 and bug 1942995 are fixed.
 const int32_t kDefaultMaxStructuredCloneSize = 1042 * 1024 * 1024;  // 1042 MB
 
-// The maximal size of a serialized object to be transfered through IPC.
+// The maximal size of a serialized object to be transferred through IPC.
 const int32_t kDefaultMaxSerializedMsgSize = IPC::Channel::kMaximumMessageSize;
 
 // The maximum number of records to preload (in addition to the one requested by

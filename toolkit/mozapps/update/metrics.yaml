@@ -586,7 +586,7 @@ update:
   pref_update_cancelations_external:
     type: custom_distribution
     description: >
-      Update: number of sequential update elevation request cancelations greater
+      Update: number of sequential update elevation request cancellations greater
       than 0 (externally initiated)
 
       This metric was generated to correspond to the Legacy Telemetry enumerated
@@ -608,7 +608,7 @@ update:
   pref_update_cancelations_notify:
     type: custom_distribution
     description: >
-      Update: number of sequential update elevation request cancelations greater
+      Update: number of sequential update elevation request cancellations greater
       than 0 (timer initiated)
 
       This metric was generated to correspond to the Legacy Telemetry enumerated
@@ -630,7 +630,7 @@ update:
   pref_update_cancelations_subsequent:
     type: custom_distribution
     description: >
-      Update: number of sequential update elevation request cancelations greater
+      Update: number of sequential update elevation request cancellations greater
       than 0 (after we already have an update ready)
 
       This metric was generated to correspond to the Legacy Telemetry enumerated

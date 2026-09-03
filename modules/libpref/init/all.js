@@ -573,7 +573,7 @@ pref("toolkit.telemetry.user_characteristics_ping.last_version_sent", 0);
 // firefox/mozilla will not modify this value.
 pref("toolkit.telemetry.user_characteristics_ping.opt-out", false);
 // if a user wants to send a single ping of this type, they can set it
-// to true. It will be set to false again after a successfull ping.
+// to true. It will be set to false again after a successful ping.
 pref("toolkit.telemetry.user_characteristics_ping.send-once", false);
 // A unique identifier for the user characteristics ping. This is not the same as
 // the telemetry client id (which is not sent in this ping), it is cleared when a

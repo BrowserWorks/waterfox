@@ -46,7 +46,7 @@ nsLiteralCString WakeLockJS::GetRequestErrorMessage(RequestError aRv) {
     case RequestError::PrefDisabled:
       return "The pref dom.screenwakelock.enabled is disabled."_ns;
     case RequestError::InternalFailure:
-      return "A browser-internal error occured."_ns;
+      return "A browser-internal error occurred."_ns;
     case RequestError::PermissionDenied:
       return "Permission to request screen-wake-lock was denied."_ns;
     default:

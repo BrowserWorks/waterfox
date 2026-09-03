@@ -2751,7 +2751,7 @@ void Http3Session::Authenticated(int32_t aError,
           event.forget(), nsIRunnablePriority::PRIORITY_MEDIUMHIGH);
     }
     NS_DispatchToCurrentThread(event);
-    mUdpConn->ChangeConnectionState(ConnectionState::TRANSFERING);
+    mUdpConn->ChangeConnectionState(ConnectionState::TRANSFERRING);
   }
 }
 

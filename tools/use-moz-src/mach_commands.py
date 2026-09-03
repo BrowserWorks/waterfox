@@ -237,7 +237,7 @@ def use_moz_src(command_context, paths):
     This command does two things:
     1. replace use of EXTRA_JS_MODULES in the moz.build file passed with
        MOZ_SRC_FILES.
-    2. fix up consumers across the tree that rely on any files in
+    2. fix consumers across the tree that rely on any files in
        EXTRA_JS_MODULES using `resource` URLs to use `moz-src` ones
        instead.
 

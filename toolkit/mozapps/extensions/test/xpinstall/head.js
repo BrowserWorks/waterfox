@@ -446,7 +446,7 @@ var Harness = {
     isnot(
       this.runningInstalls.indexOf(install),
       -1,
-      "Should only see cancelations for started installs"
+      "Should only see cancellations for started installs"
     );
     this.runningInstalls.splice(this.runningInstalls.indexOf(install), 1);
 

@@ -891,7 +891,7 @@ nsBaseClipboard::HasDataMatchingFlavors(const nsTArray<nsCString>& aFlavorList,
       HasNativeClipboardDataMatchingFlavors(aFlavorList, aWhichClipboard);
   if (resultOrError.isErr()) {
     MOZ_CLIPBOARD_LOG(
-        "%s: checking native clipboard data matching flavors falied.",
+        "%s: checking native clipboard data matching flavors failed.",
         __FUNCTION__);
     return resultOrError.unwrapErr();
   }

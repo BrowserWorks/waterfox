@@ -1194,7 +1194,7 @@ class nsLayoutUtils {
    * or speed. PAINT_WIDGET_LAYERS must be set if aRenderingContext is null.
    * If PAINT_DOCUMENT_RELATIVE is used, the visible region is interpreted
    * as being relative to the document (normally it's relative to the CSS
-   * viewport) and the document is painted as if no scrolling has occured.
+   * viewport) and the document is painted as if no scrolling has occurred.
    * Only considered if PresShell::IgnoringViewportScrolling is true.
    * If ResetViewportScrolling is used, then the root scroll frame's scroll
    * position is set to 0 during painting, so that position:fixed elements
@@ -2551,7 +2551,7 @@ class nsLayoutUtils {
    *
    * If |aPropertySet| includes transform-like properties (transform, rotate,
    * etc.) however, this will return false if any of the transform-like
-   * properties is overriden by an !important rule since these properties should
+   * properties is overridden by an !important rule since these properties should
    * be combined on the compositor.
    */
   static bool HasEffectiveAnimation(const nsIFrame* aFrame,
@@ -2803,7 +2803,7 @@ class nsLayoutUtils {
  public:
   /**
    * Calculate the compostion size for a frame. See FrameMetrics.h for
-   * defintion of composition size (or bounds).
+   * definition of composition size (or bounds).
    * Note that for the root content document's root scroll frame (RCD-RSF),
    * the returned size does not change as the document's resolution changes,
    * but for all other frames it does. This means that callers that pass in
@@ -2846,7 +2846,7 @@ class nsLayoutUtils {
 
   /**
    * Calculate the expanded scrollable rect for a frame. See FrameMetrics.h for
-   * defintion of expanded scrollable rect.
+   * definition of expanded scrollable rect.
    */
   static nsRect CalculateExpandedScrollableRect(nsIFrame* aFrame);
 

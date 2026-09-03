@@ -454,7 +454,7 @@ FormAutofillUtils = {
    * Determines if an element is visually hidden or not.
    *
    * @param {HTMLElement} element
-   * @param {boolean} visibilityCheck true to run visiblity check against
+   * @param {boolean} visibilityCheck true to run visibility check against
    *                  element.checkVisibility API. Otherwise, test by only checking
    *                  `hidden` and `display` attributes
    * @returns {boolean} true if the element is visible

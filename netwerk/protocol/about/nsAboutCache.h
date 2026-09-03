@@ -181,7 +181,7 @@ class nsAboutCache final : public nsIAboutModule {
     // been added to the output HTML.
     bool mEntriesHeaderAdded = false;
 
-    // Cancelation flag
+    // Cancellation flag
     bool mCancel = false;
 
     // The list of all storage names we want to visit

@@ -79,7 +79,7 @@ class ClientInfo final {
   // Each global has the concept of a creation URL.  For the most part this
   // does not change.  The one exception is for about:blank replacement
   // iframes.  In this case the URL starts as "about:blank", but is later
-  // overriden with the final URL.
+  // overridden with the final URL.
   const nsCString& URL() const;
 
   // Override the creation URL.  This should only be used for about:blank

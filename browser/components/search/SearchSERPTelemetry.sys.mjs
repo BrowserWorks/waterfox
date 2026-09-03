@@ -336,7 +336,7 @@ class TelemetryHandler {
   #browserContentSourceMap = new WeakMap();
 
   /**
-   * Sets the source of a SERP visit from something that occured in content
+   * Sets the source of a SERP visit from something that occurred in content
    * rather than from the browser.
    *
    * @param {MozBrowser} browser

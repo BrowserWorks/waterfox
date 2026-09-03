@@ -110,7 +110,7 @@ ImageObjectProcessor.prototype.process = function (
 
     const keywords = value.split(/\s+/);
 
-    // Emtpy is treated as "any"...
+    // Empty is treated as "any"...
     if (keywords.length === 0) {
       return ["any"];
     }

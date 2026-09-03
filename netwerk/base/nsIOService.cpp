@@ -468,7 +468,7 @@ void nsIOService::OnTLSPrefChange(const char* aPref, void* aSelf) {
 
 nsresult nsIOService::InitializeCaptivePortalService() {
   if (XRE_GetProcessType() != GeckoProcessType_Default) {
-    // We only initalize a captive portal service in the main process
+    // We only initialize a captive portal service in the main process
     return NS_OK;
   }
 

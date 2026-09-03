@@ -41,7 +41,7 @@ class HTMLObjectElement final : public nsGenericHTMLFormControlElement,
   bool IsHTMLFocusable(IsFocusableFlags, bool* aIsFocusable,
                        int32_t* aTabIndex) override;
 
-  // Overriden nsIFormControl methods
+  // Overridden nsIFormControl methods
   NS_IMETHOD Reset() override { return NS_OK; }
 
   NS_IMETHOD SubmitNamesValues(FormData* aFormData) override { return NS_OK; }

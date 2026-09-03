@@ -139,7 +139,7 @@ class nsBaseChannel
 
   // The basechannel calls this method from its OnTransportStatus method to
   // determine whether to call nsIProgressEventSink::OnStatus in addition to
-  // nsIProgressEventSink::OnProgress.  This method may be overriden by the
+  // nsIProgressEventSink::OnProgress.  This method may be overridden by the
   // subclass to enable nsIProgressEventSink::OnStatus events.  If this method
   // returns true, then the statusArg out param specifies the "statusArg" value
   // to pass to the OnStatus method.  By default, OnStatus messages are

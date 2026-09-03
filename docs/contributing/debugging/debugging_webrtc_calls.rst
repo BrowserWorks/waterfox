@@ -135,7 +135,7 @@ Adding about:webrtc RTCPeerConnection Stats
    this icon will copy the contents under that section to the clipboard as a
    JSON document. This can be useful if one wants to submit a portion of the
    available stats. Of particular note are the :code:`RTP Stats` heading whose
-   button will copy the latests RTP stats, and the :code:`SDP` section whose
+   button will copy the latest RTP stats, and the :code:`SDP` section whose
    button will copy the SDP offer; answer; and roles.
 
 Adding Your about:webrtc Contents
@@ -507,7 +507,7 @@ Standard Logging Modules
      -
      -
 
-.. _non-standard-loggin-modules:
+.. _non-standard-logging-modules:
 
 Non-standard Logging Modules
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -914,12 +914,12 @@ Here is a list of helpful substring selectors for executing specific WebRTC gtes
    * - :code:`*Jsep*`
      - JSEP (signalling) tests
      - :searchfox:`jsep_session_unittest.cpp <media/webrtc/signaling/gtest/jsep_session_unittest.cpp>`
-       :searchfox:`jsep_trak_unittest.cpp <media/webrtc/signaling/gtest/jsep_track_unittest.cpp>`
+       :searchfox:`jsep_track_unittest.cpp <media/webrtc/signaling/gtest/jsep_track_unittest.cpp>`
    * - :code:`*Sdp*`
      - SDP parsing tests
      - :searchfox:`sdp_unittests.cpp <media/webrtc/signaling/gtest/sdp_unittests.cpp>`
    * - :code:`*MediaPipeline*`
-     - MediaPipline and MediaPipeline filter tests for RTP media handling
+     - MediaPipeline and MediaPipeline filter tests for RTP media handling
      - :searchfox:`mediapipeline_unittest.cpp <media/webrtc/signaling/gtest/mediapipeline_unittest.cpp>`
    * - :code:`*AudioConduit*`
      - AudioConduit tests for libwebrtc glue for RTP audio media

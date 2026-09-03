@@ -4697,7 +4697,7 @@ export var XPIProvider = {
    * Persists some startupData into an addon if it is available in the current
    * XPIState for the addon id.
    *
-   * @param {AddonInternal} addon An addon to receive the startup data, typically an update that is occuring.
+   * @param {AddonInternal} addon An addon to receive the startup data, typically an update that is occurring.
    * @param {XPIState} state optional
    */
   persistStartupData(addon, state) {

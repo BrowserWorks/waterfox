@@ -39,7 +39,7 @@
 #define NS_OS_CURRENT_PROCESS_DIR "CurProcD"
 
 /* This location is similar to NS_OS_CURRENT_PROCESS_DIR, however,
- * NS_XPCOM_CURRENT_PROCESS_DIR can be overriden by passing a "bin
+ * NS_XPCOM_CURRENT_PROCESS_DIR can be overridden by passing a "bin
  * directory" to NS_InitXPCOM().
  */
 #define NS_XPCOM_CURRENT_PROCESS_DIR "XCurProcD"

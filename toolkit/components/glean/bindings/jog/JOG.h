@@ -36,7 +36,7 @@ class JOG {
    * @param aForce Set to `true` if you want to force the I/O to run. Defaults
    *        to `false`, which doesn't run the I/O if it's already run and
    *        returns the previous return value.
-   * @returns whether it found the runtime metrics file and succesfully loaded,
+   * @returns whether it found the runtime metrics file and successfully loaded,
    *          processed, and registered the described metrics.
    */
   static bool EnsureRuntimeMetricsRegistered(bool aForce = false);

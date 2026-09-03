@@ -3278,7 +3278,7 @@ void XMLHttpRequestMainThread::SendInternal(const BodyExtractorBase* aBody,
                              SyncOperationBehavior::eSuspendInput);
     if (!SpinEventLoopUntil("XMLHttpRequestMainThread::SendInternal"_ns, [&]() {
           if (mFlagSyncLooping && mChannel) {
-            // The purpose of this check is to enable XHR channel cancelation
+            // The purpose of this check is to enable XHR channel cancellation
             // upon navigating away from the page that is doing sync XHR
             // to genuinely make the sync XHR go away within the same task.
             mChannel->GetStatus(&channelStatus);
@@ -3294,7 +3294,7 @@ void XMLHttpRequestMainThread::SendInternal(const BodyExtractorBase* aBody,
     }
     if (NS_FAILED(channelStatus)) {
       MOZ_ASSERT(mFlagSyncLooping);
-      // As mentioned above, when navigating away, we want channel cancelation
+      // As mentioned above, when navigating away, we want channel cancellation
       // to make the sync XHR go away within the same task. This also requires
       // us to set the correct error result and dispatch events. So call
       // OnStopRequest explicitly instead of the channel calling it after

@@ -39,7 +39,7 @@ enum class ConnectionState : uint32_t {
   INITED,
   TLS_HANDSHAKING,
   ZERORTT,
-  TRANSFERING,
+  TRANSFERRING,
   CLOSED
 };
 

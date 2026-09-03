@@ -83,7 +83,7 @@ class LocalStorageManager final : public nsIDOMStorageManager,
   };
 
   // Ensures cache for a scope, when it doesn't exist it is created and
-  // initalized, this also starts preload of persistent data.
+  // initialized, this also starts preload of persistent data.
   already_AddRefed<LocalStorageCache> PutCache(
       const nsACString& aOriginSuffix, const nsACString& aOriginNoSuffix,
       const nsACString& aQuotaKey, nsIPrincipal* aPrincipal);

@@ -106,7 +106,7 @@ static GetDpiForWindowProc sGetDpiForWindow = NULL;
 /* static */
 void WinUtils::Initialize() {
   // Dpi-Awareness is not supported with Win32k Lockdown enabled, so we don't
-  // initialize DPI-related members and assert later that nothing accidently
+  // initialize DPI-related members and assert later that nothing accidentally
   // uses these static members
   if (!IsWin32kLockedDown()) {
     HMODULE user32Dll = ::GetModuleHandleW(L"user32");
@@ -1552,7 +1552,7 @@ static bool IsTabletDevice() {
 
 bool WinUtils::SystemHasMouse() {
   // As per MSDN, this value is rarely false because of virtual mice, and
-  // some machines report the existance of a mouse port as a mouse.
+  // some machines report the existence of a mouse port as a mouse.
   //
   // We probably could try to distinguish if we wanted, but a virtual mouse
   // might be there for a reason, and maybe we shouldn't assume we know

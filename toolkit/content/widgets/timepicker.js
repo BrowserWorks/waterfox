@@ -129,7 +129,7 @@ function TimePicker(context) {
     },
 
     /**
-     * Initalize the spinner components.
+     * Initialize the spinner components.
      */
     _createComponents() {
       const { locale, format } = this.props;

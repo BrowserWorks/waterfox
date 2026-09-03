@@ -1180,7 +1180,7 @@ export class ExtensionData {
 
   /**
    * Given an array of host and permissions, generate a structured permissions object
-   * that contains seperate host origins and permissions arrays.
+   * that contains separate host origins and permissions arrays.
    *
    * @param {Array} permissionsArray
    * @param {Array} [hostPermissions]
@@ -1682,7 +1682,7 @@ export class ExtensionData {
     }
 
     if (!this.localeData.has(locale)) {
-      // Locales are not avialable until some additional
+      // Locales are not available until some additional
       // initialization is done.  We could just call initAllLocales,
       // but that is heavy handed, especially when we likely only
       // need one out of 20.
@@ -4403,7 +4403,7 @@ export class Extension extends ExtensionData {
 
       // ExtensionPermissions.add asynchronously updates this.allowedOrigins
       // and this.permissions as needed, but that is too late for us, so we
-      // fix up the permissions here based on what we know.
+      // fix the permissions here based on what we know.
 
       let allowed = this.allowedOrigins.patterns.map(p => p.pattern);
       this.allowedOrigins = new MatchPatternSet(origins.concat(allowed), {

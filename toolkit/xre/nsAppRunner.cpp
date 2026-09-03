@@ -4170,7 +4170,7 @@ static bool CheckForUserMismatch() { return false; }
 
 void mozilla::startup::IncreaseDescriptorLimits() {
 #ifdef XP_UNIX
-  // Increase the fd limit to accomodate IPC resources like shared memory.
+  // Increase the fd limit to accommodate IPC resources like shared memory.
 #  ifdef XP_DARWIN
   // We use Mach IPC for shared memory, so a lower limit suffices.
   // See also the Darwin case in config/external/nspr/pr/moz.build

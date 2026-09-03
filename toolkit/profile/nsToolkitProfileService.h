@@ -189,7 +189,7 @@ class nsToolkitProfileService final : public nsIToolkitProfileService,
   nsCString mStartupFileVersion;
   bool mMaybeLockProfile;
   // Holds the current application update channel. This is only really held
-  // so it can be overriden in tests.
+  // so it can be overridden in tests.
   nsCString mUpdateChannel;
   // Keep track of some attributes of the databases so we can tell if another
   // process has changed them.

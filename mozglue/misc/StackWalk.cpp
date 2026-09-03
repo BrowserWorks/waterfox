@@ -186,7 +186,7 @@ void SuppressStackWalking() { ++sStackWalkSuppressions; }
 void DesuppressStackWalking() {
   auto previousValue = sStackWalkSuppressions--;
   // We should never desuppress from 0. See bug 1687510 comment 10 for an
-  // example in which this occured.
+  // example in which this occurred.
   MOZ_RELEASE_ASSERT(previousValue);
 }
 

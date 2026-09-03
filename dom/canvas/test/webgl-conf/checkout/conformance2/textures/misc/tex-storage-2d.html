@@ -170,7 +170,7 @@ function runTexStorage2DTest()
                         texsize, texsize);
         wtu.glErrorShouldBe(gl, gl.INVALID_ENUM, "texStorage2D should fail for bad internalformat " + enumToString(testcase.unsizedformat));
 
-        // OK, now let's finally do the successfull texStorage2D call
+        // OK, now let's finally do the successful texStorage2D call
         gl.texStorage2D(target, levels, testcase.sizedformat,
                         texsize, texsize);
         wtu.glErrorShouldBe(gl, gl.NO_ERROR, "texStorage2D should succeed with a good sized internalformat");

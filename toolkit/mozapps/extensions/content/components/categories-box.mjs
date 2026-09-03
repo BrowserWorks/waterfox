@@ -340,7 +340,7 @@ class CategoriesBox extends MozLitElement {
       hidden.delete(name);
       this._hiddenCategories = hidden;
       this._currentView = name;
-      // TODO: should this be actually a gViewController responsability?
+      // TODO: should this be actually a gViewController responsibility?
       Services.prefs.setStringPref(PREF_UI_LASTCATEGORY, viewId);
     }
   }

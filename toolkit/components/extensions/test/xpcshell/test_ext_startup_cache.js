@@ -112,7 +112,7 @@ add_task(async function test_langpack_startup_cache() {
   //
   // In the future, we should provide some way for tests to decouple their
   // language selection from that of Firefox.
-  ok(Services.locale.availableLocales.includes("fr"), "fr locale is avialable");
+  ok(Services.locale.availableLocales.includes("fr"), "fr locale is available");
 
   await extension.startup();
 

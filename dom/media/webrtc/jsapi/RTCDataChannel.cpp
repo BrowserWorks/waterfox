@@ -174,7 +174,7 @@ Nullable<uint16_t> RTCDataChannel::GetId() const {
   return mDataChannelId;
 }
 
-// https://w3c.github.io/webrtc-pc/#transfering-a-data-channel
+// https://w3c.github.io/webrtc-pc/#transferring-a-data-channel
 RTCDataChannel::DataHolder::DataHolder(const RTCDataChannel& aValue)
     :  // Set dataHolder.[[ReadyState]] to value.[[ReadyState]].
       mReadyState(aValue.mReadyState),
@@ -202,7 +202,7 @@ RTCDataChannel::DataHolder::DataHolder(const RTCDataChannel& aValue)
 
 RTCDataChannel::DataHolder::~DataHolder() = default;
 
-// https://w3c.github.io/webrtc-pc/#transfering-a-data-channel
+// https://w3c.github.io/webrtc-pc/#transferring-a-data-channel
 UniquePtr<RTCDataChannel::DataHolder> RTCDataChannel::Transfer() {
   MOZ_ASSERT(NS_IsMainThread());
   // The RTCDataChannel transfer steps, given value and dataHolder, are:
@@ -227,7 +227,7 @@ UniquePtr<RTCDataChannel::DataHolder> RTCDataChannel::Transfer() {
   return dataHolder;
 }
 
-// https://w3c.github.io/webrtc-pc/#transfering-a-data-channel
+// https://w3c.github.io/webrtc-pc/#transferring-a-data-channel
 // The RTCDataChannel transfer-receiving steps, given dataHolder and channel,
 // are:
 RTCDataChannel::RTCDataChannel(nsIGlobalObject* aGlobal,

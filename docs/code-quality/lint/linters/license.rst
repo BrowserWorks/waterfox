@@ -4,7 +4,7 @@ License
 This linter verifies if a file has a known license header.
 
 By default, Firefox uses MPL-2 license with the `appropriate headers <https://www.mozilla.org/en-US/MPL/headers/>`_.
-In some cases (thirdpardy code), a file might have a different header file.
+In some cases (third-party code), a file might have a different header file.
 If this is the case, one of the significant line of the header should be listed in the list :searchfox:`of valid licenses <tools/lint/license/valid-licenses.txt>`.
 
 Run Locally

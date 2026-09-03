@@ -16,7 +16,7 @@ add_task(async function test() {
   });
 
   // We'll run a first query with this provider to generate results, that should
-  // be overriden by results from the second provider.
+  // be overridden by results from the second provider.
   let firstProvider = new UrlbarTestUtils.TestProvider({
     results: [
       new UrlbarResult({

@@ -165,7 +165,7 @@ async function runExtensionAPITest(
     const testLog = msg => {
       // console messages emitted by workers are not visible in the test logs if not
       // explicitly collected, and so this testLog helper method does use dump for now
-      // (this way the logs will be visibile as part of the test logs).
+      // (this way the logs will be visible as part of the test logs).
       dump(`"${testParams.extensionId}": ${msg}\n`);
     };
 

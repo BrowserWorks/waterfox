@@ -865,7 +865,7 @@ nsresult nsMixedContentBlocker::ShouldLoad(bool aHadInsecureImageRedirect,
   if (classification == eMixedDisplay) {
     if (!StaticPrefs::security_mixed_content_block_display_content()) {
       *aDecision = nsIContentPolicy::ACCEPT;
-      // User has overriden the pref and the root is not https;
+      // User has overridden the pref and the root is not https;
       // mixed display content was allowed on an https subframe.
       newState |= nsIWebProgressListener::STATE_LOADED_MIXED_DISPLAY_CONTENT;
     } else {
@@ -883,11 +883,11 @@ nsresult nsMixedContentBlocker::ShouldLoad(bool aHadInsecureImageRedirect,
     // be blocked, block it unless the user has choosen to override the pref
     if (!StaticPrefs::security_mixed_content_block_active_content()) {
       *aDecision = nsIContentPolicy::ACCEPT;
-      // User has already overriden the pref and the root is not https;
+      // User has already overridden the pref and the root is not https;
       // mixed active content was allowed on an https subframe.
       newState |= nsIWebProgressListener::STATE_LOADED_MIXED_ACTIVE_CONTENT;
     } else {
-      // User has not overriden the pref by Disabling protection. Reject the
+      // User has not overridden the pref by Disabling protection. Reject the
       // request and update the security state.
       *aDecision = nsIContentPolicy::REJECT_REQUEST;
       MOZ_LOG(sMCBLog, LogLevel::Verbose,
@@ -895,7 +895,7 @@ nsresult nsMixedContentBlocker::ShouldLoad(bool aHadInsecureImageRedirect,
                "active "
                "content (blocked by pref "
                "security.mixed_content.block_active_content)."));
-      // The user has not overriden the pref, so make sure they still have an
+      // The user has not overridden the pref, so make sure they still have an
       // option by calling nativeDocShell which will invoke the doorhanger
       newState |= nsIWebProgressListener::STATE_BLOCKED_MIXED_ACTIVE_CONTENT;
     }

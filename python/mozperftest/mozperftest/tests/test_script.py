@@ -120,7 +120,7 @@ def test_update_args():
     info = ScriptInfo(EXAMPLE_TEST)
     new_args = info.update_args(**args)
 
-    # arguments should not be overriden
+    # arguments should not be overridden
     assert new_args["perfherder_metrics"] == [{"name": "yey"}]
 
     # arguments in platform-specific options should

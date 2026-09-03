@@ -921,7 +921,7 @@ goog$dom$MultiRange.prototype.clearCachedValues_ = function() {
   this.container_ = this.sortedRanges_ = null
 };
 goog$dom$MultiRange.prototype.getType = function() {
-  return"mutli"
+  return"multi"
 };
 goog$dom$MultiRange.prototype.getBrowserRangeObject = function() {
   this.browserRanges_.length > 1 && this.logger_.warning("getBrowserRangeObject called on MultiRange with more than 1 range");

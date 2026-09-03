@@ -3081,7 +3081,7 @@ add_task(async function test_updateUnknownFieldsBatch() {
     extra_obj_field: { inner: "hi" },
   });
 
-  // Manually put the inital json in the DB
+  // Manually put the initial json in the DB
   await PlacesUtils.withConnectionWrapper(
     "test_update_moz_places_extra",
     async function (db) {

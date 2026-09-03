@@ -50,7 +50,7 @@ var _objCreate = Object.create || (function() {
 
 // Creates a new ParserError object from an errorData object. The errorData
 // object should have default code and message properties. The default message
-// property can be overriden by passing in a message parameter.
+// property can be overridden by passing in a message parameter.
 // See ParsingError.Errors below for acceptable errors.
 function ParsingError(errorData, message) {
   this.name = "ParsingError";

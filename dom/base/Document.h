@@ -1032,10 +1032,10 @@ class Document : public nsINode,
    * which stage of initialness it is in.
    */
   enum class InitialStatus : uint8_t {
-    // The first stage of an initial document. No navigation has occured,
+    // The first stage of an initial document. No navigation has occurred,
     // we might navigate away or commit to this document by firing load.
     IsInitialUncommitted,
-    // An explicit navigation to `about:blank` occured. Load was fired or will
+    // An explicit navigation to `about:blank` occurred. Load was fired or will
     // be soon.
     IsInitialCommitted,
     // document.open() was called on the initial document.
@@ -1064,7 +1064,7 @@ class Document : public nsINode,
 
   /**
    * Ask this document whether it is the initial document in its window and
-   * no navigation to about:blank has yet occured that would cause us to commit
+   * no navigation to about:blank has yet occurred that would cause us to commit
    * to it.
    */
   bool IsUncommittedInitialDocument() const {
@@ -4202,7 +4202,7 @@ class Document : public nsINode,
   PermissionDelegateHandler* GetPermissionDelegateHandler();
 
   // Notify the document that a fetch or a XHR request has completed
-  // succesfully in this document. This is used by the password manager to infer
+  // successfully in this document. This is used by the password manager to infer
   // whether a form is submitted.
   void NotifyFetchOrXHRSuccess();
 

@@ -379,7 +379,7 @@ jQuery.fn = jQuery.prototype = {
 						var option = options[ i ];
 
 						if ( option.selected ) {
-							// Get the specifc value for the option
+							// Get the specific value for the option
 							value = jQuery.browser.msie && !option.attributes.value.specified ? option.text : option.value;
 
 							// We don't need an array for one selects
@@ -1923,7 +1923,7 @@ jQuery.event = {
 					types = types.type;
 				}
 
-				// Handle multiple events seperated by a space
+				// Handle multiple events separated by a space
 				// jQuery(...).unbind("mouseover mouseout", fn);
 				jQuery.each(types.split(/\s+/), function(index, type){
 					// Namespaced event handlers

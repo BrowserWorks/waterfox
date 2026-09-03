@@ -172,7 +172,7 @@ async function handleInitializationMessage({ data }) {
         translationModelPayloads
       );
 
-      // Ensure that no memory is leaked by transfering the ArrayBuffers. They should
+      // Ensure that no memory is leaked by transferring the ArrayBuffers. They should
       // all be loaded into Wasm memory at this time. The emscripten generated code
       // appears to retain the Wasm ArrayBuffer. The transfer creates a new JS object
       // that gains ownership of the original buffer, allowing it to be GCed even

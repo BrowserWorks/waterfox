@@ -1038,7 +1038,7 @@ nsresult WorkerScriptLoader::LoadScript(
   RefPtr<ScriptResponseHeaderProcessor> headerProcessor = nullptr;
 
   // For each debugger script, a non-debugger script load of the same script
-  // should have occured prior that processed the headers.
+  // should have occurred prior that processed the headers.
   if (!IsDebuggerScript()) {
     JS::ModuleType moduleType = request->IsModuleRequest()
                                     ? request->AsModuleRequest()->mModuleType

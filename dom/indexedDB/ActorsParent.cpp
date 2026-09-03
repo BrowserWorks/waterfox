@@ -2027,11 +2027,11 @@ class TransactionDatabaseOperationBase : public DatabaseOperationBase {
   // thread while a failure value will trigger a SendFailureResult callback.
   virtual nsresult DoDatabaseWork(DatabaseConnection* aConnection) = 0;
 
-  // May be overriden in subclasses. Called on the background thread to decide
+  // May be overridden in subclasses. Called on the background thread to decide
   // if the subclass needs to send any preprocess info to the child actor.
   virtual bool HasPreprocessInfo();
 
-  // May be overriden in subclasses. Called on the background thread to allow
+  // May be overridden in subclasses. Called on the background thread to allow
   // the subclass to serialize its preprocess info and send it to the child
   // actor. A successful return value will trigger a wait for a
   // NoteContinueReceived callback on the background thread while a failure

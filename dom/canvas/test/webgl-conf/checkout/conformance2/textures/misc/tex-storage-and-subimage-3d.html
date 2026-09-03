@@ -169,7 +169,7 @@ function runTexStorageAndSubImage3DTest()
         wtu.glErrorShouldBe(gl, gl.INVALID_OPERATION,
             "texSubImage3D should fail if texStorage3D has not succeeded");
 
-        // OK, now let's finally do the successfull texStorage3D call
+        // OK, now let's finally do the successful texStorage3D call
         gl.texStorage3D(gl.TEXTURE_3D, levels, testcase.sizedformat,
                         texsize, texsize, texsize);
         wtu.glErrorShouldBe(gl, gl.NO_ERROR, "texStorage3D should succeed with a good sized internalformat");

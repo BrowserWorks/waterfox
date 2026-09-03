@@ -215,7 +215,7 @@ var FullPageTranslationsPanel = new (class {
 
   /**
    * Lazily get a console instance. Note that this script is loaded in very early to
-   * the browser loading process, and may run before the console is avialable. In
+   * the browser loading process, and may run before the console is available. In
    * this case the console will return as `undefined`.
    *
    * @returns {Console | void}

@@ -218,7 +218,7 @@ class IMEContentObserver final : public nsStubMutationObserver,
 
   /**
    * Return an Element if and only if this instance is observing the element.
-   * The element is a text control element if this is initalized with a
+   * The element is a text control element if this is initialized with a
    * TextEditor.  Otherwise, the focused editing host.
    * If you want the anonymous <div> in the text control if this is initialized
    * with TextEditor, use GetObservingElement() instead.

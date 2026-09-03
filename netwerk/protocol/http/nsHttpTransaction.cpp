@@ -1657,7 +1657,7 @@ void nsHttpTransaction::Close(nsresult reason) {
 
   if (!mResponseIsComplete && NS_SUCCEEDED(reason) && isHttp2or3) {
     // Responses without content-length header field are still complete if
-    // they are transfered over http2 or http3 and the stream is properly
+    // they are transferred over http2 or http3 and the stream is properly
     // closed.
     mResponseIsComplete = true;
   }

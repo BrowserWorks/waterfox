@@ -72,7 +72,7 @@ async function receiveMessage(event){
   "Reached the correct location for " + currentTest.query );
   is(data.scheme, wantedScheme,`${currentTest.query} upgraded or downgraded to ` + wantedScheme);
   // Check that the form value is correct
-  is(data.form, currentTest.value, "Form was transfered");
+  is(data.form, currentTest.value, "Form was transferred");
   testWin.close();
   // Flip origin flag
   sameOrigin ^= true;

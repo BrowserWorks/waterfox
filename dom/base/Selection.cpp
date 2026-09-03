@@ -1229,7 +1229,7 @@ nsresult Selection::AddRangesForUserSelectableNodes(
     // user initiated event.
 
     // First, we generate the ranges to add with a scratch range, which is a
-    // clone of the original range passed in. We do this seperately, because
+    // clone of the original range passed in. We do this separately, because
     // the selectstart event could have caused the world to change, and
     // required ranges to be re-generated
 

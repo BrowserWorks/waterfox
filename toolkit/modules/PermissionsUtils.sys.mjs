@@ -52,9 +52,9 @@ function importPrefBranch(aPrefBranch, aPermission, aAction) {
 
 export var PermissionsUtils = {
   /**
-   * Import permissions from perferences to the Permissions Manager. After being
+   * Import permissions from preferences to the Permissions Manager. After being
    * imported, all processed permissions will be set to an empty string.
-   * Perferences are only processed once during the application's
+   * Preferences are only processed once during the application's
    * lifetime - it's safe to call this multiple times without worrying about
    * doing unnecessary work, as the preferences branch will only be processed
    * the first time.

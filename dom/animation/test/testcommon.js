@@ -264,7 +264,7 @@ function waitForNextFrame(aWindow = window) {
 
 /**
  * Returns a Promise that is resolved after the given number of consecutive
- * animation frames have occured (using requestAnimationFrame callbacks).
+ * animation frames have occurred (using requestAnimationFrame callbacks).
  *
  * @param aFrameCount  The number of animation frames.
  * @param aOnFrame  An optional function to be processed in each animation frame.

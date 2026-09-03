@@ -729,7 +729,7 @@ export var UITour = {
     }
   },
 
-  // Given a string that is a JSONified represenation of an object with
+  // Given a string that is a JSONified representation of an object with
   // additional "flow_id", "flow_begin_time", "device_id", utm_* URL params
   // that should be appended, validate and append them to the passed URL object.
   // Returns true if the params were validated and appended, and false if the

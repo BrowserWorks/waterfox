@@ -2348,7 +2348,7 @@ bool WorkerPrivate::ProxyReleaseMainThreadObjects() {
   MOZ_ASSERT(!mMainThreadObjectsForgotten);
 
   nsCOMPtr<nsILoadGroup> loadGroupToCancel;
-  // If we're not overriden, then do nothing here.  Let the load group get
+  // If we're not overridden, then do nothing here.  Let the load group get
   // handled in ForgetMainThreadObjects().
   if (mLoadInfo.mInterfaceRequestor) {
     mLoadInfo.mLoadGroup.swap(loadGroupToCancel);
@@ -2651,7 +2651,7 @@ bool WorkerPrivate::PrincipalURIMatchesScriptURL() {
 void WorkerPrivate::UpdateOverridenLoadGroup(nsILoadGroup* aBaseLoadGroup) {
   AssertIsOnMainThread();
 
-  // The load group should have been overriden at init time.
+  // The load group should have been overridden at init time.
   mLoadInfo.mInterfaceRequestor->MaybeAddBrowserChild(aBaseLoadGroup);
 }
 
@@ -5554,7 +5554,7 @@ void WorkerPrivate::DispatchCancelingRunnable() {
 
   // At the same time, we want to be sure that we interrupt infinite loops.
   // The following runnable starts a timer that cancel the worker, from the
-  // parent thread, after CANCELING_TIMEOUT millseconds.
+  // parent thread, after CANCELING_TIMEOUT milliseconds.
   LOG(WorkerLog(), ("WorkerPrivate::DispatchCancelingRunnable [%p] Setup a "
                     "timeout canceling",
                     this));

@@ -21,7 +21,7 @@ namespace mozilla {
  * variables we use for logging setup.
  *
  * When an argument is found in the proper form, the consumer callback is called
- * with a string in a follwing form, note that we do this for every occurence,
+ * with a string in a follwing form, note that we do this for every occurrence,
  * and not just at the end of the parsing:
  *
  * "MOZ_LOG=modulelist" or "MOZ_LOG_FILE=file/path"

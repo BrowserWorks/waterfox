@@ -1177,7 +1177,7 @@ decorate_task(
   }
 );
 
-// Test that branches without an add-on can be enrolled and unenrolled succesfully.
+// Test that branches without an add-on can be enrolled and unenrolled successfully.
 decorate_task(
   withStudiesEnabled(),
   ensureAddonCleanup(),

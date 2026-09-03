@@ -692,7 +692,7 @@ waitForAllPaints(async () => {
       const restyleCount = await observeStyling(5);
       todo_is(restyleCount, 0,
               'Animations running on visibility hidden element which ' +
-              'has a child whose visiblity is inherited from the element and ' +
+              'has a child whose visibility is inherited from the element and ' +
               'the element was initially visible');
 
       await ensureElementRemoval(div);

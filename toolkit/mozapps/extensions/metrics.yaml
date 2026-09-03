@@ -567,7 +567,7 @@ addons_manager:
         module: string module name,
         context: string context, like the method name,
         message: string message of the exception,
-        file: the file that the exception occured in,
+        file: the file that the exception occurred in,
         line: the line number the exception was thrown from,
       }
       ```

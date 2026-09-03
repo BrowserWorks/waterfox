@@ -1933,7 +1933,7 @@ class TestProvider extends UrlbarProvider {
    *   If given, a function that will be called when abandonment.
    * @param {Function} [options.onImpression]
    *   If given, a function that will be called when an engagement or
-   *   abandonment has occured.
+   *   abandonment has occurred.
    * @param {Function} [options.onSearchSessionEnd]
    *   If given, a function that will be called when a search session
    *   concludes.

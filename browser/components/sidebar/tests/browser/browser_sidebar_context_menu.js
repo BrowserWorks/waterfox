@@ -387,7 +387,7 @@ add_task(async function test_toggle_vertical_tabs_from_sidebar_button() {
   Assert.equal(
     Services.prefs.getStringPref(SIDEBAR_VISIBILITY_PREF),
     "hide-sidebar",
-    "Sanity check the visibilty pref when verticalTabs are disabled"
+    "Sanity check the visibility pref when verticalTabs are disabled"
   );
 
   info("Enable vertical tabs from right clicking the sidebar-button");
@@ -415,7 +415,7 @@ add_task(async function test_toggle_vertical_tabs_from_sidebar_button() {
   Assert.equal(
     Services.prefs.getStringPref(SIDEBAR_VISIBILITY_PREF),
     "always-show",
-    "Sanity check the visibilty pref when verticalTabs are enabled"
+    "Sanity check the visibility pref when verticalTabs are enabled"
   );
 
   // Open customize sidebar panel from context menu
@@ -445,7 +445,7 @@ add_task(async function test_toggle_vertical_tabs_from_sidebar_button() {
   Assert.equal(
     Services.prefs.getStringPref(SIDEBAR_VISIBILITY_PREF),
     "hide-sidebar",
-    "Sanity check the visibilty pref when verticalTabs are disabled"
+    "Sanity check the visibility pref when verticalTabs are disabled"
   );
   toolbarContextMenu.hidePopup();
 

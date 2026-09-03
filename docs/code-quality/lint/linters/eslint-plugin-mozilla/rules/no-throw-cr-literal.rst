@@ -5,7 +5,7 @@ This is similar to the ESLint built-in rule no-throw-literal. It disallows
 throwing Components.results code directly.
 
 Throwing bare literals is inferior to throwing Exception objects, which provide
-stack information.  Cr.ERRORs should be be passed as the second argument to
+stack information.  ``Cr`` errors should be passed as the second argument to
 ``Components.Exception()`` to create an Exception object with stack info, and
 the correct result property corresponding to the NS_ERROR that other code
 expects.

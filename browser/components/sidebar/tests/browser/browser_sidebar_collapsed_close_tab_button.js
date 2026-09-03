@@ -11,7 +11,7 @@ add_setup(async () => {
   Assert.equal(
     Services.prefs.getStringPref(SIDEBAR_VISIBILITY_PREF),
     "always-show",
-    "Sanity check the visibilty pref when verticalTabs are enabled"
+    "Sanity check the visibility pref when verticalTabs are enabled"
   );
 });
 registerCleanupFunction(async () => {

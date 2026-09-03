@@ -1842,7 +1842,7 @@ static bool ResolvePrototypeOrConstructor(
     // This function is called when resolving the "constructor" and "prototype"
     // properties of Xrays for DOM prototypes and constructors respectively.
     // This means the relevant Xray exists, which means its _target_ exists.
-    // And that means we managed to successfullly create the prototype or
+    // And that means we managed to successfully create the prototype or
     // constructor, respectively, and hence must have managed to create the
     // thing it's pointing to as well.  So our entry slot must exist.
     JSObject* protoOrIface =

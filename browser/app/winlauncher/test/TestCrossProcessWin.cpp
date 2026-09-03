@@ -545,7 +545,7 @@ class ChildProcess final {
     if (!ok) {
       printf(
           "TEST-FAILED | TestCrossProcessWin | "
-          "CreateProcessW falied - %08lx.\n",
+          "CreateProcessW failed - %08lx.\n",
           GetLastError());
       return;
     }

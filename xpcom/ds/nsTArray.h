@@ -115,7 +115,7 @@ class RefPtr;
 // parameter and check the return value.
 //
 // CopyableTArray and CopyableAutoTArray< are copy-constructible and
-// copy-assignable. Use these only when syntactically necessary to avoid implcit
+// copy-assignable. Use these only when syntactically necessary to avoid implicit
 // unintentional copies. nsTArray/AutoTArray can be conveniently copied using
 // the Clone() member function. Consider using std::move where possible.
 //

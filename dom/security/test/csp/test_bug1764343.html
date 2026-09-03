@@ -55,7 +55,7 @@ async function testBlocked() {
   doc.write(NEW_HTML);
 
   let bgcolor = window.getComputedStyle(doc.body).getPropertyValue("background-color");
-  is(bgcolor, "rgba(0, 0, 0, 0)", "inital background value in FF should be 'transparent'");
+  is(bgcolor, "rgba(0, 0, 0, 0)", "initial background value in FF should be 'transparent'");
 
   let img = doc.getElementById("testInlineImage");
   let onImgError = new Promise(resolve => {

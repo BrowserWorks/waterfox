@@ -50,7 +50,7 @@ export class GlobalOverrider {
   }
 
   /**
-   * restore - Restore the global sandbox and reset all overriden properties to
+   * restore - Restore the global sandbox and reset all overridden properties to
    *           their original values. You should call this after all tests have completed.
    */
   restore() {

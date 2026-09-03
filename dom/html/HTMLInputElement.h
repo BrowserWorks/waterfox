@@ -152,7 +152,7 @@ class HTMLInputElement final : public TextControlElement,
   // EventTarget
   void AsyncEventRunning(AsyncEventDispatcher* aEvent) override;
 
-  // Overriden nsIFormControl methods
+  // Overridden nsIFormControl methods
   MOZ_CAN_RUN_SCRIPT_BOUNDARY
   NS_IMETHOD Reset() override;
   NS_IMETHOD SubmitNamesValues(FormData* aFormData) override;

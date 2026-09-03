@@ -208,7 +208,7 @@ add_task(async function test_keyboard_navigation_opens_menu() {
   // do anything on the current page and its action button is disabled. Note
   // that this third extension does not have a browser action but it has
   // "activeTab", which makes the extension "clickable". This allows us to
-  // verify the focus/blur behavior of custom elments.
+  // verify the focus/blur behavior of custom elements.
   info("moving focus to third item in the panel");
   item = getUnifiedExtensionsItem(extension3.id);
   ok(item, `expected item for ${extension3.id}`);

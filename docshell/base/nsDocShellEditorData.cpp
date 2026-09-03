@@ -67,7 +67,7 @@ nsEditingSession* nsDocShellEditorData::GetEditingSession() {
 
 nsresult nsDocShellEditorData::SetHTMLEditor(HTMLEditor* aHTMLEditor) {
   // destroy any editor that we have. Checks for equality are
-  // necessary to ensure that assigment into the nsCOMPtr does
+  // necessary to ensure that assignment into the nsCOMPtr does
   // not temporarily reduce the refCount of the editor to zero
   if (mHTMLEditor == aHTMLEditor) {
     return NS_OK;

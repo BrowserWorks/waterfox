@@ -592,7 +592,7 @@ export class AddonInternal {
 
     // Only extensions and dictionaries can be compatible by default; themes
     // and language packs always use strict compatibility checking.
-    // Dictionaries are compatible by default unless requested by the dictinary.
+    // Dictionaries are compatible by default unless requested by the dictionary.
     if (
       !this.strictCompatibility &&
       (!lazy.AddonManager.strictCompatibility || this.type == "dictionary")
@@ -1093,7 +1093,7 @@ export class AddonWrapper {
     return this.recommendationStates.includes("recommended");
   }
 
-  get canBypassThirdParyInstallPrompt() {
+  get canBypassThirdPartyInstallPrompt() {
     // We only bypass if the extension is signed (to support distributions
     // that turn off the signing requirement) and has recommendation states,
     // or the extension is signed as privileged.
@@ -3748,7 +3748,7 @@ export const XPIDatabaseReconcile = {
   },
 
   /**
-   * Updates the databse metadata for an existing add-on during database
+   * Updates the database metadata for an existing add-on during database
    * reconciliation.
    *
    * @param {AddonInternal} oldAddon

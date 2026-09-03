@@ -510,7 +510,7 @@ class WebGLContext : public VRefCounted, public SupportsWeakPtr {
   // dependent on remoting state or other concerns. Framebuffer and swap chain
   // surface formats are assumed to be similar to enable this aliasing. As such,
   // the back buffer may be invalidated by this swap with the front buffer,
-  // unless overriden by explicitly setting the preserveDrawingBuffer option,
+  // unless overridden by explicitly setting the preserveDrawingBuffer option,
   // which may incur a further copy to preserve the back buffer.
   void Present(
       WebGLFramebuffer*, layers::TextureType, const bool webvr,

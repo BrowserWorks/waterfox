@@ -4,7 +4,7 @@
 
 "use strict";
 
-// This test checks that we properly handle exceptions occuring when a
+// This test checks that we properly handle exceptions occurring when a
 // network mapped drive is disconnected while we're reading from mmaped
 // file on that drive.
 // Because sharing folders requires network priviledges, this test cannot

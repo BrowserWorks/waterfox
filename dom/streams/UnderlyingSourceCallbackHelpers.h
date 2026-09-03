@@ -48,7 +48,7 @@ class UnderlyingSourceAlgorithmsBase : public nsISupports {
       ErrorResult& aRv) = 0;
 
   // A promise-returning algorithm, taking one argument (the cancel reason),
-  // which communicates a requested cancelation to the underlying byte source
+  // which communicates a requested cancellation to the underlying byte source
   MOZ_CAN_RUN_SCRIPT virtual already_AddRefed<Promise> CancelCallback(
       JSContext* aCx, const Optional<JS::Handle<JS::Value>>& aReason,
       ErrorResult& aRv) = 0;

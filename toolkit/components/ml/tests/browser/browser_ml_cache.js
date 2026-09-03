@@ -1996,7 +1996,7 @@ add_task(async function test_download_cancellation() {
 });
 
 /**
- * Test that downloads can be cancelled after fetch is successfull
+ * Test that downloads can be cancelled after fetch is successful
  */
 add_task(async function test_download_cancellation_after_fetch() {
   const cache = await initializeCache();

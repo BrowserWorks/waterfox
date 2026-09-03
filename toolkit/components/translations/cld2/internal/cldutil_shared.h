@@ -333,7 +333,7 @@ namespace CLD2 {
 // crosses a cache-line boundary, so no-match case takes exactly one cache miss.
 // Match case may sometimes take an additional cache miss on value access.
 //
-// Other possibilites include 5 or 10 6-byte entries plus pad to make 32 or 64
+// Other possibilities include 5 or 10 6-byte entries plus pad to make 32 or 64
 // byte buckets with single cache miss.
 // Or 2-byte key and 6-byte value, allowing 5 languages instead  of three.
 

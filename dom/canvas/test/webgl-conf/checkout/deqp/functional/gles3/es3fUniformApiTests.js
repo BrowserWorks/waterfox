@@ -92,7 +92,7 @@ goog.scope(function() {
     ];
 
     /**
-     * Returns a substring from the beginning to the last occurence of the
+     * Returns a substring from the beginning to the last occurrence of the
      * specified character
      * @param {string} str The string in which to search
      * @param {string} c A single character

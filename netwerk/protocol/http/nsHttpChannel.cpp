@@ -7187,8 +7187,8 @@ nsHttpChannel::CancelByURLClassifier(nsresult aErrorCode) {
   // cancel.
   //
   // Note that running these observers can itself result in the channel
-  // being canceled.  In that case, we accept that cancelation code as
-  // the cause of the cancelation, as if the classification of the channel
+  // being canceled.  In that case, we accept that cancellation code as
+  // the cause of the cancellation, as if the classification of the channel
   // would have occurred past this point!
 
   // notify "http-on-modify-request" observers
@@ -9984,7 +9984,7 @@ nsHttpChannel::OnStopRequest(nsIRequest* request, nsresult status) {
   // allow content to be cached if it was loaded successfully (bug #482935)
   bool contentComplete = NS_SUCCEEDED(status);
 
-  // honor the cancelation status even if the underlying transaction
+  // honor the cancellation status even if the underlying transaction
   // completed.
   if (mCanceled || NS_FAILED(mStatus)) status = mStatus;
 
@@ -11905,10 +11905,10 @@ void nsHttpChannel::ReportSystemChannelTelemetry(nsresult status) {
       // The request was cancelled.
       label = "cancel"_ns;
     } else if (NS_IsOffline()) {
-      // The error occured while all interfaces are offline
+      // The error occurred while all interfaces are offline
       label = "offline"_ns;
     } else if (!hasConnectivity()) {
-      // The error occured while the browser didn't have connectivity
+      // The error occurred while the browser didn't have connectivity
       label = "connectivity"_ns;
     } else if (status == NS_ERROR_UNKNOWN_HOST) {
       // The failure was a DNS error

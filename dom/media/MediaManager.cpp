@@ -451,7 +451,7 @@ class DeviceListener : public SupportsWeakPtr {
    *
    * The behavior is also different between disabling and enabling a device.
    * While enabling is immediate, disabling only happens after a delay.
-   * This is now defaulting to 3 seconds but can be overriden by prefs:
+   * This is now defaulting to 3 seconds but can be overridden by prefs:
    * - "media.getusermedia.camera.off_while_disabled.delay_ms" and
    * - "media.getusermedia.microphone.off_while_disabled.delay_ms".
    *

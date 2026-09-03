@@ -112,7 +112,7 @@ export var macOSPoliciesParser = {
           // Foo__Bar__Qux
           //
           // If the subkey being analysed right now is Bar, then in example A
-          // we'll create an array to accomodate the numeric entries.
+          // we'll create an array to accommodate the numeric entries.
           // Otherwise, if it's example B, we'll create an object to host all
           // the named keys.
           if (Number.isInteger(Number(subkeys[i + 1]))) {

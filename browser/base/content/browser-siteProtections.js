@@ -2241,7 +2241,7 @@ var gProtectionsHandler = {
     // We consider the shield state "active" when some kind of blocking activity
     // occurs on the page.  Note that merely allowing the loading of content that
     // we could have blocked does not trigger the appearance of the shield.
-    // This state will be overriden later if there's an exception set for this site.
+    // This state will be overridden later if there's an exception set for this site.
     this.iconBox.toggleAttribute("active", this.anyBlocking);
     this.iconBox.toggleAttribute("hasException", this.hasException);
 

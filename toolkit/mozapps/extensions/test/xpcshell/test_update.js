@@ -303,7 +303,7 @@ add_task(async function test_no_compat() {
 });
 
 // Checks that compatibility info for future apps are detected but don't make
-// the item compatibile.
+// the item compatible.
 add_task(async function test_future_compat() {
   let a3 = await AddonManager.getAddonByID("addon3@tests.mozilla.org");
   notEqual(a3, null);

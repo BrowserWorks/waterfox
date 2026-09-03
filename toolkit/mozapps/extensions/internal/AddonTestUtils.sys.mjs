@@ -1903,7 +1903,7 @@ export var AddonTestUtils = {
   },
 
   /**
-   * Retrive any AMTelemetry event collected and clears _all_ telemetry events.
+   * Retrieve any AMTelemetry event collected and clears _all_ telemetry events.
    *
    * @returns {Array<object>}
    *          The array of the collected telemetry data.

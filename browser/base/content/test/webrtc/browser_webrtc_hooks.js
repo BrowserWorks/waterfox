@@ -25,7 +25,7 @@ async function tryPeerConnection(browser, expectedError = null) {
 // A test that expects some of those events does the following:
 //  - call Events.on() before the test to setup event handlers
 //  - call Events.expect(name) after a specific event is expected to have
-//    occured.  This will fail if the event didn't occur, and will return
+//    occurred.  This will fail if the event didn't occur, and will return
 //    the details passed to the handler for furhter checking.
 //  - call Events.off() at the end of the test to clean up.  At this point, if
 //    any events were triggered that the test did not expect, the test fails.

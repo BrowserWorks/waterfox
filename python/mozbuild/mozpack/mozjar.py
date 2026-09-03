@@ -561,7 +561,7 @@ class JarWriter:
             - End of central directory, pointing at first central directory
               entry.
 
-        The duplication of the End of central directory is to accomodate some
+        The duplication of the End of central directory is to accommodate some
         Zip reading tools that want an end of central directory structure to
         follow the central directory entries.
         """

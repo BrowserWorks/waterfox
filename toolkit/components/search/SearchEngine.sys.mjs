@@ -1290,7 +1290,7 @@ export class SearchEngine {
 
   /**
    * If this engine has been overridden by a third-party engine, the id returned
-   * will be the engine it was overriden by. Otherwise this will return null.
+   * will be the engine it was overridden by. Otherwise this will return null.
    *
    * @returns {?string}
    */

@@ -219,7 +219,7 @@ AHostResolver::LookupStatus TRRQuery::CompleteLookup(
     if (NS_SUCCEEDED(status)) {
       mTRRSuccess++;
       if (mTRRSuccess == 1) {
-        // Store the duration on first succesful TRR response.  We
+        // Store the duration on first successful TRR response.  We
         // don't know that there will be a second response nor can we
         // tell which of two has useful data.
         mTrrDuration = TimeStamp::Now() - mTrrStart;

@@ -25,7 +25,7 @@
  * buffer boundaries, and/or properly aligning the data at 64-bits word
  * boundaries (for EABI).
  * start and end are both assumed to be 64-bits aligned.
- * Returns a pointer to the second 32-bits word copied (to accomodate
+ * Returns a pointer to the second 32-bits word copied (to accommodate
  * the invoke_copy_to_stack loop).
  */
 static uint32_t *

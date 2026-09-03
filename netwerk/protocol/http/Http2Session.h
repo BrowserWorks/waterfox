@@ -534,7 +534,7 @@ class Http2Session final : public ASpdySession,
   // exception handling - so we do them at IO time and cache the result
   bool mTLSProfileConfirmed;
 
-  // A specifc reason code for the eventual GoAway frame. If set to
+  // A specific reason code for the eventual GoAway frame. If set to
   // NO_HTTP_ERROR only NO_HTTP_ERROR, PROTOCOL_ERROR, or INTERNAL_ERROR will be
   // sent.
   errorType mGoAwayReason;
@@ -589,7 +589,7 @@ class Http2Session final : public ASpdySession,
   // This is a output queue of bytes ready to be written to the SSL stream.
   // When that streams returns WOULD_BLOCK on direct write the bytes get
   // coalesced together here. This results in larger writes to the SSL layer.
-  // The buffer is not dynamically grown to accomodate stream writes, but
+  // The buffer is not dynamically grown to accommodate stream writes, but
   // does expand to accept infallible session wide frames like GoAway and RST.
   uint32_t mOutputQueueSize;
   uint32_t mOutputQueueUsed;

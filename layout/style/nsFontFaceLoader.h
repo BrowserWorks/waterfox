@@ -58,7 +58,7 @@ class nsFontFaceLoader final : public nsIStreamLoaderObserver,
  private:
   RefPtr<gfxUserFontEntry> mUserFontEntry;
   nsCOMPtr<nsIURI> mFontURI;
-  // Cleared in FontFaceSet::~FontFaceSet, and on cancelation and such too.
+  // Cleared in FontFaceSet::~FontFaceSet, and on cancellation and such too.
   mozilla::dom::FontFaceSetImpl* MOZ_NON_OWNING_REF mFontFaceSet;
   nsCOMPtr<nsIChannel> mChannel;
   nsCOMPtr<nsITimer> mLoadTimer;

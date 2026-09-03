@@ -262,7 +262,7 @@ export class ASRouterStorage {
    *
    * @param {string} messageId - The message ID to set the impressions for
    * @param {Array|null} impressions - The new value of "impressions" (an array of
-   *  impression data or an emtpy array, or null to delete)
+   *  impression data or an empty array, or null to delete)
    * @returns {boolean} Success status
    */
   async setSharedMessageImpressions(messageId, impressions) {

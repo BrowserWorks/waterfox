@@ -4962,7 +4962,7 @@ uint32_t ScriptLoader::NumberOfProcessors() {
 
 int32_t ScriptLoader::PhysicalSizeOfMemoryInGB() {
   // 0 is a valid result from PR_GetPhysicalMemorySize() which
-  // means a failure occured.
+  // means a failure occurred.
   if (mPhysicalSizeOfMemory >= 0) {
     return mPhysicalSizeOfMemory;
   }

@@ -63,7 +63,7 @@ class nsFileCopyEvent : public Runnable {
   nsresult Dispatch(nsIRunnable* callback, nsITransportEventSink* sink,
                     nsIEventTarget* target);
 
-  // Call this method to interrupt a file copy operation that is occuring on
+  // Call this method to interrupt a file copy operation that is occurring on
   // a background thread.  The status parameter passed to this function must
   // be a failure code and is set as the status of this file copy operation.
   void Interrupt(nsresult status) {

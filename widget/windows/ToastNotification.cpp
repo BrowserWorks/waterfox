@@ -541,7 +541,7 @@ ToastNotification::GetXmlStringForWindowsAlert(nsIAlertNotification* aAlert,
   return handler->CreateToastXmlString(imageURL, aString);
 }
 
-// Verifies that the tag recieved associates to a notification created during
+// Verifies that the tag received associates to a notification created during
 // this application's session, or handles fallback behavior.
 RefPtr<ToastHandledPromise> ToastNotification::VerifyTagPresentOrFallback(
     const nsAString& aWindowsTag) {

@@ -715,7 +715,7 @@ export class FinderIterator {
 
   /**
    * Internal; basic wrapper around nsIFind that provides a generator yielding
-   * a range each time an occurence of `word` string is found.
+   * a range each time an occurrence of `word` string is found.
    *
    * @param {boolean}      options.caseSensitive Whether to search in case
    *                                             sensitive mode

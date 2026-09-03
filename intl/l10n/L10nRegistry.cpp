@@ -300,7 +300,7 @@ void L10nRegistry::RegisterFileSourcesFromParentProcess(
   // service instance is created eagerly, not lazily.
   // It is necessary so that the instance can store the sources
   // provided in the IPC init, which, in turn, is necessary
-  // for the service to be avialable for sync bundle generation.
+  // for the service to be available for sync bundle generation.
   //
   // L10nRegistry is lightweight and performs no operations, so
   // we believe this behavior to be acceptable.

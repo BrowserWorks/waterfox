@@ -2551,7 +2551,7 @@ class MarginsPicker extends PrintUIControlMixin(HTMLElement) {
         settings.unwriteableMarginRight;
 
       // The values in custom fields should be initialized to custom margin values
-      // and must be overriden if they are no longer valid.
+      // and must be overridden if they are no longer valid.
       this.setAllMarginValues(settings);
       this.updateMaxValues();
       this.dispatchEvent(new Event("revalidate", { bubbles: true }));

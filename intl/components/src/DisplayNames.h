@@ -238,7 +238,7 @@ class DisplayNames final {
    * The display name APIs such as `uldn_scriptDisplayName`,
    * `uloc_getDisplayScript`, and `uldn_regionDisplayName` report
    * U_ILLEGAL_ARGUMENT_ERROR when no display name was found. In order to
-   * accomodate fallbacking, return an empty string in this case.
+   * accommodate fallbacking, return an empty string in this case.
    */
   template <typename B, typename F>
   static ICUResult FillBufferWithICUDisplayNames(

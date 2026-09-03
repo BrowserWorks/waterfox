@@ -1012,7 +1012,7 @@ function makeURIWithFixedLocalHosts(uriString, fixupFlags) {
  * @param {URIFixupInfo} fixupInfo The fixup info object, modified in-place.
  * @param {boolean} isPrivateContext Whether this happens in a private context.
  * @param {nsIInputStream} postData optional POST data for the search
- * @returns {boolean} Whether the keyword fixup was succesful.
+ * @returns {boolean} Whether the keyword fixup was successful.
  */
 function keywordURIFixup(uriString, fixupInfo, isPrivateContext) {
   // Here is a few examples of strings that should be searched:

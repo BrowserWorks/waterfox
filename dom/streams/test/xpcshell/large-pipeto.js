@@ -27,7 +27,7 @@ function get_file() {
   return new File([blob, blob, blob, blob, blob, blob], {});
 }
 
-// Verify that the chunks the stream recieve correspond to the initialization
+// Verify that the chunks the stream receive correspond to the initialization
 function verify_chunk(chunk, verification_state) {
   for (var j = 0; j < chunk.length; j++) {
     // If we don't match the fill pattern.

@@ -26,7 +26,7 @@ class PendingTransactionInfo final : public ARefBase {
   // This function return a weak poointer to ConnectionAttempt.
   // The pointer is used by the caller(ConnectionEntry) to remove the
   // ConnectionAttempt from the internal list. PendingTransactionInfo
-  // cannot perform this opereation.
+  // cannot perform this operation.
   [[nodiscard]] nsWeakPtr ForgetConnectionAttemptAndActiveConn();
 
   // Remember associated ConnectionAttempt.

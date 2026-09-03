@@ -21,7 +21,7 @@ SimpleTokenBucket::SimpleTokenBucket(size_t bucket_size,
 
 size_t SimpleTokenBucket::getTokens(size_t num_requested_tokens) {
   // Only fill if there isn't enough to satisfy the request.
-  // If we get tokens so seldomly that we are able to roll the timer all
+  // If we get tokens so seldom that we are able to roll the timer all
   // the way around its range, then we lose that entire range of time
   // for token accumulation. Probably not the end of the world.
   if (num_requested_tokens > num_tokens_) {

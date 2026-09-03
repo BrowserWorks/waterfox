@@ -176,7 +176,7 @@ class MozURL final {
 
     // This method returns the status code of the setter operations.
     // If any of the setters failed, it will return the code of the first error
-    // that occured. If none of the setters failed, it will return NS_OK.
+    // that occurred. If none of the setters failed, it will return NS_OK.
     // This method is useful to avoid doing expensive operations when the result
     // would not be used because an error occurred. For example:
     //

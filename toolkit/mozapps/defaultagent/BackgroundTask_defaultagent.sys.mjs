@@ -35,7 +35,7 @@ ChromeUtils.defineLazyGetter(lazy, "log", () => {
 });
 
 // Should be slightly longer than kNotificationTimeoutMs and kGleanSendWait below
-// (divided by 1000 to convert millseconds to seconds) to not cause race
+// (divided by 1000 to convert milliseconds to seconds) to not cause race
 // between timeouts.
 //
 // Additionally, should be less than the Windows Scheduled Task timeout
@@ -470,7 +470,7 @@ function makeObserver(actions) {
             action: kNotificationAction.dismissedToActionCenter,
           });
         } else {
-          // Being dismissed without shown means an error occured
+          // Being dismissed without shown means an error occurred
           lazy.log.error("Error showing notification.");
           shownPromise.resolve({
             shown: kNotificationShown.error,
@@ -490,7 +490,7 @@ function makeTimeout(alertName) {
     // stop waiting for it.
     let timeoutMs = kNotificationTimeoutMs;
 
-    // Allow overriding the notification timeout fron an environment variable.
+    // Allow overriding the notification timeout from an environment variable.
     const envTimeoutKey = "MOZ_NOTIFICATION_TIMEOUT_MS";
     if (Services.env.exists(envTimeoutKey)) {
       let envTimeoutValue = Services.env.get(envTimeoutKey);

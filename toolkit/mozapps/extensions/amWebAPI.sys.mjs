@@ -102,7 +102,7 @@ class APIObject {
   }
 
   /**
-   * Helper to implement an asychronous method visible to content, where
+   * Helper to implement an asynchronous method visible to content, where
    * the method is implemented by sending a message to the parent process
    * and then wrapping the returned object or error in an appropriate object.
    * This helper method ensures that:

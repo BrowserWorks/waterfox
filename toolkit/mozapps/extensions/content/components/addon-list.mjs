@@ -45,7 +45,7 @@ export class AddonList extends HTMLElement {
 
   async connectedCallback() {
     // Register the listener and get the add-ons, these operations should
-    // happpen as close to each other as possible.
+    // happen as close to each other as possible.
     this.registerListener();
     // Don't render again if we were rendered prior to being inserted.
     if (!this.children.length) {

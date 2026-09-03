@@ -64,7 +64,7 @@ class nsMixedContentBlocker : public nsIContentPolicy,
    * image load.
    * @param aHadInsecureImageRedirect
    *        boolean flag indicating that an insecure redirect through http
-   *        occured when this image was initially loaded and cached.
+   *        occurred when this image was initially loaded and cached.
    * @param aReportError
    *        boolean flag indicating if a rejection should automaticly be
    *        logged into the Console.

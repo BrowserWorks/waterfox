@@ -109,7 +109,7 @@ function checkEntry(entry, checks) {
   }
 }
 
-// No redirects have occured so RedirectStart/End are 0
+// No redirects have occurred so RedirectStart/End are 0
 function checkSameOrigin(entry) {
   const checks = { "redirectStart": 0, "redirectEnd": 0 };
   checkEntry(entry, checks);
@@ -125,7 +125,7 @@ function checkCrossOrigin(entry) {
   checkEntry(entry, checks);
 }
 
-// A cross-origin redirect has occured. RedirectStart/End and the rest of the
+// A cross-origin redirect has occurred. RedirectStart/End and the rest of the
 // attributes are 0.
 function checkRedirectedCrossOrigin(entry) {
   const checks = { "redirectStart": 0, "redirectEnd": 0,

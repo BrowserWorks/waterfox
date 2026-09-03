@@ -283,7 +283,7 @@ export class PlacesFeed {
    * Sends an attribution request for Top Sites interactions.
    *
    * @param {object} data
-   *   Attribution paramters from a Top Site.
+   *   Attribution parameters from a Top Site.
    */
   makeAttributionRequest(data) {
     let args = Object.assign(

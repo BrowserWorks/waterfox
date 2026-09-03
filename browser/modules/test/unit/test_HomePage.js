@@ -33,11 +33,11 @@ add_task(async function setup() {
 add_task(function test_HomePage() {
   Assert.ok(
     !HomePage.overridden,
-    "Homepage should not be overriden by default."
+    "Homepage should not be overridden by default."
   );
   let newvalue = "about:blank|about:newtab";
   HomePage.safeSet(newvalue);
-  Assert.ok(HomePage.overridden, "Homepage should be overriden after set()");
+  Assert.ok(HomePage.overridden, "Homepage should be overridden after set()");
   Assert.equal(HomePage.get(), newvalue, "Homepage should be ${newvalue}");
   Assert.notEqual(
     HomePage.getDefault(),
@@ -47,7 +47,7 @@ add_task(function test_HomePage() {
   HomePage.reset();
   Assert.ok(
     !HomePage.overridden,
-    "Homepage should not be overriden by after reset."
+    "Homepage should not be overridden by after reset."
   );
   Assert.equal(
     HomePage.get(),
@@ -59,10 +59,10 @@ add_task(function test_HomePage() {
 add_task(function test_recoverEmptyHomepage() {
   Assert.ok(
     !HomePage.overridden,
-    "Homepage should not be overriden by default."
+    "Homepage should not be overridden by default."
   );
   Services.prefs.setStringPref("browser.startup.homepage", "");
-  Assert.ok(HomePage.overridden, "Homepage is overriden with empty string.");
+  Assert.ok(HomePage.overridden, "Homepage is overridden with empty string.");
   Assert.equal(HomePage.get(), HomePage.getDefault(), "Recover is default");
   Assert.ok(!HomePage.overridden, "Recover should have set default");
 });

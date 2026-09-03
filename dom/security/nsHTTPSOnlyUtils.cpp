@@ -1047,7 +1047,7 @@ bool TestHTTPAnswerRunnable::IsBackgroundRequestRedirected(
     return false;
   }
 
-  // By now we have verified that the inital background request was http and
+  // By now we have verified that the initial background request was http and
   // that the redirected scheme is https. We want to find the following case
   // where the background channel redirects to the https version of the
   // top-level request.
@@ -1246,7 +1246,7 @@ TestHTTPAnswerRunnable::Notify(nsITimer* aTimer) {
   }
 
   // We have exempt that load from HTTPS-Only to avoid getting upgraded
-  // to https as well. Additonally let's not log that request to the console
+  // to https as well. Additionally let's not log that request to the console
   // because it might confuse end users.
   nsCOMPtr<nsILoadInfo> loadInfo = testHTTPChannel->LoadInfo();
   uint32_t httpsOnlyStatus = loadInfo->GetHttpsOnlyStatus();

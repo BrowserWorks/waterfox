@@ -144,7 +144,7 @@ add_task(
 
     let engine = SearchService.getEngineByName("engine-name");
     Assert.ok(engine.overriddenById, "The app-provided engine is overridden");
-    Assert.ok(!engine.isNew(), "The overriden app-provided engine is not new");
+    Assert.ok(!engine.isNew(), "The overridden app-provided engine is not new");
 
     info("The overridden app-provided engine should not show the New badge");
     unifiedDropDownMenu = await UrlbarTestUtils.openSearchModeSwitcher(window);

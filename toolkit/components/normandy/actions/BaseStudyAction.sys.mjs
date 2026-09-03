@@ -14,7 +14,7 @@ const OPT_OUT_STUDIES_ENABLED_PREF = "app.shield.optoutstudies.enabled";
  * taken once after recipes are run.
  *
  * For actions that need to be taken once before recipes are run
- * _preExecution may be overriden but the overridden method must
+ * _preExecution may be overridden but the overridden method must
  * call the parent method to ensure the appropriate checks occur.
  *
  * Other methods should be overridden with care, to maintain the life

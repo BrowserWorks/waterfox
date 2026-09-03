@@ -218,8 +218,8 @@ enum class WheelDeltaAdjustmentStrategy : uint8_t {
   // scrolling: Delta values are *ONLY* going to be adjusted during the process
   // of its default action handling; in views of any programmes other than the
   // default action handler, such as a DOM event listener or a plugin, delta
-  // values are never going to be adjusted, they will still retrive original
-  // delta values when horizontalization occured for default actions.
+  // values are never going to be adjusted, they will still retrieve original
+  // delta values when horizontalization occurred for default actions.
   eHorizontalize,
   // The following two strategies mean we're receving an auto-dir scroll, so we
   // should apply auto-dir adjustment to the delta of the wheel event if needed.

@@ -112,7 +112,7 @@ contextual_manager:
         "import_error": There was an error importing logins
         "export_passwords_success": Logins were successfully exported
         "add_login_success": A login was successfully added manually
-        "update_login_success": A login was succesfully updated manually
+        "update_login_success": A login was successfully updated manually
         "delete_login_success": Logins were successfully deleted
         "discard_changes": Exited the login form while updating
         "login_already_exists_warning": A login was not created because it already exists
@@ -143,7 +143,7 @@ contextual_manager:
         "import_error": There was an error importing logins
         "export_passwords_success": Logins were successfully exported
         "add_login_success": A login was successfully added manually
-        "update_login_success": A login was succesfully updated manually
+        "update_login_success": A login was successfully updated manually
         "delete_login_success": Logins were successfully deleted
         "discard_changes": Exited the login form while updating
         "login_already_exists_warning": A login was not created because it already exists

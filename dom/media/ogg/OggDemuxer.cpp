@@ -52,7 +52,7 @@ using media::TimeUnit;
 // HTTP. When we're seeking with fuzz, we'll stop the search if a bisection
 // lands between the seek target and OGG_SEEK_FUZZ_USECS microseconds before the
 // seek target.  This is becaue it's usually quicker to just keep downloading
-// from an exisiting connection than to do another bisection inside that
+// from an existing connection than to do another bisection inside that
 // small range, which would open a new HTTP connetion.
 static const TimeUnit OGG_SEEK_FUZZ_USECS = TimeUnit::FromMicroseconds(500000);
 

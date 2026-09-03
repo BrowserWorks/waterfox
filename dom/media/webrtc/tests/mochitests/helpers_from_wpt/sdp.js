@@ -395,7 +395,7 @@ SDPUtils.writeCryptoKeyParams = function(keyParams) {
   );
 };
 
-// Extracts all SDES paramters.
+// Extracts all SDES parameters.
 SDPUtils.getCryptoParameters = function(mediaSection, sessionpart) {
   var lines = SDPUtils.matchPrefix(mediaSection + sessionpart, "a=crypto:");
   return lines.map(SDPUtils.parseCryptoLine);

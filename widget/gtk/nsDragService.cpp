@@ -1909,7 +1909,7 @@ bool nsDragSession::SourceDataAppendURLItem(nsITransferable* aItem,
 void nsDragSession::SourceDataGetUriList(GdkDragContext* aContext,
                                          GtkSelectionData* aSelectionData,
                                          uint32_t aDragItems) {
-  // Check if we're transfering data to another application.
+  // Check if we're transferring data to another application.
   // gdk_drag_context_get_dest_window() on X11 returns GdkWindow even for
   // different application so use nsWindow::GetWindow() to check if that's
   // our window.
@@ -2145,7 +2145,7 @@ void nsDragSession::SourceDataGet(GtkWidget* aWidget, GdkDragContext* aContext,
   if (dragItems > 1) {
     LOGDRAGSERVICE(
         "  There are %d data items but we're asked for %s MIME type. Only "
-        "first data element can be transfered!",
+        "first data element can be transferred!",
         dragItems, GUniquePtr<gchar>(gdk_atom_name(requestedFlavor)).get());
   }
 #endif

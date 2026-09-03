@@ -298,7 +298,7 @@ add_task(async function test_pref_remembering() {
 
   if (!settingsRedesignHistoryEnabled()) {
     // test rememebering prefs from the clear history context
-    // since clear history and clear site data have seperate remembering
+    // since clear history and clear site data have separate remembering
     // of prefs
     dh = new ClearHistoryDialogHelper({ mode: "clearHistory" });
     dh.onload = function () {

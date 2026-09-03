@@ -173,7 +173,7 @@ class InputPipe extends Pipe {
 class OutputPipe extends Pipe {
   /**
    * A bit mask of poll() events which we currently wish to be notified of on
-   * this file discriptor.
+   * this file descriptor.
    */
   get pollEvents() {
     if (this.pending.length) {

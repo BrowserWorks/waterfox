@@ -182,7 +182,7 @@ add_task(async function test_flip_revamp_pref() {
   Assert.equal(
     Services.prefs.getStringPref(SIDEBAR_VISIBILITY_PREF),
     "always-show",
-    "Sanity check the visibilty pref when verticalTabs are enabled"
+    "Sanity check the visibility pref when verticalTabs are enabled"
   );
 
   await SpecialPowers.pushPrefEnv({ set: [["sidebar.revamp", false]] });

@@ -109,7 +109,7 @@ add_task(async function test_TabGroupA11y() {
 
   Assert.ok(
     tab4.hasAttribute("aria-hidden"),
-    "when an inactive tab moves into a collapsed tab group, it should no longer be visibile to accessibility tools"
+    "when an inactive tab moves into a collapsed tab group, it should no longer be visible to accessibility tools"
   );
 
   info(

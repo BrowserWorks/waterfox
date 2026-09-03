@@ -5646,7 +5646,7 @@ characteristics:
   errors:
     type: text
     description: >
-      Errors occured on C++ side of data collection
+      Errors occurred on C++ side of data collection
     lifetime: application
     send_in_pings:
       - user-characteristics
@@ -5665,7 +5665,7 @@ characteristics:
   js_errors:
     type: text
     description: >
-      Errors occured on JavaScript side of data collection
+      Errors occurred on JavaScript side of data collection
     lifetime: application
     send_in_pings:
       - user-characteristics

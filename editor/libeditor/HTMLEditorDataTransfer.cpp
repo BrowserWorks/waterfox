@@ -2171,7 +2171,7 @@ nsresult HTMLEditor::InsertFromTransferableAtSelection(
       // note cf_html uses utf8
       nsAutoCString cfhtml;
       if (GetCString(genericDataObj, cfhtml)) {
-        // cfselection left emtpy for now.
+        // cfselection left empty for now.
         nsString cfcontext, cffragment, cfselection;
         nsresult rv = ParseCFHTML(cfhtml, getter_Copies(cffragment),
                                   getter_Copies(cfcontext));
@@ -2358,7 +2358,7 @@ nsresult HTMLEditor::InsertFromDataTransfer(
         NS_ConvertUTF16toUTF8 cfhtml(text);
 
         nsString cfcontext, cffragment,
-            cfselection;  // cfselection left emtpy for now
+            cfselection;  // cfselection left empty for now
 
         nsresult rv = ParseCFHTML(cfhtml, getter_Copies(cffragment),
                                   getter_Copies(cfcontext));

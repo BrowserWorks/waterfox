@@ -111,7 +111,7 @@ add_task(async function test_overriding_cancelled_after_ignore_update() {
 
   await extension.startup();
 
-  Assert.ok(!HomePage.isDefault, "Should have overriden the new homepage");
+  Assert.ok(!HomePage.isDefault, "Should have overridden the new homepage");
   Assert.equal(
     Services.prefs.getBoolPref(
       "browser.startup.homepage_override.extensionControlled"

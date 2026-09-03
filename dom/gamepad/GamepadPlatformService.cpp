@@ -268,7 +268,7 @@ void GamepadPlatformService::AddChannelParent(
     MOZ_ASSERT(!mChannelParents.Contains(aParent));
     mChannelParents.AppendElement(aParent);
 
-    // For a new GamepadEventChannel, we have to send the exising GamepadAdded
+    // For a new GamepadEventChannel, we have to send the existing GamepadAdded
     // to it to make it can have the same amount of gamepads with others.
     if (mChannelParents.Length() > 1) {
       for (const auto& evt : mGamepadAdded) {

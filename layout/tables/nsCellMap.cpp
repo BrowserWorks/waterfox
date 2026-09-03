@@ -2016,7 +2016,7 @@ void nsCellMap::RebuildConsideringRows(
   }
 
   // aStartRowIndex might be after all existing rows so we should limit the
-  // copy to the amount of exisiting rows
+  // copy to the amount of existing rows
   uint32_t copyEndRowIndex = std::min(numOrigRows, uint32_t(aStartRowIndex));
 
   // rowX keeps track of where we are in mRows while setting up the

@@ -226,7 +226,7 @@ void nsSynthVoiceRegistry::RecvInitialVoicesAndState(
 }
 
 void nsSynthVoiceRegistry::RecvRemoveVoice(const nsAString& aUri) {
-  // If we dont have a local instance of the registry yet, we will recieve
+  // If we dont have a local instance of the registry yet, we will receive
   // current voices at contruction time.
   if (!gSynthVoiceRegistry) {
     return;
@@ -236,7 +236,7 @@ void nsSynthVoiceRegistry::RecvRemoveVoice(const nsAString& aUri) {
 }
 
 void nsSynthVoiceRegistry::RecvAddVoice(const RemoteVoice& aVoice) {
-  // If we dont have a local instance of the registry yet, we will recieve
+  // If we dont have a local instance of the registry yet, we will receive
   // current voices at contruction time.
   if (!gSynthVoiceRegistry) {
     return;
@@ -249,7 +249,7 @@ void nsSynthVoiceRegistry::RecvAddVoice(const RemoteVoice& aVoice) {
 
 void nsSynthVoiceRegistry::RecvSetDefaultVoice(const nsAString& aUri,
                                                bool aIsDefault) {
-  // If we dont have a local instance of the registry yet, we will recieve
+  // If we dont have a local instance of the registry yet, we will receive
   // current voices at contruction time.
   if (!gSynthVoiceRegistry) {
     return;

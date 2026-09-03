@@ -2664,7 +2664,7 @@ bool DocumentLoadListener::MaybeHandleLoadErrorWithURIFixup(nsresult aStatus) {
 
   // Since aStatus will be NS_OK for 4xx and 5xx error codes we
   // have to check each request which was upgraded by https-first.
-  // If an error (including 4xx and 5xx) occured, then let's check if
+  // If an error (including 4xx and 5xx) occurred, then let's check if
   // we can downgrade the scheme to HTTP again.
   bool isHTTPSFirstFixup = false;
   if (!newURI) {

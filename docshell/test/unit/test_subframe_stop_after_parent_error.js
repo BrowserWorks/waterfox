@@ -109,7 +109,7 @@ async function runTest(waitForErrorPage) {
   info("Cancel request for parent frame");
   req.cancel(Cr.NS_ERROR_PROXY_CONNECTION_REFUSED);
 
-  // Request cancelation is not synchronous, so wait for the STATE_STOP
+  // Request cancellation is not synchronous, so wait for the STATE_STOP
   // event to fire.
   await promiseStateStop(page.browsingContext.webProgress);
 

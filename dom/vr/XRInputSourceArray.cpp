@@ -49,7 +49,7 @@ void XRInputSourceArray::Update(XRSession* aSession) {
     const gfx::VRControllerState& controllerState =
         displayClient->GetDisplayInfo().mControllerState[i];
     if (controllerState.controllerName[0] == '\0') {
-      // Checking if exising controllers need to be removed.
+      // Checking if existing controllers need to be removed.
       for (auto& input : mInputSources) {
         if (input->GetIndex() == i) {
           removedInputs.AppendElement(input);

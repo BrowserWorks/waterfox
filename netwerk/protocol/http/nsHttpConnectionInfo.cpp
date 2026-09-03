@@ -584,7 +584,7 @@ nsHttpConnectionInfo::CreateConnectUDPFallbackConnInfo() {
 }
 
 nsresult nsHttpConnectionInfo::CreateWildCard(nsHttpConnectionInfo** outParam) {
-  // T???mozilla.org:443 (https:proxy.ducksong.com:3128) [specifc form]
+  // T???mozilla.org:443 (https:proxy.ducksong.com:3128) [specific form]
   // TS??*:0 (https:proxy.ducksong.com:3128)   [wildcard form]
 
   if (!mUsingHttpsProxy) {

@@ -42,7 +42,7 @@ class OwnedRustBuffer final {
       const mozilla::dom::ArrayBuffer& aArrayBuffer);
 
   // Moves the buffer out of this `OwnedArrayBuffer` into a raw `RustBuffer`
-  // struct.  The raw struct must be passed into a Rust function, transfering
+  // struct.  The raw struct must be passed into a Rust function, transferring
   // ownership to Rust.  After this call the buffer will no longer be valid.
   RustBuffer IntoRustBuffer();
 

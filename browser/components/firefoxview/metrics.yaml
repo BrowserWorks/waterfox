@@ -295,7 +295,7 @@ firefoxview_next:
         type: string
       search_start:
         description: >
-          Boolean for if the sort by click occured during search activity.
+          Boolean for if the sort by click occurred during search activity.
         type: string
 
   show_all_history_tabs:

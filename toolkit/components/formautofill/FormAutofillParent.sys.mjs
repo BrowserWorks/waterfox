@@ -618,7 +618,7 @@ export class FormAutofillParent extends JSWindowActorParent {
   }
 
   /**
-   * Re-filling fields after a form change occured
+   * Re-filling fields after a form change occurred
    * immediately after the last filling process
    *
    * @param {string} elementId element id of focused element that triggered
@@ -960,7 +960,7 @@ export class FormAutofillParent extends JSWindowActorParent {
       return false;
     }
 
-    // If the record alreay exists in the storage, don't bother showing the prompt
+    // If the record already exists in the storage, don't bother showing the prompt
     const matchRecord = (
       await storage.getMatchRecords(creditCard.record).next()
     ).value;
@@ -1069,7 +1069,7 @@ export class FormAutofillParent extends JSWindowActorParent {
       relayPromise,
     ]);
 
-    // Sort addresses by timeLastUsed for showing the lastest used address at top.
+    // Sort addresses by timeLastUsed for showing the latest used address at top.
     records.sort((a, b) => b.timeLastUsed - a.timeLastUsed);
     return { records, externalEntries, allFieldNames: section.allFieldNames };
   }
@@ -1333,7 +1333,7 @@ export class FormAutofillParent extends JSWindowActorParent {
     const msg = "FormAutofill:ClearFilledFields";
     // On a form clearing action, we don't use section.getAutofillFields to retrieve
     // the elements that are about to be cleared, but we consider all fieldDetails regardless
-    // of their visiblity state in order to also clear invisible but previously autocompleted fields
+    // of their visibility state in order to also clear invisible but previously autocompleted fields
     const fields = section.fieldDetails;
     await this.#triggerAutofillActionInChildren(msg, elementId, fields);
 

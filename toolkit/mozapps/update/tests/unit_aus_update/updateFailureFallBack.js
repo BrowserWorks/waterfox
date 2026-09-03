@@ -19,7 +19,7 @@ add_setup(() => {
 });
 
 // This test ensures an update will be attempted to be installed a maximum of two times
-// If the update install is still not successfull, handleFallbackToCompleteUpdate will be ran.
+// If the update install is still not successful, handleFallbackToCompleteUpdate will be ran.
 add_task(async function updateFailureTest() {
   setupTestCommon();
   let expectedState;

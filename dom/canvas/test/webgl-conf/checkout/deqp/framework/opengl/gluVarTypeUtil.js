@@ -283,7 +283,7 @@ goog.scope(function() {
     };
 
     gluVarTypeUtil.SubTypeIterator.prototype.isExpanded = function(type) {
-        throw new Error('This function must be overriden in child class');
+        throw new Error('This function must be overridden in child class');
     };
 
     /** removeTraversed

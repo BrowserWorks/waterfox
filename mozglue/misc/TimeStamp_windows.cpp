@@ -11,7 +11,7 @@
 // GetTickCount (GTC) timestamps in the past, as very early implementations of
 // QPC were buggy. We had heuristics to determine if QPC is unreliable and
 // would have switched to GTC in case, which could cause unexpected time
-// travels between QPC and GPC values when that occured.
+// travels between QPC and GPC values when that occurred.
 //
 // Since Windows 8 together with the then modern CPUs, QPC became both reliable
 // and almost as fast as GTC timestamps and provides a much higher resolution.

@@ -1348,7 +1348,7 @@ void TestLEB128() {
 
   for (const TestDataU64& test : tests) {
     MOZ_RELEASE_ASSERT(ULEB128Size(test.mValue) == test.mSize);
-    // Prepare a buffer that can accomodate the largest-possible LEB128.
+    // Prepare a buffer that can accommodate the largest-possible LEB128.
     uint8_t buffer[ULEB128MaxSize<uint64_t>()];
     // Use a pointer into the buffer as iterator.
     uint8_t* p = buffer;

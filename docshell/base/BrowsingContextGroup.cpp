@@ -213,7 +213,7 @@ void BrowsingContextGroup::Subscribe(ContentParent* aProcess) {
 
   // FIXME: This won't send non-discarded children of discarded BCs, but those
   // BCs will be in the process of being destroyed anyway.
-  // FIXME: Prevent that situation from occuring.
+  // FIXME: Prevent that situation from occurring.
   nsTArray<SyncedContextInitializer> inits(mContexts.Count());
   CollectContextInitializers(mToplevels, inits);
 

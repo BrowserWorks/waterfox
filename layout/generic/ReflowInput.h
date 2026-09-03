@@ -965,7 +965,7 @@ struct ReflowInput : public SizeComputationInput {
   //
   // This is currently used in a special scenario where we treat certain
   // sized-to-content flex items as having an 'auto' block-size for their final
-  // reflow to accomodate fragmentation-imposed block-size growth. This sort of
+  // reflow to accommodate fragmentation-imposed block-size growth. This sort of
   // flex item does nonetheless have a known block-size (from the flex layout
   // algorithm) that it needs to use as a definite percentage-basis for its
   // children during its final reflow; and we represent that here.

@@ -137,7 +137,7 @@ typedef struct {
   bool flags_cld2_verbose;
   ULScript ulscript;        // langprobs below are with respect to this script
   Language prior_chunk_lang;          // Mostly for debug output
-  // boost has a packed set of per-script langs and probabilites
+  // boost has a packed set of per-script langs and probabilities
   // whack has a per-script lang to be suppressed from ever scoring (zeroed)
   // When a language in a close set is given as an explicit hint, others in
   //  that set will be whacked.

@@ -470,7 +470,7 @@ TEST(ThreadUtils, NewNamedCancelableRunnableFunction)
     ExpectRunnableName(NamedRunnable, expectedName);
   }
 
-  // Test release on cancelation.
+  // Test release on cancellation.
   {
     auto foo = MakeRefPtr<TestRefCounted>();
     bool ran = false;
@@ -485,7 +485,7 @@ TEST(ThreadUtils, NewNamedCancelableRunnableFunction)
     EXPECT_FALSE(ran);
   }
 
-  // Test no-op after cancelation.
+  // Test no-op after cancellation.
   {
     auto foo = MakeRefPtr<TestRefCounted>();
     bool ran = false;

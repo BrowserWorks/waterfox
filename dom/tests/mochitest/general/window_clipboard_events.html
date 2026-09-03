@@ -712,16 +712,16 @@ add_task(async function test_input_copypaste_dataTransfer_multiple() {
 
     var exh = false;
     try { SpecialPowers.wrap(cd).mozSetDataAt("text/plain", "Text", 1); } catch (ex) { exh = true; }
-    ok(exh, "exception occured mozSetDataAt 1");
+    ok(exh, "exception occurred mozSetDataAt 1");
     exh = false;
     try { SpecialPowers.wrap(cd).mozTypesAt(1); } catch (ex) { exh = true; }
-    ok(exh, "exception occured mozTypesAt 1");
+    ok(exh, "exception occurred mozTypesAt 1");
     exh = false;
     try { SpecialPowers.wrap(cd).mozGetDataAt("text/plain", 1); } catch (ex) { exh = true; }
-    ok(exh, "exception occured mozGetDataAt 1");
+    ok(exh, "exception occurred mozGetDataAt 1");
     exh = false;
     try { cd.mozClearDataAt("text/plain", 1); } catch (ex) { exh = true; }
-    ok(exh, "exception occured mozClearDataAt 1");
+    ok(exh, "exception occurred mozClearDataAt 1");
 
     cd.setData("text/x-moz-url", "http://www.mozilla.org\nMozilla Page Title");
     SpecialPowers.wrap(cd).mozSetDataAt("text/x-custom", "Custom Text with \u0000 null", 0);
@@ -761,11 +761,11 @@ add_task(async function test_input_copypaste_dataTransfer_multiple() {
 
     exh = false;
     try { cd.setData("application/x-moz-custom-clipdata", "Some Data"); } catch (ex) { exh = true; }
-    ok(exh, "exception occured setData with application/x-moz-custom-clipdata");
+    ok(exh, "exception occurred setData with application/x-moz-custom-clipdata");
 
     exh = false;
     try { cd.setData("text/plain", "Text on Paste"); } catch (ex) { exh = true; }
-    ok(exh, "exception occured setData on paste");
+    ok(exh, "exception occurred setData on paste");
 
     is(cd.getData("text/plain"), "would be a phrase", "text/plain data unchanged");
   };

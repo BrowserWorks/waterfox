@@ -600,7 +600,7 @@ PopupNotifications.prototype = {
    *                     otherwise the hostPort will be displayed.
    *        name:
    *                     An optional string formatted to look bold and used in the
-   *                     notifiation description header text. Usually a host name or
+   *                     notification description header text. Usually a host name or
    *                     addon name.
    *        secondName:
    *                     An optional string formatted to look bold and used in the
@@ -1736,7 +1736,7 @@ PopupNotifications.prototype = {
       ourBrowser,
       otherBrowser
     ) {
-      // When swaping browser docshells (e.g. dragging tab to new window) we need
+      // When swapping browser docshells (e.g. dragging tab to new window) we need
       // to update our notification map.
 
       let ourNotifications = this.getNotificationsForBrowser(ourBrowser);

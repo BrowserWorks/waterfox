@@ -86,7 +86,7 @@ function createPromiseForConsoleError(message) {
     function listener(msgObj) {
       let text = msgObj.message;
       if (text.includes(message)) {
-        info(`Found occurence of '${message}'`);
+        info(`Found occurrence of '${message}'`);
         Services.console.unregisterListener(listener);
         resolve();
       }

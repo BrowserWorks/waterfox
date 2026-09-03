@@ -558,7 +558,7 @@ class RegionDetector {
    * @param {object} point
    *   A lat + lng coordinate.
    * @param {object} map
-   *   Geojson object that defined seperate regions with a list
+   *   Geojson object that defined separate regions with a list
    *   of polygons.
    *
    * @returns {Array}

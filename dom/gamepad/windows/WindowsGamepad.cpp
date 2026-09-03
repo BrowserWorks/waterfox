@@ -722,7 +722,7 @@ bool WindowsGamepadService::GetRawGamepad(HANDLE handle) {
   // later.
   axes.SetLength(kAxesLengthCap);
 
-  // Looking for the exisiting ramapping rule.
+  // Looking for the existing ramapping rule.
   bool defaultRemapper = false;
   RefPtr<GamepadRemapper> remapper = GetGamepadRemapper(
       rdi.hid.dwVendorId, rdi.hid.dwProductId, defaultRemapper);

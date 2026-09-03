@@ -78,7 +78,7 @@ class PerformanceMainThread final : public Performance,
 
   virtual nsITimedChannel* GetChannel() const override { return mChannel; }
 
-  // The GetEntries* methods need to be overriden in order to add the
+  // The GetEntries* methods need to be overridden in order to add the
   // the document entry of type navigation.
   virtual void GetEntries(nsTArray<RefPtr<PerformanceEntry>>& aRetval) override;
 

@@ -9131,7 +9131,7 @@ void nsIFrame::ListGeneric(nsACString& aTo, const char* aPrefix,
     if (HidesContent()) {
       aTo += "HidesContent=hidden"_ns;
     } else {
-      aTo += "HidesContent=visibile"_ns;
+      aTo += "HidesContent=visible"_ns;
     }
     aTo += "]";
   }

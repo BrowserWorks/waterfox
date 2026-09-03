@@ -403,13 +403,13 @@ async function onConfigLoad() {
   const textBox = document.getElementById("textbox");
   textBox.addEventListener("input", FilterPrefs);
 
-  const configFocuSearch = document.getElementById("configFocuSearch");
-  configFocuSearch.addEventListener("command", () => {
+  const configFocusSearch = document.getElementById("configFocusSearch");
+  configFocusSearch.addEventListener("command", () => {
     textBox.focus();
   });
 
-  const configFocuSearch2 = document.getElementById("configFocuSearch2");
-  configFocuSearch2.addEventListener("command", () => {
+  const configFocusSearch2 = document.getElementById("configFocusSearch2");
+  configFocusSearch2.addEventListener("command", () => {
     textBox.focus();
   });
 

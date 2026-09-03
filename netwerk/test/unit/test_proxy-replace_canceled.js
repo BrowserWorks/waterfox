@@ -41,7 +41,7 @@ function run_test() {
   );
 
   // this test assumed that a AsyncOnChannelRedirect query is made for
-  // each proxy failover or on the inital proxy only when PAC mode is used.
+  // each proxy failover or on the initial proxy only when PAC mode is used.
   // Neither of those are documented anywhere that I can find and the latter
   // hasn't been a useful property because it is PAC dependent and the type
   // is generally unknown and OS driven. 769764 changed that to remove the

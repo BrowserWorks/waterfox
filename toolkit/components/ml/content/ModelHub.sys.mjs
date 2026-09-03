@@ -1209,7 +1209,7 @@ class IndexedDBCache {
   }
 
   /**
-   * Deletes all data related to the specifed models.
+   * Deletes all data related to the specified models.
    *
    * @param {object} config
    *
@@ -2257,7 +2257,7 @@ export class ModelHub {
   }
 
   /**
-   * Deletes all data related to the specifed models.
+   * Deletes all data related to the specified models.
    *
    * @param {object} config
    *

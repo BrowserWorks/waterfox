@@ -71,7 +71,7 @@ async function performCanceledDownload(tab, path) {
   ) {
     // Start waiting for the download dialog before triggering the download.
     cancelledDownload = promiseClickDownloadDialogButton("cancel");
-    // Wait for the cancelation to have been triggered.
+    // Wait for the cancellation to have been triggered.
     info("waiting for download popup");
   } else {
     let downloadView;

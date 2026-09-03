@@ -190,7 +190,7 @@ class HTMLSelectElement final : public nsGenericHTMLFormControlElementWithState,
   void SaveState() override;
   bool RestoreState(PresState* aState) override;
 
-  // Overriden nsIFormControl methods
+  // Overridden nsIFormControl methods
   MOZ_CAN_RUN_SCRIPT NS_IMETHOD Reset() override;
   NS_IMETHOD SubmitNamesValues(FormData* aFormData) override;
 

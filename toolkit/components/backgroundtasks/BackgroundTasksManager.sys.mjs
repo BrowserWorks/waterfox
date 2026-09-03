@@ -30,7 +30,7 @@ ChromeUtils.defineLazyGetter(lazy, "DevToolsStartup", () => {
   ).wrappedJSObject;
 });
 
-// The default timing settings can be overriden by the preferences
+// The default timing settings can be overridden by the preferences
 // toolkit.backgroundtasks.defaultTimeoutSec and
 // toolkit.backgroundtasks.defaultMinTaskRuntimeMS for all background tasks
 // and individually per module by

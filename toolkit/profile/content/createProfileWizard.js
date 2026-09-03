@@ -207,7 +207,7 @@ function updateProfileName(aNewName) {
 // Checks whether the given string is a valid profile name.
 // Returns an error message describing the error in the name or "" when it's valid.
 function checkProfileName(profileNameToCheck) {
-  // Check for emtpy profile name.
+  // Check for empty profile name.
   if (!/\S/.test(profileNameToCheck)) {
     return gProfileManagerBundle.getString("profileNameEmpty");
   }

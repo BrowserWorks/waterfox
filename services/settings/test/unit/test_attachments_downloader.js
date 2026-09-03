@@ -769,11 +769,11 @@ add_task(
 add_task(clear_state);
 
 add_task(async function test_cacheAll_happy_path() {
-  // verify bundle is downloaded succesfully
+  // verify bundle is downloaded successfully
   const allSuccess = await downloader.cacheAll();
   Assert.ok(
     allSuccess,
-    "Attachments cacheAll succesfully downloaded a bundle and saved all attachments"
+    "Attachments cacheAll successfully downloaded a bundle and saved all attachments"
   );
 
   // verify accuracy of attachments downloaded
@@ -806,7 +806,7 @@ add_task(async function test_cacheAll_using_real_db() {
 
   Assert.ok(
     allSuccess,
-    "Attachments cacheAll succesfully downloaded a bundle and saved all attachments"
+    "Attachments cacheAll successfully downloaded a bundle and saved all attachments"
   );
 
   Assert.equal(

@@ -615,7 +615,7 @@ add_task(async function test_alternate_cached_data() {
           let decoder = new TextDecoder("utf-8");
           let encoder = new TextEncoder();
 
-          // Because cache is always a race, intermittently we will succesfully
+          // Because cache is always a race, intermittently we will successfully
           // beat the cache, in which case we pass in ondata.  If cache wins,
           // we pass in onerror.
           // Running the test with --verify hits this cache race issue, as well

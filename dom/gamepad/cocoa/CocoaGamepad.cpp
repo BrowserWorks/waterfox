@@ -195,7 +195,7 @@ void Gamepad::init(IOHIDDeviceRef aDevice, bool aDefaultRemapper) {
 }
 
 // This service is created and destroyed in Background thread while
-// operates in a seperate thread(We call it Monitor thread here).
+// operates in a separate thread(We call it Monitor thread here).
 class DarwinGamepadService {
  private:
   IOHIDManagerRef mManager;

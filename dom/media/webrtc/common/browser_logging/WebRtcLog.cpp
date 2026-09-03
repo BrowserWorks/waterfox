@@ -130,7 +130,7 @@ class LogSinkImpl : public WebrtcLogSinkHandle, public webrtc::LogSink {
 
   void OnLogMessage(const std::string&) override {
     MOZ_CRASH(
-        "Called overriden OnLogMessage that is inexplicably pure virtual");
+        "Called overridden OnLogMessage that is inexplicably pure virtual");
   }
 
   static LogSinkImpl* sSingleton MOZ_GUARDED_BY(mozilla::sMainThreadCapability);

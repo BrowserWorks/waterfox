@@ -289,7 +289,7 @@ describe("Reducers", () => {
           "should not modify INITIAL_STATE"
         );
       });
-      it("should set initalized to true", () => {
+      it("should set initialized to true", () => {
         const state = Prefs(undefined, {
           type: at.PREFS_INITIAL_VALUES,
           data: {},
@@ -356,7 +356,7 @@ describe("Reducers", () => {
       const nextState = Dialog(INITIAL_STATE.Dialog, action);
       assert.isFalse(nextState.visible);
     });
-    it("should return inital state on DELETE_HISTORY_URL", () => {
+    it("should return initial state on DELETE_HISTORY_URL", () => {
       const action = { type: at.DELETE_HISTORY_URL };
       const nextState = Dialog(INITIAL_STATE.Dialog, action);
 

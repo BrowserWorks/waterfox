@@ -160,7 +160,7 @@ class PerformanceTimingData final : public CacheablePerformanceTimingData {
   DOMHighResTimeStamp ZeroTime() const { return mZeroTime; }
 
   // If this is false the values of redirectStart/End will be 0 This is false if
-  // no redirects occured, or if any of the responses failed the
+  // no redirects occurred, or if any of the responses failed the
   // timing-allow-origin check in HttpBaseChannel::TimingAllowCheck
   //
   // If aEnsureSameOriginAndIgnoreTAO is false, it checks if all redirects pass

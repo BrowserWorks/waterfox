@@ -694,7 +694,7 @@ static bool ClearAllTextRunReferences(nsTextFrame* aFrame, gfxTextRun* aTextRun,
  * and their continuations.
  * @note the caller is expected to take care of possibly destroying the
  * text run if all userdata frames were reset (userdata is deallocated
- * by this function though). The caller can detect this has occured by
+ * by this function though). The caller can detect this has occurred by
  * checking |aTextRun->GetUserData() == nullptr|.
  */
 static void UnhookTextRunFromFrames(gfxTextRun* aTextRun,

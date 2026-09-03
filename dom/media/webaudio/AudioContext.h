@@ -209,7 +209,7 @@ class AudioContext final : public DOMEventTargetHelper,
 
   // Those three methods return a promise to content, that is resolved when an
   // (possibly long) operation is completed on the MTG (and possibly other)
-  // thread(s). To avoid having to match the calls and asychronous result when
+  // thread(s). To avoid having to match the calls and asynchronous result when
   // the operation is completed, we keep a reference to the promises on the main
   // thread, and then send the promises pointers down the MTG thread, as a void*
   // (to make it very clear that the pointer is to merely be treated as an ID).

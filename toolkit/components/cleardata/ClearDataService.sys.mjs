@@ -2510,7 +2510,7 @@ ClearDataService.prototype = Object.freeze({
     // This is mainly needed for GeckoView that doesn't start QMS on startup
     // time.
     if (!Services.qms) {
-      console.error("Failed initializiation of QuotaManagerService.");
+      console.error("Failed initialization of QuotaManagerService.");
     }
   },
 

@@ -4113,7 +4113,7 @@ bool HTMLEditor::AutoDeleteRangesHandler::AutoBlockElementsJoiner::
     case Mode::DeleteBRElement:
     case Mode::DeletePrecedingBRElementOfBlock:
     case Mode::DeletePrecedingPreformattedLineBreak:
-      // We want to delete a line but preseve the block structure around the
+      // We want to delete a line but preserve the block structure around the
       // selection.
       return false;
     case Mode::DeleteNonCollapsedRange:

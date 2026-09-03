@@ -468,7 +468,7 @@ void nsMathMLmoFrame::ProcessOperatorData() {
   // dictionary can cause conflicts in the rest of the stretching algorithms
   // (e.g. all largeops are assumed to have a vertical direction)
 
-  // For each attribute overriden by the user, turn off its bit flag.
+  // For each attribute overridden by the user, turn off its bit flag.
   // symmetric|movablelimits|separator|largeop|accent|fence|stretchy|form
   // special: accent and movablelimits are handled above,
   // don't process them here

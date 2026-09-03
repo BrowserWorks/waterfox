@@ -99,7 +99,7 @@ crash_submission:
   success:
     type: counter
     description: >
-      Number of successfull crash report submissions
+      Number of successful crash report submissions
     notification_emails:
       - crash-reporting-wg@mozilla.org
       - stability@mozilla.org

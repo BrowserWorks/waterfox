@@ -716,7 +716,7 @@ export class BranchedAddonStudyAction extends BaseStudyAction {
   }
 
   /**
-   * Given that a temporary error has occured for a study, check if it
+   * Given that a temporary error has occurred for a study, check if it
    * should be temporarily ignored, or if the deadline has passed. If the
    * deadline is passed, the study will be ended. If this is the first
    * temporary error, a deadline will be generated. Otherwise, nothing will

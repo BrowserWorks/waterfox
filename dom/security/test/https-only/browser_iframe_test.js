@@ -7,7 +7,7 @@
 // browser-configurations. The sjs-file returns a website with two iFrames
 // loading the same sjs-file again. One iFrame is same origin (example.com) and
 // the other cross-origin (example.org) Each request gets saved in a semicolon
-// seperated list of strings. The sjs-file gets initialized with the
+// separated list of strings. The sjs-file gets initialized with the
 // query-string "setup" and the result string can be polled with "results". Each
 // string has this format: {top/com/org}-{queryString}-{scheme}. In the end
 // we're just checking if all expected requests were recorded and had the

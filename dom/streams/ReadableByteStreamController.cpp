@@ -1987,7 +1987,7 @@ void ReadableByteStreamControllerPullInto(
 
     // It's not expliclitly stated, but I assume the intention here is that
     // we perform a normal completion here; we also need to clear the
-    // exception state anyhow to succesfully run ErrorSteps.
+    // exception state anyhow to successfully run ErrorSteps.
     JS_ClearPendingException(aCx);
 
     //     Step 11.1. Perform readIntoRequest’s error steps, given

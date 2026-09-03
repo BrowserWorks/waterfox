@@ -1676,7 +1676,7 @@ void nsSHistory::LoadURIs(const nsTArray<LoadEntryResult>& aLoadResults,
                           const std::function<void(nsresult)>& aResolver,
                           BrowsingContext* aTraversable) {
   // Step 5. We need to handle the case where we shouldn't check for
-  // cancelation, e.g when our caller is
+  // cancellation, e.g when our caller is
   // #resume-applying-the-traverse-history-step, and we're already ran
   // #checking-if-unloading-is-canceled
   if (aCheckForCancelation &&

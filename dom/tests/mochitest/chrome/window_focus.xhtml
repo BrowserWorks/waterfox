@@ -62,7 +62,7 @@ function eventOccured(event)
 {
   // iframes should never receive focus or blur events directly
   if (Element.isInstance(event.target) && event.target.localName == "iframe")
-    ok(false, "iframe " + event.type + "occured");
+    ok(false, "iframe " + event.type + "occurred");
 
   var id;
   if (gOldExpectedWindow && event.type == "blur") {

@@ -171,9 +171,9 @@ async function run_test() {
   );
   await waitForUpdateXMLFiles();
 
-  let cancelations = Services.prefs.getIntPref(PREF_APP_UPDATE_CANCELATIONS, 0);
+  let cancellations = Services.prefs.getIntPref(PREF_APP_UPDATE_CANCELATIONS, 0);
   Assert.equal(
-    cancelations,
+    cancellations,
     0,
     "the " + PREF_APP_UPDATE_CANCELATIONS + " preference " + MSG_SHOULD_EQUAL
   );

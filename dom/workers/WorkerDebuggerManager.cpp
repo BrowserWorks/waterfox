@@ -317,7 +317,7 @@ void WorkerDebuggerManager::UnregisterDebuggerMainThread(
     WorkerPrivate* aWorkerPrivate) {
   AssertIsOnMainThread();
 
-  // There is nothing to do here if the debugger was never succesfully
+  // There is nothing to do here if the debugger was never successfully
   // registered. We need to check this on the main thread because the worker
   // does not wait for the registration to complete if there were no listeners
   // installed when it started.

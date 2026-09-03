@@ -130,7 +130,7 @@ mtd {
 }
 
 /* Hide the label because mlabeledtr is not supported yet (bug 356870). This
-   rule can be overriden by users. */
+   rule can be overridden by users. */
 mlabeledtr > mtd:first-child {
   display: none;
 }

@@ -4020,7 +4020,7 @@ void BrowserParent::GetIPCTransferableData(
     aSession->SetDataTransfer(transfer);
   }
   // Note, even though this fills the DataTransfer object with
-  // external data, the data is usually transfered over IPC lazily when
+  // external data, the data is usually transferred over IPC lazily when
   // needed.
   transfer->FillAllExternalData();
   nsCOMPtr<nsILoadContext> lc = GetLoadContext();

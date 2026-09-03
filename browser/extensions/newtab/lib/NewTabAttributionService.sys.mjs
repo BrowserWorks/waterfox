@@ -165,7 +165,7 @@ class NewTabAttributionService {
    * onAttributionConversion checks for eligible Newtab events and submits
    * a DAP report.
    *
-   * @param {string} partnerId - The partner that the conversion occured for. Compared against
+   * @param {string} partnerId - The partner that the conversion occurred for. Compared against
    *  local events to see if any of them are eligible.
    * @param {number} lookbackDays - The number of days prior to now that an event can be for it
    *  to be eligible.

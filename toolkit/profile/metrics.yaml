@@ -17,7 +17,7 @@ startup:
       How the profile was selected during startup. One of the following reasons:
         unknown:
           Generally should not happen, set as a default in case no other reason
-          occured.
+          occurred.
         profile-manager:
           The profile was selected by the profile manager.
         profile-selector:

@@ -104,18 +104,18 @@ description("This test verifies initializers with ternary operators correctly in
 // The fragment shader must compile and link with the default vertex shader. J must be able to use the values of I as well as have its own
 // values properly initialized.
 var tests = [
-    { fShaderId: 'intFragShader', passMsg: 'Ternary operator in integer initalization', fShaderSuccess: true, linkSuccess: true, render: true },
-    { fShaderId: 'ivec2FragShader', passMsg: 'Ternary operator in ivec2 initalization', fShaderSuccess: true, linkSuccess: true, render: true },
-    { fShaderId: 'ivec3FragShader', passMsg: 'Ternary operator in ivec3 initalization', fShaderSuccess: true, linkSuccess: true, render: true },
-    { fShaderId: 'ivec4FragShader', passMsg: 'Ternary operator in ivec4 initalization', fShaderSuccess: true, linkSuccess: true, render: true },
-    { fShaderId: 'floatFragShader', passMsg: 'Ternary operator in float initalization', fShaderSuccess: true, linkSuccess: true, render: true },
-    { fShaderId: 'vec2FragShader', passMsg: 'Ternary operator in vec2 initalization', fShaderSuccess: true, linkSuccess: true, render: true },
-    { fShaderId: 'vec3FragShader', passMsg: 'Ternary operator in vec3 initalization', fShaderSuccess: true, linkSuccess: true, render: true },
-    { fShaderId: 'vec4FragShader', passMsg: 'Ternary operator in vec4 initalization', fShaderSuccess: true, linkSuccess: true, render: true },
-    { fShaderId: 'boolFragShader', passMsg: 'Ternary operator in bool initalization', fShaderSuccess: true, linkSuccess: true, render: true },
-    { fShaderId: 'bvec2FragShader', passMsg: 'Ternary operator in bvec2 initalization', fShaderSuccess: true, linkSuccess: true, render: true },
-    { fShaderId: 'bvec3FragShader', passMsg: 'Ternary operator in bvec3 initalization', fShaderSuccess: true, linkSuccess: true, render: true },
-    { fShaderId: 'bvec4FragShader', passMsg: 'Ternary operator in bvec4 initalization', fShaderSuccess: true, linkSuccess: true, render: true },
+    { fShaderId: 'intFragShader', passMsg: 'Ternary operator in integer initialization', fShaderSuccess: true, linkSuccess: true, render: true },
+    { fShaderId: 'ivec2FragShader', passMsg: 'Ternary operator in ivec2 initialization', fShaderSuccess: true, linkSuccess: true, render: true },
+    { fShaderId: 'ivec3FragShader', passMsg: 'Ternary operator in ivec3 initialization', fShaderSuccess: true, linkSuccess: true, render: true },
+    { fShaderId: 'ivec4FragShader', passMsg: 'Ternary operator in ivec4 initialization', fShaderSuccess: true, linkSuccess: true, render: true },
+    { fShaderId: 'floatFragShader', passMsg: 'Ternary operator in float initialization', fShaderSuccess: true, linkSuccess: true, render: true },
+    { fShaderId: 'vec2FragShader', passMsg: 'Ternary operator in vec2 initialization', fShaderSuccess: true, linkSuccess: true, render: true },
+    { fShaderId: 'vec3FragShader', passMsg: 'Ternary operator in vec3 initialization', fShaderSuccess: true, linkSuccess: true, render: true },
+    { fShaderId: 'vec4FragShader', passMsg: 'Ternary operator in vec4 initialization', fShaderSuccess: true, linkSuccess: true, render: true },
+    { fShaderId: 'boolFragShader', passMsg: 'Ternary operator in bool initialization', fShaderSuccess: true, linkSuccess: true, render: true },
+    { fShaderId: 'bvec2FragShader', passMsg: 'Ternary operator in bvec2 initialization', fShaderSuccess: true, linkSuccess: true, render: true },
+    { fShaderId: 'bvec3FragShader', passMsg: 'Ternary operator in bvec3 initialization', fShaderSuccess: true, linkSuccess: true, render: true },
+    { fShaderId: 'bvec4FragShader', passMsg: 'Ternary operator in bvec4 initialization', fShaderSuccess: true, linkSuccess: true, render: true },
 ];
 GLSLConformanceTester.runTests(tests);
 var successfullyParsed = true;

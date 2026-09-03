@@ -154,7 +154,7 @@ function parseJSONManifest(aId, aRequest, aManifestData) {
   // The entry for this particular add-on
   let addon = getProperty(addons, aId, "object");
 
-  // A missing entry doesn't count as a failure, just as no avialable update
+  // A missing entry doesn't count as a failure, just as no available update
   // information
   if (!addon) {
     logger.warn("Update manifest did not contain an entry for " + aId);

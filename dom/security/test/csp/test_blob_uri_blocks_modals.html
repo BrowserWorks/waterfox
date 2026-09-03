@@ -46,7 +46,7 @@ document.getElementById("testframe").src = "file_blob_uri_blocks_modals.html";
 w = window.open("file_blob_top_nav_block_modals.html");
 
 
-// If alert window is not blocked by CSP then event message is not recieved and
+// If alert window is not blocked by CSP then event message is not received and
 // test fails after setTimeout interval of 1 second.
 setTimeout(function () {
     is(testsToRun.block_top_nav_alert_test, true,

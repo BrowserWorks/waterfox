@@ -72,7 +72,7 @@ class FailureLatch {
 
 // Concrete infallible FailureLatch class.
 // Any `SetFailure` leads to an assert-crash, so the final runtime result can
-// always be assumed to be succesful.
+// always be assumed to be successful.
 class FailureLatchInfallibleSource final : public FailureLatch {
  public:
   [[nodiscard]] bool Fallible() const final { return false; }

@@ -79,7 +79,7 @@ bool nsContentSecurityManager::AllowTopLevelNavigationToDataURI(
   // a NullPrincipal. In other cases, e.g. typing a data: URL into
   // the URL-Bar, the triggeringPrincipal is a SystemPrincipal;
   // we don't want to block those loads. Only exception, loads coming
-  // from an external applicaton (e.g. Thunderbird) don't load
+  // from an external application (e.g. Thunderbird) don't load
   // using a contentPrincipal, but we want to block those loads.
   if (!StaticPrefs::security_data_uri_block_toplevel_data_uri_navigations()) {
     return true;
@@ -1325,7 +1325,7 @@ static nsresult CheckAllowExtensionProtocolScriptLoad(nsIChannel* aChannel) {
 }
 
 // Validate that a load should be allowed based on its remote type. This
-// intentionally prevents some loads from occuring even using the system
+// intentionally prevents some loads from occurring even using the system
 // principal, if they were started in a content process.
 static nsresult CheckAllowLoadByTriggeringRemoteType(nsIChannel* aChannel) {
   MOZ_ASSERT(aChannel);

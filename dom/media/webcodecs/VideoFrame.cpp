@@ -1647,7 +1647,7 @@ already_AddRefed<VideoFrame> VideoFrame::Constructor(
   Maybe<VideoPixelFormat> format =
       f.isSome() ? ImageBitmapFormatToVideoPixelFormat(f.value()) : Nothing();
 
-  // TODO: Retrive/infer the duration, and colorspace.
+  // TODO: Retrieve/infer the duration, and colorspace.
   auto r = InitializeFrameFromOtherFrame(
       global.get(),
       VideoFrameData(image.get(), format, image->GetPictureRect(),

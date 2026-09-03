@@ -306,25 +306,25 @@ goog.scope(function() {
     glsBufferTestUtil.BufferWriterBase = function() {};
 
     /**
-     * //Meant to be overriden
+     * //Meant to be overridden
      * @return {number}
      */
-    glsBufferTestUtil.BufferWriterBase.prototype.getMinSize = function() { throw new Error('Must be overriden'); };
+    glsBufferTestUtil.BufferWriterBase.prototype.getMinSize = function() { throw new Error('Must be overridden'); };
 
     /**
-     * //Meant to be overriden
+     * //Meant to be overridden
      * @return {number}
      */
-    glsBufferTestUtil.BufferWriterBase.prototype.getAlignment = function() { throw new Error('Must be overriden'); };
+    glsBufferTestUtil.BufferWriterBase.prototype.getAlignment = function() { throw new Error('Must be overridden'); };
 
     /**
-     * //Meant to be overriden
+     * //Meant to be overridden
      * @param {WebGLBuffer} buffer
      * @param {number} offset
      * @param {number} numBytes
      * @param {Uint8Array} bytes
      */
-    glsBufferTestUtil.BufferWriterBase.prototype.writeNoTarget = function(buffer, offset, numBytes, bytes) { throw new Error('Must be overriden'); };
+    glsBufferTestUtil.BufferWriterBase.prototype.writeNoTarget = function(buffer, offset, numBytes, bytes) { throw new Error('Must be overridden'); };
 
     /**
      * @param {WebGLBuffer} buffer
@@ -471,16 +471,16 @@ goog.scope(function() {
     glsBufferTestUtil.BufferVerifierBase = function() {};
 
     /**
-     * //Meant to be overriden
+     * //Meant to be overridden
      * @return {number}
      */
-    glsBufferTestUtil.BufferVerifierBase.prototype.getMinSize = function() { throw new Error('Must be overriden'); };
+    glsBufferTestUtil.BufferVerifierBase.prototype.getMinSize = function() { throw new Error('Must be overridden'); };
 
     /**
-     * //Meant to be overriden
+     * //Meant to be overridden
      * @return {number}
      */
-    glsBufferTestUtil.BufferVerifierBase.prototype.getAlignment = function() { throw new Error('Must be overriden'); };
+    glsBufferTestUtil.BufferVerifierBase.prototype.getAlignment = function() { throw new Error('Must be overridden'); };
 
     /**
      * @param {WebGLBuffer} buffer
@@ -490,11 +490,11 @@ goog.scope(function() {
      * @return {boolean}
      */
     glsBufferTestUtil.BufferVerifierBase.prototype.verifyNoTarget = function(buffer, reference, offset, numBytes) {
-        throw new Error('Must be overriden');
+        throw new Error('Must be overridden');
     };
 
     /**
-     * //Meant to be overriden
+     * //Meant to be overridden
      * @param {WebGLBuffer} buffer
      * @param {Uint8Array} reference
      * @param {number} offset

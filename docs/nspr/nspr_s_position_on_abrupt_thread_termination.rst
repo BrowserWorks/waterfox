@@ -71,7 +71,7 @@ The implementation of either strategy within the NSPR runtime is not
 difficult. That is not what this memo is about. This is about providing
 an API that coaxes people to do the right thing in as many ways as
 possible. The existence of ``exit()`` in the UNIX/C environment is a
-perfect example of how programmers will employ the most expediant
+perfect example of how programmers will employ the most expedient
 solution available. The definition of the language C is such that
 returning from ``main()`` is a perfectly fine thing to do. But what
 percentage of C programs actually bother? In UNIX, with its complex

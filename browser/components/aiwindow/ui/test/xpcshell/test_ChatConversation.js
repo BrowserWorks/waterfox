@@ -347,12 +347,12 @@ add_task(function test_ChatConversation_addAssistantMessage() {
     soft.deepEqual(
       message.memoriesApplied,
       [],
-      "memoriesApplied should default to emtpy array"
+      "memoriesApplied should default to empty array"
     );
     soft.deepEqual(
       message.webSearchQueries,
       [],
-      "webSearchQueries should default to emtpy array"
+      "webSearchQueries should default to empty array"
     );
   });
 });

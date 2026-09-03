@@ -43,7 +43,7 @@ declTest("test event triggering actor creation", {
     is(
       subject.wrappedJSObject,
       actorParent,
-      "Should have been recieved on the right actor"
+      "Should have been received on the right actor"
     );
   },
 });
@@ -87,7 +87,7 @@ declTest("test createActor:false not triggering actor creation", {
     is(
       subject.wrappedJSObject,
       actorParent,
-      "Should have been recieved on the right actor"
+      "Should have been received on the right actor"
     );
   },
 });

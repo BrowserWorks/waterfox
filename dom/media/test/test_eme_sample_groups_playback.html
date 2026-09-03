@@ -14,7 +14,7 @@
   <pre id="test">
     <script class="testbody" type="text/javascript">
 
-      // Tests that files with a default key and a seperate sample keyids in the
+      // Tests that files with a default key and a separate sample keyids in the
       // sgpd box play correctly (if the keyid from the sgpd box is not parsed
       // or assigned to the sample we will wait indefinitely for the default
       // key).
@@ -47,7 +47,7 @@
 
       var video = document.getElementById("video");
       video.addEventListener("encrypted", () => {
-        Log(test.name, "Recieved encrypted event");
+        Log(test.name, "Received encrypted event");
       });
 
       video.addEventListener("waitingforkey", () => {

@@ -93,7 +93,7 @@ class Context final : public SafeRefCounted<Context>, public Stringifyable {
     // owning thread.
     SafeRefPtr<Context> mStrongRef;
 
-    // Used to support cancelation even while the Context is already allowed
+    // Used to support cancellation even while the Context is already allowed
     // to close.  Cleared by ~Context() calling ContextDestroyed().  Only
     // safe to access on owning thread.
     Context* mWeakRef;

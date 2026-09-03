@@ -307,7 +307,7 @@ for (const test of tests) {
       Assert.equal(
         decodeURI(submission.uri.spec),
         test.expected.searchUrl,
-        "Should have set the correct url on an overriden engine"
+        "Should have set the correct url on an overridden engine"
       );
 
       if (test.expected.postData) {

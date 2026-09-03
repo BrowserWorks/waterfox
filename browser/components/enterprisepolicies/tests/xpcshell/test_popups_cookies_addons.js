@@ -4,7 +4,7 @@
 "use strict";
 
 add_task(async function test_setup_preexisting_permissions() {
-  // Pre-existing ALLOW permissions that should be overriden
+  // Pre-existing ALLOW permissions that should be overridden
   // with DENY.
 
   // No ALLOW -> DENY override for popup and install permissions,
@@ -17,7 +17,7 @@ add_task(async function test_setup_preexisting_permissions() {
     Ci.nsIPermissionManager.EXPIRE_SESSION
   );
 
-  // Pre-existing DENY permissions that should be overriden
+  // Pre-existing DENY permissions that should be overridden
   // with ALLOW.
   PermissionTestUtils.add(
     "https://www.pre-existing-deny.com",

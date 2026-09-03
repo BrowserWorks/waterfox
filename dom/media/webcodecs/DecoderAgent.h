@@ -29,7 +29,7 @@ class ImageContainer;
 // If Configure() is called, Shutdown() must be called to release the resources
 // gracefully. Except Shutdown(), all the methods can't be called concurrently,
 // meaning a method can only be called when the previous API call has completed.
-// The responsability of arranging the method calls is on the caller.
+// The responsibility of arranging the method calls is on the caller.
 //
 // When Shutdown() is called, all the operations in flight are canceled and the
 // MediaDataDecoder is shut down. On the other hand, errors are final. A new

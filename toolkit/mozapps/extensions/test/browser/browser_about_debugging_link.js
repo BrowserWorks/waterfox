@@ -53,7 +53,7 @@ async function waitForRequestsToSettle(store, delay = 500) {
       timerPromise,
     ]);
 
-    // Clear the timer to avoid setting hasSettled to true accidently unless timerPromise
+    // Clear the timer to avoid setting hasSettled to true accidentally unless timerPromise
     // was the first to resolve.
     clearTimeout(timer);
   }

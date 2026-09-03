@@ -52,7 +52,7 @@ class nsXULPrototypeCache : public nsIObserver {
    */
   void Flush();
 
-  // The following methods are used to put and retrive various items into and
+  // The following methods are used to put and retrieve various items into and
   // from the cache.
 
   nsXULPrototypeDocument* GetPrototype(nsIURI* aURI);

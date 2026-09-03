@@ -19,7 +19,7 @@ declTest("test observer triggering actor creation", {
       is(
         subject.windowGlobalChild.getActor("TestWindow"),
         actorChild,
-        "Should have been recieved on the right actor"
+        "Should have been received on the right actor"
       );
       is(topic, TOPIC, "Topic matches");
       is(data, "dataString", "Data matches");
@@ -43,7 +43,7 @@ declTest("test observers with null data", {
       is(
         subject.windowGlobalChild.getActor("TestWindow"),
         actorChild,
-        "Should have been recieved on the right actor"
+        "Should have been received on the right actor"
       );
       is(topic, TOPIC, "Topic matches");
       is(data, null, "Data matches");

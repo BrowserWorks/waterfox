@@ -211,7 +211,7 @@ export var ExtensionSearchHandler = Object.freeze({
    *                 {string} keyword The keyword to handle.
    *                 {string} text The search text in the urlbar.
    *                 {boolean} inPrivateWindow privateness of window search
-   *                           is occuring in.
+   *                           is occurring in.
    * @param {Function} callback The callback used to provide search suggestions.
    * @returns {Promise} promise that resolves when the current search is complete.
    */

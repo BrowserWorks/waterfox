@@ -8,7 +8,7 @@
  * SERP. Sponsored links also have a different origin so that we can set up a
  * server that redirects the user to their target page.
  *
- * The difference between each test is sponsored link load occuring in the
+ * The difference between each test is sponsored link load occurring in the
  * existing tab or a new tab/window.
  *
  */

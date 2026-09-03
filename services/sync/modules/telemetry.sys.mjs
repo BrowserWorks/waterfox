@@ -219,7 +219,7 @@ export class ErrorSanitizer {
   }
 
   // A regex we can use to replace the profile dir in error messages. We use a
-  // regexp so we can simply replace all case-insensitive occurences.
+  // regexp so we can simply replace all case-insensitive occurrences.
   // This escaping function is from:
   // https://developer.mozilla.org/en/docs/Web/JavaScript/Guide/Regular_Expressions
   static reProfileDir = new RegExp(

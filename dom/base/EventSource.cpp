@@ -772,7 +772,7 @@ EventSourceImpl::OnStopRequest(nsIRequest* aRequest, nsresult aStatusCode) {
   //  first place (e.g. DNS errors), must cause the user agent to asynchronously
   //  reestablish the connection.
   //
-  //  (...) the cancelation of the fetch algorithm by the user agent (e.g. in
+  //  (...) the cancellation of the fetch algorithm by the user agent (e.g. in
   //  response to window.stop() or the user canceling the network connection
   //  manually) must cause the user agent to fail the connection.
   // There could be additional network errors that are not covered in the above

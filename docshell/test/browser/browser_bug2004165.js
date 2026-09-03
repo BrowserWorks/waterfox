@@ -86,7 +86,7 @@ add_task(
     // Sanity check the restored tab
     await SpecialPowers.spawn(tab.linkedBrowser, [], function () {
       let principal = content.document.nodePrincipal;
-      // The crash occured in the synchronous load path, so verify it was taken.
+      // The crash occurred in the synchronous load path, so verify it was taken.
       // That should be equivalent to the document being initial and committed.
       const isInitialCommitted =
         content.document.isInitialDocument &&

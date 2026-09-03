@@ -1906,7 +1906,7 @@
     "n_values": 100,
     "releaseChannelCollection": "opt-out",
     "bug_numbers": [1137447],
-    "description": "Update: number of sequential update elevation request cancelations greater than 0 (externally initiated)"
+    "description": "Update: number of sequential update elevation request cancellations greater than 0 (externally initiated)"
   },
   "UPDATE_PREF_UPDATE_CANCELATIONS_NOTIFY": {
     "record_in_processes": ["main"],
@@ -1920,7 +1920,7 @@
     "n_values": 100,
     "releaseChannelCollection": "opt-out",
     "bug_numbers": [1137447],
-    "description": "Update: number of sequential update elevation request cancelations greater than 0 (timer initiated)"
+    "description": "Update: number of sequential update elevation request cancellations greater than 0 (timer initiated)"
   },
   "UPDATE_PREF_UPDATE_CANCELATIONS_SUBSEQUENT": {
     "record_in_processes": ["main"],
@@ -1934,7 +1934,7 @@
     "n_values": 100,
     "releaseChannelCollection": "opt-out",
     "bug_numbers": [353804],
-    "description": "Update: number of sequential update elevation request cancelations greater than 0 (after we already have an update ready)"
+    "description": "Update: number of sequential update elevation request cancellations greater than 0 (after we already have an update ready)"
   },
   "UPDATE_PREF_SERVICE_ERRORS_EXTERNAL": {
     "record_in_processes": ["main"],

@@ -52,7 +52,7 @@ es3fBooleanStateQuery.IsEnabledStateTestCase = function(name, description, targe
 setParentClass(es3fBooleanStateQuery.IsEnabledStateTestCase, es3fApiCase.ApiCase);
 
 es3fBooleanStateQuery.IsEnabledStateTestCase.prototype.test = function() {
-    // check inital value
+    // check initial value
     this.m_pass &= glsStateQuery.verify(this.m_targetName, this.m_initial);
 
     // check toggle
@@ -127,7 +127,7 @@ es3fBooleanStateQuery.InitialBooleanTestCase = function(name, description, targe
 setParentClass(es3fBooleanStateQuery.InitialBooleanTestCase, es3fApiCase.ApiCase);
 
 es3fBooleanStateQuery.InitialBooleanTestCase.prototype.test = function() {
-    // check inital value
+    // check initial value
     this.m_pass &= glsStateQuery.verify(this.m_targetName, this.m_initial);
 };
 

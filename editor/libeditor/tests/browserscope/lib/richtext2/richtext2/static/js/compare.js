@@ -110,7 +110,7 @@ function compareHTMLToExpectation(actual, expected, emitFlags) {
  * @param accepted {String/Array} accepted result(s)
  * @param actual {String} actual result
  * @param emitFlags {Object} how to canonicalize the HTML strings
- * @param result {Object} [out] object recieving the result of the comparison.
+ * @param result {Object} [out] object receiving the result of the comparison.
  */
 function compareHTMLTestResultTo(expected, accepted, actual, emitFlags, result) {
   actual = actual.replace(/[\x60\xb4]/g, '');

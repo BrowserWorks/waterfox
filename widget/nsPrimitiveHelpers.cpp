@@ -165,7 +165,7 @@ nsresult nsLinebreakHelpers ::ConvertPlatformToDOMLinebreaks(
 
   nsresult retVal = NS_OK;
 
-  // RTF and CF_HTML on Windows are transfered as single-byte characters.
+  // RTF and CF_HTML on Windows are transferred as single-byte characters.
   if (aIsSingleByteChars) {
     char* buffAsChars = reinterpret_cast<char*>(*ioData);
     char* oldBuffer = buffAsChars;

@@ -10,7 +10,7 @@ add_setup(() => {
   currentReduceMotionOverride = gReduceMotionOverride;
   // Disable tab animations
   gReduceMotionOverride = true;
-  // Disable tab groups so as not to interfere with pinned drop indicator delayed visiblity
+  // Disable tab groups so as not to interfere with pinned drop indicator delayed visibility
   Services.prefs.setBoolPref("browser.tabs.groups.enabled", false);
 });
 

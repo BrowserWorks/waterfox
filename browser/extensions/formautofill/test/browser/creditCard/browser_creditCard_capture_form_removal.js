@@ -45,7 +45,7 @@ add_task(async function test_credit_card_captured_after_form_removal() {
         false
       );
 
-      info("Infer a successfull fetch request");
+      info("Infer a successful fetch request");
       await SpecialPowers.spawn(browser, [], async () => {
         await content.fetch(
           "https://example.org/browser/browser/extensions/formautofill/test/browser/empty.html"

@@ -10308,7 +10308,7 @@
 # Compositor target frame rate. NOTE: If vsync is enabled the compositor
 # frame rate will still be capped.
 # -1 -> default (match layout.frame_rate or 60 FPS)
-# 0  -> full-tilt mode: Recomposite even if not transaction occured.
+# 0  -> full-tilt mode: Recomposite even if not transaction occurred.
 - name: layers.offmainthreadcomposition.frame-rate
   type: RelaxedAtomicInt32
   value: -1
@@ -14569,7 +14569,7 @@
   mirror: always
   do_not_use_directly: true
 
-# Set the default Referrer Policy; to be used unless overriden by the site.
+# Set the default Referrer Policy; to be used unless overridden by the site.
 # 0=no-referrer, 1=same-origin, 2=strict-origin-when-cross-origin,
 # 3=no-referrer-when-downgrade.
 - name: network.http.referer.defaultPolicy
@@ -14579,7 +14579,7 @@
 
 # Set the default Referrer Policy applied to third-party trackers when the
 # default cookie policy is set to reject third-party trackers, to be used
-# unless overriden by the site.
+# unless overridden by the site.
 # 0=no-referrer, 1=same-origin, 2=strict-origin-when-cross-origin,
 # 3=no-referrer-when-downgrade.
 # Trim referrers from trackers to origins by default.
@@ -14589,7 +14589,7 @@
   mirror: always
 
 # Set the Private Browsing Default Referrer Policy, to be used
-# unless overriden by the site.
+# unless overridden by the site.
 # 0=no-referrer, 1=same-origin, 2=strict-origin-when-cross-origin,
 # 3=no-referrer-when-downgrade.
 - name: network.http.referer.defaultPolicy.pbmode
@@ -14629,7 +14629,7 @@
 
 # Set the Private Browsing Default Referrer Policy applied to third-party
 # trackers when the default cookie policy is set to reject third-party
-# trackers, to be used unless overriden by the site.
+# trackers, to be used unless overridden by the site.
 # 0=no-referrer, 1=same-origin, 2=strict-origin-when-cross-origin,
 # 3=no-referrer-when-downgrade.
 # No need to change this pref for trimming referrers from trackers since in
@@ -15381,20 +15381,20 @@
   value: true
   mirror: always
 
-# This preference specifies a comma seperated list of URL/IPAddress:Port that will be treated as public IPAddressSpace.
+# This preference specifies a comma separated list of URL/IPAddress:Port that will be treated as public IPAddressSpace.
 - name: network.lna.address_space.public.override
   type: String
   type: String
   value: ""
   mirror: never
 
-# This preference specifies a comma seperated list of URL/IPAddress:Port that will be treated as private IPAddressSpace.
+# This preference specifies a comma separated list of URL/IPAddress:Port that will be treated as private IPAddressSpace.
 - name: network.lna.address_space.private.override
   type: String
   value: ""
   mirror: never
 
-# This preference specifies a comma seperated list of URL/IPAddress:Port that will be treated as local IPAddressSpace.
+# This preference specifies a comma separated list of URL/IPAddress:Port that will be treated as local IPAddressSpace.
 - name: network.lna.address_space.local.override
   type: String
   value: ""

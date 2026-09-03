@@ -2862,7 +2862,7 @@ var CombinedStopReload = {
     // the reload button exceeds 150ms, then we will show the animation.
     // If we don't know when we switched to stop (switchToStop is called
     // after init but before switchToReload), then we will prevent the
-    // animation from occuring.
+    // animation from occurring.
     return (
       this.timeWhenSwitchedToStop &&
       window.performance.now() - this.timeWhenSwitchedToStop > 150

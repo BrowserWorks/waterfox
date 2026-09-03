@@ -22,7 +22,7 @@ function initProxy() {
         }
         // I'm cheating a bit here... We should probably do some magic foo to get
         // something implementing nsIProxiedProtocolHandler and then call
-        // NewProxiedChannel(), so we have something that's definately a proxied
+        // NewProxiedChannel(), so we have something that's definitely a proxied
         // channel. But Mochitests use a proxy for a number of hosts, so just
         // requesting a normal channel will give us a channel that's proxied.
         // The proxyChannel needs to move to at least on-modify-request to

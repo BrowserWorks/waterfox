@@ -140,7 +140,7 @@ class StorageStreamAppender extends Log.Appender {
  * (although it does maintain a .sawError property to help the consumer decide
  *  based on its policies)
  *
- * @param {object} fomatter A log message formatter
+ * @param {object} formatter A log message formatter
  * @param {boolean} overwriteFileOnFlush False to use append mode when opening the file for writing
  */
 class FlushableStorageAppender extends StorageStreamAppender {

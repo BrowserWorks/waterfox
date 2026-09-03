@@ -110,7 +110,7 @@ void nsBaseAppShell::OnSystemTimezoneChange() {
   }
 }
 
-// Note, this is currently overidden on windows, see comments in nsAppShell for
+// Note, this is currently overridden on windows, see comments in nsAppShell for
 // details.
 void nsBaseAppShell::DoProcessMoreGeckoEvents() { OnDispatchedEvent(); }
 

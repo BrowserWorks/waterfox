@@ -42,7 +42,7 @@ add_setup(async function () {
   // This test specifically checks the view's behavior before and after it
   // removes stale rows, so it needs to control when that occurs. There are two
   // times the view removes stale rows: (1) when the stale-rows timer fires, (2)
-  // when a query finishes. We prevent (1) from occuring by increasing the
+  // when a query finishes. We prevent (1) from occurring by increasing the
   // timer's timeout so it never fires during the test. We'll rely on (2) to
   // trigger stale rows removal.
   await SpecialPowers.pushPrefEnv({

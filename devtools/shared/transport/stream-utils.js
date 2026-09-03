@@ -300,7 +300,7 @@ class AsyncStreamToArrayBufferCopier {
   #pointer = 0;
 
   /**
-   * The count of bytes to be transfered. It is infered from the byteLength of
+   * The count of bytes to be transferred. It is inferred from the byteLength of
    * of the output buffer.
    *
    * @typedef {number}
@@ -447,7 +447,7 @@ class ArrayBufferToAsyncStreamCopier {
   #pointer = 0;
 
   /**
-   * The count of bytes to be transfered. It is infered from the byteLength of
+   * The count of bytes to be transferred. It is inferred from the byteLength of
    * of the input buffer.
    *
    * @typedef {number}

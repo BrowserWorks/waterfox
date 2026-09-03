@@ -357,7 +357,7 @@ class ChildProcess final {
     if (!ok) {
       printf(
           "TEST-FAILED | TestPEExportSection | "
-          "CreateProcessW falied - %08lx.\n",
+          "CreateProcessW failed - %08lx.\n",
           GetLastError());
       return;
     }
@@ -365,7 +365,7 @@ class ChildProcess final {
     if (aJob && !::AssignProcessToJobObject(aJob, pi.hProcess)) {
       printf(
           "TEST-FAILED | TestPEExportSection | "
-          "AssignProcessToJobObject falied - %08lx.\n",
+          "AssignProcessToJobObject failed - %08lx.\n",
           GetLastError());
       ::TerminateProcess(pi.hProcess, 1);
       return;
@@ -518,7 +518,7 @@ mozilla::LauncherResult<nsReturnRef<HANDLE>> CreateJobToLimitProcessLifetime() {
   if (!job) {
     printf(
         "TEST-FAILED | TestPEExportSection | "
-        "CreateJobObject falied - %08lx.\n",
+        "CreateJobObject failed - %08lx.\n",
         GetLastError());
     return LAUNCHER_ERROR_FROM_LAST();
   }
@@ -530,7 +530,7 @@ mozilla::LauncherResult<nsReturnRef<HANDLE>> CreateJobToLimitProcessLifetime() {
                                  &jobInfo, sizeof(jobInfo))) {
     printf(
         "TEST-FAILED | TestPEExportSection | "
-        "SetInformationJobObject falied - %08lx.\n",
+        "SetInformationJobObject failed - %08lx.\n",
         GetLastError());
     return LAUNCHER_ERROR_FROM_LAST();
   }

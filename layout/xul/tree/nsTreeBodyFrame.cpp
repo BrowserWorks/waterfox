@@ -2374,7 +2374,7 @@ nsresult nsTreeBodyFrame::HandleEvent(nsPresContext* aPresContext,
     }
     mSlots->mIsDragging = false;
     mSlots->mScrollLines = 0;
-    // If a drop is occuring, the exit event will fire just before the drop
+    // If a drop is occurring, the exit event will fire just before the drop
     // event, so don't reset mDropRow or mDropOrient as these fields are used
     // by the drop event.
     if (mSlots->mTimer) {

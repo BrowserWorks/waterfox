@@ -272,7 +272,7 @@ nsresult nsLayoutStatics::Initialize() {
 
   RLBoxExpatSandboxPool::Initialize();
 
-  RLBoxWOFF2SandboxPool::Initalize();
+  RLBoxWOFF2SandboxPool::Initialize();
 
   if (XRE_IsParentProcess()) {
     MIDIPlatformService::InitStatics();

@@ -291,7 +291,7 @@ export class ExtensionStorageLocalIDB extends IndexedDB {
     }
     // Forcefully drop the corrupted IndexedDB database.
     await ExtensionStorageLocalIDB.resetForPrincipal(this.#storagePrincipal);
-    // Reopen the database after it has been reset and retrive the
+    // Reopen the database after it has been reset and retrieve the
     // underlying wrapped IndexedDB database instance to become
     // the active one for the current IndexedDB database wrapper
     // instance.

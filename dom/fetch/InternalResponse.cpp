@@ -410,7 +410,7 @@ SafeRefPtr<InternalResponse> InternalResponse::OpaqueRedirectResponse() {
   MOZ_ASSERT(!mWrappedResponse,
              "Can't OpaqueRedirectResponse a already wrapped response");
   MOZ_ASSERT(!mURLList.IsEmpty(),
-             "URLList should not be emtpy for internalResponse");
+             "URLList should not be empty for internalResponse");
   SafeRefPtr<InternalResponse> response = OpaqueResponse();
   response->mType = ResponseType::Opaqueredirect;
   response->mURLList = mURLList.Clone();

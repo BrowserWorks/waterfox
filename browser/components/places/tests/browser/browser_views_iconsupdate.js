@@ -62,7 +62,7 @@ add_task(async function () {
   let dataURL = await PlacesTestUtils.getFaviconDataURLFromNetwork(ICON_URI);
   await PlacesTestUtils.setFaviconForPage(PAGE_URI, ICON_URI, dataURL);
   let dataURLInDB = await PlacesTestUtils.getFaviconDataURLFromDB(ICON_URI);
-  Assert.ok(dataURLInDB.equals(dataURL), "Succesfully set the icon");
+  Assert.ok(dataURLInDB.equals(dataURL), "Successfully set the icon");
 
   // The icon is read asynchronously from the network, we don't have an easy way
   // to wait for that, thus we must poll.

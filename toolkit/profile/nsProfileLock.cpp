@@ -357,7 +357,7 @@ nsresult nsProfileLock::LockWithSymlink(nsIFile* aLockFile,
       PR_APPEND_LINK(this, &mPidLockList);
       if (!setupPidLockCleanup++) {
         // Clean up on normal termination.
-        // This instanciates a dummy class, and will trigger the class
+        // This instantiates a dummy class, and will trigger the class
         // destructor when libxul is unloaded. This is equivalent to atexit(),
         // but gracefully handles dlclose().
         static RemovePidLockFilesExiting r;

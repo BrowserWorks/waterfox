@@ -83,7 +83,7 @@ export class PreferencesBackupResource extends BackupResource {
       }
     }
 
-    // Prefs with this prefix are always overriden.
+    // Prefs with this prefix are always overridden.
     const kNimbusMetadataPrefPrefix = "nimbus.";
     const kNimbusPrefExceptionList = ["nimbus.rollouts.enabled"];
 

@@ -646,7 +646,7 @@ export var Bookmarks = Object.freeze({
           // This is not critical, regardless the bookmark has been created
           // and we should continue notifying the next ones.
           console.error(
-            "An error occured while handling special bookmark data:",
+            "An error occurred while handling special bookmark data:",
             ex
           );
         }

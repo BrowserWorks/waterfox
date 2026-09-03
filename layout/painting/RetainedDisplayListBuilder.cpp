@@ -1218,7 +1218,7 @@ static void FindContainingBlocks(nsIFrame* aFrame,
  * @param aOutFramesWithProps The list of frames to which we attached partial
  * build data so that it can be cleaned up.
  *
- * @return true if we succesfully computed a partial rebuild region, false if a
+ * @return true if we successfully computed a partial rebuild region, false if a
  * full build is required.
  */
 bool RetainedDisplayListBuilder::ComputeRebuildRegion(

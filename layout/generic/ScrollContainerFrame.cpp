@@ -1932,7 +1932,7 @@ void ScrollContainerFrame::ScrollbarReleased(nsScrollbarFrame* aScrollbar) {
   SCROLLEND_LOG("%s: did-snap=%s scrollend-pending=%s", __FUNCTION__,
                 didSnap ? "true" : "false",
                 mScrollbarClickAndHoldScrollendPending ? "true" : "false");
-  // If a scrollbar click and hold scroll has occured and a scroll-snap will
+  // If a scrollbar click and hold scroll has occurred and a scroll-snap will
   // not occur, post a scrollend event. If a scroll snap will occur. Let the
   // scroll-snap scroll post the scrollend event.
   if (!didSnap && mScrollbarClickAndHoldScrollendPending) {
@@ -5342,7 +5342,7 @@ nsSize ScrollContainerFrame::GetPageScrollAmount() const {
 }
 
 /**
- * this code is resposible for restoring the scroll position back to some
+ * this code is responsible for restoring the scroll position back to some
  * saved position. if the user has not moved the scroll position manually
  * we keep scrolling down until we get to our original position. keep in
  * mind that content could incrementally be coming in. we only want to stop

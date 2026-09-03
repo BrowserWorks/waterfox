@@ -419,7 +419,7 @@ following colors are used:
 -  ``-moz-Dialog``: window or dialog background color.
 -  ``-moz-DialogText``: window or dialog text color.
 -  ``GrayText``: used on disabled items as text color. Do not use it on
-   text that is not disabled to desemphsize text, because it does not
+   text that is not disabled to de-emphasize text, because it does not
    guarantee a sufficient contrast ratio for non-disabled text.
 -  ``ThreeDShadow``: Used as border on elements.
 -  ``ThreeDLightShadow``: Used as light border on elements.

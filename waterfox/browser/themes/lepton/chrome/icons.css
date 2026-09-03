@@ -2261,7 +2261,7 @@
       #menu_FileQuitItem {
         --menuitem-image: url("chrome://browser/skin/lepton/quit.svg");
       }
-      /* Mange Containers */
+      /* Manage Containers */
       #menu_newUserContext menupopup menuitem:last-child {
         --menuitem-image: url("chrome://global/skin/icons/settings.svg");
       }
