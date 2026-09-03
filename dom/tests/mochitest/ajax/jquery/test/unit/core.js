@@ -1069,7 +1069,7 @@ test("is(String)", function() {
 	ok( !$('#foo').is(''), 'Expected false for an invalid expression - ""' );
 	ok( !$('#foo').is(undefined), 'Expected false for an invalid expression - undefined' );
 
-	// test is() with comma-separated expressions
+	// test is() with comma-seperated expressions
 	ok( $('#en').is('[lang="en"],[lang="de"]'), 'Comma-separated; Check for lang attribute: Expect en or de' );
 	ok( $('#en').is('[lang="de"],[lang="en"]'), 'Comma-separated; Check for lang attribute: Expect en or de' );
 	ok( $('#en').is('[lang="en"] , [lang="de"]'), 'Comma-separated; Check for lang attribute: Expect en or de' );
