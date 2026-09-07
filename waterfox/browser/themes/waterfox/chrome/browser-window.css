@@ -2,6 +2,21 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+@media -moz-pref("sidebar.verticalTabs") {
+  sidebar-main:not([expanded]) {
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens -- Keep the host as wide as its native collapsed tabs. */
+    min-inline-size: var(--tab-collapsed-width);
+  }
+}
+
+:root[inDOMFullscreen] :is(#sidebar-container, #sidebar-box, #sidebar-splitter, #sidebar-launcher-splitter) {
+  display: none !important;
+}
+
+:root[inDOMFullscreen][sidebar-expand-on-hover] #tabbrowser-tabbox {
+  margin-inline: 0 !important;
+}
+
 @media (-moz-platform: macos) {
   /* Remove the dead space left of the tabs in fullscreen */
   :root[inFullscreen] .titlebar-buttonbox-container {

@@ -22,7 +22,23 @@ prefs = [
   "security.remote_settings.intermediates.enabled=false",
   "security.remote_settings.crlite_filters.enabled=false",
 ]
-support-files = ["head.js"]
+support-files = [
+  "head.js",
+  "head-sidebar.js",
+]
+
+
+["browser_sidebar_hover_fullscreen.js"]
+tags = "vertical-tabs"
+
+["browser_sidebar_hover_lifecycle.js"]
+tags = "vertical-tabs"
+
+["browser_sidebar_tab_accent.js"]
+tags = "vertical-tabs"
+
+["browser_sidebar_waterfox_layout.js"]
+tags = "vertical-tabs"
 
 ["browser_tree_tabs_auto_collapse.js"]
 
