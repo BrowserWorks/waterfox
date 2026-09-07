@@ -2,12 +2,39 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+@media -moz-pref("sidebar.verticalTabs") {
+  @media -moz-pref("browser.nova.enabled") {
+    :root[uidensity="compact"] {
+      --tab-min-height: max(29px, calc(var(--tab-label-line-height) * 1em)) !important;
+    }
+  }
+
+  sidebar-main:not([expanded]) {
+    /* stylelint-disable-next-line stylelint-plugin-mozilla/use-design-tokens -- Keep the host as wide as its native collapsed tabs. */
+    min-inline-size: var(--tab-collapsed-width);
+  }
+}
+
 :root[uidensity="compact"] menupopup {
   --menuitem-padding: var(--space-xxsmall) var(--space-small) !important;
 }
 
 #urlbar[breakout-extend]:not([open]) {
   --urlbar-background-inset-breakout: 0 !important;
+}
+
+:root[uidensity="compact"] #tabbrowser-tabs[orient="vertical"][expanded] > #pinned-tabs-container {
+  --tab-pinned-expanded-background-width: max(var(--size-item-small), calc(var(--icon-size) + 2 * var(--space-small))) !important;
+  --tab-pinned-margin-inline-expanded: var(--space-xxsmall) !important;
+  --tab-pinned-min-width-expanded: calc(var(--tab-pinned-expanded-background-width) + 2 * var(--tab-pinned-margin-inline-expanded)) !important;
+}
+
+:root[inDOMFullscreen] :is(#sidebar-container, #sidebar-box, #sidebar-splitter, #sidebar-launcher-splitter) {
+  display: none !important;
+}
+
+:root[inDOMFullscreen][sidebar-expand-on-hover] #tabbrowser-tabbox {
+  margin-inline: 0 !important;
 }
 
 @media (-moz-platform: macos) {

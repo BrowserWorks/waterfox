@@ -327,6 +327,7 @@ var SidebarController = {
   _windowRestoredObserverAdded: false,
   _mainResizeObserver: null,
   _ongoingAnimations: [],
+  _expandOnHoverToggleID: 0,
 
   /**
    * @type {MutationObserver | null}
@@ -433,6 +434,12 @@ var SidebarController = {
       const inFullscreen =
         document.documentElement.hasAttribute("inDOMFullscreen");
       this._state.fullscreen = inFullscreen;
+      if (inFullscreen) {
+        this._cancelMouseEnter();
+        if (this._state.launcherHoverActive) {
+          this._collapseLauncher();
+        }
+      }
     });
 
     this._fullscreenObserver.observe(document.documentElement, {
@@ -464,6 +471,8 @@ var SidebarController = {
     this._switcherTarget = document.getElementById("sidebar-switcher-target");
     this._switcherArrow = document.getElementById("sidebar-switcher-arrow");
     this._hoverBlockerCount = 0;
+    this._openPopups = new Set();
+    this._mouseOutsideWindow = false;
     this._escapedWhileHovered = false;
     this._mouseLeftSinceEscape = false;
     if (
@@ -591,6 +600,15 @@ var SidebarController = {
   uninit() {
     // Set a flag to allow us to ignore pref changes while the host document is being unloaded.
     this._uninitializing = true;
+    this._cancelMouseEnter();
+    MousePosTracker.removeListener(this);
+    document.removeEventListener("popupshowing", this);
+    document.removeEventListener("popupshown", this);
+    document.removeEventListener("popuphidden", this);
+    window.removeEventListener("mouseout", this);
+    window.removeEventListener("mousemove", this);
+    window.removeEventListener("deactivate", this);
+    this._openPopups?.clear();
     if (this._fullscreenObserver) {
       this._fullscreenObserver.disconnect();
       this._fullscreenObserver = null;
@@ -1574,24 +1592,42 @@ var SidebarController = {
     MousePosTracker.removeListener(this);
   },
 
-  async _removeHoverStateBlocker() {
-    if (this._hoverBlockerCount == 1) {
-      let isHovered = this._checkIsHoveredOverLauncher();
-
-      // Collapse sidebar if needed
-      if (this._state.launcherExpanded && !isHovered) {
-        if (this._animationEnabled && !window.gReduceMotion) {
-          this._animateSidebarContainer();
-        }
-        this._state.launcherExpanded = false;
-        await this.waitUntilStable();
-      }
-
-      // Re-add MousePosTracker listener
-      MousePosTracker.addListener(this);
-    }
+  _removeHoverStateBlocker() {
     if (this._hoverBlockerCount > 0) {
       this._hoverBlockerCount--;
+    }
+    if (
+      !this._hoverBlockerCount &&
+      !this._uninitializing &&
+      document.documentElement.hasAttribute("sidebar-expand-on-hover")
+    ) {
+      MousePosTracker.addListener(this);
+      this._reconcileHoverState();
+    }
+  },
+
+  _isMenuPopupOpen() {
+    for (const popup of this._openPopups) {
+      if (popup.state !== "open" && popup.state !== "showing") {
+        this._openPopups.delete(popup);
+      }
+    }
+    return this._openPopups.size > 0;
+  },
+
+  _reconcileHoverState() {
+    if (
+      this._uninitializing ||
+      !document.documentElement.hasAttribute("sidebar-expand-on-hover") ||
+      this._hoverBlockerCount ||
+      this._isMenuPopupOpen()
+    ) {
+      return;
+    }
+    if (this._checkIsHoveredOverLauncher()) {
+      this.onMouseEnter();
+    } else {
+      this.onMouseLeave();
     }
   },
 
@@ -2310,6 +2346,12 @@ var SidebarController = {
    * Use MousePosTracker to manually check for hover state over launcher
    */
   _checkIsHoveredOverLauncher() {
+    if (
+      this._mouseOutsideWindow ||
+      document.documentElement.hasAttribute("inDOMFullscreen")
+    ) {
+      return false;
+    }
     // Manually check mouse position
     let isHovered;
     MousePosTracker._callListener({
@@ -2423,14 +2465,22 @@ var SidebarController = {
     this._mouseEnterDeferred.resolve();
   },
 
-  _collapseLauncher() {
+  _cancelMouseEnter() {
     this.mouseEnterTask?.disarm();
     this._mouseEnterDeferred?.resolve();
+  },
+
+  _collapseLauncher() {
+    this._cancelMouseEnter();
     const contentArea = document.getElementById("tabbrowser-tabbox");
     this._box.toggleAttribute("sidebar-launcher-hovered", false);
     contentArea.toggleAttribute("sidebar-launcher-hovered", false);
     this._state.launcherHoverActive = false;
-    if (this._animationEnabled && !window.gReduceMotion) {
+    if (
+      this._animationEnabled &&
+      !window.gReduceMotion &&
+      !document.documentElement.hasAttribute("inDOMFullscreen")
+    ) {
       this._animateSidebarContainer();
     }
     this._state.launcherExpanded = false;
@@ -2449,6 +2499,10 @@ var SidebarController = {
   },
 
   onMouseLeave() {
+    this._cancelMouseEnter();
+    if (this._hoverBlockerCount || this._isMenuPopupOpen()) {
+      return;
+    }
     if (this._escapedWhileHovered) {
       this._mouseLeftSinceEscape = true;
       return;
@@ -2460,7 +2514,16 @@ var SidebarController = {
   },
 
   onMouseEnter() {
-    if (this._state.launcherExpanded) {
+    if (
+      this._uninitializing ||
+      !document.documentElement.hasAttribute("sidebar-expand-on-hover") ||
+      document.documentElement.hasAttribute("inDOMFullscreen") ||
+      this._mouseOutsideWindow ||
+      this._hoverBlockerCount ||
+      this._isMenuPopupOpen() ||
+      this._state.launcherExpanded ||
+      this.mouseEnterTask?.isArmed
+    ) {
       return;
     }
     if (this._escapedWhileHovered) {
@@ -2471,14 +2534,16 @@ var SidebarController = {
         return;
       }
     }
+    this._cancelMouseEnter();
     this._mouseEnterDeferred = Promise.withResolvers();
     this.mouseEnterTask = new DeferredTask(
       () => {
         let isHovered = this._checkIsHoveredOverLauncher();
         // Only expand sidebar if mouse is still hovering over sidebar launcher
-        if (isHovered) {
+        if (isHovered && !this._hoverBlockerCount && !this._isMenuPopupOpen()) {
           this.debouncedMouseEnter();
         }
+        this._mouseEnterDeferred.resolve();
       },
       this._animationExpandOnHoverDelayDurationMs,
       EXPAND_ON_HOVER_DEBOUNCE_TIMEOUT_MS
@@ -2524,17 +2589,34 @@ var SidebarController = {
     };
   },
 
-  async handleEvent(e) {
+  handleEvent(e) {
     switch (e.type) {
+      case "popupshowing":
       case "popupshown":
-        /* Temporarily remove MousePosTracker listener when a context menu is open */
         if (e.composedTarget.tagName !== "tooltip") {
-          this._addHoverStateBlocker();
+          this._openPopups.add(e.composedTarget);
+          this._cancelMouseEnter();
         }
         break;
       case "popuphidden":
-        if (e.composedTarget.tagName !== "tooltip") {
-          await this._removeHoverStateBlocker();
+        this._openPopups.delete(e.composedTarget);
+        this._reconcileHoverState();
+        break;
+      case "mouseout":
+      case "deactivate":
+        if (
+          e.type === "mouseout" &&
+          (e.relatedTarget || this._isMenuPopupOpen())
+        ) {
+          break;
+        }
+        this._mouseOutsideWindow = true;
+        this.onMouseLeave();
+        break;
+      case "mousemove":
+        if (this._mouseOutsideWindow) {
+          this._mouseOutsideWindow = false;
+          this._reconcileHoverState();
         }
         break;
       default:
@@ -2543,6 +2625,7 @@ var SidebarController = {
   },
 
   async toggleExpandOnHover(isEnabled, isDragEnded) {
+    const toggleID = ++this._expandOnHoverToggleID;
     document.documentElement.toggleAttribute(
       "sidebar-expand-on-hover",
       isEnabled
@@ -2552,25 +2635,41 @@ var SidebarController = {
         this._state = new this.SidebarState(this);
       }
       await this.waitUntilStable();
-      MousePosTracker.addListener(this);
+      if (toggleID !== this._expandOnHoverToggleID || this._uninitializing) {
+        return;
+      }
       if (!isDragEnded) {
         await this.setLauncherCollapsedWidth();
+        if (toggleID !== this._expandOnHoverToggleID || this._uninitializing) {
+          return;
+        }
       }
+      MousePosTracker.addListener(this);
+      document.addEventListener("popupshowing", this);
       document.addEventListener("popupshown", this);
       document.addEventListener("popuphidden", this);
+      window.addEventListener("mouseout", this);
+      window.addEventListener("mousemove", this);
+      window.addEventListener("deactivate", this);
       // Reset user-preferred height
       this.sidebarMain.buttonsWrapper.style.height = this._state
         .launcherExpanded
         ? ""
         : "0";
     } else {
-      this._removeHoverStateBlocker();
+      this._cancelMouseEnter();
       MousePosTracker.removeListener(this);
-      if (!this.mouseOverTask?.isFinalized) {
-        this.mouseOverTask?.finalize();
-      }
+      this._openPopups.clear();
+      this._mouseOutsideWindow = false;
+      this._state.launcherHoverActive = false;
+      this._box.removeAttribute("sidebar-launcher-hovered");
+      this.contentArea.removeAttribute("sidebar-launcher-hovered");
+      document.removeEventListener("popupshowing", this);
       document.removeEventListener("popupshown", this);
       document.removeEventListener("popuphidden", this);
+      window.removeEventListener("mouseout", this);
+      window.removeEventListener("mousemove", this);
+      window.removeEventListener("deactivate", this);
       // Add back user-preferred height if defined
       if (
         this._state.launcherExpanded &&
