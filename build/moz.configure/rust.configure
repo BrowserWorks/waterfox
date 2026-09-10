@@ -300,6 +300,9 @@ def detect_rustc_target(
         elif not candidates:
             return None
 
+        # config.guess uses "pc" where Rust's generic vendor is "unknown".
+        vendor = "unknown" if host_or_target.vendor == "pc" else host_or_target.vendor
+
         # We have multiple candidates. There are two cases where we can try to
         # narrow further down using extra information from the build system.
         # - For windows targets, correlate with the C compiler type
@@ -367,11 +370,18 @@ def detect_rustc_target(
             else:
                 suffix = ""
             for p in prefixes:
-                for c in candidates:
-                    if c.rust_target.startswith(
-                        "{}-".format(p)
-                    ) and c.rust_target.endswith(suffix):
+                matches = [
+                    c
+                    for c in candidates
+                    if c.rust_target.startswith("{}-".format(p))
+                    and c.rust_target.endswith(suffix)
+                ]
+                if not matches:
+                    continue
+                for c in matches:
+                    if c.target.vendor == vendor:
                         return c.rust_target
+                return matches[0].rust_target
 
         # See if we can narrow down on the exact alias.
         # We use the sub_configure_alias to keep support mingw32 triplets as input.
@@ -399,6 +409,13 @@ def detect_rustc_target(
                 return narrowed[0].rust_target
             elif narrowed:
                 candidates = narrowed
+
+        # Disambiguate generic targets from Rust 1.98's *-oe-linux-* targets.
+        narrowed = [c for c in candidates if c.target.vendor == vendor]
+        if len(narrowed) == 1:
+            return narrowed[0].rust_target
+        elif narrowed:
+            candidates = narrowed
 
         # See if we can narrow down with the raw OS and raw CPU
         narrowed = [
