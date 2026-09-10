@@ -13,7 +13,7 @@ from mach.site import PythonVirtualenv
 from mach.util import get_state_dir
 
 # Keep in sync with rust-version in top-level Cargo.toml.
-MINIMUM_RUST_VERSION = "1.90.0"
+MINIMUM_RUST_VERSION = "1.95.0"
 
 
 def get_tools_dir(srcdir=False):
