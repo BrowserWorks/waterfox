@@ -71,6 +71,7 @@ pref("browser.search.param.waterfox_attribution_ddg", "waterfox");
 pref("browser.search.param.waterfox_attribution_ecosia", "57226k1p");
 pref("browser.search.param.waterfox_attribution_qwant", "brz-waterfox");
 
+pref("sidebar.autoHide", false);
 // Tab features.
 pref("browser.newtab.url", "");
 pref("browser.restart_menu.purgecache", false);

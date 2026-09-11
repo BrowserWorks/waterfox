@@ -376,33 +376,33 @@ sidebar-main,
     @media not -moz-pref("browser.nova.enabled") {
       &:not([sidebar-positionend]) {
         &:not([sidebar-panel-open]) {
-          margin-inline-start: 0;
+          margin-inline-start: var(--sidebar-auto-hide-width, 0);
         }
 
         &[sidebar-launcher-expanded][sidebar-launcher-hovered]:not([sidebar-panel-open]),
         &[sidebar-ongoing-animations]:not([sidebar-launcher-expanded], [sidebar-panel-open]) {
-          margin-inline-start: var(--sidebar-launcher-collapsed-width);
+          margin-inline-start: var(--sidebar-auto-hide-width, var(--sidebar-launcher-collapsed-width));
         }
       }
 
       &[sidebar-positionend] {
         &:not([sidebar-panel-open]) {
-          margin-inline-end: 0;
+          margin-inline-end: var(--sidebar-auto-hide-width, 0);
         }
 
         &[sidebar-launcher-expanded][sidebar-launcher-hovered]:not([sidebar-panel-open]),
         &[sidebar-ongoing-animations]:not([sidebar-panel-open], [sidebar-launcher-expanded]) {
-          margin-inline-end: var(--sidebar-launcher-collapsed-width);
+          margin-inline-end: var(--sidebar-auto-hide-width, var(--sidebar-launcher-collapsed-width));
         }
       }
     }
 
     @media -moz-pref("browser.nova.enabled") {
       &:not([sidebar-positionend], [sidebar-panel-open]) {
-        margin-inline-start: calc(var(--sidebar-launcher-collapsed-width) + var(--chrome-window-gap));
+        margin-inline-start: calc(var(--sidebar-auto-hide-width, var(--sidebar-launcher-collapsed-width)) + var(--chrome-window-gap));
       }
       &[sidebar-positionend]:not([sidebar-panel-open]) {
-        margin-inline-end: calc(var(--sidebar-launcher-collapsed-width) + var(--chrome-window-gap));
+        margin-inline-end: calc(var(--sidebar-auto-hide-width, var(--sidebar-launcher-collapsed-width)) + var(--chrome-window-gap));
       }
     }
   }
@@ -411,34 +411,65 @@ sidebar-main,
     @media not -moz-pref("browser.nova.enabled") {
       &:not([sidebar-positionend]) {
         &[sidebar-panel-open] {
-          margin-inline-start: 0;
+          margin-inline-start: var(--sidebar-auto-hide-width, 0);
         }
 
         &[sidebar-panel-open][sidebar-launcher-hovered][sidebar-launcher-expanded],
         &[sidebar-ongoing-animations][sidebar-panel-open] {
-          margin-inline-start: var(--sidebar-launcher-collapsed-width);
+          margin-inline-start: var(--sidebar-auto-hide-width, var(--sidebar-launcher-collapsed-width));
         }
       }
 
       &[sidebar-positionend] {
         &[sidebar-panel-open] {
-          margin-inline-end: 0;
+          margin-inline-end: var(--sidebar-auto-hide-width, 0);
         }
 
         &[sidebar-panel-open][sidebar-launcher-hovered][sidebar-launcher-expanded],
         &[sidebar-ongoing-animations][sidebar-panel-open] {
-          margin-inline-end: var(--sidebar-launcher-collapsed-width);
+          margin-inline-end: var(--sidebar-auto-hide-width, var(--sidebar-launcher-collapsed-width));
         }
       }
     }
 
     @media -moz-pref("browser.nova.enabled") {
       &:not([sidebar-positionend])[sidebar-panel-open] {
-        margin-inline-start: calc(var(--sidebar-launcher-collapsed-width) + var(--chrome-window-gap));
+        margin-inline-start: calc(var(--sidebar-auto-hide-width, var(--sidebar-launcher-collapsed-width)) + var(--chrome-window-gap));
       }
       &[sidebar-positionend][sidebar-panel-open] {
-        margin-inline-end: calc(var(--sidebar-launcher-collapsed-width) + var(--chrome-window-gap));
+        margin-inline-end: calc(var(--sidebar-auto-hide-width, var(--sidebar-launcher-collapsed-width)) + var(--chrome-window-gap));
       }
+    }
+  }
+}
+
+@media -moz-pref("sidebar.autoHide") and -moz-pref("sidebar.verticalTabs") {
+  :root[sidebar-expand-on-hover]:not([inDOMFullscreen]) {
+    #browser {
+      --sidebar-auto-hide-width: 4px;
+    }
+
+    #sidebar-container {
+      position: absolute;
+      z-index: var(--browser-area-z-index-sidebar-expand-on-hover);
+
+      &:not([sidebar-launcher-expanded], [sidebar-ongoing-animations], :focus-within) {
+        inline-size: var(--sidebar-auto-hide-width);
+        min-inline-size: var(--sidebar-auto-hide-width);
+        max-inline-size: var(--sidebar-auto-hide-width);
+        border-inline: none;
+        border-radius: 0;
+
+        /* Keep controls focusable so keyboard navigation can reveal them. */
+        > sidebar-main {
+          opacity: 0;
+          pointer-events: none;
+        }
+      }
+    }
+
+    #sidebar-launcher-splitter {
+      display: none;
     }
   }
 }
