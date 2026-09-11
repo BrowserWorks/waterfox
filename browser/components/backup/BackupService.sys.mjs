@@ -653,11 +653,12 @@ export class BackupService extends EventTarget {
   #resources = new Map();
 
   /**
-   * The name of the backup folder. Should be localized.
+   * The stable on-disk backup folder name. The display name is localized.
    *
    * @see BACKUP_DIR_NAME
    */
-  static #backupFolderName = "Restore Firefox";
+  static #backupFolderName = "Restore Waterfox";
+  static #legacyBackupFolderName = "Restore Firefox";
 
   /**
    * The name of the backup archive file. Should be localized.
@@ -1030,9 +1031,9 @@ export class BackupService extends EventTarget {
   }
 
   /**
-   * The localized name for the user's backup folder.
+   * The stable on-disk name for the user's backup folder.
    *
-   * @returns {string} The localized backup folder name
+   * @returns {string} The backup folder name
    */
   static get BACKUP_DIR_NAME() {
     if (!BackupService.#backupFolderName) {
@@ -1053,9 +1054,9 @@ export class BackupService extends EventTarget {
   }
 
   /**
-   * The value of BACKUP_DIR_NAME can be configured through a desktop.ini file,
-   * enabling users to see a custom display name while the actual folder has a
-   * different, disk-based name. This approach allows for more efficient
+   * The display name of BACKUP_DIR_NAME can be configured through a desktop.ini
+   * file, enabling users to see a custom display name while the actual folder
+   * has a different, disk-based name. This approach allows for more efficient
    * automatic detection of existing backups, as it avoids the need to iterate
    * over language versions on the disk.
    *
@@ -1949,13 +1950,13 @@ export class BackupService extends EventTarget {
    * Creates a coarse name corresponding to the location where the backup will
    * be stored. This is sent by telemetry, and aims to anonymize the data.
    *
-   * Normally, the path should end in 'Restore Firefox'; if it doesn't, you
-   * might be passing the wrong path and will get the wrong result.
+   * Pass a file path inside the current or legacy backup subfolder, not the
+   * subfolder itself, so its grandparent identifies the save location.
    *
    * This isn't private so it can be used by the tests; avoid relying on this
    * code from elsewhere.
    *
-   * @param {string} path The absolute path that contains the backup file.
+   * @param {string} path The absolute path to the backup file.
    * @returns {string} A coarse location to send with the telemetry.
    */
   classifyLocationForTelemetry(path) {
@@ -1966,7 +1967,7 @@ export class BackupService extends EventTarget {
 
     let location;
     try {
-      // Backup files live inside a subfolder (e.g. "Restore Firefox") under
+      // Backup files live inside a subfolder (e.g. "Restore Waterfox") under
       // the actual save location (Documents, OneDrive, etc.), so we need the
       // grandparent of the file.
       location = lazy.nsLocalFile(path).parent?.parent;
@@ -4214,7 +4215,10 @@ export class BackupService extends EventTarget {
       }
 
       let fullPath = parentDirPath;
-      if (filename != BackupService.BACKUP_DIR_NAME) {
+      if (
+        filename != BackupService.BACKUP_DIR_NAME &&
+        filename != BackupService.#legacyBackupFolderName
+      ) {
         // Recreate the backups path with the new parent directory.
         fullPath = PathUtils.join(parentDirPath, BackupService.BACKUP_DIR_NAME);
       }
@@ -5372,14 +5376,15 @@ export class BackupService extends EventTarget {
           BackupService.oneDriveFolderPath?.path,
         ]
           .filter(Boolean)
-          .map(backupPath =>
-            PathUtils.join(backupPath, BackupService.BACKUP_DIR_NAME)
-          )
+          .flatMap(backupPath => [
+            PathUtils.join(backupPath, BackupService.BACKUP_DIR_NAME),
+            PathUtils.join(backupPath, BackupService.#legacyBackupFolderName),
+          ])
       );
 
       let files = [];
 
-      for (let backupPath of backupPaths) {
+      for (let backupPath of new Set(backupPaths)) {
         files.push(
           ...(await IOUtils.getChildren(backupPath, { ignoreAbsent: true }))
         );
@@ -5394,14 +5399,13 @@ export class BackupService extends EventTarget {
         };
       }
 
-      // The backup is always a html file and starts with "FirefoxBackup_"
-      // disregard any other files in the folder
+      // Accept current and legacy backup filenames; disregard other files.
       let maybeBackupFiles = files.filter(f => {
         let name = PathUtils.filename(f);
 
-        // Note: The Firefox backup filename is localized (see BackupService.BACKUP_FILE_NAME).
+        // Note: The backup filename is localized (see BackupService.BACKUP_FILE_NAME).
         // For now, we use a hardcoded regex string directly for performance reasons.
-        return /^FirefoxBackup_.*\.html$/.test(name);
+        return /^(?:Waterfox|Firefox)Backup_.*\.html$/.test(name);
       });
 
       // if we aren't validating files, and there's more than 1 html file, we decide

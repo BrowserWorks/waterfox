@@ -167,8 +167,8 @@ add_task(async function test_oneDriveDirNotReturnedIfUserNotLoggedIn() {
 
 const docsDirName = "Documents";
 const oneDriveDirName = "OneDrive";
-const backupDirName = "Restore Firefox";
-const backupFilename = "FirefoxBackup_.html";
+const backupDirName = "Restore Waterfox";
+const backupFilename = "WaterfoxBackup_.html";
 
 add_task(async function test_findBackupInDocsAfterSignInToOneDrive() {
   const testRoot = await IOUtils.createUniqueDirectory(

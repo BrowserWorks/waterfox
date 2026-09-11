@@ -82,7 +82,7 @@ add_task(async function test_filename() {
 add_task(async function test_remove_old_files() {
   const OLDER_BACKUP = PathUtils.join(
     gTestDestPath,
-    `FirefoxBackup_${FAKE_METADATA.profileName}_20200101-000000.000.html`
+    `${BackupService.BACKUP_FILE_NAME}_${FAKE_METADATA.profileName}_20200101-000000.000.html`
   );
   await IOUtils.writeUTF8(OLDER_BACKUP, "test");
 
@@ -102,7 +102,7 @@ add_task(async function test_remove_old_files() {
 add_task(async function test_remove_old_files_other_profile() {
   const OLDER_BACKUP = PathUtils.join(
     gTestDestPath,
-    `FirefoxBackup_SomeOtherProfile_20200101-000000.000.html`
+    `${BackupService.BACKUP_FILE_NAME}_SomeOtherProfile_20200101-000000.000.html`
   );
   await IOUtils.writeUTF8(OLDER_BACKUP, "test");
 
@@ -144,7 +144,7 @@ add_task(async function test_same_profile_name_different_storeID() {
 
   const OTHER_STORE_BACKUP = PathUtils.join(
     gTestDestPath,
-    `FirefoxBackup_${FAKE_METADATA.profileName}_store-BBB_20200101-000000.000.html`
+    `${BackupService.BACKUP_FILE_NAME}_${FAKE_METADATA.profileName}_store-BBB_20200101-000000.000.html`
   );
   await IOUtils.writeUTF8(OTHER_STORE_BACKUP, "test");
 
