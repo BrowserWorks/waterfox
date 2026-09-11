@@ -28,6 +28,9 @@ support-files = [
 ]
 
 
+["browser_sidebar_autohide.js"]
+tags = "vertical-tabs"
+
 ["browser_sidebar_hover_fullscreen.js"]
 tags = "vertical-tabs"
 
