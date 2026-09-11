@@ -6,8 +6,8 @@
 const FAKE_DATE = "2024-12-01T12:00:00+00:00";
 const docsDirName = "Documents";
 const oneDriveDirName = "OneDrive";
-const backupDirName = "Restore Firefox";
-const backupFilename = "FirefoxBackup_.html";
+const backupDirName = "Restore Waterfox";
+const backupFilename = "WaterfoxBackup_.html";
 
 async function setupBackupDir(name) {
   const root = await IOUtils.createUniqueDirectory(PathUtils.tempDir, name);
@@ -47,7 +47,7 @@ add_task(
     );
 
     // 1) Single valid file -> findBackupsInWellKnownLocations should find it
-    const ONE = "FirefoxBackup_one_20241201-120000.000.html";
+    const ONE = "WaterfoxBackup_one_20241201-120000.000.html";
     await touchBackupFile(BACKUP_DIR, ONE);
 
     let result = await bs.findBackupsInWellKnownLocations();
@@ -113,6 +113,74 @@ add_task(
     await IOUtils.remove(TEST_ROOT, { recursive: true });
   }
 );
+
+add_task(async function test_current_and_legacy_backup_branding() {
+  const { root, dir } = await setupBackupDir("test-backup-branding");
+  const locationPref = BackupService.BACKUP_DIR_PREF_NAME;
+  const hadUserLocation = Services.prefs.prefHasUserValue(locationPref);
+  const originalLocation = hadUserLocation
+    ? Services.prefs.getStringPref(locationPref)
+    : null;
+  const sandbox = sinon.createSandbox();
+
+  try {
+    for (const parent of ["docsDirFolderPath", "oneDriveFolderPath"]) {
+      sandbox
+        .stub(BackupService, "docsDirFolderPath")
+        .get(() => (parent == "docsDirFolderPath" ? { path: dir } : null));
+      sandbox
+        .stub(BackupService, "oneDriveFolderPath")
+        .get(() => (parent == "oneDriveFolderPath" ? { path: dir } : null));
+
+      for (const folder of ["Restore Waterfox", "Restore Firefox"]) {
+        const backupDir = PathUtils.join(dir, folder);
+        await IOUtils.makeDirectory(backupDir);
+        await touchBackupFile(backupDir, "unrelated.html");
+
+        for (const brand of ["Waterfox", "Firefox"]) {
+          const file = await touchBackupFile(
+            backupDir,
+            `${brand}Backup_default_20241201-120000.000.html`
+          );
+
+          for (const configured of [false, true]) {
+            if (configured) {
+              Services.prefs.setStringPref(locationPref, backupDir);
+            } else {
+              Services.prefs.clearUserPref(locationPref);
+            }
+
+            const bs = new BackupService();
+            const result = await bs.findIfABackupFileExists({
+              validateFile: false,
+            });
+            Assert.equal(
+              bs.state.backupFileToRestore,
+              file,
+              `Found ${brand} backup in ${parent}/${folder}`
+            );
+            Assert.equal(result.count, 1, "The backup is counted only once");
+            Assert.ok(!result.multipleBackupsFound);
+          }
+
+          await IOUtils.remove(file);
+        }
+
+        await IOUtils.remove(backupDir, { recursive: true });
+      }
+
+      sandbox.restore();
+    }
+  } finally {
+    sandbox.restore();
+    if (hadUserLocation) {
+      Services.prefs.setStringPref(locationPref, originalLocation);
+    } else {
+      Services.prefs.clearUserPref(locationPref);
+    }
+    await IOUtils.remove(root, { recursive: true });
+  }
+});
 
 add_task(async function test_findBackupInDocsAfterSignInToOneDrive() {
   const testRoot = await IOUtils.createUniqueDirectory(
