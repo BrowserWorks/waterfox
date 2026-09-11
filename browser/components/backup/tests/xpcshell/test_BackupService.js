@@ -948,7 +948,7 @@ add_task(
 
     await backupService.editBackupLocation(newBackupLocation);
 
-    let expectedPath = PathUtils.join(newBackupLocation, "Restore Firefox");
+    let expectedPath = PathUtils.join(newBackupLocation, "Restore Waterfox");
     Assert.equal(
       Services.prefs.getStringPref(backupLocationPref),
       expectedPath,
