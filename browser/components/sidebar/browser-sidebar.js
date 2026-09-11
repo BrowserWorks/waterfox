@@ -1215,16 +1215,28 @@ var SidebarController = {
       // Legacy sidebar doesn't have animations, nothing to await.
       return null;
     }
-    const tasks = [this.sidebarMain.updateComplete];
-    if (this._ongoingAnimations?.length) {
-      tasks.push(
-        ...this._ongoingAnimations.map(animation => animation.finished)
-      );
-    }
-    return Promise.allSettled(tasks);
+    let animation;
+    let update;
+    do {
+      animation = this._sidebarAnimationPromise;
+      update = this.sidebarMain.updateComplete;
+      await Promise.allSettled([animation, update]);
+    } while (
+      animation !== this._sidebarAnimationPromise ||
+      update !== this.sidebarMain.updateComplete
+    );
+    return null;
   },
 
-  async _animateSidebarContainer() {
+  _animateSidebarContainer(options = {}) {
+    const animation = this._animateSidebarContainerTask(options);
+    if (!options.cancelOnly) {
+      this._sidebarAnimationPromise = animation;
+    }
+    return animation;
+  },
+
+  async _animateSidebarContainerTask({ cancelOnly = false } = {}) {
     let tabbox = document.getElementById("tabbrowser-tabbox");
     let animatingElements;
     let expandOnHoverEnabled = document.documentElement.hasAttribute(
@@ -1233,7 +1245,9 @@ var SidebarController = {
     if (expandOnHoverEnabled) {
       animatingElements = [this.sidebarContainer];
 
-      this._addHoverStateBlocker();
+      if (!cancelOnly) {
+        this._addHoverStateBlocker();
+      }
     } else {
       animatingElements = [
         this.sidebarContainer,
@@ -1265,6 +1279,12 @@ var SidebarController = {
       resetElements();
     }
 
+    let animations = [];
+    this._ongoingAnimations = animations;
+    if (cancelOnly) {
+      return;
+    }
+
     let fromRects = this._getRects(animatingElements);
 
     // We need to wait for lit to re-render, and us to get the final width.
@@ -1272,6 +1292,12 @@ var SidebarController = {
     await new Promise(resolve => {
       queueMicrotask(() => resolve(this.sidebarMain.updateComplete));
     });
+    if (this._ongoingAnimations !== animations) {
+      if (expandOnHoverEnabled) {
+        this._removeHoverStateBlocker();
+      }
+      return;
+    }
     let toRects = this._getRects(animatingElements);
 
     const options = {
@@ -1280,7 +1306,6 @@ var SidebarController = {
         : this._animationDurationMs,
       easing: "ease-in-out",
     };
-    let animations = [];
     let sidebarOnLeft = this._positionStart != RTL_UI;
     let sidebarShift = 0;
     let novaTranslate = 0;
@@ -1427,7 +1452,6 @@ var SidebarController = {
         );
       }
     }
-    this._ongoingAnimations = animations;
     this.sidebarContainer.toggleAttribute("sidebar-ongoing-animations", true);
     this.sidebarMain.toggleAttribute("sidebar-ongoing-animations", true);
     this._box.toggleAttribute("sidebar-ongoing-animations", true);
@@ -2453,16 +2477,40 @@ var SidebarController = {
     }
   },
 
-  debouncedMouseEnter() {
+  get autoHideActive() {
+    return (
+      this._autoHide &&
+      this.sidebarVerticalTabsEnabled &&
+      document.documentElement.hasAttribute("sidebar-expand-on-hover")
+    );
+  },
+
+  _revealAutoHideOnFocus() {
+    if (
+      !this.autoHideActive ||
+      document.documentElement.hasAttribute("inDOMFullscreen") ||
+      !this.sidebarMain.matches(":focus-within") ||
+      this._state.launcherExpanded
+    ) {
+      return;
+    }
+    this._cancelMouseEnter();
+    this._escapedWhileHovered = false;
+    this._mouseLeftSinceEscape = false;
+    this._animateSidebarContainer({ cancelOnly: true });
+    this.debouncedMouseEnter(false);
+  },
+
+  debouncedMouseEnter(animate = true) {
     const contentArea = document.getElementById("tabbrowser-tabbox");
     this._box.toggleAttribute("sidebar-launcher-hovered", true);
     contentArea.toggleAttribute("sidebar-launcher-hovered", true);
     this._state.launcherHoverActive = true;
-    if (this._animationEnabled && !window.gReduceMotion) {
+    if (animate && this._animationEnabled && !window.gReduceMotion) {
       this._animateSidebarContainer();
     }
     this._state.launcherExpanded = true;
-    this._mouseEnterDeferred.resolve();
+    this._mouseEnterDeferred?.resolve();
   },
 
   _cancelMouseEnter() {
@@ -2493,14 +2541,24 @@ var SidebarController = {
     ) {
       return;
     }
+    if (this.autoHideActive && this._isMenuPopupOpen()) {
+      return;
+    }
     this._escapedWhileHovered = true;
     this._mouseLeftSinceEscape = false;
+    if (this.autoHideActive && this.sidebarMain.matches(":focus-within")) {
+      gBrowser.selectedBrowser.focus();
+    }
     this._collapseLauncher();
   },
 
   onMouseLeave() {
     this._cancelMouseEnter();
-    if (this._hoverBlockerCount || this._isMenuPopupOpen()) {
+    if (
+      this._hoverBlockerCount ||
+      this._isMenuPopupOpen() ||
+      (this.autoHideActive && this.sidebarMain.matches(":focus-within"))
+    ) {
       return;
     }
     if (this._escapedWhileHovered) {
@@ -2574,6 +2632,9 @@ var SidebarController = {
   },
 
   getMouseTargetRect() {
+    if (this.autoHideActive) {
+      return window.windowUtils.getBoundsWithoutFlushing(this.sidebarContainer);
+    }
     let launcherRect = window.windowUtils.getBoundsWithoutFlushing(
       SidebarController.sidebarMain
     );
@@ -2591,6 +2652,14 @@ var SidebarController = {
 
   handleEvent(e) {
     switch (e.type) {
+      case "focusin":
+        this._revealAutoHideOnFocus();
+        break;
+      case "focusout":
+        if (this.autoHideActive) {
+          queueMicrotask(() => this._reconcileHoverState());
+        }
+        break;
       case "popupshowing":
       case "popupshown":
         if (e.composedTarget.tagName !== "tooltip") {
@@ -2644,6 +2713,9 @@ var SidebarController = {
           return;
         }
       }
+      this.sidebarMain.addEventListener("focusin", this);
+      this.sidebarMain.addEventListener("focusout", this);
+      this._revealAutoHideOnFocus();
       MousePosTracker.addListener(this);
       document.addEventListener("popupshowing", this);
       document.addEventListener("popupshown", this);
@@ -2664,6 +2736,8 @@ var SidebarController = {
       this._state.launcherHoverActive = false;
       this._box.removeAttribute("sidebar-launcher-hovered");
       this.contentArea.removeAttribute("sidebar-launcher-hovered");
+      this.sidebarMain.removeEventListener("focusin", this);
+      this.sidebarMain.removeEventListener("focusout", this);
       document.removeEventListener("popupshowing", this);
       document.removeEventListener("popupshown", this);
       document.removeEventListener("popuphidden", this);
@@ -2752,6 +2826,22 @@ XPCOMUtils.defineLazyPreferenceGetter(
     ) {
       SidebarController.setPosition();
       SidebarController.recordPositionSetting(newValue);
+    }
+  }
+);
+XPCOMUtils.defineLazyPreferenceGetter(
+  SidebarController,
+  "_autoHide",
+  "sidebar.autoHide",
+  false,
+  () => {
+    if (
+      SidebarController.initialized &&
+      !SidebarController.uninitializing &&
+      document.documentElement.hasAttribute("sidebar-expand-on-hover")
+    ) {
+      SidebarController._cancelMouseEnter();
+      SidebarController.toggleExpandOnHover(true);
     }
   }
 );
