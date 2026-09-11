@@ -77,6 +77,7 @@ pref("browser.search.param.waterfox_ai_google", "14");
 pref("browser.search.param.waterfox_ai_bing", "0");
 pref("browser.search.param.waterfox_ai_qwant", "0");
 
+pref("sidebar.autoHide", false);
 // Tab features.
 pref("browser.newtab.url", "");
 pref("browser.restart_menu.purgecache", false);

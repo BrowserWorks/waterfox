@@ -9,6 +9,8 @@ import { SettingGroupManager } from "chrome://browser/content/preferences/config
 const TABBAR_POSITION_PREF = "browser.tabs.toolbarposition";
 const BOOKMARKS_POSITION_PREF = "browser.bookmarks.toolbarposition";
 const VERTICAL_TABS_PREF = "sidebar.verticalTabs";
+const SIDEBAR_AUTO_HIDE_PREF = "sidebar.autoHide";
+const SIDEBAR_VISIBILITY_PREF = "sidebar.visibility";
 const AUTO_GROUP_PREF = "browser.tabs.autoGroupNewTabs";
 const PLACEMENT_PREF = "browser.tabs.autoGroupNewTabs.placement";
 
@@ -280,6 +282,7 @@ const TREE_CONTROLS = [
 Preferences.addAll([
   { id: TABBAR_POSITION_PREF, type: "string" },
   { id: BOOKMARKS_POSITION_PREF, type: "string" },
+  { id: SIDEBAR_AUTO_HIDE_PREF, type: "bool" },
   { id: AUTO_GROUP_PREF, type: "bool" },
   { id: PLACEMENT_PREF, type: "string" },
   { id: TREE_MAX_DEPTH_PREF, type: "int" },
@@ -301,6 +304,27 @@ Preferences.addSetting({
   setup(emitChange) {
     Services.prefs.addObserver(VERTICAL_TABS_PREF, emitChange);
     return () => Services.prefs.removeObserver(VERTICAL_TABS_PREF, emitChange);
+  },
+});
+
+Preferences.addSetting({
+  id: "waterfox-sidebar-auto-hide",
+  pref: SIDEBAR_AUTO_HIDE_PREF,
+  deps: ["waterfox-vertical-tabs-active"],
+  disabled: deps => !deps["waterfox-vertical-tabs-active"].value,
+  get: value =>
+    value &&
+    Services.prefs.getStringPref(SIDEBAR_VISIBILITY_PREF) == "expand-on-hover",
+  set(value) {
+    if (value) {
+      Services.prefs.setStringPref(SIDEBAR_VISIBILITY_PREF, "expand-on-hover");
+    }
+    return value;
+  },
+  setup(emitChange) {
+    Services.prefs.addObserver(SIDEBAR_VISIBILITY_PREF, emitChange);
+    return () =>
+      Services.prefs.removeObserver(SIDEBAR_VISIBILITY_PREF, emitChange);
   },
 });
 
@@ -611,6 +635,11 @@ try {
     layoutGroup.items.splice(
       sidebarIndex == -1 ? layoutGroup.items.length : sidebarIndex + 1,
       0,
+      {
+        id: "waterfox-sidebar-auto-hide",
+        l10nId: "waterfox-appearance-autohide-sidebar-toggle",
+        control: "moz-toggle",
+      },
       treeFieldset
     );
   }
