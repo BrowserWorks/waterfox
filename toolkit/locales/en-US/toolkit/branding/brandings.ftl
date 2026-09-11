@@ -3,6 +3,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 ## The following feature names must be treated as a brand.
+## Built-in feature names require -brand-product-name from branding/brand.ftl.
 ##
 ## They cannot be:
 ## - Transliterated.
@@ -20,10 +21,10 @@
 -mozmonitor-brand-name = Mozilla Monitor
 -pocket-brand-name = Pocket
 -send-brand-name = Firefox Send
--screenshots-brand-name = Firefox Screenshots
+-screenshots-brand-name = { -brand-product-name } Screenshots
 -mozilla-vpn-brand-name = Mozilla VPN
 -profiler-brand-name = Firefox Profiler
--translations-brand-name = Firefox Translations
+-translations-brand-name = { -brand-product-name } Translations
 -focus-brand-name = Firefox Focus
 -relay-brand-name = Firefox Relay
 -relay-brand-short-name = Relay
@@ -40,20 +41,20 @@
 # The particle "by" can be localized, "Fakespot" and "Mozilla" should not be localized or transliterated.
 -fakespot-brand-full-name = Fakespot by Mozilla
 
-# “Suggest” can be localized, “Firefox” must be treated as a brand
+# “Suggest” can be localized, “Waterfox” must be treated as a brand
 # and kept in English.
--firefox-suggest-brand-name = Firefox Suggest
+-firefox-suggest-brand-name = { -brand-product-name } Suggest
 
-# ”Home" can be localized, “Firefox” must be treated as a brand
+# ”Home" can be localized, “Waterfox” must be treated as a brand
 # and kept in English.
--firefox-home-brand-name = Firefox Home
+-firefox-home-brand-name = { -brand-product-name } Home
 
 # View" can be localized, “Firefox” must be treated as a brand
 # and kept in English.
 -firefoxview-brand-name = Firefox View
 
-# Firefox Labs is the name for a page in Settings to allow users to learn about
+# Waterfox Labs is the name for a page in Settings to allow users to learn about
 # experimental and in-development features, and turn those features on and off.
-# The "Labs" portion can be localized, “Firefox” must be treated as a brand
+# The "Labs" portion can be localized, “Waterfox” must be treated as a brand
 # and kept in English.
--firefoxlabs-brand-name = Firefox Labs
+-firefoxlabs-brand-name = { -brand-product-name } Labs

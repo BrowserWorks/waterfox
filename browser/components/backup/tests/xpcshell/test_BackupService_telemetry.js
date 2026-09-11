@@ -314,7 +314,7 @@ add_task(async function test_schedulerToggleSource() {
 
 add_task(async function test_classifyLocationForTelemetry() {
   // classifyLocationForTelemetry takes the grandparent of the given path
-  // (file -> "Restore Firefox" subfolder -> known location), so we need
+  // (file -> backup subfolder -> known location), so we need
   // paths that are two levels deep under the known directory to match.
   let bs = new BackupService();
   for (const prop of Object.keys(kKnownMappings)) {
@@ -336,7 +336,7 @@ add_task(async function test_classifyLocationForTelemetry() {
       `'${file.path}' (one level deep) was correctly classified as other.`
     );
 
-    // Two levels deep (e.g. Documents/Restore Firefox/backup.html) should
+    // Two levels deep (e.g. Documents/Restore Waterfox/backup.html) should
     // match, since the grandparent is the known dir.
     file.append("grandchild");
     Assert.equal(
