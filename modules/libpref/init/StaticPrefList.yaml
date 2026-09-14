@@ -12548,6 +12548,14 @@
   value: true
   mirror: always
 
+# Enabling/disabling the display of the SMTC system overlay
+# If its false, the media keys work, but the overlay isnt displayed
+# When making changes, you need to restart the browser
+- name: media.hardwaremediakeys.overlay.enabled
+  type: bool
+  value: true
+  mirror: always
+
 # If this pref is on, then `media.mediacontrol.stopcontrol.timer.ms` would take
 # effect and determine the timing to stop controlling media.
 - name: media.mediacontrol.stopcontrol.timer
