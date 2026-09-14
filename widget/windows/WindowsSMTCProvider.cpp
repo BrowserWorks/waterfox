@@ -63,6 +63,12 @@ extern mozilla::LazyLogModule gMediaControlLog;
     MOZ_LOG(gMediaControlLog, LogLevel::Debug, \
             ("WindowSMTCProvider=%p, " msg, this, ##__VA_ARGS__))
 
+// Identifiers for global hotkeys
+constexpr int kHotKeyPlayPause = 1;
+constexpr int kHotKeyNextTrack = 2;
+constexpr int kHotKeyPrevTrack = 3;
+constexpr int kHotKeyStop      = 4;
+
 static inline Maybe<mozilla::dom::MediaControlKey> TranslateKeycode(
     SystemMediaTransportControlsButton keycode) {
   switch (keycode) {
@@ -97,18 +103,45 @@ static IAsyncInfo* GetIAsyncInfo(IAsyncOperation<unsigned int>* aAsyncOp) {
   return asyncInfo;
 }
 
+LRESULT CALLBACK WindowsSMTCProvider::StaticWndProc(HWND hwnd, UINT msg,
+                                                    WPARAM wParam,
+                                                    LPARAM lParam) {
+  if (msg == WM_HOTKEY) {
+    auto* self = reinterpret_cast<WindowsSMTCProvider*>(
+        GetWindowLongPtrW(hwnd, GWLP_USERDATA));
+    if (self && self->IsOpened()) {
+      switch (wParam) {
+        case kHotKeyPlayPause:
+          // In Firefox key handling, Play toggles play/pause state
+          self->OnButtonPressed(mozilla::dom::MediaControlKey::Playpause);
+          break;
+        case kHotKeyNextTrack:
+          self->OnButtonPressed(mozilla::dom::MediaControlKey::Nexttrack);
+          break;
+        case kHotKeyPrevTrack:
+          self->OnButtonPressed(mozilla::dom::MediaControlKey::Previoustrack);
+          break;
+        case kHotKeyStop:
+          self->OnButtonPressed(mozilla::dom::MediaControlKey::Stop);
+          break;
+        default:
+          break;
+      }
+    }
+    return 0;
+  }
+  return DefWindowProcW(hwnd, msg, wParam, lParam);
+}
+
 WindowsSMTCProvider::WindowsSMTCProvider() {
   LOG("Creating an empty and invisible window");
 
-  // In order to create a SMTC-Provider, we need a hWnd, which shall be created
-  // dynamically from an invisible window. This leads to the following
-  // boilerplate code.
-  WNDCLASS wnd{};
+  WNDCLASSW wnd{};
   wnd.lpszClassName = L"Firefox-MediaKeys";
   wnd.hInstance = nullptr;
-  wnd.lpfnWndProc = DefWindowProc;
-  GetLastError();  // Clear the error
-  RegisterClass(&wnd);
+  wnd.lpfnWndProc = StaticWndProc;
+  GetLastError();
+  RegisterClassW(&wnd);
   MOZ_ASSERT(!GetLastError());
 
   mWindow = CreateWindowExW(0, L"Firefox-MediaKeys", L"Firefox Media Keys", 0,
@@ -116,18 +149,44 @@ WindowsSMTCProvider::WindowsSMTCProvider() {
                             nullptr, nullptr, nullptr);
   MOZ_ASSERT(mWindow);
   MOZ_ASSERT(!GetLastError());
+
+  SetWindowLongPtrW(mWindow, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 }
 
 WindowsSMTCProvider::~WindowsSMTCProvider() {
-  // Dispose the window
+  UnregisterHotKeys();
   MOZ_ASSERT(mWindow);
+  SetWindowLongPtrW(mWindow, GWLP_USERDATA, 0);
   if (!DestroyWindow(mWindow)) {
     LOG("Failed to destroy the hidden window. Error Code: %lu", GetLastError());
   }
-  if (!UnregisterClass(L"Firefox-MediaKeys", nullptr)) {
-    // Note that this is logged when the class wasn't even registered.
+  if (!UnregisterClassW(L"Firefox-MediaKeys", nullptr)) {
     LOG("Failed to unregister the class. Error Code: %lu", GetLastError());
   }
+}
+
+void WindowsSMTCProvider::RegisterHotKeys() {
+  if (mHotKeysRegistered || !mWindow) {
+    return;
+  }
+  LOG("Registering global media hotkeys (MOD_NOREPEAT)");
+  RegisterHotKey(mWindow, kHotKeyPlayPause, MOD_NOREPEAT, VK_MEDIA_PLAY_PAUSE);
+  RegisterHotKey(mWindow, kHotKeyNextTrack, MOD_NOREPEAT, VK_MEDIA_NEXT_TRACK);
+  RegisterHotKey(mWindow, kHotKeyPrevTrack, MOD_NOREPEAT, VK_MEDIA_PREV_TRACK);
+  RegisterHotKey(mWindow, kHotKeyStop,      MOD_NOREPEAT, VK_MEDIA_STOP);
+  mHotKeysRegistered = true;
+}
+
+void WindowsSMTCProvider::UnregisterHotKeys() {
+  if (!mHotKeysRegistered || !mWindow) {
+    return;
+  }
+  LOG("Unregistering global media hotkeys");
+  UnregisterHotKey(mWindow, kHotKeyPlayPause);
+  UnregisterHotKey(mWindow, kHotKeyNextTrack);
+  UnregisterHotKey(mWindow, kHotKeyPrevTrack);
+  UnregisterHotKey(mWindow, kHotKeyStop);
+  mHotKeysRegistered = false;
 }
 
 bool WindowsSMTCProvider::IsOpened() const { return mInitialized; }
@@ -135,6 +194,15 @@ bool WindowsSMTCProvider::IsOpened() const { return mInitialized; }
 bool WindowsSMTCProvider::Open() {
   LOG("Opening Source");
   MOZ_ASSERT(!mInitialized);
+
+  // If overlay is disabled, bypass SMTC completely and use RegisterHotKey.
+  // This prevents Windows from creating an SMTC session and drawing the OSD.
+  if (!ShouldShowOverlay()) {
+    LOG("Overlay is disabled, using Win32 RegisterHotKey instead of SMTC");
+    RegisterHotKeys();
+    mInitialized = true;
+    return true;
+  }
 
   if (!InitDisplayAndControls()) {
     LOG("Failed to initialize the SMTC and its display");
@@ -165,15 +233,13 @@ void WindowsSMTCProvider::Close() {
   MediaControlKeySource::Close();
   // Prevent calling Set methods when init failed
   if (mInitialized) {
-    SetPlaybackState(mozilla::dom::MediaSessionPlaybackState::None);
-    UnregisterEvents();
-    ClearMetadata();
-    // We have observed an Windows issue, if we modify `mControls` , (such as
-    // setting metadata, disable buttons) before disabling control, and those
-    // operations are not done sequentially within a same main thread task,
-    // then it would cause a problem where the SMTC wasn't clean up completely
-    // and show the executable name.
-    EnableControl(false);
+    UnregisterHotKeys();
+    if (mControls) {
+      SetPlaybackState(mozilla::dom::MediaSessionPlaybackState::None);
+      UnregisterEvents();
+      ClearMetadata();
+      EnableControl(false);
+    }
     mInitialized = false;
   }
 }
@@ -182,11 +248,12 @@ void WindowsSMTCProvider::SetPlaybackState(
     mozilla::dom::MediaSessionPlaybackState aState) {
   MOZ_ASSERT(mInitialized);
   MediaControlKeySource::SetPlaybackState(aState);
+  
+  if (!mControls) {
+    return;
+  }
 
   HRESULT hr;
-
-  // Note: we can't return the status of put_PlaybackStatus, but we can at least
-  // assert it.
   switch (aState) {
     case mozilla::dom::MediaSessionPlaybackState::Paused:
       hr = mControls->put_PlaybackStatus(
@@ -204,7 +271,7 @@ void WindowsSMTCProvider::SetPlaybackState(
       // use (yet)
     default:
       MOZ_ASSERT_UNREACHABLE(
-          "Enum Inconsitency between PlaybackState and WindowsSMTCProvider");
+          "Enum Inconsistency between PlaybackState and WindowsSMTCProvider");
       break;
   }
 
@@ -215,12 +282,19 @@ void WindowsSMTCProvider::SetPlaybackState(
 void WindowsSMTCProvider::SetMediaMetadata(
     const mozilla::dom::MediaMetadataBase& aMetadata) {
   MOZ_ASSERT(mInitialized);
+
+  if (!ShouldShowOverlay() || !mDisplay) {
+    return;
+  }
+
   SetMusicMetadata(aMetadata.mArtist, aMetadata.mTitle);
   LoadThumbnail(aMetadata.mArtwork);
 }
 
 void WindowsSMTCProvider::ClearMetadata() {
-  MOZ_ASSERT(mDisplay);
+  if (!mDisplay) {
+    return;
+  }
   if (FAILED(mDisplay->ClearAll())) {
     LOG("Failed to clear SMTC display");
   }
@@ -230,6 +304,11 @@ void WindowsSMTCProvider::ClearMetadata() {
   mProcessingUrl.Truncate();
   mNextImageIndex = 0;
   mSupportedKeys = 0;
+}
+
+bool WindowsSMTCProvider::ShouldShowOverlay() const {
+  return mozilla::Preferences::GetBool(
+    "media.hardwaremediakeys.overlay.enabled", true);
 }
 
 void WindowsSMTCProvider::SetSupportedMediaKeys(
@@ -291,7 +370,7 @@ bool WindowsSMTCProvider::RegisterEvents() {
         if (FAILED(pArgs->get_Button(&btn))) {
           LOG("SystemMediaTransportControls: ButtonPressedEvent - Could "
               "not get Button.");
-          return S_OK;  // Propagating the error probably wouldn't help.
+          return S_OK;
         }
 
         Maybe<mozilla::dom::MediaControlKey> keyCode = TranslateKeycode(btn);
@@ -331,7 +410,7 @@ bool WindowsSMTCProvider::RegisterEvents() {
               LOG("SystemMediaTransportControls: Playback Position Change - "
                   "failed to get requested position (hr=%lx)",
                   hr);
-              return S_OK;  // Propagating the error probably wouldn't help.
+              return S_OK;
             }
 
             double position =
@@ -366,11 +445,17 @@ void WindowsSMTCProvider::OnButtonPressed(
 }
 
 bool WindowsSMTCProvider::EnableControl(bool aEnabled) const {
-  MOZ_ASSERT(mControls);
+  if (!mControls) {
+    return false;
+  }
   return SUCCEEDED(mControls->put_IsEnabled(aEnabled));
 }
 
 bool WindowsSMTCProvider::UpdateButtons() {
+  if (!mControls) {
+    return true;
+  }
+
   static const mozilla::dom::MediaControlKey kKeys[] = {
       mozilla::dom::MediaControlKey::Play,
       mozilla::dom::MediaControlKey::Pause,
@@ -393,12 +478,18 @@ bool WindowsSMTCProvider::UpdateButtons() {
 
 bool WindowsSMTCProvider::IsKeySupported(
     mozilla::dom::MediaControlKey aKey) const {
+  if (aKey == mozilla::dom::MediaControlKey::Playpause) {
+    return (mSupportedKeys & GetMediaKeyMask(mozilla::dom::MediaControlKey::Play)) ||
+           (mSupportedKeys & GetMediaKeyMask(mozilla::dom::MediaControlKey::Pause));
+  }
   return mSupportedKeys & GetMediaKeyMask(aKey);
 }
 
 bool WindowsSMTCProvider::EnableKey(mozilla::dom::MediaControlKey aKey,
                                     bool aEnable) const {
-  MOZ_ASSERT(mControls);
+  if (!mControls) {
+    return false;
+  }
   switch (aKey) {
     case mozilla::dom::MediaControlKey::Play:
       return SUCCEEDED(mControls->put_IsPlayEnabled(aEnable));
@@ -468,7 +559,9 @@ bool WindowsSMTCProvider::InitDisplayAndControls() {
 
 bool WindowsSMTCProvider::SetMusicMetadata(const nsString& aArtist,
                                            const nsString& aTitle) {
-  MOZ_ASSERT(mDisplay);
+  if (!mDisplay) {
+    return false;
+  }
   ComPtr<IMusicDisplayProperties> musicProps;
 
   HRESULT hr = mDisplay->put_Type(MediaPlaybackType::MediaPlaybackType_Music);
@@ -503,6 +596,9 @@ bool WindowsSMTCProvider::SetMusicMetadata(const nsString& aArtist,
 
 void WindowsSMTCProvider::SetPositionState(
     const mozilla::Maybe<mozilla::dom::PositionState>& aState) {
+  if (!mControls) {
+    return;
+  }
   ComPtr<ISystemMediaTransportControls2> smtc2;
   HRESULT hr = mControls.As(&smtc2);
   if (FAILED(hr)) {
@@ -599,7 +695,10 @@ void WindowsSMTCProvider::LoadThumbnail(
     const nsTArray<mozilla::dom::MediaImage>& aArtwork) {
   MOZ_ASSERT(NS_IsMainThread());
 
-  // TODO: Sort the images by the preferred size or format.
+  if (!ShouldShowOverlay() || !mDisplay) {
+    return;
+  }
+
   mArtwork = aArtwork;
   mNextImageIndex = 0;
 
@@ -793,7 +892,9 @@ void WindowsSMTCProvider::LoadImage(const char* aImageData,
 }
 
 bool WindowsSMTCProvider::SetThumbnail(const nsAString& aUrl) {
-  MOZ_ASSERT(mDisplay);
+  if (!mDisplay) {
+    return false;
+  }
   MOZ_ASSERT(mImageStream);
   MOZ_ASSERT(!aUrl.IsEmpty());
 
@@ -843,7 +944,9 @@ bool WindowsSMTCProvider::SetThumbnail(const nsAString& aUrl) {
 }
 
 void WindowsSMTCProvider::ClearThumbnail() {
-  MOZ_ASSERT(mDisplay);
+  if (!mDisplay) {
+    return;
+  }
   HRESULT hr = mDisplay->put_Thumbnail(nullptr);
   MOZ_ASSERT(SUCCEEDED(hr));
   hr = mDisplay->Update();
