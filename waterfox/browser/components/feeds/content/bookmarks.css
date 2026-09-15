@@ -1,0 +1,27 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+.bookmark-item.waterfox-live-bookmark {
+  --bookmark-item-icon: url("chrome://browser/content/feeds/feed.svg");
+}
+
+.waterfox-feed-unread {
+  font-weight: var(--font-weight-bold);
+}
+
+.waterfox-feed-entry {
+  max-inline-size: 40em;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  #pageAction-urlbar-waterfox-feeds[data-feed-discovered] > .urlbar-icon {
+    animation: waterfox-feed-discovered 800ms ease-in-out 3;
+  }
+
+  @keyframes waterfox-feed-discovered {
+    50% {
+      transform: scale(1.15);
+    }
+  }
+}

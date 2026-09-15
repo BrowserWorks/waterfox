@@ -1,0 +1,14 @@
+[DEFAULT]
+
+["browser_feedIntegration.js"]
+support-files = ["feed-discovery.html", "feed.xml"]
+
+["browser_feedLocationBar.js"]
+support-files = ["feed-discovery.html", "feed-empty.html", "feed.xml"]
+
+["browser_feedPage.js"]
+
+["browser_feedSubscribePanel.js"]
+support-files = ["feed-discovery.html", "feed-empty.html", "feed.xml"]
+
+["browser_liveBookmarks.js"]

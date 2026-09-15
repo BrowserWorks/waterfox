@@ -5,6 +5,7 @@
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  LiveBookmarksUI: "resource:///modules/LiveBookmarksUI.sys.mjs",
   PrivateTab: "resource:///modules/PrivateTab.sys.mjs",
   StatusBar: "resource:///modules/StatusBar.sys.mjs",
   TabFeatures: "resource:///modules/TabFeatures.sys.mjs",
@@ -104,6 +105,7 @@ export const WaterfoxGlue = {
       console.error("WaterfoxBlockerService startup init failed", error)
     );
 
+    lazy.LiveBookmarksUI.init();
     lazy.PrivateTab.init();
     lazy.StatusBar.init();
     lazy.TabFeatures.init();
@@ -115,6 +117,7 @@ export const WaterfoxGlue = {
   observe(subject, topic) {
     switch (topic) {
       case "browser-delayed-startup-finished":
+        lazy.LiveBookmarksUI.onWindowOpened(subject);
         lazy.PrivateTab.onWindowOpened(subject);
         lazy.StatusBar.onWindowOpened(subject);
         lazy.TabFeatures.onWindowOpened(subject);

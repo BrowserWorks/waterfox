@@ -1,0 +1,124 @@
+<!doctype html>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src chrome://browser/content/feeds/; style-src chrome://browser/content/feeds/ chrome://global/skin/; font-src chrome://browser/content/waterfox/fonts/; base-uri 'none'; form-action 'none'; object-src 'none'"
+    />
+    <meta name="referrer" content="no-referrer" />
+    <meta http-equiv="x-dns-prefetch-control" content="off" />
+    <meta name="color-scheme" content="light dark" />
+    <title data-l10n-id="feeds-page-title"></title>
+    <link rel="localization" href="browser/waterfox/feeds.ftl" />
+    <link rel="stylesheet" href="chrome://global/skin/in-content/common.css" />
+    <link rel="stylesheet" href="chrome://browser/content/feeds/feeds.css" />
+    <script
+      type="module"
+      src="chrome://browser/content/feeds/feeds.mjs"
+    ></script>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1 data-l10n-id="feeds-page-title"></h1>
+        <p data-l10n-id="feeds-page-description"></p>
+      </header>
+      <p
+        id="private-notice"
+        class="notice"
+        data-l10n-id="feeds-private-notice"
+        hidden
+      ></p>
+      <p
+        id="status"
+        role="status"
+        aria-atomic="true"
+        data-l10n-id="feeds-status-loading"
+      ></p>
+      <p id="error" role="alert" hidden></p>
+
+      <form id="subscribe-form">
+        <fieldset id="subscribe-fields" disabled>
+          <legend data-l10n-id="feeds-subscribe-heading"></legend>
+          <div class="field">
+            <label for="feed-url" data-l10n-id="feeds-url-label"></label>
+            <input
+              id="feed-url"
+              type="url"
+              required
+              maxlength="4096"
+              autocomplete="off"
+              spellcheck="false"
+              aria-describedby="subscribe-note"
+            />
+          </div>
+          <div class="field">
+            <label for="feed-title" data-l10n-id="feeds-title-label"></label>
+            <input
+              id="feed-title"
+              type="text"
+              maxlength="1024"
+              autocomplete="off"
+            />
+          </div>
+          <p
+            id="subscribe-note"
+            class="secondary"
+            data-l10n-id="feeds-subscribe-note"
+          ></p>
+          <button
+            id="subscribe"
+            class="primary"
+            type="submit"
+            data-mutates
+            data-l10n-id="feeds-subscribe-button"
+            disabled
+          ></button>
+        </fieldset>
+      </form>
+
+      <section aria-labelledby="subscriptions-heading">
+        <div class="section-header">
+          <h2
+            id="subscriptions-heading"
+            tabindex="-1"
+            data-l10n-id="feeds-subscriptions-heading"
+          ></h2>
+          <div class="actions">
+            <button
+              id="import"
+              type="button"
+              data-mutates
+              data-l10n-id="feeds-import-button"
+              disabled
+            ></button>
+            <button
+              id="export"
+              type="button"
+              data-l10n-id="feeds-export-button"
+              disabled
+            ></button>
+          </div>
+        </div>
+        <p id="empty" data-l10n-id="feeds-empty" hidden></p>
+        <ul id="subscriptions"></ul>
+      </section>
+
+      <section id="preview" aria-labelledby="preview-heading" hidden>
+        <h2
+          id="preview-heading"
+          tabindex="-1"
+          data-l10n-id="feeds-preview-heading"
+        ></h2>
+        <p id="preview-title" class="feed-title"></p>
+        <p class="secondary" data-l10n-id="feeds-preview-note"></p>
+        <p id="preview-empty" data-l10n-id="feeds-preview-empty" hidden></p>
+        <ol id="preview-items"></ol>
+      </section>
+    </main>
+  </body>
+</html>

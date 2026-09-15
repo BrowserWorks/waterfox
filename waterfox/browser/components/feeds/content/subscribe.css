@@ -1,0 +1,93 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#waterfox-feed-subscribe-panel {
+  & [hidden] {
+    display: none;
+  }
+
+  & .waterfox-feed-subscribe-content {
+    inline-size: 32em;
+    max-inline-size: calc(100vw - var(--size-item-large));
+    max-block-size: calc(100vh - var(--size-item-large));
+    box-sizing: border-box;
+    padding: var(--space-large);
+    gap: var(--space-large);
+    overflow: auto;
+  }
+
+  & .waterfox-feed-subscribe-field {
+    min-inline-size: 0;
+    gap: var(--space-small);
+  }
+
+  & h2 {
+    margin: 0;
+    font-size: var(--font-size-large);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  & p {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  & label,
+  & input,
+  & menulist {
+    margin: 0;
+    min-inline-size: 0;
+  }
+
+  & input {
+    box-sizing: border-box;
+    inline-size: 100%;
+  }
+
+  & input:disabled {
+    color: var(--input-text-color-disabled);
+    background-color: var(--input-text-background-color-disabled);
+    border-color: var(--input-text-border-color-disabled);
+    opacity: var(--input-text-opacity-disabled);
+  }
+
+  & .waterfox-feed-subscribe-actions {
+    justify-content: end;
+    flex-wrap: wrap;
+    gap: var(--space-small);
+
+    & button {
+      margin: 0;
+    }
+  }
+}
+
+#waterfox-feed-url {
+  direction: ltr;
+}
+
+#waterfox-feed-folder-tree {
+  margin: 0;
+  block-size: 12.5em;
+  min-block-size: 12.5em;
+  border: var(--input-text-border);
+
+  &[disabled] {
+    opacity: var(--input-text-opacity-disabled);
+
+    & treechildren::-moz-tree-cell-text,
+    & treechildren::-moz-tree-twisty,
+    & treechildren::-moz-tree-image {
+      color: var(--input-text-color-disabled);
+    }
+
+    & treechildren::-moz-tree-image {
+      fill: currentColor;
+    }
+
+    & treechildren::-moz-tree-row(selected) {
+      background-color: var(--input-text-background-color-disabled);
+    }
+  }
+}
