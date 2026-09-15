@@ -81,7 +81,16 @@ class WindowsSMTCProvider final : public mozilla::dom::MediaControlKeySource {
 
   void ClearMetadata();
 
+  // Check for the enabled media overlay Windows in the config
+  bool ShouldShowOverlay() const;
+
+  // Global hotkey registration fallback when SMTC overlay is disabled
+  void RegisterHotKeys();
+  void UnregisterHotKeys();
+  static LRESULT CALLBACK StaticWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
   bool mInitialized = false;
+  bool mHotKeysRegistered = false;
 
   // A bit table indicating what keys are enabled
   uint32_t mSupportedKeys = 0;
