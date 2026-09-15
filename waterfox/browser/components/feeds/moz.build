@@ -1,0 +1,25 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+EXTRA_JS_MODULES += [
+    "AboutFeeds.sys.mjs",
+    "FeedLocationBar.sys.mjs",
+    "FeedParser.sys.mjs",
+    "FeedSubscribePanel.sys.mjs",
+    "LiveBookmarks.sys.mjs",
+    "LiveBookmarksUI.sys.mjs",
+]
+
+FINAL_TARGET_FILES.actors += [
+    "FeedDiscoveryChild.sys.mjs",
+    "FeedDiscoveryParent.sys.mjs",
+    "FeedPageChild.sys.mjs",
+    "FeedPageParent.sys.mjs",
+]
+
+XPCOM_MANIFESTS += ["components.conf"]
+JAR_MANIFESTS += ["jar.mn"]
+
+XPCSHELL_TESTS_MANIFESTS += ["tests/unit/xpcshell.toml"]
+BROWSER_CHROME_MANIFESTS += ["tests/browser/browser.toml"]

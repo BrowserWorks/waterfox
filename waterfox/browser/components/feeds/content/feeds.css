@@ -1,0 +1,128 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+body {
+  margin: 0;
+  padding: var(--space-xlarge);
+}
+
+main {
+  max-inline-size: calc(2 * var(--size-layout-xlarge));
+  margin-inline: auto;
+}
+
+header,
+section,
+form {
+  margin-block-end: var(--space-xxlarge);
+}
+
+fieldset,
+.subscription,
+#preview {
+  min-inline-size: 0;
+  padding: var(--space-xlarge);
+  border: 1px solid var(--border-color, ButtonBorder);
+  border-radius: var(--border-radius-medium, 8px);
+  background-color: var(--background-color-box, Canvas);
+}
+
+legend {
+  font-size: var(--font-size-heading-medium);
+  font-weight: var(--font-weight-semibold);
+  padding-inline: var(--space-small);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-small);
+  margin-block-end: var(--space-large);
+}
+
+input {
+  box-sizing: border-box;
+  inline-size: 100%;
+  margin: 0;
+}
+
+#feed-url,
+.feed-url {
+  direction: ltr;
+  text-align: start;
+}
+
+.section-header,
+.subscription {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-large);
+  flex-wrap: wrap;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-small);
+}
+
+.actions button {
+  margin: 0;
+}
+
+#subscriptions {
+  display: grid;
+  gap: var(--space-medium);
+  padding: 0;
+  list-style: none;
+}
+
+.subscription-info {
+  flex: 1 1 var(--size-layout-small);
+  min-inline-size: 0;
+}
+
+.subscription h3,
+.subscription p {
+  margin-block: 0 var(--space-small);
+}
+
+.feed-title,
+.feed-url,
+#preview-items li {
+  overflow-wrap: anywhere;
+  unicode-bidi: plaintext;
+}
+
+.secondary,
+.feed-url {
+  color: var(--text-color-deemphasized, var(--text-color));
+}
+
+.notice,
+#error {
+  padding: var(--space-large);
+  border-inline-start: 3px solid currentColor;
+  background-color: var(--background-color-box, Canvas);
+}
+
+#error {
+  color: var(--text-color-error, CanvasText);
+}
+
+#status {
+  min-block-size: 1.5em;
+}
+
+#preview-items {
+  padding-inline-start: var(--space-xlarge);
+}
+
+#preview-items li {
+  margin-block: var(--space-medium);
+}
+
+[hidden] {
+  display: none !important;
+}

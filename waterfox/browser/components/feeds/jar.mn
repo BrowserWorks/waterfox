@@ -1,0 +1,11 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+browser.jar:
+    content/browser/feeds/feeds.html                 (content/feeds.html)
+    content/browser/feeds/feeds.css                  (content/feeds.css)
+    content/browser/feeds/feeds.mjs                  (content/feeds.mjs)
+    content/browser/feeds/bookmarks.css              (content/bookmarks.css)
+    content/browser/feeds/subscribe.css              (content/subscribe.css)
+    content/browser/feeds/feed.svg                   (content/feed.svg)
