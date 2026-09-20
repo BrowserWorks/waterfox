@@ -381,6 +381,11 @@ add_task(
 
 add_task(async function test_new_tab_relationship_chooser() {
   await enableTreeTabs();
+  SidebarController._state.launcherExpanded = true;
+  await waitForTreeCondition(
+    () => gBrowser.tabContainer.hasAttribute("expanded"),
+    "Waiting for the visible new-tab controls"
+  );
 
   const parentTab = BrowserTestUtils.addTab(
     gBrowser,
@@ -389,6 +394,37 @@ add_task(async function test_new_tab_relationship_chooser() {
   await BrowserTestUtils.switchTab(gBrowser, parentTab);
   const button = document.getElementById("waterfox-tree-newtab-action-button");
   const childItem = document.getElementById("waterfox-tree-newtab-child");
+  const nativeButton = document.getElementById("tabs-newtab-button");
+  const hiddenButton = document.getElementById("vertical-tabs-newtab-button");
+  ok(hiddenButton, "The native vertical button remains in the DOM");
+  ok(
+    BrowserTestUtils.isHidden(hiddenButton),
+    "Tree mode hides the unused button"
+  );
+  ok(
+    BrowserTestUtils.isVisible(nativeButton),
+    "The real native new-tab button remains visible"
+  );
+  nativeButton.scrollIntoView({
+    block: "nearest",
+    inline: "start",
+    behavior: "instant",
+  });
+  await SidebarController.waitUntilStable();
+  await window.promiseDocumentFlushed(() => {});
+
+  const opened = BrowserTestUtils.waitForEvent(
+    gBrowser.tabContainer,
+    "TabOpen"
+  );
+  EventUtils.synthesizeMouseAtCenter(nativeButton, {});
+  const nativeTab = (await opened).target;
+  is(
+    getTreeParent(nativeTab),
+    null,
+    "The native button still opens an independent tab"
+  );
+  await BrowserTestUtils.switchTab(gBrowser, parentTab);
   const independentItem = document.getElementById(
     "waterfox-tree-newtab-independent"
   );
@@ -402,6 +438,21 @@ add_task(async function test_new_tab_relationship_chooser() {
   );
   const childTab = gBrowser.selectedTab;
   is(getTreeParent(childTab), parentTab, "Child action creates a tree child");
+  const siblings = [];
+  for (const action of ["sibling", "next-sibling"]) {
+    if (gBrowser.selectedTab != childTab) {
+      await BrowserTestUtils.switchTab(gBrowser, childTab);
+    }
+    button.querySelector(`[data-tree-newtab-action="${action}"]`).doCommand();
+    const sibling = gBrowser.selectedTab;
+    siblings.push(sibling);
+    is(getTreeParent(sibling), parentTab, `${action} still creates a sibling`);
+  }
+  Assert.deepEqual(
+    gBrowser.TreeTabsService.getChildren(parentTab),
+    [childTab, siblings[1], siblings[0]],
+    "The chooser preserves next-sibling versus last-sibling placement"
+  );
 
   await BrowserTestUtils.switchTab(gBrowser, parentTab);
   gBrowser.pinTab(parentTab);
@@ -420,6 +471,10 @@ add_task(async function test_new_tab_relationship_chooser() {
 
   gBrowser.unpinTab(parentTab);
   BrowserTestUtils.removeTab(independentTab);
+  for (const sibling of siblings.toReversed()) {
+    BrowserTestUtils.removeTab(sibling);
+  }
+  BrowserTestUtils.removeTab(nativeTab);
   BrowserTestUtils.removeTab(childTab);
   BrowserTestUtils.removeTab(parentTab);
 });

@@ -5781,6 +5781,7 @@
           telemetrySource,
         })
       ) {
+        Glean.browserTabclose.timeAnim.cancel(aTab._closeTimeAnimTimerId);
         Glean.browserTabclose.timeNoAnim.cancel(aTab._closeTimeNoAnimTimerId);
         aTab._closeTimeAnimTimerId = null;
         aTab._closeTimeNoAnimTimerId = null;
