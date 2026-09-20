@@ -753,7 +753,6 @@ function createTreeTabsController(window) {
     _restoreRetryTimerId: null,
     _inheritedMuteTabs: new WeakSet(),
     _manuallyExpandedTabs: new WeakSet(),
-    _newTabButton: null,
     _newTabActionButton: null,
     _dragAutoExpandedTabs: new Set(),
     _dragHoverExpandTab: null,
@@ -824,10 +823,6 @@ function createTreeTabsController(window) {
       window.addEventListener("resize", this);
       window.addEventListener("keydown", this, true);
       window.addEventListener("keyup", this, true);
-      this._newTabButton = document.getElementById(
-        "vertical-tabs-newtab-button"
-      );
-      this._newTabButton?.addEventListener("click", this, true);
       this._newTabActionButton = document.getElementById(
         "waterfox-tree-newtab-action-button"
       );
@@ -912,10 +907,8 @@ function createTreeTabsController(window) {
       window.removeEventListener("resize", this);
       window.removeEventListener("keydown", this, true);
       window.removeEventListener("keyup", this, true);
-      this._newTabButton?.removeEventListener("click", this, true);
       this._newTabActionButton?.removeEventListener("command", this);
       this._newTabActionButton?.removeEventListener("popupshowing", this);
-      this._newTabButton = null;
       this._newTabActionButton = null;
       this._resizeObserver?.disconnect();
       this._resizeObserver = null;
@@ -1053,10 +1046,6 @@ function createTreeTabsController(window) {
             (this._handleTreeCloseButtonClick(event) ||
               this._handleTreeAudioButtonClick(event))
           ) {
-            return;
-          }
-          if (event.currentTarget == this._newTabButton) {
-            this._handleNewTabButtonClick(event);
             return;
           }
           this._handleTabTwistyClick(event);
@@ -2227,41 +2216,6 @@ function createTreeTabsController(window) {
       return action;
     },
 
-    // Like TST's sidebar new tab button: middle-click opens a child of the
-    // current tab, accel-click opens its next sibling.
-    _handleNewTabButtonClick(event) {
-      if (!this._isEnabled()) {
-        return;
-      }
-      const middle = event.button == 1;
-      const accel = event.button == 0 && (event.ctrlKey || event.metaKey);
-      if (!middle && !accel) {
-        return;
-      }
-      const gBrowser = window.gBrowser;
-      const base = gBrowser?.selectedTab;
-      if (!base || base.pinned) {
-        return;
-      }
-      event.stopPropagation();
-      event.preventDefault();
-      const service = lazy.TreeTabsService;
-      const anchor = service.getSubtreeEndAnchor(base) || base;
-      const newTab = gBrowser.addTrustedTab(
-        window.BROWSER_NEW_TAB_URL || "about:newtab",
-        {
-          tabIndex: anchor._tPos + 1,
-          focusUrlBar: true,
-        }
-      );
-      gBrowser.selectedTab = newTab;
-      if (middle) {
-        service.attachTab(newTab, base);
-      } else {
-        service.onTabOpened(newTab, { nextSiblingOf: base });
-      }
-    },
-
     _handleNewTabActionCommand(event) {
       const action = event.target?.dataset?.treeNewtabAction;
       if (!action || !this._isEnabled() || !this._tabContainer?.verticalMode) {
@@ -2900,9 +2854,12 @@ function createTreeTabsController(window) {
       };
 
       for (const tab of window.gBrowser.tabs) {
+        // TabOpen can precede model registration. A tab without a tree parent
+        // cannot be hidden by a collapsed ancestor.
         const shouldShow =
           visible.size === 0 ||
           visible.has(tab) ||
+          !lazy.TreeTabsService.getParent(tab) ||
           (stickyActiveTabEnabled && tab == selectedTab);
         setHidden(tab, !shouldShow);
       }
