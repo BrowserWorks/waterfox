@@ -7,6 +7,12 @@
     "urls": {
       "search": {
         "base": "https://www.bing.com/search",
+        "params": [
+          {
+            "name": "showconv",
+            "experimentConfig": "waterfox_ai_bing"
+          }
+        ],
         "searchTermParamName": "q"
       },
       "suggestions": {
@@ -67,6 +73,12 @@
     "urls": {
       "search": {
         "base": "https://www.google.com/search",
+        "params": [
+          {
+            "name": "udm",
+            "experimentConfig": "waterfox_ai_google"
+          }
+        ],
         "searchTermParamName": "q"
       },
       "suggestions": {
@@ -110,7 +122,7 @@
           },
           {
             "name": "llm",
-            "value": "0"
+            "experimentConfig": "waterfox_ai_qwant"
           }
         ],
         "searchTermParamName": "q"

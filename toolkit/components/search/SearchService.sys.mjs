@@ -118,6 +118,78 @@ export function getWaterfoxDefaultSearchEngineId(region) {
     : "qwant";
 }
 
+const WATERFOX_NOAI_SEARCH_BASES = Object.freeze({
+  ddg: "https://noai.duckduckgo.com/",
+});
+
+const WATERFOX_DIRECT_SUGGESTIONS = {
+  google: {
+    base: "https://www.google.com/complete/search",
+    params: [
+      { name: "client", value: "firefox" },
+      { name: "channel", value: "fen" },
+    ],
+    searchTermParamName: "q",
+  },
+  bing: {
+    base: "https://www.bing.com/osjson.aspx",
+    params: [{ name: "form", value: "OSDJAS" }],
+    searchTermParamName: "query",
+  },
+  ddg: {
+    base: "https://ac.duckduckgo.com/ac/",
+    params: [{ name: "type", value: "list" }],
+    searchTermParamName: "q",
+  },
+  ecosia: {
+    base: "https://ac.ecosia.org/autocomplete",
+    params: [{ name: "type", value: "list" }],
+    searchTermParamName: "q",
+  },
+  qwant: {
+    base: "https://api.qwant.com/api/suggest/",
+    params: [{ name: "client", value: "opensearch" }],
+    searchTermParamName: "q",
+  },
+};
+
+/**
+ * Applies the Waterfox search prefs to a fetched engine list, returning a
+ * modified copy. Engines without a mapping keep their configured URLs.
+ *
+ * @param {Array<object>} engines
+ *   The engine definitions from BrowserSearchEngines.json.
+ * @param {object} [prefs]
+ *   The Waterfox search prefs.
+ * @param {boolean} [prefs.useProxy]
+ *   When false, suggestions use each engine's direct endpoint.
+ * @param {boolean} [prefs.disableAI]
+ *   When true, engines with a no-AI endpoint use it.
+ * @returns {Array<object>}
+ *   The tweaked engine definitions.
+ */
+export function applyWaterfoxSearchTweaks(
+  engines,
+  { useProxy = true, disableAI = true } = {}
+) {
+  const tweaked = structuredClone(engines);
+  for (const engine of tweaked) {
+    if (!useProxy) {
+      const direct = WATERFOX_DIRECT_SUGGESTIONS[engine.identifier];
+      if (direct && engine.urls?.suggestions) {
+        engine.urls.suggestions = structuredClone(direct);
+      }
+    }
+    if (disableAI) {
+      const noAIBase = WATERFOX_NOAI_SEARCH_BASES[engine.identifier];
+      if (noAIBase && engine.urls?.search) {
+        engine.urls.search.base = noAIBase;
+      }
+    }
+  }
+  return tweaked;
+}
+
 // The update timer for OpenSearch engines checks in once a day.
 const OPENSEARCH_UPDATE_TIMER_TOPIC = "search-engine-update-timer";
 const OPENSEARCH_UPDATE_TIMER_INTERVAL = 60 * 60 * 24;
@@ -1596,6 +1668,16 @@ export const SearchService = new (class SearchService {
       default: "",
       onUpdate: () => this.#maybeReloadEngines(this.CHANGE_REASON.EXPERIMENT),
     },
+    suggestionsProxyPrefValue: {
+      pref: "waterfox.search.suggestions.useProxy",
+      default: true,
+      onUpdate: () => this.#maybeReloadEngines(this.CHANGE_REASON.EXPERIMENT),
+    },
+    disableAIPrefValue: {
+      pref: "waterfox.search.disableAIFeatures",
+      default: true,
+      onUpdate: () => this.#maybeReloadEngines(this.CHANGE_REASON.EXPERIMENT),
+    },
   });
 
   /**
@@ -1611,6 +1693,11 @@ export const SearchService = new (class SearchService {
       Services.obs.addObserver(this, lazy.Region.REGION_TOPIC);
       this.#earlyObserversAdded = true;
     }
+
+    // Register the Waterfox search pref observers so toggling the
+    // checkboxes reloads engines with the matching endpoints.
+    void this.#lazyPrefs.suggestionsProxyPrefValue;
+    void this.#lazyPrefs.disableAIPrefValue;
 
     this.#getIgnoreListAndSubscribe().catch(ex =>
       console.error(ex, "Search Service could not get the ignore list.")
@@ -2871,7 +2958,13 @@ export const SearchService = new (class SearchService {
       );
     }
 
-    const engines = await (await fetch(WATERFOX_SEARCH_ENGINES_URL)).json();
+    const engines = applyWaterfoxSearchTweaks(
+      await (await fetch(WATERFOX_SEARCH_ENGINES_URL)).json(),
+      {
+        useProxy: this.#lazyPrefs.suggestionsProxyPrefValue,
+        disableAI: this.#lazyPrefs.disableAIPrefValue,
+      }
+    );
     const defaultEngineId = getWaterfoxDefaultSearchEngineId(lazy.Region.home);
 
     return {
