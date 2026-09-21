@@ -7,6 +7,7 @@ const lazy = {};
 ChromeUtils.defineESModuleGetters(lazy, {
   WaterfoxSearchExtensionPolicy:
     "resource:///modules/WaterfoxSearchExtensionPolicy.sys.mjs",
+  WaterfoxSearchTweaks: "resource:///modules/WaterfoxSearchTweaks.sys.mjs",
 });
 
 const MIGRATION_PREF = "browser.migration.waterfox_version";
@@ -17,6 +18,7 @@ export const WaterfoxGlue = {
     this.migrateUI();
 
     lazy.WaterfoxSearchExtensionPolicy.init();
+    lazy.WaterfoxSearchTweaks.init();
   },
 
   // Runs once per profile upgrade. Migrations for profiles coming from

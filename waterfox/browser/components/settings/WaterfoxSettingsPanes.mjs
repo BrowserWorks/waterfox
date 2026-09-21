@@ -8,4 +8,12 @@ if (Services.prefs.getBoolPref("browser.settings-redesign.enabled", false)) {
   const aboutPane = SettingPaneManager.get("about");
   aboutPane.module =
     "chrome://browser/content/waterfox/settings/waterfoxUpdates.mjs";
+
+  // The search pane keeps its Mozilla module; waterfoxSearch amends its
+  // defaultEngine and searchSuggestions groups at runtime, so it only needs
+  // to load before that pane.
+  ChromeUtils.importESModule(
+    "chrome://browser/content/waterfox/settings/waterfoxSearch.mjs",
+    { global: "current" }
+  );
 }
