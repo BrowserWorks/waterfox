@@ -63,6 +63,7 @@ pref("browser.urlbar.suggest.quicksuggest.sponsored", false, locked);
 pref("browser.urlbar.trending.featureGate", false);
 
 pref("browser.search.separatePrivateDefault.ui.enabled", true);
+pref("browser.search.suggest.timeout", 2000);
 
 // Partner attribution codes referenced by the search configuration. The
 // Waterfox search extension policy blanks these while an ad clicking
@@ -70,6 +71,13 @@ pref("browser.search.separatePrivateDefault.ui.enabled", true);
 pref("browser.search.param.waterfox_attribution_ddg", "waterfox");
 pref("browser.search.param.waterfox_attribution_ecosia", "57226k1p");
 pref("browser.search.param.waterfox_attribution_qwant", "brz-waterfox");
+
+pref("waterfox.search.suggestions.useProxy", true);
+
+pref("waterfox.search.disableAIFeatures", true);
+pref("browser.search.param.waterfox_ai_google", "14");
+pref("browser.search.param.waterfox_ai_bing", "0");
+pref("browser.search.param.waterfox_ai_qwant", "0");
 
 // Tab features.
 pref("browser.newtab.url", "");

@@ -4,6 +4,7 @@
 
 EXTRA_JS_MODULES += [
     "WaterfoxSearchExtensionPolicy.sys.mjs",
+    "WaterfoxSearchTweaks.sys.mjs",
 ]
 
 JAR_MANIFESTS += ["jar.mn"]
