@@ -17,6 +17,7 @@ ChromeUtils.defineESModuleGetters(lazy, {
   WaterfoxBlockerService: "resource:///modules/WaterfoxBlockerService.sys.mjs",
   WaterfoxSearchExtensionPolicy:
     "resource:///modules/WaterfoxSearchExtensionPolicy.sys.mjs",
+  WaterfoxSearchTweaks: "resource:///modules/WaterfoxSearchTweaks.sys.mjs",
   WaterfoxBrowserStyle: "resource:///modules/WaterfoxBrowserStyle.sys.mjs",
   WaterfoxTheme: "resource:///modules/WaterfoxTheme.sys.mjs",
   WaterfoxThemeColors: "resource:///modules/WaterfoxThemeColors.sys.mjs",
@@ -43,6 +44,7 @@ export const WaterfoxGlue = {
     lazy.WaterfoxThemeColors.init();
 
     lazy.WaterfoxSearchExtensionPolicy.init();
+    lazy.WaterfoxSearchTweaks.init();
 
     // Register the blocker window actors early so cosmetic filtering and
     // scriptlet hooks run for the first pages.
