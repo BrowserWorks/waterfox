@@ -1,0 +1,74 @@
+name: Bug Report
+description: File a bug report.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+  - type: textarea
+    id: what-happened-bug-info
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+      placeholder: "A clear and concise description helps us understand what the bug is."
+    validations:
+      required: true
+  - type: textarea
+    id: version-wf-release
+    attributes:
+      label: Waterfox version
+      description: State the Waterfox version where you are encountering an issue.
+      placeholder: ".e.g. Waterfox 6.7.4"
+    validations:
+      required: true
+  - type: textarea
+    id: version-os
+    attributes:
+      label: Operating system
+      description: Which OS are you using?
+      placeholder: "e.g. Windows 11"
+    validations:
+      required: true
+  - type: textarea
+    id: additional-addons
+    attributes:
+      label: Addons
+      description: Any additional addons used?
+      placeholder: "e.g. uBlock Origin"
+    validations:
+      required: true
+  - type: textarea
+    id: additional-customization
+    attributes:
+      label: Customization
+      description: Any additional customization applied?
+      placeholder: "e.g. Has the userChrome.css been modified ?"
+    validations:
+      required: true
+  - type: checkboxes
+    id: testing-firefox
+    attributes:
+      label: Tested in Firefox
+      description: Does this bug persist in Firefox?
+      options:
+        - label: I can replicate this bug in Firefox
+          required: true
+  - type: textarea
+    id: what-happened-bug-screenshot-video
+    attributes:
+      label: Add screenshot/video
+      description: If applicable add screenshots/videos to help explain the problem.
+      placeholder: Adding screenshots/videos help explain the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: additional-info
+    attributes:
+      label: Add any other context about the bug here
+      description: Add any other context about the bug here (provide logs)
+      placeholder: "Additional information which is relevant about the bug"
+    validations:
+      required: false
+  
