@@ -1,0 +1,66 @@
+name: Bug Report
+description: File a bug report.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+
+        Feature requests belong in [Discussions](https://github.com/BrowserWorks/waterfox/discussions). Please do not submit feature requests as issues.
+  - type: textarea
+    id: what-happened-bug-info
+    attributes:
+      label: Describe the bug
+      description: A clear and concise description of what the bug is.
+      placeholder: "A clear and concise description helps us understand what the bug is."
+    validations:
+      required: true
+  - type: textarea
+    id: troubleshooting-information
+    attributes:
+      label: Troubleshooting information (about:support)
+      description: |
+        Open `about:support` in Waterfox, click **Copy raw data to clipboard**, and paste the result here.
+        Review the data and redact personal details, such as names in device labels or file paths, before posting it publicly.
+        If Waterfox cannot open or you cannot collect the data, explain why here instead.
+      placeholder: Paste the raw troubleshooting data here, or explain why it could not be collected.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: additional-customization
+    attributes:
+      label: Customization
+      description: Any additional customization applied?
+      placeholder: "e.g. Has the userChrome.css been modified ?"
+    validations:
+      required: true
+  - type: dropdown
+    id: testing-firefox
+    attributes:
+      label: Tested in Firefox
+      description: Does this bug persist in Firefox?
+      multiple: false
+      options:
+        - I can replicate this bug in Firefox
+        - I cannot replicate this bug in Firefox
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened-bug-screenshot-video
+    attributes:
+      label: Add screenshot/video
+      description: If applicable add screenshots/videos to help explain the problem.
+      placeholder: Adding screenshots/videos help explain the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: additional-info
+    attributes:
+      label: Add any other context about the bug here
+      description: Add any other context about the bug here (provide logs)
+      placeholder: "Additional information which is relevant about the bug"
+    validations:
+      required: false
