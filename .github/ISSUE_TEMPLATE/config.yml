@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Feature requests
+    url: https://github.com/BrowserWorks/waterfox/discussions
+    about: Feature requests belong in Discussions. Please do not submit them as issues.
