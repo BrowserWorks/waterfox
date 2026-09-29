@@ -1,0 +1,32 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+:root {
+  -moz-theme: non-native;
+  color-scheme: light dark;
+  background-color: var(--background-color-canvas);
+}
+
+:root[data-browser-color-scheme="light"] {
+  color-scheme: light;
+}
+
+:root[data-browser-color-scheme="dark"] {
+  color-scheme: dark;
+}
+
+body.feed-reader {
+  --main-background: var(--background-color-canvas);
+  --main-foreground: var(--text-color);
+  --link-foreground: var(--link-color);
+  --visited-link-foreground: var(--link-color-visited);
+}
+
+.feed-reader :is(.reader-domain, .domain-border, .narrate-dropdown) {
+  display: none;
+}
+
+:root[data-is-error] .reader-message {
+  display: block;
+}

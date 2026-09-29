@@ -126,6 +126,13 @@ pref("browser.download.open_pdf_attachments_inline", true);
 
 pref("browser.aboutConfig.showWarning", false);
 pref("browser.bookmarks.openInTabClosesMenu", false);
+pref("browser.feeds.discovery.enabled", true);
+pref("browser.feeds.menu.enabled", true);
+pref("browser.feeds.articleOpening", "reader");
+pref("browser.feeds.loadImages", true);
+pref("browser.feeds.filter", "all");
+pref("browser.feeds.display", "list");
+pref("browser.feeds.order", "newest");
 pref("browser.menu.showViewImageInfo", true);
 pref("browser.history.collectWireframes", true);
 pref("browser.link.open_newwindow.restriction", 0);

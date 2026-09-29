@@ -57,7 +57,7 @@
   @media -moz-pref("userChrome.icon.library") {
     /*= Standard Folder - More Visible ===========================================*/
     /* on Toolbar and Menus */
-    :-moz-any(#PlacesToolbar, #BMB_bookmarksPopup, #bookmarksMenu) .bookmark-item[container="true"]:not([query="true"], [tagContainer], [dayContainer]),
+    :-moz-any(#PlacesToolbar, #BMB_bookmarksPopup, #bookmarksMenu) .bookmark-item[container="true"]:not([query="true"], [tagContainer], [dayContainer], .waterfox-live-bookmark),
     :-moz-any(#bookmarks-view, #historyTree, #editBMPanel_folderTree, #placesList, #placeContent) treechildren::-moz-tree-image(title, container),
     #editBMPanel_folderMenuList:not([selectedGuid="toolbar_____"], [selectedGuid="menu________"]),
     #editBMPanel_folderMenuList .folder-icon:not([id]),
@@ -66,7 +66,7 @@
     }
     /* Standard Folder - Open */
     :-moz-any(#PlacesToolbar, #BMB_bookmarksPopup, #bookmarksMenu)
-      .bookmark-item[container="true"]:not([query="true"], [tagContainer], [dayContainer])[open="true"],
+      .bookmark-item[container="true"]:not([query="true"], [tagContainer], [dayContainer], .waterfox-live-bookmark)[open="true"],
     :-moz-any(#bookmarks-view, #historyTree, #editBMPanel_folderTree, #placesList, #placeContent) treechildren::-moz-tree-image(title, container, open) {
       list-style-image: url("chrome://browser/skin/lepton/folder-open.svg") !important;
     }

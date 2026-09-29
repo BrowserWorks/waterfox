@@ -1,0 +1,163 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this file,
+   - You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<!doctype html>
+<html>
+  <head>
+    <title id="reader-title"></title>
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src chrome://global/content/; style-src chrome://global/ chrome://browser/content/feeds/ 'unsafe-inline'; img-src chrome://global/ http: https:; font-src chrome://global/; connect-src 'none'; media-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <meta content="text/html; charset=UTF-8" http-equiv="content-type" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <meta http-equiv="x-dns-prefetch-control" content="off" />
+    <link
+      rel="stylesheet"
+      href="chrome://global/skin/design-system/tokens-brand.css"
+    />
+    <link
+      rel="stylesheet"
+      href="chrome://global/skin/aboutReader.css"
+      type="text/css"
+    />
+    <link
+      rel="stylesheet"
+      href="chrome://browser/content/feeds/feedreader.css"
+    />
+    <link rel="localization" href="toolkit/about/aboutReader.ftl" />
+    <link rel="localization" href="toolkit/branding/brandings.ftl" />
+    <script
+      type="module"
+      src="chrome://global/content/reader/moz-slider.mjs"
+    ></script>
+  </head>
+
+  <body class="feed-reader">
+    <div class="top-anchor"></div>
+
+    <div id="toolbar" class="toolbar-container">
+      <div class="toolbar reader-toolbar">
+        <div class="reader-controls">
+          <ul class="dropdown text-layout-dropdown">
+            <li>
+              <button
+                class="dropdown-toggle toolbar-button text-layout-button"
+                aria-labelledby="toolbar-text-layout-controls"
+              >
+                <span
+                  class="hover-label"
+                  id="toolbar-text-layout-controls"
+                  data-l10n-id="about-reader-toolbar-text-layout-controls"
+                ></span>
+              </button>
+            </li>
+            <li class="dropdown-popup" id="text-layout-controls" tabindex="-1">
+              <h2
+                data-l10n-id="about-reader-text-header"
+                id="about-reader-text-header"
+              ></h2>
+              <div id="text-size-controls">
+                <span
+                  data-l10n-id="about-reader-text-size-label"
+                  id="about-reader-text-size-label"
+                ></span>
+                <div class="text-size-buttons buttonrow">
+                  <button
+                    class="text-size-minus-button"
+                    data-l10n-id="about-reader-toolbar-minus"
+                  ></button>
+                  <button
+                    class="text-size-plus-button"
+                    data-l10n-id="about-reader-toolbar-plus"
+                  ></button>
+                </div>
+              </div>
+              <div id="font-controls">
+                <div id="font-type-dropdown" class="dropdown-selector">
+                  <label
+                    for="font-type-selector"
+                    data-l10n-id="about-reader-font-type-selector-label"
+                  ></label>
+                  <select
+                    name="font-type-selector"
+                    id="font-type-selector"
+                  ></select>
+                </div>
+                <div id="font-weight-dropdown" class="dropdown-selector">
+                  <label
+                    for="font-weight-selector"
+                    data-l10n-id="about-reader-font-weight-selector-label"
+                  ></label>
+                  <select
+                    name="font-weight-selector"
+                    id="font-weight-selector"
+                  ></select>
+                </div>
+              </div>
+              <hr />
+              <h2
+                data-l10n-id="about-reader-layout-header"
+                id="about-reader-layout-header"
+              ></h2>
+              <div id="content-width-slider" class="slider-container"></div>
+              <div id="line-spacing-slider" class="slider-container"></div>
+              <hr />
+              <details id="about-reader-advanced-layout">
+                <summary class="accordion-header">
+                  <h2
+                    data-l10n-id="about-reader-advanced-layout-header"
+                    id="about-reader-advanced-layout-header"
+                  ></h2>
+                  <span class="chevron-icon"></span>
+                </summary>
+                <div
+                  id="character-spacing-slider"
+                  class="slider-container"
+                ></div>
+                <div id="word-spacing-slider" class="slider-container"></div>
+                <label
+                  for="text-alignment-buttons"
+                  data-l10n-id="about-reader-text-alignment-label"
+                ></label>
+                <div
+                  class="text-alignment-buttons radiorow"
+                  id="text-alignment-buttons"
+                ></div>
+                <button
+                  class="text-layout-reset-button reset-button"
+                  data-l10n-id="about-reader-reset-button"
+                ></button>
+              </details>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+      <div class="header reader-header">
+        <a class="domain reader-domain"></a>
+        <div class="domain-border"></div>
+        <h1 class="reader-title"></h1>
+        <div class="credits reader-credits"></div>
+        <div class="meta-data">
+          <div class="reader-estimated-time"></div>
+        </div>
+      </div>
+
+      <hr />
+
+      <div class="content">
+        <div class="moz-reader-content"></div>
+      </div>
+
+      <div>
+        <div class="reader-message" role="status"></div>
+      </div>
+      <div aria-owns="toolbar"></div>
+    </div>
+  </body>
+</html>
