@@ -1343,6 +1343,10 @@ byId("direct-undo").addEventListener("click", () => {
   });
 });
 
+byId("reading-settings").addEventListener("click", () => {
+  void run(() => query("OpenSettings"));
+});
+
 function handleOriginalLink(event) {
   const link = event.target.closest("a[data-original]");
   const expectedButton = event.type === "auxclick" ? 1 : 0;

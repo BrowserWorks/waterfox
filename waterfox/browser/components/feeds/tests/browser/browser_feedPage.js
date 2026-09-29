@@ -98,6 +98,45 @@ async function withFeedPage(task, win = window) {
   );
 }
 
+add_task(
+  async function unreadable_storage_has_a_specific_error_and_settings_work() {
+    const sandbox = sinon.createSandbox();
+    const storageError = new Error("Unreadable subscription storage");
+    storageError.name = "LiveBookmarksStorageError";
+    const init = sandbox.stub(LiveBookmarks, "init").rejects(storageError);
+    const openPreferences = sandbox.stub(window, "openPreferences");
+    try {
+      await BrowserTestUtils.withNewTab("about:feeds", async browser => {
+        await SpecialPowers.spawn(browser, [], async () => {
+          const doc = content.document;
+          const error = doc.getElementById("error");
+          await ContentTaskUtils.waitForCondition(
+            () => !error.hidden,
+            "Wait for the storage failure"
+          );
+          is(
+            doc.l10n.getAttributes(error).id,
+            "feeds-error-storage",
+            "Present a storage error instead of connection or folder advice"
+          );
+        });
+        init.resetHistory();
+        await SpecialPowers.spawn(browser, [], async () => {
+          content.document.getElementById("reading-settings").click();
+        });
+        await TestUtils.waitForCondition(
+          () => openPreferences.calledOnce,
+          "Settings remain accessible when subscription storage is unreadable"
+        );
+        ok(openPreferences.calledOnceWithExactly("paneFeeds"));
+        ok(init.notCalled, "Opening settings does not initialize storage");
+      });
+    } finally {
+      sandbox.restore();
+    }
+  }
+);
+
 add_task(async function recovered_storage_notice_does_not_block_the_page() {
   await withFeedService(async stubs => {
     stubs.recovery.get(() => "cache");
@@ -119,6 +158,10 @@ add_task(async function recovered_storage_notice_does_not_block_the_page() {
         search.value = "no matching recovered article";
         search.dispatchEvent(new content.Event("input", { bubbles: true }));
         is(doc.querySelectorAll(".article-card").length, 0, "Search works");
+        ok(
+          !doc.getElementById("reading-settings").disabled,
+          "Settings enabled"
+        );
         doc.getElementById("add-feed").click();
         ok(doc.getElementById("add-dialog").open, "Add feed remains usable");
         ok(!doc.getElementById("add-preview-button").disabled);

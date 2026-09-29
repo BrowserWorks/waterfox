@@ -16,6 +16,7 @@ const COMMANDS = new Set([
   "MarkRead",
   "Save",
   "SetPreference",
+  "OpenSettings",
   "OpenReader",
   "OpenOriginal",
 ]);
