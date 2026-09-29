@@ -1,5 +1,8 @@
 [DEFAULT]
 
+["browser_feedDirectPreview.js"]
+support-files = ["feed-direct.sjs"]
+
 ["browser_feedIntegration.js"]
 support-files = ["feed-discovery.html", "feed.xml"]
 

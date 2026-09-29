@@ -128,6 +128,7 @@ pref("browser.aboutConfig.showWarning", false);
 pref("browser.bookmarks.openInTabClosesMenu", false);
 pref("browser.feeds.discovery.enabled", true);
 pref("browser.feeds.menu.enabled", true);
+pref("browser.feeds.preview.enabled", true);
 pref("browser.feeds.articleOpening", "reader");
 pref("browser.feeds.loadImages", true);
 pref("browser.feeds.filter", "all");
