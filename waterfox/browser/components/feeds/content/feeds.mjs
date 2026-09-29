@@ -1292,6 +1292,10 @@ byId("direct-undo").addEventListener("click", () => {
   });
 });
 
+byId("reading-settings").addEventListener("click", () => {
+  void run(() => query("OpenSettings"));
+});
+
 document.addEventListener("click", event => {
   const link = event.target.closest("a[data-original]");
   if (!link || event.defaultPrevented || event.button !== 0) {

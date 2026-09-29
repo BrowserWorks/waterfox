@@ -57,6 +57,7 @@ const REQUEST_FIELDS = new Map([
   ["MarkRead", ["feedURL", "id", "read"]],
   ["Save", ["feedURL", "id", "saved"]],
   ["SetPreference", ["name", "value"]],
+  ["OpenSettings", []],
   ["OpenReader", ["feedURL", "id"]],
   ["OpenOriginal", ["feedURL", "id"]],
 ]);
@@ -351,6 +352,11 @@ export class FeedPageParent extends JSWindowActorParent {
             );
           }
           value = this.#preferences();
+          break;
+        case "OpenSettings":
+          this.browsingContext.embedderElement.documentGlobal.openPreferences(
+            "paneFeeds"
+          );
           break;
       }
       this.#assertPage();

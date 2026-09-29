@@ -5,10 +5,15 @@
 import { SettingPaneManager } from "chrome://browser/content/preferences/config/SettingPaneManager.mjs";
 
 /**
- * Waterfox setting panes. Top level panes also need a moz-page-nav-button
- * element in preferences.xhtml.
+ * Waterfox setting panes and their navigation setup.
  */
 const WATERFOX_CONFIG_PANES = Object.freeze({
+  feeds: {
+    l10nId: "waterfox-feeds-pane-header",
+    iconSrc: "chrome://browser/content/feeds/feed.svg",
+    groupIds: ["waterfoxFeeds", "waterfoxFeedsSubscribe", "waterfoxFeedsOPML"],
+    module: "chrome://browser/content/waterfox/settings/waterfoxFeeds.mjs",
+  },
   adBlocking: {
     l10nId: "waterfox-blocker-pane-header",
     iconSrc: "chrome://browser/content/blocker/waterfoxShield.svg",
@@ -22,6 +27,20 @@ const WATERFOX_CONFIG_PANES = Object.freeze({
       Services.prefs.getBoolPref("waterfox.blocker.ui.enabled", false),
   },
 });
+
+// This module loads synchronously in init_all(), before category navigation.
+window.MozXULElement.insertFTLIfNeeded(
+  "browser/waterfox/feeds-preferences.ftl"
+);
+const feedsCategory = document.createElementNS(
+  "http://www.w3.org/1999/xhtml",
+  "moz-page-nav-button"
+);
+feedsCategory.id = "category-feeds";
+feedsCategory.setAttribute("view", "paneFeeds");
+feedsCategory.setAttribute("iconsrc", WATERFOX_CONFIG_PANES.feeds.iconSrc);
+document.l10n.setAttributes(feedsCategory, "pane-waterfox-feeds-title");
+document.getElementById("category-home").after(feedsCategory);
 
 SettingPaneManager.registerPanes(WATERFOX_CONFIG_PANES);
 
