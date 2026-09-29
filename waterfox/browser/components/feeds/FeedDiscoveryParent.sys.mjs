@@ -2,14 +2,25 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { DISCOVERY_PREF } from "resource:///modules/FeedConstants.sys.mjs";
+import {
+  DISCOVERY_PREF,
+  MAX_FEED_BYTES,
+  XML_MIME_TYPES,
+} from "resource:///modules/FeedConstants.sys.mjs";
 
+const lazy = {};
+ChromeUtils.defineESModuleGetters(lazy, {
+  FeedPreview: "resource:///modules/FeedPreview.sys.mjs",
+  parseFeed: "resource:///modules/FeedParser.sys.mjs",
+});
 const MAX_FEEDS = 20;
 const MAX_URL_LENGTH = 4096;
 const MAX_TITLE_LENGTH = 1024;
 
 /** Validates untrusted discovery results against the current page principal. */
 export class FeedDiscoveryParent extends JSWindowActorParent {
+  #directChecked = false;
+
   #isCurrentDocument() {
     const { documentURI, documentPrincipal } = this.manager;
     return (
@@ -22,6 +33,9 @@ export class FeedDiscoveryParent extends JSWindowActorParent {
   }
 
   receiveMessage({ name }) {
+    if (name === "Feeds:Direct") {
+      return this.#previewDirect();
+    }
     if (
       name !== "Feeds:Changed" ||
       !Services.prefs.getBoolPref(DISCOVERY_PREF, true) ||
@@ -36,6 +50,82 @@ export class FeedDiscoveryParent extends JSWindowActorParent {
       win.WaterfoxLiveBookmarks?.updateFeedButton(win);
     }
     return undefined;
+  }
+
+  async #previewDirect() {
+    try {
+      if (this.#directChecked || !this.#isCurrentDocument()) {
+        return;
+      }
+      this.#directChecked = true;
+      const context = this.browsingContext;
+      const browser = context.embedderElement;
+      const sourceURI = this.manager.documentURI;
+      if (
+        !browser?.documentGlobal?.gBrowser?.getTabForBrowser(browser) ||
+        sourceURI.spec.length > MAX_URL_LENGTH ||
+        sourceURI.userPass
+      ) {
+        return;
+      }
+      let superseded = false;
+      const progress = {
+        QueryInterface: ChromeUtils.generateQI([
+          "nsIWebProgressListener",
+          "nsISupportsWeakReference",
+        ]),
+        onStateChange(webProgress, _request, flags) {
+          if (
+            webProgress.isTopLevel &&
+            flags & Ci.nsIWebProgressListener.STATE_START
+          ) {
+            superseded = true;
+          }
+        },
+      };
+      browser.addProgressListener(
+        progress,
+        Ci.nsIWebProgress.NOTIFY_STATE_DOCUMENT
+      );
+      let xml;
+      try {
+        xml = await this.sendQuery("Feeds:ReadDirect");
+      } finally {
+        browser.removeProgressListener(progress);
+      }
+      if (
+        superseded ||
+        typeof xml !== "string" ||
+        xml.length > MAX_FEED_BYTES ||
+        (!XML_MIME_TYPES.includes(browser.documentContentType) &&
+          browser.documentContentType !== "text/plain") ||
+        !this.#isCurrentDocument() ||
+        browser.browsingContext !== context ||
+        !browser.currentURI.equals(sourceURI) ||
+        !this.manager.documentURI.equals(sourceURI)
+      ) {
+        return;
+      }
+      const feedURI = sourceURI.mutate().setRef("").finalize();
+      Services.scriptSecurityManager.checkLoadURIWithPrincipal(
+        this.manager.documentPrincipal,
+        feedURI,
+        Ci.nsIScriptSecurityManager.DISALLOW_INHERIT_PRINCIPAL
+      );
+      const feedURL = feedURI.spec;
+      const feed = lazy.parseFeed(xml, feedURL);
+      const previewURL = lazy.FeedPreview.set(context, { feedURL, feed });
+      // Preserve the parsed snapshot across the process switch and replace the
+      // raw XML history entry with its reloadable preview.
+      // Target this browser, not the selected tab; background loads are valid.
+      browser.loadURI(Services.io.newURI(previewURL), {
+        triggeringPrincipal:
+          Services.scriptSecurityManager.getSystemPrincipal(),
+        loadFlags: Ci.nsIWebNavigation.LOAD_FLAGS_REPLACE_HISTORY,
+      });
+    } catch {
+      // Invalid feeds and documents replaced during the query remain untouched.
+    }
   }
 
   // Chrome callers must use discover(), not sendQuery(), to validate IPC results.

@@ -7,8 +7,11 @@ import { clearTimeout, setTimeout } from "resource://gre/modules/Timer.sys.mjs";
 import {
   DISCOVERY_PREF,
   FEED_MIME_TYPES,
+  MAX_FEED_BYTES,
+  XML_MIME_TYPES,
 } from "resource:///modules/FeedConstants.sys.mjs";
 
+const MAX_XML_NODES = 100000;
 const MAX_FEEDS = 20;
 const MAX_LINKS = 1000;
 const MAX_URL_LENGTH = 4096;
@@ -23,6 +26,7 @@ export class FeedDiscoveryChild extends JSWindowActorChild {
   #observedHead = null;
   #changeTimer = null;
   #active = true;
+  #directChecked = false;
 
   actorCreated() {
     Services.prefs.addObserver(DISCOVERY_PREF, this.#onDiscoveryPrefChanged);
@@ -51,6 +55,10 @@ export class FeedDiscoveryChild extends JSWindowActorChild {
       case "pageshow":
         this.#active = true;
         this.#startObserving();
+        if (!this.#directChecked && this.#isDirectCandidate()) {
+          this.#directChecked = true;
+          this.sendAsyncMessage("Feeds:Direct");
+        }
         break;
     }
   }
@@ -92,6 +100,69 @@ export class FeedDiscoveryChild extends JSWindowActorChild {
     });
     this.#observeHead();
     this.#scheduleChanged();
+  }
+
+  #isDirectCandidate() {
+    const document = this.document;
+    if (
+      !this.#active ||
+      this.browsingContext.parent ||
+      !/^https?:/.test(document.documentURI) ||
+      document.readyState === "loading" ||
+      document.doctype
+    ) {
+      return false;
+    }
+    if (document.contentType === "text/plain") {
+      return true;
+    }
+    const root = document.documentElement;
+    return (
+      XML_MIME_TYPES.includes(document.contentType) &&
+      root &&
+      ((root.localName === "rss" && !root.namespaceURI) ||
+        (root.localName === "RDF" &&
+          root.namespaceURI ===
+            "http://www.w3.org/1999/02/22-rdf-syntax-ns#") ||
+        (root.localName === "feed" &&
+          ["http://www.w3.org/2005/Atom", "http://purl.org/atom/ns#"].includes(
+            root.namespaceURI
+          )))
+    );
+  }
+
+  #readDirect() {
+    if (!this.#isDirectCandidate()) {
+      return null;
+    }
+    const document = this.document;
+    const plain = document.contentType === "text/plain";
+    const root = plain ? document.body : document;
+    if (!root) {
+      return null;
+    }
+    // Bound traversal and allocation before serializing an untrusted DOM.
+    const walker = document.createTreeWalker(root, 0xffffffff);
+    let size = 0;
+    let count = 0;
+    for (let node = root; node; node = walker.nextNode()) {
+      size += (node.nodeValue?.length || 0) + node.nodeName.length * 2 + 5;
+      if (node.attributes) {
+        for (const attribute of node.attributes) {
+          size += attribute.name.length + attribute.value.length + 4;
+        }
+      }
+      if (++count > MAX_XML_NODES || size > MAX_FEED_BYTES) {
+        return null;
+      }
+    }
+    const xml = plain
+      ? root.textContent
+      : new XMLSerializer().serializeToString(root);
+    if (xml.length > MAX_FEED_BYTES || !xml.trimStart().startsWith("<")) {
+      return null;
+    }
+    return xml;
   }
 
   #observeHead() {
@@ -144,6 +215,9 @@ export class FeedDiscoveryChild extends JSWindowActorChild {
   }
 
   receiveMessage({ name }) {
+    if (name === "Feeds:ReadDirect") {
+      return this.#readDirect();
+    }
     if (name !== "Feeds:Discover" || !this.#canDiscover()) {
       return [];
     }
