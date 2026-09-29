@@ -12,6 +12,7 @@ EXTRA_JS_MODULES += [
     "FeedReader.sys.mjs",
     "FeedReaderBridge.sys.mjs",
     "FeedReaderState.sys.mjs",
+    "FeedStreamConverter.sys.mjs",
     "FeedSubscribePanel.sys.mjs",
     "LiveBookmarks.sys.mjs",
     "LiveBookmarksUI.sys.mjs",

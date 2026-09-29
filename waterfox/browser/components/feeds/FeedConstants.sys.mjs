@@ -19,6 +19,7 @@ export function isFeedReaderURL(value) {
 }
 
 export const DISCOVERY_PREF = "browser.feeds.discovery.enabled";
+export const PREVIEW_PREF = "browser.feeds.preview.enabled";
 export const MENU_PREF = "browser.feeds.menu.enabled";
 export const MAX_FEED_BYTES = 2 * 1024 * 1024;
 export const MAX_ITEM_DESCRIPTION_LENGTH = 20000;
