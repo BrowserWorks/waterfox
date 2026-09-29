@@ -5,6 +5,7 @@
 DIRS += [
     "aboutcfg",
     "blocker",
+    "feeds",
     "icloudpasswords",
     "privatetab",
     "remotesettings",
