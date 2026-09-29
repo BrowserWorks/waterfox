@@ -10,6 +10,8 @@ support-files = ["head.js"]
 
 ["browser_waterfox_data_collection.js"]
 
+["browser_waterfox_feeds.js"]
+
 ["browser_waterfox_settings_registration.js"]
 
 ["browser_waterfox_tabs.js"]
