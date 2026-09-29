@@ -1,0 +1,279 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#waterfox-feed-subscribe-panel {
+  font: caption;
+
+  & [hidden],
+  &.subscribed #waterfox-feed-preview-description,
+  &.subscribed #waterfox-feed-preview {
+    display: none;
+  }
+
+  & .waterfox-feed-subscribe-content {
+    flex: 1;
+    inline-size: 26em;
+    max-inline-size: calc(100vw - var(--size-item-large));
+    min-block-size: 0;
+    max-block-size: calc(100vh - var(--size-layout-xsmall));
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  & .waterfox-feed-subscribe-scroll {
+    flex: 1 1 auto;
+    min-inline-size: 0;
+    min-block-size: 0;
+    padding: var(--panel-padding);
+    gap: var(--panel-padding);
+    overflow: auto;
+
+    & > * {
+      flex-shrink: 0;
+    }
+  }
+
+  & .waterfox-feed-subscribe-header {
+    flex-shrink: 0;
+    gap: var(--space-small);
+
+    & > h1 {
+      margin-inline-start: calc(var(--size-item-medium) + var(--space-small));
+      min-inline-size: 0;
+      overflow-wrap: anywhere;
+    }
+
+    & + toolbarseparator {
+      flex-shrink: 0;
+      margin-block-end: 0;
+      margin-inline: var(--panel-padding);
+    }
+  }
+
+  & .waterfox-feed-publisher,
+  & .waterfox-feed-subscribe-details,
+  & .waterfox-feed-identity {
+    min-inline-size: 0;
+    gap: var(--space-medium);
+  }
+
+  & .waterfox-feed-identity-text {
+    min-inline-size: 0;
+    gap: var(--space-xsmall);
+  }
+
+  & .waterfox-feed-icon {
+    flex: none;
+    inline-size: var(--icon-size-xlarge);
+    block-size: var(--icon-size-xlarge);
+    box-sizing: border-box;
+    padding: 0;
+    border-radius: var(--border-radius-medium);
+    background-color: var(--background-color-box);
+    list-style-image: url("chrome://browser/content/feeds/feed.svg");
+    -moz-context-properties: fill;
+    fill: currentColor;
+  }
+
+  & .waterfox-feed-subscribe-field {
+    min-inline-size: 0;
+    gap: var(--space-small);
+  }
+
+  & h3 {
+    margin: 0;
+    font-size: inherit;
+    font-weight: var(--font-weight-semibold);
+    overflow-wrap: anywhere;
+    unicode-bidi: plaintext;
+  }
+
+  & p {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  & label,
+  & input,
+  & menulist {
+    margin: 0;
+    min-inline-size: 0;
+  }
+
+  & input {
+    box-sizing: border-box;
+    inline-size: 100%;
+    font: inherit;
+  }
+
+  & input:disabled {
+    color: var(--input-text-color-disabled);
+    background-color: var(--input-text-background-color-disabled);
+    border-color: var(--input-text-border-color-disabled);
+    opacity: var(--input-text-opacity-disabled);
+  }
+
+  & .waterfox-feed-subscribe-actions {
+    flex-shrink: 0;
+  }
+}
+
+#waterfox-feed-header-close {
+  appearance: none;
+  flex: none;
+  inline-size: var(--size-item-medium);
+  block-size: var(--size-item-medium);
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: var(--border-width) solid var(--button-border-color-ghost);
+  border-radius: var(--border-radius-small);
+  background: url("chrome://global/skin/icons/close.svg") center / var(--icon-size-small) no-repeat;
+  background-color: var(--button-background-color-ghost);
+  color: var(--button-text-color-ghost);
+  -moz-context-properties: fill;
+  fill: currentColor;
+
+  &:hover:enabled {
+    background-color: var(--button-background-color-ghost-hover);
+    border-color: var(--button-border-color-ghost-hover);
+  }
+
+  &:active:enabled {
+    background-color: var(--button-background-color-ghost-active);
+    border-color: var(--button-border-color-ghost-active);
+  }
+
+  &:disabled {
+    opacity: var(--button-opacity-disabled);
+  }
+
+  &:focus-visible {
+    outline: var(--focus-outline);
+    outline-offset: var(--focus-outline-offset);
+  }
+}
+
+#waterfox-feed-rename {
+  flex: none;
+}
+
+#waterfox-feed-url {
+  direction: ltr;
+}
+
+#waterfox-feed-preview-source,
+#waterfox-feed-preview-description,
+#waterfox-feed-destination {
+  color: var(--text-color-deemphasized);
+}
+
+#waterfox-feed-preview-source {
+  direction: ltr;
+  text-align: start;
+  unicode-bidi: plaintext;
+}
+
+#waterfox-feed-preview-description {
+  unicode-bidi: plaintext;
+}
+
+#waterfox-feed-preview {
+  min-inline-size: 0;
+  gap: var(--space-small);
+  padding-block: var(--space-large);
+  border-block: var(--border-width) solid var(--border-color-deemphasized);
+}
+
+#waterfox-feed-full-preview {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  align-self: start;
+  gap: var(--space-small);
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  min-block-size: var(--size-item-medium);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--border-radius-small);
+  background: transparent;
+  color: var(--link-color);
+  font: inherit;
+  text-align: start;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+
+  & > span {
+    min-inline-size: 0;
+  }
+
+  &::after {
+    content: "";
+    flex: none;
+    inline-size: var(--icon-size-small);
+    block-size: var(--icon-size-small);
+    background: url("chrome://global/skin/icons/open-in-new.svg") center / contain no-repeat;
+    -moz-context-properties: fill;
+    fill: currentColor;
+  }
+
+  &:hover:enabled {
+    color: var(--link-color-hover);
+    text-decoration: underline;
+  }
+
+  &:active:enabled {
+    color: var(--link-color-active);
+  }
+
+  &:focus-visible {
+    outline: var(--focus-outline);
+    outline-offset: var(--focus-outline-offset);
+  }
+
+  &:disabled {
+    color: var(--text-color-deemphasized);
+    cursor: default;
+  }
+}
+
+#waterfox-feed-folder {
+  -moz-context-properties: fill;
+  fill: currentColor;
+
+  &::part(icon) {
+    list-style-image: url("chrome://global/skin/icons/folder.svg");
+    inline-size: var(--icon-size-small);
+    block-size: var(--icon-size-small);
+    margin-inline-end: var(--space-small);
+  }
+}
+
+#waterfox-feed-folder-tree {
+  margin: 0;
+  block-size: 12.5em;
+  min-block-size: 12.5em;
+  border: var(--input-text-border);
+
+  &[disabled] {
+    opacity: var(--input-text-opacity-disabled);
+
+    & treechildren::-moz-tree-cell-text,
+    & treechildren::-moz-tree-twisty,
+    & treechildren::-moz-tree-image {
+      color: var(--input-text-color-disabled);
+    }
+
+    & treechildren::-moz-tree-image {
+      fill: currentColor;
+    }
+
+    & treechildren::-moz-tree-row(selected) {
+      background-color: var(--input-text-background-color-disabled);
+    }
+  }
+}

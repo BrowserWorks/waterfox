@@ -1,0 +1,314 @@
+<!doctype html>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src chrome://browser/content/feeds/; style-src chrome://browser/content/feeds/ chrome://global/skin/; img-src chrome://browser/ chrome://global/ chrome://branding/ page-icon:; font-src chrome://browser/content/waterfox/fonts/; frame-src about:; base-uri 'none'; form-action 'none'; object-src 'none'"
+    />
+    <meta name="referrer" content="no-referrer" />
+    <meta http-equiv="x-dns-prefetch-control" content="off" />
+    <meta name="color-scheme" content="light dark" />
+    <title data-l10n-id="feeds-preview-page-title"></title>
+    <link rel="localization" href="browser/waterfox/feeds.ftl" />
+    <link rel="stylesheet" href="chrome://global/skin/in-content/common.css" />
+    <link rel="stylesheet" href="chrome://browser/content/feeds/feeds.css" />
+    <script
+      type="module"
+      src="chrome://browser/content/feeds/feeds.mjs"
+    ></script>
+  </head>
+  <body>
+    <div class="app-layout">
+      <nav class="rail" data-l10n-id="feeds-nav">
+        <h1 class="brand">
+          <img src="chrome://branding/content/about-logo.svg" alt="" /><span
+            data-l10n-id="feeds-preview-page-title"
+          ></span>
+        </h1>
+        <button
+          id="all-feeds"
+          type="button"
+          data-l10n-id="feeds-rail-feeds"
+        ></button>
+        <button
+          id="saved-feeds"
+          type="button"
+          data-l10n-id="feeds-saved"
+        ></button>
+        <button id="add-feed" type="button" data-l10n-id="feeds-add"></button>
+      </nav>
+      <aside id="subscription-manager" aria-labelledby="subscriptions-heading">
+        <h2
+          id="subscriptions-heading"
+          data-l10n-id="feeds-subscriptions-heading"
+        ></h2>
+        <button id="all-scope" type="button">
+          <span class="source-name" data-l10n-id="feeds-all"></span
+          ><span id="all-count" class="source-count" aria-hidden="true"></span>
+        </button>
+        <h3
+          class="source-group-heading"
+          data-l10n-id="feeds-live-bookmarks-heading"
+        ></h3>
+        <ul id="folders"></ul>
+      </aside>
+      <main>
+        <p id="private-notice" data-l10n-id="feeds-private-notice" hidden></p>
+        <p
+          id="status"
+          class="visually-hidden"
+          role="status"
+          aria-atomic="true"
+        ></p>
+        <p id="error" role="alert" hidden></p>
+        <section id="collection" aria-labelledby="collection-title">
+          <header class="collection-header">
+            <div>
+              <h2
+                id="collection-title"
+                tabindex="-1"
+                data-l10n-id="feeds-all"
+              ></h2>
+              <p id="collection-count" class="secondary"></p>
+              <p id="source-url" class="feed-url secondary" hidden></p>
+              <p id="source-health" class="secondary" hidden></p>
+            </div>
+            <div class="search-field">
+              <label
+                class="visually-hidden"
+                for="article-search"
+                data-l10n-id="feeds-search-articles"
+              ></label
+              ><input
+                id="article-search"
+                type="search"
+                autocomplete="off"
+                data-l10n-id="feeds-search-placeholder"
+              />
+            </div>
+            <div class="actions" id="source-actions" hidden>
+              <button id="refresh-source" type="button" data-mutates></button>
+              <button id="remove-source" type="button" data-mutates></button>
+            </div>
+          </header>
+          <div class="collection-controls">
+            <div class="choices" role="group" data-l10n-id="feeds-filter-label">
+              <button
+                id="filter-all"
+                type="button"
+                data-l10n-id="feeds-all-filter"
+              ></button>
+              <button
+                id="filter-unread"
+                type="button"
+                data-l10n-id="feeds-unread-filter"
+              ></button>
+            </div>
+            <select id="order" data-l10n-id="feeds-order-label">
+              <option value="newest" data-l10n-id="feeds-order-newest"></option>
+              <option value="oldest" data-l10n-id="feeds-order-oldest"></option>
+            </select>
+            <div
+              class="display-control"
+              role="group"
+              data-l10n-id="feeds-display-label"
+            >
+              <button
+                id="display-list"
+                class="icon-button"
+                type="button"
+                data-l10n-id="feeds-display-list-button"
+              ></button>
+              <button
+                id="display-grid"
+                class="icon-button"
+                type="button"
+                data-l10n-id="feeds-display-grid-button"
+              ></button>
+            </div>
+          </div>
+          <p id="empty" role="status" hidden></p>
+          <div id="empty-actions" class="actions" hidden>
+            <button
+              id="empty-add"
+              type="button"
+              data-l10n-id="feeds-add"
+              hidden
+            ></button>
+            <button
+              id="empty-all"
+              type="button"
+              data-l10n-id="feeds-show-all"
+              hidden
+            ></button>
+            <button
+              id="empty-clear"
+              type="button"
+              data-l10n-id="feeds-clear-search"
+              hidden
+            ></button>
+          </div>
+          <ol id="article-list"></ol>
+          <button
+            id="show-more"
+            type="button"
+            data-l10n-id="feeds-show-more"
+            hidden
+          ></button>
+        </section>
+
+        <section id="reader" hidden>
+          <div class="reader-toolbar">
+            <button
+              id="reader-back"
+              type="button"
+              data-l10n-id="feeds-back-to-feeds"
+            ></button>
+            <div class="actions">
+              <button id="reader-read" type="button" data-mutates></button>
+              <button id="reader-save" type="button" data-mutates></button>
+              <a
+                id="reader-original"
+                data-l10n-id="feeds-open-original"
+                target="_blank"
+                rel="noopener noreferrer"
+                referrerpolicy="no-referrer"
+              ></a>
+            </div>
+          </div>
+          <div class="article-meta reader-meta">
+            <span class="feed-icon" aria-hidden="true"></span
+            ><span id="reader-source"></span
+            ><time id="reader-date" class="secondary" hidden></time>
+          </div>
+          <div id="reader-frame-container"></div>
+        </section>
+        <section id="direct-preview" aria-labelledby="direct-title" hidden>
+          <div class="preview-content">
+            <a
+              href="about:feeds"
+              class="preview-back"
+              data-l10n-id="feeds-back-to-feeds"
+            ></a>
+            <div class="preview-identity">
+              <span class="feed-icon preview-icon" aria-hidden="true"></span>
+              <div>
+                <h2
+                  id="direct-title"
+                  tabindex="-1"
+                  data-l10n-id="feeds-preview-loading"
+                ></h2>
+                <p id="direct-site" class="secondary"></p>
+                <p id="direct-description" class="entry-content"></p>
+                <p id="direct-state" class="secondary"></p>
+              </div>
+            </div>
+            <h3 data-l10n-id="feeds-recent-posts"></h3>
+            <p id="direct-empty" data-l10n-id="feeds-direct-empty" hidden></p>
+            <ol id="direct-items"></ol>
+          </div>
+          <aside class="preview-sidebar">
+            <h3
+              id="direct-form-title"
+              role="status"
+              data-l10n-id="feeds-subscribe-preview-heading"
+            ></h3>
+            <form id="direct-form">
+              <label
+                for="direct-name"
+                data-l10n-id="feeds-add-name-label"
+              ></label>
+              <input id="direct-name" maxlength="1024" />
+              <label
+                for="direct-folder"
+                data-l10n-id="feeds-add-folder-label"
+              ></label>
+              <div class="folder-field">
+                <select id="direct-folder"></select>
+              </div>
+              <button
+                id="direct-subscribe"
+                class="primary"
+                type="submit"
+                data-mutates
+                data-l10n-id="feeds-subscribe-button"
+              ></button>
+            </form>
+
+            <p id="direct-destination" hidden></p>
+            <a
+              id="direct-open"
+              href="about:feeds"
+              data-l10n-id="feeds-open-feeds"
+              hidden
+            ></a>
+            <button
+              id="direct-undo"
+              type="button"
+              data-mutates
+              data-l10n-id="feeds-undo"
+              hidden
+            ></button>
+            <div class="feed-details">
+              <h4 data-l10n-id="feeds-feed-url-heading"></h4>
+              <p id="direct-url" class="feed-url"></p>
+              <a
+                id="direct-visit"
+                data-l10n-id="feeds-visit-website"
+                rel="noopener noreferrer"
+                referrerpolicy="no-referrer"
+                hidden
+              ></a>
+            </div>
+          </aside>
+        </section>
+      </main>
+    </div>
+    <dialog id="add-dialog" aria-labelledby="add-title">
+      <div class="dialog-heading">
+        <h2 id="add-title" data-l10n-id="feeds-add-dialog-title"></h2>
+        <button
+          id="add-close"
+          type="button"
+          data-l10n-id="feeds-close"
+        ></button>
+      </div>
+      <p id="add-error" role="alert" hidden></p>
+      <p
+        id="add-loading"
+        role="status"
+        data-l10n-id="feeds-preview-loading"
+        hidden
+      ></p>
+      <form id="add-form">
+        <label for="add-url" data-l10n-id="feeds-add-url-label"></label>
+        <input
+          id="add-url"
+          type="url"
+          maxlength="4096"
+          required
+          spellcheck="false"
+        />
+      </form>
+
+      <div class="dialog-footer">
+        <button
+          id="add-cancel"
+          type="button"
+          data-l10n-id="feeds-add-cancel"
+        ></button>
+        <button
+          id="add-preview-button"
+          type="submit"
+          form="add-form"
+          class="primary"
+          data-l10n-id="feeds-add-preview"
+        ></button>
+      </div>
+    </dialog>
+  </body>
+</html>

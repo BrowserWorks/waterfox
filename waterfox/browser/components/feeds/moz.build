@@ -3,10 +3,31 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 EXTRA_JS_MODULES += [
+    "AboutFeeds.sys.mjs",
     "FeedArticleContent.sys.mjs",
     "FeedConstants.sys.mjs",
+    "FeedLocationBar.sys.mjs",
     "FeedParser.sys.mjs",
+    "FeedPreview.sys.mjs",
+    "FeedReader.sys.mjs",
+    "FeedReaderBridge.sys.mjs",
+    "FeedReaderState.sys.mjs",
+    "FeedSubscribePanel.sys.mjs",
     "LiveBookmarks.sys.mjs",
+    "LiveBookmarksUI.sys.mjs",
 ]
 
+FINAL_TARGET_FILES.actors += [
+    "FeedDiscoveryChild.sys.mjs",
+    "FeedDiscoveryParent.sys.mjs",
+    "FeedPageChild.sys.mjs",
+    "FeedPageParent.sys.mjs",
+    "FeedReaderChild.sys.mjs",
+    "FeedReaderParent.sys.mjs",
+]
+
+XPCOM_MANIFESTS += ["components.conf"]
+JAR_MANIFESTS += ["jar.mn"]
+
 XPCSHELL_TESTS_MANIFESTS += ["tests/unit/xpcshell.toml"]
+BROWSER_CHROME_MANIFESTS += ["tests/browser/browser.toml"]
