@@ -219,6 +219,17 @@ body .primary:enabled:hover,
   mask: none;
 }
 
+.rail-footer {
+  flex: none;
+  margin-block-start: auto;
+  padding-block-start: var(--space-large);
+  border-block-start: var(--border-width) solid var(--border-color-deemphasized);
+}
+
+#reading-settings {
+  --icon: url("chrome://global/skin/icons/settings.svg");
+}
+
 .rail button::before,
 #all-scope::before,
 #folders button[data-scope="folder"]::before,

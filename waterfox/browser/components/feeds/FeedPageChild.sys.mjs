@@ -15,6 +15,7 @@ const COMMANDS = new Set([
   "MarkRead",
   "Save",
   "SetPreference",
+  "OpenSettings",
   "OpenReader",
 ]);
 const MAX_REQUEST_LENGTH = 16384;
