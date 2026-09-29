@@ -448,6 +448,7 @@ class PlacesViewBase {
     }
 
     element._placesNode = aPlacesNode;
+    window.WaterfoxLiveBookmarks?.decorateFolder(element, aPlacesNode);
     if (!this._domNodes.has(aPlacesNode)) {
       this._domNodes.set(aPlacesNode, element);
     }
@@ -861,6 +862,7 @@ class PlacesViewBase {
       }
 
       this._mayAddCommandsItems(popup);
+      window.WaterfoxLiveBookmarks?.populatePopup(popup);
     }
   }
 
@@ -1191,6 +1193,7 @@ class PlacesToolbar extends PlacesViewBase {
     if (icon) {
       button.setAttribute("image", icon);
     }
+    window.WaterfoxLiveBookmarks?.decorateFolder(button, aChild);
     if (!this._domNodes.has(aChild)) {
       this._domNodes.set(aChild, button);
     }

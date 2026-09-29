@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<rss version="2.0">
+  <channel>
+    <title>Integration feed</title>
+    <description>A local RSS integration fixture</description>
+    <link>https://example.com/</link>
+    <item>
+      <guid isPermaLink="false">first</guid>
+      <title>First &amp; foremost</title>
+      <link>./article-one.html</link>
+    </item>
+    <item>
+      <guid isPermaLink="false">second</guid>
+      <title>Second article</title>
+      <link>./article-two.html</link>
+    </item>
+  </channel>
+</rss>
