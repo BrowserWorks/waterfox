@@ -1,0 +1,6 @@
+[DEFAULT]
+firefox-appdir = "browser"
+
+["test_feedParser.js"]
+
+["test_liveBookmarks.js"]
