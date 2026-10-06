@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-action.json
+name: Setup jsign
+description: Install a pinned jsign release on Debian or Ubuntu
+
+runs:
+  using: composite
+  steps:
+    - name: Install jsign
+      shell: bash
+      run: |
+        JSIGN_VERSION=7.6
+        JSIGN_SHA256=0fef4c11fde986d04134bd59d9bb241226170c84fd14c5285811ca27ee0c6dbc
+        JSIGN_PACKAGE="${RUNNER_TEMP}/jsign_${JSIGN_VERSION}_all.deb"
+        curl -fsSL --retry 5 -o "$JSIGN_PACKAGE" "https://github.com/ebourg/jsign/releases/download/${JSIGN_VERSION}/jsign_${JSIGN_VERSION}_all.deb"
+        printf '%s  %s\n' "$JSIGN_SHA256" "$JSIGN_PACKAGE" | sha256sum -c -
+        sudo apt-get update
+        sudo apt-get install -y "$JSIGN_PACKAGE"
+        rm -f "$JSIGN_PACKAGE"
+        jsign --version
