@@ -771,6 +771,7 @@
       this._selectedBrowser = browser;
       tab.permanentKey = browser.permanentKey;
       tab._tPos = 0;
+      tab.setAttribute("data-tab-number", 1);
       tab._fullyOpen = true;
       tab.linkedBrowser = browser;
 
@@ -6172,6 +6173,7 @@
       // ... and fix up the _tPos properties immediately.
       for (let i = aTab._tPos; i < this.tabs.length; i++) {
         this.tabs[i]._tPos = i;
+        this.tabs[i].setAttribute("data-tab-number", i + 1);
       }
 
       if (!this.#windowIsClosing) {
@@ -7226,6 +7228,7 @@
     _updateTabsAfterInsert() {
       for (let i = 0; i < this.tabs.length; i++) {
         this.tabs[i]._tPos = i;
+        this.tabs[i].setAttribute("data-tab-number", i + 1);
         this.tabs[i]._selected = false;
       }
 
