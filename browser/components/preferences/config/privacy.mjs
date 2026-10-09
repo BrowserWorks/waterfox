@@ -3521,32 +3521,28 @@ Preferences.addSetting({
   },
   set(val, deps, setting) {
     if (val == "custom") {
-      let customURI = Services.prefs.getStringPref(
-        "network.trr.custom_uri",
-        ""
-      );
-      // If we have a value from the pref, take it.
-      // Otherwise, steal the current provider's URI.
-      if (customURI?.trim()) {
-        deps.dohURL.value = customURI?.trim();
+      let customURI = deps.dohCustomProvider.value?.trim();
+      // Restore the saved custom URI, or seed it from the current provider.
+      if (customURI) {
+        deps.dohURL.value = customURI;
       } else {
         deps.dohCustomProvider.value = deps.dohURL.value;
       }
     } else {
-      deps.dohURL.value = val;
-      // Clear the custom pref if it matches one of the resolvers in the dropdown
+      let currentURI = deps.dohURL.value;
       let resolvers = lazy.DoHConfigController.currentConfig.providerList;
-      if (resolvers.some(p => p.uri == deps.dohCustomProvider.value)) {
-        // Setting the pref to empty string will make it have the default
-        // pref value which makes us fallback to using the default TRR
-        // resolver in network.trr.default_provider_uri.
-        // Instead, we set it to "(space)" which is then
-        // treated as an entered value that fails to parse as a URI.
-        // Regardless, this should never be actually assigned to
-        // network.trr.uri, and this is just used to clear out a URI
-        // taken from a provider in the list.
+      if (
+        currentURI?.trim() &&
+        currentURI != deps.dohDefaultURL.value &&
+        !resolvers.some(p => p.uri == currentURI)
+      ) {
+        // Preserve a custom URI set directly in network.trr.uri.
+        deps.dohCustomProvider.value = currentURI;
+      } else if (resolvers.some(p => p.uri == deps.dohCustomProvider.value)) {
+        // Discard a URI seeded from a built-in provider without activating it.
         deps.dohCustomProvider.value = " ";
       }
+      deps.dohURL.value = val;
     }
     setting.emit("change");
     return val;
