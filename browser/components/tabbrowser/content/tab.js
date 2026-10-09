@@ -100,7 +100,7 @@
         ".tab-label-container":
           "pinned,selected=visuallyselected,labeldirection",
         ".tab-label":
-          "text=label,accesskey,fadein,pinned,selected=visuallyselected,attention",
+          "text=label,accesskey,fadein,pinned,selected=visuallyselected,attention,data-tab-number",
         ".tab-close-button": "fadein,pinned,selected=visuallyselected",
       };
     }
