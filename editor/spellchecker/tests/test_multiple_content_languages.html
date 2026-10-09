@@ -35,10 +35,10 @@ var tests = [
     [ "en-ZA-not-avail", "en-AU", ["en-AU"] ],
     [ "ko-not-avail",    "en-AU", ["en-AU"] ],
 
-    // Result: Document language, plus first matching preference language.
+    // Result: Document language, plus preference languages.
     [ "none",            "en-AU,en-US", ["en-US", "en-GB", "en-AU"] ],
-    // Result: First matching preference language.
-    [ "en-ZA-not-avail", "en-AU,en-US", ["en-AU"] ],
+    // Result: Multiple preference languages.
+    [ "en-ZA-not-avail", "en-AU,en-US", ["en-AU", "en-US"] ],
     // Result: Fall back to preference languages.
     [ "ko-not-avail",    "en-AU,en-US", ["en-AU", "en-US"] ],
 

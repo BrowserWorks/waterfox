@@ -821,7 +821,8 @@ nsresult EditorSpellCheck::DictionaryFetched(DictionaryFetcher* aFetcher) {
    * We try to derive the dictionary to use based on the following priorities:
    * 1) Content preference, so the language the user set for the site before.
    *    (Introduced in bug 678842 and corrected in bug 717433.)
-   * 2) Language set by the website, or any other dictionary that partly
+   * 2) Explicit multiple dictionary selection, along with the language set
+   *    by the website, or any other dictionary that partly
    *    matches that. (Introduced in bug 338427.)
    *    Eg. if the website is "en-GB", a user who only has "en-US" will get
    *    that. If the website is generic "en", the user will get one of the
@@ -950,8 +951,8 @@ void EditorSpellCheck::SetFallbackDictionary(DictionaryFetcher* aFetcher) {
   }
 
   // Priority 2:
-  // After checking the content preferences, we use the languages of the element
-  // or document.
+  // After checking the content preferences, we use multiple selected
+  // dictionaries alongside the languages of the element or document.
 
   // Get the preference value.
   nsAutoCString prefDictionariesAsString;
@@ -959,6 +960,13 @@ void EditorSpellCheck::SetFallbackDictionary(DictionaryFetcher* aFetcher) {
                                    prefDictionariesAsString);
   nsTArray<nsCString> prefDictionaries;
   StringToDictionaries(prefDictionariesAsString, prefDictionaries);
+
+  if (prefDictionaries.Length() > 1) {
+    for (const auto& dictionary : prefDictionaries) {
+      BuildDictionaryList(dictionary, dictList, DICT_COMPARE_CASE_INSENSITIVE,
+                          tryDictList);
+    }
+  }
 
   nsAutoCString appLocaleStr;
   // We pick one dictionary for every language that the element or document
