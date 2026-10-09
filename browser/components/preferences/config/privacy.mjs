@@ -3172,6 +3172,11 @@ Preferences.addSetting({
 });
 
 Preferences.addSetting({
+  id: "dohCustomURL",
+  pref: "network.trr.custom_uri",
+});
+
+Preferences.addSetting({
   id: "dohDefaultURL",
   pref: "network.trr.default_provider_uri",
 });
@@ -3442,7 +3447,7 @@ Preferences.addSetting({
 
 Preferences.addSetting({
   id: "dohCustomProvider",
-  deps: ["dohProviderSelect", "dohURL", "dohMode"],
+  deps: ["dohProviderSelect", "dohURL", "dohCustomURL", "dohMode"],
   visible: deps => {
     return deps.dohProviderSelect.value == "custom";
   },
@@ -3451,13 +3456,14 @@ Preferences.addSetting({
     return deps.dohURL.value;
   },
   set(val, deps) {
-    deps.dohURL.value = val.trim();
+    deps.dohCustomURL.value = val.trim();
+    deps.dohURL.value = deps.dohCustomURL.value;
   },
 });
 
 Preferences.addSetting({
   id: "dohProviderSelect",
-  deps: ["dohURL", "dohDefaultURL", "dohMode"],
+  deps: ["dohURL", "dohCustomURL", "dohDefaultURL", "dohMode"],
   _custom: false,
   disabled: ({ dohMode, dohURL }) => dohMode.locked || dohURL.locked,
   onUserChange: value => {
@@ -3520,10 +3526,16 @@ Preferences.addSetting({
   },
   set(val, deps, setting) {
     if (val != "custom") {
+      if (this._custom && deps.dohURL.value) {
+        deps.dohCustomURL.value = deps.dohURL.value;
+      }
       this._custom = false;
       deps.dohURL.value = val;
     } else {
       this._custom = true;
+      if (deps.dohCustomURL.value) {
+        deps.dohURL.value = deps.dohCustomURL.value;
+      }
     }
     setting.emit("change");
     return val;
