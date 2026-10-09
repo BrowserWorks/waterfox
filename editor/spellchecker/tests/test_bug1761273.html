@@ -70,6 +70,12 @@ async function start() {
     let dictionaryContentPref = await getDictionaryContentPref();
     is(dictionaryContentPref, "", "Content pref should be empty");
 
+    await SpecialPowers.pushPrefEnv({set: [["spellchecker.dictionary", "en-US,de-DE"]]});
+    await new Promise(resolve => spellchecker.UpdateCurrentDictionary(resolve));
+    is(spellchecker.getCurrentDictionaries().join(","), "en-US,de-DE",
+       "Multiple default dictionaries survive the editor's declared language");
+    await SpecialPowers.popPrefEnv();
+
     await spellchecker.setCurrentDictionaries(["en-US", "de-DE"]);
     dictionaryContentPref = await getDictionaryContentPref();
     is(dictionaryContentPref, "en-US,de-DE,", "Content pref should be en-US,de-DE,");

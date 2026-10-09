@@ -7,6 +7,10 @@ export class InlineSpellCheckerParent extends JSWindowActorParent {
     this.sendAsyncMessage("InlineSpellChecker:selectDictionaries", {
       localeCodes,
     });
+    Services.prefs.setStringPref(
+      "spellchecker.dictionary",
+      localeCodes.join(",")
+    );
   }
 
   replaceMisspelling({ suggestion }) {
