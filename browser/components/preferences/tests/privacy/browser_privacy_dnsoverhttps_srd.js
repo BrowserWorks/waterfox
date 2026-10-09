@@ -305,6 +305,14 @@ add_task(async function testProviderSelectFallsBackToCustom() {
     "Non-provider URI must select 'custom' rather than returning the raw URI"
   );
 
+  setting.value = FIRST_RESOLVER_VALUE;
+  setting.value = "custom";
+  is(
+    Services.prefs.getStringPref(TRR_URI_PREF),
+    "https://unknown-provider.example/dns-query",
+    "Switching back to Custom restores its previous URL"
+  );
+
   gBrowser.removeCurrentTab();
   await resetPrefs();
   await DoHTestUtils.loadRemoteSettingsConfig({
