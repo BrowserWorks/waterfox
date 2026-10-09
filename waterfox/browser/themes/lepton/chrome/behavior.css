@@ -12,14 +12,8 @@
 
 /*= Counter for Tab ==========================================================*/
 @media -moz-pref("userChrome.counter.tab") {
-  #tabbrowser-tabs {
-    counter-reset: tab-counts;
-  }
-  .tabbrowser-tab:not([hidden="true"]) {
-    counter-increment: tab-counts;
-  }
   .tabbrowser-tab:not([hidden="true"], [pinned="true"]) .tab-label::before {
-    content: counter(tab-counts) ": ";
+    content: attr(data-tab-number) ": ";
   }
   .tab-label {
     overflow: hidden;

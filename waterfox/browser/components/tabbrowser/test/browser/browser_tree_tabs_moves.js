@@ -98,6 +98,14 @@ add_task(async function test_external_move_of_collapsed_parent_takes_subtree() {
     "The whole subtree sits after the other tab"
   );
 
+  for (const tab of gBrowser.tabs) {
+    is(
+      tab.querySelector(".tab-label").getAttribute("data-tab-number"),
+      String(tab._tPos + 1),
+      "Displayed tab numbers follow the physical order, including hidden descendants"
+    );
+  }
+
   gBrowser.showTab(childB);
   BrowserTestUtils.removeTab(childB);
   BrowserTestUtils.removeTab(childA);
