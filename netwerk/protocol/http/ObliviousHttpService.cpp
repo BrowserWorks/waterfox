@@ -12,6 +12,7 @@
 #include "nsIPrefService.h"
 #include "nsNetUtil.h"
 #include "nsPrintfCString.h"
+#include "nsThreadUtils.h"
 
 namespace mozilla::net {
 
@@ -35,7 +36,12 @@ ObliviousHttpService::ObliviousHttpService()
     obs->AddObserver(this, "network:trr-confirmation", false);
   }
 
-  ReadPrefs("*"_ns);
+  // Config requests can re-enter DNS while its service is still initializing.
+  NS_DispatchToMainThread(
+      NS_NewRunnableFunction("ObliviousHttpService::ReadPrefs",
+                             [self = RefPtr<ObliviousHttpService>(this)] {
+                               self->ReadPrefs("*"_ns);
+                             }));
 }
 
 static constexpr nsLiteralCString kTRRohttpConfigURIPref =
