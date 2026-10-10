@@ -515,6 +515,7 @@ export class LoginFormState {
       // form looks like a sign-in or sign-up form.
       if (
         this.isProbablyAUsernameField(inputElement) ||
+        inputElement.getAutocompleteInfo()?.credentialType == "webauthn" ||
         lazy.LoginHelper.isInferredLoginForm(formElement)
       ) {
         // This is where we collect hints that indicate this is not a username
