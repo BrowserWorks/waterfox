@@ -1337,6 +1337,10 @@ nsresult nsXREDirProvider::AppendFromAppData(nsIFile* aFile, bool aIsDotted) {
   if (gAppData->profile) {
     nsAutoCString profile;
     profile = gAppData->profile;
+    ToLowerCase(profile);
+    if (aIsDotted && !profile.IsEmpty() && profile[0] != '.') {
+      profile.InsertLiteral(".", 0);
+    }
     MOZ_TRY(aFile->AppendRelativeNativePath(profile));
   } else {
     nsAutoCString vendor;
@@ -1357,7 +1361,7 @@ nsresult nsXREDirProvider::AppendFromAppData(nsIFile* aFile, bool aIsDotted) {
 /*
  * Check if legacy directory exists, which can be:
  *  (1) $HOME/.<gAppData->vendor>/<gAppData->appName>
- *  (2) $HOME/<gAppData->profile>
+ *  (2) $HOME/.<gAppData->profile>
  *  (3) $HOME/<MOZ_USER_DIR>
  *
  * The MOZ_USER_DIR will also be defined in case (1), so first check the deeper
@@ -1523,7 +1527,7 @@ nsresult nsXREDirProvider::GetLegacyOrXDGHomePath(const char* aHomeDir,
       MOZ_TRY(localDir->Clone(getter_AddRefs(parentDir)));
     }
 
-    MOZ_TRY(AppendFromAppData(localDir, false));
+    MOZ_TRY(AppendFromAppData(localDir, bool(gAppData->profile)));
   }
 
   // If required return the parent directory that matches the profile root
