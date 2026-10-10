@@ -311,6 +311,7 @@ toolbar[inactive="true"] .urlbar,
   mask-repeat: no-repeat;
   unicode-bidi: plaintext;
   text-align: match-parent;
+  line-height: 1.4;
 
   /* Align URLs to the right in RTL mode. */
   &:-moz-locale-dir(rtl) {
