@@ -38,6 +38,13 @@ const TESTCASES = [
     expectations: [true, true],
   },
   {
+    description: "1 email field requesting passkey credentials",
+    document: `<form>
+      <input id="un1" type="email" autocomplete="email webauthn">
+      </form>`,
+    expectations: [true, true],
+  },
+  {
     description: "1 username field & 1 hidden input fields",
     document: `<form>
       <input id="un1" autocomplete="username">
