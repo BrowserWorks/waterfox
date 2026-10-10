@@ -23,6 +23,7 @@
 #include "mozilla/Components.h"
 #include "mozilla/GRefPtr.h"
 #include "mozilla/GUniquePtr.h"
+#include "mozilla/UniquePtrExtensions.h"
 #include "mozilla/WidgetUtilsGtk.h"
 #include "mozilla/dom/Element.h"
 #include "mozilla/dom/Promise.h"
@@ -144,6 +145,12 @@ bool nsGNOMEShellService::KeyMatchesAppName(const char* aKeyValue) const {
   if (!commandPath) return false;
 
   bool matches = mAppPath.Equals(commandPath);
+  if (!matches) {
+    UniqueFreePtr<char> appPath(realpath(mAppPath.get(), nullptr));
+    UniqueFreePtr<char> handlerPath(realpath(commandPath, nullptr));
+    matches =
+        appPath && handlerPath && strcmp(appPath.get(), handlerPath.get()) == 0;
+  }
   g_free(commandPath);
   return matches;
 }
