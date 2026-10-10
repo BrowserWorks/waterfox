@@ -57,7 +57,7 @@
     }
 
     @media not -moz-pref("sidebar.revamp") {
-      --chrome-content-separator-color: light-dark(rgb(204, 204, 204), hsl(240, 5%, 5%));
+      --chrome-content-separator-color: var(--card-border-color);
     }
 
     @media -moz-pref("browser.nova.enabled") {
