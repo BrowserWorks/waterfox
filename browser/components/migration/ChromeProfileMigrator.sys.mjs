@@ -249,6 +249,7 @@ export class ChromeProfileMigrator extends MigratorBase {
         if (lazy.ChromeMigrationUtils.supportsLoginsForPlatform) {
           possibleResourcePromises.push(
             this._GetPasswordsResource(profileFolder),
+            this._GetPasswordsResource(profileFolder, "Login Data For Account"),
             this._GetPaymentMethodsResource(profileFolder, this.constructor.key)
           );
         }
@@ -361,8 +362,8 @@ export class ChromeProfileMigrator extends MigratorBase {
     return this.__sourceProfiles;
   }
 
-  async _GetPasswordsResource(aProfileFolder) {
-    let loginPath = PathUtils.join(aProfileFolder, "Login Data");
+  async _GetPasswordsResource(aProfileFolder, aLoginFileName = "Login Data") {
+    let loginPath = PathUtils.join(aProfileFolder, aLoginFileName);
     if (!(await IOUtils.exists(loginPath))) {
       return null;
     }

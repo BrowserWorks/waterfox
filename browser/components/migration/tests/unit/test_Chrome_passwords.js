@@ -371,3 +371,42 @@ add_task(async function test_importExistingLogins() {
     checkLoginsAreEqual(logins[i], newLogins[i], i + 1);
   }
 });
+
+add_task(async function test_importAccountStore() {
+  const root = await IOUtils.createUniqueDirectory(PathUtils.tempDir, "chrome");
+  const profilePath = PathUtils.join(root, PROFILE.id);
+  await IOUtils.makeDirectory(profilePath);
+  try {
+    await IOUtils.writeJSON(PathUtils.join(root, "Local State"), {});
+    await dbConn.execute("VACUUM INTO :path", {
+      path: PathUtils.join(profilePath, "Login Data For Account"),
+    });
+    const existingMigrator = await MigrationUtils.getMigrator("chrome");
+    const migrator = new existingMigrator.constructor();
+    Object.assign(migrator, {
+      _chromeUserDataPath: root,
+      _keychainServiceName: existingMigrator._keychainServiceName,
+      _keychainAccountName: existingMigrator._keychainAccountName,
+      _keychainMockPassphrase: existingMigrator._keychainMockPassphrase,
+    });
+    Assert.ok(
+      (await migrator.getMigrateData(PROFILE)) &
+        MigrationUtils.resourceTypes.PASSWORDS,
+      "Account passwords are available for migration"
+    );
+    await Services.logins.removeAllUserFacingLoginsAsync();
+    await promiseMigration(
+      migrator,
+      MigrationUtils.resourceTypes.PASSWORDS,
+      PROFILE,
+      true
+    );
+    Assert.equal(
+      (await Services.logins.getAllLogins()).length,
+      TEST_LOGINS.length,
+      "Import passwords when only the account store is present"
+    );
+  } finally {
+    await IOUtils.remove(root, { recursive: true });
+  }
+});
