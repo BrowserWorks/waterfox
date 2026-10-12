@@ -8,6 +8,13 @@ HOST_SOURCES += [
 
 HostProgram('mbsdiff')
 
+if (
+    CONFIG['OS_ARCH'] == 'Darwin'
+    and CONFIG['MOZ_BUILD_APP'] != 'tools/update-packaging'
+):
+    Program('mbsdiff-target')
+    SOURCES += ['bsdiff.c']
+
 if CONFIG['HOST_OS_ARCH'] == 'WINNT':
     HOST_OS_LIBS += [
         'ws2_32',
