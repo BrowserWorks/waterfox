@@ -356,10 +356,15 @@ class BrowserLanguagesSetting extends Preferences.AsyncSetting {
 
   async getFallback() {
     let locales = await this.get();
-    if (locales[1]) {
-      return locales[1];
+    const requestedLocales =
+      this.#pendingLocales ?? Services.locale.requestedLocales;
+    if (
+      requestedLocales[0] == locales[0] &&
+      locales.includes(requestedLocales[1])
+    ) {
+      return requestedLocales[1];
     }
-    return null;
+    return locales[1] ?? null;
   }
 
   /**
