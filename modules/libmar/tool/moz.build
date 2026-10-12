@@ -55,6 +55,9 @@ if CONFIG["MOZ_BUILD_APP"] != "tools/update-packaging":
 
     DisableStlWrapping()
 
+    if CONFIG["OS_ARCH"] == "Darwin":
+        DIRS += ["target"]
+
 
 for var in ("MAR_CHANNEL_ID", "MOZ_APP_VERSION"):
     HOST_DEFINES[var] = '"%s"' % CONFIG[var]
