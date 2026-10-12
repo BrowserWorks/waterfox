@@ -141,7 +141,7 @@ add_task(async function testFallbackExcludesPreferredLanguage() {
     ],
   });
 
-  let addons = await installLangpacks(["fr", "de"]);
+  let addons = await installLangpacks(["fr", "fr-CA", "de"]);
   let doc = await openLanguagesPrefs();
   let win = doc.defaultView;
   await waitForLanguageUI(doc);
@@ -151,6 +151,12 @@ add_task(async function testFallbackExcludesPreferredLanguage() {
 
   let fallbackControl = getSettingControl("browserLanguageFallback", win);
   await waitForSettingVisible("browserLanguageFallback", win);
+
+  is(
+    fallbackControl.controlEl.value,
+    "en-US",
+    "Fallback reflects the requested locale, not an automatically negotiated variant"
+  );
 
   let children = Array.from(fallbackControl.controlEl.children);
   let fr = children.find(el => el.value === "fr");
