@@ -490,15 +490,31 @@ export var PageThumbs = {
    *
    * @param aBrowser the content window of this browser will be captured.
    * @param aCanvas the thumbnail will be rendered to this canvas.
+   * @returns {Promise<boolean>} Whether a thumbnail was captured.
    */
   async captureTabPreviewThumbnail(aBrowser, aCanvas) {
+    if (!aCanvas.width || !aCanvas.height) {
+      return false;
+    }
     let desiredAspectRatio = aCanvas.width / aCanvas.height;
 
-    let thumbnailsActor =
-      aBrowser.browsingContext.currentWindowGlobal.getActor("Thumbnails");
+    let windowGlobal = aBrowser.browsingContext?.currentWindowGlobal;
+    if (!windowGlobal) {
+      return false;
+    }
+    let thumbnailsActor = windowGlobal.getActor("Thumbnails");
     let contentInfo = await thumbnailsActor.sendQuery(
       "Browser:Thumbnail:ContentInfo"
     );
+    if (
+      aBrowser.browsingContext?.currentWindowGlobal != windowGlobal ||
+      ![contentInfo.width, contentInfo.documentHeight].every(
+        size => Number.isFinite(size) && size > 0
+      ) ||
+      !Number.isFinite(contentInfo.scrollY)
+    ) {
+      return false;
+    }
 
     // capture vars
     let captureX = 0;
@@ -545,9 +561,13 @@ export var PageThumbs = {
       "transparent",
       false
     );
+    if (!snapshotResult) {
+      return false;
+    }
     aCanvas
       .getContext("2d")
       .drawImage(snapshotResult, renderX, renderY, renderWidth, renderHeight);
+    return true;
   },
 
   /**
