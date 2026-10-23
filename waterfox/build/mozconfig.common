@@ -167,13 +167,14 @@ else
     ac_add_options --disable-geckodriver
     ac_add_options --disable-profiling
     ac_add_options --disable-release
-    ac_add_options --disable-updater
 
     ac_add_options --enable-application=browser
     ac_add_options --enable-bootstrap=-clang,-sysroot-wasm32-wasi
     ac_add_options --enable-optimize="-Os -w"
     ac_add_options --enable-tests
     ac_add_options --enable-unverified-updates
+    ac_add_options --enable-updater
+    ac_add_options MOZ_APPUPDATE_URL=http://127.0.0.1:8000/update.xml
 fi
 
 ac_add_options --with-app-basename=Waterfox
