@@ -79,6 +79,11 @@ async function testCleanup({
   // This should trigger the cleanup we want to observe.
   await reInitUpdateService();
 
+  Assert.equal(
+    gAUS.currentState,
+    Ci.nsIApplicationUpdateService.STATE_IDLE,
+    "Cleaning up active updates leaves the update service idle"
+  );
   Assert.ok(
     !(await gUpdateManager.getDownloadingUpdate()),
     "Should have removed the downloading update"

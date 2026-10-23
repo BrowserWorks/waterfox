@@ -1445,7 +1445,7 @@ function cleanUpDownloadingUpdateDir() {
  * is ready to be installed.
  *
  * Note - This function causes a state transition to either STATE_DOWNLOADING
- *        or STATE_NONE, depending on whether an update download is in progress.
+ *        or STATE_IDLE, depending on whether an update download is in progress.
  */
 function cleanupReadyUpdate() {
   // Move the update from the Active Update list into the Past Updates list.
@@ -1477,6 +1477,8 @@ function cleanupReadyUpdate() {
     LOG("cleanupReadyUpdate - Transitioning back to downloading state.");
     transitionState(Ci.nsIApplicationUpdateService.STATE_DOWNLOADING);
     writeStatusFile(readyUpdateDir, STATE_DOWNLOADING);
+  } else {
+    transitionState(Ci.nsIApplicationUpdateService.STATE_IDLE);
   }
 }
 
@@ -1524,9 +1526,9 @@ async function cleanupDownloadingUpdate() {
  * that we are downloading an update. When we cleanup both updates, we don't
  * need to worry about things like that.
  *
- * Note - This function causes a state transition to STATE_NONE.
+ * Note - This function normally causes a state transition to STATE_IDLE.
  */
-async function cleanupActiveUpdates() {
+async function cleanupActiveUpdates({ transitionToIdle = true } = {}) {
   // Move the update from the Active Update list into the Past Updates list.
   if (lazy.UM.internal.readyUpdate) {
     LOG("cleanupActiveUpdates - Clearing readyUpdate");
@@ -1544,6 +1546,9 @@ async function cleanupActiveUpdates() {
   // Now trash both active update directories, since we're done with them
   cleanUpReadyUpdateDir();
   cleanUpDownloadingUpdateDir();
+  if (transitionToIdle) {
+    transitionState(Ci.nsIApplicationUpdateService.STATE_IDLE);
+  }
 }
 
 /**
@@ -1839,7 +1844,7 @@ async function handleFallbackToCompleteUpdate() {
     "handleFallbackToCompleteUpdate - Cleaning up active updates in " +
       "preparation of falling back to complete update."
   );
-  await cleanupActiveUpdates();
+  await cleanupActiveUpdates({ transitionToIdle: false });
 
   if (!update.selectedPatch) {
     // If we don't have a partial patch selected but a partial is available,
@@ -1863,9 +1868,9 @@ async function handleFallbackToCompleteUpdate() {
     if (result != Ci.nsIApplicationUpdateService.DOWNLOAD_SUCCESS) {
       LOG(
         "handleFallbackToCompleteUpdate - Starting complete patch download " +
-          "failed. Cleaning up downloading patch."
+          "failed. Cleaning up active updates."
       );
-      await cleanupDownloadingUpdate();
+      await cleanupActiveUpdates();
     }
   } else {
     LOG(
@@ -6610,7 +6615,10 @@ class Downloader {
 
     // If we are downloading a second update, we don't change the state until
     // STATE_SWAP.
-    if (lazy.AUS.currentState == Ci.nsIApplicationUpdateService.STATE_PENDING) {
+    if (
+      lazy.UM.internal.readyUpdate &&
+      lazy.AUS.currentState == Ci.nsIApplicationUpdateService.STATE_PENDING
+    ) {
       LOG(
         "Downloader:downloadUpdate - not setting state because download is " +
           "already pending."
