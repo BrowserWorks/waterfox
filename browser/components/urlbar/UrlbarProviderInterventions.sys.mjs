@@ -537,7 +537,7 @@ export class UrlbarProviderInterventions extends UrlbarProvider {
 
   async _setCurrentTipFromAppUpdaterStatus() {
     // The update tips depend on the app's update status, so check for updates
-    // now (if we haven't already checked within the update-check period).  If
+    // now if it's unchecked or the update-check period has elapsed.  If
     // we're running in an xpcshell test, then checkForBrowserUpdate's attempt
     // to use appUpdater will throw an exception because it won't be available.
     // In that case, return false to disable the provider.
@@ -545,7 +545,9 @@ export class UrlbarProviderInterventions extends UrlbarProvider {
     // This causes synchronous IO within the updater the first time it's called
     // (at least) so be careful not to do it the first time the urlbar is used.
     try {
-      UrlbarProviderInterventions.checkForBrowserUpdate();
+      UrlbarProviderInterventions.checkForBrowserUpdate(
+        lazy.appUpdater.status == lazy.AppUpdater.STATUS.NEVER_CHECKED
+      );
     } catch (ex) {
       return;
     }
@@ -564,6 +566,14 @@ export class UrlbarProviderInterventions extends UrlbarProvider {
       case lazy.AppUpdater.STATUS.NO_UPDATES_FOUND:
         // We show a special refresh tip when the browser is up to date.
         this.currentTip = TIPS.UPDATE_REFRESH;
+        break;
+      case lazy.AppUpdater.STATUS.NEVER_CHECKED:
+        // Disabled update checks can leave an idle updater unchecked.
+        this.currentTip =
+          lazy.appUpdater.aus.currentState ==
+          Ci.nsIApplicationUpdateService.STATE_IDLE
+            ? TIPS.UPDATE_WEB
+            : TIPS.UPDATE_CHECKING;
         break;
       case lazy.AppUpdater.STATUS.CHECKING:
         // This will be the case the first time we check.  See startQuery for
@@ -599,13 +609,14 @@ export class UrlbarProviderInterventions extends UrlbarProvider {
     // TIPS.UPDATE_CHECKING is special, and we never actually show a tip that
     // reflects a "checking" status.  Instead it's handled like this.  We call
     // appUpdater.check() to start an update check.  If we haven't called it
-    // before, then when it returns, appUpdater.status will be
-    // AppUpdater.STATUS.CHECKING, and it will remain CHECKING until the check
-    // finishes.  We can add a listener to appUpdater to be notified when the
-    // check finishes.  We don't want to wait for it to finish in isActive
-    // because that would block other providers from adding their results, so
-    // instead we wait here in startQuery.  The results from other providers
-    // will be added while we're waiting.  When the check finishes, we call
+    // before, then when it returns, appUpdater.status can still be
+    // AppUpdater.STATUS.NEVER_CHECKED while loading update metadata, or
+    // AppUpdater.STATUS.CHECKING during the check.  We can add a listener to
+    // appUpdater to be notified when the status changes.  We don't want to wait
+    // for it to finish in isActive because that would block other providers
+    // from adding their results, so instead we wait here in startQuery.  The
+    // results from other providers will be added while we're waiting.  When
+    // the check finishes, we call
     // addCallback and add our result.  It doesn't matter how long the check
     // takes because if another query starts, the view is closed, or the user
     // changes the selection, the query will be canceled.

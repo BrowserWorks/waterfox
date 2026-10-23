@@ -272,10 +272,23 @@ export class AppUpdater {
       let stateName = this.aus.getStateName(updateState);
       LOG(`AppUpdater:check - currentState=${stateName}`);
 
-      if (updateState == Ci.nsIApplicationUpdateService.STATE_PENDING) {
-        LOG("AppUpdater:check - ready for restart");
-        this.#onReadyToRestart();
-        return;
+      while (
+        updateState == Ci.nsIApplicationUpdateService.STATE_PENDING ||
+        updateState == Ci.nsIApplicationUpdateService.STATE_SWAP
+      ) {
+        const stateTransition = this.aus.stateTransition;
+        if (updateState == Ci.nsIApplicationUpdateService.STATE_SWAP) {
+          await makeAbortable(stateTransition);
+        } else {
+          const update = await makeAbortable(this.um.getReadyUpdate());
+          // A swap may finish before the lookup resumes, returning us to pending.
+          if (stateTransition == this.aus.stateTransition) {
+            this.#update = update;
+            this.#onReadyToRestart();
+            return;
+          }
+        }
+        updateState = this.aus.currentState;
       }
 
       if (this.aus.isOtherInstanceHandlingUpdates) {

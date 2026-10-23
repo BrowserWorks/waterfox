@@ -16,6 +16,8 @@ run-if = [
   "!msix", # Updater is disabled in MSIX builds
 ]
 
+["browser_AppUpdater_pending.js"]
+
 # About Dialog Application Update Tests
 
 ["browser_aboutDialog_AppUpdater_stop_checking.js"]

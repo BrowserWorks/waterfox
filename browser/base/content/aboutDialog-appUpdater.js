@@ -238,6 +238,24 @@ appUpdater.prototype = {
       return;
     }
 
+    let relNotesLink = document.getElementById("releasenotes");
+    if (relNotesLink) {
+      let relNotesURL = Services.prefs.getStringPref(
+        "app.releaseNotesURL.aboutDialog",
+        ""
+      );
+      if (relNotesURL) {
+        if (this.update?.appVersion) {
+          relNotesURL = relNotesURL
+            .replaceAll("%VERSION%", this.update.appVersion)
+            .replaceAll("%DISPLAY_VERSION%", this.update.displayVersion);
+        }
+        relNotesURL = Services.urlFormatter.formatURL(relNotesURL);
+        relNotesLink.href = relNotesURL;
+        relNotesLink.hidden = relNotesURL == "about:blank";
+      }
+    }
+
     let panel = document.getElementById(aChildID);
     let icon = document.getElementById("updateIcon");
     if (icon) {
