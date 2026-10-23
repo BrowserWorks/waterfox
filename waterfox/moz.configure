@@ -7,3 +7,11 @@
 imply_option("MOZ_APP_UA_NAME", "Firefox")
 imply_option("MOZ_APP_PROFILE", "Waterfox")
 imply_option("--with-distribution-id", "net.waterfox")
+
+option(
+    env="MOZ_APPUPDATE_URL",
+    nargs=1,
+    help="Application update service URL",
+)
+
+set_config("MOZ_APPUPDATE_URL", depends_if("MOZ_APPUPDATE_URL")(lambda value: value[0]))
