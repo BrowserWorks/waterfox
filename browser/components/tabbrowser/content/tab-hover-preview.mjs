@@ -519,9 +519,9 @@ class TabPanel extends HoverPanel {
       tab.linkedBrowser,
       thumbnailCanvas
     )
-      .then(() => {
+      .then(captured => {
         // in case we've changed tabs after capture started, ensure we still want to show the thumbnail
-        if (this.#tab == tab && this.#hasValidThumbnailState(tab)) {
+        if (captured && this.#tab == tab && this.#hasValidThumbnailState(tab)) {
           this.#thumbnailElement = thumbnailCanvas;
           this.#updatePreview();
         }

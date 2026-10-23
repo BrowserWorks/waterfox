@@ -87,4 +87,6 @@ skip-if = [
   "true", # Bug 1592079
 ]
 
+["browser_thumbnails_tab_preview.js"]
+
 ["browser_thumbnails_update.js"]
