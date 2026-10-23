@@ -95,6 +95,8 @@ if CONFIG["MOZ_APP_BASENAME"]:
     appini_defines["MOZ_APPUPDATE_HOST"] = "aus.waterfox.com"
     if CONFIG["MOZ_APPUPDATE_HOST"]:
         appini_defines["MOZ_APPUPDATE_HOST"] = CONFIG["MOZ_APPUPDATE_HOST"]
+    if CONFIG["MOZ_APPUPDATE_URL"]:
+        appini_defines["MOZ_APPUPDATE_URL"] = CONFIG["MOZ_APPUPDATE_URL"]
 
     GeneratedFile(
         "application.ini",
