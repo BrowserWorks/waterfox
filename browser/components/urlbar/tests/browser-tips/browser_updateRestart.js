@@ -34,8 +34,15 @@ add_task(async function test() {
 
   // Set up the "apply" update state.
   await initUpdate(params);
-  UrlbarProviderInterventions.checkForBrowserUpdate(true);
   await processUpdateSteps(preSteps);
+  await TestUtils.waitForCondition(
+    () => gAUS.currentState == Ci.nsIApplicationUpdateService.STATE_PENDING,
+    "Waiting for a pending update before the first URLbar update check"
+  );
+
+  // Check a fresh updater even within the update-check throttle period.
+  UrlbarProviderInterventions.resetAppUpdater();
+  UrlbarProviderInterventions._lastUpdateCheckTime = Date.now();
 
   // Picking the tip should attempt to restart the browser.
   await doUpdateTest({
