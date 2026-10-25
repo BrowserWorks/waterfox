@@ -28,6 +28,8 @@ this preference uses fewer helpers; raising it does not enlarge the pool.
   a zero-thread pool. The C++ pool accessor also rejects a zero thread limit.
 - `jxl_simd` uses the upstream macOS x86_64 implementation without Firefox's
   SIMD workaround.
+- ICC profile generation failures fall back to decoding without color management
+  ([bug 2073543](https://bugzilla.mozilla.org/show_bug.cgi?id=2073543)).
 - The gtests from [bug 2065753](https://bugzilla.mozilla.org/show_bug.cgi?id=2065753)
   require exact pixel matches between serial and parallel decoding across
   participant counts, including concurrent decodes. The reference image and
