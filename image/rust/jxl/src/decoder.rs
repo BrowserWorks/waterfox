@@ -136,7 +136,9 @@ impl JxlApiDecoder {
     pub fn get_output_icc_profile(&mut self) -> &[u8] {
         if self.icc_profile_cache.is_empty() {
             if let Some(profile) = self.inner.output_color_profile() {
-                self.icc_profile_cache = profile.as_icc().into_owned();
+                if let Some(icc) = profile.try_as_icc() {
+                    self.icc_profile_cache = icc.into_owned();
+                }
             }
         }
         &self.icc_profile_cache
