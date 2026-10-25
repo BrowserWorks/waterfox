@@ -30,6 +30,9 @@ this preference uses fewer helpers; raising it does not enlarge the pool.
   SIMD workaround.
 - ICC profile generation failures fall back to decoding without color management
   ([bug 2073543](https://bugzilla.mozilla.org/show_bug.cgi?id=2073543)).
+- Associated-alpha images are not premultiplied twice. The decoder unpremultiplies
+  their pixels when color management or the requested output format needs it
+  ([bug 2079663](https://bugzilla.mozilla.org/show_bug.cgi?id=2079663)).
 - The gtests from [bug 2065753](https://bugzilla.mozilla.org/show_bug.cgi?id=2065753)
   require exact pixel matches between serial and parallel decoding across
   participant counts, including concurrent decodes. The reference image and

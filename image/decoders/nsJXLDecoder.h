@@ -87,6 +87,20 @@ class nsJXLDecoder final : public Decoder {
   void BuildCMSTransform();
   nsresult FinishFrame();
   void FlushPartialFrame();
+  // Whether premultiplied jxl-rs output has to be unpremultiplied before it
+  // reaches CMS or the SurfacePipe, because CMS needs unpremult input or the
+  // surface wants unpremult output. The pipe premultiplies again if the surface
+  // wants premultiplied alpha.
+  bool MustUnpremultiplyJxlrsOutput() const;
+  // Converts the premultiplied GrayAlpha8 or Rgba16f row aRow into the
+  // unpremult input our own qcms call needs: color clamped to alpha, then
+  // divided by alpha, into mCMSInputRowBuf. Returns mCMSInputRowBuf.
+  const uint8_t* UnpremultiplyForOurQcmsCall(const uint8_t* aRow);
+  // Writes the premultiplied Rgba8 row aSrc into mPipeInputRowBuf with color
+  // clamped to alpha, then unpremultiplied with aUnpremultiplyRow if it isn't
+  // null. aSrc may be mPipeInputRowBuf.
+  void ClampAndMaybeUnpremultiplyRgba8RowForPipe(
+      const uint8_t* aSrc, gfx::SwizzleRowFn aUnpremultiplyRow);
   bool WritePixelRowsToPipe();
 
   LexerResult DrainFrames();
@@ -137,16 +151,27 @@ class nsJXLDecoder final : public Decoder {
 
   WriteOnce<PixelFormat> mPixelFormat;
 
-  // Per-row u8 output buffer for manual CMS paths (HDR, gray, CMYK).
-  Vector<uint8_t> mU8RowBuf;
+  // The row written to the SurfacePipe when the pipe can't read mPixelBuffer
+  // directly: mPixelFormat converted to 4 bytes per pixel (RGBA8, or RGB8 plus
+  // padding for CMYK with CMS). Allocated for every format except unpremult
+  // Rgba8.
+  Vector<uint8_t> mPipeInputRowBuf;
+
+  // Only allocated for premultiplied GrayAlpha8 or Rgba16f with CMS.
+  Vector<uint8_t> mCMSInputRowBuf;
 
   // Full-frame decoded pixel buffer; allocated in AllocateFrameBuffers, sized
   // width * height * BytesPerPixel(). Passed to jxl-rs as the output buffer.
+  // Alpha is premultiplied if mSourcePremultiplied.
   Vector<uint8_t> mPixelBuffer;
   Vector<uint8_t> mKBuffer;  // K (Black) channel, 1 byte/pixel, for CMYK images
   Maybe<SurfacePipe> mCurrentPipe;
 
   bool mIteratorComplete = false;
+
+  // Whether jxl-rs outputs premultiplied alpha. Never set for Cmyk8, whose
+  // alpha we ignore.
+  bool mSourcePremultiplied = false;
 
 #ifdef DEBUG
   uint32_t mWritePixelRowsCount = 0;
