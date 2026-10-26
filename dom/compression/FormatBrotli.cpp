@@ -4,11 +4,13 @@
 
 #include "FormatBrotli.h"
 
+#include <cstring>
 #include <memory>
 
 #include "BaseAlgorithms.h"
 #include "brotli/decode.h"
 #include "brotli/encode.h"
+#include "mozilla/BrotliUtils.h"
 #include "mozilla/dom/TransformStreamDefaultController.h"
 
 namespace mozilla::dom::compression {
@@ -83,6 +85,7 @@ void BrotliCompressionStreamAlgorithms::Compress(
       return;
     }
 
+    std::memset(buffer.get(), 0, kBufferSize);
     size_t outputLength = kBufferSize;
     uint8_t* outputBuffer = buffer.get();
     bool succeeded = BrotliEncoderCompressStream(
@@ -128,7 +131,7 @@ BrotliDecompressionStreamAlgorithms::Create() {
 
 [[nodiscard]] nsresult BrotliDecompressionStreamAlgorithms::Init() {
   mState = std::unique_ptr<BrotliDecoderStateStruct, BrotliDeleter>(
-      BrotliDecoderCreateInstance(nullptr, nullptr, nullptr));
+      MozBrotliDecoderCreateInstance());
   if (!mState) {
     return NS_ERROR_OUT_OF_MEMORY;
   }
@@ -155,6 +158,7 @@ bool BrotliDecompressionStreamAlgorithms::Decompress(
       return false;
     }
 
+    std::memset(buffer.get(), 0, kBufferSize);
     size_t outputLength = kBufferSize;
     uint8_t* outputBuffer = buffer.get();
     BrotliDecoderResult rv =
