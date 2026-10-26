@@ -1,0 +1,82 @@
+[package]
+name = "brotli"
+version = "9.1.0"
+authors = ["Daniel Reiter Horn <danielrh@dropbox.com>", "The Brotli Authors"]
+description = "A brotli compressor and decompressor that with an interface avoiding the rust stdlib. This makes it suitable for embedded devices and kernels. It is designed with a pluggable allocator so that the standard lib's allocator may be employed. The default build also includes a stdlib allocator and stream interface. Disable this with --features=no-stdlib. All included code is safe."
+license = "BSD-3-Clause AND MIT"
+documentation = "https://docs.rs/brotli/"
+homepage = "https://github.com/dropbox/rust-brotli"
+repository = "https://github.com/dropbox/rust-brotli"
+keywords = ["brotli", "decompression", "lz77", "huffman", "nostd"]
+categories = ["compression", "no-std"]
+readme = "README.md"
+autobins = false
+edition = "2015"
+rust-version = "1.59.0"
+include = [
+  "/src/**/*.rs",
+  "/examples/**/*.rs",
+  "/Cargo.toml",
+  "/README.md",
+  "/LICENSE.BSD-3-Clause",
+  "/LICENSE.MIT",
+]
+
+[[bin]]
+doc = false
+name = "brotli"
+
+[[bin]]
+doc = false
+name = "catbrotli"
+
+[profile.release]
+lto = true
+incremental = false
+
+[dependencies]
+# alloc-no-stdlib's Allocator/SliceWrapper traits are part of this crate's
+# public API and of brotli-decompressor's, so these ranges must not span a
+# major: otherwise the resolver can split the trait identity between the two
+# crates and an allocator from one no longer satisfies the other's bound.
+"alloc-no-stdlib" = { version = ">=3.0.0, <4.0.0" }
+"alloc-stdlib" = { version = ">=0.3.0, <0.4", optional = true }
+# 6.2 is the first release with BrotliDecoderSetMetadataCallbacks, which the
+# FFI wraps as CBrotliDecoderSetMetadataCallbacks.
+"brotli-decompressor" = { version = ">=6.2, <7", default-features = false }
+
+"sha2" = { version = "~0.10", optional = true }
+
+[dev-dependencies]
+# The test suite (src/enc/test.rs) builds calloc-backed memory pools, which on
+# alloc-no-stdlib 3.x live behind its "unsafe" feature. Enable it for tests
+# only; the library itself uses no calloc path.
+"alloc-no-stdlib" = { version = ">=3.0.0, <4.0.0", features = ["unsafe"] }
+
+[features]
+default = ["std"]
+benchmark = ["brotli-decompressor/benchmark"]
+billing = []
+disable-timer = ["brotli-decompressor/disable-timer"]
+disallow_large_window_size = []
+external-literal-probability = []
+ffi-api = ["brotli-decompressor/ffi-api"]
+float64 = []
+floating_point_context_mixing = []
+no-stdlib-ffi-binding = []
+pass-through-ffi-panics = []
+# Make the encoder's floating point math target-independent, so that the same
+# input compresses to byte-identical output on every target. Replaces the libm
+# log2/powf calls in the cost estimators with the table-driven implementations
+# `no_std` builds already use. Changes the emitted bytes; no-op under `no_std`.
+portable-float = []
+# Drop the parts of the FFI that need an unsafe impl: the `unsafe impl Send` on
+# the subclassable allocator and its memory blocks, and with them the FFI
+# encoder and multicompress entry points, which hand those blocks to threads.
+# Only meaningful alongside `ffi-api`; the decoder FFI is unaffected.
+safe = []
+seccomp = ["alloc-no-stdlib/unsafe", "brotli-decompressor/seccomp"]
+simd = []
+std = ["alloc-stdlib", "brotli-decompressor/std"]
+validation = ["sha2"]
+vector_scratch_space = []

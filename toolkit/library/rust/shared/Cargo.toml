@@ -8,6 +8,7 @@ license = "MPL-2.0"
 description = "Shared Rust code for libxul"
 
 [dependencies]
+brotli = "9.1.0"
 moz_asserts = "0.1"
 mozglue-static = { path = "../../../../mozglue/static/rust" }
 geckoservo = { path = "../../../../servo/ports/geckolib" }
