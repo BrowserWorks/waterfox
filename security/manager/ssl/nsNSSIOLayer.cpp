@@ -17,6 +17,7 @@
 #include "TLSClientAuthCertSelection.h"
 #include "keyhi.h"
 #include "mozilla/Base64.h"
+#include "mozilla/BrotliUtils.h"
 #include "mozilla/Logging.h"
 #include "mozilla/Preferences.h"
 #include "mozilla/RandomNum.h"
@@ -1427,7 +1428,7 @@ SECStatus brotliCertificateDecode(const SECItem* input, unsigned char* output,
   });
 
   size_t uncompressedSize = outputLen;
-  BrotliDecoderResult result = BrotliDecoderDecompress(
+  BrotliDecoderResult result = MozBrotliDecoderDecompress(
       input->len, input->data, &uncompressedSize, output);
 
   if (result != BROTLI_DECODER_RESULT_SUCCESS) {

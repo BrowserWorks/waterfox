@@ -18,6 +18,7 @@
 #include "nsStreamUtils.h"
 #include "nsStringStream.h"
 #include "nsComponentManagerUtils.h"
+#include "mozilla/BrotliUtils.h"
 #include "mozilla/net/Dictionary.h"
 #include "mozilla/Preferences.h"
 #include "mozilla/StaticPrefs_network.h"
@@ -31,9 +32,6 @@
 #include "nsNetCID.h"
 
 // brotli headers
-#undef assert
-#include "assert.h"
-#include "state.h"
 #include "brotli/decode.h"
 
 #define ZSTD_STATIC_LINKING_ONLY 1
@@ -53,12 +51,18 @@ extern LazyLogModule gDictionaryLog;
   MOZ_LOG(mozilla::net::gDictionaryLog, mozilla::LogLevel::Debug, args)
 
 class BrotliWrapper {
+  struct BrotliDeleter {
+    void operator()(BrotliDecoderState* aState) {
+      BrotliDecoderDestroyInstance(aState);
+    }
+  };
+
  public:
   BrotliWrapper() = default;
-  ~BrotliWrapper() { BrotliDecoderStateCleanup(&mState); }
 
   bool Init(nsIRequest* aRequest, nsHTTPCompressConv::CompressMode aMode) {
-    if (!BrotliDecoderStateInit(&mState, nullptr, nullptr, nullptr)) {
+    mState.reset(MozBrotliDecoderCreateInstance());
+    if (!mState) {
       return false;
     }
 
@@ -84,7 +88,7 @@ class BrotliWrapper {
       DICTIONARY_LOG(("Brotli: dictionary %zu bytes", length));
       if (length > 0) {
         BROTLI_BOOL result = BrotliDecoderAttachDictionary(
-            &mState, BROTLI_SHARED_DICTIONARY_RAW, length,
+            mState.get(), BROTLI_SHARED_DICTIONARY_RAW, length,
             mDictionary->GetDictionary().begin());
         if (!result) {
           DICTIONARY_LOG(("Brotli: AttachDictionary failed"));
@@ -96,8 +100,6 @@ class BrotliWrapper {
     return true;
   }
 
-  BrotliDecoderState mState{};
-  Atomic<size_t, Relaxed> mTotalOut{0};
   nsresult mStatus = NS_OK;
   Atomic<bool, Relaxed> mBrotliStateIsStreamEnd{false};
 
@@ -106,6 +108,8 @@ class BrotliWrapper {
   uint64_t mSourceOffset{0};
 
   RefPtr<DictionaryCacheEntry> mDictionary;
+  // Destroy the decoder before releasing its attached dictionary.
+  UniquePtr<BrotliDecoderState, BrotliDeleter> mState;
 
   uint8_t mEaten{0};
   uint8_t mHeader[36];  // \FF\44\43\42 + 32-byte SHA-256
@@ -518,15 +522,13 @@ nsresult nsHTTPCompressConv::BrotliHandler(nsIInputStream* stream,
 
     // brotli api is documented in brotli/dec/decode.h and brotli/dec/decode.c
     LOG(("nsHttpCompresssConv %p brotlihandler decompress %zu\n", self, avail));
-    size_t totalOut = self->mBrotli->mTotalOut;
     res = ::BrotliDecoderDecompressStream(
-        &self->mBrotli->mState, &avail,
+        self->mBrotli->mState.get(), &avail,
         reinterpret_cast<const unsigned char**>(&dataIn), &outSize, &outPtr,
-        &totalOut);
+        nullptr);
     outSize = kOutSize - outSize;
-    self->mBrotli->mTotalOut = totalOut;
     self->mBrotli->mBrotliStateIsStreamEnd =
-        BrotliDecoderIsFinished(&self->mBrotli->mState);
+        BrotliDecoderIsFinished(self->mBrotli->mState.get());
     LOG(("nsHttpCompressConv %p brotlihandler decompress rv=%" PRIx32
          " out=%zu\n",
          self, static_cast<uint32_t>(res), outSize));
@@ -577,10 +579,10 @@ nsresult nsHTTPCompressConv::BrotliHandler(nsIInputStream* stream,
     }
 
     // See bug 1759745. If the decoder has more output data, take it.
-    while (::BrotliDecoderHasMoreOutput(&self->mBrotli->mState)) {
+    while (::BrotliDecoderHasMoreOutput(self->mBrotli->mState.get())) {
       outSize = kOutSize;
       const uint8_t* buffer =
-          ::BrotliDecoderTakeOutput(&self->mBrotli->mState, &outSize);
+          ::BrotliDecoderTakeOutput(self->mBrotli->mState.get(), &outSize);
       if (NS_FAILED(callOnDataAvailable(self->mBrotli->mSourceOffset,
                                         reinterpret_cast<const char*>(buffer),
                                         outSize))) {

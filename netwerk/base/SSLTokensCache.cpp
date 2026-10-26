@@ -4,6 +4,8 @@
 
 #include "SSLTokensCache.h"
 
+#include <cstring>
+
 #include "mozilla/Components.h"
 
 #include "CertVerifier.h"
@@ -13,6 +15,8 @@
 #include "mozilla/EndianUtils.h"
 #include "TransportSecurityInfo.h"
 #include "mozilla/ArrayAlgorithm.h"
+#include "mozilla/BrotliUtils.h"
+#include "mozilla/CheckedInt.h"
 #include "mozilla/glean/NetwerkMetrics.h"
 #include "mozilla/Logging.h"
 #include "mozilla/Preferences.h"
@@ -128,13 +132,19 @@ static nsTArray<uint8_t> SerializeRecord(Span<const uint8_t> aToken,
 
 // Returns empty array on failure.
 static nsTArray<uint8_t> CompressRecord(Span<const uint8_t> aPayload) {
+  if (aPayload.Length() > 256 * 1024) {
+    return {};
+  }
   size_t bound = BrotliEncoderMaxCompressedSize(aPayload.Length());
+  CheckedInt<size_t> length = CheckedInt<size_t>(bound) + 4;
   nsTArray<uint8_t> result;
-  if (!result.SetLength(4 + bound, fallible)) {
+  if (!bound || !length.isValid() ||
+      !result.SetLength(length.value(), fallible)) {
     return {};
   }
   uint32_t originalLen = AssertedCast<uint32_t>(aPayload.Length());
   LittleEndian::writeUint32(result.Elements(), originalLen);
+  std::memset(result.Elements() + 4, 0, bound);
   size_t encodedSize = bound;
   if (!BrotliEncoderCompress(5, BROTLI_DEFAULT_WINDOW, BROTLI_MODE_GENERIC,
                              aPayload.Length(), aPayload.Elements(),
@@ -161,7 +171,7 @@ static nsTArray<uint8_t> DecompressRecord(Span<const uint8_t> aCompressed) {
     return {};
   }
   size_t decodedSize = originalLen;
-  BrotliDecoderResult r = BrotliDecoderDecompress(
+  BrotliDecoderResult r = MozBrotliDecoderDecompress(
       aCompressed.Length() - 4, aCompressed.Elements() + 4, &decodedSize,
       result.Elements());
   if (r != BROTLI_DECODER_RESULT_SUCCESS || decodedSize != originalLen) {

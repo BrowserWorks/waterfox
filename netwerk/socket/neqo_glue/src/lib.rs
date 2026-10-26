@@ -287,7 +287,7 @@ pub enum BrotliDecoderResult {
 }
 
 extern "C" {
-    pub fn BrotliDecoderDecompress(
+    pub fn MozBrotliDecoderDecompress(
         encoded_size: size_t,
         encoded_buffer: *const c_uchar,
         decoded_size: *mut size_t,
@@ -313,7 +313,7 @@ fn enable_brotli_decoder(c: &mut Connection) -> neqo_transport::Res<()> {
 
             let mut uncompressed_size = output.len();
             let result = unsafe {
-                BrotliDecoderDecompress(
+                MozBrotliDecoderDecompress(
                     input.len(),
                     input.as_ptr(),
                     &mut uncompressed_size as *mut usize,

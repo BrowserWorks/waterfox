@@ -9,6 +9,7 @@
 #include "gfxTextRun.h"
 #include "gfxUserFontSet.h"
 #include "harfbuzz/hb-ot.h"
+#include "mozilla/BrotliUtils.h"
 #include "mozilla/ServoBindings.h"
 #include "mozilla/dom/CSSFontFaceRule.h"
 #include "mozilla/dom/FontFaceSet.h"
@@ -191,10 +192,10 @@ void InspectorFontFace::GetMetadata(nsAString& aMetadata) {
           } break;
           case gfxUserFontData::kBrotliCompression: {
             size_t decodedSize = userFontData->mMetaOrigLen;
-            if (BrotliDecoderDecompress(userFontData->mMetadata.Length(),
-                                        userFontData->mMetadata.Elements(),
-                                        &decodedSize,
-                                        (uint8_t*)str.BeginWriting()) == 1 &&
+            if (MozBrotliDecoderDecompress(userFontData->mMetadata.Length(),
+                                           userFontData->mMetadata.Elements(),
+                                           &decodedSize,
+                                           (uint8_t*)str.BeginWriting()) == 1 &&
                 decodedSize == userFontData->mMetaOrigLen) {
               AppendUTF8toUTF16(str, aMetadata);
             }
