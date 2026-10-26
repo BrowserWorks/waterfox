@@ -39,6 +39,8 @@ vendoring:
 
   keep:
     - LICENSE
+    - BrotliUtils.cpp
+    - BrotliUtils.h
 
   update-actions:
     - action: move-dir

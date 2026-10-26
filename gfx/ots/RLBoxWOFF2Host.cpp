@@ -5,6 +5,7 @@
 #include "RLBoxWOFF2Host.h"
 #include "nsPrintfCString.h"
 #include "nsThreadUtils.h"
+#include "mozilla/BrotliUtils.h"
 #include "mozilla/ClearOnShutdown.h"
 #include "mozilla/RLBoxUtils.h"
 #include "mozilla/ScopeExit.h"
@@ -41,7 +42,7 @@ tainted_woff2<BrotliDecoderResult> RLBoxBrotliDecoderDecompressCallback(
           .unverified_safe_pointer_because(decodedSize,
                                            "Pointer fits within sandbox");
 
-  BrotliDecoderResult res = BrotliDecoderDecompress(
+  BrotliDecoderResult res = MozBrotliDecoderDecompress(
       encodedSize, encodedBuffer, &decodedSize, decodedBuffer);
 
   *aDecodedSize = decodedSize;

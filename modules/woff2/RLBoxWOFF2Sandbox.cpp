@@ -6,6 +6,10 @@
 #include <cassert>
 #include "RLBoxWOFF2Sandbox.h"
 
+#ifndef MOZ_IN_WASM_SANDBOX
+#  include "mozilla/BrotliUtils.h"
+#endif
+
 bool RLBoxConvertWOFF2ToTTF(const char* aData, unsigned long aLength,
                             unsigned long aDecompressedSize,
                             unsigned long* aResultSize, void** aResultOwningStr,
@@ -57,7 +61,7 @@ BrotliDecoderResult RLBoxBrotliDecoderDecompress(size_t aEncodedSize,
       aEncodedSize, reinterpret_cast<const char*>(aEncodedBuffer), aDecodedSize,
       reinterpret_cast<char*>(aDecodedBuffer));
 #else
-  return BrotliDecoderDecompress(aEncodedSize, aEncodedBuffer, aDecodedSize,
-                                 aDecodedBuffer);
+  return MozBrotliDecoderDecompress(aEncodedSize, aEncodedBuffer, aDecodedSize,
+                                    aDecodedBuffer);
 #endif
 }
