@@ -43,7 +43,9 @@
  * MOZ_NEUTER_SEH_FOR_MINGWCLANG is defined in security/sandbox/moz.build
  * and in third_party/zucchini/moz.build.
  */
-#if defined(MOZ_NEUTER_SEH_FOR_MINGWCLANG) && defined(XP_WIN) && defined(__MINGW32__)
+#if defined(XP_WIN) && \
+    ((defined(MOZ_NEUTER_SEH_FOR_MINGWCLANG) && defined(__MINGW32__)) || \
+     defined(MOZ_NEUTER_SEH_FOR_ZUCCHINI))
 /*
  * MinGW doesn't support __try / __except. There are a few mechanisms available
  * to hack around it and pseudo-support it, but these are untested in Firefox.
@@ -56,6 +58,6 @@
 #undef GetExceptionCode
 #define GetExceptionCode() 0
 
-#endif /* MOZ_NEUTER_SEH_FOR_MINGWCLANG && XP_WIN && __MINGW32__ */
+#endif
 
 #endif /* MOZILLA_CONFIG_H */

@@ -95,6 +95,8 @@ SOURCES += [
 # code. Follow isMemoryAllocationErrorCode() from UpdateService.sys.mjs for details.
 if CONFIG["CC_TYPE"] == "clang-cl":
     CXXFLAGS += ["/EHs", "/GR"]
+    if int(CONFIG["CC_VERSION"].split(".")[0]) >= 23:
+        DEFINES["MOZ_NEUTER_SEH_FOR_ZUCCHINI"] = True
 else:
     CXXFLAGS += ["-fexceptions", "-frtti"]
 
