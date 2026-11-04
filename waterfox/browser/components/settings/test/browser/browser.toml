@@ -2,13 +2,15 @@
 prefs = [
   "waterfox.blocker.ui.enabled=true",
 ]
-support-files = ["head.js"]
+support-files = ["head.js", "icloud_passwords_test_utils.js"]
 
 ["browser_waterfox_appearance.js"]
 
 ["browser_waterfox_chrome_styles.js"]
 
 ["browser_waterfox_data_collection.js"]
+
+["browser_waterfox_icloud_passwords.js"]
 
 ["browser_waterfox_settings_registration.js"]
 

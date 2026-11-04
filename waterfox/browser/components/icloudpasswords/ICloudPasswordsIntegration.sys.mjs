@@ -36,6 +36,19 @@ export const ICloudPasswordsIntegration = {
         "",
       ],
     });
+    ChromeUtils.registerWindowActor("WaterfoxICloudAboutLogins", {
+      parent: {
+        esModuleURI:
+          "resource:///modules/WaterfoxICloudAboutLoginsParent.sys.mjs",
+      },
+      child: {
+        esModuleURI:
+          "resource:///modules/WaterfoxICloudAboutLoginsChild.sys.mjs",
+        events: { DOMContentLoaded: {} },
+      },
+      matches: ["about:logins", "about:logins?*", "about:logins#*"],
+      remoteTypes: ["privilegedabout"],
+    });
     this._initialized = true;
   },
 };

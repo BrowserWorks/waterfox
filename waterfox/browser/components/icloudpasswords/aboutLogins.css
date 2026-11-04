@@ -1,0 +1,72 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+.waterfox-icloud-landing body {
+  display: block;
+  overflow: auto;
+}
+
+.waterfox-icloud-landing body > :is(header, login-list, login-item, login-intro) {
+  display: none;
+}
+
+#waterfox-icloud-passwords {
+  box-sizing: border-box;
+  max-inline-size: calc(var(--page-main-content-width) + 2 * var(--space-xxlarge));
+  margin-inline: auto;
+  padding: var(--page-space-block-start) var(--space-xxlarge);
+}
+
+#waterfox-icloud-page-title {
+  margin-block: 0 var(--space-xxlarge);
+}
+
+#waterfox-icloud-notice {
+  --card-background-color: var(--background-color-information);
+  --card-padding: var(--space-xxlarge);
+}
+
+#waterfox-icloud-notice-content {
+  display: flex;
+  align-items: start;
+  gap: var(--space-xlarge);
+}
+
+#waterfox-icloud-icon {
+  inline-size: var(--icon-size-xlarge);
+  block-size: var(--icon-size-xlarge);
+  flex-shrink: 0;
+  -moz-context-properties: fill;
+  fill: var(--icon-color-information);
+}
+
+#waterfox-icloud-details {
+  min-inline-size: 0;
+}
+
+#waterfox-icloud-details :is(h2, p) {
+  margin-block: 0 var(--space-large);
+}
+
+#waterfox-icloud-links {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: var(--space-large);
+  margin-block-start: var(--space-xxlarge);
+}
+
+#waterfox-icloud-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+#waterfox-icloud-back {
+  margin-inline-end: auto;
+}
+
+#waterfox-icloud-settings[aria-disabled="true"] {
+  color: var(--text-color-disabled);
+  cursor: default;
+}

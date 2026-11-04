@@ -76,6 +76,15 @@ if (Services.prefs.getBoolPref("browser.settings-redesign.enabled", false)) {
     { global: "current" }
   );
 
+  const passwordsPane = SettingPaneManager.get("passwordsAutofill");
+  passwordsPane.groupIds = passwordsPane.groupIds.flatMap(groupId =>
+    groupId == "passwords" ? [groupId, "waterfoxICloudPasswords"] : [groupId]
+  );
+  ChromeUtils.importESModule(
+    "chrome://browser/content/waterfox/settings/waterfoxICloudPasswords.mjs",
+    { global: "current" }
+  );
+
   const tabsPane = SettingPaneManager.get("tabsBrowsing");
   tabsPane.groupIds = ["waterfoxTabs", ...tabsPane.groupIds];
   ChromeUtils.importESModule(

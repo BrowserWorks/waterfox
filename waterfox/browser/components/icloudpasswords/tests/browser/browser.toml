@@ -3,6 +3,8 @@ support-files = [
   "!/toolkit/components/passwordmgr/test/browser/form_basic.html",
 ]
 
+["browser_aboutlogins_icloud_passwords.js"]
+
 ["browser_icloud_passwords.js"]
 run-if = [
   "os == 'mac'",
