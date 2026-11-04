@@ -10,6 +10,8 @@ EXTRA_JS_MODULES += [
     "ICloudPasswords.sys.mjs",
     "ICloudPasswordsIntegration.sys.mjs",
     "ICloudPasswordsPrompter.sys.mjs",
+    "WaterfoxICloudAboutLoginsChild.sys.mjs",
+    "WaterfoxICloudAboutLoginsParent.sys.mjs",
 ]
 
 JAR_MANIFESTS += ["jar.mn"]
