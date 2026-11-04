@@ -36,6 +36,20 @@ export const ICloudPasswordsIntegration = {
         "",
       ],
     });
+    ChromeUtils.registerWindowActor("ICloudPasswordsSetup", {
+      parent: {
+        esModuleURI: "resource:///modules/ICloudPasswordsSetupParent.sys.mjs",
+      },
+      child: {
+        esModuleURI: "resource:///modules/ICloudPasswordsSetupChild.sys.mjs",
+      },
+      matches: ["https://*/*"],
+      allFrames: true,
+      messageManagerGroups: ["browsers"],
+    });
+    ChromeUtils.importESModule(
+      "resource:///modules/ICloudPasswordsSetup.sys.mjs"
+    ).ICloudPasswordsSetup.init();
     ChromeUtils.registerWindowActor("WaterfoxICloudAboutLogins", {
       parent: {
         esModuleURI:

@@ -4,6 +4,8 @@
 
 browser.jar:
     content/browser/waterfox/icloudpasswords/aboutLogins.css  (aboutLogins.css)
+    content/browser/waterfox/icloudpasswords/ICloudPasswordsQRWorker.js  (ICloudPasswordsQRWorker.js)
+    content/browser/waterfox/icloudpasswords/third_party/jsqr/jsQR.js  (third_party/jsqr/jsQR.js)
     content/browser/waterfox/icloudpasswords/pinDialog.xhtml  (pinDialog.xhtml)
     content/browser/waterfox/icloudpasswords/pinDialog.js     (pinDialog.js)
     content/browser/waterfox/icloudpasswords/pinDialog.css    (pinDialog.css)

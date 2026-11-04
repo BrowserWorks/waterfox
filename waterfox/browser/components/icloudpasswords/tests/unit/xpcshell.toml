@@ -9,3 +9,5 @@ prefs = ["security.storage.encryption.sqlite.enabled=false"]
 ["test_ApplePasswordManager.js"]
 
 ["test_ICloudPasswords.js"]
+
+["test_ICloudSetup.js"]

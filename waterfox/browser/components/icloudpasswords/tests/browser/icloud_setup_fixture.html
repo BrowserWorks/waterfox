@@ -1,0 +1,52 @@
+<!doctype html>
+<!-- Any copyright is dedicated to the Public Domain.
+     http://creativecommons.org/publicdomain/zero/1.0/ -->
+<meta charset="utf-8">
+<title>iCloud setup context-menu fixture</title>
+<style>
+  body { margin: 12px; }
+  nav { display: flex; gap: 24px; }
+  #setup-visuals { display: grid; grid-template-columns: max-content max-content; gap: 12px; }
+  #setup-plain { margin-block: 8px; }
+</style>
+<nav>
+  <a id="setup-link" href="#">Set up verification code</a>
+  <a id="setup-apple-link" href="#">Apple verification code</a>
+  <a id="setup-invalid-link" href="otpauth://hotp/Fixture?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&amp;counter=1">Unsupported counter code</a>
+</nav>
+<p id="setup-key"></p>
+<p id="setup-plain">Ordinary page text</p>
+<div id="setup-visuals">
+  <img id="setup-image" alt="Synthetic QR fixture">
+  <canvas id="setup-canvas"></canvas>
+  <svg id="setup-svg" xmlns="http://www.w3.org/2000/svg" aria-label="Synthetic QR fixture"></svg>
+  <canvas id="setup-tainted"></canvas>
+</div>
+<script>
+  window.icloudSetupTaintCanvas = async function(markerURL) {
+    const marker = new Image();
+    marker.src = markerURL;
+    await marker.decode();
+    const source = document.getElementById("setup-canvas");
+    const target = document.getElementById("setup-tainted");
+    target.width = source.width;
+    target.height = source.height;
+    const context = target.getContext("2d");
+    context.drawImage(marker, 0, 0);
+    context.drawImage(source, 0, 0);
+    try {
+      context.getImageData(0, 0, 1, 1);
+      return false;
+    } catch {
+      return true;
+    }
+  };
+
+  window.icloudSetupSyntheticContextMenu = function() {
+    const event = new MouseEvent("contextmenu", {
+      bubbles: true, button: 2, view: window,
+    });
+    document.getElementById("setup-link").dispatchEvent(event);
+    return event.isTrusted;
+  };
+</script>

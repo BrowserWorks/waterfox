@@ -1,6 +1,8 @@
 [DEFAULT]
 support-files = [
   "!/toolkit/components/passwordmgr/test/browser/form_basic.html",
+  "icloud_setup_fixture.html",
+  "icloud_setup_marker.svg",
 ]
 
 ["browser_aboutlogins_icloud_passwords.js"]
@@ -12,6 +14,12 @@ run-if = [
 ]
 
 ["browser_icloud_pin_dialog.js"]
+
+["browser_icloud_setup.js"]
+run-if = [
+  "os == 'mac'",
+  "os == 'win'",
+]
 
 ["browser_icloud_split_otp.js"]
 run-if = [

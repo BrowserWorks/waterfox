@@ -208,6 +208,7 @@ toolkit/modules/third_party/
 tools/fuzzing/libfuzzer/
 tools/lint/eslint/eslint-plugin-sdl-vendored/vendor/
 tools/profiler/core/vtune/
+waterfox/browser/components/icloudpasswords/third_party/jsqr/
 waterfox/browser/themes/lepton/chrome/
 waterfox/browser/themes/lepton/content/
 waterfox/browser/themes/lepton/icons/
