@@ -1,0 +1,30 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+#pin-content {
+  display: grid;
+  gap: var(--space-medium);
+  inline-size: 28em;
+  max-inline-size: 100%;
+}
+
+#pin-title {
+  margin: 0;
+  font-size: var(--font-size-large);
+}
+
+#pin {
+  box-sizing: border-box;
+  inline-size: 12ch;
+  max-inline-size: 100%;
+  padding: var(--space-medium) var(--space-large);
+  font-size: var(--font-size-xxlarge);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.2em;
+  text-align: center;
+}
+
+#pin-error {
+  margin: 0;
+}

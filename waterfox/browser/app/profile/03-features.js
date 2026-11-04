@@ -36,6 +36,11 @@ pref("browser.newtabpage.activity-stream.widgets.system.weather.enabled", true);
 pref("extensions.getAddons.showPane", false, locked);
 pref("extensions.htmlaboutaddons.recommendations.enabled", false, locked);
 
+pref("waterfox.passwords.icloud.enabled", false);
+pref("waterfox.passwords.icloud.saveByDefault", false);
+pref("waterfox.passwords.icloud.otp.enabled", false);
+pref("waterfox.passwords.icloud.idleTimeout", 900);
+
 // Make form autofill available regardless of the detected region.
 pref("extensions.formautofill.addresses.supported", "on");
 pref("extensions.formautofill.creditCards.supported", "on");

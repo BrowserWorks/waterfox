@@ -850,6 +850,7 @@ export class LoginFormState {
       if (
         !HTMLInputElement.isInstance(element) ||
         !element.hasBeenTypePassword ||
+        element.getAutocompleteInfo().fieldName === "one-time-code" ||
         (!element.isConnected && !ignoreConnect)
       ) {
         continue;
