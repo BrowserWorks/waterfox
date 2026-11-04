@@ -10,6 +10,8 @@ ChromeUtils.defineESModuleGetters(lazy, {
   discoverApplePasswordHost: "resource:///modules/ApplePasswordManager.sys.mjs",
   validateApplePasswordOTPContext:
     "resource:///modules/ApplePasswordManager.sys.mjs",
+  validateApplePasswordSetupURI:
+    "resource:///modules/ApplePasswordManager.sys.mjs",
 });
 
 const PREF_BRANCH = "waterfox.passwords.icloud.";
@@ -44,6 +46,8 @@ const ERROR_IDS = Object.freeze({
   "otp-disabled": "icloud-passwords-error-otp-disabled",
   "save-failed": "icloud-passwords-error-save",
   "manager-unavailable": "icloud-passwords-error-manager",
+  "setup-invalid": "icloud-passwords-error-setup-invalid",
+  "setup-unavailable": "icloud-passwords-error-setup-unavailable",
   "session-changed": "icloud-passwords-error-session",
   "native-error": "icloud-passwords-error-native",
 });
@@ -778,10 +782,115 @@ export class ICloudPasswordsService {
     });
   }
 
-  async openManager() {
+  async setUpOneTimeCode(
+    origin,
+    uri,
+    parent,
+    { isCurrent = () => true, beforeDispatch = () => true } = {}
+  ) {
+    return this.#withErrors(async () => {
+      let url = parseOrigin(origin);
+      this.#requireEnabled();
+      if (!this.otpEnabled) {
+        throw new ICloudPasswordsError("otp-disabled");
+      }
+      try {
+        lazy.validateApplePasswordSetupURI(uri);
+      } catch {
+        throw new ICloudPasswordsError("setup-invalid");
+      }
+      if (
+        typeof isCurrent !== "function" ||
+        typeof beforeDispatch !== "function" ||
+        isCurrent() !== true
+      ) {
+        throw new ICloudPasswordsError("session-changed");
+      }
+      let client = this.#ensureClient();
+      let generation = this.#generation;
+      await client.connect();
+      this.#assertSession(client, generation);
+      if (!this.otpEnabled || !isCurrent()) {
+        throw new ICloudPasswordsError("session-changed");
+      }
+      if (client.canSetUpOneTimeCodes !== true) {
+        throw new ICloudPasswordsError("setup-unavailable");
+      }
+      if (!(await this.unlock(parent))) {
+        return null;
+      }
+      this.#assertSession(client, generation, true);
+      const current = () =>
+        isCurrent() &&
+        this.enabled &&
+        this.otpEnabled &&
+        this.#client === client &&
+        this.#generation === generation &&
+        this.isReady &&
+        client.canSetUpOneTimeCodes === true;
+      if (!current()) {
+        throw new ICloudPasswordsError("session-changed");
+      }
+      let result;
+      try {
+        result = await client.setUpOneTimeCode(url.origin, uri, {
+          isCurrent: current,
+          beforeDispatch: async () =>
+            current() && (await beforeDispatch()) === true && current(),
+        });
+      } catch (error) {
+        if (error?.code === "invalid-argument") {
+          throw new ICloudPasswordsError("setup-invalid");
+        }
+        throw error;
+      }
+      this.#assertSession(client, generation, true);
+      if (!current()) {
+        throw new ICloudPasswordsError("session-changed");
+      }
+      if (result?.dispatched !== true) {
+        throw new ICloudPasswordsError("native-error");
+      }
+      this.#succeeded();
+      return { dispatched: true };
+    });
+  }
+
+  async openManager(
+    origin,
+    { isCurrent = () => true, beforeDispatch = () => true } = {}
+  ) {
     return this.#withErrors(async () => {
       if (!this.supported) {
         throw new ICloudPasswordsError("unsupported");
+      }
+      if (origin !== undefined) {
+        let url = parseOrigin(origin);
+        this.#requireEnabled();
+        if (
+          typeof isCurrent !== "function" ||
+          typeof beforeDispatch !== "function" ||
+          isCurrent() !== true
+        ) {
+          throw new ICloudPasswordsError("session-changed");
+        }
+        let client = this.#ensureClient();
+        let generation = this.#generation;
+        const current = () =>
+          isCurrent() &&
+          this.enabled &&
+          this.#client === client &&
+          this.#generation === generation;
+        let result = await client.openPasswordsApp(url.origin, {
+          isCurrent: current,
+          beforeDispatch: async () =>
+            current() && (await beforeDispatch()) === true && current(),
+        });
+        this.#assertSession(client, generation);
+        if (!current()) {
+          throw new ICloudPasswordsError("session-changed");
+        }
+        return result;
       }
       try {
         await this.#launchManager(this.#platform);
