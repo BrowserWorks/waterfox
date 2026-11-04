@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
+<?csp default-src chrome: ?>
+
+<window
+  xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
+  xmlns:html="http://www.w3.org/1999/xhtml"
+  aria-labelledby="pin-title"
+>
+  <dialog buttons="accept,cancel" defaultButton="accept">
+    <linkset>
+      <html:link rel="stylesheet" href="chrome://global/skin/global.css" />
+      <html:link
+        rel="stylesheet"
+        href="chrome://global/skin/commonDialog.css"
+      />
+      <html:link
+        rel="stylesheet"
+        href="chrome://browser/content/waterfox/icloudpasswords/pinDialog.css"
+      />
+      <html:link
+        rel="localization"
+        href="browser/waterfox/icloud-provider.ftl"
+      />
+    </linkset>
+
+    <html:div id="pin-content">
+      <html:h1 id="pin-title" />
+      <html:label id="pin-label" for="pin" />
+      <html:input
+        id="pin"
+        type="text"
+        inputmode="numeric"
+        pattern="[0-9]{6}"
+        required="required"
+        autocomplete="off"
+        spellcheck="false"
+        dir="ltr"
+        autofocus="autofocus"
+      />
+      <html:p
+        id="pin-error"
+        data-l10n-id="icloud-passwords-pin-invalid"
+        role="alert"
+        hidden="hidden"
+      />
+    </html:div>
+
+    <script src="chrome://browser/content/waterfox/icloudpasswords/pinDialog.js" />
+  </dialog>
+</window>

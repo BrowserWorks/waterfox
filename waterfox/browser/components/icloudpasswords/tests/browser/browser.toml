@@ -1,0 +1,18 @@
+[DEFAULT]
+support-files = [
+  "!/toolkit/components/passwordmgr/test/browser/form_basic.html",
+]
+
+["browser_icloud_passwords.js"]
+run-if = [
+  "os == 'mac'",
+  "os == 'win'",
+]
+
+["browser_icloud_pin_dialog.js"]
+
+["browser_icloud_split_otp.js"]
+run-if = [
+  "os == 'mac'",
+  "os == 'win'",
+]

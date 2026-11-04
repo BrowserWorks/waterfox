@@ -5,6 +5,8 @@
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  ICloudPasswordsIntegration:
+    "resource:///modules/ICloudPasswordsIntegration.sys.mjs",
   PrivateTab: "resource:///modules/PrivateTab.sys.mjs",
   StatusBar: "resource:///modules/StatusBar.sys.mjs",
   TabFeatures: "resource:///modules/TabFeatures.sys.mjs",
@@ -128,6 +130,7 @@ export const WaterfoxGlue = {
   },
 
   prepareProfileUpgrade() {
+    lazy.ICloudPasswordsIntegration.init();
     const version = Services.prefs.getIntPref(MIGRATION_PREF, 0);
     if (version <= 0 || version >= SIDEBAR_MIGRATION_VERSION) {
       return;

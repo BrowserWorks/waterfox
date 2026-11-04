@@ -5,6 +5,13 @@
 EXTRA_JS_MODULES += [
     "ApplePasswordCrypto.sys.mjs",
     "ApplePasswordManager.sys.mjs",
+    "ICloudLoginManagerChild.sys.mjs",
+    "ICloudLoginManagerParent.sys.mjs",
+    "ICloudPasswords.sys.mjs",
+    "ICloudPasswordsIntegration.sys.mjs",
+    "ICloudPasswordsPrompter.sys.mjs",
 ]
 
+JAR_MANIFESTS += ["jar.mn"]
 XPCSHELL_TESTS_MANIFESTS += ["tests/unit/xpcshell.toml"]
+BROWSER_CHROME_MANIFESTS += ["tests/browser/browser.toml"]

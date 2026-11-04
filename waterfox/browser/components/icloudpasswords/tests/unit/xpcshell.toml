@@ -7,3 +7,5 @@ prefs = ["security.storage.encryption.sqlite.enabled=false"]
 ["test_ApplePasswordCrypto.js"]
 
 ["test_ApplePasswordManager.js"]
+
+["test_ICloudPasswords.js"]
