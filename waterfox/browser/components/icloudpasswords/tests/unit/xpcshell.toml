@@ -1,0 +1,9 @@
+[DEFAULT]
+head = "head.js"
+firefox-appdir = "browser"
+support-files = ["data/**"]
+prefs = ["security.storage.encryption.sqlite.enabled=false"]
+
+["test_ApplePasswordCrypto.js"]
+
+["test_ApplePasswordManager.js"]
