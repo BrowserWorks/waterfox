@@ -87,6 +87,8 @@ pref("browser.search.param.waterfox_ai_qwant", "0");
 pref("sidebar.revamp", true);
 pref("sidebar.revamp.defaultLauncherVisible", true);
 pref("sidebar.autoHide", false);
+pref("sidebar.main.defaultTools", "aichat,syncedtabs,history,bookmarks,opentabs,feeds");
+pref("sidebar.newTool.migration.feeds", "{}");
 
 // Tab features.
 pref("browser.newtab.url", "");

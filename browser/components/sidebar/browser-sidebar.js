@@ -11,6 +11,9 @@
 const { DeferredTask } = ChromeUtils.importESModule(
   "resource://gre/modules/DeferredTask.sys.mjs"
 );
+const { FeedSidebar } = ChromeUtils.importESModule(
+  "resource:///modules/FeedSidebar.sys.mjs"
+);
 
 const toolsNameMap = {
   viewGenaiChatSidebar: "aichat",
@@ -18,6 +21,7 @@ const toolsNameMap = {
   viewTabsSidebar: "syncedtabs",
   viewHistorySidebar: "history",
   viewBookmarksSidebar: "bookmarks",
+  ...FeedSidebar.toolNames,
   viewOpenTabsSidebar: "opentabs",
   viewCPMSidebar: "passwords",
 };
@@ -117,6 +121,16 @@ var SidebarController = {
     return this.generateSidebarsMap();
   },
 
+  get additionalL10nResources() {
+    return [
+      ...new Set(
+        [...this.sidebars.values()].flatMap(
+          sidebar => sidebar.l10nResources ?? []
+        )
+      ),
+    ];
+  },
+
   generateSidebarsMap() {
     this._sidebars = new Map([
       [
@@ -184,6 +198,7 @@ var SidebarController = {
         }),
       ],
     ]);
+    FeedSidebar.register(window, this);
 
     this.registerPrefSidebar(
       "browser.ml.chat.enabled",

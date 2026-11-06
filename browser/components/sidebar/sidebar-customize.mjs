@@ -107,6 +107,9 @@ export class SidebarCustomize extends SidebarPage {
   };
 
   connectedCallback() {
+    this.ownerDocument.l10n.addResourceIds(
+      this.getWindow().SidebarController.additionalL10nResources
+    );
     super.connectedCallback();
     this.getWindow().addEventListener("SidebarItemAdded", this);
     this.getWindow().addEventListener("SidebarItemChanged", this);
@@ -122,7 +125,13 @@ export class SidebarCustomize extends SidebarPage {
 
   get fluentStrings() {
     if (!this._fluentStrings) {
-      this._fluentStrings = new Localization(["browser/sidebar.ftl"], true);
+      this._fluentStrings = new Localization(
+        [
+          "browser/sidebar.ftl",
+          ...this.getWindow().SidebarController.additionalL10nResources,
+        ],
+        true
+      );
     }
     return this._fluentStrings;
   }
@@ -174,7 +183,10 @@ export class SidebarCustomize extends SidebarPage {
   }
 
   getInputL10nId(view) {
-    return l10nMap.get(view);
+    return (
+      l10nMap.get(view) ??
+      this.getWindow().SidebarController.sidebars.get(view)?.revampL10nId
+    );
   }
 
   openFirefoxSettings(e) {

@@ -17,7 +17,11 @@ support-files = [
   "!/browser/base/content/test/general/moz.png",
 ]
 
+["browser_feedSidebar.js"]
+
 ["browser_feedSubscribePanel.js"]
 support-files = ["feed-discovery.html", "feed-empty.html", "feed.xml"]
+
+["browser_feeds_sidebar.js"]
 
 ["browser_liveBookmarks.js"]

@@ -282,7 +282,10 @@ class SidebarManager extends EventTarget {
 
     // For new sidebar.revamp users, we pre-populate a set of default tools to show in the launcher.
     if (!tools && !lazy.newSidebarHasBeenUsed) {
-      tools = DEFAULT_LAUNCHER_TOOLS;
+      tools = Services.prefs.getStringPref(
+        "sidebar.main.defaultTools",
+        DEFAULT_LAUNCHER_TOOLS
+      );
     }
 
     for (const pref of Services.prefs.getChildList(

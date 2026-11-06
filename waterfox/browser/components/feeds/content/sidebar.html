@@ -1,0 +1,96 @@
+<!doctype html>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src chrome: resource:; object-src 'none'; img-src chrome: data:; base-uri 'none'; form-action 'none'"
+    />
+    <meta name="color-scheme" content="light dark" />
+    <title data-l10n-id="feeds-preview-page-title"></title>
+    <link rel="localization" href="browser/sidebar.ftl" />
+    <link rel="localization" href="browser/waterfox/feeds.ftl" />
+    <link
+      rel="stylesheet"
+      href="chrome://browser/content/sidebar/sidebar.css"
+    />
+    <link rel="stylesheet" href="chrome://browser/content/feeds/sidebar.css" />
+    <script
+      type="module"
+      src="chrome://global/content/elements/moz-button.mjs"
+    ></script>
+    <script
+      type="module"
+      src="chrome://global/content/elements/moz-input-search.mjs"
+    ></script>
+    <script
+      type="module"
+      src="chrome://browser/content/sidebar/sidebar-panel-header.mjs"
+    ></script>
+    <script
+      type="module"
+      src="chrome://browser/content/feeds/sidebar.mjs"
+    ></script>
+    <script src="chrome://browser/content/contentTheme.js"></script>
+  </head>
+  <body>
+    <main class="sidebar-panel">
+      <sidebar-panel-header
+        view="viewFeedsSidebar"
+        data-l10n-id="feeds-sidebar-header"
+        data-l10n-attrs="heading"
+      >
+        <div class="options-container">
+          <moz-input-search
+            id="search"
+            data-l10n-id="feeds-sidebar-search"
+          ></moz-input-search>
+          <moz-button
+            id="refresh"
+            type="icon ghost"
+            data-l10n-id="feeds-sidebar-refresh"
+            disabled
+          >
+            <img
+              id="refresh-icon"
+              src="chrome://global/skin/icons/reload.svg"
+              alt=""
+            />
+          </moz-button>
+        </div>
+      </sidebar-panel-header>
+      <div class="toolbar">
+        <moz-button id="unread" type="ghost" aria-pressed="false"
+          ><span data-l10n-id="feeds-sidebar-unread"></span
+        ></moz-button>
+        <moz-button
+          id="open-reader"
+          type="icon ghost"
+          iconsrc="chrome://global/skin/icons/open-in-new.svg"
+          data-l10n-id="feeds-sidebar-open-reader-button"
+        ></moz-button>
+      </div>
+      <div class="sidebar-panel-scrollable-content">
+        <p
+          id="private-notice"
+          class="notice"
+          data-l10n-id="feeds-private-notice"
+          hidden
+        ></p>
+        <p
+          id="recovery-notice"
+          class="notice"
+          data-l10n-id="feeds-sidebar-recovery-notice"
+          hidden
+        ></p>
+        <p id="error" role="alert" hidden></p>
+        <p id="empty" role="status" data-l10n-id="feeds-status-loading"></p>
+
+        <div id="subscriptions"></div>
+      </div>
+    </main>
+  </body>
+</html>

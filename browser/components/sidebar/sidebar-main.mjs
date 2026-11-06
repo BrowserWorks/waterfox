@@ -52,7 +52,11 @@ export default class SidebarMain extends MozLitElement {
   get fluentStrings() {
     if (!this._fluentStrings) {
       this._fluentStrings = new Localization(
-        ["browser/sidebar.ftl", "preview/genai.ftl"],
+        [
+          "browser/sidebar.ftl",
+          "preview/genai.ftl",
+          ...window.SidebarController.additionalL10nResources,
+        ],
         true
       );
     }
