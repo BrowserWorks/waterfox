@@ -15,6 +15,7 @@ const DEFAULT_SIDEBAR_TOOLS = [
   "history",
   "bookmarks",
   "opentabs",
+  "feeds",
 ];
 
 add_task(async function test_new_profile_sidebar_startup() {
@@ -64,4 +65,8 @@ add_task(async function test_new_profile_sidebar_startup() {
   for (const tool of DEFAULT_SIDEBAR_TOOLS) {
     Assert.ok(tools.includes(tool), `The launcher includes ${tool}`);
   }
+  Assert.ok(
+    !SidebarController.toolsAndExtensions.get("viewFeedsSidebar").disabled,
+    "Feeds is enabled in the new-profile launcher"
+  );
 });
