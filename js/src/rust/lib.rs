@@ -14,6 +14,8 @@
  */
 
 extern crate jsrust_shared;
+#[cfg(feature = "libz-rs-sys")]
+extern crate libz_rs_sys;
 extern crate wast;
 
 mod wasm;

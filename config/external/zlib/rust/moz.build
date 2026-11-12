@@ -1,0 +1,23 @@
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+features = []
+if CONFIG["MOZ_MEMORY"]:
+    features += ["moz_memory"]
+
+RustLibrary("moz_zlib", features)
+
+OS_LIBS += CONFIG["DL_LIBS"]
+
+if CONFIG["OS_ARCH"] == "Darwin":
+    OS_LIBS += ["-lresolv"]
+elif CONFIG["OS_ARCH"] == "WINNT":
+    OS_LIBS += [
+        "advapi32",
+        "bcrypt",
+        "ntdll",
+        "synchronization",
+        "userenv",
+        "ws2_32",
+    ]

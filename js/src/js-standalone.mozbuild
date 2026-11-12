@@ -5,10 +5,10 @@
 # These configure options are needed by standalone SpiderMonkey tools. The full
 # Gecko build performs equivalents elsewhere in its configuration.
 
-USE_LIBS += [
-    "jsrust",
-    "zlib",
-]
+USE_LIBS += ["jsrust"]
+
+if not CONFIG["USE_LIBZ_RS"]:
+    USE_LIBS += ["zlib"]
 
 if CONFIG["OS_ARCH"] == "WINNT":
     # Don't build with CETCOMPAT, because JIT triggers a shadow stack violation

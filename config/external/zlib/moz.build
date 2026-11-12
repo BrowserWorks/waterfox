@@ -6,7 +6,19 @@ Library("zlib")
 
 if CONFIG["MOZ_SYSTEM_ZLIB"]:
     OS_LIBS += CONFIG["MOZ_ZLIB_LIBS"]
+elif CONFIG["USE_LIBZ_RS"]:
+    EXPORTS += [
+        "/modules/zlib/src/mozzconf.h",
+        "/modules/zlib/src/zconf.h",
+        "/modules/zlib/src/zlib.h",
+    ]
+
+    DIRS += ["rust"]
+    USE_LIBS += ["moz_zlib"]
 else:
     DIRS += [
         "../../../modules/zlib",
     ]
+
+if not CONFIG["JS_STANDALONE"]:
+    TEST_DIRS += ["tests"]

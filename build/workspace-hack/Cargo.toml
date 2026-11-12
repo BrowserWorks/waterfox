@@ -277,6 +277,7 @@ jsrust = ["dep:allocator-api2", "dep:arrayvec", "dep:byteorder", "dep:cc", "dep:
 crashreporter-android-export = ["dep:allocator-api2", "dep:arrayvec", "dep:bitflags", "dep:byteorder", "dep:clap", "dep:env_logger", "dep:futures-channel", "dep:futures-core", "dep:futures-executor", "dep:futures-sink", "dep:futures-util", "dep:getrandom", "dep:hashbrown", "dep:hex", "dep:indexmap", "dep:log", "dep:memchr", "dep:nom", "dep:num-traits", "dep:object", "dep:once_cell", "dep:scroll", "dep:serde_json", "dep:time", "dep:time-macros", "dep:tracing", "dep:uuid", "dep:windows-sys", "dep:zerocopy"]
 mozwer_s = ["dep:allocator-api2", "dep:byteorder", "dep:getrandom", "dep:hashbrown", "dep:indexmap", "dep:log", "dep:once_cell", "dep:scroll", "dep:serde_json", "dep:uuid", "dep:windows-sys", "dep:zerocopy"]
 nmhproxy = ["dep:allocator-api2", "dep:bitflags", "dep:byteorder", "dep:form_urlencoded", "dep:hashbrown", "dep:icu_locale_core", "dep:icu_properties", "dep:idna", "dep:indexmap", "dep:once_cell", "dep:percent-encoding", "dep:serde_json", "dep:smallvec", "dep:stable_deref_trait", "dep:tinystr", "dep:unicode-bidi", "dep:url", "dep:windows-sys", "dep:yoke", "dep:zerocopy", "dep:zerofrom", "dep:zerovec"]
+moz_zlib = []
 pkcs11testmodule-static = []
 test-trust-anchors-static = ["dep:bindgen", "dep:bitflags", "dep:itertools", "dep:memchr", "dep:nom", "dep:regex", "dep:smallvec"]
 toolchain-embedded-uniffi-bindgen = []

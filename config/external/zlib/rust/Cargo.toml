@@ -1,0 +1,20 @@
+[package]
+name = "moz_zlib"
+version = "0.1.0"
+edition = "2021"
+license = "MPL-2.0"
+
+[lib]
+crate-type = ["staticlib"]
+path = "lib.rs"
+test = false
+doctest = false
+
+[dependencies]
+libz-rs-sys = { version = "0.6.8", features = ["custom-prefix"] }
+mozglue-static = { path = "../../../../mozglue/static/rust" }
+mozilla-central-workspace-hack = { version = "0.1", features = ["moz_zlib"], optional = true }
+zlib-rs = { version = "0.6.8", features = ["avx512"] }
+
+[features]
+moz_memory = ["mozglue-static/moz_memory"]

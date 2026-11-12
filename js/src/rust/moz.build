@@ -16,6 +16,9 @@ if CONFIG["MOZ_MEMORY"]:
 if CONFIG["MOZ_ICU4X"]:
     features += ["icu4x"]
 
+if CONFIG["USE_LIBZ_RS"]:
+    features += ["libz-rs-sys"]
+
 RustLibrary("jsrust", features)
 
 if CONFIG["JS_SHARED_LIBRARY"]:

@@ -6,6 +6,7 @@
 # into `third_party/rust` by `mach vendor rust`.
 members = [
   "browser/app/nmhproxy/",
+  "config/external/zlib/rust",
   "js/src/rust",
   "netwerk/base/idna_glue",
   "netwerk/test/http3server",

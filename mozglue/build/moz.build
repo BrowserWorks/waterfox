@@ -78,10 +78,6 @@ if CONFIG["MOZ_WIDGET_TOOLKIT"]:
             "ppc.cpp",
         ]
 
-    if CONFIG["MOZ_LINKER"]:
-        USE_LIBS += [
-            "zlib",
-        ]
 
 LIBRARY_DEFINES["IMPL_MFBT"] = True
 LIBRARY_DEFINES["MOZ_HAS_MOZGLUE"] = True

@@ -252,3 +252,8 @@ run-if = [
 ["TestWrappingOperations"]
 
 ["TestXorShift128PlusRNG"]
+
+["TestZlib"]
+skip-if = [
+  "buildapp == 'js'",
+]

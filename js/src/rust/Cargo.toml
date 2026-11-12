@@ -15,10 +15,13 @@ moz_memory = ['mozglue-static/moz_memory']
 simd-accel = ['jsrust_shared/simd-accel']
 gluesmith = ['jsrust_shared/gluesmith']
 icu4x = ['jsrust_shared/icu4x']
+libz-rs-sys = ["dep:libz-rs-sys", "dep:zlib-rs"]
 
 [dependencies]
 mozilla-central-workspace-hack = { version = "0.1", features = ["jsrust"], optional = true }
 jsrust_shared = { path = "./shared" }
+libz-rs-sys = { version = "0.6.8", features = ["custom-prefix"], optional = true }
 # Workaround for https://github.com/rust-lang/rust/issues/58393
 mozglue-static = { path = "../../../mozglue/static/rust" }
 wast = "244.0.0"
+zlib-rs = { version = "0.6.8", features = ["avx512"], optional = true }
