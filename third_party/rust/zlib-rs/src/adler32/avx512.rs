@@ -1,9 +1,9 @@
 use core::arch::x86_64::{
     __m512i, _mm256_add_epi32, _mm256_castsi256_si128, _mm256_extracti128_si256, _mm512_add_epi32,
-    _mm512_castsi512_si256, _mm512_extracti64x4_epi64, _mm512_madd_epi16, _mm512_maddubs_epi16,
-    _mm512_permutexvar_epi32, _mm512_sad_epu8, _mm512_set1_epi16, _mm512_setr_epi32,
-    _mm512_slli_epi32, _mm512_zextsi128_si512, _mm_add_epi32, _mm_cvtsi128_si32, _mm_cvtsi32_si128,
-    _mm_shuffle_epi32, _mm_unpackhi_epi64,
+    _mm512_castsi512_si256, _mm512_extracti64x4_epi64, _mm512_loadu_si512, _mm512_madd_epi16,
+    _mm512_maddubs_epi16, _mm512_permutexvar_epi32, _mm512_sad_epu8, _mm512_set1_epi16,
+    _mm512_setr_epi32, _mm512_setzero_si512, _mm512_slli_epi32, _mm512_zextsi128_si512,
+    _mm_add_epi32, _mm_cvtsi128_si32, _mm_cvtsi32_si128, _mm_shuffle_epi32, _mm_unpackhi_epi64,
 };
 
 use crate::adler32::{BASE, NMAX};
@@ -26,8 +26,6 @@ const DOT2V: __m512i = __m512i_literal({
     arr
 });
 
-const ZERO: __m512i = __m512i_literal([0u8; 64]);
-
 pub fn adler32_avx512(adler: u32, src: &[u8]) -> u32 {
     assert!(cfg!(target_feature = "avx512f"));
     assert!(cfg!(target_feature = "avx512bw"));
@@ -41,62 +39,112 @@ pub fn adler32_avx512(adler: u32, src: &[u8]) -> u32 {
 
 #[target_feature(enable = "avx512f")]
 #[target_feature(enable = "avx512bw")]
-unsafe fn adler32_avx512_help(adler: u32, src: &[u8]) -> u32 {
+unsafe fn _mm512_dpbusd_epi32_emulated(acc: __m512i, a: __m512i, b: __m512i) -> __m512i {
+    let prod_i16: __m512i = _mm512_maddubs_epi16(a, b);
+
+    let ones_i16: __m512i = _mm512_set1_epi16(1);
+    let sum_i32: __m512i = _mm512_madd_epi16(prod_i16, ones_i16);
+
+    // accumulate
+    _mm512_add_epi32(acc, sum_i32)
+}
+
+#[target_feature(enable = "avx512f")]
+#[target_feature(enable = "avx512bw")]
+unsafe fn adler32_avx512_help(mut adler: u32, mut src: &[u8]) -> u32 {
     if src.is_empty() {
         return adler;
     }
 
-    // SAFETY: [u8; 64] safely transmutes into __m512i.
-    let (before, middle, after) = unsafe { src.align_to::<__m512i>() };
+    let mut adler0;
+    let mut adler1;
+    adler1 = (adler >> 16) & 0xffff;
+    adler0 = adler & 0xffff;
 
-    let adler = if !before.is_empty() {
-        super::avx2::adler32_avx2(adler, before)
-    } else {
-        adler
-    };
-
-    let mut adler1 = (adler >> 16) & 0xffff;
-    let mut adler0 = adler & 0xffff;
-
-    // Use largest step possible (without causing overflow).
-    for chunk in middle.chunks(NMAX as usize / 64) {
-        (adler0, adler1) = unsafe { helper_64_bytes(adler0, adler1, chunk) };
-    }
-
-    if after.is_empty() {
-        adler0 | (adler1 << 16)
-    } else {
-        super::avx2::adler32_avx2(adler0 | (adler1 << 16), after)
-    }
-}
-
-unsafe fn helper_64_bytes(mut adler0: u32, mut adler1: u32, src: &[__m512i]) -> (u32, u32) {
     unsafe {
-        let mut vs1 = _mm512_zextsi128_si512(_mm_cvtsi32_si128(adler0 as i32));
-        let mut vs2 = _mm512_zextsi128_si512(_mm_cvtsi32_si128(adler1 as i32));
+        'rem_peel: loop {
+            if src.len() < 32 {
+                return super::avx2::adler32_avx2(adler, src);
+            }
 
-        let mut vs1_0 = vs1;
-        let mut vs3 = ZERO;
+            if src.len() < 64 {
+                return super::avx2::adler32_avx2(adler, src);
+            }
 
-        let dot3v = _mm512_set1_epi16(1);
+            let dot2v = DOT2V;
 
-        for vbuf in src.iter().copied() {
-            let vs1_sad = _mm512_sad_epu8(vbuf, ZERO);
-            let v_short_sum2 = _mm512_maddubs_epi16(vbuf, DOT2V);
-            vs1 = _mm512_add_epi32(vs1_sad, vs1);
-            vs3 = _mm512_add_epi32(vs3, vs1_0);
-            let vsum2 = _mm512_madd_epi16(v_short_sum2, dot3v);
-            vs2 = _mm512_add_epi32(vsum2, vs2);
-            vs1_0 = vs1;
+            let zero = _mm512_setzero_si512();
+            let mut vs1;
+            let mut vs2;
+
+            while src.len() >= 64 {
+                vs1 = _mm512_zextsi128_si512(_mm_cvtsi32_si128(adler0 as i32));
+                vs2 = _mm512_zextsi128_si512(_mm_cvtsi32_si128(adler1 as i32));
+                let mut k: usize = Ord::min(src.len(), NMAX as usize);
+                k -= k % 64;
+                let mut vs1_0 = vs1;
+                let mut vs3 = _mm512_setzero_si512();
+                /* We might get a tad bit more ILP here if we sum to a second register in the loop */
+                let mut vs2_1 = _mm512_setzero_si512();
+                let mut vbuf0;
+                let mut vbuf1;
+
+                /* Remainder peeling */
+                if (k % 128) != 0 {
+                    vbuf1 = _mm512_loadu_si512(src.as_ptr().cast::<__m512i>());
+
+                    src = &src[64..];
+                    k -= 64;
+
+                    let vs1_sad = _mm512_sad_epu8(vbuf1, zero);
+                    vs1 = _mm512_add_epi32(vs1, vs1_sad);
+                    vs3 = _mm512_add_epi32(vs3, vs1_0);
+                    vs2 = _mm512_dpbusd_epi32_emulated(vs2, vbuf1, dot2v);
+                    vs1_0 = vs1;
+                }
+
+                /* Manually unrolled this loop by 2 for an decent amount of ILP */
+                while k >= 128 {
+                    /*
+                       vs1 = adler + sum(c[i])
+                       vs2 = sum2 + 64 vs1 + sum( (64-i+1) c[i] )
+                    */
+                    vbuf0 = _mm512_loadu_si512(src.as_ptr().cast::<__m512i>());
+                    vbuf1 = _mm512_loadu_si512(src.as_ptr().cast::<__m512i>().add(1));
+                    src = &src[128..];
+                    k -= 128;
+
+                    let mut vs1_sad = _mm512_sad_epu8(vbuf0, zero);
+                    vs1 = _mm512_add_epi32(vs1, vs1_sad);
+                    vs3 = _mm512_add_epi32(vs3, vs1_0);
+                    /* multiply-add, resulting in 16 ints. Fuse with sum stage from prior versions, as we now have the dp
+                     * instructions to eliminate them */
+                    vs2 = _mm512_dpbusd_epi32_emulated(vs2, vbuf0, dot2v);
+
+                    vs3 = _mm512_add_epi32(vs3, vs1);
+                    vs1_sad = _mm512_sad_epu8(vbuf1, zero);
+                    vs1 = _mm512_add_epi32(vs1, vs1_sad);
+                    vs2_1 = _mm512_dpbusd_epi32_emulated(vs2_1, vbuf1, dot2v);
+                    vs1_0 = vs1;
+                }
+
+                vs3 = _mm512_slli_epi32(vs3, 6);
+                vs2 = _mm512_add_epi32(vs2, vs3);
+                vs2 = _mm512_add_epi32(vs2, vs2_1);
+
+                adler0 = partial_hsum(vs1) % BASE;
+                adler1 = _mm512_reduce_add_epu32(vs2) % BASE;
+            }
+
+            adler = adler0 | (adler1 << 16);
+
+            /* Process tail (len < 64). */
+            if !src.is_empty() {
+                continue 'rem_peel;
+            }
+
+            return adler;
         }
-
-        vs3 = _mm512_slli_epi32(vs3, 6);
-        vs2 = _mm512_add_epi32(vs2, vs3);
-
-        adler0 = partial_hsum(vs1) % BASE;
-        adler1 = _mm512_reduce_add_epu32(vs2) % BASE;
-
-        (adler0, adler1)
     }
 }
 

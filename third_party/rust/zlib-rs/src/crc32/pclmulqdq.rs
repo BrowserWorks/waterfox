@@ -251,6 +251,11 @@ impl Accumulator {
         let first = init_crc != CRC32_INITIAL_VALUE;
         assert!(src.len() >= 31 || !first);
 
+        // However due to how alignment and loads work out, the 31 minimum is too tight. We use a
+        // simpler algorithm anyway for small input because it is faster, so to prevent accidental
+        // future UB be more strict here.
+        assert!(src.len() >= 64 || !first);
+
         if COPY {
             assert_eq!(dst.len(), src.len(), "dst and src must be the same length")
         }

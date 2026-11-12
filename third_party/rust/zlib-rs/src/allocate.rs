@@ -277,7 +277,10 @@ impl Allocator<'_> {
 
         // Safety: we assume allocating works correctly in the safety assumptions on
         // `DeflateStream` and `InflateStream`.
-        let ptr = unsafe { (self.zalloc)(self.opaque, (layout.size() + extra_space) as _, 1) };
+        let Ok(allocation_size) = c_uint::try_from(layout.size() + extra_space) else {
+            return core::ptr::null_mut();
+        };
+        let ptr = unsafe { (self.zalloc)(self.opaque, allocation_size, 1) };
 
         if ptr.is_null() {
             return ptr;
@@ -573,5 +576,31 @@ mod tests {
             #[cfg(feature = "rust-allocator")]
             assert!(zalloc_rust_calloc(ptr::null_mut(), 0, 1).is_null());
         }
+    }
+
+    #[test]
+    fn allocate_more_than_c_uint_max() {
+        unsafe extern "C" fn small_alloc(
+            _opaque: *mut c_void,
+            _items: c_uint,
+            _size: c_uint,
+        ) -> *mut c_void {
+            unreachable!("we should return NULL before this");
+        }
+
+        unsafe extern "C" fn small_free(_opaque: *mut c_void, _ptr: *mut c_void) {}
+
+        let mut storage = [0u8; 64];
+        let allocator = Allocator {
+            zalloc: small_alloc,
+            zfree: small_free,
+            opaque: storage.as_mut_ptr().cast(),
+            _marker: PhantomData,
+        };
+
+        let Some(len) = (c_uint::MAX as usize).checked_add(1) else {
+            return;
+        };
+        assert!(allocator.allocate_slice_raw::<u8>(len).is_none());
     }
 }

@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.75"
 name = "libz-rs-sys"
-version = "0.6.3"
+version = "0.6.8"
 build = false
 publish = true
 autolib = false
@@ -57,7 +57,7 @@ version = "0.2.171"
 optional = true
 
 [dependencies.zlib-rs]
-version = "0.6.3"
+version = "0.6.8"
 features = ["__internal-api"]
 default-features = false
 

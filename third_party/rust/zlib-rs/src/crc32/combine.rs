@@ -23,7 +23,7 @@ const X2N_TABLE: [u32; 32] = [
 
 // Return a(x) multiplied by b(x) modulo p(x), where p(x) is the CRC polynomial,
 // reflected. For speed, this requires that a not be zero.
-const fn multmodp(a: u32, mut b: u32) -> u32 {
+pub(crate) const fn multmodp(a: u32, mut b: u32) -> u32 {
     let mut m = 1 << 31;
     let mut p = 0;
 
@@ -46,7 +46,7 @@ const fn multmodp(a: u32, mut b: u32) -> u32 {
 }
 
 // Return x^(n * 2^k) modulo p(x).
-const fn x2nmodp(mut n: u64, mut k: u32) -> u32 {
+pub(crate) const fn x2nmodp(mut n: u64, mut k: u32) -> u32 {
     let mut p: u32 = 1 << 31; /* x^0 == 1 */
 
     while n > 0 {

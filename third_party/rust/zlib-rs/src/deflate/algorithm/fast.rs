@@ -30,8 +30,8 @@ pub fn deflate_fast(stream: &mut DeflateStream, flush: DeflateFlush) -> BlockSta
         // Insert the string window[strstart .. strstart+2] in the
         // dictionary, and set hash_head to the head of the hash chain:
 
-        let lc: u8; // Literal character to output if there is no match.
-        if state.lookahead >= WANT_MIN_MATCH {
+        // Literal character to output if there is no match.
+        let lc = if state.lookahead >= WANT_MIN_MATCH {
             let val = u32::from_le_bytes(
                 state.window.filled()[state.strstart..state.strstart + 4]
                     .try_into()
@@ -82,10 +82,10 @@ pub fn deflate_fast(stream: &mut DeflateStream, flush: DeflateFlush) -> BlockSta
                     continue;
                 }
             }
-            lc = val as u8;
+            val as u8
         } else {
-            lc = state.window.filled()[state.strstart];
-        }
+            state.window.filled()[state.strstart]
+        };
         /* No match, output a literal byte */
         let bflush = state.tally_lit(lc);
         state.lookahead -= 1;

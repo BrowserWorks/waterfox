@@ -20,6 +20,12 @@ fn slide_hash_chain(table: &mut [u16], wsize: u16) {
         return unsafe { neon::slide_hash_chain(table, wsize) };
     }
 
+    // FIXME: Remove lsx feature guard once MSRV is 1.89.0 or higher
+    #[cfg(all(target_arch = "loongarch64", feature = "lsx"))]
+    if crate::cpu_features::is_enabled_lsx() {
+        return unsafe { lsx::slide_hash_chain(table, wsize) };
+    }
+
     #[cfg(target_arch = "wasm32")]
     if crate::cpu_features::is_enabled_simd128() {
         // SAFETY: the simd128 target feature is enabled.
@@ -74,6 +80,20 @@ mod neon {
     pub unsafe fn slide_hash_chain(table: &mut [u16], wsize: u16) {
         // 32 means that 4 128-bit values can be processed per iteration. That appear to be the
         // optimal amount for neon.
+        super::generic_slide_hash_chain::<32>(table, wsize);
+    }
+}
+
+// FIXME: Remove lsx feature guard once MSRV is 1.89.0 or higher
+#[cfg(all(target_arch = "loongarch64", feature = "lsx"))]
+mod lsx {
+    /// # Safety
+    ///
+    /// Behavior is undefined if the `lsx` target feature is not enabled.
+    #[target_feature(enable = "lsx")]
+    pub unsafe fn slide_hash_chain(table: &mut [u16], wsize: u16) {
+        // 32 means that 4 128-bit values can be processed per iteration. That appear to be the
+        // optimal amount for LSX.
         super::generic_slide_hash_chain::<32>(table, wsize);
     }
 }
@@ -138,6 +158,19 @@ mod tests {
             let mut input = INPUT;
 
             unsafe { neon::slide_hash_chain(&mut input, WSIZE) };
+
+            assert_eq!(input, OUTPUT);
+        }
+    }
+
+    // FIXME: Remove lsx feature guard once MSRV is 1.89.0 or higher
+    #[test]
+    #[cfg(all(target_arch = "loongarch64", feature = "lsx"))]
+    fn test_slide_hash_lsx() {
+        if crate::cpu_features::is_enabled_lsx() {
+            let mut input = INPUT;
+
+            unsafe { lsx::slide_hash_chain(&mut input, WSIZE) };
 
             assert_eq!(input, OUTPUT);
         }

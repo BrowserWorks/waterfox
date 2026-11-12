@@ -244,6 +244,10 @@ pub unsafe extern "C" fn gzopen(path: *const c_char, mode: *const c_char) -> gzF
 /// * If successful, an opaque handle that the caller can later free with [`gzfree`]
 /// * On error, a null pointer
 ///
+/// The file descriptor is not used until the next `gz{read, write, seek, close}` operation,
+/// so `gzdopen` will not detect if `fd` is invalid (unless `fd == -1` which returns a null
+/// pointer).
+///
 /// # Safety
 ///
 /// The caller must ensure that `mode` points to a valid C string. If the
@@ -372,8 +376,10 @@ unsafe fn gzopen_help(source: Source, mode: *const c_char) -> gzFile {
         return ptr::null_mut();
     }
 
+    // NOTE: the `lseek64` return value is ignored, an invalid file descriptor will only be
+    // detected by the next `gz{read, write, seek, close}`.
     if state.mode == GzMode::GZ_APPEND {
-        lseek64(state.fd, 0, SEEK_END); // so gzoffset() is correct
+        let _ = lseek64(state.fd, 0, SEEK_END); // so gzoffset() is correct
         state.mode = GzMode::GZ_WRITE; // simplify later checks
     }
 

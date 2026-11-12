@@ -34,7 +34,7 @@ impl<'a, T> WeakSliceMut<'a, T> {
         unsafe { core::slice::from_raw_parts(self.ptr, self.len) }
     }
 
-    pub(crate) fn as_mut_slice(&mut self) -> &'a mut [T] {
+    pub(crate) fn as_mut_slice(&mut self) -> &mut [T] {
         unsafe { core::slice::from_raw_parts_mut(self.ptr, self.len) }
     }
 
@@ -85,7 +85,7 @@ impl<'a, T, const N: usize> WeakArrayMut<'a, T, N> {
         unsafe { core::slice::from_raw_parts(self.ptr.cast(), N) }
     }
 
-    pub(crate) fn as_mut_slice(&mut self) -> &'a mut [T] {
+    pub(crate) fn as_mut_slice(&mut self) -> &mut [T] {
         unsafe { core::slice::from_raw_parts_mut(self.ptr.cast(), N) }
     }
 

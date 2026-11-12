@@ -101,6 +101,16 @@ pub fn is_enabled_crc() -> bool {
     false
 }
 
+// FIXME: Remove lsx feature guard once MSRV is 1.89.0 or higher
+#[inline(always)]
+pub fn is_enabled_lsx() -> bool {
+    #[cfg(all(target_arch = "loongarch64", feature = "lsx"))]
+    #[cfg(feature = "std")]
+    return std::arch::is_loongarch_feature_detected!("lsx");
+
+    false
+}
+
 #[inline(always)]
 pub fn is_enabled_simd128() -> bool {
     #[cfg(target_arch = "wasm32")]

@@ -146,6 +146,11 @@ impl<'a> Writer<'a> {
             return self.extend_from_window_help::<16>(window, range);
         }
 
+        #[cfg(all(target_arch = "loongarch64", feature = "lsx"))]
+        if crate::cpu_features::is_enabled_lsx() {
+            return self.extend_from_window_help::<16>(window, range);
+        }
+
         #[cfg(target_arch = "wasm32")]
         if crate::cpu_features::is_enabled_simd128() {
             return self.extend_from_window_help::<16>(window, range);
@@ -241,6 +246,11 @@ impl<'a> Writer<'a> {
 
         #[cfg(target_arch = "aarch64")]
         if crate::cpu_features::is_enabled_neon() {
+            return self.copy_match_help::<16>(offset_from_end, length);
+        }
+
+        #[cfg(all(target_arch = "loongarch64", feature = "lsx"))]
+        if crate::cpu_features::is_enabled_lsx() {
             return self.copy_match_help::<16>(offset_from_end, length);
         }
 
@@ -487,6 +497,11 @@ mod test {
             helper!(Writer::copy_match_help::<16>);
         }
 
+        #[cfg(all(target_arch = "loongarch64", feature = "lsx"))]
+        if crate::cpu_features::is_enabled_lsx() {
+            helper!(Writer::copy_match_help::<16>);
+        }
+
         #[cfg(target_arch = "wasm32")]
         if crate::cpu_features::is_enabled_simd128() {
             helper!(Writer::copy_match_help::<16>);
@@ -496,6 +511,7 @@ mod test {
     }
 
     #[test]
+    #[cfg_attr(miri, ignore = "slow")]
     fn copy_match() {
         for offset_from_end in 1..=64 {
             for length in 0..=64 {

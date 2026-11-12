@@ -22,6 +22,9 @@ fn longest_match_help<const SLOW: bool>(
     let wmask = state.w_mask();
     let window = state.window.filled();
     let scan = &window[strstart..];
+
+    // Elide bounds checks in the loop.
+    let prev = &state.prev.as_slice()[..=wmask];
     let mut limit: Pos;
     let limit_base: Pos;
     let early_exit: bool;
@@ -36,7 +39,7 @@ fn longest_match_help<const SLOW: bool>(
         () => {
             chain_length -= 1;
             if chain_length > 0 {
-                cur_match = state.prev.as_slice()[cur_match as usize & wmask];
+                cur_match = prev[cur_match as usize & wmask];
 
                 if cur_match > limit {
                     continue;
@@ -286,7 +289,7 @@ fn longest_match_help<const SLOW: bool>(
                 let mut next_pos = cur_match;
 
                 for i in 0..=len - STD_MIN_MATCH {
-                    pos = state.prev.as_slice()[(cur_match as usize + i) & wmask];
+                    pos = prev[(cur_match as usize + i) & wmask];
                     if pos < next_pos {
                         /* Hash chain is more distant, use it */
                         if pos <= limit_base + i as Pos {

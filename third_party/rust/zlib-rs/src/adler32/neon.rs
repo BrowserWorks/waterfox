@@ -4,7 +4,7 @@
 //! extension.
 use core::arch::aarch64::{
     uint16x8_t, uint16x8x2_t, uint16x8x4_t, uint8x16_t, vaddq_u32, vaddw_high_u8, vaddw_u8,
-    vdupq_n_u16, vdupq_n_u32, vget_high_u32, vget_lane_u32, vget_low_u16, vget_low_u32,
+    vdupq_n_u16, vdupq_n_u32, vextq_u8, vget_high_u32, vget_lane_u32, vget_low_u16, vget_low_u32,
     vget_low_u8, vld1q_u8_x4, vmlal_high_u16, vmlal_u16, vpadalq_u16, vpadalq_u8, vpadd_u32,
     vpaddlq_u8, vsetq_lane_u32, vshlq_n_u32,
 };
@@ -62,6 +62,12 @@ unsafe fn adler32_neon_internal(mut adler: u32, buf: &[u8]) -> u32 {
 
     pair = handle_tail(pair, before);
 
+    // NOTE: zlib-ng adjusts the chunk size to account for already having consumed some input. We
+    // instead just mod the pair by BASE and then use the full chunk width below. Failing to do so
+    // can result in overflow.
+    pair.0 %= BASE;
+    pair.1 %= BASE;
+
     for chunk in middle.chunks(NMAX as usize / core::mem::size_of::<uint8x16_t>()) {
         pair = unsafe { accum32(pair, chunk) };
         pair.0 %= BASE;
@@ -89,115 +95,138 @@ fn handle_tail(mut pair: (u32, u32), buf: &[u8]) -> (u32, u32) {
 
 #[target_feature(enable = "neon")]
 unsafe fn accum32(s: (u32, u32), buf: &[uint8x16_t]) -> (u32, u32) {
-    let mut adacc = vdupq_n_u32(0);
-    let mut s2acc = vdupq_n_u32(0);
+    // No target features 1.1 yet...
+    unsafe {
+        let mut adacc = vdupq_n_u32(0);
+        let mut s2acc = vdupq_n_u32(0);
 
-    adacc = vsetq_lane_u32(s.0, adacc, 0);
-    s2acc = vsetq_lane_u32(s.1, s2acc, 0);
+        adacc = vsetq_lane_u32(s.0, adacc, 0);
+        s2acc = vsetq_lane_u32(s.1, s2acc, 0);
 
-    let mut s3acc = vdupq_n_u32(0);
-    let mut adacc_prev = adacc;
+        let mut s3acc = vdupq_n_u32(0);
+        let mut adacc_prev = adacc;
 
-    let mut s2_0 = vdupq_n_u16(0);
-    let mut s2_1 = vdupq_n_u16(0);
-    let mut s2_2 = vdupq_n_u16(0);
-    let mut s2_3 = vdupq_n_u16(0);
+        let mut s2_0 = vdupq_n_u16(0);
+        let mut s2_1 = vdupq_n_u16(0);
+        let mut s2_2 = vdupq_n_u16(0);
+        let mut s2_3 = vdupq_n_u16(0);
 
-    let mut s2_4 = vdupq_n_u16(0);
-    let mut s2_5 = vdupq_n_u16(0);
-    let mut s2_6 = vdupq_n_u16(0);
-    let mut s2_7 = vdupq_n_u16(0);
+        let mut s2_4 = vdupq_n_u16(0);
+        let mut s2_5 = vdupq_n_u16(0);
+        let mut s2_6 = vdupq_n_u16(0);
+        let mut s2_7 = vdupq_n_u16(0);
 
-    let mut it = buf.chunks_exact(4);
+        let mut it = buf.chunks_exact(4);
 
-    for chunk in &mut it {
-        // SAFETY: the chunks_exact iterator ensures chunk always references a 16x4 block within buf.
-        let d0_d3 = unsafe { vld1q_u8_x4(chunk.as_ptr() as *const u8) };
+        #[target_feature(enable = "neon")]
+        #[inline]
+        unsafe fn swap_64bit_lanes_when_be(v: uint8x16_t) -> uint8x16_t {
+            #[rustfmt::skip]
+            crate::cfg_select! {
+                target_endian = "big" => { vextq_u8(v, v, 8) }
+                target_endian = "little" => { v }
+            }
+        }
 
-        // Unfortunately it doesn't look like there's a direct sum 8 bit to 32
-        // bit instruction, we'll have to make due summing to 16 bits first
-        let hsum = uint16x8x2_t(vpaddlq_u8(d0_d3.0), vpaddlq_u8(d0_d3.1));
+        for chunk in &mut it {
+            // SAFETY: the chunks_exact iterator ensures chunk always references a 16x4 block within buf.
+            let d0_d3 = {
+                let mut tmp = unsafe { vld1q_u8_x4(chunk.as_ptr() as *const u8) };
 
-        let hsum_fold = uint16x8x2_t(vpadalq_u8(hsum.0, d0_d3.2), vpadalq_u8(hsum.1, d0_d3.3));
+                tmp.0 = swap_64bit_lanes_when_be(tmp.0);
+                tmp.1 = swap_64bit_lanes_when_be(tmp.1);
+                tmp.2 = swap_64bit_lanes_when_be(tmp.2);
+                tmp.3 = swap_64bit_lanes_when_be(tmp.3);
 
-        adacc = vpadalq_u16(adacc, hsum_fold.0);
-        s3acc = vaddq_u32(s3acc, adacc_prev);
-        adacc = vpadalq_u16(adacc, hsum_fold.1);
+                tmp
+            };
 
-        // If we do straight widening additions to the 16 bit values, we don't incur
-        // the usual penalties of a pairwise add. We can defer the multiplications
-        // until the very end. These will not overflow because we are incurring at
-        // most 408 loop iterations (NMAX / 64), and a given lane is only going to be
-        // summed into once. This means for the maximum input size, the largest value
-        // we will see is 255 * 102 = 26010, safely under uint16 max
-        s2_0 = vaddw_u8(s2_0, vget_low_u8(d0_d3.0));
-        s2_1 = vaddw_high_u8(s2_1, d0_d3.0);
-        s2_2 = vaddw_u8(s2_2, vget_low_u8(d0_d3.1));
-        s2_3 = vaddw_high_u8(s2_3, d0_d3.1);
-        s2_4 = vaddw_u8(s2_4, vget_low_u8(d0_d3.2));
-        s2_5 = vaddw_high_u8(s2_5, d0_d3.2);
-        s2_6 = vaddw_u8(s2_6, vget_low_u8(d0_d3.3));
-        s2_7 = vaddw_high_u8(s2_7, d0_d3.3);
+            // Unfortunately it doesn't look like there's a direct sum 8 bit to 32
+            // bit instruction, we'll have to make due summing to 16 bits first
+            let hsum = uint16x8x2_t(vpaddlq_u8(d0_d3.0), vpaddlq_u8(d0_d3.1));
 
-        adacc_prev = adacc;
-    }
+            let hsum_fold = uint16x8x2_t(vpadalq_u8(hsum.0, d0_d3.2), vpadalq_u8(hsum.1, d0_d3.3));
 
-    s3acc = vshlq_n_u32(s3acc, 6);
+            adacc = vpadalq_u16(adacc, hsum_fold.0);
+            s3acc = vaddq_u32(s3acc, adacc_prev);
+            adacc = vpadalq_u16(adacc, hsum_fold.1);
 
-    let remainder = it.remainder();
+            // If we do straight widening additions to the 16 bit values, we don't incur
+            // the usual penalties of a pairwise add. We can defer the multiplications
+            // until the very end. These will not overflow because we are incurring at
+            // most 408 loop iterations (NMAX / 64), and a given lane is only going to be
+            // summed into once. This means for the maximum input size, the largest value
+            // we will see is 255 * 102 = 26010, safely under uint16 max
+            s2_0 = vaddw_u8(s2_0, vget_low_u8(d0_d3.0));
+            s2_1 = vaddw_high_u8(s2_1, d0_d3.0);
+            s2_2 = vaddw_u8(s2_2, vget_low_u8(d0_d3.1));
+            s2_3 = vaddw_high_u8(s2_3, d0_d3.1);
+            s2_4 = vaddw_u8(s2_4, vget_low_u8(d0_d3.2));
+            s2_5 = vaddw_high_u8(s2_5, d0_d3.2);
+            s2_6 = vaddw_u8(s2_6, vget_low_u8(d0_d3.3));
+            s2_7 = vaddw_high_u8(s2_7, d0_d3.3);
 
-    if !remainder.is_empty() {
-        let mut s3acc_0 = vdupq_n_u32(0);
-        for d0 in remainder.iter().copied() {
-            let adler: uint16x8_t = vpaddlq_u8(d0);
-            s2_6 = vaddw_u8(s2_6, vget_low_u8(d0));
-            s2_7 = vaddw_high_u8(s2_7, d0);
-            adacc = vpadalq_u16(adacc, adler);
-            s3acc_0 = vaddq_u32(s3acc_0, adacc_prev);
             adacc_prev = adacc;
         }
 
-        s3acc_0 = vshlq_n_u32(s3acc_0, 4);
-        s3acc = vaddq_u32(s3acc_0, s3acc);
+        s3acc = vshlq_n_u32(s3acc, 6);
+
+        let remainder = it.remainder();
+
+        if !remainder.is_empty() {
+            let mut s3acc_0 = vdupq_n_u32(0);
+            for d0 in remainder.iter().copied() {
+                let d0 = swap_64bit_lanes_when_be(d0);
+                let adler: uint16x8_t = vpaddlq_u8(d0);
+                s2_6 = vaddw_u8(s2_6, vget_low_u8(d0));
+                s2_7 = vaddw_high_u8(s2_7, d0);
+                adacc = vpadalq_u16(adacc, adler);
+                s3acc_0 = vaddq_u32(s3acc_0, adacc_prev);
+                adacc_prev = adacc;
+            }
+
+            s3acc_0 = vshlq_n_u32(s3acc_0, 4);
+            s3acc = vaddq_u32(s3acc_0, s3acc);
+        }
+
+        let t0_t3 = TAPS[0];
+        let t4_t7 = TAPS[1];
+
+        let mut s2acc_0 = vdupq_n_u32(0);
+        let mut s2acc_1 = vdupq_n_u32(0);
+        let mut s2acc_2 = vdupq_n_u32(0);
+
+        s2acc = vmlal_high_u16(s2acc, t0_t3.0, s2_0);
+        s2acc_0 = vmlal_u16(s2acc_0, vget_low_u16(t0_t3.0), vget_low_u16(s2_0));
+        s2acc_1 = vmlal_high_u16(s2acc_1, t0_t3.1, s2_1);
+        s2acc_2 = vmlal_u16(s2acc_2, vget_low_u16(t0_t3.1), vget_low_u16(s2_1));
+
+        s2acc = vmlal_high_u16(s2acc, t0_t3.2, s2_2);
+        s2acc_0 = vmlal_u16(s2acc_0, vget_low_u16(t0_t3.2), vget_low_u16(s2_2));
+        s2acc_1 = vmlal_high_u16(s2acc_1, t0_t3.3, s2_3);
+        s2acc_2 = vmlal_u16(s2acc_2, vget_low_u16(t0_t3.3), vget_low_u16(s2_3));
+
+        s2acc = vmlal_high_u16(s2acc, t4_t7.0, s2_4);
+        s2acc_0 = vmlal_u16(s2acc_0, vget_low_u16(t4_t7.0), vget_low_u16(s2_4));
+        s2acc_1 = vmlal_high_u16(s2acc_1, t4_t7.1, s2_5);
+        s2acc_2 = vmlal_u16(s2acc_2, vget_low_u16(t4_t7.1), vget_low_u16(s2_5));
+
+        s2acc = vmlal_high_u16(s2acc, t4_t7.2, s2_6);
+        s2acc_0 = vmlal_u16(s2acc_0, vget_low_u16(t4_t7.2), vget_low_u16(s2_6));
+        s2acc_1 = vmlal_high_u16(s2acc_1, t4_t7.3, s2_7);
+        s2acc_2 = vmlal_u16(s2acc_2, vget_low_u16(t4_t7.3), vget_low_u16(s2_7));
+
+        s2acc = vaddq_u32(s2acc_0, s2acc);
+        s2acc_2 = vaddq_u32(s2acc_1, s2acc_2);
+        s2acc = vaddq_u32(s2acc, s2acc_2);
+
+        let s2acc = vaddq_u32(s2acc, s3acc);
+        let adacc2 = vpadd_u32(vget_low_u32(adacc), vget_high_u32(adacc));
+        let s2acc2 = vpadd_u32(vget_low_u32(s2acc), vget_high_u32(s2acc));
+        let as_ = vpadd_u32(adacc2, s2acc2);
+
+        (vget_lane_u32(as_, 0), vget_lane_u32(as_, 1))
     }
-
-    let t0_t3 = TAPS[0];
-    let t4_t7 = TAPS[1];
-
-    let mut s2acc_0 = vdupq_n_u32(0);
-    let mut s2acc_1 = vdupq_n_u32(0);
-    let mut s2acc_2 = vdupq_n_u32(0);
-
-    s2acc = vmlal_high_u16(s2acc, t0_t3.0, s2_0);
-    s2acc_0 = vmlal_u16(s2acc_0, vget_low_u16(t0_t3.0), vget_low_u16(s2_0));
-    s2acc_1 = vmlal_high_u16(s2acc_1, t0_t3.1, s2_1);
-    s2acc_2 = vmlal_u16(s2acc_2, vget_low_u16(t0_t3.1), vget_low_u16(s2_1));
-
-    s2acc = vmlal_high_u16(s2acc, t0_t3.2, s2_2);
-    s2acc_0 = vmlal_u16(s2acc_0, vget_low_u16(t0_t3.2), vget_low_u16(s2_2));
-    s2acc_1 = vmlal_high_u16(s2acc_1, t0_t3.3, s2_3);
-    s2acc_2 = vmlal_u16(s2acc_2, vget_low_u16(t0_t3.3), vget_low_u16(s2_3));
-
-    s2acc = vmlal_high_u16(s2acc, t4_t7.0, s2_4);
-    s2acc_0 = vmlal_u16(s2acc_0, vget_low_u16(t4_t7.0), vget_low_u16(s2_4));
-    s2acc_1 = vmlal_high_u16(s2acc_1, t4_t7.1, s2_5);
-    s2acc_2 = vmlal_u16(s2acc_2, vget_low_u16(t4_t7.1), vget_low_u16(s2_5));
-
-    s2acc = vmlal_high_u16(s2acc, t4_t7.2, s2_6);
-    s2acc_0 = vmlal_u16(s2acc_0, vget_low_u16(t4_t7.2), vget_low_u16(s2_6));
-    s2acc_1 = vmlal_high_u16(s2acc_1, t4_t7.3, s2_7);
-    s2acc_2 = vmlal_u16(s2acc_2, vget_low_u16(t4_t7.3), vget_low_u16(s2_7));
-
-    s2acc = vaddq_u32(s2acc_0, s2acc);
-    s2acc_2 = vaddq_u32(s2acc_1, s2acc_2);
-    s2acc = vaddq_u32(s2acc, s2acc_2);
-
-    let s2acc = vaddq_u32(s2acc, s3acc);
-    let adacc2 = vpadd_u32(vget_low_u32(adacc), vget_high_u32(adacc));
-    let s2acc2 = vpadd_u32(vget_low_u32(s2acc), vget_high_u32(s2acc));
-    let as_ = vpadd_u32(adacc2, s2acc2);
-
-    (vget_lane_u32(as_, 0), vget_lane_u32(as_, 1))
 }
 
 #[cfg(all(test, feature = "std", any(miri, target_feature = "neon")))]
@@ -244,6 +273,18 @@ mod tests {
         let neon = adler32_neon(42, DEFAULT);
         let rust = crate::adler32::generic::adler32_rust(42, DEFAULT);
 
+        assert_eq!(neon, rust);
+    }
+
+    // Regression test for a bug where adler32 would not modulo by the base early enough,
+    // specifically it ignored the `before` slice in when to mod.
+    #[test]
+    fn carry_in_with_unaligned_before_no_overflow() {
+        let backing = vec![0xffu8; 5568];
+        let buf: &[u8] = &backing[1..1 + 5567];
+        let start: u32 = 0xa4c1_fb51;
+        let neon = adler32_neon(start, buf);
+        let rust = crate::adler32::generic::adler32_rust(start, buf);
         assert_eq!(neon, rust);
     }
 }

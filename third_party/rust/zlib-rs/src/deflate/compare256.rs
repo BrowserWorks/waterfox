@@ -25,6 +25,11 @@ fn compare256(src0: &[u8; 256], src1: &[u8; 256]) -> usize {
         return unsafe { neon::compare256(src0, src1) };
     }
 
+    #[cfg(all(target_arch = "loongarch64", feature = "lsx"))]
+    if crate::cpu_features::is_enabled_lsx() {
+        return unsafe { lsx::compare256(src0, src1) };
+    }
+
     #[cfg(target_arch = "wasm32")]
     if crate::cpu_features::is_enabled_simd128() {
         return wasm32::compare256(src0, src1);
@@ -114,7 +119,7 @@ mod rust {
 mod neon {
     use core::arch::aarch64::{
         uint8x16x4_t, vceqq_u8, vget_lane_u64, vld4q_u8, vreinterpret_u64_u8, vreinterpretq_u16_u8,
-        vshrn_n_u16, vsriq_n_u8,
+        vrev16q_u8, vshrn_n_u16, vsriq_n_u8,
     };
 
     /// # Safety
@@ -167,6 +172,13 @@ mod neon {
                 // shifting right by 4 bits means the top 4 bits of each 16 bit element contains the
                 // low 4 bits of the 0th 8-bit element and the high 4 bits of the 1nth 8-bit
                 // element. Narrowing takes the top 8 bits of each (16-bit) element.
+                let bitmask_vector = if cfg!(target_endian = "big") {
+                    // We interpret this as u16 below; on BE swap the bytes around.
+                    vrev16q_u8(bitmask_vector)
+                } else {
+                    bitmask_vector
+                };
+
                 let result_vector = vshrn_n_u16::<4>(vreinterpretq_u16_u8(bitmask_vector));
 
                 // Convert the vector to a 64-bit integer, where each bit represents whether
@@ -340,7 +352,60 @@ mod avx512 {
 
     #[test]
     fn test_compare256() {
-        if true {
+        if cfg!(target_feature = "avx512vl") && cfg!(target_feature = "avx512bw") {
+            let str1 = [b'a'; super::MAX_COMPARE_SIZE];
+            let mut str2 = [b'a'; super::MAX_COMPARE_SIZE];
+
+            for i in 0..str1.len() {
+                str2[i] = 0;
+
+                let match_len = unsafe { compare256(&str1, &str2) };
+                assert_eq!(match_len, i);
+
+                str2[i] = b'a';
+            }
+        }
+    }
+}
+
+#[cfg(all(target_arch = "loongarch64", feature = "lsx"))]
+mod lsx {
+    use core::arch::loongarch64::{lsx_vld, lsx_vmskltz_b, lsx_vpickve2gr_w, lsx_vseq_b};
+
+    #[target_feature(enable = "lsx")]
+    pub fn compare256(src0: &[u8; 256], src1: &[u8; 256]) -> usize {
+        let src0 = src0.chunks_exact(16);
+        let src1 = src1.chunks_exact(16);
+
+        let mut len = 0;
+
+        unsafe {
+            for (chunk0, chunk1) in src0.zip(src1) {
+                let a = lsx_vld::<0>(chunk0.as_ptr() as *const i8);
+                let b = lsx_vld::<0>(chunk1.as_ptr() as *const i8);
+
+                // element-wise compare of the 8-bit elements
+                // 0xff if equal, otherwise 0
+                let v = lsx_vseq_b(a, b);
+
+                // bootleg movemask implementation
+                let mask = lsx_vpickve2gr_w::<0>(lsx_vmskltz_b(v));
+
+                if mask != 0xFFFF {
+                    let match_byte = mask.trailing_ones();
+                    return len + match_byte as usize;
+                }
+
+                len += 16;
+            }
+        }
+
+        256
+    }
+
+    #[test]
+    fn test_compare256() {
+        if crate::cpu_features::is_enabled_lsx() {
             let str1 = [b'a'; super::MAX_COMPARE_SIZE];
             let mut str2 = [b'a'; super::MAX_COMPARE_SIZE];
 

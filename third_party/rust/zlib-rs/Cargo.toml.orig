@@ -27,6 +27,7 @@ __internal-api = [] # export internal symbols for use in `libz-rs-sys`.
 ZLIB_DEBUG = []
 vpclmulqdq = [] # use avx512 to speed up crc32. Only stable from 1.89.0 onwards.
 avx512 = ["vpclmulqdq"] # use avx512 to speed up crc32 and adler32. Only stable from 1.89.0 onwards.
+lsx = [] # use LSX to speed up various parts of zlib-rs. Feature stabilized in 1.89.0, intrinsics are unstable.
 
 
 [dependencies]

@@ -9,22 +9,17 @@ use crate::inflate::{
     Codes, Flags, InflateAllocOffsets, InflateConfig, InflateStream, Mode, State, Table, Window,
     INFLATE_FAST_MIN_HAVE, INFLATE_FAST_MIN_LEFT, INFLATE_STRICT, MAX_BITS, MAX_DIST_EXTRA_BITS,
 };
+use crate::traceln;
 use crate::{c_api::z_stream, inflate::writer::Writer, ReturnCode};
-
-macro_rules! tracev {
-    ($template:expr) => {
-         #[cfg(test)]
-        eprintln!($template);
-    };
-    ($template:expr, $($x:expr),* $(,)?) => {
-         #[cfg(test)]
-        eprintln!($template, $($x),*);
-    };
-}
+use crate::{MAX_WBITS, MIN_WBITS};
 
 /// Initialize the stream in an inflate state
 pub fn back_init(stream: &mut z_stream, config: InflateConfig, window: Window) -> ReturnCode {
     assert_eq!(1 << config.window_bits, window.buffer_size());
+
+    if !(MIN_WBITS..=MAX_WBITS).contains(&config.window_bits) {
+        return ReturnCode::StreamError as _;
+    }
 
     stream.msg = core::ptr::null_mut();
 
@@ -106,7 +101,7 @@ pub unsafe fn back(
     let mut have = if !next.is_null() { strm.avail_in } else { 0 };
     let mut hold = 0;
     let mut bits = 0u8;
-    let mut put = strm.state.window.as_ptr().cast_mut();
+    let mut put = strm.state.window.as_mut_ptr();
     let mut left = strm.state.window.buffer_size();
 
     let state = &mut strm.state;
@@ -177,8 +172,7 @@ pub unsafe fn back(
             () => {
                 if left == 0 {
                     left = state.window.buffer_size();
-                    let window = state.window.as_slice();
-                    put = window.as_ptr().cast_mut();
+                    put = state.window.as_mut_ptr();
 
                     unsafe { state.window.set_have(left) };
 
@@ -206,14 +200,14 @@ pub unsafe fn back(
 
                 match bits!(2) {
                     0b00 => {
-                        tracev!("inflate:     stored block (last = {last})");
+                        traceln!("inflate:     stored block (last = {last})");
 
                         dropbits!(2);
                         state.mode = Mode::Stored;
                         continue;
                     }
                     0b01 => {
-                        tracev!("inflate:     fixed codes block (last = {last})");
+                        traceln!("inflate:     fixed codes block (last = {last})");
 
                         state.len_table = Table {
                             codes: Codes::Fixed,
@@ -230,14 +224,14 @@ pub unsafe fn back(
                         continue;
                     }
                     0b10 => {
-                        tracev!("inflate:     dynamic codes block (last = {last})");
+                        traceln!("inflate:     dynamic codes block (last = {last})");
 
                         dropbits!(2);
                         state.mode = Mode::Table;
                         continue;
                     }
                     0b11 => {
-                        tracev!("inflate:     invalid block type");
+                        traceln!("inflate:     invalid block type");
 
                         dropbits!(2);
                         state.mode = Mode::Bad;
@@ -261,7 +255,7 @@ pub unsafe fn back(
                 }
 
                 state.length = hold as usize & 0xFFFF;
-                tracev!("inflate:     stored length {}", state.length);
+                traceln!("inflate:     stored length {}", state.length);
 
                 initbits!();
 
@@ -305,7 +299,7 @@ pub unsafe fn back(
                     continue;
                 }
 
-                tracev!("inflate:       table sizes ok");
+                traceln!("inflate:       table sizes ok");
                 state.have = 0;
 
                 // permutation of code lengths ;
@@ -341,7 +335,7 @@ pub unsafe fn back(
                 state.len_table.codes = Codes::Codes;
                 state.len_table.bits = root;
 
-                tracev!("inflate:       table sizes ok");
+                traceln!("inflate:       table sizes ok");
                 state.have = 0;
 
                 while state.have < state.nlen + state.ndist {
@@ -532,9 +526,9 @@ pub unsafe fn back(
 
                 if here.op == 0 {
                     if here.val >= 0x20 && here.val < 0x7f {
-                        tracev!("inflate:         literal '{}'", here.val as u8 as char);
+                        traceln!("inflate:         literal '{}'", here.val as u8 as char);
                     } else {
-                        tracev!("inflate:         literal {:#04x}", here.val);
+                        traceln!("inflate:         literal {:#04x}", here.val);
                     }
                     room!();
 
@@ -549,7 +543,7 @@ pub unsafe fn back(
                 } else if here.op & 32 != 0 {
                     // end of block
 
-                    tracev!("inflate:         end of block");
+                    traceln!("inflate:         end of block");
 
                     state.mode = Mode::Type;
                     continue;
@@ -568,7 +562,7 @@ pub unsafe fn back(
                     state.length += bits!(state.extra) as usize;
                     dropbits!(state.extra as u8);
                 }
-                tracev!("inflate:         length {}", state.length);
+                traceln!("inflate:         length {}", state.length);
 
                 // get distance code
                 let mut here;
@@ -634,7 +628,7 @@ pub unsafe fn back(
                     continue 'inf_leave;
                 }
 
-                tracev!("inflate:         distance {}", state.offset);
+                traceln!("inflate:         distance {}", state.offset);
 
                 loop {
                     room!();
@@ -713,7 +707,7 @@ pub unsafe fn back(
         && unsafe {
             out(
                 out_desc,
-                state.window.as_ptr().cast_mut(),
+                state.window.as_mut_ptr(),
                 state.window.buffer_size() as u32 - left as u32,
             )
         } != 0

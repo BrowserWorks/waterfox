@@ -1,4 +1,4 @@
-use core::ffi::c_uint;
+use core::{ffi::c_uint, mem::MaybeUninit};
 
 use crate::deflate::DeflateConfig;
 use crate::inflate::InflateConfig;
@@ -93,12 +93,33 @@ impl Inflate {
         }
     }
 
-    /// Create a new instance. Note that it allocates in various ways and thus should be re-used.
+    /// Create a new instance. This function allocates, and so it is recommended to re-use this
+    /// state when possible, using [`Inflate::reset`] as needed.
     ///
-    /// The `window_bits` must be in the range `8..=15`, with `15` being most common.
-    pub fn new(zlib_header: bool, window_bits: u8) -> Self {
+    /// This function will:
+    ///
+    /// - decode a raw deflate stream when `expect_header = false` and `window_bits` is in the
+    ///   range `8..=15`
+    /// - decode a zlib header followed by a deflate stream when `expect_header = true` and
+    ///   `window_bits` is in the range `8..=15`
+    /// - decode a gzip header followed by a deflate stream when `expect_header = true` and
+    ///   `window_bits` is in the range `16 + 8..=16 + 15`
+    /// - decode either a zlib or a gzip header, followed by a deflate stream when
+    ///   `expect_header = true` and `window_bits` is in the range `32 + 8..=32 + 15`
+    ///
+    /// `window_bits` can also be 0 to request that inflate use the window size in the
+    /// zlib header of the compressed stream when using zlib.
+    ///
+    /// Note that when deflating a value of `window_bits = 8` is silently converted to
+    /// `window_bits = 9` in most zlib implementations, and hence should be inflated using
+    /// `window_bits = 9`.
+    ///
+    /// # Panics
+    ///
+    /// This function may panic when the `window_bits` and `expect_header` have values not listed above.
+    pub fn new(expect_header: bool, window_bits: u8) -> Self {
         let config = InflateConfig {
-            window_bits: if zlib_header {
+            window_bits: if expect_header {
                 i32::from(window_bits)
             } else {
                 -i32::from(window_bits)
@@ -126,11 +147,27 @@ impl Inflate {
         crate::inflate::reset_with_config(&mut self.inner, config);
     }
 
-    /// Decompress `input` and write all decompressed bytes into `output`, with `flush` defining some details about this.
+    /// Decompress `input` and write all decompressed bytes into `output`,
+    /// with `flush` defining some details about this.
     pub fn decompress(
         &mut self,
         input: &[u8],
         output: &mut [u8],
+        flush: InflateFlush,
+    ) -> Result<Status, InflateError> {
+        self.decompress_uninit(
+            input,
+            unsafe { &mut *(output as *mut _ as *mut [MaybeUninit<u8>]) },
+            flush,
+        )
+    }
+
+    /// Decompress `input` and write all decompressed bytes into a potentially uninitialized `output`,
+    /// with `flush` defining some details about this.
+    pub fn decompress_uninit(
+        &mut self,
+        input: &[u8],
+        output: &mut [MaybeUninit<u8>],
         flush: InflateFlush,
     ) -> Result<Status, InflateError> {
         // Limit the length of the input and output to the maximum value of a c_uint. For larger
@@ -141,7 +178,7 @@ impl Inflate {
 
         // This cast_mut is unfortunate, that is just how the types are.
         self.inner.next_in = input.as_ptr().cast_mut();
-        self.inner.next_out = output.as_mut_ptr();
+        self.inner.next_out = output.as_mut_ptr().cast();
 
         let start_in = self.inner.next_in;
         let start_out = self.inner.next_out;
@@ -268,6 +305,16 @@ impl Deflate {
             ..DeflateConfig::default()
         };
 
+        Self::new_with_config(config)
+    }
+
+    /// Create a new instance with the provided [`DeflateConfig`].
+    ///
+    /// In most cases it is recommended to use the standard [`Deflate::new`] constructor unless
+    /// tweaking `mem_level` or `strategy` is desired.
+    ///
+    /// This allocates, so should be done with care.
+    pub fn new_with_config(config: DeflateConfig) -> Self {
         Self {
             inner: crate::deflate::DeflateStream::new(config),
             total_in: 0,
@@ -283,11 +330,27 @@ impl Deflate {
         crate::deflate::reset(&mut self.inner);
     }
 
-    /// Compress `input` and write compressed bytes to `output`, with `flush` controlling additional characteristics.
+    /// Compress `input` and write compressed bytes to `output`,
+    /// with `flush` controlling additional characteristics.
     pub fn compress(
         &mut self,
         input: &[u8],
         output: &mut [u8],
+        flush: DeflateFlush,
+    ) -> Result<Status, DeflateError> {
+        self.compress_uninit(
+            input,
+            unsafe { &mut *(output as *mut _ as *mut [MaybeUninit<u8>]) },
+            flush,
+        )
+    }
+
+    /// Compress `input` and write compressed bytes to a potentially uninitialized `output`,
+    /// with `flush` controlling additional characteristics.
+    pub fn compress_uninit(
+        &mut self,
+        input: &[u8],
+        output: &mut [MaybeUninit<u8>],
         flush: DeflateFlush,
     ) -> Result<Status, DeflateError> {
         // Limit the length of the input and output to the maximum value of a c_uint. For larger
@@ -298,7 +361,7 @@ impl Deflate {
 
         // This cast_mut is unfortunate, that is just how the types are.
         self.inner.next_in = input.as_ptr().cast_mut();
-        self.inner.next_out = output.as_mut_ptr();
+        self.inner.next_out = output.as_mut_ptr().cast();
 
         let start_in = self.inner.next_in;
         let start_out = self.inner.next_out;
@@ -307,6 +370,13 @@ impl Deflate {
 
         self.total_in += (self.inner.next_in as usize - start_in as usize) as u64;
         self.total_out += (self.inner.next_out as usize - start_out as usize) as u64;
+
+        // Clear these pointers so there can be no use after free.
+        self.inner.next_in = core::ptr::null_mut();
+        self.inner.next_out = core::ptr::null_mut();
+
+        self.inner.avail_in = 0;
+        self.inner.avail_out = 0;
 
         ret
     }
@@ -333,6 +403,13 @@ impl Deflate {
     /// compression level. Flushing the stream before calling this method
     /// ensures that the function will succeed on the first call.
     pub fn set_level(&mut self, level: i32) -> Result<Status, DeflateError> {
+        // Clear these pointers so there can be no use after free.
+        self.inner.next_in = core::ptr::null_mut();
+        self.inner.next_out = core::ptr::null_mut();
+
+        self.inner.avail_in = 0;
+        self.inner.avail_out = 0;
+
         match crate::deflate::params(&mut self.inner, level, Default::default()) {
             ReturnCode::Ok => Ok(Status::Ok),
             ReturnCode::StreamError => Err(DeflateError::StreamError),

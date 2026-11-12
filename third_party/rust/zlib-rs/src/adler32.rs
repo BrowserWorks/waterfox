@@ -9,6 +9,8 @@ mod avx512;
 #[cfg(target_arch = "x86_64")]
 mod avx512_vnni;
 mod generic;
+#[cfg(all(target_arch = "loongarch64", feature = "lsx"))]
+mod lsx;
 #[cfg(target_arch = "aarch64")]
 mod neon;
 #[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
@@ -34,6 +36,11 @@ pub fn adler32(start_checksum: u32, data: &[u8]) -> u32 {
     #[cfg(any(target_arch = "wasm32", target_arch = "wasm64"))]
     if crate::cpu_features::is_enabled_simd128() {
         return self::wasm::adler32_wasm(start_checksum, data);
+    }
+
+    #[cfg(all(target_arch = "loongarch64", feature = "lsx"))]
+    if crate::cpu_features::is_enabled_lsx() {
+        return self::lsx::adler32_lsx(start_checksum, data);
     }
 
     generic::adler32_rust(start_checksum, data)

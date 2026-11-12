@@ -13,7 +13,7 @@
 edition = "2021"
 rust-version = "1.75"
 name = "zlib-rs"
-version = "0.6.3"
+version = "0.6.8"
 build = false
 publish = true
 autolib = false
@@ -39,6 +39,7 @@ default = [
     "std",
     "c-allocator",
 ]
+lsx = []
 rust-allocator = []
 std = ["rust-allocator"]
 vpclmulqdq = []

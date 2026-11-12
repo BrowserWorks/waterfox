@@ -34,6 +34,7 @@ mod gz;
 #[cfg_attr(docsrs, doc(cfg(feature = "gz")))]
 #[cfg(feature = "gz")]
 pub use gz::*;
+use zlib_rs::{MAX_WBITS, MIN_WBITS};
 
 use core::mem::MaybeUninit;
 
@@ -420,6 +421,25 @@ pub extern "C" fn adler32_combine64(adler1: c_ulong, adler2: c_ulong, len2: z_of
     }
 }
 
+/// Like [`uncompress`] but takes a `usize` instead.
+///
+/// # Returns
+///
+/// Same as [`uncompress`].
+///
+/// # Safety
+///
+/// Same as [`uncompress`].
+#[cfg_attr(feature = "export-symbols", export_name = prefix!(uncompress_z))]
+pub unsafe extern "C" fn uncompress_z(
+    dest: *mut u8,
+    destLen: *mut usize,
+    source: *const u8,
+    mut sourceLen: usize,
+) -> c_int {
+    uncompress2_z(dest, destLen, source, &mut sourceLen)
+}
+
 /// Inflates `source` into `dest`, and writes the final inflated size into `destLen`.
 ///
 /// Upon entry, `destLen` is the total size of the destination buffer, which must be large enough to hold the entire
@@ -485,6 +505,49 @@ pub unsafe extern "C" fn uncompress(
     uncompress2(dest, destLen, source, &mut sourceLen)
 }
 
+/// Like [`uncompress2`] but takes a `usize` instead.
+///
+/// # Returns
+///
+/// Same as [`uncompress2`].
+///
+/// # Safety
+///
+/// Same as [`uncompress2`].
+#[cfg_attr(feature = "export-symbols", export_name = prefix!(uncompress2_z))]
+pub unsafe extern "C" fn uncompress2_z(
+    dest: *mut u8,
+    destLen: *mut usize,
+    source: *const u8,
+    sourceLen: *mut usize,
+) -> c_int {
+    // stock zlib will just dereference a NULL pointer: that's UB.
+    // Hence us returning an error value is compatible
+    let Some(destLen) = (unsafe { destLen.as_mut() }) else {
+        return ReturnCode::StreamError as _;
+    };
+
+    let Some(sourceLen) = (unsafe { sourceLen.as_mut() }) else {
+        return ReturnCode::StreamError as _;
+    };
+
+    let Some(output) = (unsafe { slice_from_raw_parts_uninit_mut(dest, *destLen) }) else {
+        return ReturnCode::StreamError as _;
+    };
+
+    let Some(input) = (unsafe { slice_from_raw_parts(source, *sourceLen) }) else {
+        return ReturnCode::StreamError as _;
+    };
+
+    let config = InflateConfig::default();
+    let (consumed, output, err) = zlib_rs::inflate::uncompress2(output, input, config);
+
+    *sourceLen -= consumed as usize;
+    *destLen = output.len();
+
+    err as c_int
+}
+
 /// Inflates `source` into `dest` like [`uncompress`], and writes the final inflated size into `destLen` and the number
 /// of source bytes consumed into `sourceLen`.
 ///
@@ -533,19 +596,13 @@ pub unsafe extern "C" fn uncompress2(
         return ReturnCode::StreamError as _;
     };
 
-    let Some(output) = (unsafe { slice_from_raw_parts_uninit_mut(dest, *destLen as usize) }) else {
-        return ReturnCode::StreamError as _;
-    };
+    let mut got = *destLen as usize;
+    let mut used = *sourceLen as usize;
 
-    let Some(input) = (unsafe { slice_from_raw_parts(source, *sourceLen as usize) }) else {
-        return ReturnCode::StreamError as _;
-    };
+    let err = uncompress2_z(dest, &mut got, source, &mut used);
 
-    let config = InflateConfig::default();
-    let (consumed, output, err) = zlib_rs::inflate::uncompress2(output, input, config);
-
-    *sourceLen -= consumed as c_ulong;
-    *destLen = output.len() as c_ulong;
+    *sourceLen = used as c_ulong;
+    *destLen = got as c_ulong;
 
     err as c_int
 }
@@ -618,7 +675,8 @@ pub unsafe extern "C" fn inflateEnd(strm: *mut z_stream) -> i32 {
 /// - [`Z_OK`] if success
 /// - [`Z_MEM_ERROR`] if there was not enough memory
 /// - [`Z_VERSION_ERROR`] if the zlib library version is incompatible with the version assumed by the caller
-/// - [`Z_STREAM_ERROR`] if a parameter is invalid, such as a null pointer to the structure
+/// - [`Z_STREAM_ERROR`] if a parameter is invalid, such as a null pointer to the `window` or an
+///   invalid `windowBits`.
 ///
 /// # Safety
 ///
@@ -634,6 +692,7 @@ pub unsafe extern "C" fn inflateEnd(strm: *mut z_stream) -> i32 {
 ///     - `zalloc`
 ///     - `zfree`
 ///     - `opaque`
+/// * The `window` pointer points to an allocation of `1 << windowBits` bytes
 #[cfg_attr(feature = "export-symbols", export_name = prefix!(inflateBackInit_))]
 pub unsafe extern "C" fn inflateBackInit_(
     strm: z_streamp,
@@ -649,6 +708,14 @@ pub unsafe extern "C" fn inflateBackInit_(
     let Some(strm) = (unsafe { strm.as_mut() }) else {
         return ReturnCode::StreamError as _;
     };
+
+    if window.is_null() {
+        return ReturnCode::StreamError as _;
+    }
+
+    if !(MIN_WBITS..=MAX_WBITS).contains(&windowBits) {
+        return ReturnCode::StreamError as _;
+    }
 
     let config = InflateConfig {
         window_bits: windowBits,
@@ -1274,9 +1341,54 @@ pub unsafe extern "C" fn deflateSetHeader(strm: *mut z_stream, head: gz_headerp)
 /// * Either
 ///     - `strm` is `NULL`
 ///     - `strm` satisfies the requirements of `&mut *strm` and was initialized with [`deflateInit_`] or similar
+#[cfg_attr(feature = "export-symbols", export_name = prefix!(deflateBound_z))]
+pub unsafe extern "C" fn deflateBound_z(strm: *mut z_stream, sourceLen: usize) -> usize {
+    zlib_rs::deflate::bound(DeflateStream::from_stream_mut(strm), sourceLen)
+}
+
+/// Returns an upper bound on the compressed size after deflation of `sourceLen` bytes.
+///
+/// This function must be called after [`deflateInit_`] or [`deflateInit2_`].
+/// This would be used to allocate an output buffer for deflation in a single pass, and so would be called before [`deflate`].
+/// If that first [`deflate`] call is provided the `sourceLen` input bytes, an output buffer allocated to the size returned by [`deflateBound`],
+/// and the flush value [`Z_FINISH`], then [`deflate`] is guaranteed to return [`Z_STREAM_END`].
+///
+/// Note that it is possible for the compressed size to be larger than the value returned by [`deflateBound`]
+/// if flush options other than [`Z_FINISH`] or [`Z_NO_FLUSH`] are used.
+///
+/// ## Safety
+///
+/// * Either
+///     - `strm` is `NULL`
+///     - `strm` satisfies the requirements of `&mut *strm` and was initialized with [`deflateInit_`] or similar
 #[cfg_attr(feature = "export-symbols", export_name = prefix!(deflateBound))]
 pub unsafe extern "C" fn deflateBound(strm: *mut z_stream, sourceLen: c_ulong) -> c_ulong {
     zlib_rs::deflate::bound(DeflateStream::from_stream_mut(strm), sourceLen as usize) as c_ulong
+}
+
+/// Like [`compress`] but takes a `usize` instead.
+///
+/// # Returns
+///
+/// Same as [`compress`].
+///
+/// # Safety
+///
+/// Same as [`compress`].
+#[cfg_attr(feature = "export-symbols", export_name = prefix!(compress_z))]
+pub unsafe extern "C" fn compress_z(
+    dest: *mut Bytef,
+    destLen: *mut usize,
+    source: *const Bytef,
+    sourceLen: usize,
+) -> c_int {
+    compress2_z(
+        dest,
+        destLen,
+        source,
+        sourceLen,
+        DeflateConfig::default().level,
+    )
 }
 
 /// Compresses `source` into `dest`, and writes the final deflated size into `destLen`.
@@ -1347,6 +1459,45 @@ pub unsafe extern "C" fn compress(
     )
 }
 
+/// Like [`compress2`] but takes a `usize` instead.
+///
+/// # Returns
+///
+/// Same as [`compress2`].
+///
+/// # Safety
+///
+/// Same as [`compress2`].
+#[cfg_attr(feature = "export-symbols", export_name = prefix!(compress2_z))]
+pub unsafe extern "C" fn compress2_z(
+    dest: *mut Bytef,
+    destLen: *mut usize,
+    source: *const Bytef,
+    sourceLen: usize,
+    level: c_int,
+) -> c_int {
+    // stock zlib will just dereference a NULL pointer: that's UB.
+    // Hence us returning an error value is compatible
+    let Some(destLen) = (unsafe { destLen.as_mut() }) else {
+        return ReturnCode::StreamError as _;
+    };
+
+    let Some(output) = (unsafe { slice_from_raw_parts_uninit_mut(dest, *destLen) }) else {
+        return ReturnCode::StreamError as _;
+    };
+
+    let Some(input) = (unsafe { slice_from_raw_parts(source, sourceLen) }) else {
+        return ReturnCode::StreamError as _;
+    };
+
+    let config = DeflateConfig::new(level);
+    let (output, err) = zlib_rs::deflate::compress(output, input, config);
+
+    *destLen = output.len();
+
+    err as c_int
+}
+
 /// Compresses `source` into `dest`, and writes the final deflated size into `destLen`.
 ///
 /// The level parameter has the same meaning as in [`deflateInit_`].
@@ -1388,20 +1539,19 @@ pub unsafe extern "C" fn compress2(
         return ReturnCode::StreamError as _;
     };
 
-    let Some(output) = (unsafe { slice_from_raw_parts_uninit_mut(dest, *destLen as usize) }) else {
-        return ReturnCode::StreamError as _;
-    };
+    let mut got = *destLen as usize;
+    let ret = compress2_z(dest, &mut got, source, sourceLen as usize, level);
+    *destLen = got as c_ulong;
 
-    let Some(input) = (unsafe { slice_from_raw_parts(source, sourceLen as usize) }) else {
-        return ReturnCode::StreamError as _;
-    };
+    ret
+}
 
-    let config = DeflateConfig::new(level);
-    let (output, err) = zlib_rs::deflate::compress(output, input, config);
-
-    *destLen = output.len() as c_ulong;
-
-    err as c_int
+/// Returns an upper bound on the compressed size after [`compress`] or [`compress2`] on `sourceLen` bytes.
+///
+/// Can be used before a [`compress`] or [`compress2`] call to allocate the destination buffer.
+#[cfg_attr(feature = "export-symbols", export_name = prefix!(compressBound_z))]
+pub extern "C" fn compressBound_z(sourceLen: usize) -> usize {
+    zlib_rs::deflate::compress_bound(sourceLen)
 }
 
 /// Returns an upper bound on the compressed size after [`compress`] or [`compress2`] on `sourceLen` bytes.
@@ -1626,6 +1776,39 @@ pub unsafe extern "C" fn deflatePending(
     ReturnCode::Ok as _
 }
 
+/// Writes into `bits` the most recent number of deflate bits used in the last
+/// byte when flushing to a byte boundary. The result is in `1..=8`, or 0 if
+/// there has not yet been a flush. This helps determine the location of the
+/// last bit of a deflate stream.
+///
+/// # Returns
+///
+/// - [`Z_OK`] if success
+/// - [`Z_STREAM_ERROR`] if the source stream state was inconsistent
+///
+/// # Safety
+///
+/// The caller must guarantee that
+///
+/// * Either
+///     - `strm` is `NULL`
+///     - `strm` satisfies the requirements of `&mut *strm` and was initialized with [`deflateInit_`] or similar
+/// * Either
+///     - `bits` is `NULL`
+///     - `bits` satisfies the requirements of [`core::ptr::write::<c_int>`]
+#[cfg_attr(feature = "export-symbols", export_name = prefix!(deflateUsed))]
+pub unsafe extern "C" fn deflateUsed(strm: z_streamp, bits: *mut c_int) -> c_int {
+    let Some(stream) = (unsafe { DeflateStream::from_stream_mut(strm) }) else {
+        return ReturnCode::StreamError as _;
+    };
+
+    if let Some(bits) = unsafe { bits.as_mut() } {
+        *bits = c_int::from(stream.bits_used());
+    }
+
+    ReturnCode::Ok as _
+}
+
 /// Sets the destination stream as a complete copy of the source stream.
 ///
 /// This function can be useful when several compression strategies will be tried, for example when there are several ways of pre-processing the input data with a filter.
@@ -1709,7 +1892,7 @@ pub unsafe extern "C" fn deflateCopy(dest: z_streamp, source: z_streamp) -> c_in
 ///
 /// ```
 /// use core::mem::MaybeUninit;
-/// use libz_rs_sys::{z_stream, deflateInit_, zlibVersion, Z_OK};
+/// use libz_rs_sys::{z_stream, deflateInit_, deflateEnd, zlibVersion, Z_OK};
 ///
 /// // the zalloc and zfree fields are initialized as zero/NULL.
 /// // `deflateInit_` will set a default allocation  and deallocation function.
@@ -1728,6 +1911,8 @@ pub unsafe extern "C" fn deflateCopy(dest: z_streamp, source: z_streamp) -> c_in
 /// // the stream is now fully initialized. Prefer `assume_init_mut` over
 /// // `assume_init` so the stream does not get moved.
 /// let strm = unsafe { strm.assume_init_mut() };
+///
+/// assert_eq!(unsafe { deflateEnd(strm) }, Z_OK);
 /// ```
 #[cfg_attr(feature = "export-symbols", export_name = prefix!(deflateInit_))]
 pub unsafe extern "C" fn deflateInit_(
@@ -1791,7 +1976,7 @@ pub unsafe extern "C" fn deflateInit_(
 ///
 /// ```
 /// use core::mem::MaybeUninit;
-/// use libz_rs_sys::{z_stream, deflateInit2_, zlibVersion, Z_OK};
+/// use libz_rs_sys::{z_stream, deflateInit2_, deflateEnd, zlibVersion, Z_OK};
 ///
 /// // the zalloc and zfree fields are initialized as zero/NULL.
 /// // `deflateInit_` will set a default allocation  and deallocation function.
@@ -1814,6 +1999,8 @@ pub unsafe extern "C" fn deflateInit_(
 /// // the stream is now fully initialized. Prefer `assume_init_mut` over
 /// // `assume_init` so the stream does not get moved.
 /// let strm = unsafe { strm.assume_init_mut() };
+///
+/// assert_eq!(unsafe { deflateEnd(strm) }, Z_OK);
 /// ```
 #[cfg_attr(feature = "export-symbols", export_name = prefix!(deflateInit2_))]
 pub unsafe extern "C" fn deflateInit2_(
@@ -1928,7 +2115,7 @@ pub unsafe extern "C" fn deflateTune(
 pub const extern "C" fn zError(err: c_int) -> *const c_char {
     match ReturnCode::try_from_c_int(err) {
         Some(return_code) => return_code.error_message(),
-        None => [0 as c_char].as_ptr(),
+        None => [0].as_ptr(),
     }
 }
 
